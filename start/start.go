@@ -33,7 +33,7 @@ type configEnv struct {
 }
 
 func start() error {
-	configDirectory := flag.String("configDir", "/home/_nvr/nvr/configs", "configuration directory")
+	configDirectory := flag.String("configDir", "/home/_nvr/os-nvr/configs", "configuration directory")
 	flag.Parse()
 
 	configDir, err := filepath.Abs(*configDirectory)
@@ -62,7 +62,7 @@ func start() error {
 
 	os.Mkdir(env.HomeDir+"/start/build", 0700) //nolint:errcheck
 
-	if err := genFile(filePath, addons); err != nil {
+	if err := genFile(filePath, addons, configDir); err != nil {
 		return err
 	}
 
@@ -128,7 +128,7 @@ func getAddons(configDir string) ([]string, error) {
 }
 
 // genFile inserts addons into "main.go" template and writes to file.
-func genFile(path string, addons []string) error {
+func genFile(path string, addons []string, configDir string) error {
 	const file = `package main
 
 import (
@@ -136,12 +136,12 @@ import (
 	"log"
 	"nvr"
 	"os"
-{{ range . }}
+{{ range .addons }}
 	_ "{{ . }}"{{ end }}
 )
 
 func main() {
-	configDir := flag.String("configDir", "/home/_nvr/nvr/configs", "configuration directory")
+	configDir := flag.String("configDir", "{{.configDir}}", "configuration directory")
 	if err := nvr.Run(*configDir); err != nil {
 		log.Fatal(err)
 	}
@@ -150,10 +150,14 @@ func main() {
 `
 
 	t := template.New("file")
+	data := template.FuncMap{
+		"addons":    addons,
+		"configDir": configDir,
+	}
 	t, _ = t.Parse(file)
 
 	var b bytes.Buffer
-	t.Execute(&b, addons) //nolint:errcheck
+	t.Execute(&b, data) //nolint:errcheck
 
 	if err := ioutil.WriteFile(path, b.Bytes(), 0600); err != nil {
 		return fmt.Errorf("could not write build file: %v", err)

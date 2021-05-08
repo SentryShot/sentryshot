@@ -140,7 +140,7 @@ func TestGenFile(t *testing.T) {
 
 		path := tempDir + "/main.go"
 		addons := []string{"a", "b", "c"}
-		if err := genFile(path, addons); err != nil {
+		if err := genFile(path, addons, "d"); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -160,7 +160,7 @@ import (
 )
 
 func main() {
-	configDir := flag.String("configDir", "/home/_nvr/nvr/configs", "configuration directory")
+	configDir := flag.String("configDir", "d", "configuration directory")
 	if err := nvr.Run(*configDir); err != nil {
 		log.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func main() {
 		}
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
-		if err := genFile("/dev/null/", []string{}); err == nil {
+		if err := genFile("/dev/null/", []string{}, ""); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
