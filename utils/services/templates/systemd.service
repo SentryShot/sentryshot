@@ -1,0 +1,17 @@
+[Unit]
+After=network.target network-online.target
+Requires=network-online.target
+
+[Service]
+User=_nvr
+Group=_nvr 
+ExecStart=$cmd
+TimeoutStopSec=5s
+LimitNOFILE=1048576
+LimitNPROC=512
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
+

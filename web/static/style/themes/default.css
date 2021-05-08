@@ -1,0 +1,16 @@
+:root {
+	--color-text: hsl(215, 40%, 90%);
+	--colorbg: hsl(215, 40%, 8%);
+	--color1: hsl(215, 40%, 17%);
+	--color1-hover: hsl(215, 40%, 22%);
+	--color2: hsl(215, 40%, 22%);
+	--color2-hover: hsl(215, 40%, 28%);
+	--color3: hsl(215, 40%, 28%);
+	--color3-hover: hsl(215, 40%, 22%);
+	--color-icons: invert(75%);
+	--color-green: hsl(120, 55%, 26%);
+	--color-green-hover: hsl(120, 55%, 17%);
+	--color-orange: hsl(40, 100%, 50%);
+	--color-red: hsl(0, 70%, 50%);
+	--color-red-hover: hsl(0, 70%, 40%);
+}

@@ -1,0 +1,12 @@
+/shm
+/storage
+
+/node_modules
+/coverage
+/package-lock.json
+
+/local
+*.swp
+*.backup
+/.vscode
+

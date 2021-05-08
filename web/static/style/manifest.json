@@ -1,0 +1,13 @@
+{
+	"name": "NVR",
+	"short_name": "NVR",
+	"start_url": "/",
+	"display": "standalone",
+	"icons": [
+		{
+			"src": "../icons/icon_192.png",
+			"sizes": "192x192",
+			"type": "image/png"
+		}
+	]
+}

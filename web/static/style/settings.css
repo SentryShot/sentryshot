@@ -1,0 +1,323 @@
+/*
+ * Copyright 2020-2021 The OS-NVR Authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#nav-link-settings {
+	background: var(--color1-hover);
+}
+
+#content {
+	display: flex;
+}
+
+.settings-navbar {
+	flex-shrink: 0;
+	width: 100%;
+	overflow-x: hidden;
+	background: var(--color2);
+	transition: width 400ms;
+}
+
+.settings-navbar-closed {
+	width: 0;
+}
+
+#settings-navbar-nav {
+	width: 100vw;
+	height: 100%;
+}
+
+.settings-nav-item {
+	display: flex;
+	align-items: center;
+	padding: 0.2rem 1rem 0.2rem 0.4rem;
+	border-color: var(--color2-hover);
+	border-width: 0.01rem;
+	border-bottom-style: solid;
+}
+
+.settings-nav-item img {
+	height: 0.7rem;
+	margin-right: 0.3rem;
+	overflow-x: hidden;
+	font-size: 0.8rem;
+	filter: var(--color-icons);
+}
+
+.settings-nav-item span {
+	color: var(--color-text);
+	font-size: 0.7rem;
+}
+
+.settings-nav-item:hover {
+	background: var(--color2-hover);
+}
+
+.settings-nav-btn-selected {
+	background: var(--color3);
+}
+
+.settings-sub-nav-btn-selected {
+	background: var(--color3-hover);
+}
+
+.settings-category-wrapper {
+	display: none;
+	width: 0;
+	overflow-x: hidden;
+	transition: width 400ms;
+}
+
+.settings-simple-category {
+	width: 100vw;
+}
+
+.settings-category {
+	z-index: 0;
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+	flex-shrink: 0;
+	height: 100%;
+	overflow-x: hidden;
+	overflow-y: auto;
+	background: var(--color3);
+	transition: width 400ms;
+}
+
+.settings-category-selected {
+	display: flex;
+	width: 100%;
+}
+
+.settings-category-nav {
+	display: flex;
+	flex-direction: column;
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+
+.settings-category-nav-item {
+	align-items: center;
+	padding: 0.3rem;
+	border-color: var(--colorbg);
+	border-bottom: solid;
+	border-bottom-width: 0.05rem;
+}
+
+.settings-category-nav-item span {
+	margin-right: 0.5rem;
+	color: var(--color-text);
+	font-size: 0.7rem;
+}
+
+.settings-category-nav-item:hover {
+	background: var(--color3-hover);
+}
+
+.settings-sub-category {
+	display: flex;
+	flex-direction: column;
+	width: 0;
+	background: var(--color2);
+	transition: width 400ms;
+}
+
+.settings-subcategory-open {
+	width: 100%;
+}
+
+.settings-menubar {
+	display: flex;
+	width: 100%;
+	height: var(--barsize);
+	background: var(--color2);
+}
+
+.settings-subcategory-menubar {
+	background: var(--color3);
+}
+
+.settings-menu-back-btn {
+	display: flex;
+	width: 1.4rem;
+}
+
+.settings-menu-back-btn img {
+	width: 1.1rem;
+	height: 1.1rem;
+	padding: var(--icon-padding);
+	filter: var(--color-icons);
+}
+
+.settings-add-btn {
+	margin-top: 0.2rem;
+	margin-right: auto;
+	margin-left: 0.3rem;
+	padding: 0.1rem;
+	background: var(--color-green);
+	border-radius: 0.1rem;
+}
+
+.settings-add-btn:hover {
+	background: var(--color-green-hover);
+}
+
+.settings-add-btn span {
+	color: var(--color-text);
+	font-size: 0.7rem;
+}
+
+.settings-category-title {
+	width: 100%;
+	margin: auto;
+	margin-right: 1.4rem;
+	color: var(--color-text);
+	font-size: 0.8rem;
+	text-align: center;
+}
+
+.settings-form-item {
+	align-items: center;
+	padding: 0.25rem;
+	border-color: var(--colorbg);
+	border-bottom: solid;
+	border-bottom-width: 0.05rem;
+}
+
+.settings-form-item-error {
+	align-items: center;
+	padding: 0.2rem;
+	padding-bottom: 0.1rem;
+	border-color: var(--colorbg);
+	border-bottom: solid;
+	border-bottom-width: 0.05rem;
+}
+
+.settings-label {
+	float: left;
+	width: 95vw;
+	min-width: 4rem;
+	color: var(--color-text);
+	font-size: 0.6rem;
+}
+
+.settings-input-text {
+	width: 100%;
+	height: 1rem;
+	overflow: auto;
+	font-size: 0.5rem;
+	text-indent: 12px;
+	border-style: none;
+	border-radius: 5px;
+}
+
+.settings-error {
+	height: 0.5rem;
+	color: var(--color-red);
+	font-size: 0.4rem;
+	white-space: nowrap;
+}
+
+.password-strength {
+	color: var(--color-orange);
+}
+
+.settings-select {
+	width: 100%;
+	height: 1rem;
+	font-size: 0.5rem;
+}
+
+.settings-select-container {
+	display: flex;
+	width: 100%;
+}
+
+.settings-select-custom-btn {
+	flex-shrink: 0;
+	width: 1rem;
+	height: 1rem;
+	margin-left: 0.5rem;
+	padding: 0;
+	border: 0;
+	border-radius: 0.2rem;
+}
+
+.settings-select-custom-btn:hover {
+	background: black;
+}
+
+.settings-edit-btn {
+	width: 1rem;
+	height: 1rem;
+	margin-left: 0.4rem;
+	border-radius: 0.2rem;
+}
+
+.settings-edit-btn img {
+	width: 0.8rem;
+	height: 0.8rem;
+	padding: 0.1rem;
+	filter: var(--color-icons);
+}
+
+/* Tablet/Dektop. */
+@media only screen and (min-width: 768px) {
+	.settings-navbar {
+		width: auto;
+		padding-top: 2rem;
+	}
+
+	#settings-navbar-nav {
+		width: auto;
+	}
+
+	.settings-category {
+		width: auto;
+		min-width: 5rem;
+		transition: width 0ms;
+	}
+
+	.settings-category-wrapper {
+		transition: width 0ms;
+	}
+
+	.settings-sub-category {
+		width: 1000%;
+		visibility: hidden;
+	}
+
+	.settings-subcategory-open {
+		visibility: visible;
+	}
+
+	.settings-menubar {
+		display: none;
+	}
+
+	.settings-label {
+		width: auto;
+	}
+
+	.settings-users-item {
+		width: 100%;
+	}
+
+	.settings-users-info {
+		display: flex;
+		align-items: center;
+	}
+}

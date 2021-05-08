@@ -1,0 +1,110 @@
+{
+	"description": "Optional development tools, requires node 12.17+",
+	"scripts": {
+		"test": "NODE_OPTIONS=--experimental-vm-modules jest",
+		"coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+		"cover": "NODE_OPTIONS=--experimental-vm-modules jest --coverage --reporter=json npm test",
+		"format": "npx prettier -w './{,!(coverage)/**/!(vendor)/}*.{js,mjs,css}'",
+		"lint-js": "npx eslint './{,!(coverage)/**/!(vendor)/}*.{js,mjs}' --fix --cache=true --cache-location=./node_modules/.cache/eslint",
+		"lint-css": "npx stylelint './{,!(coverage)/**/!(vendor)/}*.css' --fix --cache=true --cache-location=./node_modules/.cache/stylelint"
+	},
+	"devDependencies": {
+		"browserslist": "^4.16.3",
+		"eslint": "^7.22.0",
+		"eslint-plugin-compat": "^3.9.0",
+		"eslint-plugin-jest": "^24.1.5",
+		"eslint-plugin-promise": "^4.3.1",
+		"eslint-plugin-unicorn": "^23.0.0",
+		"jest": "^26.6.3",
+		"prettier": "^2.2.1",
+		"prettier-plugin-go-template": "0.0.10",
+		"stylelint": "^13.12.0",
+		"stylelint-config-prettier": "^8.0.2",
+		"stylelint-config-rational-order": "^0.1.2",
+		"stylelint-config-standard": "^21.0.0",
+		"stylelint-no-unsupported-browser-features": "^4.1.4",
+		"stylelint-order": "^4.1.0"
+	},
+	"jest": {
+		"transform": {},
+		"testMatch": [
+			"**/*_test.mjs"
+		],
+		"moduleFileExtensions": [
+			"js",
+			"mjs"
+		],
+		"cacheDirectory": "./node_modules/.cache/jest",
+		"coverageDirectory": "coverage"
+	},
+	"prettier": {
+		"printWidth": 90,
+		"tabWidth": 4,
+		"useTabs": true
+	},
+	"eslintConfig": {
+		"env": {
+			"browser": true,
+			"es2015": true,
+			"node": true
+		},
+		"extends": [
+			"eslint:recommended",
+			"plugin:promise/recommended",
+			"plugin:compat/recommended",
+			"plugin:unicorn/recommended",
+			"plugin:jest/recommended",
+			"plugin:jest/style"
+		],
+		"parserOptions": {
+			"ecmaVersion": 8,
+			"sourceType": "module"
+		},
+		"plugins": [
+			"unicorn",
+			"jest"
+		],
+		"rules": {
+			"unicorn/consistent-function-scoping": "off",
+			"unicorn/prevent-abbreviations": "off",
+			"unicorn/filename-case": [
+				"error",
+				{
+					"cases": {
+						"snakeCase": true,
+						"kebabCase": true
+					}
+				}
+			]
+		}
+	},
+	"stylelint": {
+		"extends": [
+			"stylelint-config-standard",
+			"stylelint-config-prettier",
+			"stylelint-config-rational-order"
+		],
+		"plugins": [
+			"stylelint-no-unsupported-browser-features"
+		],
+		"rules": {
+			"plugin/no-unsupported-browser-features": [
+				true,
+				{
+					"ignore": [
+						"multicolumn"
+					]
+				}
+			]
+		}
+	},
+	"browserslist": [
+		"Android 90",
+		"Chrome 54",
+		"Edge 79",
+		"Firefox 52",
+		"IOS 10.3",
+		"Opera 41",
+		"Safari 10.1"
+	]
+}
