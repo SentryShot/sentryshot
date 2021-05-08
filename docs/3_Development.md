@@ -1,14 +1,11 @@
 -   [REST API](#rest-api)
-
-*   [System](#system)
-*   [General](#general)
-*   [User](#user)
-*   [Monitor](#monitor)
-*   [Recording](#recording)
-
+	-   [System](#system)
+	-   [General](#general)
+	-   [User](#user)
+	-   [Monitor](#monitor)
+	-   [Recording](#recording)
 -   [Websockets API](#websockets-api)
-
-*   [Logs](#logs)
+	-   [Logs](#logs)
 
 # REST API
 

@@ -1,10 +1,10 @@
 # Configuration
 
-* [General](#general)
+- [General](#general)
 	- [Disk space](#disk-space)
 	- [Theme](#theme)
 	
-* [Monitors](#monitors)
+- [Monitors](#monitors)
 	- [ID](#id)
 	- [Name](#name)
 	- [Enable](#enable)
@@ -17,9 +17,9 @@
 	- [Timestamp offset](#timestamp-offset)
 	- [Log level](#log-level)
 
-* [Users](#users)
-* [Addons](#addons)
-* [Environment](#environment)
+- [Users](#users)
+- [Addons](#addons)
+- [Environment](#environment)
 
 <br>
 

@@ -14,7 +14,7 @@
 
 "OS-NVR" is a temporary name. #2
 
-Use [Issues]() for bug reports, feature requests and support.
+Use [Issues](https://gitlab.com/osnvr/os-nvr/-/issues) for bug reports, feature requests and support.
 
 ## Features
 - +80% test coverage

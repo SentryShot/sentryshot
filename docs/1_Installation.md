@@ -9,7 +9,7 @@
 
 ## Automatic installation
 
-    wget https://gitlab.com/osnvr/os-nvr-assets/-/raw/master/installer.sh && sudo ./install.sh
+    wget https://gitlab.com/osnvr/os-nvr_assets/-/raw/master/installer.sh && sudo ./install.sh
 
 <br>
 
@@ -28,8 +28,8 @@ Create an unprivileged user named `_nvr`
 Go to `_nvr` home and clone repository.
 
     cd /home/_nvr/
-    sudo -u _nvr git clone _
-    cd ./_
+    sudo -u _nvr git clone --branch master https://gitlab.com/osnvr/os-nvr.git
+    cd ./os-nvr
 
 Copy sample configs.
 
@@ -39,9 +39,13 @@ Check if the values in `env.json`are correct.
 
     sudo -u _nvr nano ./configs/env.json
 
+Download Golang dependencies.
+	
+	sudo -u _nvr go mod download
+
 Run service creation script
 
-    sudo ./utils/services/systemd.sh --name=nvr --cmd="/usr/bin/go run /home/_nvr/nvr/start/start.go"
+    sudo ./utils/services/systemd.sh --name=nvr --cmd="/usr/bin/go run /home/_nvr/os-nvr/start/start.go"
 
 <br>
 
