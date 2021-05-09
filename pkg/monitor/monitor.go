@@ -35,8 +35,14 @@ import (
 // Config Monitor configuration.
 type Config map[string]string
 
+type StartHook func(*Monitor)
+type StartMainHook func(*Monitor, *string)
+
 // Hook monitor start addon hook.
-type Hook func(*Monitor, *string)
+type Hooks struct {
+	Start     StartHook
+	StartMain StartMainHook
+}
 
 // Event is a recording trigger event.
 type Event struct {
@@ -53,7 +59,7 @@ type Monitor struct {
 	running   bool
 	recording bool
 
-	hook            Hook
+	hooks           Hooks
 	newProcess      func(cmd *exec.Cmd) ffmpeg.Process
 	sizeFromStream  func(string) (string, error)
 	waitForKeyframe func(context.Context, string) (time.Duration, error)
@@ -71,22 +77,22 @@ type Manager struct {
 	env      *storage.ConfigEnv
 	log      *log.Logger
 	path     string
-	hook     Hook
+	hooks    Hooks
 	mu       sync.Mutex
 }
 
 // NewMonitorManager return new monitors configuration.
-func NewMonitorManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hook Hook) (*Manager, error) {
+func NewMonitorManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hooks Hooks) (*Manager, error) {
 	configFiles, err := readConfigs(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read configuration files: %s", err)
 	}
 
 	manager := &Manager{
-		env:  env,
-		log:  log,
-		path: configPath,
-		hook: hook,
+		env:   env,
+		log:   log,
+		path:  configPath,
+		hooks: hooks,
 	}
 
 	monitors := make(map[string]*Monitor)
@@ -124,7 +130,7 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		Config:  config,
 		Trigger: make(chan Event),
 
-		hook:            m.hook,
+		hooks:           m.hooks,
 		newProcess:      ffmpeg.NewProcess,
 		sizeFromStream:  ffmpeg.New(m.env.FFmpegBin).SizeFromStream,
 		waitForKeyframe: ffmpeg.WaitForKeyframe,
@@ -254,6 +260,8 @@ func (m *Monitor) Start() error {
 		}()
 	}
 
+	m.hooks.Start(m)
+
 	go m.startMainProcess()
 	go m.startRecorder()
 
@@ -296,7 +304,7 @@ func (m *Monitor) mainProcess(ctx context.Context) error {
 
 	args := m.generateMainArgs()
 
-	m.hook(m, &args)
+	m.hooks.StartMain(m, &args)
 
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 

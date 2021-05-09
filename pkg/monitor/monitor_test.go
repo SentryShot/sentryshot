@@ -84,7 +84,7 @@ func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 		configDir,
 		&storage.ConfigEnv{},
 		logger,
-		func(*Monitor, *string) {},
+		Hooks{},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +128,7 @@ func TestNewManager(t *testing.T) {
 			"/dev/null/nil.json",
 			&storage.ConfigEnv{},
 			&log.Logger{},
-			func(*Monitor, *string) {},
+			Hooks{},
 		)
 
 		if err == nil {
@@ -148,7 +148,7 @@ func TestNewManager(t *testing.T) {
 			configDir,
 			&storage.ConfigEnv{},
 			&log.Logger{},
-			func(*Monitor, *string) {},
+			Hooks{},
 		)
 
 		if err == nil {
@@ -316,7 +316,7 @@ func newTestMonitor() (*Monitor, func()) {
 		},
 		Trigger:         make(chan Event),
 		running:         true,
-		hook:            mockHook,
+		hooks:           mockHooks,
 		newProcess:      mockNewProcess,
 		sizeFromStream:  mockSizeFromStream,
 		waitForKeyframe: mockWaitForKeyframe,
@@ -643,7 +643,10 @@ func mockSizeFromStreamErr(string) (string, error) {
 	return "", errors.New("mock")
 }
 
-func mockHook(*Monitor, *string) {}
+var mockHooks = Hooks{
+	Start:     func(_ *Monitor) {},
+	StartMain: func(_ *Monitor, _ *string) {},
+}
 
 // Sleeps for 15ms before returning.
 type mockProcess struct{}

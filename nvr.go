@@ -57,7 +57,7 @@ func Run(configDir string) error { //nolint:funlen
 		return fmt.Errorf("could not prepare environment: %v", err)
 	}
 
-	monitorManager, err := monitor.NewMonitorManager("./configs/monitors", envConfig, logger, monitorHook)
+	monitorManager, err := monitor.NewMonitorManager("./configs/monitors", envConfig, logger, monitorHooks())
 	if err != nil {
 		return fmt.Errorf("could not create monitor manager: %v", err)
 	}

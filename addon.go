@@ -20,8 +20,9 @@ import (
 )
 
 var (
-	tplHooks     []web.Hook
-	monitorHooks []monitor.Hook
+	tplHooks              []web.Hook
+	monitorStartHooks     []monitor.StartHook
+	monitorStartMainHooks []monitor.StartMainHook
 )
 
 // RegisterTplHook registers hook that's called on page render.
@@ -29,9 +30,14 @@ func RegisterTplHook(h web.Hook) {
 	tplHooks = append(tplHooks, h)
 }
 
+// RegisterMonitorHook registers hook that's called when the monitor starts.
+func RegisterMonitorStartHook(h monitor.StartHook) {
+	monitorStartHooks = append(monitorStartHooks, h)
+}
+
 // RegisterMonitorHook registers hook that's called when the main monitor process starts.
-func RegisterMonitorHook(h monitor.Hook) {
-	monitorHooks = append(monitorHooks, h)
+func RegisterMonitorStartProcessHook(h monitor.StartMainHook) {
+	monitorStartMainHooks = append(monitorStartMainHooks, h)
 }
 
 func tplHook(pageFiles map[string]string) error {
@@ -43,8 +49,20 @@ func tplHook(pageFiles map[string]string) error {
 	return nil
 }
 
-func monitorHook(m *monitor.Monitor, args *string) {
-	for _, hook := range monitorHooks {
-		hook(m, args)
+func monitorHooks() monitor.Hooks {
+	startHook := func(m *monitor.Monitor) {
+		for _, hook := range monitorStartHooks {
+			hook(m)
+		}
+	}
+	startMainHook := func(m *monitor.Monitor, args *string) {
+		for _, hook := range monitorStartMainHooks {
+			hook(m, args)
+		}
+	}
+
+	return monitor.Hooks{
+		Start:     startHook,
+		StartMain: startMainHook,
 	}
 }

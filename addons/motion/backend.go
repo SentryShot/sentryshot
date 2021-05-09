@@ -34,20 +34,28 @@ import (
 )
 
 func init() {
-	nvr.RegisterMonitorHook(func(m *monitor.Monitor, mainArgs *string) {
-		if err := loadAddon(m, mainArgs); err != nil {
+	nvr.RegisterMonitorStartHook(func(m *monitor.Monitor) {
+		if err := onMonitorStart(m); err != nil {
 			m.Log.Println(err)
 		}
 	})
+	nvr.RegisterMonitorStartProcessHook(modifyMainArgs)
 }
 
-func loadAddon(m *monitor.Monitor, mainArgs *string) error {
+func modifyMainArgs(m *monitor.Monitor, args *string) {
+	pipePath := m.Env.SHMDir + "/motion/" + m.ID() + "/main.fifo"
+
+	*args += " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
+		" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
+		" -restart_with_keyframe 1 -recovery_wait_time 1 " + pipePath
+}
+
+func onMonitorStart(m *monitor.Monitor) error {
 	if m.Config["motionDetection"] != "true" {
 		return nil
 	}
 
 	a := newAddon(m)
-	a.modifyMainArgs(mainArgs)
 
 	if err := os.MkdirAll(a.zonesDir(), 0700); err != nil && err != os.ErrExist {
 		return fmt.Errorf("%v: motion: could not make directory for zones: %v", m.Name(), err)
@@ -128,13 +136,7 @@ func (a addon) zonesDir() string {
 }
 
 func (a addon) mainPipe() string {
-	return a.fifoDir() + a.m.ID() + "/" + "main.fifo"
-}
-
-func (a addon) modifyMainArgs(args *string) {
-	*args += " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
-		" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
-		" -restart_with_keyframe 1 -recovery_wait_time 1 " + a.mainPipe()
+	return a.fifoDir() + a.m.ID() + "/main.fifo"
 }
 
 func (a addon) unmarshalZones() ([]zone, error) {
@@ -233,44 +235,42 @@ func (a addon) startDetector(args []string) {
 			a.m.Log.Printf("%v: motion: detector stopped\n", a.m.Name())
 			return
 		}
-
-		cmd := exec.Command("ffmpeg", args...)
-		process := ffmpeg.NewProcess(cmd)
-
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			a.m.Log.Printf("%v: motion: stdout: %v", a.m.Name(), err)
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		go func() {
-			//drainReader(stdout)
-			io.Copy(os.Stdout, stdout) //nolint
-		}()
-
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			a.m.Log.Printf("%v: motion: stderr: %v\n", a.m.Name(), err)
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		a.m.Log.Printf("%v: motion: starting detector: %v\n", a.m.Name(), cmd)
-
-		go a.parseFFmpegOutput(stderr)
-
-		err = process.Start(a.ctx)
-		if a.ctx.Err() != nil {
-			a.m.WG.Done()
-			a.m.Log.Printf("%v: motion: detector stopped\n", a.m.Name())
-			return
-		}
-		if err != nil {
-			a.m.Log.Printf("%v: motion: detector crashed: %v\n", a.m.Name(), err)
+		if err := a.detectorProcess(args); err != nil {
+			a.m.Log.Printf("%v: motion: %v\n", a.m.Name(), err)
 			time.Sleep(1 * time.Second)
 		}
 	}
+}
+
+func (a addon) detectorProcess(args []string) error {
+	cmd := exec.Command("ffmpeg", args...)
+	process := ffmpeg.NewProcess(cmd)
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("stdout: %v", err)
+	}
+
+	go func() {
+		//drainReader(stdout)
+		io.Copy(os.Stdout, stdout) //nolint
+	}()
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("stderr: %v", err)
+	}
+
+	a.m.Log.Printf("%v: motion: starting detector: %v\n", a.m.Name(), cmd)
+
+	go a.parseFFmpegOutput(stderr)
+
+	err = process.Start(a.ctx)
+
+	if err != nil {
+		return fmt.Errorf("detector crashed: %v", err)
+	}
+	return nil
 }
 
 func (a addon) parseFFmpegOutput(stderr io.Reader) {
