@@ -75,16 +75,18 @@ function newViewer($parent, monitors, Hls) {
 						type="checkbox"
 					/>
 					<label
-						class="live-menu-btn"
+						class="live-menu-selector"
 						for="${id}-menu-checkbox"
 					></label>
-					<button class="live-menu-wrapper">
-						<img
-							id="js-mute-btn-${id}"
-							class="nav-icon live-mute-btn"
-							src="${iconMutedPath}"
-						/>
-					</button>`
+					<div class="live-menu">
+						<button class="live-menu-btn">
+							<img
+								id="js-mute-btn-${id}"
+								class="nav-icon"
+								src="${iconMutedPath}"
+							/>
+						</button>
+					</div>`
 						: ""}
 					<video
 						class="grid-item"

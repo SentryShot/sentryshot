@@ -47,14 +47,19 @@ describe("newViewer", () => {
 					id="3-menu-checkbox"
 					type="checkbox"
 				>
-				<label class="live-menu-btn" for="3-menu-checkbox" ></label>
-				<button class="live-menu-wrapper">
-					<img
-						id="js-mute-btn-3"
-						class="nav-icon live-mute-btn"
-						src="static/icons/feather/volume-x.svg"
-					>
-				</button>
+				<label 
+					class="live-menu-selector"
+					for="3-menu-checkbox" 
+				></label>
+				<div class="live-menu">
+					<button class="live-menu-btn">
+						<img
+							id="js-mute-btn-3"
+							class="nav-icon"
+							src="static/icons/feather/volume-x.svg"
+						>
+					</button>
+				</div>
 				<video
 					class="grid-item"
 					id="js-video-3"

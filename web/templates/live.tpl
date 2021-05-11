@@ -35,56 +35,59 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 		background: var(--color1-hover);
 	}
 
+	.grid-item-container {
+		align-items: end;
+		justify-content: center;
+	}
 	.live-menu-checkbox {
 		position: absolute;
 		opacity: 0;
 	}
-
-	.live-menu-btn {
+	.live-menu-selector {
 		position: absolute;
 		z-index: 1;
 		width: 100%;
 		height: 100%;
 		opacity: 0.5;
 	}
-
-	.live-menu-wrapper {
+	.live-menu {
 		position: absolute;
-		top: 0;
-		right: 0;
-		bottom: 0;
-		left: 0;
 		z-index: 2;
-		width: 7em;
-		height: 7em;
-		margin: auto;
+		display: flex;
 		margin-bottom: 10%;
-		padding: 2.4%;
-		font-size: 20%;
-		background: var(--color2);
-		border: none;
-
-		border-radius: 20%;
 		visibility: hidden;
 		opacity: 0.1;
 		transition: visibility 0.8s, opacity 0.7s;
 		transition-timing-function: ease-in;
 	}
-	.live-menu-wrapper::-moz-focus-inner {
+	.live-menu-btn {
+		padding: 0.1rem;
+		font-size: 0;
+		background: var(--color2);
+		border: none;
+		border-radius: 15%;
+	}
+	.live-menu-btn img {
+		height: 0.9rem;
+	}
+	.live-menu-btn::-moz-focus-inner {
 		border: 0;
 	}
-	.live-menu-wrapper:hover {
-		background: var(--color2-hover);
+
+	.live-menu:hover {
 		visibility: visible;
 		opacity: 1;
 	}
-	.live-menu-checkbox:checked ~ .live-menu-wrapper {
+	.live-menu-btn:hover {
+		background: var(--color2-hover);
+	}
+	.live-menu-checkbox:checked ~ .live-menu {
 		visibility: visible;
 		opacity: 1;
 		transition: visibility 0s;
 		transition: opacity 0s;
 	}
-	.live-menu-checkbox:hover ~ .live-menu-wrapper {
+	.live-menu-checkbox:hover ~ .live-menu {
 		visibility: visible;
 		opacity: 1;
 		transition: visibility 0s, opacity 0.1s;
