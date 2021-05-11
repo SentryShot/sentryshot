@@ -30,18 +30,18 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 	#log-list {
 		height: 100%;
 		overflow-y: auto;
+		color: var(--color-text);
 		font-size: 0.5rem;
 		word-wrap: break-word;
-		color: var(--color-text);
 		background: var(--color3);
+	}
+	#log-list > span {
+		border-color: var(--color4);
+		border-width: 0.04rem;
+		border-top: solid;
 	}
 	#log-list > span:first-of-type {
 		border-top: none;
-	}
-	#log-list > span {
-		border-top: solid;
-		border-width: 0.04rem;
-		border-color: var(--color4);
 	}
 </style>
 {{ template "html2" }}

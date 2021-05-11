@@ -20,40 +20,39 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 	<div id="content">
 		<div id="log-list"></div>
 		<div id="buttons">
-			<btn id="copy-btn">Copy to clipboard</btn>
+			<button id="copy-btn">Copy to clipboard</button>
 		</div>
 	</div>
 </body>
 <style>
 	#log-list {
-		height: 100%;
+		display: flex;
+		flex-direction: column;
 		max-width: 100%;
+		height: 100%;
 		overflow-y: auto;
 		font-size: 1.5rem;
 		word-wrap: break-word;
 		background: lightgrey;
-		width: max-content;
-		display: flex;
-		flex-direction: column;
+	}
+	#log-list > span {
+		padding: 0 0.5rem;
+		border-width: 0.04rem;
+		border-top: solid;
 	}
 	#log-list > span:first-of-type {
 		border-top: none;
 	}
-	#log-list > span {
-		border-top: solid;
-		border-width: 0.04rem;
-		padding: 0rem 0.5rem;
-	}
 	#buttons {
 		padding-top: 1rem;
 	}
-	btn {
-		background: grey;
+	button {
 		padding: 0.2rem;
-		border-radius: 0.3rem;
 		font-size: 1.5rem;
+		background: grey;
+		border-radius: 0.3rem;
 	}
-	btn:hover {
+	button:hover {
 		background: darkgrey;
 	}
 </style>
