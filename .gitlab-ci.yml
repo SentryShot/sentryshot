@@ -1,0 +1,53 @@
+default:
+    image: osnvr/os-nvr_ci
+
+cache: &global_cache
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+        - node_modules/
+        - .cache/
+
+run:
+    script:
+        - |
+            # Setup.
+            export GOPATH="$CI_PROJECT_DIR/.cache/GOPATH"
+            export GOCACHE="$CI_PROJECT_DIR/.cache/GOCACHE"
+
+            if [ ! -d "node_modules" ]; then
+                npm install
+            fi
+
+            files_changed="$(git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA)" || (
+                printf "no files changed\\n"
+                exit 0
+            )
+
+            # Do not format it "no_fmt" is set.
+            if [ "${no_fmt}" != "" ]; then
+                ./utils/ci.sh "$files_changed"
+            else
+                # Run ci, including formatting.
+                ./utils/ci-fmt.sh "$files_changed"
+
+                # If files were modified.
+                git status -s
+                files="$(git status -s | wc -l)"
+                if [ "$files" == 0 ]; then
+                    exit 0
+                fi
+
+                if [ "${GIT_PUSH_TOKEN}" == "" ]; then
+                    printf "Please add access token."
+                    exit 1
+                fi
+
+                # Push formatted code.
+                echo "committing"
+                git checkout dev
+                git config --global user.name "${GITLAB_USER_ID}"
+                git config --global user.email "${GITLAB_USER_EMAIL}"
+                git add .
+                git commit --amend --no-edit
+                git push -f -o ci.skip "https://${GITLAB_USER_NAME}:${GIT_PUSH_TOKEN}@${CI_REPOSITORY_URL#*@}"
+            fi

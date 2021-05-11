@@ -6,4 +6,4 @@ script_path=$(readlink -f "$0")
 home_dir=$(dirname "$(dirname "$script_path")")
 cd "$home_dir" || exit
 
-npm run lint-js
+npm run lint-js-fix
