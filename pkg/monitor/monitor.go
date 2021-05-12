@@ -124,7 +124,6 @@ func readConfigs(path string) ([][]byte, error) {
 }
 
 func (m *Manager) newMonitor(config Config) *Monitor {
-	ctx, cancel := context.WithCancel(context.Background())
 	return &Monitor{
 		Env:     m.env,
 		Config:  config,
@@ -135,10 +134,8 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		sizeFromStream:  ffmpeg.New(m.env.FFmpegBin).SizeFromStream,
 		waitForKeyframe: ffmpeg.WaitForKeyframe,
 
-		WG:     &sync.WaitGroup{},
-		Log:    m.log,
-		Ctx:    ctx,
-		cancel: cancel,
+		WG:  &sync.WaitGroup{},
+		Log: m.log,
 	}
 }
 
@@ -147,8 +144,15 @@ func (m *Manager) MonitorSet(id string, c Config) error {
 	defer m.mu.Unlock()
 	m.mu.Lock()
 
-	monitor := m.newMonitor(c)
-	m.Monitors[id] = monitor
+	monitor, exist := m.Monitors[id]
+	if exist {
+		monitor.mu.Lock()
+		monitor.Config = c
+		monitor.mu.Unlock()
+	} else {
+		monitor = m.newMonitor(c)
+		m.Monitors[id] = monitor
+	}
 
 	// Update file.
 	monitor.mu.Lock()
@@ -240,7 +244,12 @@ func (m *Monitor) Start() error {
 		m.Log.Printf("%v: disabled\n", m.Name())
 		return nil
 	}
+
 	m.Log.Printf("%v: starting\n", m.Name())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m.Ctx = ctx
+	m.cancel = cancel
 
 	tmpDir := m.Env.SHMhls() + "/" + m.ID()
 
@@ -279,7 +288,7 @@ func (m *Monitor) startMainProcess() {
 			m.WG.Done()
 			m.mu.Unlock()
 
-			m.Log.Printf("%v: main process stopped\n", m.Name())
+			m.Log.Printf("%v: main process: stopped\n", m.Name())
 			return
 		}
 
@@ -431,7 +440,9 @@ func (m *Monitor) recordingProcess(ctx context.Context) error {
 	process.SetTimeout(10 * time.Second)
 
 	m.Log.Printf("%v: starting recording: %v\n", m.Name(), cmd)
+	m.mu.Lock()
 	prefix := m.Name() + ": recording process: "
+	m.mu.Unlock()
 	err = process.StartWithLogger(ctx, m.Log, prefix)
 
 	if err := m.saveRecording(filePath, startTime); err != nil {
@@ -506,7 +517,9 @@ func (m *Monitor) Stop() {
 	m.running = false
 	m.mu.Unlock()
 
-	m.cancel()
+	if m.cancel != nil {
+		m.cancel()
+	}
 	m.WG.Wait()
 }
 

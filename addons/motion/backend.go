@@ -43,6 +43,10 @@ func init() {
 }
 
 func modifyMainArgs(m *monitor.Monitor, args *string) {
+	if m.Config["motionDetection"] != "true" {
+		return
+	}
+
 	pipePath := m.Env.SHMDir + "/motion/" + m.ID() + "/main.fifo"
 
 	*args += " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +

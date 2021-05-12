@@ -159,20 +159,56 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestMonitorSet(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("createNew", func(t *testing.T) {
 		configDir, manager, cancel := newTestManager(t)
 		defer cancel()
 
-		oldname := manager.Monitors["1"].Config["name"]
+		config := manager.Monitors["1"].Config
+		config["name"] = "new"
+		err := manager.MonitorSet("new", config)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+
+		newName := manager.Monitors["new"].Config["name"]
+		if newName != "new" {
+			t.Fatalf("expected: new, got: %v", newName)
+		}
+
+		// Check if changes were saved to file.
+		config, err = readConfig(configDir + "/new.json")
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+
+		expected := fmt.Sprintf("%v", manager.Monitors["new"].Config)
+		actual := fmt.Sprintf("%v", config)
+
+		if expected != actual {
+			t.Fatalf("expected: %v, got %v", expected, actual)
+		}
+	})
+	t.Run("setOld", func(t *testing.T) {
+		configDir, manager, cancel := newTestManager(t)
+		defer cancel()
+
+		oldMonitor := manager.Monitors["1"]
+		oldMonitor.running = true
+
+		oldname := oldMonitor.Config["name"]
 		if oldname != "one" {
 			t.Fatalf("expected: one, got: %v", oldname)
 		}
 
-		config := manager.Monitors["1"].Config
+		config := oldMonitor.Config
 		config["name"] = "two"
 		err := manager.MonitorSet("1", config)
 		if err != nil {
 			t.Fatalf("%v", err)
+		}
+
+		if !manager.Monitors["1"].running {
+			t.Fatal("old monitor was reset")
 		}
 
 		newName := manager.Monitors["1"].Config["name"]
@@ -356,15 +392,22 @@ func TestStartMonitor(t *testing.T) {
 			t.Fatalf("expected: %v, got: %v", expected, actual)
 		}
 	})
-	t.Run("canceled", func(t *testing.T) {
+	t.Run("resetCtx", func(t *testing.T) {
 		m, cancel := newTestMonitor()
 		defer cancel()
 
+		ctx, cancel2 := context.WithCancel(context.Background())
+		cancel2()
+
+		m.Ctx = ctx
 		m.running = false
-		m.newProcess = mockNewProcessErr
 
 		if err := m.Start(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if m.Ctx.Err() != nil {
+			t.Fatal("context did not reset")
 		}
 	})
 	t.Run("mainProcessCrashed", func(t *testing.T) {
@@ -400,6 +443,32 @@ func TestStartMonitor(t *testing.T) {
 
 		if err := m.Start(); err == nil {
 			t.Fatal("nil")
+		}
+	})
+}
+
+func TestStartMainProcess(t *testing.T) {
+	t.Run("canceled", func(t *testing.T) {
+		m, cancel := newTestMonitor()
+		defer cancel()
+
+		ctx, cancel2 := context.WithCancel(context.Background())
+		cancel2()
+		m.Ctx = ctx
+
+		feed, cancel3 := m.Log.Subscribe()
+		defer cancel3()
+
+		m.running = false
+		m.newProcess = mockNewProcessErr
+
+		m.startMainProcess()
+
+		actual := <-feed
+		expected := ": main process: stopped\n"
+
+		if actual != expected {
+			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
 		}
 	})
 }

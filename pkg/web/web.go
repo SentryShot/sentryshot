@@ -138,7 +138,7 @@ func (templater Templater) Render(page string) http.Handler {
 
 		var b bytes.Buffer
 		if err := t.Execute(&b, data); err != nil {
-			http.Error(w, "could not execute template", http.StatusInternalServerError)
+			http.Error(w, "could not execute template "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if _, err := io.WriteString(w, b.String()); err != nil {
