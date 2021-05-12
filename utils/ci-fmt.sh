@@ -14,10 +14,11 @@ cd "$home_dir" || error "could not go to home"
 
 files="$1"
 modified() {
-	case "$files" in
-	*$1*) return 1 ;;
-	*) return 0 ;;
-	esac
+	pattern=${1}
+	if [ -z "${pattern##*${files}*}" ]; then
+		return 1
+	fi
+	return 0
 }
 
 modified ".go" || (
@@ -36,12 +37,12 @@ modified ".sh" || (
 	./utils/lint-shell.sh || error "lint shell failed"
 )
 
-modified ".js$" || modified ".css" || (
+modified "(.js$|.mjs|.css)" || (
 	printf "format frontend\\n"
 	./utils/format-frontend.sh || error "format frontend failed"
 )
 
-modified ".js$" || (
+modified "(.js$|.mjs)" || (
 	./utils/lint-js.sh || error "lint js failed"
 	printf "test js\\n"
 	./utils/test-js.sh || error "test js failed"

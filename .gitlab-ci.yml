@@ -13,37 +13,38 @@ run:
             # Setup.
             export GOPATH="$CI_PROJECT_DIR/.cache/GOPATH"
             export GOCACHE="$CI_PROJECT_DIR/.cache/GOCACHE"
-
+            export GOLANGCI_LINT_CACHE=$CI_PROJECT_DIR/.cache/GOLANGCI
             if [ ! -d "node_modules" ]; then
                 npm install
             fi
 
+            # Try to get changed files.
             files_changed="$(git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA)" || (
-                printf "no files changed\\n"
-                exit 0
+                printf "could not determine changed files, testing all files\\n"
+                files_changed="*"
             )
 
-            # Do not format it "no_fmt" is set.
+            # Do not format if "no_fmt" is set.
             if [ "${no_fmt}" != "" ]; then
                 ./utils/ci.sh "$files_changed"
             else
                 # Run ci, including formatting.
                 ./utils/ci-fmt.sh "$files_changed"
-
-                # If files were modified.
                 git status -s
+
+                # If no files were modified during formatting.
                 files="$(git status -s | wc -l)"
                 if [ "$files" == 0 ]; then
                     exit 0
                 fi
 
                 if [ "${GIT_PUSH_TOKEN}" == "" ]; then
-                    printf "Please add access token."
+                    printf "Please add access token.\\n"
                     exit 1
                 fi
 
                 # Push formatted code.
-                echo "committing"
+                printf "committing\\n"
                 git checkout dev
                 git config --global user.name "${GITLAB_USER_ID}"
                 git config --global user.email "${GITLAB_USER_EMAIL}"
