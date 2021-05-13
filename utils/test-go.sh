@@ -6,11 +6,15 @@ script_path=$(readlink -f "$0")
 home_dir=$(dirname "$(dirname "$script_path")")
 cd "$home_dir" || exit
 
+mkdir ./coverage 2>/dev/null
+
 exit_code=0
 
-packages=$(go list ./...)
-for p in $packages; do
-	go test -race "$p" -timeout=1s -cover || exit_code=1
-done
+# Run tests.
+go test -race -timeout=1s ./... || exit_code=1
+
+# Generate test coverage report.
+go test -coverprofile=./coverage/gocover.txt -covermode count ./... || exit_code=1
+gocover-cobertura <./coverage/gocover.txt >./coverage/gocover.xml || exit_code=1
 
 exit "$exit_code"

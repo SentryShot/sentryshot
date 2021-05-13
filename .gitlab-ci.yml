@@ -8,6 +8,9 @@ cache: &global_cache
         - .cache/
 
 run:
+    artifacts:
+        reports:
+            cobertura: ./coverage/*.xml
     script:
         - |
             # Setup.
@@ -21,7 +24,6 @@ run:
             # Try to get changed files.
             files_changed="$(git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA)" || (
                 printf "could not determine changed files, testing all files\\n"
-                files_changed="*"
             )
 
             # Do not format if "no_fmt" is set.
@@ -49,6 +51,6 @@ run:
                 git config --global user.name "${GITLAB_USER_ID}"
                 git config --global user.email "${GITLAB_USER_EMAIL}"
                 git add .
-                git commit --amend --no-edit
+                git commit --amend --no-edit --allow-empty
                 git push -f -o ci.skip "https://${GITLAB_USER_NAME}:${GIT_PUSH_TOKEN}@${CI_REPOSITORY_URL#*@}"
             fi

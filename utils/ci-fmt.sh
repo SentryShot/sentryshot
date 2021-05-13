@@ -13,15 +13,15 @@ home_dir=$(dirname "$(dirname "$script_path")")
 cd "$home_dir" || error "could not go to home"
 
 files="$1"
+if [ "$files" = "" ]; then
+	files=".go .js .css .sh"
+fi
 modified() {
 	pattern=${1}
-	if [ -z "${pattern##*${files}*}" ]; then
-		return 1
-	fi
-	return 0
+	test "${files#*$pattern}" != "$files"
 }
 
-modified ".go" || (
+modified ".go" && (
 	printf "format go\\n"
 	./utils/format-go.sh || error "format go failed"
 	printf "lint go\\n"
@@ -30,25 +30,25 @@ modified ".go" || (
 	./utils/test-go.sh || error "test go failed"
 )
 
-modified ".sh" || (
+modified ".sh" && (
 	printf "format shell\\n"
 	./utils/format-shell.sh || error "format shell failed"
 	printf "lint shell\\n"
 	./utils/lint-shell.sh || error "lint shell failed"
 )
 
-modified "(.js$|.mjs|.css)" || (
+modified ".js$" || modified ".mjs" || modified ".css" && (
 	printf "format frontend\\n"
 	./utils/format-frontend.sh || error "format frontend failed"
 )
 
-modified "(.js$|.mjs)" || (
+modified ".js$" || modified ".mjs" && (
 	./utils/lint-js.sh || error "lint js failed"
 	printf "test js\\n"
 	./utils/test-js.sh || error "test js failed"
 )
 
-modified ".css" || (
+modified ".css" && (
 	./utils/lint-css.sh || error "lint css failed"
 )
 
