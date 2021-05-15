@@ -15,9 +15,13 @@
 import { fetchGet } from "./common.mjs";
 
 let hlsConfig = {
-	liveSyncDurationCount: 1,
-	liveMaxLatencyDurationCount: 2,
-	liveBackBufferLength: 179,
+	enableWorker: true,
+	maxBufferLength: 1,
+	liveBackBufferLength: 0,
+	liveSyncDuration: 0,
+	liveMaxLatencyDuration: 5,
+	liveDurationInfinity: true,
+	highBufferWatchdogPeriod: 1,
 };
 
 const iconMutedPath = "static/icons/feather/volume-x.svg";
@@ -43,6 +47,7 @@ function newVideo(id, Hls) {
 			return $img;
 		},
 		muteToggle() {
+			console.log(hls.latency);
 			if (element.muted) {
 				element.muted = false;
 				$img.src = iconUnmutedPath;

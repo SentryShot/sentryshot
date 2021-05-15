@@ -373,9 +373,13 @@ const javascript = `
 						$feed.src = "";
 					} else {
 						let hls = new Hls({
-							liveSyncDurationCount: 1,
-							liveMaxLatencyDurationCount: 2,
-							liveBackBufferLength: 180,
+							enableWorker: true,
+							maxBufferLength: 1,
+							liveBackBufferLength: 0,
+							liveSyncDuration: 0,
+							liveMaxLatencyDuration: 5,
+							liveDurationInfinity: true,
+							highBufferWatchdogPeriod: 1,
 						});
 	
 						hls.attachMedia($feed);

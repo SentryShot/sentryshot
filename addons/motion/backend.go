@@ -338,15 +338,12 @@ func parseScale(scale string) string {
 
 type parser struct {
 	segment *string
-	//prevHash *string
 }
 
 func newParser() parser {
 	segment := ""
-	//prevHash := ""
 	return parser{
 		segment: &segment,
-		//prevHash: &prevHash,
 	}
 }
 

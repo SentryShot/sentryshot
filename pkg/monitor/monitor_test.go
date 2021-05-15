@@ -779,7 +779,8 @@ func TestGenMainArgs(t *testing.T) {
 			},
 		}
 		actual := m.generateMainArgs()
-		expected := "-loglevel 1 -i 2 -c:a 3 -c:v 4 -preset veryfast -f hls -hls_flags delete_segments -hls_allow_cache 0 /hls/id/id.m3u8"
+		expected := "-loglevel 1 -i 2 -c:a 3 -c:v 4 -preset veryfast -f hls -hls_flags" +
+			" delete_segments -hls_list_size 2 -hls_allow_cache 0 /hls/id/id.m3u8"
 		if actual != expected {
 			t.Fatalf("\nexpected: \n%v \ngot \n%v", expected, actual)
 		}
@@ -797,7 +798,8 @@ func TestGenMainArgs(t *testing.T) {
 			},
 		}
 		actual := m.generateMainArgs()
-		expected := "-loglevel 1 -hwaccel 2 -i 3 -c:a 4 -c:v 5 -preset veryfast -f hls -hls_flags delete_segments -hls_allow_cache 0 /hls/id/id.m3u8"
+		expected := "-loglevel 1 -hwaccel 2 -i 3 -c:a 4 -c:v 5 -preset veryfast -f hls -hls_flags" +
+			" delete_segments -hls_list_size 2 -hls_allow_cache 0 /hls/id/id.m3u8"
 		if actual != expected {
 			t.Fatalf("\nexpected: \n%v \ngot \n%v", expected, actual)
 		}

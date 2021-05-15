@@ -29,6 +29,9 @@ run:
             # Do not format if "no_fmt" is set.
             if [ "${no_fmt}" != "" ]; then
                 ./utils/ci.sh "$files_changed"
+            elif [ "${GIT_PUSH_TOKEN}" == "" ]; then
+                printf "access token not found, formatting disabled\\n"
+                ./utils/ci.sh "$files_changed"
             else
                 # Run ci, including formatting.
                 ./utils/ci-fmt.sh "$files_changed"
@@ -38,11 +41,6 @@ run:
                 files="$(git status -s | wc -l)"
                 if [ "$files" == 0 ]; then
                     exit 0
-                fi
-
-                if [ "${GIT_PUSH_TOKEN}" == "" ]; then
-                    printf "Please add access token.\\n"
-                    exit 1
                 fi
 
                 # Push formatted code.
