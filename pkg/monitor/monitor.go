@@ -346,7 +346,7 @@ func (m *Monitor) generateMainArgs() string {
 		" -i " + m.URL() + // Input.
 		audioEncoder +
 		" -c:v " + m.Config["videoEncoder"] + " -preset veryfast" + // Video encoder.
-		" -f hls -hls_flags delete_segments -hls_allow_cache 0" + " " + // HLS settings.
+		" -f hls -hls_flags delete_segments -hls_list_size 2 -hls_allow_cache 0 " + // HLS settings.
 		m.Env.SHMDir + "/hls/" + m.ID() + "/" + m.ID() + ".m3u8" // HLS output.
 }
 
@@ -423,7 +423,7 @@ func (m *Monitor) recordingProcess(ctx context.Context) error {
 	offset := keyFrameDuration + time.Duration(timestampOffset)*time.Millisecond
 	startTime := time.Now().UTC().Add(-offset)
 
-	fileDir := m.Env.StorageDir + "/" + startTime.Format("2006/01/02/") + m.ID() + "/"
+	fileDir := m.Env.StorageDir + "/recordings/" + startTime.Format("2006/01/02/") + m.ID() + "/"
 	filePath := fileDir + startTime.Format("2006-01-02_15-04-05_") + m.ID()
 
 	if err := os.MkdirAll(fileDir, 0755); err != nil && err != os.ErrExist {

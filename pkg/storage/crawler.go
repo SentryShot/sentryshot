@@ -77,7 +77,7 @@ func (c *Crawler) RecordingByQuery(limit int, query string) ([]Recording, error)
 // Removes storageDir from input and replaces it with "storage"
 func (c *Crawler) cleanPath(input string) string {
 	storageDirLen := len(c.path)
-	return "storage" + input[storageDirLen:]
+	return "storage/recordings/" + input[storageDirLen:]
 }
 
 type dir struct {

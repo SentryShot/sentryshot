@@ -80,7 +80,7 @@ func Run(configDir string) error { //nolint:funlen
 	storageManager := storage.NewManager(envConfig.StorageDir, generalConfig, logger)
 	go storageManager.PurgeLoop(ctx, 10*time.Minute)
 
-	crawler := storage.NewCrawler(envConfig.StorageDir)
+	crawler := storage.NewCrawler(envConfig.StorageDir + "/recordings/")
 
 	status := system.New(storageManager.Usage, logger)
 	go status.StatusLoop(ctx)
