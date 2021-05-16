@@ -247,7 +247,7 @@ func (a addon) startDetector(args []string) {
 }
 
 func (a addon) detectorProcess(args []string) error {
-	cmd := exec.Command("ffmpeg", args...)
+	cmd := exec.Command(a.env.FFmpegBin, args...)
 	process := ffmpeg.NewProcess(cmd)
 
 	stdout, err := cmd.StdoutPipe()
