@@ -28,11 +28,19 @@
 	},
 	"jest": {
 		"transform": {},
-		"testMatch": ["**/*_test.mjs"],
-		"moduleFileExtensions": ["js", "mjs"],
+		"testMatch": [
+			"**/*_test.mjs"
+		],
+		"moduleFileExtensions": [
+			"js",
+			"mjs"
+		],
 		"cacheDirectory": "./node_modules/.cache/jest",
 		"coverageDirectory": "coverage",
-		"coverageReporters": ["json", "cobertura"]
+		"coverageReporters": [
+			"json",
+			"cobertura"
+		]
 	},
 	"prettier": {
 		"printWidth": 90,
@@ -57,7 +65,10 @@
 			"ecmaVersion": 8,
 			"sourceType": "module"
 		},
-		"plugins": ["unicorn", "jest"],
+		"plugins": [
+			"unicorn",
+			"jest"
+		],
 		"rules": {
 			"unicorn/consistent-function-scoping": "off",
 			"unicorn/prevent-abbreviations": "off",
@@ -78,13 +89,17 @@
 			"stylelint-config-prettier",
 			"stylelint-config-rational-order"
 		],
-		"plugins": ["stylelint-no-unsupported-browser-features"],
+		"plugins": [
+			"stylelint-no-unsupported-browser-features"
+		],
 		"rules": {
 			"value-keyword-case": null,
 			"plugin/no-unsupported-browser-features": [
 				true,
 				{
-					"ignore": ["multicolumn"]
+					"ignore": [
+						"multicolumn"
+					]
 				}
 			]
 		}

@@ -280,7 +280,7 @@ func (a *Authenticator) User(next http.Handler) http.Handler {
 				a.logFailedLogin(r)
 			}
 
-			w.Header().Set("WWW-Authenticate", `Basic realm="NVR"`)
+			w.Header().Set("WWW-Authenticate", `Basic realm=""`)
 			http.Error(w, "Unauthorized.", http.StatusUnauthorized)
 			return
 		}

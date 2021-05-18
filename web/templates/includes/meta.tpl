@@ -2,7 +2,7 @@
 {{define "html2"}}</html>{{end}}
 
 {{ define "meta" }}
-	<title>title</title>
+	<title>OS-NVR</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<link rel="stylesheet" type="text/css" href="static/style/style.css" />
 	<link rel="stylesheet" type="text/css" href="static/style/themes/{{ .general.Theme }}.css" />
