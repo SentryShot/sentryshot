@@ -63,9 +63,8 @@ const defaultHashCost = 10
 
 // NewBasicAuthenticator returns authenticator using basicAuth.
 func NewBasicAuthenticator(path string, logger *log.Logger) (*Authenticator, error) {
-	usersPath := path + "/users.json"
 	a := Authenticator{
-		path:      usersPath,
+		path:      path,
 		accounts:  make(map[string]Account),
 		authCache: make(map[string]Response),
 
@@ -73,7 +72,7 @@ func NewBasicAuthenticator(path string, logger *log.Logger) (*Authenticator, err
 		log:      logger,
 	}
 
-	file, err := ioutil.ReadFile(usersPath)
+	file, err := ioutil.ReadFile(path)
 	if err != nil {
 		return &Authenticator{}, err
 	}

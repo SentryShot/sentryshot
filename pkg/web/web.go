@@ -48,9 +48,7 @@ type TemplateData struct {
 }
 
 // NewTemplater experimental.
-func NewTemplater(a *auth.Authenticator, data TemplateData, hook Hook) (Templater, error) {
-	path := "./web/templates"
-
+func NewTemplater(path string, a *auth.Authenticator, data TemplateData, hook Hook) (Templater, error) {
 	pageFiles, err := readDir(path)
 	if err != nil {
 		return Templater{}, err
@@ -107,6 +105,11 @@ func readDir(dir string) (map[string]string, error) {
 			fileContents[file.Name()] = string(b)
 		}
 	}
+
+	if len(fileContents) == 0 {
+		return nil, fmt.Errorf("no files in directory: %v", dir)
+	}
+
 	return fileContents, nil
 }
 

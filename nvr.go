@@ -70,7 +70,7 @@ func Run(goBin string, configDir string) error { //nolint:funlen
 		}
 	}
 
-	a, err := auth.NewBasicAuthenticator("./configs", logger)
+	a, err := auth.NewBasicAuthenticator(configDir+"/users.json", logger)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func Run(goBin string, configDir string) error { //nolint:funlen
 		Status:  status.Status,
 		General: generalConfig.Get,
 	}
-	t, err := web.NewTemplater(a, templateData, tplHook)
+	t, err := web.NewTemplater(envConfig.WebDir+"/templates", a, templateData, tplHook)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func Run(goBin string, configDir string) error { //nolint:funlen
 	http.Handle("/logs", a.Admin(t.Render("logs.tpl")))
 	http.Handle("/debug", a.Admin(t.Render("debug.tpl")))
 
-	http.Handle("/static/", a.User(web.Static()))
+	http.Handle("/static/", a.User(web.Static(envConfig.WebDir+"/static")))
 	http.Handle("/storage/", a.User(web.Storage()))
 	http.Handle("/hls/", a.User(web.HLS(envConfig)))
 

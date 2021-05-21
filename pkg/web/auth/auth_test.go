@@ -24,17 +24,95 @@ import (
 	"testing"
 )
 
-func TestBasicAuthenticator(t *testing.T) {
+var pass1 = []byte("$2a$04$M0InS5zIFKk.xmjtcabjrudhKhukxJo6cnhJBq9I.J/slbgWE0F.S")
+var pass2 = []byte("$2a$04$A.F3L5bXO/5nF0e6dpmqM.VuOB66.vSt6MbvWvcxeoAqqnvchBMOq")
+
+func newTestAuth(t *testing.T) (string, *Authenticator, func()) {
 	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("could not create tempoary directory: %v", err)
+	}
+
+	cancelFunc := func() {
+		os.RemoveAll(tempDir)
+	}
+
+	usersPath := tempDir + "/users.json"
+
+	users := map[string]Account{
+		"1": {
+			ID:       "1",
+			Username: "admin",
+			Password: pass1,
+			IsAdmin:  true,
+		},
+		"2": {
+			ID:       "2",
+			Username: "user",
+			Password: pass2,
+			IsAdmin:  false,
+		},
+	}
+	data, err := json.MarshalIndent(users, "", "    ")
+	if err != nil {
+		t.Fatalf("could not marshal users: %v", err)
+	}
+	if err := ioutil.WriteFile(usersPath, data, 0600); err != nil {
+		t.Fatalf("could not write users file: %v", err)
+	}
+
+	auth := Authenticator{
+		path:      usersPath,
+		accounts:  users,
+		authCache: make(map[string]Response),
+
+		hashCost: defaultHashCost,
+		log:      &log.Logger{},
+	}
+	return tempDir, &auth, cancelFunc
+}
+
+func clearTokens(auth *Authenticator) {
+	for key, account := range auth.accounts {
+		account.Token = ""
+		auth.accounts[key] = account
+	}
+}
+
+func TestNewBasicAuthenticator(t *testing.T) {
+	t.Run("working", func(t *testing.T) {
+		tempDir, testAuth, cancel := newTestAuth(t)
+		defer cancel()
+
+		auth, err := NewBasicAuthenticator(tempDir+"/users.json", &log.Logger{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		clearTokens(auth)
+
+		actual := fmt.Sprintf("%v", auth.accounts)
+		expected := fmt.Sprintf("%v", testAuth.accounts)
+
+		if actual != expected {
+			t.Fatalf("\nexpected\n%v.\ngot\n%v.", expected, actual)
+		}
+	})
+	t.Run("readFile error", func(t *testing.T) {
+		_, err := NewBasicAuthenticator("nil", &log.Logger{})
+		if err == nil {
+			t.Fatal("expected error, got: nil")
+		}
+	})
+}
+
+func TestBasicAuthenticator(t *testing.T) {
+	/*tempDir, err := ioutil.TempDir("", "")
 	defer os.RemoveAll(tempDir)
 	if err != nil {
 		t.Fatalf("could not create tempoary directory: %v", err)
 	}
 
 	usersPath := tempDir + "/users.json"
-
-	pass1 := []byte("$2a$04$M0InS5zIFKk.xmjtcabjrudhKhukxJo6cnhJBq9I.J/slbgWE0F.S")
-	pass2 := []byte("$2a$04$A.F3L5bXO/5nF0e6dpmqM.VuOB66.vSt6MbvWvcxeoAqqnvchBMOq")
 
 	workingUsers := map[string]Account{
 		"1": {
@@ -50,34 +128,18 @@ func TestBasicAuthenticator(t *testing.T) {
 			IsAdmin:  false,
 		},
 	}
+		writeWorkingUsers := func() {
+		data, _ := json.MarshalIndent(workingUsers, "", "    ")
+		ioutil.WriteFile(usersPath, data, 0600)
+	}
+	*/
 
 	adminExpected := "{1 admin " + fmt.Sprintf("%v", pass1) + "  true }"
 	userExpected := "{2 user " + fmt.Sprintf("%v", pass2) + "  false }"
 
-	writeWorkingUsers := func() {
-		data, _ := json.MarshalIndent(workingUsers, "", "    ")
-		ioutil.WriteFile(usersPath, data, 0600)
-	}
-
-	t.Run("working", func(t *testing.T) {
-		writeWorkingUsers()
-		a, _ := NewBasicAuthenticator(tempDir, &log.Logger{})
-
-		if a == nil {
-			t.Fatal("nil")
-		}
-	})
-
-	t.Run("readFile error", func(t *testing.T) {
-		_, err := NewBasicAuthenticator("nil", &log.Logger{})
-		if err == nil {
-			t.Fatal("expected error, got: nil")
-		}
-	})
-
 	t.Run("userByName", func(t *testing.T) {
-		writeWorkingUsers()
-		a, _ := NewBasicAuthenticator(tempDir, &log.Logger{})
+		_, a, cancel := newTestAuth(t)
+		defer cancel()
 
 		cases := []struct {
 			username    string
@@ -107,8 +169,9 @@ func TestBasicAuthenticator(t *testing.T) {
 	})
 
 	t.Run("validateAuth", func(t *testing.T) {
-		writeWorkingUsers()
-		a, _ := NewBasicAuthenticator(tempDir, &log.Logger{})
+		_, a, cancel := newTestAuth(t)
+		defer cancel()
+
 		a.hashCost = 4
 
 		cases := []struct {
@@ -145,8 +208,8 @@ func TestBasicAuthenticator(t *testing.T) {
 		}
 
 		t.Run("invalid prefix", func(t *testing.T) {
-			validAuth := base64.StdEncoding.EncodeToString([]byte("admin:pass1"))
-			response := a.ValidateAuth("nil" + validAuth)
+			auth := base64.StdEncoding.EncodeToString([]byte("admin:pass1"))
+			response := a.ValidateAuth("nil" + auth)
 			if response.IsValid {
 				t.Fatal("expected invalid response")
 			}
@@ -158,8 +221,8 @@ func TestBasicAuthenticator(t *testing.T) {
 			}
 		})
 		t.Run("invalid auth", func(t *testing.T) {
-			validAuth := base64.StdEncoding.EncodeToString([]byte("admin@pass1"))
-			response := a.ValidateAuth("Basic " + validAuth)
+			auth := base64.StdEncoding.EncodeToString([]byte("admin@pass1"))
+			response := a.ValidateAuth("Basic " + auth)
 			if response.IsValid {
 				t.Fatal("expected invalid response")
 			}
@@ -167,22 +230,20 @@ func TestBasicAuthenticator(t *testing.T) {
 	})
 
 	t.Run("userList", func(t *testing.T) {
-		writeWorkingUsers()
-		a, _ := NewBasicAuthenticator(tempDir, &log.Logger{})
+		_, a, cancel := newTestAuth(t)
+		defer cancel()
 
 		users := a.UsersList()
+
 		actual := fmt.Sprintf("%v", users)
 		expected := "map[1:{1 admin []  true } 2:{2 user []  false }]"
 
 		if actual != expected {
-			t.Fatalf("\nexpected %v\n     got %v", expected, actual)
+			t.Fatalf("\nexpected\n%v.\ngot\n%v.", expected, actual)
 		}
 	})
 
 	t.Run("userSet", func(t *testing.T) {
-		a, _ := NewBasicAuthenticator(tempDir, &log.Logger{})
-		a.hashCost = 4
-
 		cases := []struct {
 			id       string
 			username string
@@ -197,7 +258,11 @@ func TestBasicAuthenticator(t *testing.T) {
 		}
 		for _, tc := range cases {
 			t.Run(tc.username, func(t *testing.T) {
-				writeWorkingUsers()
+				_, a, cancel := newTestAuth(t)
+				defer cancel()
+
+				a.hashCost = 4
+
 				err := a.UserSet(Account{
 					ID:          tc.id,
 					Username:    tc.username,
@@ -220,8 +285,9 @@ func TestBasicAuthenticator(t *testing.T) {
 			})
 		}
 		t.Run("saveToFile", func(t *testing.T) {
-			ioutil.WriteFile(usersPath, []byte{}, 0600)
-			a, _ := NewBasicAuthenticator(tempDir, &log.Logger{})
+			tempDir, a, cancel := newTestAuth(t)
+			defer cancel()
+
 			a.hashCost = 4
 
 			user := Account{
@@ -236,7 +302,7 @@ func TestBasicAuthenticator(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			file, err := ioutil.ReadFile(usersPath)
+			file, err := ioutil.ReadFile(tempDir + "/users.json")
 			if err != nil {
 				t.Fatalf("could not read file: %v", err)
 			}
@@ -252,12 +318,13 @@ func TestBasicAuthenticator(t *testing.T) {
 			expected := "{10 a []  true }"
 			actual := fmt.Sprintf("%v", u)
 			if actual != expected {
-				t.Fatalf("\nexpected %v\n     got %v", expected, actual)
+				t.Fatalf("\nexpected%v\n.\ngot\n%v\n", expected, actual)
 			}
 		})
 		t.Run("saveErr", func(t *testing.T) {
-			writeWorkingUsers()
-			a, _ := NewBasicAuthenticator(tempDir, &log.Logger{})
+			_, a, cancel := newTestAuth(t)
+			defer cancel()
+
 			a.path = ""
 
 			err := a.UserSet(Account{ID: "1", Username: "a"})
@@ -268,8 +335,8 @@ func TestBasicAuthenticator(t *testing.T) {
 	})
 
 	t.Run("userDelete", func(t *testing.T) {
-		writeWorkingUsers()
-		a, _ := NewBasicAuthenticator(tempDir, &log.Logger{})
+		_, a, cancel := newTestAuth(t)
+		defer cancel()
 
 		t.Run("unknown user", func(t *testing.T) {
 			err := a.UserDelete("nil")
