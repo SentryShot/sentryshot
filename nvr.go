@@ -33,7 +33,7 @@ import (
 )
 
 // Run .
-func Run(configDir string) error { //nolint:funlen
+func Run(goBin string, configDir string) error { //nolint:funlen
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -43,7 +43,7 @@ func Run(configDir string) error { //nolint:funlen
 	time.Sleep(10 * time.Millisecond)
 	logger.Println("starting..")
 
-	envConfig, err := storage.NewConfigEnv(configDir)
+	envConfig, err := storage.NewConfigEnv(goBin, configDir)
 	if err != nil {
 		return fmt.Errorf("could not get environment config: %v", err)
 	}

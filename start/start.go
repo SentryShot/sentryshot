@@ -8,7 +8,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -23,51 +22,46 @@ import (
 func main() {
 	err := start()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Errorf("start: %v", err))
 	}
 }
 
 type configEnv struct {
-	GoBin   string `json:"goBin"`
-	HomeDir string `json:"homeDir"`
+	homeDir   string
+	Addons    []string
+	GoBin     string
+	ConfigDir string
 }
 
 func start() error {
-	configDirectory := flag.String("configDir", "/home/_nvr/os-nvr/configs", "configuration directory")
-	flag.Parse()
-
-	configDir, err := filepath.Abs(*configDirectory)
+	env, err := parseFlags()
 	if err != nil {
-		return fmt.Errorf("could not get absolute path of configDir: %v", err)
+		return err
 	}
 
-	if _, err := os.Stat(configDir); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("--configDir '%v' does not exist", configDir)
+	if !dirExist(env.ConfigDir) {
+		if err := os.MkdirAll(env.ConfigDir, 0744); err != nil {
+			return fmt.Errorf("could not create configDir: %v", err)
 		}
 	}
 
-	env, err := getEnv(configDir)
+	addons, err := getAddons(env.ConfigDir + "/addons.conf")
 	if err != nil {
 		return err
 	}
-
-	addons, err := getAddons(configDir)
-	if err != nil {
-		return err
-	}
+	env.Addons = addons
 
 	main := "start/build/main.go"
-	filePath := env.HomeDir + "/" + main
+	filePath := env.homeDir + "/" + main
 
-	os.Mkdir(env.HomeDir+"/start/build", 0700) //nolint:errcheck
+	os.Mkdir(env.homeDir+"/start/build", 0700) //nolint:errcheck
 
-	if err := genFile(filePath, addons, configDir); err != nil {
+	if err := genFile(filePath, env); err != nil {
 		return err
 	}
 
-	cmd := exec.Command(env.GoBin, "run", main, "--configDir", configDir)
-	cmd.Dir = env.HomeDir
+	cmd := exec.Command(env.GoBin, "run", main)
+	cmd.Dir = env.homeDir
 
 	// Give parrents file descriptors and environment to child process.
 	cmd.Stdin = os.Stdin
@@ -79,30 +73,41 @@ func start() error {
 	return cmd.Run()
 }
 
-// getEnv reads environment configuration from "env.json"
-func getEnv(configDir string) (configEnv, error) {
-	var env configEnv
+func parseFlags() (*configEnv, error) {
+	goBin := flag.String("goBin", "go", "golang binary")
+	homeDirectory := flag.String("homeDir", "/home/_nvr/os-nvr", "project home directory")
+	configDirectory := flag.String("configDir", *homeDirectory+"/configs", "configuration directory")
+	flag.Parse()
 
-	file, err := ioutil.ReadFile(configDir + "/env.json")
-	if err != nil {
-		return configEnv{}, fmt.Errorf("could not read env.json: %v", err)
+	homeDir, _ := filepath.Abs(*homeDirectory)
+	configDir, _ := filepath.Abs(*configDirectory)
+
+	if !dirExist(*goBin) {
+		return nil, fmt.Errorf("--goBin '%v' does not exist", *goBin)
+	}
+	if !dirExist(homeDir) {
+		return nil, fmt.Errorf("--homeDir '%v' does not exist", homeDir)
 	}
 
-	err = json.Unmarshal(file, &env)
-	if err != nil {
-		return configEnv{}, fmt.Errorf("could not unmarshal env.json: %v", err)
+	env := configEnv{
+		homeDir:   homeDir,
+		GoBin:     *goBin,
+		ConfigDir: configDir,
 	}
 
-	if env.HomeDir == "" {
-		return configEnv{}, fmt.Errorf("'homeDir' missing in env.json")
-	}
-
-	return env, nil
+	return &env, nil
 }
 
+const addonFile = `# Uncomment to enable.
+#nvr/addons/motion`
+
 // getAddons reads and parses "addons.conf"
-func getAddons(configDir string) ([]string, error) {
-	file, err := ioutil.ReadFile(configDir + "/addons.conf")
+func getAddons(addonPath string) ([]string, error) {
+	if !dirExist(addonPath) {
+		ioutil.WriteFile(addonPath, []byte(addonFile), 0600) //nolint:errcheck
+	}
+
+	file, err := ioutil.ReadFile(addonPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read addons.json: %v", err)
 	}
@@ -128,21 +133,19 @@ func getAddons(configDir string) ([]string, error) {
 }
 
 // genFile inserts addons into "main.go" template and writes to file.
-func genFile(path string, addons []string, configDir string) error {
+func genFile(path string, env *configEnv) error {
 	const file = `package main
 
 import (
-	"flag"
 	"log"
 	"nvr"
 	"os"
-{{ range .addons }}
+{{ range .Addons }}
 	_ "{{ . }}"{{ end }}
 )
 
 func main() {
-	configDir := flag.String("configDir", "{{.configDir}}", "configuration directory")
-	if err := nvr.Run(*configDir); err != nil {
+	if err := nvr.Run("{{.GoBin}}", "{{.ConfigDir}}"); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(0)
@@ -150,11 +153,8 @@ func main() {
 `
 
 	t := template.New("file")
-	data := template.FuncMap{
-		"addons":    addons,
-		"configDir": configDir,
-	}
 	t, _ = t.Parse(file)
+	data := env
 
 	var b bytes.Buffer
 	t.Execute(&b, data) //nolint:errcheck
@@ -163,4 +163,13 @@ func main() {
 		return fmt.Errorf("could not write build file: %v", err)
 	}
 	return nil
+}
+
+func dirExist(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }

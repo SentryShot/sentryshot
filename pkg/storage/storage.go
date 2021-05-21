@@ -175,19 +175,33 @@ func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
 type ConfigEnv struct {
 	Port      string `json:"port"`
 	FFmpegBin string `json:"ffmpegBin"`
-	GoBin     string `json:"goBin"`
+	goBin     string
 
 	StorageDir string `json:"storageDir"`
 	SHMDir     string `json:"shmDir"`
-	HomeDir    string `json:"homeDir"` // Project home.
-	configDir  string
+
+	WebDir    string `json:"webDir"`
+	configDir string
 }
 
 // NewConfigEnv return new environment configuration.
-func NewConfigEnv(configDir string) (*ConfigEnv, error) {
+func NewConfigEnv(goBin string, configDir string) (*ConfigEnv, error) {
 	var config ConfigEnv
 
-	file, err := ioutil.ReadFile(configDir + "/env.json")
+	configPath := configDir + "/env.json"
+	if !dirExist(configDir) {
+		if err := os.MkdirAll(configDir, 0744); err != nil {
+			return &ConfigEnv{}, fmt.Errorf("could not generate config directory: %v", err)
+		}
+	}
+
+	if !dirExist(configPath) {
+		if err := generateEnvConfig(configPath); err != nil {
+			return &ConfigEnv{}, fmt.Errorf("could not generate environment config: %v", err)
+		}
+	}
+
+	file, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		return &ConfigEnv{}, err
 	}
@@ -196,20 +210,32 @@ func NewConfigEnv(configDir string) (*ConfigEnv, error) {
 	if err != nil {
 		return &ConfigEnv{}, err
 	}
+	config.goBin = goBin
 	config.configDir = configDir
 
 	// Check the only error filepath.Abs can throw.
 	if _, err := os.Getwd(); err != nil {
 		return &ConfigEnv{}, fmt.Errorf("could not get working directory: %v", err)
 	}
-	config.FFmpegBin, _ = filepath.Abs(config.FFmpegBin)
-	config.GoBin, _ = filepath.Abs(config.GoBin)
 	config.StorageDir, _ = filepath.Abs(config.StorageDir)
 	config.SHMDir, _ = filepath.Abs(config.SHMDir)
-	config.HomeDir, _ = filepath.Abs(config.HomeDir)
+	config.WebDir, _ = filepath.Abs(config.WebDir)
 	config.configDir, _ = filepath.Abs(config.configDir)
 
 	return &config, nil
+}
+
+func generateEnvConfig(path string) error {
+	config := ConfigEnv{
+		Port:       "2020",
+		FFmpegBin:  "ffmpeg",
+		StorageDir: "/home/_nvr/os-nvr/storage",
+		SHMDir:     "/dev/shm/nvr",
+		WebDir:     "/home/_nvr/os-nvr/web",
+	}
+	c, _ := json.MarshalIndent(config, "", "    ")
+
+	return ioutil.WriteFile(path, c, 0600)
 }
 
 // SHMhls returns path of temporary hls files.
@@ -253,6 +279,12 @@ func NewConfigGeneral(path string) (*ConfigGeneral, error) {
 
 	configPath := path + "/general.json"
 
+	if !dirExist(configPath) {
+		if err := generateGeneralConfig(configPath); err != nil {
+			return &ConfigGeneral{}, fmt.Errorf("could not generate environment config: %v", err)
+		}
+	}
+
 	file, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		return &ConfigGeneral{}, err
@@ -265,6 +297,16 @@ func NewConfigGeneral(path string) (*ConfigGeneral, error) {
 
 	general.path = configPath
 	return &general, nil
+}
+
+func generateGeneralConfig(path string) error {
+	config := GeneralConfig{
+		DiskSpace: "10000",
+		Theme:     "default",
+	}
+	c, _ := json.MarshalIndent(config, "", "    ")
+
+	return ioutil.WriteFile(path, c, 0600)
 }
 
 // Get returns general config.
@@ -288,4 +330,14 @@ func (general *ConfigGeneral) Set(newConfig GeneralConfig) error {
 
 	general.mu.Unlock()
 	return nil
+}
+
+func dirExist(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+		return false
+	}
+	return true
 }

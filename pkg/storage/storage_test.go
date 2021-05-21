@@ -253,63 +253,172 @@ func TestPurgeLoop(t *testing.T) {
 	})
 }
 
-func TestNewConfigEnv(t *testing.T) {
+func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 	tempDir, err := ioutil.TempDir("", "")
-	defer os.RemoveAll(tempDir)
 	if err != nil {
 		t.Fatalf("could not create tempoary directory: %v", err)
 	}
-	configPath := tempDir + "/env.json"
-
-	workingConfig := func() *ConfigEnv {
-		wd, _ := os.Getwd()
-		return &ConfigEnv{
-			FFmpegBin:  wd + "/1",
-			GoBin:      wd + "/2",
-			StorageDir: wd + "/3",
-			SHMDir:     wd + "/4",
-			HomeDir:    wd + "/5",
-		}
-	}
-	writeWorkingFile := func() {
-		data, _ := json.MarshalIndent(workingConfig(), "", "    ")
-		ioutil.WriteFile(configPath, data, 0600)
+	cancelFunc := func() {
+		os.RemoveAll(tempDir)
 	}
 
+	envPath := tempDir + "/env.json"
+
+	config := &ConfigEnv{
+		FFmpegBin:  tempDir + "/1",
+		StorageDir: tempDir + "/2",
+		SHMDir:     tempDir + "/3",
+		WebDir:     tempDir + "/4",
+	}
+
+	c, err := json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		t.Fatalf("could not marshal test config: %v", err)
+	}
+	if err := ioutil.WriteFile(envPath, c, 0600); err != nil {
+		t.Fatalf("could not write temp config: %v", err)
+	}
+
+	return tempDir, config, cancelFunc
+}
+
+func TestNewConfigEnv(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		writeWorkingFile()
-		env, _ := NewConfigEnv(tempDir)
+		tempDir, config, cancel := newTestEnv(t)
+		defer cancel()
+
+		env, err := NewConfigEnv("", tempDir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		env.configDir = ""
 		actual := fmt.Sprintf("%v", env)
-		expected := fmt.Sprintf("%v", workingConfig())
+		expected := fmt.Sprintf("%v", config)
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 		}
 	})
+	t.Run("mkdir", func(t *testing.T) {
+		tempDir, err := ioutil.TempDir("", "")
+		defer os.RemoveAll(tempDir)
+		if err != nil {
+			t.Fatalf("could not create tempoary directory: %v", err)
+		}
 
-	t.Run("readFile error", func(t *testing.T) {
-		_, err := NewConfigEnv("nil")
-		if err == nil {
+		configDir := tempDir + "/configs"
+
+		if dirExist(configDir) {
+			t.Fatal("configDir should not already exist")
+		}
+
+		if _, err := NewConfigEnv("", configDir); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !dirExist(configDir) {
+			t.Fatal("configDir wasn't created")
+		}
+	})
+	t.Run("mkdirErr", func(t *testing.T) {
+		if _, err := NewConfigEnv("", "/dev/null/config"); err == nil {
+			t.Fatalf("expected error, got: nil")
+		}
+
+	})
+	t.Run("genConfig", func(t *testing.T) {
+		tempDir, err := ioutil.TempDir("", "")
+		defer os.RemoveAll(tempDir)
+		if err != nil {
+			t.Fatalf("could not create tempoary directory: %v", err)
+		}
+
+		configDir := tempDir + "/configs"
+		configPath := configDir + "/env.json"
+
+		if dirExist(configPath) {
+			t.Fatal("configFile should not already exist")
+		}
+
+		expected := "&{2020 ffmpeg  /home/_nvr/os-nvr/storage /dev/shm/nvr /home/_nvr/os-nvr/web }"
+
+		config1, err := NewConfigEnv("", configDir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		config1.goBin = ""
+		config1.configDir = ""
+
+		file, err := ioutil.ReadFile(configPath)
+		if err != nil {
+			t.Fatalf("could not read configFile: %v", err)
+		}
+		config2 := &ConfigEnv{}
+		if err := json.Unmarshal(file, config2); err != nil {
+			t.Fatalf("could not unmarshal config: %v", err)
+		}
+
+		actual1 := fmt.Sprintf("%v", config1)
+		actual2 := fmt.Sprintf("%v", config2)
+
+		if actual1 != expected {
+			t.Fatalf("expected:\n%v.\ngot:\n%v.", expected, actual1)
+		}
+		if actual2 != expected {
+			t.Fatalf("expected: %v got: %v", expected, actual2)
+		}
+	})
+	t.Run("genConfigErr", func(t *testing.T) {
+		if _, err := NewConfigEnv("", "/dev/null"); err == nil {
 			t.Fatalf("expected error, got: nil")
 		}
 	})
+	t.Run("readFileErr", func(t *testing.T) {
+		tempDir, err := ioutil.TempDir("", "")
+		defer os.RemoveAll(tempDir)
+		if err != nil {
+			t.Fatalf("could not create tempoary directory: %v", err)
+		}
+		configPath := tempDir + "/env.json"
 
+		os.MkdirAll(tempDir, 0744)
+		if err := ioutil.WriteFile(configPath, []byte{}, 0000); err != nil {
+			t.Fatalf("could not write config file: %v", err)
+		}
+
+		if _, err := NewConfigEnv("", tempDir); err == nil {
+			t.Fatalf("expected error, got: nil")
+		}
+	})
 	t.Run("unmarshal error", func(t *testing.T) {
-		ioutil.WriteFile(configPath, []byte{}, 0660)
-		_, err := NewConfigEnv(tempDir)
-		if err == nil {
+		tempDir, err := ioutil.TempDir("", "")
+		defer os.RemoveAll(tempDir)
+		if err != nil {
+			t.Fatalf("could not create tempoary directory: %v", err)
+		}
+
+		configPath := tempDir + "/env.json"
+
+		if err := ioutil.WriteFile(configPath, []byte("nil"), 0600); err != nil {
+			t.Fatalf("could not write temp config: %v", err)
+		}
+
+		if _, err := NewConfigEnv("", tempDir); err == nil {
 			t.Fatalf("expected error, got: nil")
 		}
 	})
-
 	t.Run("shmHls", func(t *testing.T) {
-		writeWorkingFile()
-		env, _ := NewConfigEnv(tempDir)
+		tempDir, config, cancel := newTestEnv(t)
+		defer cancel()
+
+		env, err := NewConfigEnv("", tempDir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		actual := fmt.Sprintf("%v", env.SHMhls())
-		expected := workingConfig().SHMDir + "/hls"
+		expected := config.SHMDir + "/hls"
 
 		if actual != expected {
 			t.Fatalf("expected: %v got: %v", expected, actual)
@@ -318,13 +427,6 @@ func TestNewConfigEnv(t *testing.T) {
 }
 
 func TestPrepareEnvironment(t *testing.T) {
-	dirExists := func(path string) bool {
-		if _, err := os.Stat(path); err != nil {
-			return !os.IsNotExist(err)
-		}
-		return true
-	}
-
 	t.Run("working", func(t *testing.T) {
 		tempDir, err := ioutil.TempDir("", "")
 		defer os.RemoveAll(tempDir)
@@ -333,29 +435,28 @@ func TestPrepareEnvironment(t *testing.T) {
 		}
 		configDir := tempDir + "/configs"
 
-		env := ConfigEnv{
+		env := &ConfigEnv{
 			SHMDir:    tempDir,
 			configDir: configDir,
 		}
 
-		hlsDir := tempDir + "/" + env.SHMhls()
-
-		testDir := hlsDir + "/test"
-		os.MkdirAll(testDir, 0600)
+		testDir := env.SHMhls() + "/test"
+		if err := os.MkdirAll(testDir, 0744); err != nil {
+			t.Fatalf("could not create temp directory: %v", err)
+		}
 
 		if err := env.PrepareEnvironment(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if !dirExists(testDir) {
-			t.Fatal("hlsDir was not reset")
+		if dirExist(testDir) {
+			t.Fatal("testDir wasn't reset")
 		}
 
-		if !dirExists(configDir + "/monitors") {
-			t.Fatal("configs/monitors was not created")
+		if !dirExist(configDir + "/monitors") {
+			t.Fatal("configs/monitors wasn't created")
 		}
 	})
-
 	t.Run("monitorsMkdirErr", func(t *testing.T) {
 		env := ConfigEnv{
 			configDir: "/dev/null",
@@ -389,88 +490,164 @@ func TestPrepareEnvironment(t *testing.T) {
 	})
 }
 
-func TestNewConfigGeneral(t *testing.T) {
+func newTestGeneral(t *testing.T) (string, *ConfigGeneral, func()) {
 	tempDir, err := ioutil.TempDir("", "")
-	defer os.RemoveAll(tempDir)
 	if err != nil {
 		t.Fatalf("could not create tempoary directory: %v", err)
 	}
+	cancelFunc := func() {
+		os.RemoveAll(tempDir)
+	}
+
 	configPath := tempDir + "/general.json"
 
-	workingConfig := GeneralConfig{
+	config := GeneralConfig{
 		DiskSpace: "1",
 	}
-	writeWorkingFile := func() {
-		data, _ := json.MarshalIndent(workingConfig, "", "    ")
-		ioutil.WriteFile(configPath, data, 0660)
+	data, _ := json.MarshalIndent(config, "", "    ")
+
+	if err := ioutil.WriteFile(configPath, data, 0660); err != nil {
+		t.Fatalf("could not write config file: %v", err)
 	}
 
-	t.Run("working", func(t *testing.T) {
-		writeWorkingFile()
-		output, _ := NewConfigGeneral(tempDir)
+	general := ConfigGeneral{
+		Config: config,
+		path:   configPath,
+	}
 
-		actual := fmt.Sprintf("%v", output)
-		expected := fmt.Sprintf("%v", &ConfigGeneral{
-			Config: workingConfig,
-			path:   configPath,
-		})
+	return tempDir, &general, cancelFunc
+}
+
+func TestNewConfigGeneral(t *testing.T) {
+	t.Run("working", func(t *testing.T) {
+		tempDir, testGeneral, cancel := newTestGeneral(t)
+		defer cancel()
+
+		general, _ := NewConfigGeneral(tempDir)
+
+		actual := fmt.Sprintf("%v", general)
+		expected := fmt.Sprintf("%v", testGeneral)
 
 		if actual != expected {
 			t.Fatalf("\nexpected: %v\n    got: %v", expected, actual)
 		}
 	})
+	t.Run("genConfig", func(t *testing.T) {
+		tempDir, err := ioutil.TempDir("", "")
+		defer os.RemoveAll(tempDir)
+		if err != nil {
+			t.Fatalf("could not create tempoary directory: %v", err)
+		}
+		configDir := tempDir
+		configFile := configDir + "/general.json"
 
-	t.Run("readFile error", func(t *testing.T) {
-		_, err := NewConfigGeneral("nil")
-		if err == nil {
+		if dirExist(configFile) {
+			t.Fatal("configFile should not already exist")
+		}
+
+		expected := "&{10000 default}"
+
+		config1, err := NewConfigGeneral(configDir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		file, err := ioutil.ReadFile(configFile)
+		if err != nil {
+			t.Fatalf("could not read configFile: %v", err)
+		}
+
+		config2 := &GeneralConfig{}
+		if err := json.Unmarshal(file, config2); err != nil {
+			t.Fatalf("could not unmarshal config: %v", err)
+		}
+
+		actual1 := fmt.Sprintf("%v", &config1.Config)
+		actual2 := fmt.Sprintf("%v", config2)
+
+		if actual1 != expected {
+			t.Fatalf("expected: %v got: %v", expected, actual1)
+		}
+		if actual2 != expected {
+			t.Fatalf("expected: %v got: %v", expected, actual2)
+		}
+	})
+	t.Run("genConfigErr", func(t *testing.T) {
+		if _, err := NewConfigGeneral("/dev/null"); err == nil {
 			t.Fatalf("expected error, got: nil")
 		}
 	})
+	t.Run("unmarshalErr", func(t *testing.T) {
+		tempDir, _, cancel := newTestGeneral(t)
+		defer cancel()
 
-	t.Run("unmarshal error", func(t *testing.T) {
-		ioutil.WriteFile(configPath, []byte{}, 0660)
+		configPath := tempDir + "/general.json"
+		if err := ioutil.WriteFile(configPath, []byte{}, 0660); err != nil {
+			t.Fatalf("could not write configPath: %v", err)
+		}
+
 		_, err := NewConfigGeneral(tempDir)
 		if err == nil {
 			t.Fatalf("expected error, got: nil")
 		}
 	})
+}
 
+func TestGeneral(t *testing.T) {
 	t.Run("get", func(t *testing.T) {
-		writeWorkingFile()
-		g, _ := NewConfigGeneral(tempDir)
+		tempDir, testGeneral, cancel := newTestGeneral(t)
+		defer cancel()
 
-		actual := fmt.Sprintf("%v", g.Get())
-		expected := fmt.Sprintf("%v", workingConfig)
+		general, _ := NewConfigGeneral(tempDir)
+
+		actual := fmt.Sprintf("%v", general.Get())
+		expected := fmt.Sprintf("%v", testGeneral.Config)
 
 		if actual != expected {
 			t.Fatalf("expected: %v got: %v", expected, actual)
 		}
 	})
-
 	t.Run("set", func(t *testing.T) {
-		writeWorkingFile()
-		g, _ := NewConfigGeneral(tempDir)
+		tempDir, _, cancel := newTestGeneral(t)
+		defer cancel()
+
+		general, _ := NewConfigGeneral(tempDir)
 
 		newConfig := GeneralConfig{
 			DiskSpace: "1",
 		}
-		g.Set(newConfig)
+		general.Set(newConfig)
 
-		actual := fmt.Sprintf("%v", g.Get())
+		file, err := ioutil.ReadFile(general.path)
+		if err != nil {
+			t.Fatalf("could not read config file: %v", err)
+		}
+
+		var config GeneralConfig
+		if err := json.Unmarshal(file, &config); err != nil {
+			t.Fatalf("could not unmarshal config file: %v", err)
+		}
+
+		actual1 := fmt.Sprintf("%v", general.Get())
+		actual2 := fmt.Sprintf("%v", config)
+
 		expected := fmt.Sprintf("%v", newConfig)
 
-		if actual != expected {
-			t.Fatalf("expected: %v got: %v", expected, actual)
+		if actual1 != expected {
+			t.Fatalf("expected: %v got: %v", expected, actual1)
+		}
+		if actual2 != expected {
+			t.Fatalf("expected: %v got: %v", expected, actual2)
 		}
 	})
+	t.Run("setWriteFileErr", func(t *testing.T) {
+		tempDir, _, cancel := newTestGeneral(t)
+		defer cancel()
 
-	t.Run("set writeFile error", func(t *testing.T) {
-		g, _ := NewConfigGeneral(tempDir)
+		general, _ := NewConfigGeneral(tempDir)
 		os.RemoveAll(tempDir)
 
-		err := g.Set(GeneralConfig{})
-
-		if err == nil {
+		if err := general.Set(GeneralConfig{}); err == nil {
 			t.Fatalf("expected error, got: nil")
 		}
 	})

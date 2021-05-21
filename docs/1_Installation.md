@@ -33,13 +33,7 @@ Go to `_nvr` home and clone repository.
     sudo -u _nvr git clone --branch master https://gitlab.com/osnvr/os-nvr.git
     cd ./os-nvr
 
-Copy sample configs.
 
-    sudo -u _nvr cp ./configs/.samples/* ./configs/
-
-Check if the values in `env.json`are correct.
-
-    sudo -u _nvr nano ./configs/env.json
 
 Download Golang dependencies.
 	
@@ -48,6 +42,14 @@ Download Golang dependencies.
 Run service creation script
 
     sudo ./utils/services/systemd.sh --name=nvr --cmd="/usr/bin/go run /home/_nvr/os-nvr/start/start.go"
+
+Copy sample user.
+
+    sudo -u _nvr cp ./configs/users.json.sample ./configs/users.json
+   
+Restart service.
+
+	sudo systemctl restart nvr
 
 <br>
 
