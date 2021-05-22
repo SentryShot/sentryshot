@@ -724,17 +724,17 @@ func mockNewProcess(*exec.Cmd) ffmpeg.Process {
 	return mockProcess{}
 }
 
-func (mockProcess) Start(context.Context) error {
-	return nil
-}
-func (mockProcess) StartWithLogger(ctx context.Context, _ *log.Logger, _ string) error {
+func (mockProcess) Start(ctx context.Context) error {
 	select {
 	case <-time.After(15 * time.Millisecond):
 	case <-ctx.Done():
 	}
 	return nil
 }
-func (mockProcess) SetTimeout(time.Duration) {}
+func (mockProcess) SetTimeout(time.Duration)    {}
+func (mockProcess) SetPrefix(string)            {}
+func (mockProcess) SetStdoutLogger(*log.Logger) {}
+func (mockProcess) SetStderrLogger(*log.Logger) {}
 
 // Returns nil
 type mockProcessNil struct{}
@@ -746,10 +746,10 @@ func mockNewProcessNil(*exec.Cmd) ffmpeg.Process {
 func (mockProcessNil) Start(context.Context) error {
 	return nil
 }
-func (mockProcessNil) StartWithLogger(context.Context, *log.Logger, string) error {
-	return nil
-}
-func (mockProcessNil) SetTimeout(time.Duration) {}
+func (mockProcessNil) SetTimeout(time.Duration)    {}
+func (mockProcessNil) SetPrefix(string)            {}
+func (mockProcessNil) SetStdoutLogger(*log.Logger) {}
+func (mockProcessNil) SetStderrLogger(*log.Logger) {}
 
 // Returns error.
 type mockProcessErr struct{}
@@ -759,12 +759,12 @@ func mockNewProcessErr(*exec.Cmd) ffmpeg.Process {
 }
 
 func (mockProcessErr) Start(context.Context) error {
-	return nil
-}
-func (mockProcessErr) StartWithLogger(context.Context, *log.Logger, string) error {
 	return errors.New("mock")
 }
-func (mockProcessErr) SetTimeout(time.Duration) {}
+func (mockProcessErr) SetTimeout(time.Duration)    {}
+func (mockProcessErr) SetPrefix(string)            {}
+func (mockProcessErr) SetStdoutLogger(*log.Logger) {}
+func (mockProcessErr) SetStderrLogger(*log.Logger) {}
 
 func TestGenMainArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {

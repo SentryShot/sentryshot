@@ -40,14 +40,20 @@ import (
 // Process interface only used for testing.
 type Process interface {
 	Start(ctx context.Context) error
-	StartWithLogger(context.Context, *log.Logger, string) error
 	SetTimeout(time.Duration)
+	SetPrefix(string)
+	SetStdoutLogger(*log.Logger)
+	SetStderrLogger(*log.Logger)
 }
 
 // process manages subprocesses.
 type process struct {
 	timeout time.Duration
 	cmd     *exec.Cmd
+
+	prefix       string
+	stdoutLogger *log.Logger
+	stderrLogger *log.Logger
 
 	done chan struct{}
 }
@@ -60,34 +66,33 @@ func NewProcess(cmd *exec.Cmd) Process {
 	}
 }
 
-// StartWithLogger pipes stdout and stderr to logger.
-func (p *process) StartWithLogger(ctx context.Context, log *log.Logger, prefix string) error {
-	attachLogger := func(label string, stdPipe func() (io.ReadCloser, error)) error {
-		pipe, err := stdPipe()
-		if err != nil {
-			return err
+func (p *process) attachLogger(l *log.Logger, label string, stdPipe func() (io.ReadCloser, error)) error {
+	pipe, err := stdPipe()
+	if err != nil {
+		return err
+	}
+	scanner := bufio.NewScanner(pipe)
+	go func() {
+		for scanner.Scan() {
+			l.Printf("%v%v: %v\n", p.prefix, label, scanner.Text())
 		}
-		scanner := bufio.NewScanner(pipe)
-		go func() {
-			for scanner.Scan() {
-				log.Printf("%v%v: %v\n", prefix, label, scanner.Text())
-			}
-		}()
-		return nil
-	}
-
-	if err := attachLogger("stdout", p.cmd.StdoutPipe); err != nil {
-		return err
-	}
-	if err := attachLogger("stderr", p.cmd.StderrPipe); err != nil {
-		return err
-	}
-
-	return p.Start(ctx)
+	}()
+	return nil
 }
 
 // Start starts process with context.
 func (p *process) Start(ctx context.Context) error {
+	if p.stdoutLogger != nil {
+		if err := p.attachLogger(p.stdoutLogger, "stdout", p.cmd.StdoutPipe); err != nil {
+			return err
+		}
+	}
+	if p.stderrLogger != nil {
+		if err := p.attachLogger(p.stderrLogger, "stderr", p.cmd.StderrPipe); err != nil {
+			return err
+		}
+	}
+
 	if err := p.cmd.Start(); err != nil {
 		return err
 	}
@@ -128,6 +133,17 @@ func (p *process) stop() {
 
 func (p *process) SetTimeout(timeout time.Duration) {
 	p.timeout = timeout
+}
+
+func (p *process) SetPrefix(prefix string) {
+	p.prefix = prefix
+}
+
+func (p *process) SetStdoutLogger(l *log.Logger) {
+	p.stdoutLogger = l
+}
+func (p *process) SetStderrLogger(l *log.Logger) {
+	p.stderrLogger = l
 }
 
 // MakePipe creates fifo pipe at specified location.

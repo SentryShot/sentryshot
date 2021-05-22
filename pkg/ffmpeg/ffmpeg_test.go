@@ -70,8 +70,11 @@ func TestProcess(t *testing.T) {
 
 			p := NewProcess(fakeExecCommand())
 			p.SetTimeout(0)
+			p.SetPrefix("test ")
+			p.SetStdoutLogger(logger)
+			p.SetStderrLogger(logger)
 
-			if err := p.StartWithLogger(ctx, logger, "test "); err != nil {
+			if err := p.Start(ctx); err != nil {
 				t.Fatalf("failed to start %v", err)
 			}
 
@@ -92,53 +95,32 @@ func TestProcess(t *testing.T) {
 
 			cancel()
 		})
-		_, pw, err := os.Pipe()
-		if err != nil {
-			t.Fatal("could not create pipe")
-		}
-		t.Run("stdoutErr", func(t *testing.T) {
-			p := process{cmd: fakeExecCommand()}
-			p.cmd.Stdout = pw
-
-			if err := p.StartWithLogger(context.Background(), &log.Logger{}, "test "); err == nil {
-				t.Fatalf("nil")
-			}
-		})
-		t.Run("stderrErr", func(t *testing.T) {
-			p := process{cmd: fakeExecCommand()}
-			p.cmd.Stderr = pw
-
-			if err := p.StartWithLogger(context.Background(), &log.Logger{}, "test "); err == nil {
-				t.Fatalf("nil")
-			}
-		})
-
 	})
-	t.Run("startErr", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		go func() {
-			time.Sleep(10 * time.Millisecond)
-			cancel()
-		}()
+	_, pw, err := os.Pipe()
+	if err != nil {
+		t.Fatal("could not create pipe")
+	}
 
-		p := NewProcess(fakeExecCommand("SLEEP=1"))
-		if err := p.Start(ctx); err == nil {
-			t.Fatal("nil")
+	t.Run("stdoutErr", func(t *testing.T) {
+		p := process{cmd: fakeExecCommand()}
+		p.cmd.Stdout = pw
+		p.SetStdoutLogger(&log.Logger{})
+
+		if err := p.Start(context.Background()); err == nil {
+			t.Fatalf("nil")
 		}
 	})
-	t.Run("stop", func(t *testing.T) {
-		cmd := exec.Command("")
-		p := NewProcess(cmd)
+	t.Run("stderrErr", func(t *testing.T) {
+		p := process{cmd: fakeExecCommand()}
+		p.cmd.Stderr = pw
+		p.SetStderrLogger(&log.Logger{})
 
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-
-		if err := p.Start(ctx); err == nil {
-			t.Fatal("nil")
+		if err := p.Start(context.Background()); err == nil {
+			t.Fatalf("nil")
 		}
 	})
+
 }
-
 func TestMakePipe(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
 		tempDir, err := ioutil.TempDir("", "")

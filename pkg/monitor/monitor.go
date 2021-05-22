@@ -321,9 +321,11 @@ func (m *Monitor) mainProcess(ctx context.Context) error {
 
 	process = m.newProcess(cmd)
 	process.SetTimeout(10 * time.Second)
+	process.SetPrefix(m.Name() + ": main process: ")
+	process.SetStdoutLogger(m.Log)
+	process.SetStderrLogger(m.Log)
 
-	prefix := m.Name() + ": main process: "
-	err = process.StartWithLogger(ctx, m.Log, prefix)
+	err = process.Start(ctx)
 	if err != nil {
 		return fmt.Errorf("crashed: %v", err)
 	}
@@ -438,12 +440,15 @@ func (m *Monitor) recordingProcess(ctx context.Context) error {
 
 	process := m.newProcess(cmd)
 	process.SetTimeout(10 * time.Second)
+	process.SetStdoutLogger(m.Log)
+	process.SetStderrLogger(m.Log)
 
-	m.Log.Printf("%v: starting recording: %v\n", m.Name(), cmd)
 	m.mu.Lock()
-	prefix := m.Name() + ": recording process: "
+	process.SetPrefix(m.Name() + ": recording process: ")
+	m.Log.Printf("%v: starting recording: %v\n", m.Name(), cmd)
 	m.mu.Unlock()
-	err = process.StartWithLogger(ctx, m.Log, prefix)
+
+	err = process.Start(ctx)
 
 	if err := m.saveRecording(filePath, startTime); err != nil {
 		m.Log.Printf("%v: could not save recording: %v\n", m.Name(), err)
@@ -494,11 +499,14 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 
 	process := m.newProcess(cmd)
+	process.SetPrefix(m.Name() + ": thumbnail process: ")
+	process.SetStdoutLogger(m.Log)
+	process.SetStderrLogger(m.Log)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	prefix := m.Name() + ": thumbnail process: "
-	if err := process.StartWithLogger(ctx, m.Log, prefix); err != nil {
+	if err := process.Start(ctx); err != nil {
 		os.Remove(videoPath)
 		os.Remove(thumbPath)
 		return fmt.Errorf("could not generate thumbnail for %v: %v", videoPath, err)
@@ -568,5 +576,3 @@ func (m *Monitor) audioEnabled() bool {
 	}
 	return true
 }
-
-// -hls_time " + m.StreamHlsTime + " "

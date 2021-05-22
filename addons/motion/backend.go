@@ -248,17 +248,10 @@ func (a addon) startDetector(args []string) {
 
 func (a addon) detectorProcess(args []string) error {
 	cmd := exec.Command(a.env.FFmpegBin, args...)
+
 	process := ffmpeg.NewProcess(cmd)
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("stdout: %v", err)
-	}
-
-	go func() {
-		//drainReader(stdout)
-		io.Copy(os.Stdout, stdout) //nolint
-	}()
+	process.SetPrefix("motion: process:")
+	process.SetStdoutLogger(a.m.Log)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
