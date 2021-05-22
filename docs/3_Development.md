@@ -141,6 +141,8 @@ Query recordings.
 
 Requires basic auth and TLS. Authentication is validated before each response.
 
+example: `wss://127.0.0.1/api/logs`
+
 curl doesn't support wss.
 
 ## Logs

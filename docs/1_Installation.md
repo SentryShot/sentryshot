@@ -41,7 +41,12 @@ Download Golang dependencies.
 
 Run service creation script
 
-    sudo ./utils/services/systemd.sh --name=nvr --cmd="/usr/bin/go run /home/_nvr/os-nvr/start/start.go"
+	sudo ./utils/services/systemd.sh \
+		--name=nvr \
+		--goBin /usr/bin/go \
+		--homeDir /home/_nvr/os-nvr \
+		--configDir /home/_nvr/os-nvr/configs
+
 
 Copy sample user.
 

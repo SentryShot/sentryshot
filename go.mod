@@ -5,7 +5,6 @@ go 1.15
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/golangci/golangci-lint v1.39.0 // indirect
 	github.com/gorilla/websocket v1.4.2
 	github.com/kr/text v0.2.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect

@@ -7,16 +7,25 @@ error() {
 }
 
 usage="create systemd service
-example: sudo $(basename "$0") --name=nvr --cmd=/usr/bin/go run /home/_nvr/nvr/start/start.go
+example: sudo $(basename "$0") \\
+	--name=nvr \\
+	--goBin \$(which go) \\
+	--homeDir /home/_nvr/os-nvr \\
+	--configDir /home/_nvr/os-nvr/configs
 
         --name
-            service name
-        --cmd
-            start command
+            service name.
+        --goBin
+            path to golang binary.
+        --homeDir
+            project home.
+        --configDir
+            configuration directory.
     -h, --help
-            show this help text
+            Show this help text
 	 
 "
+#--cmd=/usr/bin/go run /home/_nvr/nvr/start/start.go
 
 # Go to script location.
 cd "$(dirname "$(readlink -f "$0")")" || error "could not got to script location"
@@ -35,7 +44,9 @@ fi
 
 # Parse arguments
 name=""
-cmd=""
+go_bin=""
+home_dir=""
+config_dir=""
 for arg in "$@"; do
 	case $arg in
 	--name)
@@ -47,15 +58,34 @@ for arg in "$@"; do
 		name="${arg#*=}"
 		shift
 		;;
-	--cmd)
-		cmd="$2"
+	--goBin)
+		go_bin="$2"
 		shift
 		shift
 		;;
-	--cmd=*)
-		cmd="${arg#*=}"
+	--goBin=*)
+		go_bin="${arg#*=}"
 		shift
 		;;
+	--homeDir)
+		home_dir="$2"
+		shift
+		shift
+		;;
+	--homeDir=*)
+		home_dir="${arg#*=}"
+		shift
+		;;
+	--configDir)
+		config_dir="$2"
+		shift
+		shift
+		;;
+	--configDir=*)
+		config_dir="${arg#*=}"
+		shift
+		;;
+
 	-h | --help)
 		printf "%s" "$usage"
 		shift
@@ -68,9 +98,16 @@ if [ "$name" = "" ]; then
 	printf "Error: --name not specified\\n"
 	exit 1
 fi
-
-if [ "$cmd" = "" ]; then
-	printf "Error: --cmd not specified\\n"
+if [ "$go_bin" = "" ]; then
+	printf "Error: --goBin not specified\\n"
+	exit 1
+fi
+if [ "$home_dir" = "" ]; then
+	printf "Error: --homeDir not specified\\n"
+	exit 1
+fi
+if [ "$config_dir" = "" ]; then
+	printf "Error: --configDir not specified\\n"
 	exit 1
 fi
 
@@ -101,8 +138,10 @@ fi
 # Copy template to service_dir
 cp ./templates/systemd.service "$service_file"
 
+start_cmd="$go_bin run $home_dir/start/start.go --goBin $go_bin --homeDir $home_dir --configDir $config_dir"
+
 # Fill in command.
-sed -i "s:\$cmd:$cmd:" "$service_file"
+sed -i "s:\$cmd:$start_cmd:" "$service_file"
 
 # Enable and start service
 systemctl enable "$name"

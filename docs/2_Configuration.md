@@ -46,7 +46,7 @@ Arbitrary display name, can probably be any ASCII character.
 Enable or Disable the monitor.
 
 ### Url
-Path to video input 
+Video input url.
 
 <br>
 
@@ -70,7 +70,7 @@ CUDA with device specified
 ### Video encoder
 Select video encoder for converting the camera input to h264. 
 
-To view available encoders.
+To view available h264 encoders.
 
 	ffmpeg -encoders | grep h264
 
@@ -150,24 +150,23 @@ Repeat password: Confirm password.
 
 ## Addons
 
-Addons are configured in `addons.conf` default location `/home/_nvr/home/configs/addons.conf`
+Addons are configured in `addons.conf` default location `/home/_nvr/os-nvr/configs/addons.conf`
 
 <br>
 
 ## Environment 
 
-Environment is configured in `env.json` default location `/home/_nvr/home/configs/env.json`
+Environment is configured in `env.json` default location `/home/_nvr/os-nvr/configs/env.json`
 
 ##### Fields:
 
-port: default `2020`
+port: `2020`
 
-goBin: Path to golang binary. default `/usr/bin/go`
+ffmpegBin: Path to ffmpeg binary. default `ffmpeg`
 
-ffmpegBin: Path to ffmpeg binary. default `/usr/bin/ffmpeg`
+storageDir: Directory where recordings will be stored. default `/home/_nvr/os-nvr/storage`
 
-shmDir: Shared memory directory, used to store tempoary files. default `/dev/shm/nvr`
+shmDir: Shared memory directory, used to store tempoary files. default `/dev/shm/os-nvr`
 
-homeDir: Project home. default: `/home/_nvr/nvr`
+webDir:`/home/_nvr/os-nvr/web`
 
-storageDir: Directory where recordings will be stored. default `/home/_nvr/nvr/storage`
