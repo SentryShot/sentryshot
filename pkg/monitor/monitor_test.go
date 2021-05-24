@@ -611,6 +611,29 @@ func TestStartRecorder(t *testing.T) {
 			t.Fatalf("\nexpected: \n%v \ngot: \n%v", msgFinished, actual)
 		}
 	})
+	t.Run("recordingCheck", func(t *testing.T) {
+		m, cancel := newTestMonitor()
+		defer cancel()
+
+		feed, cancel2 := m.Log.Subscribe()
+		defer cancel2()
+
+		go m.startRecorder()
+		m.Trigger <- Event{End: time.Now().Add(10 * time.Millisecond)}
+		m.Trigger <- Event{End: time.Now().Add(11 * time.Millisecond)}
+		m.Trigger <- Event{End: time.Now().Add(0 * time.Millisecond)}
+
+		<-feed
+		<-feed
+
+		expected := ": saving recording: /tmp/"
+
+		msg := <-feed
+		actual := msg[:25]
+		if actual != expected {
+			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
+		}
+	})
 }
 
 func TestStartRecording(t *testing.T) {

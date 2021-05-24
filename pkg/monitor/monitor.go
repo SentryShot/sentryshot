@@ -365,9 +365,11 @@ func (m *Monitor) startRecorder() {
 			return
 		case event := <-m.Trigger: // Wait for trigger.
 			m.mu.Lock()
-			if m.recording && event.End.After(timeout) {
-				triggerTimeout.Reset(time.Until(event.End))
-				timeout = event.End
+			if m.recording {
+				if event.End.After(timeout) {
+					triggerTimeout.Reset(time.Until(event.End))
+					timeout = event.End
+				}
 				m.mu.Unlock()
 				continue
 			}
