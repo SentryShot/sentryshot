@@ -106,7 +106,7 @@ func Run(goBin string, configDir string) error { //nolint:funlen
 	http.Handle("/debug", a.Admin(t.Render("debug.tpl")))
 
 	http.Handle("/static/", a.User(web.Static(envConfig.WebDir+"/static")))
-	http.Handle("/storage/", a.User(web.Storage()))
+	http.Handle("/storage/", a.User(web.Storage(envConfig.StorageDir)))
 	http.Handle("/hls/", a.User(web.HLS(envConfig)))
 
 	http.Handle("/api/system/status", a.User(web.Status(status)))

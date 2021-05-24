@@ -46,13 +46,13 @@ func Static(path string) http.Handler {
 }
 
 // Storage serves files from web/static
-func Storage() http.Handler {
+func Storage(path string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
-		h := http.StripPrefix("/storage/", http.FileServer(http.Dir("./storage/")))
+		h := http.StripPrefix("/storage/", http.FileServer(http.Dir(path)))
 		h.ServeHTTP(w, r)
 	})
 }
