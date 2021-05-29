@@ -20,11 +20,10 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"nvr/pkg/ffmpeg"
+	"nvr/pkg/ffmpeg/ffmock"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -353,7 +352,7 @@ func newTestMonitor() (*Monitor, func()) {
 		Trigger:         make(chan Event),
 		running:         true,
 		hooks:           mockHooks,
-		newProcess:      mockNewProcess,
+		newProcess:      ffmock.NewProcess,
 		sizeFromStream:  mockSizeFromStream,
 		waitForKeyframe: mockWaitForKeyframe,
 		WG:              &sync.WaitGroup{},
@@ -415,7 +414,7 @@ func TestStartMonitor(t *testing.T) {
 		defer cancel()
 
 		m.running = false
-		m.newProcess = mockNewProcessErr
+		m.newProcess = ffmock.NewProcessErr
 
 		feed, cancel2 := m.Log.Subscribe()
 		defer cancel2()
@@ -460,7 +459,7 @@ func TestStartMainProcess(t *testing.T) {
 		defer cancel3()
 
 		m.running = false
-		m.newProcess = mockNewProcessErr
+		m.newProcess = ffmock.NewProcessErr
 
 		m.startMainProcess()
 
@@ -512,7 +511,7 @@ func TestMainProcess(t *testing.T) {
 	})
 	t.Run("stopped", func(t *testing.T) {
 		m, cancel := newTestMonitor()
-		m.newProcess = mockNewProcessNil
+		m.newProcess = ffmock.NewProcessNil
 		m.cancel = cancel
 		defer cancel()
 
@@ -547,7 +546,7 @@ func TestStartRecorder(t *testing.T) {
 		m, cancel := newTestMonitor()
 		defer cancel()
 
-		m.newProcess = mockNewProcessNil
+		m.newProcess = ffmock.NewProcessNil
 
 		feed, cancel2 := m.Log.Subscribe()
 		defer cancel2()
@@ -566,7 +565,7 @@ func TestStartRecorder(t *testing.T) {
 		m, cancel := newTestMonitor()
 		defer cancel()
 
-		m.newProcess = mockNewProcess
+		m.newProcess = ffmock.NewProcess
 
 		feed, cancel2 := m.Log.Subscribe()
 		defer cancel2()
@@ -666,7 +665,7 @@ func TestStartRecording(t *testing.T) {
 		m, cancel := newTestMonitor()
 		defer cancel()
 
-		m.newProcess = mockNewProcess
+		m.newProcess = ffmock.NewProcess
 		m.waitForKeyframe = mockWaitForKeyframeErr
 
 		feed, cancel := m.Log.Subscribe()
@@ -720,7 +719,7 @@ func TestRecordingProcess(t *testing.T) {
 	t.Run("crashed", func(t *testing.T) {
 		m, cancel := newTestMonitor()
 		defer cancel()
-		m.newProcess = mockNewProcessErr
+		m.newProcess = ffmock.NewProcessErr
 
 		if err := m.recordingProcess(m.Ctx); err == nil {
 			t.Fatal("expected: error, got: nil")
@@ -739,55 +738,6 @@ var mockHooks = Hooks{
 	Start:     func(_ *Monitor) {},
 	StartMain: func(_ *Monitor, _ *string) {},
 }
-
-// Sleeps for 15ms before returning.
-type mockProcess struct{}
-
-func mockNewProcess(*exec.Cmd) ffmpeg.Process {
-	return mockProcess{}
-}
-
-func (mockProcess) Start(ctx context.Context) error {
-	select {
-	case <-time.After(15 * time.Millisecond):
-	case <-ctx.Done():
-	}
-	return nil
-}
-func (mockProcess) SetTimeout(time.Duration)    {}
-func (mockProcess) SetPrefix(string)            {}
-func (mockProcess) SetStdoutLogger(*log.Logger) {}
-func (mockProcess) SetStderrLogger(*log.Logger) {}
-
-// Returns nil
-type mockProcessNil struct{}
-
-func mockNewProcessNil(*exec.Cmd) ffmpeg.Process {
-	return mockProcessNil{}
-}
-
-func (mockProcessNil) Start(context.Context) error {
-	return nil
-}
-func (mockProcessNil) SetTimeout(time.Duration)    {}
-func (mockProcessNil) SetPrefix(string)            {}
-func (mockProcessNil) SetStdoutLogger(*log.Logger) {}
-func (mockProcessNil) SetStderrLogger(*log.Logger) {}
-
-// Returns error.
-type mockProcessErr struct{}
-
-func mockNewProcessErr(*exec.Cmd) ffmpeg.Process {
-	return mockProcessErr{}
-}
-
-func (mockProcessErr) Start(context.Context) error {
-	return errors.New("mock")
-}
-func (mockProcessErr) SetTimeout(time.Duration)    {}
-func (mockProcessErr) SetPrefix(string)            {}
-func (mockProcessErr) SetStdoutLogger(*log.Logger) {}
-func (mockProcessErr) SetStderrLogger(*log.Logger) {}
 
 func TestGenMainArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
