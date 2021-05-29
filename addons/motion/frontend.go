@@ -93,27 +93,31 @@ const javascript = `
 				],
 			}
 		};
+		const modal = newModal("Motion zones");
+		var $content;
 
 		return {
-			html: /* HTML */ ` + "`" + `<li 
-				id="js-motionZones"
-					class="settings-form-item"
-					style="display:flex; padding-bottom:0.25rem;"
-				>
-				<label
-					class="settings-label"
-					for="motionZones"
-					style="width:100%"
-					>Motion zones</label
-				>
-				<div style="width:auto">
-					<button class="settings-edit-btn color3">
-						<img
-							src="static/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-			</li> ` + "`" + `,
+			html: ` + "`" + `
+				<li
+					id="js-motionZones"
+						class="settings-form-item"
+						style="display:flex; padding-bottom:0.25rem;"
+					>
+					<label
+						class="settings-label"
+						for="motionZones"
+						style="width:100%"
+						>Motion zones
+					</label>
+					<div style="width:auto">
+						<button class="settings-edit-btn color3">
+							<img
+								src="static/icons/feather/edit-3.svg"
+							/>
+						</button>
+					</div>
+					` + "` + modal.html() + `" + `
+				</li> ` + "`" + `,
 			value() {
 				return JSON.stringify(zones);
 			},
@@ -125,7 +129,8 @@ const javascript = `
 				monitor = {};
 				zones = [newZone()];
 			},
-			init() {
+			init($parent) {
+				$content = modal.init($parent)
 			
 				// CSS.
 				let $style = document.createElement("style");
@@ -266,9 +271,8 @@ const javascript = `
 					return html;
 				}
 	
-				const modal = newModal("Motion zones");
 				$("#js-motionZones").querySelector(".settings-edit-btn").addEventListener("click", () => {
-					const $content = modal.open()
+					modal.open()
 					
 					const html = ` + "`" + `<li
 						id="js-modal-zone-select"

@@ -29,8 +29,8 @@ import { $ } from "./common.mjs";
  * Takes value() and returns empty string or error,
  * if empty string is returned it's assumed that the field is valid.
  *
- * init()
- * Runs after the html has been rendered.
+ * init($parent)
+ * Called after the html has been rendered. Parent element as parameter.
  * Used to set pointers to elements and to add event listeners.
  *
  */
@@ -394,7 +394,7 @@ function newForm(fields) {
 		init($parent) {
 			for (const item of Object.values(fields)) {
 				if (item && item.init) {
-					item.init();
+					item.init($parent);
 				}
 			}
 			for (const btn of Object.values(buttons)) {
@@ -409,22 +409,31 @@ function isEmpty(string) {
 }
 
 function newModal(label) {
+	var $wrapper;
 	const close = () => {
-		$("#js-modal-wrapper").style.display = "none";
+		$wrapper.classList.remove("modal-open");
 	};
 	return {
-		close: close,
+		html() {
+			return `
+				<div class="modal-wrapper js-modal-wrapper">
+					<div class="modal js-modal">
+						<header class="modal-header">
+							<span class="modal-title">${label}</span>
+							<button class="modal-close-btn">
+								<img class="modal-close-icon" src="static/icons/feather/x.svg"></img>
+							</button>
+						</header>
+						<div class="modal-content"></div>
+					</div>
+				</div>`;
+		},
 		open() {
-			const $wrapper = $("#js-modal-wrapper");
-			$wrapper.querySelector(".modal").innerHTML = `
-				<header class="modal-header">
-					<span class="modal-title">${label}</span>
-					<button class="modal-close-btn">
-						<img class="modal-close-icon" src="static/icons/feather/x.svg"></img>
-					</button>
-				</header>
-				<div class="modal-content"></div>`;
-			$wrapper.style.display = "flex";
+			$wrapper.classList.add("modal-open");
+		},
+		close: close,
+		init($parent) {
+			$wrapper = $parent.querySelector(".js-modal-wrapper");
 			$wrapper.querySelector(".modal-close-btn").addEventListener("click", close);
 			return $wrapper.querySelector(".modal-content");
 		},

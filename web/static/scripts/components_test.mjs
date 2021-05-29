@@ -404,12 +404,10 @@ describe("newForm", () => {
 });
 
 test("newModal", () => {
-	document.body.innerHTML = `
-		<div id="js-modal-wrapper">
-			<div class="modal"></div>
-		</div>
-	`;
 	const modal = newModal("test");
+
+	document.body.innerHTML = modal.html();
+	modal.init(document.body);
 
 	modal.open();
 	let expected = `
@@ -425,9 +423,9 @@ test("newModal", () => {
 	let actual = $(".modal").innerHTML.replace(/\s/g, "");
 	expect(actual).toEqual(expected);
 
-	const $wrapper = $("#js-modal-wrapper");
-	expect($wrapper.style.display).toEqual("flex");
+	const $wrapper = $(".js-modal-wrapper");
+	expect($wrapper.classList.contains("modal-open")).toEqual(true);
 
-	modal.close();
-	expect($wrapper.style.display).toEqual("none");
+	$(".modal-close-btn").click();
+	expect($wrapper.classList.contains("modal-open")).toEqual(false);
 });
