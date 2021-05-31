@@ -18,10 +18,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
-	"os"
 	"testing"
 	"time"
 
@@ -114,35 +112,4 @@ func TestLoop(t *testing.T) {
 	defer cancel()
 
 	s.StatusLoop(ctx)
-}
-
-func TestTimeZone(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
-		tempDir, _ := ioutil.TempDir("", "")
-		defer os.RemoveAll(tempDir)
-
-		expected := "America/Mexico_City"
-
-		filePath := tempDir + "/timezone"
-		ioutil.WriteFile(filePath, []byte(expected), 0600)
-
-		s := New(mockDisk, &log.Logger{})
-
-		s.timeZonePath = filePath
-		actual, err := s.TimeZone()
-		if err != nil {
-			t.Errorf("could not get timezone: %v", err)
-		}
-
-		if actual != expected {
-			t.Errorf("expected: %v, got: %v", expected, actual)
-		}
-	})
-	t.Run("error", func(t *testing.T) {
-		s := New(mockDisk, &log.Logger{})
-		s.timeZonePath = ""
-		if _, err := s.timeZone(); err == nil {
-			t.Fatal("nil")
-		}
-	})
 }

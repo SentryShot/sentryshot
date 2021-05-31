@@ -84,9 +84,10 @@ func Run(goBin string, configDir string) error { //nolint:funlen
 
 	status := system.New(storageManager.Usage, logger)
 	go status.StatusLoop(ctx)
-	timeZone, err := status.TimeZone()
+
+	timeZone, err := system.TimeZone()
 	if err != nil {
-		return fmt.Errorf("could not get timezone: %v", err)
+		return err
 	}
 
 	templateData := web.TemplateData{

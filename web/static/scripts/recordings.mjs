@@ -134,15 +134,18 @@ async function idToISOstring(id, path) {
 	const string = id.replace(
 		/(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})_.*/
 
-function toTimeZone(date, timeZone) {
-	const localTime = new Date(date.toLocaleString("en-US", { timeZone: timeZone }));
-	localTime.setMilliseconds(date.getMilliseconds()); // Preserve Milliseconds.
-
-	return localTime;
+function fromUTC(date, timeZone) {
+	try {
+		const localTime = new Date(date.toLocaleString("en-US", { timeZone: timeZone }));
+		localTime.setMilliseconds(date.getMilliseconds());
+		return localTime;
+	} catch (error) {
+		alert(error);
+	}
 }
 
 function parseDateString(string, timeZone) {
-	const d = toTimeZone(new Date(string), timeZone);
+	const d = fromUTC(new Date(string), timeZone);
 	const pad = (n) => {
 		return n < 10 ? "0" + n : n;
 	};
@@ -202,7 +205,7 @@ function newMonitorNameByID(monitors) {
 		const monitors = await fetchGet("api/monitor/list", "could not get monitor list");
 		const monitorNameByID = newMonitorNameByID(monitors);
 
-		const timeZone = await fetchGet("api/system/timeZone", "could not get timezone");
+		const timeZone = await fetchGet("api/system/timeZone", "could not get time zone");
 
 		const $grid = document.querySelector("#content-grid");
 		const viewer = await newViewer(monitorNameByID, $grid, timeZone);
@@ -217,4 +220,4 @@ function newMonitorNameByID(monitors) {
 	}
 })();
 
-export { newViewer, newMonitorNameByID, toTimeZone };
+export { newViewer, newMonitorNameByID, fromUTC };

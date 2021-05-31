@@ -16,10 +16,14 @@ package system
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -46,9 +50,8 @@ type System struct {
 	ram  ramFunc
 	disk diskFunc
 
-	status       Status
-	duration     time.Duration
-	timeZonePath string
+	status   Status
+	duration time.Duration
 
 	log *log.Logger
 	mu  sync.Mutex
@@ -62,8 +65,7 @@ func New(disk diskFunc, log *log.Logger) *System {
 		ram:  mem.VirtualMemory,
 		disk: disk,
 
-		duration:     10 * time.Second,
-		timeZonePath: "/etc/timezone",
+		duration: 10 * time.Second,
 
 		log: log,
 	}
@@ -116,15 +118,45 @@ func (s *System) Status() Status {
 	return s.status
 }
 
-func (s *System) timeZone() (string, error) {
-	data, err := ioutil.ReadFile(s.timeZonePath)
-	if err != nil {
-		return "", err
+// TimeZone returns system time zone location.
+func TimeZone() (string, error) {
+	// Try golang's built-in function.
+	zone := time.Now().Location().String()
+	if zone != "Local" {
+		return zone, nil
 	}
-	return strings.TrimSpace(string(data)), nil
-}
 
-// TimeZone returns system time zone.
-func (s *System) TimeZone() (string, error) {
-	return s.timeZone()
+	// Fallback 1
+	data, _ := ioutil.ReadFile("/etc/timezone")
+	zone = string(data)
+	if zone != "" {
+		return strings.TrimSpace(zone), nil
+	}
+
+	// Fallback 2
+	localtime, _ := ioutil.ReadFile("/etc/localtime")
+	_ = filepath.Walk("/usr/share/zoneinfo", func(filePath string, file os.FileInfo, err error) error {
+		if err != nil || file.IsDir() {
+			return err
+		}
+		data, _ := ioutil.ReadFile(filePath)
+		if string(data) == string(localtime) {
+			dir, city := path.Split(filePath)
+			region := path.Base(dir)
+			zone = city
+
+			switch region {
+			case "zoneinfo":
+			case "posix":
+			default:
+				zone = region + "/" + city
+			}
+		}
+		return nil
+	})
+	if zone != "" {
+		return strings.TrimSpace(zone), nil
+	}
+
+	return "", errors.New("could not find time zone")
 }

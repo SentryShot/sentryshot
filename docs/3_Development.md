@@ -29,7 +29,7 @@ CPU, RAM and Disk usage.
 
 ##### Auth: user
 
-system time zone.
+System time zone location.
 
 <br>
 
