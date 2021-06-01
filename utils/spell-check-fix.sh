@@ -8,10 +8,13 @@ cd "$home_dir" || exit
 
 exit_code=0
 
-# Find files.
-files=$(find . -type f -name "*.sh" -not -path "./.git/*" -not -path "./.cache/*" -not -path "vendor" -not -path "./node_modules/*" -not -path "./local/*")
+files="$1"
+if [ "$files" = "" ]; then
+	# Find files.
+	files=$(find . -type f -not -path "./.git/*" -not -path "./.cache/*" -not -path "vendor" -not -path "./node_modules/*" -not -path "./local/*")
+fi
 for file in $files; do
-	shfmt -w "$file" || exit_code=1
+	misspell -w "$file" || exit_code=1
 done
 
 return "$exit_code"

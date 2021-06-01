@@ -50,7 +50,7 @@ const fieldTemplate = {
 			}
 		);
 	},
-	text(id, label, placeholder, inital) {
+	text(id, label, placeholder, initial) {
 		return newField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
@@ -61,11 +61,11 @@ const fieldTemplate = {
 				id: id,
 				label: label,
 				placeholder: placeholder,
-				inital: inital,
+				initial: initial,
 			}
 		);
 	},
-	integer(id, label, placeholder, inital) {
+	integer(id, label, placeholder, initial) {
 		return newField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
@@ -78,11 +78,11 @@ const fieldTemplate = {
 				id: id,
 				label: label,
 				placeholder: placeholder,
-				inital: inital,
+				initial: initial,
 			}
 		);
 	},
-	toggle(id, label, inital) {
+	toggle(id, label, initial) {
 		return newField(
 			[],
 			{
@@ -91,11 +91,11 @@ const fieldTemplate = {
 			{
 				id: id,
 				label: label,
-				inital: inital,
+				initial: initial,
 			}
 		);
 	},
-	select(id, label, options, inital) {
+	select(id, label, options, initial) {
 		return newField(
 			[],
 			{
@@ -104,15 +104,15 @@ const fieldTemplate = {
 			{
 				id: id,
 				label: label,
-				inital: inital,
+				initial: initial,
 			}
 		);
 	},
-	selectCustom(id, label, options, inital) {
+	selectCustom(id, label, options, initial) {
 		return newSelectCustomField([inputRules.notEmpty, inputRules.noSpaces], options, {
 			id: id,
 			label: label,
-			inital: inital,
+			initial: initial,
 		});
 	},
 };
@@ -147,7 +147,7 @@ function newField(inputRules, options, values) {
 	return {
 		html: newHTMLfield(options, values),
 		reset() {
-			$input.value = values.inital ? values.inital : "";
+			$input.value = values.initial ? values.initial : "";
 		},
 		init() {
 			[$input, $error] = $getInputAndError($(`#js-${values.id}`));
@@ -208,7 +208,7 @@ function newSelectCustomField(inputRules, options, values) {
 			);
 		})(),
 		reset() {
-			$input.value = values.inital;
+			$input.value = values.initial;
 			$error.innerHTML = "";
 		},
 		init() {

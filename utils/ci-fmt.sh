@@ -52,4 +52,7 @@ modified ".css" && {
 	./utils/lint-css.sh || error "lint css failed"
 }
 
+printf "spell check\\n"
+./utils/spell-check-fix.sh "$1" || error "spell check failed"
+
 printf "all passed!\\n"

@@ -9,10 +9,10 @@
 
 ## Automatic installation
 
-    wget https://gitlab.com/osnvr/os-nvr_assets/-/raw/master/installer.sh && sudo ./install.sh
+[//]: # (wget https://gitlab.com/osnvr/os-nvr_assets/-/raw/master/utils/installer.sh && sudo ./install.sh)
 
 <br>
-[Docker image](https://gitlab.com/OS-NVR/os-nvr_docker)
+[Docker image](https://gitlab.com/osnvr/os-nvr_docker)
 
 
 ## Manual Installation

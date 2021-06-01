@@ -18,7 +18,6 @@ Use [Issues]() for bug reports, feature requests and support.
 ## Features
 - +80% test coverage
 - Mobile-first user interface
-- Bad motion detection addon
 
 ## Documentation
 - [Installation](docs/1_Installation.md)
