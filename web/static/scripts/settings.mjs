@@ -347,7 +347,7 @@ function newMonitor(token, fields) {
 	category.setForm(form);
 
 	const monitorLoad = (navElement, monitors) => {
-		form.clear();
+		form.reset();
 		const id = navElement.attributes.data.value;
 		const $monitor = $("#settings-monitors-id");
 		let monitor = {},
@@ -501,7 +501,7 @@ function newUser(token, fields) {
 	category.setForm(form);
 
 	const userLoad = (navElement, users) => {
-		form.clear();
+		form.reset();
 
 		let id = navElement.attributes.data.value;
 		let user = {};

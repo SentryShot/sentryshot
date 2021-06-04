@@ -32,7 +32,7 @@ describe("fieldTemplate", () => {
 		field.set("1");
 		expect(field.value()).toEqual("1");
 
-		field.reset();
+		field.set("");
 		expect(field.value()).toEqual("");
 	};
 	const testOnChange = () => {
@@ -151,7 +151,7 @@ describe("fieldTemplate", () => {
 		expect(field.value()).toEqual("true");
 		field.set("false");
 		expect(field.value()).toEqual("false");
-		field.reset();
+		field.set("");
 		expect(field.value()).toEqual("true");
 	});
 
@@ -179,7 +179,7 @@ describe("fieldTemplate", () => {
 		expect(field.value()).toEqual("a");
 		field.set("b");
 		expect(field.value()).toEqual("b");
-		field.reset();
+		field.set("");
 		expect(field.value()).toEqual("a");
 	});
 
@@ -214,7 +214,7 @@ describe("fieldTemplate", () => {
 		expect(field.value()).toEqual("a");
 		field.set("b");
 		expect(field.value()).toEqual("b");
-		field.reset();
+		field.set("");
 		expect(field.value()).toEqual("a");
 
 		window.prompt = () => {
@@ -268,7 +268,7 @@ describe("inputRules", () => {
 
 describe("newForm", () => {
 	test("logic", () => {
-		let init, clear, validate;
+		let init, reset, validate;
 
 		const mockField = {
 			field: {
@@ -276,8 +276,10 @@ describe("newForm", () => {
 				init() {
 					init = true;
 				},
-				reset() {
-					clear = true;
+				set(input) {
+					if (input === "") {
+						reset = true;
+					}
 				},
 				validate(value) {
 					validate = value;
@@ -293,8 +295,8 @@ describe("newForm", () => {
 		form.init();
 		expect(init).toEqual(true);
 
-		form.clear();
-		expect(clear).toEqual(true);
+		form.reset();
+		expect(reset).toEqual(true);
 
 		form.validate();
 		expect(validate).toEqual(true);

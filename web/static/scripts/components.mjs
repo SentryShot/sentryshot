@@ -21,10 +21,8 @@ import { $ } from "./common.mjs";
  *
  * value()   Return value from DOM input field.
  *
- * set(input)   Set form field value.
+ * set(input)   Set form field value. Reset field to initial value if input is empty.
  *
- * reset()      Reset field.
-
  * validate(input)
  * Takes value() and returns empty string or error,
  * if empty string is returned it's assumed that the field is valid.
@@ -146,9 +144,6 @@ function newField(inputRules, options, values) {
 
 	return {
 		html: newHTMLfield(options, values),
-		reset() {
-			$input.value = values.initial ? values.initial : "";
-		},
 		init() {
 			[$input, $error] = $getInputAndError($(`#js-${values.id}`));
 			$input.addEventListener("change", () => {
@@ -159,7 +154,11 @@ function newField(inputRules, options, values) {
 		},
 		value: value,
 		set(input) {
-			$input.value = input;
+			if (input == "") {
+				$input.value = values.initial ? values.initial : "";
+			} else {
+				$input.value = input;
+			}
 		},
 		validate: validate,
 	};
@@ -173,6 +172,12 @@ function newSelectCustomField(inputRules, options, values) {
 		return $input.value;
 	};
 	const set = (input) => {
+		if (input === "") {
+			$input.value = values.initial;
+			$error.innerHTML = "";
+			return;
+		}
+
 		let customValue = true;
 		for (const option of $("#" + values.id).options) {
 			if (option.value === input) {
@@ -207,10 +212,6 @@ function newSelectCustomField(inputRules, options, values) {
 				values
 			);
 		})(),
-		reset() {
-			$input.value = values.initial;
-			$error.innerHTML = "";
-		},
 		init() {
 			const element = $(`#js-${values.id}`);
 			[$input, $error] = $getInputAndError(element);
@@ -353,10 +354,10 @@ function newForm(fields) {
 			}
 		},
 		fields: fields,
-		clear() {
+		reset() {
 			for (const item of Object.values(fields)) {
-				if (item.reset) {
-					item.reset();
+				if (item.set) {
+					item.set("");
 				}
 			}
 		},

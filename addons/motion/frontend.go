@@ -122,12 +122,13 @@ const javascript = `
 				return JSON.stringify(zones);
 			},
 			set(input, m) {
-				monitor = m;
-				zones = JSON.parse(input);	
-			},
-			reset() {
-				monitor = {};
-				zones = [newZone()];
+				if (input === "") {
+					monitor = {};
+					zones = [newZone()];
+				} else {
+					monitor = m;
+					zones = JSON.parse(input);
+				}
 			},
 			init($parent) {
 				$content = modal.init($parent)
