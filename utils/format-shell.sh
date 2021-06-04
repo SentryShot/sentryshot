@@ -8,8 +8,7 @@ cd "$home_dir" || exit
 
 exit_code=0
 
-# Find files.
-files=$(find . -type f -name "*.sh" -not -path "./.git/*" -not -path "./.cache/*" -not -path "vendor" -not -path "./node_modules/*" -not -path "./local/*")
+files=$(./utils/find.sh "*.sh")
 for file in $files; do
 	shfmt -w "$file" || exit_code=1
 done

@@ -15,18 +15,17 @@ run:
     script:
         - |
             # Setup.
-            export GOPATH="$CI_PROJECT_DIR/.cache/GOPATH"
+            export GOPATH="$CI_PROJECT_DIR/.cache/GOPATH:$GOPATH"
             export GOCACHE="$CI_PROJECT_DIR/.cache/GOCACHE"
             export GOLANGCI_LINT_CACHE=$CI_PROJECT_DIR/.cache/GOLANGCI
 
-            npm install --save-dev eslint-plugin-promise
-            go get -v -d github.com/snowzach/doods/odrpc
+            npm install -g eslint-plugin-promise
 
-
-            # Try to get changed files.
-            files_changed="$(git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA)" || (
-                printf "could not determine changed files, testing all files\\n"
-            )
+            # Get changed files.
+            git remote add upstream https://gitlab.com/osnvr/os-nvr.git
+            git fetch upstream dev
+            git diff --name-only upstream/dev $CI_COMMIT_SHA
+            files_changed="$(git diff --name-only upstream/dev $CI_COMMIT_SHA)"
 
             # Do not format if "no_fmt" is set.
             if [ "${no_fmt}" != "" ]; then
@@ -50,6 +49,7 @@ run:
 
                 # Push formatted code.
                 printf "committing\\n"
+                git status -s
                 git config --global user.name "${GITLAB_USER_ID}"
                 git config --global user.email "${GITLAB_USER_EMAIL}"
                 git add .

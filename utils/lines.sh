@@ -7,4 +7,4 @@ script_path=$(readlink -f "$0")
 home_dir=$(dirname "$(dirname "$script_path")")
 cd "$home_dir" || exit
 
-git ls-files | grep -E ".go$|.js$|.mjs$|.tpl$|.sh$" | grep -vE "vendor" | xargs wc -l
+./utils/find.sh "*" | grep -E ".go$|.js$|.mjs$|.tpl$|.sh$" | xargs wc -l

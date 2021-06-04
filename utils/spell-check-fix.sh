@@ -10,8 +10,7 @@ exit_code=0
 
 files="$1"
 if [ "$files" = "" ]; then
-	# Find files.
-	files=$(find . -type f -not -path "./.git/*" -not -path "./.cache/*" -not -path "vendor" -not -path "./node_modules/*" -not -path "./local/*")
+	files=$(./utils/find.sh "*")
 fi
 for file in $files; do
 	misspell -w "$file" || exit_code=1
