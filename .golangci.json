@@ -17,8 +17,6 @@
 			"gocritic",
 			"gocyclo",
 			"godox",
-			"gofmt",
-			"goimports",
 			"golint",
 			"goprintffuncname",
 			"gosimple",

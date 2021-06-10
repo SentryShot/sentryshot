@@ -141,12 +141,13 @@
 
 .settings-menubar {
 	display: flex;
-	width: 100%;
+	width: 100vw;
 	height: var(--barsize);
 	background: var(--color2);
 }
 
 .settings-subcategory-menubar {
+	width: 100vw;
 	background: var(--color3);
 }
 

@@ -34,15 +34,15 @@ import (
 )
 
 func init() {
-	nvr.RegisterMonitorStartHook(func(m *monitor.Monitor) {
-		if err := onMonitorStart(m); err != nil {
+	nvr.RegisterMonitorStartHook(func(ctx context.Context, m *monitor.Monitor) {
+		if err := onMonitorStart(ctx, m); err != nil {
 			m.Log.Println(err)
 		}
 	})
 	nvr.RegisterMonitorStartProcessHook(modifyMainArgs)
 }
 
-func modifyMainArgs(m *monitor.Monitor, args *string) {
+func modifyMainArgs(_ context.Context, m *monitor.Monitor, args *string) {
 	if m.Config["motionDetection"] != "true" {
 		return
 	}
@@ -54,7 +54,7 @@ func modifyMainArgs(m *monitor.Monitor, args *string) {
 		" -restart_with_keyframe 1 -recovery_wait_time 1 " + pipePath
 }
 
-func onMonitorStart(m *monitor.Monitor) error {
+func onMonitorStart(ctx context.Context, m *monitor.Monitor) error {
 	if m.Config["motionDetection"] != "true" {
 		return nil
 	}
@@ -89,7 +89,7 @@ func onMonitorStart(m *monitor.Monitor) error {
 	}
 	a.duration = time.Duration(durationInt) * time.Second
 
-	go a.startDetector(detectorArgs)
+	go a.startDetector(ctx, detectorArgs)
 
 	return nil
 }
@@ -117,7 +117,6 @@ func (zone zone) calculatePolygon(w int, h int) polygon {
 type addon struct {
 	m   *monitor.Monitor
 	env *storage.ConfigEnv
-	ctx context.Context
 
 	zones    []zone
 	duration time.Duration
@@ -127,7 +126,6 @@ func newAddon(m *monitor.Monitor) addon {
 	return addon{
 		m:   m,
 		env: m.Env,
-		ctx: m.Ctx,
 	}
 }
 
@@ -230,23 +228,23 @@ func (a addon) generateDetectorArgs(masks []string, hwaccel string, scale string
 	return args
 }
 
-func (a addon) startDetector(args []string) {
+func (a addon) startDetector(ctx context.Context, args []string) {
 	a.m.WG.Add(1)
 
 	for {
-		if a.ctx.Err() != nil {
+		if ctx.Err() != nil {
 			a.m.WG.Done()
 			a.m.Log.Printf("%v: motion: detector stopped\n", a.m.Name())
 			return
 		}
-		if err := a.detectorProcess(args); err != nil {
+		if err := a.detectorProcess(ctx, args); err != nil {
 			a.m.Log.Printf("%v: motion: %v\n", a.m.Name(), err)
 			time.Sleep(1 * time.Second)
 		}
 	}
 }
 
-func (a addon) detectorProcess(args []string) error {
+func (a addon) detectorProcess(ctx context.Context, args []string) error {
 	cmd := exec.Command(a.env.FFmpegBin, args...)
 
 	process := ffmpeg.NewProcess(cmd)
@@ -262,7 +260,7 @@ func (a addon) detectorProcess(args []string) error {
 
 	go a.parseFFmpegOutput(stderr)
 
-	err = process.Start(a.ctx)
+	err = process.Start(ctx)
 
 	if err != nil {
 		return fmt.Errorf("detector crashed: %v", err)

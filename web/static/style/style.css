@@ -405,6 +405,7 @@ a:focus {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
+	max-height: 100%;
 	margin: auto;
 	background: var(--color3);
 }
@@ -471,6 +472,7 @@ a:focus {
 /* form */
 
 .form {
+	width: 100vw;
 	overflow-x: hidden;
 	overflow-y: auto;
 }
@@ -576,6 +578,10 @@ a:focus {
 
 	#sidebar-checkbox:checked ~ #sidebar-closer {
 		width: 0;
+	}
+
+	.form {
+		width: auto;
 	}
 
 	#nav-btn {

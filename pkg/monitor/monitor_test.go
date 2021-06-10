@@ -131,7 +131,7 @@ func TestNewManager(t *testing.T) {
 		)
 
 		if err == nil {
-			t.Fatal("nil")
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("unmarshalErr", func(t *testing.T) {
@@ -151,7 +151,7 @@ func TestNewManager(t *testing.T) {
 		)
 
 		if err == nil {
-			t.Fatal("nil")
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 
@@ -234,7 +234,7 @@ func TestMonitorSet(t *testing.T) {
 
 		manager.path = "/dev/null"
 		if err := manager.MonitorSet("1", Config{}); err == nil {
-			t.Fatal("nil")
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 }
@@ -261,7 +261,7 @@ func TestMonitorDelete(t *testing.T) {
 		defer cancel()
 
 		if err := manager.MonitorDelete("nil"); err == nil {
-			t.Fatal("nil")
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("removeErr", func(t *testing.T) {
@@ -271,7 +271,7 @@ func TestMonitorDelete(t *testing.T) {
 		manager.path = "/dev/null"
 
 		if err := manager.MonitorDelete("1"); err == nil {
-			t.Fatal("nil")
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 }
@@ -326,16 +326,14 @@ func mockWaitForKeyframe(_ context.Context, _ string) (time.Duration, error) {
 	return 0, nil
 }
 
-func newTestMonitor() (*Monitor, func()) {
+func newTestMonitor() (*Monitor, context.Context, func()) {
 	tempDir, _ := ioutil.TempDir("", "")
-	ctx, cancel := context.WithCancel(context.Background())
 
-	ctx, cancel2 := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	logger := log.NewLogger(ctx)
 
 	cancelFunc := func() {
 		cancel()
-		cancel2()
 		os.RemoveAll(tempDir)
 	}
 
@@ -349,28 +347,31 @@ func newTestMonitor() (*Monitor, func()) {
 			"videoLength":     "0.0003", // 18ms
 			"timestampOffset": "0",
 		},
-		Trigger:         make(chan Event),
-		running:         true,
-		hooks:           mockHooks,
-		newProcess:      ffmock.NewProcess,
-		sizeFromStream:  mockSizeFromStream,
-		waitForKeyframe: mockWaitForKeyframe,
-		WG:              &sync.WaitGroup{},
-		Log:             logger,
-		Ctx:             ctx,
+		Trigger: make(Trigger),
+		running: true,
+
+		hooks:               mockHooks,
+		runMainProcess:      mockRunMainProcess,
+		startRecording:      mockStartRecording,
+		runRecordingProcess: mockRunRecordingProcess,
+		newProcess:          ffmock.NewProcess,
+		sizeFromStream:      mockSizeFromStream,
+		waitForKeyframe:     mockWaitForKeyframe,
+		WG:                  &sync.WaitGroup{},
+		Log:                 logger,
 	}
-	return m, cancelFunc
+	return m, ctx, cancelFunc
 }
 
 func TestStartMonitor(t *testing.T) {
 	t.Run("runningErr", func(t *testing.T) {
 		m := Monitor{running: true}
 		if err := m.Start(); err == nil {
-			t.Fatal("nil")
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("disabled", func(t *testing.T) {
-		m, cancel := newTestMonitor()
+		m, _, cancel := newTestMonitor()
 		defer cancel()
 
 		m.running = false
@@ -391,77 +392,40 @@ func TestStartMonitor(t *testing.T) {
 			t.Fatalf("expected: %v, got: %v", expected, actual)
 		}
 	})
-	t.Run("resetCtx", func(t *testing.T) {
-		m, cancel := newTestMonitor()
-		defer cancel()
-
-		ctx, cancel2 := context.WithCancel(context.Background())
-		cancel2()
-
-		m.Ctx = ctx
-		m.running = false
-
-		if err := m.Start(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if m.Ctx.Err() != nil {
-			t.Fatal("context did not reset")
-		}
-	})
-	t.Run("mainProcessCrashed", func(t *testing.T) {
-		m, cancel := newTestMonitor()
-		defer cancel()
-
-		m.running = false
-		m.newProcess = ffmock.NewProcessErr
-
-		feed, cancel2 := m.Log.Subscribe()
-		defer cancel2()
-
-		if err := m.Start(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		<-feed
-		<-feed
-
-		actual := <-feed
-		expected := ": main process: crashed: mock\n"
-
-		if actual != expected {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
-		}
-
-	})
 	t.Run("tmpDirErr", func(t *testing.T) {
-		m, cancel := newTestMonitor()
+		m, _, cancel := newTestMonitor()
 		defer cancel()
 
 		m.running = false
 		m.Env.SHMDir = "/dev/null"
 
 		if err := m.Start(); err == nil {
-			t.Fatal("nil")
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 }
 
+func mockRunMainProcess(context.Context, *Monitor) error {
+	return nil
+}
+
+func mockRunMainProcessErr(context.Context, *Monitor) error {
+	return errors.New("mock")
+}
+
 func TestStartMainProcess(t *testing.T) {
 	t.Run("canceled", func(t *testing.T) {
-		m, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		cancel2()
-		m.Ctx = ctx
 
 		feed, cancel3 := m.Log.Subscribe()
 		defer cancel3()
 
-		m.running = false
-		m.newProcess = ffmock.NewProcessErr
-
-		m.startMainProcess()
+		m.WG.Add(1)
+		go m.startMainProcess(ctx)
 
 		actual := <-feed
 		expected := ": main process: stopped\n"
@@ -470,30 +434,37 @@ func TestStartMainProcess(t *testing.T) {
 			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
 		}
 	})
-}
-
-func TestMainProcess(t *testing.T) {
-	t.Run("sizeFromStream", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-		defer os.RemoveAll(tempDir)
-
-		m, cancel := newTestMonitor()
-		m.Env = &storage.ConfigEnv{SHMDir: tempDir}
+	t.Run("crashed", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
 
-		go func() {
-			if err := m.mainProcess(m.Ctx); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-		}()
+		m.runMainProcess = mockRunMainProcessErr
 
-		time.Sleep(10 * time.Millisecond)
-		m.mu.Lock()
+		feed, cancel2 := m.Log.Subscribe()
+		defer cancel2()
+
+		m.WG.Add(1)
+		go m.startMainProcess(ctx)
+
+		actual := <-feed
+		expected := ": main process: crashed: mock\n"
+
+		if actual != expected {
+			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
+		}
+	})
+}
+
+func TestRunMainProcess(t *testing.T) {
+	t.Run("sizeFromStream", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor()
+		defer cancel()
+
+		if err := runMainProcess(ctx, m); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
 		actual := m.Size()
-		m.mu.Unlock()
 
 		expected := "123x456"
 		if actual != expected {
@@ -501,22 +472,23 @@ func TestMainProcess(t *testing.T) {
 		}
 	})
 	t.Run("sizeFromStreamErr", func(t *testing.T) {
-		m, cancel := newTestMonitor()
-		m.sizeFromStream = mockSizeFromStreamErr
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
 
-		if err := m.mainProcess(m.Ctx); err == nil {
+		m.sizeFromStream = mockSizeFromStreamErr
+
+		if err := runMainProcess(ctx, m); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("stopped", func(t *testing.T) {
-		m, cancel := newTestMonitor()
-		m.newProcess = ffmock.NewProcessNil
-		m.cancel = cancel
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
 
+		m.newProcess = ffmock.NewProcessNil
+
 		go func() {
-			if err := m.mainProcess(m.Ctx); err != nil {
+			if err := runMainProcess(ctx, m); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		}()
@@ -528,127 +500,104 @@ func TestMainProcess(t *testing.T) {
 			t.Fatal("monitor did not stop")
 		}
 	})
-	t.Run("noError", func(t *testing.T) {
-		m, cancel := newTestMonitor()
+	t.Run("crashed", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
-		m.cancel = cancel
 
-		if err := m.mainProcess(m.Ctx); err != nil {
-			t.Fatalf("unexpected error: %v", err)
+		m.newProcess = ffmock.NewProcessErr
+
+		if err := runMainProcess(ctx, m); err == nil {
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 }
 
 func TestStartRecorder(t *testing.T) {
-	const msgFinished = ": recording finished\n"
-
-	t.Run("finished", func(t *testing.T) {
-		m, cancel := newTestMonitor()
-		defer cancel()
-
-		m.newProcess = ffmock.NewProcessNil
-
-		feed, cancel2 := m.Log.Subscribe()
-		defer cancel2()
-
-		go m.startRecorder()
-		m.Trigger <- Event{End: time.Now().Add(1 * time.Hour)}
-
-		<-feed
-		<-feed
-		actual := <-feed
-		if actual != msgFinished {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", msgFinished, actual)
-		}
-	})
 	t.Run("timeout", func(t *testing.T) {
-		m, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
 
-		m.newProcess = ffmock.NewProcess
+		m.startRecording = mockStartRecording
 
 		feed, cancel2 := m.Log.Subscribe()
 		defer cancel2()
 
-		go m.startRecorder()
+		go m.startRecorder(ctx)
 		m.Trigger <- Event{End: time.Now().Add(time.Duration(-1) * time.Hour)}
 
 		msg := <-feed
-		actual1 := msg[:42]
-		var actual2 string
-
-		select {
-		case msg = <-feed:
-			actual2 = msg
-		case <-time.After(1 * time.Millisecond):
-		}
+		actual := msg[:42]
 
 		expected := ": trigger reached end, stopping recording\n"
 
-		switch {
-		case actual1 == expected:
-		case actual2 == expected:
-		default:
-			t.Fatalf("neither first or second output matches expected:\n%v\n%v", actual1, actual2)
-		}
-	})
-	t.Run("timeoutUpdate", func(t *testing.T) {
-		m, cancel := newTestMonitor()
-		defer cancel()
-
-		feed, cancel2 := m.Log.Subscribe()
-		defer cancel2()
-
-		go m.startRecorder()
-		m.Trigger <- Event{End: time.Now().Add(10 * time.Millisecond)}
-		m.Trigger <- Event{End: time.Now().Add(50 * time.Millisecond)}
-
-		<-feed
-		<-feed
-		actual := <-feed
-		if actual != msgFinished {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", msgFinished, actual)
-		}
-	})
-	t.Run("recordingCheck", func(t *testing.T) {
-		m, cancel := newTestMonitor()
-		defer cancel()
-
-		feed, cancel2 := m.Log.Subscribe()
-		defer cancel2()
-
-		go m.startRecorder()
-		m.Trigger <- Event{End: time.Now().Add(10 * time.Millisecond)}
-		m.Trigger <- Event{End: time.Now().Add(11 * time.Millisecond)}
-		m.Trigger <- Event{End: time.Now().Add(0 * time.Millisecond)}
-
-		<-feed
-		<-feed
-
-		expected := ": saving recording: /tmp/"
-
-		msg := <-feed
-		actual := msg[:25]
 		if actual != expected {
 			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
 		}
 	})
+	t.Run("timeoutUpdate", func(t *testing.T) {
+		mu := sync.Mutex{}
+		mockStartRecording := func(context.Context, *Monitor) {
+			mu.Unlock()
+		}
+
+		m, ctx, cancel := newTestMonitor()
+		defer cancel()
+
+		m.WG.Add(1)
+		m.startRecording = mockStartRecording
+
+		ctx, cancel2 := context.WithCancel(context.Background())
+		defer cancel2()
+
+		mu.Lock()
+		go m.startRecorder(ctx)
+		m.Trigger <- Event{End: time.Now().Add(10 * time.Millisecond)}
+		m.Trigger <- Event{End: time.Now().Add(50 * time.Millisecond)}
+
+		mu.Lock()
+		mu.Unlock()
+	})
+	t.Run("recordingCheck", func(t *testing.T) {
+		mu := sync.Mutex{}
+		mockStartRecording := func(context.Context, *Monitor) {
+			mu.Unlock()
+		}
+
+		m, ctx, cancel := newTestMonitor()
+		defer cancel()
+
+		m.startRecording = mockStartRecording
+
+		ctx, cancel2 := context.WithCancel(context.Background())
+		defer cancel2()
+
+		mu.Lock()
+		go m.startRecorder(ctx)
+		m.Trigger <- Event{End: time.Now().Add(10 * time.Millisecond)}
+		m.Trigger <- Event{End: time.Now().Add(11 * time.Millisecond)}
+		m.Trigger <- Event{End: time.Now().Add(0 * time.Millisecond)}
+
+		mu.Lock()
+		mu.Unlock()
+	})
 }
+
+func mockStartRecording(context.Context, *Monitor) {}
 
 func TestStartRecording(t *testing.T) {
 	t.Run("canceled", func(t *testing.T) {
-		m, cancel := newTestMonitor()
+		m, _, cancel := newTestMonitor()
 		defer cancel()
 
 		feed, cancel2 := m.Log.Subscribe()
 		defer cancel2()
 
-		// Cancel the recording and not the monitor.
+		// Cancel the recording not the monitor.
 		ctx2, cancel3 := context.WithCancel(context.Background())
 		cancel3()
 
 		m.WG.Add(1)
-		go m.startRecording(ctx2)
+		go startRecording(ctx2, m)
 
 		expected := ": recording stopped\n"
 
@@ -657,24 +606,19 @@ func TestStartRecording(t *testing.T) {
 			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
 		}
 	})
-	t.Run("waitForKeyframeErr", func(t *testing.T) {
-		mockWaitForKeyframeErr := func(_ context.Context, _ string) (time.Duration, error) {
-			return 0, errors.New("e")
-		}
-
-		m, cancel := newTestMonitor()
+	t.Run("crashed", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
 
-		m.newProcess = ffmock.NewProcess
-		m.waitForKeyframe = mockWaitForKeyframeErr
+		m.runRecordingProcess = mockRunRecordingProcessErr
 
-		feed, cancel := m.Log.Subscribe()
-		defer cancel()
+		feed, cancel2 := m.Log.Subscribe()
+		defer cancel2()
 
 		m.WG.Add(1)
-		go m.startRecording(m.Ctx)
+		go startRecording(ctx, m)
 
-		expected := ": recording process: could not get keyframe duration: e\n"
+		expected := ": recording process: mock\n"
 
 		actual := <-feed
 		if actual != expected {
@@ -683,45 +627,94 @@ func TestStartRecording(t *testing.T) {
 	})
 }
 
-func TestRecordingProcess(t *testing.T) {
+func mockRunRecordingProcess(context.Context, *Monitor) error {
+	return nil
+}
+
+func mockRunRecordingProcessErr(context.Context, *Monitor) error {
+	return errors.New("mock")
+}
+
+func TestRunRecordingProcess(t *testing.T) {
+	t.Run("finished", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor()
+		defer cancel()
+
+		m.newProcess = ffmock.NewProcessNil
+
+		feed, cancel2 := m.Log.Subscribe()
+		defer cancel2()
+
+		go func() {
+			if err := runRecordingProcess(ctx, m); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		}()
+
+		<-feed
+		<-feed
+		actual := <-feed
+
+		expected := ": recording finished\n"
+
+		if actual != expected {
+			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
+		}
+	})
+	t.Run("waitForKeyframeErr", func(t *testing.T) {
+		mockWaitForKeyframeErr := func(_ context.Context, _ string) (time.Duration, error) {
+			return 0, errors.New("mock")
+		}
+
+		m, ctx, cancel := newTestMonitor()
+		defer cancel()
+
+		m.newProcess = ffmock.NewProcess
+		m.waitForKeyframe = mockWaitForKeyframeErr
+
+		m.WG.Add(1)
+		if err := runRecordingProcess(ctx, m); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
 	t.Run("mkdirErr", func(t *testing.T) {
-		m, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
 
 		m.Env = &storage.ConfigEnv{
 			StorageDir: "/dev/null",
 		}
 
-		if err := m.recordingProcess(m.Ctx); err == nil {
+		if err := runRecordingProcess(ctx, m); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("genArgsErr", func(t *testing.T) {
-		m, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
 
 		m.Config["videoLength"] = ""
 
-		if err := m.recordingProcess(m.Ctx); err == nil {
+		if err := runRecordingProcess(ctx, m); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("parseOffsetErr", func(t *testing.T) {
-		m, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
 
 		m.Config["timestampOffset"] = ""
 
-		if err := m.recordingProcess(m.Ctx); err == nil {
+		if err := runRecordingProcess(ctx, m); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("crashed", func(t *testing.T) {
-		m, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor()
 		defer cancel()
 		m.newProcess = ffmock.NewProcessErr
 
-		if err := m.recordingProcess(m.Ctx); err == nil {
+		if err := runRecordingProcess(ctx, m); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -735,8 +728,8 @@ func mockSizeFromStreamErr(string) (string, error) {
 }
 
 var mockHooks = Hooks{
-	Start:     func(_ *Monitor) {},
-	StartMain: func(_ *Monitor, _ *string) {},
+	Start:     func(context.Context, *Monitor) {},
+	StartMain: func(context.Context, *Monitor, *string) {},
 }
 
 func TestGenMainArgs(t *testing.T) {
@@ -804,7 +797,7 @@ func TestGenRecorderArgs(t *testing.T) {
 		}
 		_, err := m.generateRecorderArgs("path", "")
 		if err == nil {
-			t.Fatal("nil")
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 }

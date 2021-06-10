@@ -35,8 +35,8 @@ import (
 // Config Monitor configuration.
 type Config map[string]string
 
-type StartHook func(*Monitor)
-type StartMainHook func(*Monitor, *string)
+type StartHook func(context.Context, *Monitor)
+type StartMainHook func(context.Context, *Monitor, *string)
 
 // Hook monitor start addon hook.
 type Hooks struct {
@@ -49,27 +49,8 @@ type Event struct {
 	End time.Time // End time of recording
 }
 
-// Monitor service.
-type Monitor struct {
-	Env    *storage.ConfigEnv
-	Config Config
-
-	Trigger chan Event
-
-	running   bool
-	recording bool
-
-	hooks           Hooks
-	newProcess      func(cmd *exec.Cmd) ffmpeg.Process
-	sizeFromStream  func(string) (string, error)
-	waitForKeyframe func(context.Context, string) (time.Duration, error)
-
-	mu     sync.Mutex
-	WG     *sync.WaitGroup
-	Log    *log.Logger
-	Ctx    context.Context
-	cancel func()
-}
+// Trigger recording using event.
+type Trigger chan Event
 
 // Manager for the monitors.
 type Manager struct {
@@ -127,16 +108,43 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 	return &Monitor{
 		Env:     m.env,
 		Config:  config,
-		Trigger: make(chan Event),
+		Trigger: make(Trigger),
 
-		hooks:           m.hooks,
-		newProcess:      ffmpeg.NewProcess,
-		sizeFromStream:  ffmpeg.New(m.env.FFmpegBin).SizeFromStream,
-		waitForKeyframe: ffmpeg.WaitForKeyframe,
+		hooks:               m.hooks,
+		runMainProcess:      runMainProcess,
+		startRecording:      startRecording,
+		runRecordingProcess: runRecordingProcess,
+		newProcess:          ffmpeg.NewProcess,
+		sizeFromStream:      ffmpeg.New(m.env.FFmpegBin).SizeFromStream,
+		waitForKeyframe:     ffmpeg.WaitForKeyframe,
 
 		WG:  &sync.WaitGroup{},
 		Log: m.log,
 	}
+}
+
+// Monitor service.
+type Monitor struct {
+	Env    *storage.ConfigEnv
+	Config Config
+
+	Trigger Trigger
+
+	running   bool
+	recording bool
+
+	hooks               Hooks
+	runMainProcess      runMainProcessFunc
+	startRecording      startRecordingFunc
+	runRecordingProcess runRecordingProcessFunc
+	newProcess          ffmpeg.NewProcessFunc
+	sizeFromStream      ffmpeg.SizeFromStreamFunc
+	waitForKeyframe     ffmpeg.WaitForKeyframeFunc
+
+	mu     sync.Mutex
+	WG     *sync.WaitGroup
+	Log    *log.Logger
+	cancel func()
 }
 
 // MonitorSet sets config for specified monitor.
@@ -248,7 +256,6 @@ func (m *Monitor) Start() error {
 	m.Log.Printf("%v: starting\n", m.Name())
 
 	ctx, cancel := context.WithCancel(context.Background())
-	m.Ctx = ctx
 	m.cancel = cancel
 
 	tmpDir := m.Env.SHMhls() + "/" + m.ID()
@@ -262,45 +269,45 @@ func (m *Monitor) Start() error {
 		never := time.Unix(1<<63-62135596801, 999999999)
 		go func() {
 			select {
-			case <-m.Ctx.Done():
+			case <-ctx.Done():
 			case <-time.After(15 * time.Second):
 				m.Trigger <- Event{End: never}
 			}
 		}()
 	}
 
-	m.hooks.Start(m)
+	m.hooks.Start(ctx, m)
 
-	go m.startMainProcess()
-	go m.startRecorder()
+	m.WG.Add(2)
+	go m.startMainProcess(ctx)
+	go m.startRecorder(ctx)
 
 	return nil
 }
 
-func (m *Monitor) startMainProcess() {
-	m.mu.Lock()
-	m.WG.Add(1)
-	m.mu.Unlock()
+func (m *Monitor) startMainProcess(ctx context.Context) {
 	for {
-		if m.Ctx.Err() != nil {
+		if ctx.Err() != nil {
 			m.mu.Lock()
-			m.running = false
-			m.WG.Done()
-			m.mu.Unlock()
 
+			m.running = false
 			m.Log.Printf("%v: main process: stopped\n", m.Name())
+			m.WG.Done()
+
+			m.mu.Unlock()
 			return
 		}
-
-		if err := m.mainProcess(m.Ctx); err != nil {
-			m.Log.Printf("%v: main process: %v\n", m.Name(), err)
+		if err := m.runMainProcess(ctx, m); err != nil {
+			m.Log.Printf("%v: main process: crashed: %v\n", m.Name(), err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
 	}
 }
 
-func (m *Monitor) mainProcess(ctx context.Context) error {
+type runMainProcessFunc func(context.Context, *Monitor) error
+
+func runMainProcess(ctx context.Context, m *Monitor) error {
 	var process ffmpeg.Process
 
 	size, err := m.sizeFromStream(m.URL())
@@ -313,7 +320,7 @@ func (m *Monitor) mainProcess(ctx context.Context) error {
 
 	args := m.generateMainArgs()
 
-	m.hooks.StartMain(m, &args)
+	m.hooks.StartMain(ctx, m, &args)
 
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 
@@ -352,16 +359,17 @@ func (m *Monitor) generateMainArgs() string {
 		m.Env.SHMDir + "/hls/" + m.ID() + "/" + m.ID() + ".m3u8" // HLS output.
 }
 
-func (m *Monitor) startRecorder() {
+func (m *Monitor) startRecorder(ctx context.Context) {
 	var triggerTimeout *time.Timer
 	var timeout time.Time
 
 	for {
 		select {
-		case <-m.Ctx.Done():
+		case <-ctx.Done():
 			if triggerTimeout != nil {
 				triggerTimeout.Stop()
 			}
+			m.WG.Done()
 			return
 		case event := <-m.Trigger: // Wait for trigger.
 			m.mu.Lock()
@@ -374,7 +382,7 @@ func (m *Monitor) startRecorder() {
 				continue
 			}
 
-			ctx, cancel := context.WithCancel(m.Ctx)
+			ctx2, cancel := context.WithCancel(ctx)
 
 			// Stops recording when timeout is reached.
 			triggerTimeout = time.AfterFunc(time.Until(event.End), func() {
@@ -386,14 +394,16 @@ func (m *Monitor) startRecorder() {
 			m.recording = true
 			m.mu.Unlock()
 
-			go m.startRecording(ctx)
+			go m.startRecording(ctx2, m)
 		}
 	}
 }
 
-func (m *Monitor) startRecording(ctx context.Context) {
+type startRecordingFunc func(context.Context, *Monitor)
+
+func startRecording(ctx context.Context, m *Monitor) {
 	for {
-		if ctx.Err() != nil { // add test
+		if ctx.Err() != nil {
 			m.mu.Lock()
 
 			m.recording = false
@@ -403,7 +413,7 @@ func (m *Monitor) startRecording(ctx context.Context) {
 			m.mu.Unlock()
 			return
 		}
-		if err := m.recordingProcess(ctx); err != nil {
+		if err := m.runRecordingProcess(ctx, m); err != nil {
 			m.Log.Printf("%v: recording process: %v\n", m.Name(), err)
 			time.Sleep(1 * time.Second)
 			continue
@@ -411,10 +421,12 @@ func (m *Monitor) startRecording(ctx context.Context) {
 	}
 }
 
-func (m *Monitor) recordingProcess(ctx context.Context) error {
+type runRecordingProcessFunc func(context.Context, *Monitor) error
+
+func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	hlsPath := m.Env.SHMhls() + "/" + m.ID() + "/" + m.ID() + ".m3u8"
 
-	keyFrameDuration, err := m.waitForKeyframe(m.Ctx, hlsPath)
+	keyFrameDuration, err := m.waitForKeyframe(ctx, hlsPath)
 	if err != nil {
 		return fmt.Errorf("could not get keyframe duration: %v", err)
 	}

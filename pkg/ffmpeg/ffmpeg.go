@@ -58,6 +58,9 @@ type process struct {
 	done chan struct{}
 }
 
+// NewProcessFunc is used for mocking.
+type NewProcessFunc func(*exec.Cmd) Process
+
 // NewProcess return process.
 func NewProcess(cmd *exec.Cmd) Process {
 	return &process{
@@ -169,6 +172,9 @@ func New(bin string) *FFMPEG {
 	return &FFMPEG{command: command}
 }
 
+// SizeFromStreamFunc is used for mocking.
+type SizeFromStreamFunc func(string) (string, error)
+
 // SizeFromStream uses ffmpeg to grab stream size.
 func (f *FFMPEG) SizeFromStream(url string) (string, error) {
 	cmd := f.command("-i", url, "-f", "ffmetadata", "-")
@@ -276,6 +282,9 @@ func SaveImage(path string, img image.Image) error {
 func ParseArgs(args string) []string {
 	return strings.Split(strings.TrimSpace(args), " ")
 }
+
+// WaitForKeyframeFunc is used for mocking.
+type WaitForKeyframeFunc func(context.Context, string) (time.Duration, error)
 
 // WaitForKeyframe waits for ffmpeg to update ".m3u8" segment list
 // with a new keyframe, and returns that keyframes duration.

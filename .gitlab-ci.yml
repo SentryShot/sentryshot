@@ -19,13 +19,16 @@ run:
             export GOCACHE="$CI_PROJECT_DIR/.cache/GOCACHE"
             export GOLANGCI_LINT_CACHE=$CI_PROJECT_DIR/.cache/GOLANGCI
 
-            npm install -g eslint-plugin-promise
-
             # Get changed files.
             git remote add upstream https://gitlab.com/osnvr/os-nvr.git
             git fetch upstream dev
             git diff --name-only upstream/dev $CI_COMMIT_SHA
             files_changed="$(git diff --name-only upstream/dev $CI_COMMIT_SHA)"
+
+            if [ $files_changed == "" ]; then
+                files_changed="$(git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA)"
+            fi
+
 
             # Do not format if "no_fmt" is set.
             if [ "${no_fmt}" != "" ]; then

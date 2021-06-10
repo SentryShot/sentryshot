@@ -15,6 +15,7 @@
 package nvr
 
 import (
+	"context"
 	"nvr/pkg/monitor"
 	"nvr/pkg/web"
 )
@@ -50,14 +51,14 @@ func tplHook(pageFiles map[string]string) error {
 }
 
 func monitorHooks() monitor.Hooks {
-	startHook := func(m *monitor.Monitor) {
+	startHook := func(ctx context.Context, m *monitor.Monitor) {
 		for _, hook := range monitorStartHooks {
-			hook(m)
+			hook(ctx, m)
 		}
 	}
-	startMainHook := func(m *monitor.Monitor, args *string) {
+	startMainHook := func(ctx context.Context, m *monitor.Monitor, args *string) {
 		for _, hook := range monitorStartMainHooks {
-			hook(m, args)
+			hook(ctx, m, args)
 		}
 	}
 

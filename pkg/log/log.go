@@ -26,6 +26,9 @@ type Logger struct {
 	unsub chan chan string // unsubscribe requests.
 }
 
+// Feed is a channel of logs.
+type Feed <-chan string
+
 // NewLogger starts and returns Logger.
 func NewLogger(ctx context.Context) *Logger {
 	logger := &Logger{
