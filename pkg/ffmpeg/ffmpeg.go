@@ -40,6 +40,7 @@ import (
 // Process interface only used for testing.
 type Process interface {
 	Start(ctx context.Context) error
+	Stop()
 	SetTimeout(time.Duration)
 	SetPrefix(string)
 	SetStdoutLogger(*log.Logger)
@@ -106,7 +107,7 @@ func (p *process) Start(ctx context.Context) error {
 		select {
 		case <-p.done:
 		case <-ctx.Done():
-			p.stop()
+			p.Stop()
 		}
 	}()
 
@@ -121,9 +122,9 @@ func (p *process) Start(ctx context.Context) error {
 	return err
 }
 
-// Note, canCommandContext to stop process as it would
+// Note, can't use CommandContext to Stop process as it would
 // kill the process before it has a chance to exit on its own.
-func (p *process) stop() {
+func (p *process) Stop() {
 	p.cmd.Process.Signal(os.Interrupt) //nolint:errcheck
 
 	select {

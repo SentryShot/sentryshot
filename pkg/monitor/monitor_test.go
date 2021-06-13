@@ -24,6 +24,7 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -357,8 +358,10 @@ func newTestMonitor() (*Monitor, context.Context, func()) {
 		newProcess:          ffmock.NewProcess,
 		sizeFromStream:      mockSizeFromStream,
 		waitForKeyframe:     mockWaitForKeyframe,
-		WG:                  &sync.WaitGroup{},
-		Log:                 logger,
+		watchdogInterval:    10 * time.Second,
+
+		WG:  &sync.WaitGroup{},
+		Log: logger,
 	}
 	return m, ctx, cancelFunc
 }
@@ -508,6 +511,63 @@ func TestRunMainProcess(t *testing.T) {
 
 		if err := runMainProcess(ctx, m); err == nil {
 			t.Fatal("expected: error, got: nil")
+		}
+	})
+}
+
+func TestWatchdog(t *testing.T) {
+	t.Run("freeze", func(t *testing.T) {
+		mu := &sync.Mutex{}
+		onStop := func() {
+			mu.Unlock()
+		}
+		mocker := ffmock.NewProcessMocker(ffmock.MockProcessConfig{
+			OnStop: onStop,
+		})
+
+		m, ctx, cancel := newTestMonitor()
+		defer cancel()
+
+		m.Config["id"] = "id"
+		m.watchdogInterval = 10 * time.Millisecond
+
+		feed, cancel2 := m.Log.Subscribe()
+		defer cancel2()
+
+		if err := os.MkdirAll(m.hlsPath(), 0700); err != nil {
+			t.Fatal(err)
+		}
+
+		mu.Lock()
+		go m.startWatchdog(ctx, mocker(&exec.Cmd{}))
+
+		mu.Lock()
+		mu.Unlock()
+
+		actual := <-feed
+		expected := ": main process: watchdog: possible freeze detected, restarting\n"
+
+		if actual != expected {
+			t.Fatalf("expected: %v, got: %v", expected, actual)
+		}
+	})
+	t.Run("fileErr", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor()
+		defer cancel()
+
+		m.Config["id"] = "id"
+		m.watchdogInterval = 10 * time.Millisecond
+
+		feed, cancel2 := m.Log.Subscribe()
+		defer cancel2()
+
+		go m.startWatchdog(ctx, ffmock.NewProcess(&exec.Cmd{}))
+
+		actual := <-feed
+		expected := ": main process: watchdog: no such file or directory\n"
+
+		if actual != expected {
+			t.Fatalf("expected: %v, got: %v", expected, actual)
 		}
 	})
 }
@@ -782,11 +842,11 @@ func TestGenRecorderArgs(t *testing.T) {
 				"id":          "id",
 			},
 		}
-		actual, err := m.generateRecorderArgs("path", "/hls")
+		actual, err := m.generateRecorderArgs("path")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		expected := "-y -loglevel 1 -live_start_index -1 -i /hls -t 120 -c:v copy path.mp4"
+		expected := "-y -loglevel 1 -live_start_index -1 -i /hls/id/id.m3u8 -t 120 -c:v copy path.mp4"
 		if actual != expected {
 			t.Fatalf("\nexpected: \n%v \ngot \n%v", expected, actual)
 		}
@@ -795,7 +855,7 @@ func TestGenRecorderArgs(t *testing.T) {
 		m := Monitor{
 			Env: &storage.ConfigEnv{},
 		}
-		_, err := m.generateRecorderArgs("path", "")
+		_, err := m.generateRecorderArgs("path")
 		if err == nil {
 			t.Fatal("expected: error, got: nil")
 		}

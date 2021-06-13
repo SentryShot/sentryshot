@@ -13,6 +13,7 @@ import (
 type MockProcessConfig struct {
 	ReturnErr bool
 	Sleep     time.Duration
+	OnStop    func()
 }
 
 // NewProcessMocker creates process mocker from config.
@@ -41,6 +42,11 @@ func (m mockProcess) Start(ctx context.Context) error {
 	return nil
 }
 
+func (m mockProcess) Stop() {
+	if m.c.OnStop != nil {
+		m.c.OnStop()
+	}
+}
 func (m mockProcess) SetTimeout(time.Duration)    {}
 func (m mockProcess) SetPrefix(string)            {}
 func (m mockProcess) SetStdoutLogger(*log.Logger) {}

@@ -30,6 +30,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 // Config Monitor configuration.
@@ -114,6 +116,7 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		newProcess:          ffmpeg.NewProcess,
 		sizeFromStream:      ffmpeg.New(m.env.FFmpegBin).SizeFromStream,
 		waitForKeyframe:     ffmpeg.WaitForKeyframe,
+		watchdogInterval:    10 * time.Second,
 
 		WG:  &sync.WaitGroup{},
 		Log: m.log,
@@ -140,6 +143,7 @@ type Monitor struct {
 	newProcess          ffmpeg.NewProcessFunc
 	sizeFromStream      ffmpeg.SizeFromStreamFunc
 	waitForKeyframe     ffmpeg.WaitForKeyframeFunc
+	watchdogInterval    time.Duration
 
 	mu     sync.Mutex
 	WG     *sync.WaitGroup
@@ -312,7 +316,7 @@ func runMainProcess(ctx context.Context, m *Monitor) error {
 
 	size, err := m.sizeFromStream(m.URL())
 	if err != nil {
-		return fmt.Errorf("%v: could not get size of stream: %v", m.Name(), err)
+		return fmt.Errorf("could not get size of stream: %v", err)
 	}
 	m.mu.Lock()
 	m.Config["size"] = size
@@ -331,6 +335,8 @@ func runMainProcess(ctx context.Context, m *Monitor) error {
 	process.SetPrefix(m.Name() + ": main process: ")
 	process.SetStdoutLogger(m.Log)
 	process.SetStderrLogger(m.Log)
+
+	go m.startWatchdog(ctx, process)
 
 	err = process.Start(ctx)
 	if err != nil {
@@ -357,6 +363,48 @@ func (m *Monitor) generateMainArgs() string {
 		" -c:v " + m.Config["videoEncoder"] + " -preset veryfast" + // Video encoder.
 		" -f hls -hls_flags delete_segments -hls_list_size 2 -hls_allow_cache 0 " + // HLS settings.
 		m.Env.SHMDir + "/hls/" + m.ID() + "/" + m.ID() + ".m3u8" // HLS output.
+}
+
+// startWatchdog starts a watchdog that detects if the mainProcess freezes.
+// Freeze is detected by polling the output HLS manifest for file updates.
+func (m *Monitor) startWatchdog(ctx context.Context, process ffmpeg.Process) {
+	watchFile := func() error {
+		watcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			return err
+		}
+		defer watcher.Close()
+
+		err = watcher.Add(m.hlsPath())
+		if err != nil {
+			return err
+		}
+		for {
+			select {
+			case <-watcher.Events: // file updated, process not frozen.
+				return nil
+			case <-time.After(m.watchdogInterval):
+				return errors.New("possible freeze detected, restarting")
+			case err := <-watcher.Errors:
+				return err
+			case <-ctx.Done():
+				return nil
+			}
+		}
+	}
+	for {
+		select {
+		case <-time.After(m.watchdogInterval):
+		case <-ctx.Done():
+			return
+		}
+		go func() {
+			if err := watchFile(); err != nil {
+				m.Log.Printf("%v: main process: watchdog: %v\n", m.Name(), err)
+				process.Stop()
+			}
+		}()
+	}
 }
 
 func (m *Monitor) startRecorder(ctx context.Context) {
@@ -424,9 +472,7 @@ func startRecording(ctx context.Context, m *Monitor) {
 type runRecordingProcessFunc func(context.Context, *Monitor) error
 
 func runRecordingProcess(ctx context.Context, m *Monitor) error {
-	hlsPath := m.Env.SHMhls() + "/" + m.ID() + "/" + m.ID() + ".m3u8"
-
-	keyFrameDuration, err := m.waitForKeyframe(ctx, hlsPath)
+	keyFrameDuration, err := m.waitForKeyframe(ctx, m.hlsPath())
 	if err != nil {
 		return fmt.Errorf("could not get keyframe duration: %v", err)
 	}
@@ -446,7 +492,7 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 		return fmt.Errorf("could not make directory for video: %v", err)
 	}
 
-	args, err := m.generateRecorderArgs(filePath, hlsPath)
+	args, err := m.generateRecorderArgs(filePath)
 	if err != nil {
 		return err
 	}
@@ -476,7 +522,7 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	return nil
 }
 
-func (m *Monitor) generateRecorderArgs(filePath string, hlsPath string) (string, error) {
+func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 	videoLength, err := strconv.ParseFloat(m.Config["videoLength"], 64)
 	if err != nil {
 		return "", fmt.Errorf("%v: could not parse video length: %v", m.Name(), err)
@@ -485,7 +531,7 @@ func (m *Monitor) generateRecorderArgs(filePath string, hlsPath string) (string,
 
 	args := "-y -loglevel " + m.Config["logLevel"] +
 		" -live_start_index -1" + // HLS segment to start from.
-		" -i " + hlsPath + // Input.
+		" -i " + m.hlsPath() + // Input.
 		" -t " + videoLengthSec + // Max video length.
 		" -c:v copy " + filePath + ".mp4" // Output.
 
@@ -586,4 +632,8 @@ func (m *Monitor) audioEnabled() bool {
 		return false
 	}
 	return true
+}
+
+func (m *Monitor) hlsPath() string {
+	return m.Env.SHMhls() + "/" + m.ID() + "/" + m.ID() + ".m3u8"
 }
