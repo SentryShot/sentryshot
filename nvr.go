@@ -48,6 +48,8 @@ func Run(goBin string, configDir string) error { //nolint:funlen
 		return fmt.Errorf("could not get environment config: %v", err)
 	}
 
+	envHook(envConfig)
+
 	generalConfig, err := storage.NewConfigGeneral(configDir)
 	if err != nil {
 		return fmt.Errorf("could not get general config: %v", err)

@@ -181,7 +181,7 @@ type ConfigEnv struct {
 	SHMDir     string `json:"shmDir"`
 
 	WebDir    string `json:"webDir"`
-	configDir string
+	ConfigDir string
 }
 
 // NewConfigEnv return new environment configuration.
@@ -211,7 +211,7 @@ func NewConfigEnv(goBin string, configDir string) (*ConfigEnv, error) {
 		return &ConfigEnv{}, err
 	}
 	config.goBin = goBin
-	config.configDir = configDir
+	config.ConfigDir = configDir
 
 	// Check the only error filepath.Abs can throw.
 	if _, err := os.Getwd(); err != nil {
@@ -220,7 +220,7 @@ func NewConfigEnv(goBin string, configDir string) (*ConfigEnv, error) {
 	config.StorageDir, _ = filepath.Abs(config.StorageDir)
 	config.SHMDir, _ = filepath.Abs(config.SHMDir)
 	config.WebDir, _ = filepath.Abs(config.WebDir)
-	config.configDir, _ = filepath.Abs(config.configDir)
+	config.ConfigDir, _ = filepath.Abs(config.ConfigDir)
 
 	return &config, nil
 }
@@ -245,7 +245,7 @@ func (env *ConfigEnv) SHMhls() string {
 
 // PrepareEnvironment prepares directories.
 func (env *ConfigEnv) PrepareEnvironment() error {
-	monitorsDir := env.configDir + "/monitors"
+	monitorsDir := env.ConfigDir + "/monitors"
 	if err := os.MkdirAll(monitorsDir, 0700); err != nil && err != os.ErrExist {
 		return fmt.Errorf("could not create monitor directory: %v: %v", monitorsDir, err)
 	}

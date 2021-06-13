@@ -292,7 +292,7 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		env.configDir = ""
+		env.ConfigDir = ""
 		actual := fmt.Sprintf("%v", env)
 		expected := fmt.Sprintf("%v", config)
 
@@ -348,7 +348,7 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		config1.goBin = ""
-		config1.configDir = ""
+		config1.ConfigDir = ""
 
 		file, err := ioutil.ReadFile(configPath)
 		if err != nil {
@@ -437,7 +437,7 @@ func TestPrepareEnvironment(t *testing.T) {
 
 		env := &ConfigEnv{
 			SHMDir:    tempDir,
-			configDir: configDir,
+			ConfigDir: configDir,
 		}
 
 		testDir := env.SHMhls() + "/test"
@@ -459,7 +459,7 @@ func TestPrepareEnvironment(t *testing.T) {
 	})
 	t.Run("monitorsMkdirErr", func(t *testing.T) {
 		env := ConfigEnv{
-			configDir: "/dev/null",
+			ConfigDir: "/dev/null",
 		}
 
 		if err := env.PrepareEnvironment(); err == nil {
@@ -480,7 +480,7 @@ func TestPrepareEnvironment(t *testing.T) {
 
 		env := ConfigEnv{
 			SHMDir:    "/dev/null",
-			configDir: configDir,
+			ConfigDir: configDir,
 		}
 
 		err = env.PrepareEnvironment()

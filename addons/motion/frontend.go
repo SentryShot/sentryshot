@@ -121,7 +121,7 @@ const javascript = `
 			value() {
 				return JSON.stringify(zones);
 			},
-			set(input, m) {
+			set(input, _, m) {
 				if (input === "") {
 					monitor = {};
 					zones = [newZone()];

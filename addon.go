@@ -17,14 +17,23 @@ package nvr
 import (
 	"context"
 	"nvr/pkg/monitor"
+	"nvr/pkg/storage"
 	"nvr/pkg/web"
 )
 
+type environmentHook func(*storage.ConfigEnv)
+
 var (
+	envHooks              []environmentHook
 	tplHooks              []web.Hook
 	monitorStartHooks     []monitor.StartHook
 	monitorStartMainHooks []monitor.StartMainHook
 )
+
+// RegisterTplHook registers hook that's called when environment config is loaded.
+func RegisterEnvHook(h environmentHook) {
+	envHooks = append(envHooks, h)
+}
 
 // RegisterTplHook registers hook that's called on page render.
 func RegisterTplHook(h web.Hook) {
@@ -39,6 +48,12 @@ func RegisterMonitorStartHook(h monitor.StartHook) {
 // RegisterMonitorHook registers hook that's called when the main monitor process starts.
 func RegisterMonitorStartProcessHook(h monitor.StartMainHook) {
 	monitorStartMainHooks = append(monitorStartMainHooks, h)
+}
+
+func envHook(env *storage.ConfigEnv) {
+	for _, hook := range envHooks {
+		hook(env)
+	}
 }
 
 func tplHook(pageFiles map[string]string) error {

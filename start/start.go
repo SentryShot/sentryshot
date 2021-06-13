@@ -99,7 +99,12 @@ func parseFlags() (*configEnv, error) {
 }
 
 const addonFile = `# Uncomment to enable.
-#nvr/addons/motion`
+
+# Motion detection. Multiple zones, cannot handle shadows.
+#nvr/addons/motion
+
+# Object detection. https://github.com/snowzach/doods
+#nvr/addons/doods`
 
 // getAddons reads and parses "addons.conf"
 func getAddons(addonPath string) ([]string, error) {

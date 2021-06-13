@@ -365,9 +365,14 @@ function newMonitor(token, fields) {
 
 		category.setTitle(title);
 
-		for (const key of Object.keys(monitor)) {
-			if (monitor[key] && form.fields[key] && form.fields[key].set) {
-				form.fields[key].set(monitor[key], monitor);
+		// Set fields.
+		for (const key of Object.keys(form.fields)) {
+			if (form.fields[key] && form.fields[key].set) {
+				if (monitor[key]) {
+					form.fields[key].set(monitor[key], monitor, fields);
+				} else {
+					form.fields[key].set("", monitor, fields);
+				}
 			}
 		}
 	};

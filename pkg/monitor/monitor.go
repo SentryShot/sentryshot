@@ -49,9 +49,6 @@ type Event struct {
 	End time.Time // End time of recording
 }
 
-// Trigger recording using event.
-type Trigger chan Event
-
 // Manager for the monitors.
 type Manager struct {
 	Monitors map[string]*Monitor
@@ -122,6 +119,9 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		Log: m.log,
 	}
 }
+
+// Trigger recording using event.
+type Trigger chan Event
 
 // Monitor service.
 type Monitor struct {
@@ -498,9 +498,6 @@ type RecData struct {
 }
 
 func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
-	m.WG.Add(1)
-	defer m.WG.Done()
-
 	videoPath := filePath + ".mp4"
 	thumbPath := filePath + ".jpeg"
 	dataPath := filePath + ".json"
