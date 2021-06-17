@@ -13,10 +13,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { fetchGet } from "./common.mjs";
+import { newPlayer } from "./components.mjs";
 
 async function newViewer(monitorNameByID, $parent, timeZone) {
 	let maxPlayingVideos = 2;
-	let gridSize;
 
 	let playingVideos = [];
 	const resetVideos = () => {
@@ -26,38 +26,45 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 		}
 	};
 
-	const newThumbnail = async (id, path) => {
-		const name = await monitorNameByID(id.slice(20));
-		const [date, time] = parseDateString(await idToISOstring(id, path), timeZone);
-
-		const html = generateThumbnailHTML(path, name, date, time);
-		let wrapper;
-
-		const convertToThumbnail = () => {
-			let element = wrapper.querySelector("video");
-			element.outerHTML = `<img class="grid-item" src="${path}.jpeg" />`;
-			wrapper.querySelector("img").addEventListener("click", convertToVideo);
-		};
-
-		const convertToVideo = () => {
-			resetVideos();
-
-			const element = wrapper.querySelector("img");
-			element.outerHTML = generateVideoHTML(path);
-			playingVideos.push(convertToThumbnail);
-		};
-
-		$parent.insertAdjacentHTML("beforeend", html);
-		wrapper = $parent.lastChild;
-
-		const element = document.querySelector(`[src="${path}.jpeg"]`);
-		element.addEventListener("click", convertToVideo);
+	const onLoadVideo = (reset) => {
+		resetVideos();
+		playingVideos.push(reset);
 	};
 
+	const renderRecordings = async (recordings) => {
+		let current;
+		let players = [];
+		for (const rec of Object.values(recordings)) {
+			let d = {}; // Recording data.
+			d.id = rec.id;
+			d.path = toAbsolutePath(rec.path);
+			d.name = await monitorNameByID(d.id.slice(20));
+			const dateString = idToISOstring(d.id, d.path);
+			d.date = fromUTC(new Date(dateString), timeZone);
+
+			const player = newPlayer(d);
+			players.push(player);
+
+			current = rec.id;
+		}
+
+		let html = "";
+		for (const player of players) {
+			html += player.html;
+		}
+		$parent.insertAdjacentHTML("beforeend", html);
+
+		for (const player of players) {
+			player.init(onLoadVideo);
+		}
+		return current;
+	};
+
+	let gridSize;
 	let loading = false;
 	let lastVideo = false;
 	let current = "9999-12-28_23-59-59";
-	const loadThumbnails = async () => {
+	const fetchRecordings = async () => {
 		const limit = gridSize;
 
 		const parameters = new URLSearchParams({ limit: limit, before: current });
@@ -74,33 +81,29 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 			}
 		}
 
-		for (const rec of Object.values(recordings)) {
-			await newThumbnail(rec.id, toAbsolutePath(rec.path));
-			current = rec.id;
-		}
+		current = await renderRecordings(recordings);
 	};
-
-	const lazyLoadThumbnails = async () => {
+	const lazyLoadRecordings = async () => {
 		while (
 			!loading &&
 			!lastVideo &&
+			$parent.lastChild &&
 			$parent.lastChild.getBoundingClientRect().top < window.screen.height * 3
 		) {
 			loading = true;
-			await loadThumbnails();
+			await fetchRecordings();
 			loading = false;
 		}
 	};
-
 	gridSize = getComputedStyle(document.documentElement)
 		.getPropertyValue("--gridsize")
 		.trim();
 
-	await loadThumbnails();
-	await lazyLoadThumbnails();
+	await fetchRecordings();
+	await lazyLoadRecordings();
 
 	return {
-		lazyLoadThumbnails: lazyLoadThumbnails,
+		lazyLoadRecordings: lazyLoadRecordings,
 	};
 }
 
@@ -116,23 +119,7 @@ function idToISOstring(id) {
 		/(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})_.*/,
 		"$1-$2-$3T$4:$5:$6+00:00"
 	);
-} /*,
-		"$1-$2-$3T$4:$5:$6+00:00"
-	);
-
-	const response = await fetch(path + ".json");
-	if (response.status != 200) {
-		return string;
-	}
-
-	const data = await response.json();
-	return data.start;
 }
-*/
-/*
-async function idToISOstring(id, path) {
-	const string = id.replace(
-		/(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})_.*/
 
 function fromUTC(date, timeZone) {
 	try {
@@ -142,48 +129,6 @@ function fromUTC(date, timeZone) {
 	} catch (error) {
 		alert(error);
 	}
-}
-
-function parseDateString(string, timeZone) {
-	const d = fromUTC(new Date(string), timeZone);
-	const pad = (n) => {
-		return n < 10 ? "0" + n : n;
-	};
-
-	let YY = d.getFullYear(),
-		MM = pad(d.getMonth() + 1),
-		DD = pad(d.getDate()), // Day.
-		hh = pad(d.getHours()),
-		mm = pad(d.getMinutes()),
-		ss = pad(d.getSeconds());
-
-	const date = `${YY}-${MM}-${DD}`;
-	const time = `${hh}:${mm}:${ss}`; //+ `.${d.getMilliseconds()}`;
-	return [date, time];
-}
-
-function generateThumbnailHTML(path, name, date, time) {
-	return /* HTML*/ `<div
-			class="grid-item-container"
-		>
-			<img class="grid-item" src="${path}.jpeg" />
-			<div class="video-overlay">
-				<span class="video-overlay-text">${date}</span>
-				<span class="video-overlay-text">${time}</span>
-				<span class="video-overlay-text">${name}</span>
-			</div>
-		</div>`;
-}
-
-function generateVideoHTML(path) {
-	return /* HTML */ ` <video
-		class="video grid-item"
-		controls
-		autoplay
-		disablePictureInPicture
-	>
-		<source src="${path}.mp4" type="video/mp4" />
-	</video>`;
 }
 
 function newMonitorNameByID(monitors) {
@@ -210,11 +155,11 @@ function newMonitorNameByID(monitors) {
 		const $grid = document.querySelector("#content-grid");
 		const viewer = await newViewer(monitorNameByID, $grid, timeZone);
 
-		window.addEventListener("resize", viewer.lazyLoadThumbnails);
-		window.addEventListener("orientation", viewer.lazyLoadThumbnails);
+		window.addEventListener("resize", viewer.lazyLoadRecordings);
+		window.addEventListener("orientation", viewer.lazyLoadRecordings);
 		document
 			.querySelector("#content-grid-wrapper")
-			.addEventListener("scroll", viewer.lazyLoadThumbnails);
+			.addEventListener("scroll", viewer.lazyLoadRecordings);
 	} catch (error) {
 		return error;
 	}

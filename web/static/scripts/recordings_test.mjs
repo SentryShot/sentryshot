@@ -16,95 +16,20 @@ import { $ } from "./common.mjs";
 import { newViewer, newMonitorNameByID, fromUTC } from "./recordings.mjs";
 
 describe("newViewer", () => {
-	describe("rendering", () => {
-		beforeEach(async () => {
-			const monitors = {
-				1: { id: "A", name: "one" },
-				2: { id: "B", name: "two" },
-				3: { id: "C", name: "three" },
-			};
-
-			const monitorNameByID = newMonitorNameByID(monitors);
-
-			const recordings = [
-				{
-					id: "2001-01-01_01-01-01_A",
-					path: "A",
-				},
-				{
-					id: "2002-02-02_02-02-02_B",
-					path: "B",
-				},
-			];
-
-			function mockFetch() {
-				return {
-					status: 200,
-					json() {
-						return recordings;
-					},
-				};
-			}
-			window.fetch = mockFetch;
-
-			document.body.innerHTML = "<div></div>";
-
-			const element = $("div");
-			await newViewer(monitorNameByID, element, "GMT");
-		});
-
-		test("thumbnails", async () => {
-			const element = $("div");
-			const expected = `
-			<div class="grid-item-container">
-    			<img class="grid-item" src="http://localhost/A.jpeg">
-    			<div class="video-overlay">
-    				<span class="video-overlay-text">2001-01-01</span>
-    				<span class="video-overlay-text">01:01:01</span>
-    				<span class="video-overlay-text">one</span>
-    			</div>
-    		</div>
-			<div class="grid-item-container">
-    			<img class="grid-item" src="http://localhost/B.jpeg">
-    			<div class="video-overlay">
-    				<span class="video-overlay-text">2002-02-02</span>
-    				<span class="video-overlay-text">02:02:02</span>
-    				<span class="video-overlay-text">two</span>
-    			</div>
-    		</div>`.replace(/\s/g, "");
-
-			const actual = element.innerHTML.replace(/\s/g, "");
-
-			expect(actual).toEqual(expected);
-		});
-		test("video", () => {
-			const element = $("div");
-			const expected2 = `
-			<video class="video grid-item" controls="" autoplay="" disablepictureinpicture="">
-    			<source src="http://localhost/A.mp4" type="video/mp4">
-    		</video>`.replace(/\s/g, "");
-
-			const $video = element.children[0];
-			$video.children[0].click();
-			const actual2 = $video.children[0].outerHTML.replace(/\s/g, "");
-
-			expect(actual2).toEqual(expected2);
-		});
-	});
 	test("videoUnloading", async () => {
 		const monitorNameByID = newMonitorNameByID({});
 
 		const recordings = [
 			{
-				id: "",
+				id: "1",
 				path: "a",
 			},
 			{
-				id: "",
+				id: "2",
 				path: "b",
 			},
 			{
-				id: "",
+				id: "3",
 				path: "c",
 			},
 		];
@@ -143,6 +68,7 @@ describe("newViewer", () => {
 		};
 
 		const clickVideo = (index) => {
+			console.log(element.children[index]);
 			element.children[index].querySelector("img").click();
 		};
 

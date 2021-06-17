@@ -18,6 +18,7 @@ import {
 	newForm,
 	inputRules,
 	newModal,
+	newPlayer,
 	$getInputAndError,
 } from "./components.mjs";
 
@@ -430,4 +431,111 @@ test("newModal", () => {
 
 	$(".modal-close-btn").click();
 	expect($wrapper.classList.contains("modal-open")).toEqual(false);
+});
+
+describe("newPlayer", () => {
+	let element;
+	let player;
+
+	beforeEach(() => {
+		document.body.innerHTML = "<div></div>";
+		window.HTMLMediaElement.prototype.play = () => {};
+		element = $("div");
+
+		let date = new Date("2001-06-02T00:00:01+00:00");
+		date = new Date(date.toLocaleString("en-US", { timeZone: "gmt" }));
+
+		const data = {
+			id: "A",
+			path: "B",
+			name: "C",
+			date: date,
+		};
+		player = newPlayer(data);
+		element.innerHTML = player.html;
+	});
+	test("rendering", () => {
+		let reset;
+		player.init((r) => {
+			reset = r;
+		});
+		const thumbnailHTML = `
+				<div id="recA" class="grid-item-container">
+					<img class="grid-item" src="B.jpeg">
+					<div class="player-overlay-top player-top-bar">
+						<span class="player-menu-text js-date">2001-06-02</span>
+						<span class="player-menu-text js-time">00:00:01</span>
+						<span class="player-menu-text">C</span>
+					</div>
+				</div>`.replace(/\s/g, "");
+
+		const actual = element.innerHTML.replace(/\s/g, "");
+		expect(actual).toEqual(thumbnailHTML);
+
+		$("div img").click();
+		const videoHTML = `
+				<div id="recA" class="grid-item-container">
+					<video
+						class="grid-item"
+						disablepictureinpicture=""
+					>
+						<source src="B.mp4" type="video/mp4">
+					</video>
+					<input
+						class="player-overlay-checkbox"
+						id="recA-overlay-checkbox"
+						type="checkbox"
+					>
+					<label
+						class="player-overlay-selector"
+						for="recA-overlay-checkbox">
+					</label>
+					<div class="player-overlay">
+						<button class="player-play-btn">
+							<img src="static/icons/feather/pause.svg">
+						</button>
+					</div>
+					<div class="player-overlay player-overlay-bottom">
+						<progress class="player-progress" value="0" min="0">
+							<span class="player-progress-bar"></span>
+						</progress>
+						<button class="player-options-open-btn">
+							<img src="static/icons/feather/more-vertical.svg">
+						</button>
+						<div class="player-options-popup">
+							<a download="" href="B.mp4"class="player-options-btn">
+								<img src="static/icons/feather/download.svg">
+							</a>
+							<button class="player-options-btn js-fullscreen">
+								<img src="static/icons/feather/maximize.svg">
+							</button>
+						</div>
+					</div>
+					<div class="player-overlay player-overlay-top">
+						<div class="player-top-bar">
+							<span class="player-menu-text js-date">2001-06-02</span>
+							<span class="player-menu-text js-time">00:00:01</span>
+							<span class="player-menu-text">C</span>
+						</div>
+					</div>
+				</div>`.replace(/\s/g, "");
+
+		const actual2 = element.innerHTML.replace(/\s/g, "");
+		expect(actual2).toEqual(videoHTML);
+
+		reset();
+		const actual3 = element.innerHTML.replace(/\s/g, "");
+		expect(actual3).toEqual(thumbnailHTML);
+	});
+	test("bubblingVideoClick", () => {
+		let nclicks = 0;
+		player.init(() => {
+			nclicks++;
+		});
+		$("div img").click();
+		$(".player-play-btn").click();
+		$(".player-play-btn").click();
+
+		expect(nclicks).toEqual(1);
+	});
 });

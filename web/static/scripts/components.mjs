@@ -405,10 +405,6 @@ function newForm(fields) {
 	};
 }
 
-function isEmpty(string) {
-	return string === "" || string === null;
-}
-
 function newModal(label) {
 	var $wrapper;
 	const close = () => {
@@ -441,12 +437,190 @@ function newModal(label) {
 	};
 }
 
+function newPlayer(data) {
+	const d = data;
+
+	const elementID = "rec" + d.id;
+	const iconPlayPath = "static/icons/feather/play.svg";
+	const iconPausePath = "static/icons/feather/pause.svg";
+
+	const iconMaximizePath = "static/icons/feather/maximize.svg";
+	const iconMinimizePath = "static/icons/feather/minimize.svg";
+
+	const parseDate = (d) => {
+		const pad = (n) => {
+			return n < 10 ? "0" + n : n;
+		};
+
+		const YY = d.getFullYear(),
+			MM = pad(d.getMonth() + 1),
+			DD = pad(d.getDate()), // Day.
+			hh = pad(d.getHours()),
+			mm = pad(d.getMinutes()),
+			ss = pad(d.getSeconds());
+
+		return [`${YY}-${MM}-${DD}`, `${hh}:${mm}:${ss}`];
+	};
+
+	const [dateString, timeString] = parseDate(d.date);
+
+	const topOverlayHTML = `
+			<span class="player-menu-text js-date">${dateString}</span>
+			<span class="player-menu-text js-time">${timeString}</span>
+			<span class="player-menu-text">${d.name}</span>`;
+	const thumbHTML = `
+		<img class="grid-item" src="${d.path}.jpeg" />
+		<div class="player-overlay-top player-top-bar">
+			${topOverlayHTML}
+		</div>`;
+	const videoHTML = `
+		<video
+			class="grid-item"
+			disablePictureInPicture
+		>
+			<source src="${d.path}.mp4" type="video/mp4" />
+		</video>
+		<input class="player-overlay-checkbox" id="${elementID}-overlay-checkbox" type="checkbox">
+		<label class="player-overlay-selector" for="${elementID}-overlay-checkbox"></label>
+		<div class="player-overlay">
+			<button class="player-play-btn">
+				<img src="${iconPlayPath}"/>
+			</button>
+		</div>
+		<div class="player-overlay player-overlay-bottom">
+			<progress class="player-progress" value="0" min="0">
+				<span class="player-progress-bar">
+			</progress>
+			<button class="player-options-open-btn">
+				<img src="static/icons/feather/more-vertical.svg">
+			</button>
+			<div class="player-options-popup">
+				<a download href="${d.path}.mp4" class="player-options-btn">
+					<img src="static/icons/feather/download.svg">
+				</a>
+				<button class="player-options-btn js-fullscreen">
+					<img src="${iconMaximizePath}">
+				</button>
+			</div>
+		</div>
+		<div class="player-overlay player-overlay-top">
+			<div class="player-top-bar">
+				${topOverlayHTML}
+			</div>
+		</div>`;
+
+	const loadVideo = (element) => {
+		element.innerHTML = videoHTML;
+
+		const $video = element.querySelector("video");
+
+		// Play/Pause.
+		const $playpause = element.querySelector(".player-play-btn");
+		const $playpauseImg = $playpause.querySelector("img");
+		const $checkbox = element.querySelector(".player-overlay-checkbox");
+
+		const playpause = () => {
+			if ($video.paused || $video.ended) {
+				$playpauseImg.src = iconPausePath;
+				$video.play();
+				$checkbox.checked = false;
+			} else {
+				$playpauseImg.src = iconPlayPath;
+				$video.pause();
+				$checkbox.checked = true;
+			}
+		};
+		playpause();
+		$playpause.addEventListener("click", playpause);
+
+		let videoDuration;
+
+		// Progress.
+		const $progress = element.querySelector(".player-progress");
+		const $topOverlay = element.querySelector(".player-top-bar");
+
+		$video.addEventListener("loadedmetadata", () => {
+			videoDuration = $video.duration;
+			$progress.setAttribute("max", videoDuration);
+		});
+		const updateProgress = (newTime) => {
+			$progress.value = newTime;
+			$progress.querySelector(".player-progress-bar").style.width =
+				Math.floor((newTime / videoDuration) * 100) + "%";
+
+			const newDate = new Date(d.date.getTime());
+			newDate.setMilliseconds($video.currentTime * 1000);
+			const [dateString, timeString] = parseDate(newDate);
+			$topOverlay.querySelector(".js-date").textContent = dateString;
+			$topOverlay.querySelector(".js-time").textContent = timeString;
+		};
+		$progress.addEventListener("click", (event) => {
+			const rect = $progress.getBoundingClientRect();
+			const pos = (event.pageX - rect.left) / $progress.offsetWidth;
+			const newTime = pos * videoDuration;
+
+			$video.currentTime = newTime;
+			updateProgress(newTime);
+		});
+		$video.addEventListener("timeupdate", () => {
+			updateProgress($video.currentTime);
+		});
+
+		// Popup
+		const $popup = element.querySelector(".player-options-popup");
+		const $popupOpen = element.querySelector(".player-options-open-btn");
+		const $fullscreen = $popup.querySelector(".js-fullscreen");
+		const $fullscreenImg = $fullscreen.querySelector("img");
+
+		$popupOpen.addEventListener("click", () => {
+			$popup.classList.toggle("player-options-show");
+		});
+		$fullscreen.addEventListener("click", () => {
+			if (document.fullscreen) {
+				$fullscreenImg.src = iconMaximizePath;
+				document.exitFullscreen();
+			} else {
+				$fullscreenImg.src = iconMinimizePath;
+				element.requestFullscreen();
+			}
+		});
+	};
+
+	return {
+		html: `<div id="${elementID}" class="grid-item-container">${thumbHTML}</div>`,
+		init(onLoad) {
+			const element = $(`#${elementID}`);
+
+			const reset = () => {
+				element.innerHTML = thumbHTML;
+			};
+
+			// Load video.
+			element.addEventListener("click", (event) => {
+				if (event.target.className !== "grid-item") {
+					return;
+				}
+				if (onLoad) {
+					onLoad(reset);
+				}
+
+				loadVideo(element);
+			});
+		},
+	};
+}
+
+function isEmpty(string) {
+	return string === "" || string === null;
+}
+
 export {
 	fieldTemplate,
 	newField,
-	newForm,
 	inputRules,
+	newForm,
 	newModal,
+	newPlayer,
 	isEmpty,
 	$getInputAndError,
 };

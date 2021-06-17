@@ -75,16 +75,16 @@ function newViewer($parent, monitors, Hls) {
 				<div class="grid-item-container">
 					${audioEnabled
 						? `<input
-						class="live-menu-checkbox"
-						id="${id}-menu-checkbox"
+						class="player-overlay-checkbox"
+						id="${id}-player-checkbox"
 						type="checkbox"
 					/>
 					<label
-						class="live-menu-selector"
-						for="${id}-menu-checkbox"
+						class="player-overlay-selector"
+						for="${id}-player-checkbox"
 					></label>
-					<div class="live-menu">
-						<button class="live-menu-btn">
+					<div class="player-overlay live-player-menu">
+						<button class="live-player-btn">
 							<img
 								id="js-mute-btn-${id}"
 								class="nav-icon"

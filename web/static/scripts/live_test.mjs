@@ -43,16 +43,16 @@ describe("newViewer", () => {
 			</div>
 			<div class="grid-item-container">
 				<input
-					class="live-menu-checkbox"
-					id="3-menu-checkbox"
+					class="player-overlay-checkbox"
+					id="3-player-checkbox"
 					type="checkbox"
 				>
 				<label 
-					class="live-menu-selector"
-					for="3-menu-checkbox" 
+					class="player-overlay-selector"
+					for="3-player-checkbox"
 				></label>
-				<div class="live-menu">
-					<button class="live-menu-btn">
+				<div class="player-overlay live-player-menu">
+					<button class="live-player-btn">
 						<img
 							id="js-mute-btn-3"
 							class="nav-icon"

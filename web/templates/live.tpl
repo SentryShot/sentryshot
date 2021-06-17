@@ -35,62 +35,29 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 		background: var(--color1-hover);
 	}
 
-	.grid-item-container {
-		align-items: end;
-		justify-content: center;
-	}
-	.live-menu-checkbox {
-		position: absolute;
-		opacity: 0;
-	}
-	.live-menu-selector {
-		position: absolute;
-		z-index: 1;
-		width: 100%;
-		height: 100%;
-		opacity: 0.5;
-	}
-	.live-menu {
-		position: absolute;
-		z-index: 2;
-		display: flex;
-		margin-bottom: 10%;
-		visibility: hidden;
-		opacity: 0.1;
-		transition: visibility 0.8s, opacity 0.7s;
-		transition-timing-function: ease-in;
-	}
-	.live-menu-btn {
+	.live-player-btn {
 		padding: 0.1rem;
 		font-size: 0;
 		background: var(--color2);
 		border: none;
 		border-radius: 15%;
 	}
-	.live-menu-btn img {
+
+	.live-player-btn img {
 		height: 0.9rem;
 	}
-	.live-menu-btn::-moz-focus-inner {
+
+	.live-player-btn::-moz-focus-inner {
 		border: 0;
 	}
 
-	.live-menu:hover {
-		visibility: visible;
-		opacity: 1;
-	}
-	.live-menu-btn:hover {
+	.live-player-btn:hover {
 		background: var(--color2-hover);
 	}
-	.live-menu-checkbox:checked ~ .live-menu {
-		visibility: visible;
-		opacity: 1;
-		transition: visibility 0s;
-		transition: opacity 0s;
-	}
-	.live-menu-checkbox:hover ~ .live-menu {
-		visibility: visible;
-		opacity: 1;
-		transition: visibility 0s, opacity 0.1s;
+
+	.live-player-menu {
+		bottom: 0;
+		margin-bottom: 10%;
 	}
 </style>
 {{ template "html2" }}

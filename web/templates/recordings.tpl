@@ -32,22 +32,5 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 	#nav-link-recordings {
 		background: var(--color1-hover);
 	}
-
-	.video-overlay {
-		position: absolute;
-		top: 0;
-		display: flex;
-		margin-right: auto;
-		padding: 0.05em;
-		background: var(--colorbg);
-		opacity: 0.8;
-	}
-
-	.video-overlay-text {
-		margin-right: 0.4em;
-		margin-left: 0.2em;
-		color: var(--color-text);
-		font-size: 40%;
-	}
 </style>
 {{ template "html2" }}

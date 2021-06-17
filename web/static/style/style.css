@@ -122,9 +122,6 @@ legend {
 	color: inherit;
 	white-space: normal;
 }
-progress {
-	vertical-align: baseline;
-}
 textarea {
 	overflow: auto;
 }
@@ -149,9 +146,29 @@ details {
 summary {
 	display: list-item;
 }
-/* stylelint-enable plugin/no-unsupported-browser-features */
 
 /* normalize.css end */
+
+progress[value] {
+	vertical-align: baseline;
+	border: none;
+	border-radius: 0;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+}
+progress[value]::-webkit-progress-bar {
+	background-color: #eee;
+	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25) inset;
+}
+progress[value]::-webkit-progress-value {
+	background: var(--color3);
+}
+progress[value]::-moz-progress-bar {
+	background: var(--color3);
+}
+
+/* stylelint-enable plugin/no-unsupported-browser-features */
 
 :root {
 	font-size: 12vw; /* Window scale */
@@ -216,7 +233,7 @@ a:focus {
 
 #sidebar {
 	position: absolute;
-	z-index: 2;
+	z-index: 3;
 	display: flex;
 	flex-direction: column;
 	width: 0;
@@ -309,6 +326,7 @@ a:focus {
 	font-size: 0.6rem;
 }
 
+/* Statusbar */
 #statusbar {
 	width: var(--sidebar-width);
 	margin-top: 0.2rem;
@@ -354,6 +372,7 @@ a:focus {
 	border-bottom-left-radius: 0.5rem;
 }
 
+/* Content */
 #content {
 	position: absolute;
 	box-sizing: border-box;
@@ -377,6 +396,8 @@ a:focus {
 .grid-item-container {
 	position: relative;
 	display: flex;
+	align-items: center;
+	justify-content: center;
 	max-height: 100vh;
 }
 
@@ -384,6 +405,7 @@ a:focus {
 	width: 100%;
 }
 
+/* Modal */
 .modal-wrapper {
 	position: fixed;
 	top: 0;
@@ -441,20 +463,6 @@ a:focus {
 	overflow-y: auto;
 }
 
-.green {
-	background: var(--color-green);
-}
-.green:hover {
-	background: var(--color-green-hover);
-}
-
-.red {
-	background: var(--color-red);
-}
-.red:hover {
-	background: var(--color-red-hover);
-}
-
 .color3 {
 	background: var(--color3);
 }
@@ -507,6 +515,142 @@ a:focus {
 }
 .delete-btn:hover {
 	background: var(--color-red-hover);
+}
+
+/* Player */
+.player-overlay-checkbox {
+	position: absolute;
+	opacity: 0;
+}
+
+.player-overlay-selector {
+	position: absolute;
+	z-index: 1;
+	width: 100%;
+	height: 100%;
+	opacity: 0.5;
+}
+.player-overlay {
+	position: absolute;
+	z-index: 2;
+	display: flex;
+	visibility: hidden;
+	opacity: 0.1;
+	transition: visibility 0.8s, opacity 0.7s;
+	transition-timing-function: ease-in;
+}
+
+.player-overlay-top {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: flex;
+	margin-right: auto;
+}
+
+.player-overlay-bottom {
+	position: absolute;
+	bottom: 0;
+	width: 100%;
+}
+
+.player-top-bar {
+	display: flex;
+	background: var(--colorbg);
+	opacity: 0.8;
+}
+
+.player-menu-text {
+	margin-right: 0.4em;
+	margin-left: 0.2em;
+	padding: 0.05em;
+	color: var(--color-text);
+	font-size: 40%;
+}
+
+.player-overlay:hover {
+	visibility: visible;
+	opacity: 1;
+}
+
+.player-overlay-checkbox:checked ~ .player-overlay {
+	visibility: visible;
+	opacity: 1;
+	transition: visibility 0s;
+	transition: opacity 0s;
+}
+.player-overlay-checkbox:hover ~ .player-overlay {
+	visibility: visible;
+	opacity: 1;
+	transition: visibility 0s, opacity 0.1s;
+}
+
+.player-play-btn {
+	padding: 0.2rem;
+	font-size: 0;
+	background: var(--colorbg);
+	border-radius: 50%;
+	opacity: 0.8;
+}
+
+.player-play-btn img {
+	height: 0.8rem;
+	filter: invert(90%);
+}
+
+.player-progress {
+	box-sizing: border-box;
+	width: 100%;
+	height: 0.6rem;
+	padding: 0.1rem;
+	opacity: 0.8;
+	user-select: none;
+}
+
+.player-overlay:hover ~ .player-overlay {
+	visibility: visible;
+	opacity: 1;
+}
+
+.player-options-open-btn {
+	position: absolute;
+	right: 0.28rem;
+	bottom: 0.8rem;
+	font-size: 0;
+	background-color: rgba(0, 0, 0, 0);
+	border-radius: 0.1rem;
+	opacity: 0.8;
+}
+
+.player-options-open-btn img {
+	width: 0.8rem;
+}
+
+.player-options-popup {
+	position: absolute;
+	right: 0.2rem;
+	bottom: 1.7rem;
+	display: none;
+	grid-row-gap: 0.2rem;
+	grid-column-gap: 0.2rem;
+	padding: 0.1rem;
+	font-size: 0;
+	background: var(--colorbg);
+	border-radius: 0.15rem;
+	opacity: 0.8;
+}
+
+.player-options-show {
+	display: grid;
+}
+
+.player-options-btn {
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.player-options-btn img {
+	width: 0.8rem;
+	filter: var(--color-icons);
 }
 
 /* Mobile Landscape mode. */
