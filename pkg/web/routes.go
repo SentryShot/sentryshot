@@ -17,6 +17,7 @@ package web
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"nvr/pkg/log"
@@ -29,6 +30,30 @@ import (
 
 	"github.com/gorilla/websocket"
 )
+
+const redirect = `
+	<head><script>
+		window.location.href = window.location.href.replace("logout", "live")
+	</script></head>`
+
+// Logout prompts for login and redirects. Old login should be overwritten.
+func Logout() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Header.Get("Authorization") {
+		case "Basic Og==":
+		case "":
+		default:
+			w.Header().Set("WWW-Authenticate", `Basic realm=""`)
+			http.Error(w, "", http.StatusUnauthorized)
+			return
+		}
+
+		if _, err := io.WriteString(w, redirect); err != nil {
+			http.Error(w, "could not write string", http.StatusInternalServerError)
+			return
+		}
+	})
+}
 
 // Static serves files from web/static
 func Static(path string) http.Handler {

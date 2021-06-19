@@ -107,6 +107,7 @@ func Run(goBin string, configDir string) error { //nolint:funlen
 	http.Handle("/settings.js", a.User(t.Render("settings.js")))
 	http.Handle("/logs", a.Admin(t.Render("logs.tpl")))
 	http.Handle("/debug", a.Admin(t.Render("debug.tpl")))
+	http.Handle("/logout", web.Logout())
 
 	http.Handle("/static/", a.User(web.Static(envConfig.WebDir+"/static")))
 	http.Handle("/storage/", a.User(web.Storage(envConfig.StorageDir)))

@@ -329,7 +329,6 @@ a:focus {
 /* Statusbar */
 #statusbar {
 	width: var(--sidebar-width);
-	margin-top: 0.2rem;
 	margin-bottom: 0.4rem;
 }
 
@@ -517,6 +516,31 @@ a:focus {
 	background: var(--color-red-hover);
 }
 
+/* Logout */
+#logout {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--sidebar-width);
+	margin-top: auto;
+}
+#logout button {
+	margin-top: 0.1rem;
+	padding-right: 0.1rem;
+	padding-left: 0.1rem;
+	color: var(--color-text);
+	font-size: 0.6rem;
+	background: var(--color2);
+	border-color: var(--colorbg);
+	border-style: solid;
+	border-width: 0.05rem;
+	border-radius: 0.2rem;
+}
+
+#logout button:hover {
+	background: var(--color2-hover);
+}
+
 /* Player */
 .player-overlay-checkbox {
 	position: absolute;
@@ -688,7 +712,7 @@ a:focus {
 	}
 
 	#topbar {
-		z-index: 3;
+		z-index: 4;
 		width: var(--barsize);
 	}
 

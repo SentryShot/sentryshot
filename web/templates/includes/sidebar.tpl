@@ -50,6 +50,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 				</a>
 			{{ end }}
 			{{ range .navItems }}{{ . }}{{ end }}
+			<div id="logout">
+				<button
+					onclick='if (confirm("logout?")) { window.location.href = "logout"; }'
+				>
+					Logout
+				</button>
+			</div>
 		</nav>
 		<ul id="statusbar">
 			<li>
