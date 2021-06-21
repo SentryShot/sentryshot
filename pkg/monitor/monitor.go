@@ -46,11 +46,6 @@ type Hooks struct {
 	StartMain StartMainHook
 }
 
-// Event is a recording trigger event.
-type Event struct {
-	End time.Time // End time of recording
-}
-
 // Manager for the monitors.
 type Manager struct {
 	Monitors map[string]*Monitor
@@ -101,54 +96,6 @@ func readConfigs(path string) ([][]byte, error) {
 		return nil
 	})
 	return files, err
-}
-
-func (m *Manager) newMonitor(config Config) *Monitor {
-	return &Monitor{
-		Env:     m.env,
-		Config:  config,
-		Trigger: make(Trigger),
-
-		hooks:               m.hooks,
-		runMainProcess:      runMainProcess,
-		startRecording:      startRecording,
-		runRecordingProcess: runRecordingProcess,
-		newProcess:          ffmpeg.NewProcess,
-		sizeFromStream:      ffmpeg.New(m.env.FFmpegBin).SizeFromStream,
-		waitForKeyframe:     ffmpeg.WaitForKeyframe,
-		watchdogInterval:    10 * time.Second,
-
-		WG:  &sync.WaitGroup{},
-		Log: m.log,
-	}
-}
-
-// Trigger recording using event.
-type Trigger chan Event
-
-// Monitor service.
-type Monitor struct {
-	Env    *storage.ConfigEnv
-	Config Config
-
-	Trigger Trigger
-
-	running   bool
-	recording bool
-
-	hooks               Hooks
-	runMainProcess      runMainProcessFunc
-	startRecording      startRecordingFunc
-	runRecordingProcess runRecordingProcessFunc
-	newProcess          ffmpeg.NewProcessFunc
-	sizeFromStream      ffmpeg.SizeFromStreamFunc
-	waitForKeyframe     ffmpeg.WaitForKeyframeFunc
-	watchdogInterval    time.Duration
-
-	mu     sync.Mutex
-	WG     *sync.WaitGroup
-	Log    *log.Logger
-	cancel func()
 }
 
 // MonitorSet sets config for specified monitor.
@@ -243,6 +190,104 @@ func (m *Manager) MonitorConfigs() map[string]Config {
 	return configs
 }
 
+func (m *Manager) newMonitor(config Config) *Monitor {
+	return &Monitor{
+		Env:    m.env,
+		Config: config,
+
+		Trigger:  make(Trigger),
+		eventsMu: &sync.Mutex{},
+
+		hooks:               m.hooks,
+		runMainProcess:      runMainProcess,
+		startRecording:      startRecording,
+		runRecordingProcess: runRecordingProcess,
+		newProcess:          ffmpeg.NewProcess,
+		sizeFromStream:      ffmpeg.New(m.env.FFmpegBin).SizeFromStream,
+		waitForKeyframe:     ffmpeg.WaitForKeyframe,
+		videoDuration:       ffmpeg.New(m.env.FFmpegBin).VideoDuration,
+		watchdogInterval:    10 * time.Second,
+
+		WG:  &sync.WaitGroup{},
+		Log: m.log,
+	}
+}
+
+// Region where detection occurred.
+type Region struct {
+	Rect    *ffmpeg.Rect    `json:"rect,omitempty"`
+	Polygon *ffmpeg.Polygon `json:"polygon,omitempty"`
+}
+
+func (r *Region) String() string {
+	return fmt.Sprintf("%v, %v", r.Rect, r.Polygon)
+}
+
+// Detection .
+type Detection struct {
+	Label  string  `json:"label,omitempty"`
+	Score  float64 `json:"score,omitempty"`
+	Region *Region `json:"region,omitempty"`
+}
+
+// Event is a recording trigger event.
+type Event struct {
+	Time        time.Time     `json:"time,omitempty"`
+	Detections  []Detection   `json:"detections,omitempty"`
+	Duration    time.Duration `json:"duration,omitempty"`
+	RecDuration time.Duration `json:"-"`
+}
+
+type events []Event
+
+func (e events) query(start time.Time, end time.Time) events {
+	newEvents := events{}
+	returnEvents := events{}
+	for _, event := range e {
+		if event.Time.Before(start) { // Discard events before start time.
+			continue
+		}
+		newEvents = append(newEvents, event) //nolint:staticcheck
+
+		if event.Time.Before(end) {
+			returnEvents = append(returnEvents, event)
+		}
+	}
+	e = newEvents //nolint:ineffassign,staticcheck
+	return returnEvents
+}
+
+// Trigger recording using event.
+type Trigger chan Event
+
+// Monitor service.
+type Monitor struct {
+	Env    *storage.ConfigEnv
+	Config Config
+
+	Trigger  Trigger
+	events   events
+	eventsMu *sync.Mutex
+
+	running   bool
+	recording bool
+
+	hooks               Hooks
+	runMainProcess      runMainProcessFunc
+	startRecording      startRecordingFunc
+	runRecordingProcess runRecordingProcessFunc
+	newProcess          ffmpeg.NewProcessFunc
+	sizeFromStream      ffmpeg.SizeFromStreamFunc
+	waitForKeyframe     ffmpeg.WaitForKeyframeFunc
+	videoDuration       ffmpeg.VideoDurationFunc
+	watchdogInterval    time.Duration
+
+	mu     sync.Mutex
+	WG     *sync.WaitGroup
+	Log    *log.Logger
+	cancel func()
+}
+
 // Start monitor.
 func (m *Monitor) Start() error {
 	defer m.mu.Unlock()
@@ -270,12 +315,12 @@ func (m *Monitor) Start() error {
 	}
 
 	if m.alwaysRecord() {
-		never := time.Unix(1<<63-62135596801, 999999999)
+		infinte := time.Duration(1<<63 - 62135596801)
 		go func() {
 			select {
 			case <-ctx.Done():
 			case <-time.After(15 * time.Second):
-				m.Trigger <- Event{End: never}
+				m.Trigger <- Event{RecDuration: infinte}
 			}
 		}()
 	}
@@ -420,11 +465,16 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			m.WG.Done()
 			return
 		case event := <-m.Trigger: // Wait for trigger.
+			m.eventsMu.Lock()
+			m.events = append(m.events, event)
+			m.eventsMu.Unlock()
+
+			end := event.Time.Add(event.RecDuration)
 			m.mu.Lock()
 			if m.recording {
-				if event.End.After(timeout) {
-					triggerTimeout.Reset(time.Until(event.End))
-					timeout = event.End
+				if end.After(timeout) {
+					triggerTimeout.Reset(time.Until(end))
+					timeout = end
 				}
 				m.mu.Unlock()
 				continue
@@ -433,7 +483,7 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			ctx2, cancel := context.WithCancel(ctx)
 
 			// Stops recording when timeout is reached.
-			triggerTimeout = time.AfterFunc(time.Until(event.End), func() {
+			triggerTimeout = time.AfterFunc(time.Until(end), func() {
 				m.Log.Printf("%v: trigger reached end, stopping recording\n", m.Name())
 				cancel()
 			})
@@ -540,13 +590,20 @@ func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 
 // RecData recording data marshaled to json and saved next to video and thumbnail.
 type RecData struct {
-	Start time.Time `json:"start"`
+	Start  time.Time `json:"start"`
+	End    time.Time `json:"end"`
+	Events []Event   `json:"events"`
 }
 
 func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 	videoPath := filePath + ".mp4"
 	thumbPath := filePath + ".jpeg"
 	dataPath := filePath + ".json"
+
+	abort := func() {
+		os.Remove(videoPath)
+		os.Remove(thumbPath)
+	}
 
 	m.Log.Printf("%v: saving recording: %v\n", m.Name(), videoPath)
 	args := "-n -loglevel " + m.Config["logLevel"] + // LogLevel.
@@ -564,15 +621,32 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 	defer cancel()
 
 	if err := process.Start(ctx); err != nil {
-		os.Remove(videoPath)
-		os.Remove(thumbPath)
+		abort()
 		return fmt.Errorf("could not generate thumbnail for %v: %v", videoPath, err)
 	}
 
-	data := RecData{Start: startTime}
+	duration, err := m.videoDuration(videoPath)
+	if err != nil {
+		abort()
+		return fmt.Errorf("could not get video duration of: %v: %v", videoPath, err)
+	}
+
+	endTime := startTime.Add(duration)
+
+	m.eventsMu.Lock()
+	e := m.events.query(startTime, endTime)
+	m.eventsMu.Unlock()
+
+	data := RecData{
+		Start:  startTime,
+		End:    endTime,
+		Events: e,
+	}
 	json, _ := json.MarshalIndent(data, "", "    ")
 
-	ioutil.WriteFile(dataPath, json, 0600) //nolint:errcheck
+	if err := ioutil.WriteFile(dataPath, json, 0600); err != nil {
+		return fmt.Errorf("could not write event file: %v", err)
+	}
 	return nil
 }
 

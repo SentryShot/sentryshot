@@ -94,6 +94,7 @@ type doodsConfig struct {
 	width        int
 	height       int
 	duration     time.Duration
+	recDuration  time.Duration
 	thresholds   thresholds
 	detectorName string
 }
@@ -116,11 +117,17 @@ func parseConfig(m *monitor.Monitor, ip string, detector odrpc.Detector) (*doods
 		}
 	}
 
-	durationFloat, err := strconv.ParseFloat(m.Config["doodsDuration"], 64)
+	feedRate := m.Config["doodsFeedRate"]
+	duration, err := ffmpeg.FeedRateToDuration(feedRate)
+	if err != nil {
+		return nil, err
+	}
+
+	recDurationFloat, err := strconv.ParseFloat(m.Config["doodsDuration"], 64)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse doodsDuration: %v", err)
 	}
-	duration := time.Duration(durationFloat * float64(time.Second))
+	recDuration := time.Duration(recDurationFloat * float64(time.Second))
 
 	config := &doodsConfig{
 		ip: ip,
@@ -130,6 +137,7 @@ func parseConfig(m *monitor.Monitor, ip string, detector odrpc.Detector) (*doods
 
 		thresholds:   t,
 		duration:     duration,
+		recDuration:  recDuration,
 		detectorName: m.Config["doodsDetectorName"],
 	}
 	return config, nil
@@ -344,7 +352,7 @@ type doodsClient struct {
 
 type startClientFunc func(context.Context, *doodsClient)
 type runClientFunc func(context.Context, *doodsClient) error
-type sendFrameFunc func(*doodsClient, *bytes.Buffer) error
+type sendFrameFunc func(*doodsClient, time.Time, *bytes.Buffer) error
 
 func startClient(ctx context.Context, d *doodsClient) {
 	for {
@@ -408,6 +416,7 @@ func (d *doodsClient) readFrames(ctx context.Context) error {
 			}
 			return fmt.Errorf("could not read from stdout: %v", err)
 		}
+		t := time.Now()
 
 		img := NewRGB24(rect)
 		img.Pix = tmp
@@ -415,19 +424,19 @@ func (d *doodsClient) readFrames(ctx context.Context) error {
 		var b bytes.Buffer
 		_ = d.encoder.Encode(&b, img)
 
-		err := d.sendFrame(d, &b)
+		err := d.sendFrame(d, t, &b)
 		if err != nil {
 			return fmt.Errorf("could not send frame: %v", err)
 		}
 	}
 }
 
-func sendFrame(d *doodsClient, b *bytes.Buffer) error {
+func sendFrame(d *doodsClient, t time.Time, b *bytes.Buffer) error {
 	request := &odrpc.DetectRequest{
 		DetectorName: d.c.detectorName,
 		Data:         b.Bytes(),
 		Detect: map[string]float32{
-			"*": 5,
+			"*": 10,
 		},
 	}
 	//fmt.Println("sending")
@@ -443,14 +452,17 @@ func sendFrame(d *doodsClient, b *bytes.Buffer) error {
 		return fmt.Errorf("could not receive: %v", err)
 	}
 
-	d.parseDetections(response.Detections)
+	d.parseDetections(t, response.Detections)
 	return nil
 }
 
-func (d *doodsClient) parseDetections(detections []*odrpc.Detection) {
+func (d *doodsClient) parseDetections(t time.Time, detections []*odrpc.Detection) {
 	if len(detections) == 0 {
 		return
 	}
+
+	filtered := []monitor.Detection{}
+
 	for _, detection := range detections {
 		score := float64(detection.GetConfidence())
 		label := detection.GetLabel()
@@ -460,14 +472,38 @@ func (d *doodsClient) parseDetections(detections []*odrpc.Detection) {
 				continue
 			}
 
-			now := time.Now().Local()
-			timestamp := fmt.Sprintf("%v:%v:%v", now.Hour(), now.Minute(), now.Second())
-
-			d.a.log.Printf("%v: doods: trigger: label:%v score:%.1f time:%v\n", d.a.name, label, score, timestamp)
-			d.a.trigger <- monitor.Event{
-				End: time.Now().UTC().Add(d.c.duration),
+			conv := func(input float32) int {
+				return int(input * 100)
 			}
-			return
+
+			d := monitor.Detection{
+				Label: label,
+				Score: score,
+				Region: &monitor.Region{
+					Rect: &ffmpeg.Rect{
+						conv(detection.GetTop()),
+						conv(detection.GetLeft()),
+						conv(detection.GetBottom()),
+						conv(detection.GetRight()),
+					},
+				},
+			}
+			filtered = append(filtered, d)
+		}
+	}
+
+	if len(filtered) != 0 {
+		now := time.Now().Local()
+		timestamp := fmt.Sprintf("%v:%v:%v", now.Hour(), now.Minute(), now.Second())
+
+		d.a.log.Printf("%v: doods: trigger: label:%v score:%.1f time:%v\n",
+			d.a.name, filtered[0].Label, filtered[0].Score, timestamp)
+
+		d.a.trigger <- monitor.Event{
+			Time:        t,
+			Detections:  filtered,
+			Duration:    d.c.duration,
+			RecDuration: d.c.recDuration,
 		}
 	}
 }

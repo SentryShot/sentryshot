@@ -199,6 +199,32 @@ func (f *FFMPEG) SizeFromStream(url string) (string, error) {
 	return "", fmt.Errorf("no regex match %s", stderr.String())
 }
 
+// VideoDurationFunc is used for mocking.
+type VideoDurationFunc func(string) (time.Duration, error)
+
+// VideoDuration uses ffmpeg to get video duration.
+func (f *FFMPEG) VideoDuration(path string) (time.Duration, error) {
+	cmd := f.command("-i", path, "-f", "ffmetadata", "-")
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return 0, fmt.Errorf("%s %v", stderr.String(), err)
+	}
+
+	// Input "Duration: 01:02:59.99, start: 0.000000, bitrate: 614 kb/s"
+	// Output "1h2m59s99ms"
+	re := regexp.MustCompile(`\bDuration: (\d\d):(\d\d):(\d\d).(\d\d)`)
+	m := re.FindStringSubmatch(stderr.String())
+	if len(m) != 5 {
+		return 0, fmt.Errorf("could not find duration: %v, %v", m, stderr.String())
+	}
+	output := m[1] + "h" + m[2] + "m" + m[3] + "s" + m[4] + "0ms"
+
+	return time.ParseDuration(output)
+}
+
 /*
 func HWaccels(bin string) ([]string, error) {
 	cmd := exec.Command(bin, "-hwaccels")
@@ -223,9 +249,18 @@ func HWaccels(bin string) ([]string, error) {
 }
 */
 
+// Rect top, left, bottom, right
+type Rect [4]int
+
+// Point on image.
+type Point [2]int
+
+// Polygon slice of Points
+type Polygon []Point
+
 // CreateMask creates an image mask from a polygon.
 // Pixels outside the polygon are masked.
-func CreateMask(w int, h int, poly [][2]int) image.Image {
+func CreateMask(w int, h int, poly Polygon) image.Image {
 	img := image.NewAlpha(image.Rect(0, 0, w, h))
 
 	for y := 0; y < w; y++ {
@@ -240,7 +275,7 @@ func CreateMask(w int, h int, poly [][2]int) image.Image {
 	return img
 }
 
-func vertexInsidePoly(x int, y int, poly [][2]int) bool {
+func vertexInsidePoly(x int, y int, poly Polygon) bool {
 	var inside = false
 	var j = len(poly) - 1
 	for i := 0; i < len(poly); i++ {
@@ -352,4 +387,17 @@ func getKeyframeDuration(hlsPath string) (time.Duration, error) {
 	}
 
 	return time.Duration(keyframeInterval) * time.Millisecond, nil
+}
+
+// FeedRateToDuration calculates frame duration from feedrate (fps)
+func FeedRateToDuration(feedrate string) (time.Duration, error) {
+	feedRateFloat, err := strconv.ParseFloat(feedrate, 64)
+	if err != nil {
+		return 0, fmt.Errorf("could not parse feedrate: %v", err)
+	}
+
+	frameDurationFloat := 1 / feedRateFloat
+	frameDuration := strconv.FormatFloat(frameDurationFloat, 'f', -1, 64)
+
+	return time.ParseDuration(frameDuration + "s")
 }

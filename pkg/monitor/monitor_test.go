@@ -20,12 +20,14 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"nvr/pkg/ffmpeg"
 	"nvr/pkg/ffmpeg/ffmock"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -327,8 +329,11 @@ func mockWaitForKeyframe(_ context.Context, _ string) (time.Duration, error) {
 	return 0, nil
 }
 
-func newTestMonitor() (*Monitor, context.Context, func()) {
-	tempDir, _ := ioutil.TempDir("", "")
+func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("could not create temp dir: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := log.NewLogger(ctx)
@@ -348,8 +353,9 @@ func newTestMonitor() (*Monitor, context.Context, func()) {
 			"videoLength":     "0.0003", // 18ms
 			"timestampOffset": "0",
 		},
-		Trigger: make(Trigger),
-		running: true,
+		Trigger:  make(Trigger),
+		eventsMu: &sync.Mutex{},
+		running:  true,
 
 		hooks:               mockHooks,
 		runMainProcess:      mockRunMainProcess,
@@ -358,6 +364,7 @@ func newTestMonitor() (*Monitor, context.Context, func()) {
 		newProcess:          ffmock.NewProcess,
 		sizeFromStream:      mockSizeFromStream,
 		waitForKeyframe:     mockWaitForKeyframe,
+		videoDuration:       mockVideoDuration,
 		watchdogInterval:    10 * time.Second,
 
 		WG:  &sync.WaitGroup{},
@@ -374,7 +381,7 @@ func TestStartMonitor(t *testing.T) {
 		}
 	})
 	t.Run("disabled", func(t *testing.T) {
-		m, _, cancel := newTestMonitor()
+		m, _, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.running = false
@@ -396,7 +403,7 @@ func TestStartMonitor(t *testing.T) {
 		}
 	})
 	t.Run("tmpDirErr", func(t *testing.T) {
-		m, _, cancel := newTestMonitor()
+		m, _, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.running = false
@@ -418,7 +425,7 @@ func mockRunMainProcessErr(context.Context, *Monitor) error {
 
 func TestStartMainProcess(t *testing.T) {
 	t.Run("canceled", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		ctx, cancel2 := context.WithCancel(context.Background())
@@ -438,7 +445,7 @@ func TestStartMainProcess(t *testing.T) {
 		}
 	})
 	t.Run("crashed", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.runMainProcess = mockRunMainProcessErr
@@ -460,7 +467,7 @@ func TestStartMainProcess(t *testing.T) {
 
 func TestRunMainProcess(t *testing.T) {
 	t.Run("sizeFromStream", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		if err := runMainProcess(ctx, m); err != nil {
@@ -475,7 +482,7 @@ func TestRunMainProcess(t *testing.T) {
 		}
 	})
 	t.Run("sizeFromStreamErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.sizeFromStream = mockSizeFromStreamErr
@@ -485,7 +492,7 @@ func TestRunMainProcess(t *testing.T) {
 		}
 	})
 	t.Run("stopped", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.newProcess = ffmock.NewProcessNil
@@ -504,7 +511,7 @@ func TestRunMainProcess(t *testing.T) {
 		}
 	})
 	t.Run("crashed", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.newProcess = ffmock.NewProcessErr
@@ -525,7 +532,7 @@ func TestWatchdog(t *testing.T) {
 			OnStop: onStop,
 		})
 
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.Config["id"] = "id"
@@ -552,7 +559,7 @@ func TestWatchdog(t *testing.T) {
 		}
 	})
 	t.Run("fileErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.Config["id"] = "id"
@@ -574,7 +581,7 @@ func TestWatchdog(t *testing.T) {
 
 func TestStartRecorder(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.startRecording = mockStartRecording
@@ -583,7 +590,10 @@ func TestStartRecorder(t *testing.T) {
 		defer cancel2()
 
 		go m.startRecorder(ctx)
-		m.Trigger <- Event{End: time.Now().Add(time.Duration(-1) * time.Hour)}
+		m.Trigger <- Event{
+			Time:        time.Now().Add(time.Duration(-1) * time.Hour),
+			RecDuration: 0,
+		}
 
 		msg := <-feed
 		actual := msg[:42]
@@ -600,7 +610,7 @@ func TestStartRecorder(t *testing.T) {
 			mu.Unlock()
 		}
 
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.WG.Add(1)
@@ -611,8 +621,10 @@ func TestStartRecorder(t *testing.T) {
 
 		mu.Lock()
 		go m.startRecorder(ctx)
-		m.Trigger <- Event{End: time.Now().Add(10 * time.Millisecond)}
-		m.Trigger <- Event{End: time.Now().Add(50 * time.Millisecond)}
+
+		now := time.Now()
+		m.Trigger <- Event{Time: now, RecDuration: 10 * time.Millisecond}
+		m.Trigger <- Event{Time: now, RecDuration: 50 * time.Millisecond}
 
 		mu.Lock()
 		mu.Unlock()
@@ -623,7 +635,7 @@ func TestStartRecorder(t *testing.T) {
 			mu.Unlock()
 		}
 
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.startRecording = mockStartRecording
@@ -633,9 +645,11 @@ func TestStartRecorder(t *testing.T) {
 
 		mu.Lock()
 		go m.startRecorder(ctx)
-		m.Trigger <- Event{End: time.Now().Add(10 * time.Millisecond)}
-		m.Trigger <- Event{End: time.Now().Add(11 * time.Millisecond)}
-		m.Trigger <- Event{End: time.Now().Add(0 * time.Millisecond)}
+
+		now := time.Now()
+		m.Trigger <- Event{Time: now, RecDuration: 10 * time.Millisecond}
+		m.Trigger <- Event{Time: now, RecDuration: 11 * time.Millisecond}
+		m.Trigger <- Event{Time: now, RecDuration: 0 * time.Millisecond}
 
 		mu.Lock()
 		mu.Unlock()
@@ -646,7 +660,7 @@ func mockStartRecording(context.Context, *Monitor) {}
 
 func TestStartRecording(t *testing.T) {
 	t.Run("canceled", func(t *testing.T) {
-		m, _, cancel := newTestMonitor()
+		m, _, cancel := newTestMonitor(t)
 		defer cancel()
 
 		feed, cancel2 := m.Log.Subscribe()
@@ -667,7 +681,7 @@ func TestStartRecording(t *testing.T) {
 		}
 	})
 	t.Run("crashed", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.runRecordingProcess = mockRunRecordingProcessErr
@@ -697,7 +711,7 @@ func mockRunRecordingProcessErr(context.Context, *Monitor) error {
 
 func TestRunRecordingProcess(t *testing.T) {
 	t.Run("finished", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.newProcess = ffmock.NewProcessNil
@@ -726,7 +740,7 @@ func TestRunRecordingProcess(t *testing.T) {
 			return 0, errors.New("mock")
 		}
 
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.newProcess = ffmock.NewProcess
@@ -738,7 +752,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		}
 	})
 	t.Run("mkdirErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.Env = &storage.ConfigEnv{
@@ -750,7 +764,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		}
 	})
 	t.Run("genArgsErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.Config["videoLength"] = ""
@@ -760,7 +774,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		}
 	})
 	t.Run("parseOffsetErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
 		m.Config["timestampOffset"] = ""
@@ -770,7 +784,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		}
 	})
 	t.Run("crashed", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor()
+		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 		m.newProcess = ffmock.NewProcessErr
 
@@ -827,7 +841,7 @@ func TestGenMainArgs(t *testing.T) {
 		expected := "-loglevel 1 -hwaccel 2 -i 3 -c:a 4 -c:v 5 -preset veryfast -f hls -hls_flags" +
 			" delete_segments -hls_list_size 2 -hls_allow_cache 0 /hls/id/id.m3u8"
 		if actual != expected {
-			t.Fatalf("\nexpected: \n%v \ngot \n%v", expected, actual)
+			t.Fatalf("\nexpected:\n%v.\ngot\n%v.", expected, actual)
 		}
 	})
 }
@@ -848,7 +862,7 @@ func TestGenRecorderArgs(t *testing.T) {
 		}
 		expected := "-y -loglevel 1 -live_start_index -1 -i /hls/id/id.m3u8 -t 120 -c:v copy path.mp4"
 		if actual != expected {
-			t.Fatalf("\nexpected: \n%v \ngot \n%v", expected, actual)
+			t.Fatalf("\nexpected:\n%v.\ngot\n%v.", expected, actual)
 		}
 	})
 	t.Run("videoLengthErr", func(t *testing.T) {
@@ -857,6 +871,100 @@ func TestGenRecorderArgs(t *testing.T) {
 		}
 		_, err := m.generateRecorderArgs("path")
 		if err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+}
+
+func mockVideoDuration(string) (time.Duration, error) {
+	return 10 * time.Minute, nil
+}
+
+func mockVideoDurationErr(string) (time.Duration, error) {
+	return 0, errors.New("mock")
+}
+
+func TestSaveRecording(t *testing.T) {
+	t.Run("working", func(t *testing.T) {
+		m, _, cancel := newTestMonitor(t)
+		defer cancel()
+
+		m.events = events{
+			Event{
+				Time: time.Time{},
+			},
+			Event{
+				Time: time.Time{}.Add(2 * time.Minute),
+				Detections: []Detection{
+					Detection{
+						Label: "10",
+						Score: 9,
+						Region: &Region{
+							Rect: &ffmpeg.Rect{1, 2, 3, 4},
+							Polygon: &ffmpeg.Polygon{
+								ffmpeg.Point{5, 6},
+								ffmpeg.Point{7, 8},
+							},
+						},
+					},
+				},
+				Duration: 11,
+			},
+			Event{
+				Time: time.Time{}.Add(11 * time.Minute),
+			},
+		}
+
+		start := time.Time{}.Add(1 * time.Minute)
+		tempdir := m.Env.SHMDir
+		filePath := tempdir + "file"
+
+		if err := m.saveRecording(filePath, start); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		b, err := ioutil.ReadFile(filePath + ".json")
+		if err != nil {
+			t.Fatalf("could not read file: %v", err)
+		}
+		actual := string(b)
+		actual = strings.ReplaceAll(actual, " ", "")
+		actual = strings.ReplaceAll(actual, "\n", "")
+
+		expected := `{"start":"0001-01-01T00:01:00Z","end":"0001-01-01T00:11:00Z",` +
+			`"events":[{"time":"0001-01-01T00:02:00Z","detections":` +
+			`[{"label":"10","score":9,"region":{"rect":[1,2,3,4],` +
+			`"polygon":[[5,6],[7,8]]}}],"duration":11}]}`
+
+		if actual != expected {
+			t.Fatalf("expected: %v, got: %v", expected, actual)
+		}
+	})
+	t.Run("genThumbnailErr", func(t *testing.T) {
+		m, _, cancel := newTestMonitor(t)
+		defer cancel()
+
+		m.newProcess = ffmock.NewProcessErr
+
+		if err := m.saveRecording("", time.Time{}); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("durationErr", func(t *testing.T) {
+		m, _, cancel := newTestMonitor(t)
+		defer cancel()
+
+		m.videoDuration = mockVideoDurationErr
+
+		if err := m.saveRecording("", time.Time{}); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("writeFileErr", func(t *testing.T) {
+		m, _, cancel := newTestMonitor(t)
+		defer cancel()
+
+		if err := m.saveRecording("/dev/null/", time.Time{}); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})

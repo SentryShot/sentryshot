@@ -36,7 +36,7 @@ import (
 func init() {
 	nvr.RegisterMonitorStartHook(func(ctx context.Context, m *monitor.Monitor) {
 		if err := onMonitorStart(ctx, m); err != nil {
-			m.Log.Println(err)
+			m.Log.Printf("%v: motion: %v", m.Name(), err)
 		}
 	})
 	nvr.RegisterMonitorStartProcessHook(modifyMainArgs)
@@ -62,49 +62,52 @@ func onMonitorStart(ctx context.Context, m *monitor.Monitor) error {
 	a := newAddon(m)
 
 	if err := os.MkdirAll(a.zonesDir(), 0700); err != nil && err != os.ErrExist {
-		return fmt.Errorf("%v: motion: could not make directory for zones: %v", m.Name(), err)
+		return fmt.Errorf("could not make directory for zones: %v", err)
 	}
 
 	if err := ffmpeg.MakePipe(a.mainPipe()); err != nil {
-		return fmt.Errorf("%v: motion: could not make main pipe: %v", m.Name(), err)
+		return fmt.Errorf("could not make main pipe: %v", err)
 	}
 
 	var err error
 	a.zones, err = a.unmarshalZones()
 	if err != nil {
-		return fmt.Errorf("%v: motion: could not unmarshal zones: %v", m.Name(), err)
+		return fmt.Errorf("could not unmarshal zones: %v", err)
+	}
+
+	a.duration, err = ffmpeg.FeedRateToDuration(a.m.Config["motionFeedRate"])
+	if err != nil {
+		return fmt.Errorf("could not parse duration: %v", err)
 	}
 
 	scale := parseScale(m.Config["motionFrameScale"])
 	masks, err := a.generateMasks(a.zones, scale)
 	if err != nil {
-		return fmt.Errorf("%v: motion: could not generate mask: %v", m.Name(), err)
+		return fmt.Errorf("could not generate mask: %v", err)
 	}
 
 	detectorArgs := a.generateDetectorArgs(masks, m.Config["hwaccel"], scale)
 
 	durationInt, err := strconv.Atoi(a.m.Config["motionDuration"])
 	if err != nil {
-		return fmt.Errorf("%v: motion: could not parse motionDuration: %v", m.Name(), err)
+		return fmt.Errorf("could not parse motionDuration: %v", err)
 	}
-	a.duration = time.Duration(durationInt) * time.Second
+	a.recDuration = time.Duration(durationInt) * time.Second
 
 	go a.startDetector(ctx, detectorArgs)
 
 	return nil
 }
 
-type polygon [][2]int
-type point [2]int
-type area []point
+type area []ffmpeg.Point
 type zone struct {
 	Enable    bool    `json:"enable"`
 	Threshold float64 `json:"threshold"`
 	Area      area    `json:"area"`
 }
 
-func (zone zone) calculatePolygon(w int, h int) polygon {
-	polygon := make([][2]int, len(zone.Area))
+func (zone zone) calculatePolygon(w int, h int) ffmpeg.Polygon {
+	polygon := make(ffmpeg.Polygon, len(zone.Area))
 	for i, point := range zone.Area {
 		px := point[0]
 		py := point[1]
@@ -118,8 +121,9 @@ type addon struct {
 	m   *monitor.Monitor
 	env *storage.ConfigEnv
 
-	zones    []zone
-	duration time.Duration
+	zones       []zone
+	duration    time.Duration
+	recDuration time.Duration
 }
 
 func newAddon(m *monitor.Monitor) addon {
@@ -293,7 +297,14 @@ func (a addon) sendTrigger(id int, score float64) {
 
 	a.m.Log.Printf("%v: motion: trigger id:%v score:%.2f time:%v\n", a.m.Name(), id, score, timestamp)
 	a.m.Trigger <- monitor.Event{
-		End: time.Now().UTC().Add(a.duration),
+		Detections: []monitor.Detection{
+			{
+				Score: score,
+			},
+		},
+		Time:        time.Now(),
+		Duration:    a.duration,
+		RecDuration: a.recDuration,
 	}
 }
 

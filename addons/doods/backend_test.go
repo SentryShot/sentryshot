@@ -74,6 +74,7 @@ func TestParseConfig(t *testing.T) {
 				"doodsThresholds": `{"5":6}`,
 				"doodsDuration":   "0.000000004",
 				"doodsFrameScale": "half",
+				"doodsFeedRate":   "200000000",
 			},
 		}
 		config, err := parseConfig(m, "1", odrpc.Detector{})
@@ -81,7 +82,7 @@ func TestParseConfig(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		actual := fmt.Sprintf("%v", config)
-		expected := "&{1 2 3 4 map[5:6] }"
+		expected := "&{1 2 3 5 4 map[5:6] }"
 
 		if actual != expected {
 			t.Fatalf("expected: %v, got: %v", expected, actual)
@@ -143,6 +144,7 @@ func TestParseConfig(t *testing.T) {
 				"size":            "1x1",
 				"doodsDuration":   "1",
 				"doodsThresholds": `{"a":1,"b":2,"c":-1}`,
+				"doodsFeedRate":   "1",
 			},
 		}
 		config, err := parseConfig(m, "1", odrpc.Detector{})
@@ -161,7 +163,20 @@ func TestParseConfig(t *testing.T) {
 			Config: monitor.Config{
 				"size":            "1x1",
 				"doodsThresholds": "{}",
+				"doodsFeedRate":   "nil",
+			},
+		}
+		if _, err := parseConfig(m, "", odrpc.Detector{}); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("recDurationErr", func(t *testing.T) {
+		m := &monitor.Monitor{
+			Config: monitor.Config{
+				"size":            "1x1",
+				"doodsThresholds": "{}",
 				"doodsDuration":   "nil",
+				"doodsFeedRate":   "1",
 			},
 		}
 		if _, err := parseConfig(m, "", odrpc.Detector{}); err == nil {
@@ -472,7 +487,7 @@ func TestReadFrames(t *testing.T) {
 
 		var firstFrame string
 		var secondFrame string
-		mockSendFrame := func(d *doodsClient, b *bytes.Buffer) error {
+		mockSendFrame := func(d *doodsClient, t time.Time, b *bytes.Buffer) error {
 			if firstFrame == "" {
 				firstFrame = fmt.Sprintf("%v", b.Bytes())
 			} else {
@@ -516,7 +531,7 @@ func TestReadFrames(t *testing.T) {
 		}
 	})
 	t.Run("sendFrameErr", func(t *testing.T) {
-		mockSendFrameErr := func(d *doodsClient, b *bytes.Buffer) error {
+		mockSendFrameErr := func(*doodsClient, time.Time, *bytes.Buffer) error {
 			return errors.New("mock")
 		}
 
@@ -548,23 +563,31 @@ func TestParseDetections(t *testing.T) {
 				Label: "a",
 			},
 			{
-				Top:        1,
-				Left:       2,
-				Bottom:     3,
-				Right:      4,
+				Top:        0.1,
+				Left:       0.2,
+				Bottom:     0.3,
+				Right:      0.4,
 				Label:      "b",
 				Confidence: 5,
 			},
 		}
 
-		go d.parseDetections(detections)
+		go d.parseDetections(time.Time{}, detections)
+		output := <-d.a.trigger
 
-		<-d.a.trigger
+		actual := fmt.Sprintf("%v", output)
+
+		expected := "{0001-01-01 00:00:00 +0000 UTC [{b 5 &[10 20 30 40], <nil>}] 0s 0s}"
+
+		if actual != expected {
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
+		}
+
 	})
 	t.Run("noDetections", func(t *testing.T) {
 		d, _, cancel := newTestClient()
 		defer cancel()
 
-		d.parseDetections([]*odrpc.Detection{})
+		d.parseDetections(time.Time{}, []*odrpc.Detection{})
 	})
 }

@@ -177,7 +177,7 @@ func TestSizeFromStream(t *testing.T) {
 
 		actual, err := f.SizeFromStream("")
 		if err != nil {
-			t.Fatalf("could not get stream size %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 
 		expected := "720x1280"
@@ -196,6 +196,53 @@ func TestSizeFromStream(t *testing.T) {
 		f.command = fakeExecCommandNoOutput
 
 		if _, err := f.SizeFromStream(""); err == nil {
+			t.Fatal("nil")
+		}
+	})
+}
+
+func TestShellProcessDuration(t *testing.T) {
+	if os.Getenv("GO_TEST_PROCESS") != "1" {
+		return
+	}
+	fmt.Fprint(os.Stderr, `
+		Duration: 01:02:59.99, start: 0.000000, bitrate: 614 kb/s
+	`)
+}
+
+func fakeExecCommandDuration(...string) *exec.Cmd {
+	cs := []string{"-test.run=TestShellProcessDuration"}
+	cmd := exec.Command(os.Args[0], cs...)
+	cmd.Env = []string{"GO_TEST_PROCESS=1"}
+	return cmd
+}
+
+func TestVideoDuration(t *testing.T) {
+	t.Run("working", func(t *testing.T) {
+		f := New("")
+		f.command = fakeExecCommandDuration
+
+		output, err := f.VideoDuration("")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		actual := fmt.Sprintf("%v", output)
+		expected := "1h2m59.99s"
+		if expected != actual {
+			t.Fatalf("expected: %v, got: %v", expected, actual)
+		}
+	})
+	t.Run("runErr", func(t *testing.T) {
+		f := New("")
+		if _, err := f.VideoDuration(""); err == nil {
+			t.Fatal("nil")
+		}
+	})
+	t.Run("regexErr", func(t *testing.T) {
+		f := New("")
+		f.command = fakeExecCommandNoOutput
+
+		if _, err := f.VideoDuration(""); err == nil {
 			t.Fatal("nil")
 		}
 	})
@@ -221,12 +268,12 @@ func imageToText(img image.Image) string {
 func TestCreateMask(t *testing.T) {
 	cases := []struct {
 		name     string
-		input    [][2]int
+		input    Polygon
 		expected string
 	}{
 		{
 			"triangle",
-			[][2]int{
+			Polygon{
 				{3, 1},
 				{6, 6},
 				{0, 6},
@@ -241,7 +288,7 @@ func TestCreateMask(t *testing.T) {
 		},
 		{
 			"octagon",
-			[][2]int{
+			Polygon{
 				{2, 0},
 				{5, 0},
 				{7, 3},
@@ -260,7 +307,7 @@ func TestCreateMask(t *testing.T) {
 		},
 		{
 			"inverted", // Lines cross over themselves at the bottom.
-			[][2]int{
+			Polygon{
 				{7, 0},
 				{7, 7},
 				{1, 5},
@@ -436,7 +483,7 @@ INPUT
 
 		_, err = WaitForKeyframe(context.Background(), tempDir+"/nil")
 		if err == nil {
-			t.Fatal("expected error got: nil")
+			t.Fatal("expected: error got: nil")
 		}
 	})
 	t.Run("canceled", func(t *testing.T) {
@@ -457,6 +504,36 @@ INPUT
 		_, err = WaitForKeyframe(ctx, path)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestFeedRateToDuration(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"one", "1", "1s"},
+		{"two", "2", "500ms"},
+		{"half", "0.5", "2s"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, err := FeedRateToDuration(tc.input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			actual := fmt.Sprintf("%v", output)
+
+			if tc.expected != actual {
+				t.Fatalf("expected: %v, got: %v", tc.expected, actual)
+			}
+		})
+	}
+	t.Run("parseFloatErr", func(t *testing.T) {
+		if _, err := FeedRateToDuration("nil"); err == nil {
+			t.Fatal("expected: error got: nil")
 		}
 	})
 }
