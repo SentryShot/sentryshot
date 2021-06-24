@@ -39,8 +39,15 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 			d.id = rec.id;
 			d.path = toAbsolutePath(rec.path);
 			d.name = await monitorNameByID(d.id.slice(20));
-			const dateString = idToISOstring(d.id, d.path);
-			d.date = fromUTC(new Date(dateString), timeZone);
+			d.timeZone = timeZone;
+
+			if (rec.data) {
+				d.start = Date.parse(rec.data.start);
+				d.end = Date.parse(rec.data.end);
+				d.events = rec.data.events;
+			} else {
+				d.start = Date.parse(idToISOstring(d.id, d.path));
+			}
 
 			const player = newPlayer(d);
 			players.push(player);
@@ -80,6 +87,20 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 				return;
 			}
 		}
+
+		const fetchData = async (rec) => {
+			const response = await fetch(rec.path + ".json", { method: "get" });
+			if (response.status !== 200) {
+				return;
+			}
+			rec.data = await response.json();
+		};
+
+		let batch = [];
+		for (const rec of Object.values(recordings)) {
+			batch.push(fetchData(rec));
+		}
+		await Promise.all(batch);
 
 		current = await renderRecordings(recordings);
 	};
@@ -121,16 +142,6 @@ function idToISOstring(id) {
 	);
 }
 
-function fromUTC(date, timeZone) {
-	try {
-		const localTime = new Date(date.toLocaleString("en-US", { timeZone: timeZone }));
-		localTime.setMilliseconds(date.getMilliseconds());
-		return localTime;
-	} catch (error) {
-		alert(error);
-	}
-}
-
 function newMonitorNameByID(monitors) {
 	return async (id) => {
 		for (const monitor of Object.values(await monitors)) {
@@ -165,4 +176,4 @@ function newMonitorNameByID(monitors) {
 	}
 })();
 
-export { newViewer, newMonitorNameByID, fromUTC };
+export { newViewer, newMonitorNameByID };

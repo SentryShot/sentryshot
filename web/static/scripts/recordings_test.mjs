@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { $ } from "./common.mjs";
-import { newViewer, newMonitorNameByID, fromUTC } from "./recordings.mjs";
+import { newViewer, newMonitorNameByID } from "./recordings.mjs";
 
 describe("newViewer", () => {
 	test("videoUnloading", async () => {
@@ -82,65 +82,5 @@ describe("newViewer", () => {
 
 		clickVideo(2);
 		expect(domState()).toEqual([true, false, false]);
-	});
-});
-
-describe("fromUTC", () => {
-	test("summer", () => {
-		const run = (expected, timeZone) => {
-			const date = new Date("2001-01-02T00:00:00+00:00");
-			const localTime = fromUTC(date, timeZone);
-			const actual = `DAY:${localTime.getDate()} HOUR:${localTime.getHours()}`;
-
-			expect(actual).toEqual(expected);
-		};
-
-		run("DAY:2 HOUR:9", "Asia/Tokyo");
-		run("DAY:2 HOUR:8", "Asia/Shanghai");
-		run("DAY:1 HOUR:18", "America/Mexico_City");
-		run("DAY:2 HOUR:2", "Africa/Cairo");
-	});
-	test("winter", () => {
-		const run = (expected, timeZone) => {
-			const date = new Date("2001-06-02T00:00:01+00:00");
-			const localTime = fromUTC(date, timeZone);
-			const actual = `DAY:${localTime.getDate()} HOUR:${localTime.getHours()}`;
-
-			expect(actual).toEqual(expected);
-		};
-		run("DAY:2 HOUR:9", "Asia/Tokyo");
-		run("DAY:2 HOUR:8", "Asia/Shanghai");
-		run("DAY:1 HOUR:19", "America/Mexico_City");
-		run("DAY:2 HOUR:3", "Africa/Cairo");
-	});
-	test("milliseconds", () => {
-		const date = new Date("2001-01-02T03:04:05.006+00:00");
-		const timezone = fromUTC(date, "America/New_York");
-		const actual =
-			timezone.getHours() +
-			":" +
-			timezone.getMinutes() +
-			":" +
-			timezone.getSeconds() +
-			"." +
-			timezone.getMilliseconds();
-		const expected = "22:4:5.6";
-		expect(actual).toEqual(expected);
-	});
-	test("error", () => {
-		let alerted = false;
-		window.alert = () => {
-			alerted = true;
-		};
-
-		window.fetch = {
-			status: 400,
-			text() {
-				return "";
-			},
-		};
-		const date = new Date("2001-01-02T03:04:05.006+00:00");
-		fromUTC(date, "nil");
-		expect(alerted).toEqual(true);
 	});
 });
