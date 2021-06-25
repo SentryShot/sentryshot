@@ -72,8 +72,8 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 
 func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	logger := log.NewLogger(ctx)
+	logger := log.NewLogger()
+	go logger.Start(ctx)
 
 	configDir, cancel2 := prepareDir(t)
 
@@ -336,7 +336,8 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	logger := log.NewLogger(ctx)
+	logger := log.NewLogger()
+	go logger.Start(ctx)
 
 	cancelFunc := func() {
 		cancel()

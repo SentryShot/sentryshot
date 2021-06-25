@@ -276,7 +276,8 @@ func TestGenerateArgs(t *testing.T) {
 func newTestFFmpeg() (*ffmpegConfig, log.Feed, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	logger := log.NewLogger(ctx)
+	logger := log.NewLogger()
+	go logger.Start(ctx)
 	feed, cancel2 := logger.Subscribe()
 
 	cancelFunc := func() {
@@ -331,6 +332,7 @@ func TestStartFFmpeg(t *testing.T) {
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
+		f.a.wg.Add(1)
 		go f.start(ctx)
 
 		actual := <-feed
@@ -412,7 +414,8 @@ var framePNG = "[137 80 78 71 13 10 26 10 0 0 0 13 73 72 68 82 0 0 0 2 0 0 0 2 1
 func newTestClient() (*doodsClient, log.Feed, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	logger := log.NewLogger(ctx)
+	logger := log.NewLogger()
+	go logger.Start(ctx)
 	feed, cancel2 := logger.Subscribe()
 
 	cancelFunc := func() {

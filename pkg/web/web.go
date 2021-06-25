@@ -47,20 +47,20 @@ type TemplateData struct {
 	General func() storage.GeneralConfig
 }
 
-// NewTemplater experimental.
-func NewTemplater(path string, a *auth.Authenticator, data TemplateData, hook Hook) (Templater, error) {
+// NewTemplater return template renderer.
+func NewTemplater(path string, a *auth.Authenticator, data TemplateData, hook Hook) (*Templater, error) {
 	pageFiles, err := readDir(path)
 	if err != nil {
-		return Templater{}, err
+		return nil, err
 	}
 
 	if err := hook(pageFiles); err != nil {
-		return Templater{}, err
+		return nil, err
 	}
 
 	includeFiles, err := readDir(path + "/includes")
 	if err != nil {
-		return Templater{}, err
+		return nil, err
 	}
 
 	templates := make(map[string]*template.Template)
@@ -68,19 +68,19 @@ func NewTemplater(path string, a *auth.Authenticator, data TemplateData, hook Ho
 		t := template.New(fileName)
 		t, err := t.Parse(page)
 		if err != nil {
-			return Templater{}, fmt.Errorf("could not parse page: %v", err)
+			return nil, fmt.Errorf("could not parse page: %v", err)
 		}
 
 		for _, include := range includeFiles {
 			t, err = t.Parse(include)
 			if err != nil {
-				return Templater{}, fmt.Errorf("could not parse include: %v", err)
+				return nil, fmt.Errorf("could not parse include: %v", err)
 			}
 		}
 		templates[fileName] = t
 	}
 
-	return Templater{
+	return &Templater{
 		auth:         a,
 		data:         data,
 		templates:    templates,

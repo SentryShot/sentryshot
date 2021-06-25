@@ -21,43 +21,45 @@ import (
 	"nvr/pkg/web"
 )
 
-type environmentHook func(*storage.ConfigEnv)
+type envHook func(*storage.ConfigEnv)
 
-var (
-	envHooks              []environmentHook
-	tplHooks              []web.Hook
-	monitorStartHooks     []monitor.StartHook
-	monitorStartMainHooks []monitor.StartMainHook
-)
+type hookList struct {
+	onEnvLoad        []envHook
+	template         []web.Hook
+	monitorStart     []monitor.StartHook
+	monitorStartMain []monitor.StartMainHook
+}
+
+var hooks = &hookList{}
 
 // RegisterTplHook registers hook that's called when environment config is loaded.
-func RegisterEnvHook(h environmentHook) {
-	envHooks = append(envHooks, h)
+func RegisterEnvHook(h envHook) {
+	hooks.onEnvLoad = append(hooks.onEnvLoad, h)
 }
 
 // RegisterTplHook registers hook that's called on page render.
 func RegisterTplHook(h web.Hook) {
-	tplHooks = append(tplHooks, h)
+	hooks.template = append(hooks.template, h)
 }
 
 // RegisterMonitorHook registers hook that's called when the monitor starts.
 func RegisterMonitorStartHook(h monitor.StartHook) {
-	monitorStartHooks = append(monitorStartHooks, h)
+	hooks.monitorStart = append(hooks.monitorStart, h)
 }
 
 // RegisterMonitorHook registers hook that's called when the main monitor process starts.
 func RegisterMonitorStartProcessHook(h monitor.StartMainHook) {
-	monitorStartMainHooks = append(monitorStartMainHooks, h)
+	hooks.monitorStartMain = append(hooks.monitorStartMain, h)
 }
 
-func envHook(env *storage.ConfigEnv) {
-	for _, hook := range envHooks {
+func (h *hookList) env(env *storage.ConfigEnv) {
+	for _, hook := range h.onEnvLoad {
 		hook(env)
 	}
 }
 
-func tplHook(pageFiles map[string]string) error {
-	for _, hook := range tplHooks {
+func (h *hookList) tpl(pageFiles map[string]string) error {
+	for _, hook := range h.template {
 		if err := hook(pageFiles); err != nil {
 			return err
 		}
@@ -65,14 +67,14 @@ func tplHook(pageFiles map[string]string) error {
 	return nil
 }
 
-func monitorHooks() monitor.Hooks {
+func (h *hookList) monitor() monitor.Hooks {
 	startHook := func(ctx context.Context, m *monitor.Monitor) {
-		for _, hook := range monitorStartHooks {
+		for _, hook := range h.monitorStart {
 			hook(ctx, m)
 		}
 	}
 	startMainHook := func(ctx context.Context, m *monitor.Monitor, args *string) {
-		for _, hook := range monitorStartMainHooks {
+		for _, hook := range h.monitorStartMain {
 			hook(ctx, m, args)
 		}
 	}

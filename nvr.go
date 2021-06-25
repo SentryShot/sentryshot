@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -33,137 +32,158 @@ import (
 )
 
 // Run .
-func Run(goBin string, configDir string) error { //nolint:funlen
+func Run(goBin string, configDir string) error {
+	app, err := newApp(goBin, configDir, hooks)
+	if err != nil {
+		return err
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
-	logger := log.NewLogger(ctx)
+	fatal := make(chan error, 1)
+	go func() { fatal <- app.run(ctx) }()
 
-	go logger.LogToStdout(ctx)
-	time.Sleep(10 * time.Millisecond)
-	logger.Println("starting..")
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
-	envConfig, err := storage.NewConfigEnv(goBin, configDir)
+	select {
+	case err = <-fatal:
+	case signal := <-stop:
+		app.log.Printf("\nReceived %v stopping.\n", signal)
+	}
+
+	cancel()
+
+	app.monitorManager.StopAll()
+	app.log.Println("Monitors stopped.")
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel2()
+
+	if err := app.server.Shutdown(ctx2); err != nil {
+		return err
+	}
+	return err
+}
+
+func newApp(goBin string, configDir string, hooks *hookList) (*app, error) { //nolint:funlen
+	logger := log.NewLogger()
+
+	env, err := storage.NewConfigEnv(goBin, configDir)
 	if err != nil {
-		return fmt.Errorf("could not get environment config: %v", err)
+		return nil, fmt.Errorf("could not get environment config: %v", err)
 	}
 
-	envHook(envConfig)
+	hooks.env(env)
 
-	generalConfig, err := storage.NewConfigGeneral(configDir)
+	general, err := storage.NewConfigGeneral(configDir)
 	if err != nil {
-		return fmt.Errorf("could not get general config: %v", err)
+		return nil, fmt.Errorf("could not get general config: %v", err)
 	}
 
-	if err := envConfig.PrepareEnvironment(); err != nil {
-		return fmt.Errorf("could not prepare environment: %v", err)
-	}
-
-	monitorManager, err := monitor.NewMonitorManager("./configs/monitors", envConfig, logger, monitorHooks())
+	monitorManager, err := monitor.NewMonitorManager("./configs/monitors", env, logger, hooks.monitor())
 	if err != nil {
-		return fmt.Errorf("could not create monitor manager: %v", err)
-	}
-
-	// Start monitors
-	for _, monitor := range monitorManager.Monitors {
-		if err := monitor.Start(); err != nil {
-			monitorManager.StopAll()
-			return fmt.Errorf("could not start monitor: %v", err)
-		}
+		return nil, fmt.Errorf("could not create monitor mager: %v", err)
 	}
 
 	a, err := auth.NewBasicAuthenticator(configDir+"/users.json", logger)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	var wg sync.WaitGroup
+	storageMager := storage.NewManager(env.StorageDir, general, logger)
 
-	storageManager := storage.NewManager(envConfig.StorageDir, generalConfig, logger)
-	go storageManager.PurgeLoop(ctx, 10*time.Minute)
+	crawler := storage.NewCrawler(env.StorageDir + "/recordings/")
 
-	crawler := storage.NewCrawler(envConfig.StorageDir + "/recordings/")
-
-	status := system.New(storageManager.Usage, logger)
-	go status.StatusLoop(ctx)
+	sys := system.New(storageMager.Usage, logger)
 
 	timeZone, err := system.TimeZone()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	templateData := web.TemplateData{
-		Status:  status.Status,
-		General: generalConfig.Get,
+		Status:  sys.Status,
+		General: general.Get,
 	}
-	t, err := web.NewTemplater(envConfig.WebDir+"/templates", a, templateData, tplHook)
+
+	t, err := web.NewTemplater(env.WebDir+"/templates", a, templateData, hooks.tpl)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	http.Handle("/live", a.User(t.Render("live.tpl")))
-	http.Handle("/recordings", a.User(t.Render("recordings.tpl")))
-	http.Handle("/settings", a.User(t.Render("settings.tpl")))
-	http.Handle("/settings.js", a.User(t.Render("settings.js")))
-	http.Handle("/logs", a.Admin(t.Render("logs.tpl")))
-	http.Handle("/debug", a.Admin(t.Render("debug.tpl")))
-	http.Handle("/logout", web.Logout())
+	mux := http.NewServeMux()
 
-	http.Handle("/static/", a.User(web.Static(envConfig.WebDir+"/static")))
-	http.Handle("/storage/", a.User(web.Storage(envConfig.StorageDir)))
-	http.Handle("/hls/", a.User(web.HLS(envConfig)))
+	mux.Handle("/live", a.User(t.Render("live.tpl")))
+	mux.Handle("/recordings", a.User(t.Render("recordings.tpl")))
+	mux.Handle("/settings", a.User(t.Render("settings.tpl")))
+	mux.Handle("/settings.js", a.User(t.Render("settings.js")))
+	mux.Handle("/logs", a.Admin(t.Render("logs.tpl")))
+	mux.Handle("/debug", a.Admin(t.Render("debug.tpl")))
+	mux.Handle("/logout", web.Logout())
 
-	http.Handle("/api/system/status", a.User(web.Status(status)))
-	http.Handle("/api/system/timeZone", a.User(web.TimeZone(timeZone)))
-	http.Handle("/api/general", a.Admin(web.General(generalConfig)))
-	http.Handle("/api/general/set", a.Admin(a.CSRF(web.GeneralSet(generalConfig))))
-	http.Handle("/api/users", a.Admin(web.Users(a)))
-	http.Handle("/api/user/set", a.Admin(a.CSRF(web.UserSet(a))))
-	http.Handle("/api/user/delete", a.Admin(a.CSRF(web.UserDelete(a))))
-	http.Handle("/api/user/myToken", a.Admin(a.MyToken()))
-	http.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager)))
-	http.Handle("/api/monitor/configs", a.Admin(web.MonitorConfigs(monitorManager)))
-	http.Handle("/api/monitor/restart", a.Admin(a.CSRF(web.MonitorRestart(monitorManager))))
-	http.Handle("/api/monitor/set", a.Admin(a.CSRF(web.MonitorSet(monitorManager))))
-	http.Handle("/api/monitor/delete", a.Admin(a.CSRF(web.MonitorDelete(monitorManager))))
-	http.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler)))
-	http.Handle("/api/logs", a.Admin(web.Logs(logger, a)))
+	mux.Handle("/static/", a.User(web.Static(env.WebDir+"/static")))
+	mux.Handle("/storage/", a.User(web.Storage(env.StorageDir)))
+	mux.Handle("/hls/", a.User(web.HLS(env)))
 
-	server := &http.Server{Addr: ":" + envConfig.Port, Handler: nil}
+	mux.Handle("/api/system/status", a.User(web.Status(sys)))
+	mux.Handle("/api/system/timeZone", a.User(web.TimeZone(timeZone)))
+	mux.Handle("/api/general", a.Admin(web.General(general)))
+	mux.Handle("/api/general/set", a.Admin(a.CSRF(web.GeneralSet(general))))
+	mux.Handle("/api/users", a.Admin(web.Users(a)))
+	mux.Handle("/api/user/set", a.Admin(a.CSRF(web.UserSet(a))))
+	mux.Handle("/api/user/delete", a.Admin(a.CSRF(web.UserDelete(a))))
+	mux.Handle("/api/user/myToken", a.Admin(a.MyToken()))
+	mux.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager)))
+	mux.Handle("/api/monitor/configs", a.Admin(web.MonitorConfigs(monitorManager)))
+	mux.Handle("/api/monitor/restart", a.Admin(a.CSRF(web.MonitorRestart(monitorManager))))
+	mux.Handle("/api/monitor/set", a.Admin(a.CSRF(web.MonitorSet(monitorManager))))
+	mux.Handle("/api/monitor/delete", a.Admin(a.CSRF(web.MonitorDelete(monitorManager))))
+	mux.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler)))
+	mux.Handle("/api/logs", a.Admin(web.Logs(logger, a)))
 
-	fatal := make(chan error, 1)
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fatal <- fmt.Errorf("server crashed: %v", err)
+	server := &http.Server{Addr: ":" + env.Port, Handler: mux}
+
+	return &app{
+		log:            logger,
+		env:            env,
+		monitorManager: monitorManager,
+		storage:        storageMager,
+		system:         sys,
+		server:         server,
+	}, nil
+}
+
+type app struct {
+	log            *log.Logger
+	env            *storage.ConfigEnv
+	monitorManager *monitor.Manager
+	storage        *storage.Manager
+	system         *system.System
+	server         *http.Server
+}
+
+func (a *app) run(ctx context.Context) error {
+	go a.log.Start(ctx)
+	go a.log.LogToStdout(ctx)
+	time.Sleep(10 * time.Millisecond)
+	a.log.Println("starting..")
+
+	if err := a.env.PrepareEnvironment(); err != nil {
+		return fmt.Errorf("could not prepare environment: %v", err)
+	}
+
+	// Start monitors
+	for _, monitor := range a.monitorManager.Monitors {
+		if err := monitor.Start(); err != nil {
+			a.monitorManager.StopAll()
+			return fmt.Errorf("could not start monitor: %v", err)
 		}
-	}()
-
-	// Graceful shutdown.
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-
-	shutdown := func() error {
-		monitorManager.StopAll()
-		logger.Println("Monitors stopped.")
-
-		cancel()
-		wg.Wait()
-
-		ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
-		err := server.Shutdown(ctx2)
-		cancel2()
-
-		return err
 	}
 
-	select {
-	case signal := <-stop:
-		logger.Printf("\nReceived %v stopping.\n", signal)
-		return shutdown()
-	case err = <-fatal:
-		if err2 := shutdown(); err2 != nil {
-			logger.Println(err2.Error() + "\n")
-		}
-		return err
-	}
+	go a.storage.PurgeLoop(ctx, 10*time.Minute)
+
+	go a.system.StatusLoop(ctx)
+
+	return a.server.ListenAndServe()
 }

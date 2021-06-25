@@ -30,17 +30,16 @@ type Logger struct {
 type Feed <-chan string
 
 // NewLogger starts and returns Logger.
-func NewLogger(ctx context.Context) *Logger {
-	logger := &Logger{
+func NewLogger() *Logger {
+	return &Logger{
 		feed:  make(chan string),
 		sub:   make(chan chan string),
 		unsub: make(chan chan string),
 	}
-	go logger.start(ctx)
-	return logger
 }
 
-func (l *Logger) start(ctx context.Context) {
+// Start logger.
+func (l *Logger) Start(ctx context.Context) {
 	subs := map[chan string]struct{}{}
 	for {
 		select {

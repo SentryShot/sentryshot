@@ -22,15 +22,21 @@ import (
 	"time"
 )
 
-func TestLogger(t *testing.T) {
+func newTestLogger() (context.Context, func(), *Logger) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	logger := NewLogger(ctx)
+	logger := NewLogger()
+	go logger.Start(ctx)
 
-	feed, cancel2 := logger.Subscribe()
-	defer cancel2()
+	return ctx, cancel, logger
+}
 
+func TestLogger(t *testing.T) {
 	t.Run("print", func(t *testing.T) {
+		_, cancel, logger := newTestLogger()
+		defer cancel()
+
+		feed, cancel2 := logger.Subscribe()
+		defer cancel2()
 
 		cases := []struct {
 			name     string
@@ -53,6 +59,12 @@ func TestLogger(t *testing.T) {
 		}
 	})
 	t.Run("printf", func(t *testing.T) {
+		_, cancel, logger := newTestLogger()
+		defer cancel()
+
+		feed, cancel2 := logger.Subscribe()
+		defer cancel2()
+
 		cases := []struct {
 			name     string
 			printer  func(string, ...interface{})
@@ -74,11 +86,9 @@ func TestLogger(t *testing.T) {
 			})
 		}
 	})
-
 	t.Run("unsubBeforePrint", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		_, cancel, logger := newTestLogger()
 		defer cancel()
-		logger := NewLogger(ctx)
 
 		feed1, cancel1 := logger.Subscribe()
 		feed2, cancel2 := logger.Subscribe()
@@ -99,9 +109,8 @@ func TestLogger(t *testing.T) {
 		}
 	})
 	t.Run("unsubAfterPrint", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		_, cancel, logger := newTestLogger()
 		defer cancel()
-		logger := NewLogger(ctx)
 
 		feed, cancel2 := logger.Subscribe()
 
@@ -117,7 +126,6 @@ func TestLogger(t *testing.T) {
 		}
 	})
 	t.Run("logToStdout", func(t *testing.T) {
-
 		cs := []string{"-test.run=TestLogToStdout"}
 		cmd := exec.Command(os.Args[0], cs...)
 		cmd.Env = []string{"GO_TEST_PROCESS=1"}
@@ -138,10 +146,9 @@ func TestLogToStdout(t *testing.T) {
 	if os.Getenv("GO_TEST_PROCESS") != "1" {
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel, logger := newTestLogger()
 	defer cancel()
 
-	logger := NewLogger(ctx)
 	go logger.LogToStdout(ctx)
 	time.Sleep(1 * time.Millisecond)
 	logger.Print("test")

@@ -65,7 +65,8 @@ func TestProcess(t *testing.T) {
 		t.Run("working", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
-			logger := log.NewLogger(ctx)
+			logger := log.NewLogger()
+			go logger.Start(ctx)
 			feed, cancel2 := logger.Subscribe()
 
 			p := NewProcess(fakeExecCommand())
