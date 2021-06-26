@@ -70,7 +70,8 @@ describe("newViewer", () => {
 
 		document.body.innerHTML = `<div id="content-grid"></div>`;
 		const element = $("#content-grid");
-		newViewer(element, monitors, mockHls);
+		const viewer = newViewer(element, monitors, mockHls);
+		viewer.reset();
 		const actual = element.innerHTML.replace(/\s/g, "");
 
 		expect(actual).toEqual(expected);

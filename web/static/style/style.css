@@ -177,6 +177,7 @@ progress[value]::-moz-progress-bar {
 	--barsize: 1.4rem;
 	--icon-padding: 0.15rem;
 	--sidebar-width: 6rem;
+	--topbar-height: 1.4rem;
 	--gridsize: 1;
 }
 
@@ -220,20 +221,74 @@ a:focus {
 	background: var(--color1);
 }
 
-#topbar img {
-	margin: var(--icon-padding);
+.topbar-btn {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	width: var(--topbar-height);
+	height: var(--topbar-height);
 }
 
 #current-page {
 	margin: auto;
-	padding-right: 1rem;
 	color: var(--color-text);
 	font-size: 0.7rem;
 }
 
+#topbar-options-btn {
+	margin-top: auto;
+	visibility: hidden;
+}
+
+#topbar-options-btn img {
+	height: 0.9rem;
+}
+
+#options-checkbox {
+	position: absolute;
+	visibility: hidden;
+}
+
+#options-btn {
+	position: absolute;
+	right: 0;
+	z-index: 2;
+	width: var(--topbar-height);
+	height: var(--topbar-height);
+}
+
+#options-menu {
+	position: absolute;
+	top: var(--topbar-height);
+	right: 0;
+	z-index: 3;
+	display: flex;
+	flex-direction: column;
+	visibility: hidden;
+}
+
+.options-menu-btn {
+	padding: 0.2rem;
+	font-size: 0;
+	background: var(--color2);
+}
+
+.options-menu-btn:hover {
+	background: var(--color2-hover);
+}
+
+.options-menu-btn img {
+	height: 0.8rem;
+}
+
+#options-checkbox:checked ~ #options-menu {
+	visibility: visible;
+}
+
 #sidebar {
 	position: absolute;
-	z-index: 3;
+	z-index: 5;
 	display: flex;
 	flex-direction: column;
 	width: 0;
@@ -257,7 +312,7 @@ a:focus {
 
 #sidebar-closer {
 	position: absolute;
-	z-index: 2;
+	z-index: 4;
 	display: none;
 	width: 100vw;
 	height: 100vh;
@@ -720,7 +775,24 @@ a:focus {
 	}
 
 	#topbar {
+		flex-direction: column;
 		width: auto;
+		height: 100%;
+	}
+
+	#options-btn {
+		right: auto;
+		bottom: 0;
+	}
+
+	#options-menu {
+		right: auto;
+		bottom: var(--topbar-height);
+		left: 0;
+	}
+
+	#logout {
+		display: none;
 	}
 
 	#statusbar {
@@ -742,12 +814,34 @@ a:focus {
 	}
 
 	#topbar {
-		z-index: 4;
-		width: var(--barsize);
+		z-index: 6;
+		flex-direction: row;
+		width: var(--sidebar-width);
+		height: auto;
+		transition: width 400ms;
+	}
+
+	#topbar-options-btn {
+		margin-left: auto;
 	}
 
 	#current-page {
 		display: none;
+	}
+
+	#options-btn {
+		right: auto;
+		bottom: auto;
+		left: calc(var(--sidebar-width) - var(--topbar-height));
+		z-index: 7;
+	}
+
+	#options-menu {
+		top: auto;
+		right: auto;
+		bottom: auto;
+		left: var(--sidebar-width);
+		transition: left 400ms;
 	}
 
 	#sidebar {
@@ -761,8 +855,16 @@ a:focus {
 		transition: padding-left 400ms;
 	}
 
+	#sidebar-checkbox:checked ~ #options-menu {
+		left: calc(var(--topbar-height) * 2);
+	}
+
 	#sidebar-checkbox:checked ~ #sidebar {
 		width: 0;
+	}
+
+	#sidebar-checkbox:checked ~ #sidebar-btn {
+		width: var(--topbar-height);
 	}
 
 	#sidebar-checkbox:checked ~ #content {
@@ -771,6 +873,7 @@ a:focus {
 	}
 
 	#sidebar-checkbox:checked ~ #topbar {
+		width: 0;
 		opacity: 0.5;
 	}
 
@@ -789,6 +892,10 @@ a:focus {
 
 	#statusbar {
 		display: block;
+	}
+
+	#logout {
+		display: flex;
 	}
 
 	.modal {

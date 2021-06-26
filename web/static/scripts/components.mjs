@@ -763,6 +763,70 @@ function newDetectionRenderer(start, events) {
 	};
 }
 
+const newOptionsBtn = {
+	gridSize() {
+		const getGridSize = () => {
+			const saved = localStorage.getItem("gridsize");
+			if (saved) {
+				return Number(saved);
+			}
+			return Number(
+				getComputedStyle(document.documentElement)
+					.getPropertyValue("--gridsize")
+					.trim()
+			);
+		};
+		const setGridSize = (value) => {
+			localStorage.setItem("gridsize", value);
+			document.documentElement.style.setProperty("--gridsize", value);
+		};
+		return {
+			html: `
+			<button class="options-menu-btn js-plus">
+				<img class="nav-icon" src="static/icons/feather/plus.svg">
+			</button>
+			<button class="options-menu-btn js-minus">
+				<img class="nav-icon" src="static/icons/feather/minus.svg">
+			</button>`,
+			init($parent, content) {
+				$parent.querySelector(".js-plus").addEventListener("click", () => {
+					if (getGridSize() !== 1) {
+						setGridSize(getGridSize() - 1);
+						content.reset();
+					}
+				});
+				$parent.querySelector(".js-minus").addEventListener("click", () => {
+					setGridSize(getGridSize() + 1);
+					content.reset();
+				});
+				setGridSize(getGridSize());
+			},
+		};
+	},
+};
+
+function newOptionsMenu(buttons) {
+	$("#topbar-options-btn").style.visibility = "visible";
+
+	const html = () => {
+		let html = "";
+		for (const btn of buttons) {
+			html += btn.html;
+		}
+		return html;
+	};
+	return {
+		html: html(),
+		init($parent, content) {
+			for (const btn of buttons) {
+				btn.init($parent, content);
+			}
+
+			content.reset();
+		},
+	};
+}
+
 function isEmpty(string) {
 	return string === "" || string === null;
 }
@@ -776,6 +840,8 @@ export {
 	fromUTC,
 	newPlayer,
 	newDetectionRenderer,
+	newOptionsBtn,
+	newOptionsMenu,
 	isEmpty,
 	$getInputAndError,
 };

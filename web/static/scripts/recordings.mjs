@@ -12,13 +12,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { fetchGet } from "./common.mjs";
-import { newPlayer } from "./components.mjs";
+import { $, fetchGet } from "./common.mjs";
+import { newPlayer, newOptionsBtn, newOptionsMenu } from "./components.mjs";
 
 async function newViewer(monitorNameByID, $parent, timeZone) {
 	let maxPlayingVideos = 2;
 
-	let playingVideos = [];
+	let playingVideos;
 	const resetVideos = () => {
 		while (playingVideos.length >= maxPlayingVideos) {
 			playingVideos[0]();
@@ -67,10 +67,7 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 		return current;
 	};
 
-	let gridSize;
-	let loading = false;
-	let lastVideo = false;
-	let current = "9999-12-28_23-59-59";
+	let gridSize, loading, lastVideo, current;
 	const fetchRecordings = async () => {
 		const limit = gridSize;
 
@@ -116,14 +113,22 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 			loading = false;
 		}
 	};
-	gridSize = getComputedStyle(document.documentElement)
-		.getPropertyValue("--gridsize")
-		.trim();
-
-	await fetchRecordings();
-	await lazyLoadRecordings();
 
 	return {
+		reset: async () => {
+			playingVideos = [];
+			loading = false;
+			lastVideo = false;
+			current = "9999-12-28_23-59-59";
+			$parent.innerHTML = "";
+
+			gridSize = getComputedStyle(document.documentElement)
+				.getPropertyValue("--gridsize")
+				.trim();
+
+			await fetchRecordings();
+			await lazyLoadRecordings();
+		},
 		lazyLoadRecordings: lazyLoadRecordings,
 	};
 }
@@ -158,6 +163,7 @@ function newMonitorNameByID(monitors) {
 		if (fetch === undefined) {
 			return;
 		}
+
 		const monitors = await fetchGet("api/monitor/list", "could not get monitor list");
 		const monitorNameByID = newMonitorNameByID(monitors);
 
@@ -165,6 +171,12 @@ function newMonitorNameByID(monitors) {
 
 		const $grid = document.querySelector("#content-grid");
 		const viewer = await newViewer(monitorNameByID, $grid, timeZone);
+
+		const $options = $("#options-menu");
+		const buttons = [newOptionsBtn.gridSize()];
+		const optionsMenu = newOptionsMenu(buttons);
+		$options.innerHTML = optionsMenu.html;
+		optionsMenu.init($options, viewer);
 
 		window.addEventListener("resize", viewer.lazyLoadRecordings);
 		window.addEventListener("orientation", viewer.lazyLoadRecordings);

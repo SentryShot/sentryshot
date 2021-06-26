@@ -12,7 +12,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { fetchGet } from "./common.mjs";
+import { $, fetchGet } from "./common.mjs";
+import { newOptionsBtn, newOptionsMenu } from "./components.mjs";
 
 let hlsConfig = {
 	enableWorker: true,
@@ -105,21 +106,25 @@ function newViewer($parent, monitors, Hls) {
 		return html;
 	};
 
-	$parent.innerHTML = generateHTML(monitors);
+	return {
+		reset() {
+			$parent.innerHTML = generateHTML(monitors);
 
-	for (const monitor of Object.values(monitors)) {
-		if (monitor["enable"] !== "true") {
-			continue;
-		}
+			for (const monitor of Object.values(monitors)) {
+				if (monitor["enable"] !== "true") {
+					continue;
+				}
 
-		const video = newVideo(monitor["id"], Hls);
+				const video = newVideo(monitor["id"], Hls);
 
-		if (monitor["audioEnabled"] === "true") {
-			video.$img().addEventListener("click", () => {
-				video.muteToggle();
-			});
-		}
-	}
+				if (monitor["audioEnabled"] === "true") {
+					video.$img().addEventListener("click", () => {
+						video.muteToggle();
+					});
+				}
+			}
+		},
+	};
 }
 
 // Init.
@@ -129,12 +134,19 @@ function newViewer($parent, monitors, Hls) {
 		if (Hls === undefined) {
 			return;
 		}
+
 		const $contentGrid = document.querySelector("#content-grid");
 
 		const monitors = await fetchGet("api/monitor/list", "could not get monitor list");
 
-		newViewer($contentGrid, monitors, Hls);
+		const viewer = newViewer($contentGrid, monitors, Hls);
+
 		/* eslint-enable no-undef */
+		const $options = $("#options-menu");
+		const buttons = [newOptionsBtn.gridSize()];
+		const optionsMenu = newOptionsMenu(buttons);
+		$options.innerHTML = optionsMenu.html;
+		optionsMenu.init($options, viewer);
 	} catch (error) {
 		return error;
 	}

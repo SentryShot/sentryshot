@@ -21,6 +21,8 @@ import {
 	fromUTC,
 	newPlayer,
 	newDetectionRenderer,
+	newOptionsBtn,
+	newOptionsMenu,
 	$getInputAndError,
 } from "./components.mjs";
 
@@ -651,6 +653,7 @@ describe("detectionRenderer", () => {
 		const start = Date.parse("2001-06-02T00:00:01+00:00");
 		const d = newDetectionRenderer(start, events);
 
+		document.body.innerHTML = "<div></div>";
 		const element = $("div");
 		element.innerHTML = d.html;
 		d.init(element.querySelector(".player-detections"));
@@ -692,5 +695,123 @@ describe("detectionRenderer", () => {
 		</svg>`.replace(/\s/g, "");
 
 		expect(actual).toEqual(expected);
+	});
+});
+
+describe("newOptionsBtn", () => {
+	const setup = (content, button) => {
+		document.body.innerHTML = `<div id="options-menu"></div>`;
+		const element = $("#options-menu");
+
+		element.innerHTML = button.html;
+		button.init(element, content);
+
+		return element;
+	};
+	test("rendering", () => {
+		const content = {
+			reset() {},
+		};
+		setup(content, newOptionsBtn.gridSize());
+
+		let expected = `
+			<div id="options-menu">
+				<button class="options-menu-btn js-plus">
+					<img class="nav-icon" src="static/icons/feather/plus.svg">
+				</button>
+				<button class="options-menu-btn js-minus">
+					<img class="nav-icon" src="static/icons/feather/minus.svg">
+				</button>
+			</div>`.replace(/\s/g, "");
+
+		let actual = document.body.innerHTML.replace(/\s/g, "");
+		expect(actual).toEqual(expected);
+	});
+	test("logic", () => {
+		const content = {
+			reset() {},
+		};
+		const getGridSize = () => {
+			return Number(
+				getComputedStyle(document.documentElement)
+					.getPropertyValue("--gridsize")
+					.trim()
+			);
+		};
+		const element = setup(content, newOptionsBtn.gridSize());
+		const $plus = element.querySelector(".js-plus");
+		const $minus = element.querySelector(".js-minus");
+
+		expect(getGridSize()).toEqual(0);
+		$minus.click();
+		expect(getGridSize()).toEqual(1);
+		expect(localStorage.getItem("gridsize")).toEqual("1");
+
+		localStorage.setItem("gridsize", 5);
+		$plus.click();
+		expect(localStorage.getItem("gridsize")).toEqual("4");
+	});
+});
+
+describe("newOptionsMenu", () => {
+	test("rendering", () => {
+		document.body.innerHTML = `
+			<button id="topbar-options-btn"></button>
+			<div id="options-menu"></div>`;
+		const element = $("#options-menu");
+
+		const mockButtons = [
+			{
+				html: "a",
+				init() {},
+			},
+			{
+				html: "b",
+				init() {},
+			},
+		];
+
+		const content = {
+			reset() {},
+		};
+
+		const options = newOptionsMenu(mockButtons);
+		element.innerHTML = options.html;
+		options.init(element, content);
+
+		let expected = `
+			<button id="topbar-options-btn" style="visibility:visible;"></button>
+			<div id="options-menu">ab</div>`.replace(/\s/g, "");
+
+		let actual = document.body.innerHTML.replace(/\s/g, "");
+		expect(actual).toEqual(expected);
+	});
+	test("logic", () => {
+		document.body.innerHTML = `
+			<button id="topbar-options-btn"></button>
+			<div id="options-menu"></div>`;
+		const element = $("#options-menu");
+
+		let initCalled = false;
+		let resetCalled = false;
+		const mockButtons = [
+			{
+				init() {
+					initCalled = true;
+				},
+			},
+		];
+		const content = {
+			reset() {
+				resetCalled = true;
+			},
+		};
+
+		const options = newOptionsMenu(mockButtons);
+		element.innerHTML = options.html;
+		options.init(element, content);
+
+		expect(initCalled).toEqual(true);
+		expect(resetCalled).toEqual(true);
 	});
 });

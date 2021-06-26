@@ -47,7 +47,8 @@ describe("newViewer", () => {
 		document.body.innerHTML = "<div></div>";
 		const element = $("div");
 
-		await newViewer(monitorNameByID, element, "GMT");
+		const viewer = await newViewer(monitorNameByID, element, "GMT");
+		await viewer.reset();
 
 		const domState = () => {
 			const isThumbnail = [];
