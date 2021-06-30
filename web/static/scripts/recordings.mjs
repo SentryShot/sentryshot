@@ -114,20 +114,28 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 		}
 	};
 
+	let selectedDate;
+
+	const reset = async () => {
+		playingVideos = [];
+		loading = false;
+		lastVideo = false;
+		current = selectedDate ? selectedDate : "9999-12-28_23-59-59";
+		$parent.innerHTML = "";
+
+		gridSize = getComputedStyle(document.documentElement)
+			.getPropertyValue("--gridsize")
+			.trim();
+
+		await fetchRecordings();
+		await lazyLoadRecordings();
+	};
+
 	return {
-		reset: async () => {
-			playingVideos = [];
-			loading = false;
-			lastVideo = false;
-			current = "9999-12-28_23-59-59";
-			$parent.innerHTML = "";
-
-			gridSize = getComputedStyle(document.documentElement)
-				.getPropertyValue("--gridsize")
-				.trim();
-
-			await fetchRecordings();
-			await lazyLoadRecordings();
+		reset: reset,
+		setDate(date) {
+			selectedDate = dateToID(date);
+			reset();
 		},
 		lazyLoadRecordings: lazyLoadRecordings,
 	};
@@ -145,6 +153,21 @@ function idToISOstring(id) {
 		/(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})_.*/,
 		"$1-$2-$3T$4:$5:$6+00:00"
 	);
+}
+
+function dateToID(d) {
+	const pad = (n) => {
+		return n < 10 ? "0" + n : n;
+	};
+
+	const YY = d.getFullYear(),
+		MM = pad(d.getMonth() + 1),
+		DD = pad(d.getDate()), // Day.
+		hh = pad(d.getHours()),
+		mm = pad(d.getMinutes()),
+		ss = pad(d.getSeconds());
+
+	return `${YY}-${MM}-${DD}_${hh}-${mm}-${ss}`;
 }
 
 function newMonitorNameByID(monitors) {
@@ -173,7 +196,7 @@ function newMonitorNameByID(monitors) {
 		const viewer = await newViewer(monitorNameByID, $grid, timeZone);
 
 		const $options = $("#options-menu");
-		const buttons = [newOptionsBtn.gridSize()];
+		const buttons = [newOptionsBtn.gridSize(), newOptionsBtn.date(timeZone)];
 		const optionsMenu = newOptionsMenu(buttons);
 		$options.innerHTML = optionsMenu.html;
 		optionsMenu.init($options, viewer);

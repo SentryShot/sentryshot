@@ -14,41 +14,47 @@
 
 import { $ } from "./common.mjs";
 import { newViewer, newMonitorNameByID } from "./recordings.mjs";
+import { fromUTC } from "./components.mjs";
 
 describe("newViewer", () => {
-	test("videoUnloading", async () => {
-		const monitorNameByID = newMonitorNameByID({});
+	const monitorNameByID = newMonitorNameByID({});
 
-		const recordings = [
-			{
-				id: "1",
-				path: "a",
-			},
-			{
-				id: "2",
-				path: "b",
-			},
-			{
-				id: "3",
-				path: "c",
-			},
-		];
+	const recordings = [
+		{
+			id: "1",
+			path: "a",
+		},
+		{
+			id: "2",
+			path: "b",
+		},
+		{
+			id: "3",
+			path: "c",
+		},
+	];
 
-		function mockFetch() {
-			return {
-				status: 200,
-				json() {
-					return recordings;
-				},
-			};
-		}
+	const mockFetch = () => {
+		return {
+			status: 200,
+			json() {
+				return recordings;
+			},
+		};
+	};
+
+	const setup = async () => {
 		window.fetch = mockFetch;
-
 		document.body.innerHTML = "<div></div>";
 		const element = $("div");
 
-		const viewer = await newViewer(monitorNameByID, element, "GMT");
+		const viewer = await newViewer(monitorNameByID, element, "utc");
 		await viewer.reset();
+		return [viewer, element];
+	};
+
+	test("videoUnloading", async () => {
+		const [, element] = await setup();
 
 		const domState = () => {
 			const isThumbnail = [];
@@ -83,5 +89,19 @@ describe("newViewer", () => {
 
 		clickVideo(2);
 		expect(domState()).toEqual([true, false, false]);
+	});
+	test("setDate", async () => {
+		const [viewer] = await setup();
+
+		let ok = false;
+		window.fetch = (r) => {
+			if (r === "api/recording/query?limit=&before=2000-01-02_03-04-05") {
+				ok = true;
+			}
+		};
+
+		await viewer.setDate(fromUTC(new Date("2000-01-02T03:04:05+00:00"), "utc"));
+
+		expect(ok).toEqual(true);
 	});
 });

@@ -55,7 +55,7 @@ describe("newViewer", () => {
 					<button class="live-player-btn">
 						<img
 							id="js-mute-btn-3"
-							class="nav-icon"
+							class="icon"
 							src="static/icons/feather/volume-x.svg"
 						>
 					</button>

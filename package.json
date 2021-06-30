@@ -90,7 +90,7 @@
 			"plugin/no-unsupported-browser-features": [
 				true,
 				{
-					"ignore": ["multicolumn"]
+					"ignore": ["multicolumn", "css-appearance"]
 				}
 			]
 		}

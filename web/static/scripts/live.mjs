@@ -88,7 +88,7 @@ function newViewer($parent, monitors, Hls) {
 						<button class="live-player-btn">
 							<img
 								id="js-mute-btn-${id}"
-								class="nav-icon"
+								class="icon"
 								src="${iconMutedPath}"
 							/>
 						</button>

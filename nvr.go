@@ -52,10 +52,10 @@ func Run(goBin string, configDir string) error {
 		app.log.Printf("\nReceived %v stopping.\n", signal)
 	}
 
-	cancel()
-
 	app.monitorManager.StopAll()
 	app.log.Println("Monitors stopped.")
+
+	cancel()
 
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel2()

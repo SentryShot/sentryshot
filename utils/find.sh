@@ -12,6 +12,7 @@ find . \
 	-not -path "./.git/*" \
 	-not -path "./.cache/*" \
 	-not -path "*vendor*" \
+	-not -path "./coverage/*" \
 	-not -path "./node_modules/*" \
 	-not -path "./local/*" \
 	-not -path "./start/build/main.go"

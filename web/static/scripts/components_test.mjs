@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { jest } from "@jest/globals";
 import { $ } from "./common.mjs";
 import {
 	fieldTemplate,
@@ -19,6 +20,7 @@ import {
 	inputRules,
 	newModal,
 	fromUTC,
+	toUTC,
 	newPlayer,
 	newDetectionRenderer,
 	newOptionsBtn,
@@ -437,7 +439,7 @@ test("newModal", () => {
 	expect($wrapper.classList.contains("modal-open")).toEqual(false);
 });
 
-describe("fromUTC", () => {
+describe("toAndFromUTC", () => {
 	test("summer", () => {
 		const run = (expected, timeZone) => {
 			const date = new Date("2001-01-02T00:00:00+00:00");
@@ -445,6 +447,10 @@ describe("fromUTC", () => {
 			const actual = `DAY:${localTime.getDate()} HOUR:${localTime.getHours()}`;
 
 			expect(actual).toEqual(expected);
+
+			const utc = toUTC(localTime, timeZone);
+			expect(utc.getDate()).toEqual(2);
+			expect(utc.getHours()).toEqual(0);
 		};
 
 		run("DAY:2 HOUR:9", "Asia/Tokyo");
@@ -459,6 +465,10 @@ describe("fromUTC", () => {
 			const actual = `DAY:${localTime.getDate()} HOUR:${localTime.getHours()}`;
 
 			expect(actual).toEqual(expected);
+
+			const utc = toUTC(localTime, timeZone);
+			expect(utc.getDate()).toEqual(2);
+			expect(utc.getHours()).toEqual(0);
 		};
 		run("DAY:2 HOUR:9", "Asia/Tokyo");
 		run("DAY:2 HOUR:8", "Asia/Shanghai");
@@ -467,17 +477,26 @@ describe("fromUTC", () => {
 	});
 	test("milliseconds", () => {
 		const date = new Date("2001-01-02T03:04:05.006+00:00");
-		const timezone = fromUTC(date, "America/New_York");
-		const actual =
-			timezone.getHours() +
-			":" +
-			timezone.getMinutes() +
-			":" +
-			timezone.getSeconds() +
-			"." +
-			timezone.getMilliseconds();
+		const localTime = fromUTC(date, "America/New_York");
+		const print = (d) => {
+			return (
+				d.getHours() +
+				":" +
+				d.getMinutes() +
+				":" +
+				d.getSeconds() +
+				"." +
+				d.getMilliseconds()
+			);
+		};
+		const actual = print(localTime);
 		const expected = "22:4:5.6";
 		expect(actual).toEqual(expected);
+
+		const utc = toUTC(localTime, "America/New_York");
+		const actual2 = print(utc);
+		const expected2 = "3:4:5.6";
+		expect(actual2).toEqual(expected2);
 	});
 	test("error", () => {
 		let alerted = false;
@@ -698,7 +717,7 @@ describe("detectionRenderer", () => {
 	});
 });
 
-describe("newOptionsBtn", () => {
+describe("optionsGridSize", () => {
 	const setup = (content, button) => {
 		document.body.innerHTML = `<div id="options-menu"></div>`;
 		const element = $("#options-menu");
@@ -717,10 +736,10 @@ describe("newOptionsBtn", () => {
 		let expected = `
 			<div id="options-menu">
 				<button class="options-menu-btn js-plus">
-					<img class="nav-icon" src="static/icons/feather/plus.svg">
+					<img class="icon" src="static/icons/feather/plus.svg">
 				</button>
 				<button class="options-menu-btn js-minus">
-					<img class="nav-icon" src="static/icons/feather/minus.svg">
+					<img class="icon" src="static/icons/feather/minus.svg">
 				</button>
 			</div>`.replace(/\s/g, "");
 
@@ -750,6 +769,146 @@ describe("newOptionsBtn", () => {
 		localStorage.setItem("gridsize", 5);
 		$plus.click();
 		expect(localStorage.getItem("gridsize")).toEqual("4");
+	});
+});
+
+describe("optionsDate", () => {
+	const setup = () => {
+		jest.useFakeTimers("modern");
+		jest.setSystemTime(Date.parse("2001-02-03T01:02:03+00:00"));
+
+		document.body.innerHTML = `<div></div>`;
+		const element = $("div");
+
+		const date = newOptionsBtn.date("utc");
+		element.innerHTML = date.html;
+		date.init(element, { setDate() {} });
+
+		return [date, element];
+	};
+	test("monthBtn", () => {
+		setup();
+		const $month = $(".js-month");
+		const $prevMonth = $(".js-prev-month");
+		const $nextMonth = $(".js-next-month");
+
+		expect($month.textContent).toEqual("2001 February");
+		$prevMonth.click();
+		$prevMonth.click();
+		expect($month.textContent).toEqual("2000 December");
+		$nextMonth.click();
+		expect($month.textContent).toEqual("2001 January");
+	});
+	test("dayBtn", () => {
+		setup();
+		const $calendar = $(".js-calendar");
+
+		const pad = (n) => {
+			return n < 10 ? " " + n : n;
+		};
+
+		const domState = () => {
+			let state = [];
+			for (const child of $calendar.children) {
+				if (child.textContent === "") {
+					state.push("  ");
+					continue;
+				}
+
+				const text = pad(child.textContent.trim());
+				if (child.classList.contains("date-picker-day-selected")) {
+					state.push(`[${text}]`);
+				} else {
+					state.push(text);
+				}
+			}
+			return state;
+		};
+
+		$calendar.children[0].click();
+		$(".date-picker-calendar").click();
+
+		// prettier-ignore
+		expect(domState()).toEqual([
+			"  ", "  ", "  ", " 1", " 2", "[ 3]", " 4",
+			" 5", " 6", " 7", " 8", " 9", "10", "11",
+			"12", "13", "14", "15", "16", "17", "18",
+			"19", "20", "21", "22", "23", "24", "25",
+			"26", "27", "28", "  ", "  ", "  ", "  ",
+			"  ", "  ", "  ", "  ", "  ", "  ", "  "]);
+
+		for (const child of $calendar.children) {
+			if (child.textContent === "11") {
+				child.click();
+			}
+		}
+
+		$(".js-next-month").click();
+		$(".js-next-month").click();
+
+		// prettier-ignore
+		expect(domState()).toEqual([
+			"  ", "  ", "  ", "  ", "  ", "  ",  " 1",
+			" 2", " 3", " 4", " 5", " 6", " 7", " 8",
+			" 9", "10", "[11]", "12", "13", "14", "15",
+			"16", "17", "18", "19", "20", "21", "22",
+			"23", "24", "25", "26", "27", "28", "29",
+			"30", "  ", "  ", "  ", "  ", "  ", "  "]);
+	});
+	test("hourBtn", () => {
+		setup();
+		const $hour = $(".js-hour");
+		const $nextHour = $(".js-next-hour");
+		const $prevHour = $(".js-prev-hour");
+
+		expect($hour.value).toEqual("01");
+		$prevHour.click();
+		$prevHour.click();
+		expect($hour.value).toEqual("23");
+		$nextHour.click();
+		$nextHour.click();
+		expect($hour.value).toEqual("01");
+	});
+	test("minuteBtn", () => {
+		setup();
+		const $minute = $(".js-minute");
+		const $nextMinute = $(".js-next-minute");
+		const $prevMinute = $(".js-prev-minute");
+
+		expect($minute.value).toEqual("02");
+		$prevMinute.click();
+		$prevMinute.click();
+		$prevMinute.click();
+		expect($minute.value).toEqual("59");
+		$nextMinute.click();
+		$nextMinute.click();
+		expect($minute.value).toEqual("01");
+	});
+	test("applyAndReset", () => {
+		let month;
+		const content = {
+			setDate(date) {
+				month = date.getMonth();
+			},
+		};
+		const [date, element] = setup();
+		date.init(element, content);
+
+		$(".js-next-month").click();
+		$(".js-apply").click();
+		expect(month).toEqual(3);
+
+		$(".js-reset").click();
+		expect(month).toEqual(1);
+	});
+	test("popup", () => {
+		setup();
+		const $popup = $(".js-popup");
+		expect($popup.classList.contains("options-popup-open")).toEqual(false);
+		$(".js-date").click();
+		expect($popup.classList.contains("options-popup-open")).toEqual(true);
+		$(".js-date").click();
+		expect($popup.classList.contains("options-popup-open")).toEqual(false);
 	});
 });
 
