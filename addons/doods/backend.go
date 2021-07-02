@@ -39,48 +39,51 @@ import (
 )
 
 func init() {
-	nvr.RegisterMonitorStartHook(func(ctx context.Context, m *monitor.Monitor) {
-		if err := onMonitorStart(ctx, m); err != nil {
-			m.Log.Printf("%v: doods: %v\n", m.Name(), err)
-		}
-	})
-	nvr.RegisterMonitorStartProcessHook(modifyMainArgs)
+	nvr.RegisterMonitorStartProcessHook(main)
 }
 
-func modifyMainArgs(_ context.Context, m *monitor.Monitor, args *string) {
+func main(ctx context.Context, m *monitor.Monitor, args *string) {
 	if m.Config["doodsEnable"] != "true" {
 		return
 	}
+	*args += genArgs(m)
 
+	if err := start(ctx, m); err != nil {
+		m.Log.Printf("%v: doods: %v\n", m.Name(), err)
+	}
+}
+
+func genArgs(m *monitor.Monitor) string {
 	pipePath := m.Env.SHMDir + "/doods/" + m.ID() + "/main.fifo"
 
-	*args += " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
+	return " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
 		" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
 		" -restart_with_keyframe 1 -recovery_wait_time 1 " + pipePath
 }
 
-func onMonitorStart(ctx context.Context, m *monitor.Monitor) error {
-	if m.Config["doodsEnable"] != "true" {
-		return nil
-	}
-
-	detector, err := detectorByName(m.Config["doodsDetector"])
+func start(ctx context.Context, m *monitor.Monitor) error {
+	detector, err := detectorByName(m.Config["doodsDetectorName"])
 	if err != nil {
 		return fmt.Errorf("could not get detectory: %v", err)
 	}
 
-	config, err := parseConfig(m, doodsIP, detector)
+	config, err := parseConfig(m, doodsIP)
 	if err != nil {
 		return fmt.Errorf("could not parse config: %v", err)
 	}
 
-	a := newAddon(m, config)
+	a := newAddon(m, config, detector)
 
 	if err := a.prepareEnvironment(); err != nil {
 		return fmt.Errorf("could not prepare environment: %v", err)
 	}
 
-	ffmpegArgs := a.generateFFmpegArgs(m.Config)
+	var ffmpegArgs []string
+	ffmpegArgs, a.xMultiplier, a.yMultiplier, err = a.generateFFmpegArgs(m.Config)
+	if err != nil {
+		return fmt.Errorf("could not generate ffmpeg args: %v", err)
+	}
+
 	a.wg.Add(1)
 	go a.newFFmpeg(ffmpegArgs).start(ctx)
 
@@ -90,23 +93,15 @@ func onMonitorStart(ctx context.Context, m *monitor.Monitor) error {
 type thresholds map[string]float64
 
 type doodsConfig struct {
-	ip           string
-	width        int
-	height       int
-	duration     time.Duration
-	recDuration  time.Duration
-	thresholds   thresholds
-	detectorName string
+	ip              string
+	duration        time.Duration
+	recDuration     time.Duration
+	thresholds      thresholds
+	timestampOffset time.Duration
+	detectorName    string
 }
 
-func parseConfig(m *monitor.Monitor, ip string, detector odrpc.Detector) (*doodsConfig, error) {
-	scale := m.Config["doodsFrameScale"]
-
-	width, height, err := parseSize(m.Size(), scale, detector)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse size: %v", err)
-	}
-
+func parseConfig(m *monitor.Monitor, ip string) (*doodsConfig, error) {
 	var t thresholds
 	if err := json.Unmarshal([]byte(m.Config["doodsThresholds"]), &t); err != nil {
 		return nil, fmt.Errorf("could not unmarshal thresholds: %v", err)
@@ -129,65 +124,22 @@ func parseConfig(m *monitor.Monitor, ip string, detector odrpc.Detector) (*doods
 	}
 	recDuration := time.Duration(recDurationFloat * float64(time.Second))
 
-	config := &doodsConfig{
-		ip: ip,
-
-		width:  width,
-		height: height,
-
-		thresholds:   t,
-		duration:     duration,
-		recDuration:  recDuration,
-		detectorName: m.Config["doodsDetectorName"],
-	}
-	return config, nil
-}
-
-func parseSize(size string, scale string, detector odrpc.Detector) (int, int, error) {
-	split := strings.Split(size, "x")
-	width, err := strconv.Atoi(split[0])
+	timestampOffset, err := strconv.Atoi(m.Config["timestampOffset"])
 	if err != nil {
-		return 0, 0, err
-	}
-	height, err := strconv.Atoi(split[1])
-	if err != nil {
-		return 0, 0, err
+		return nil, fmt.Errorf("could not parse timestamp offset %v", err)
 	}
 
-	// If detector has a required size.
-	if detector.Width > 0 && detector.Height > 0 {
-		width = int(detector.Width)
-		height = int(detector.Height)
-		return width, height, nil
-	}
-
-	ratio := textToScale(scale)
-	width /= ratio
-	height /= ratio
-
-	return width, height, nil
+	return &doodsConfig{
+		ip:              ip,
+		duration:        duration,
+		recDuration:     recDuration,
+		thresholds:      t,
+		timestampOffset: time.Duration(timestampOffset) * time.Millisecond,
+		detectorName:    m.Config["doodsDetectorName"],
+	}, nil
 }
 
-func textToScale(input string) int {
-	switch strings.ToLower(input) {
-	case "full":
-		return 1
-	case "half":
-		return 2
-	case "third":
-		return 3
-	case "quarter":
-		return 4
-	case "sixth":
-		return 6
-	case "eighth":
-		return 8
-	default:
-		return 1
-	}
-}
-
-func newAddon(m *monitor.Monitor, c *doodsConfig) *addon {
+func newAddon(m *monitor.Monitor, c *doodsConfig, detector odrpc.Detector) *addon {
 	return &addon{
 		c:       c,
 		wg:      m.WG,
@@ -195,6 +147,9 @@ func newAddon(m *monitor.Monitor, c *doodsConfig) *addon {
 		name:    m.Name(),
 		log:     m.Log,
 		trigger: m.Trigger,
+
+		outputWidth:  int(detector.GetWidth()),
+		outputHeight: int(detector.GetHeight()),
 
 		env: m.Env,
 
@@ -209,6 +164,11 @@ type addon struct {
 	name    string
 	log     *log.Logger
 	trigger monitor.Trigger
+
+	outputWidth  int
+	outputHeight int
+	xMultiplier  float32
+	yMultiplier  float32
 
 	env *storage.ConfigEnv
 
@@ -234,14 +194,49 @@ func (a *addon) prepareEnvironment() error {
 	return nil
 }
 
-func (a *addon) generateFFmpegArgs(config monitor.Config) []string {
+func (a *addon) generateFFmpegArgs(config monitor.Config) ([]string, float32, float32, error) {
 	// Output
-	// ffmpeg -hwaccel x -i main.pipe -filter 'fps=fps=3,scale=ih/2:iw/2' -f rawvideo -pix_fmt rgb24 -
+	// ffmpeg -hwaccel x -i main.pipe -filter 'fps=fps=3,scale=300:240,pad:300:300:0:0' -f rawvideo -pix_fmt rgb24 -
+
+	split := strings.Split(config["size"], "x")
+	inputWidth, err := strconv.ParseFloat(split[0], 32)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("could not get input width: %v %v", err, split)
+	}
+
+	inputHeight, err := strconv.ParseFloat(split[1], 32)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("could not get input height: %v %v", err, split)
+	}
+
+	if int(inputWidth) < a.outputWidth {
+		return nil, 0, 0, fmt.Errorf("input width is less than output width, %v %v", inputWidth, a.outputWidth)
+	}
+	if int(inputHeight) < a.outputHeight {
+		return nil, 0, 0, fmt.Errorf("input height is less than output height, %v %v", inputHeight, a.outputHeight)
+	}
+
+	outputWidthInt := a.outputWidth
+	outputHeightInt := a.outputHeight
+	frameWidth := strconv.Itoa(outputWidthInt)
+	frameHeight := strconv.Itoa(outputHeightInt)
+	var xMultiplier float32 = 1
+	var yMultiplier float32 = 1
+
+	if inputWidth > inputHeight {
+		height := float32(float64(outputHeightInt) * inputHeight / inputWidth)
+		frameHeight = strconv.Itoa(int(height))
+		yMultiplier = float32(outputHeightInt) / height
+	} else if inputWidth < inputHeight {
+		fmt.Println(outputWidthInt, inputWidth, inputHeight)
+		width := float32(float64(outputWidthInt) * inputWidth / inputHeight)
+		frameWidth = strconv.Itoa(int(width))
+		xMultiplier = float32(outputWidthInt) / width
+	}
 
 	logLevel := config["logLevel"]
-	width := strconv.Itoa(a.c.width)
-	height := strconv.Itoa(a.c.height)
-	scale := width + "x" + height
+	outputWidth := strconv.Itoa(outputWidthInt)
+	outputHeight := strconv.Itoa(outputHeightInt)
 
 	fps := config["doodsFeedRate"]
 
@@ -255,11 +250,11 @@ func (a *addon) generateFFmpegArgs(config monitor.Config) []string {
 	}
 
 	args = append(args, "-i", a.mainPipe(), "-filter")
-	args = append(args, "fps=fps="+fps+",scale="+scale)
+	args = append(args, "fps=fps="+fps+",scale="+frameWidth+":"+frameHeight+",pad="+outputWidth+":"+outputHeight+":0:0")
 	args = append(args, "-f", "rawvideo")
 	args = append(args, "-pix_fmt", "rgb24", "-")
 
-	return args
+	return args, xMultiplier, yMultiplier, nil
 }
 
 func (a *addon) newFFmpeg(args []string) *ffmpegConfig {
@@ -401,8 +396,8 @@ func runClient(ctx context.Context, d *doodsClient) error {
 }
 
 func (d *doodsClient) readFrames(ctx context.Context) error {
-	rect := image.Rect(0, 0, d.c.width, d.c.height)
-	frameSize := d.c.width * d.c.height * 3
+	rect := image.Rect(0, 0, d.a.outputWidth, d.a.outputHeight)
+	frameSize := d.a.outputWidth * d.a.outputHeight * 3
 
 	tmp := make([]byte, frameSize)
 	for {
@@ -417,6 +412,8 @@ func (d *doodsClient) readFrames(ctx context.Context) error {
 			return fmt.Errorf("could not read from stdout: %v", err)
 		}
 		t := time.Now()
+
+		t.Add(-d.c.timestampOffset)
 
 		img := NewRGB24(rect)
 		img.Pix = tmp
@@ -452,11 +449,11 @@ func sendFrame(d *doodsClient, t time.Time, b *bytes.Buffer) error {
 		return fmt.Errorf("could not receive: %v", err)
 	}
 
-	d.parseDetections(t, response.Detections)
+	d.a.parseDetections(t, response.Detections)
 	return nil
 }
 
-func (d *doodsClient) parseDetections(t time.Time, detections []*odrpc.Detection) {
+func (a *addon) parseDetections(t time.Time, detections []*odrpc.Detection) {
 	if len(detections) == 0 {
 		return
 	}
@@ -467,7 +464,7 @@ func (d *doodsClient) parseDetections(t time.Time, detections []*odrpc.Detection
 		score := float64(detection.GetConfidence())
 		label := detection.GetLabel()
 
-		for name, thresh := range d.c.thresholds {
+		for name, thresh := range a.c.thresholds {
 			if label != name || score < thresh {
 				continue
 			}
@@ -481,10 +478,10 @@ func (d *doodsClient) parseDetections(t time.Time, detections []*odrpc.Detection
 				Score: score,
 				Region: &monitor.Region{
 					Rect: &ffmpeg.Rect{
-						conv(detection.GetTop()),
-						conv(detection.GetLeft()),
-						conv(detection.GetBottom()),
-						conv(detection.GetRight()),
+						conv(detection.GetTop() * a.yMultiplier),
+						conv(detection.GetLeft() * a.xMultiplier),
+						conv(detection.GetBottom() * a.yMultiplier),
+						conv(detection.GetRight() * a.xMultiplier),
 					},
 				},
 			}
@@ -496,14 +493,14 @@ func (d *doodsClient) parseDetections(t time.Time, detections []*odrpc.Detection
 		now := time.Now().Local()
 		timestamp := fmt.Sprintf("%v:%v:%v", now.Hour(), now.Minute(), now.Second())
 
-		d.a.log.Printf("%v: doods: trigger: label:%v score:%.1f time:%v\n",
-			d.a.name, filtered[0].Label, filtered[0].Score, timestamp)
+		a.log.Printf("%v: doods: trigger: label:%v score:%.1f time:%v\n",
+			a.name, filtered[0].Label, filtered[0].Score, timestamp)
 
-		d.a.trigger <- monitor.Event{
+		a.trigger <- monitor.Event{
 			Time:        t,
 			Detections:  filtered,
-			Duration:    d.c.duration,
-			RecDuration: d.c.recDuration,
+			Duration:    a.c.duration,
+			RecDuration: a.c.recDuration,
 		}
 	}
 }

@@ -34,22 +34,24 @@ import (
 )
 
 func init() {
-	nvr.RegisterMonitorStartHook(func(ctx context.Context, m *monitor.Monitor) {
-		if err := onMonitorStart(ctx, m); err != nil {
-			m.Log.Printf("%v: motion: %v", m.Name(), err)
-		}
-	})
-	nvr.RegisterMonitorStartProcessHook(modifyMainArgs)
+	nvr.RegisterMonitorStartProcessHook(main)
 }
 
-func modifyMainArgs(_ context.Context, m *monitor.Monitor, args *string) {
+func main(ctx context.Context, m *monitor.Monitor, args *string) {
 	if m.Config["motionDetection"] != "true" {
 		return
 	}
+	*args += genArgs(m)
 
+	if err := onMonitorStart(ctx, m); err != nil {
+		m.Log.Printf("%v: motion: %v", m.Name(), err)
+	}
+}
+
+func genArgs(m *monitor.Monitor) string {
 	pipePath := m.Env.SHMDir + "/motion/" + m.ID() + "/main.fifo"
 
-	*args += " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
+	return " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
 		" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
 		" -restart_with_keyframe 1 -recovery_wait_time 1 " + pipePath
 }

@@ -32,100 +32,48 @@ import (
 	"time"
 )
 
-func TestModifyMainArgs(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
-		m := &monitor.Monitor{
-			Env: &storage.ConfigEnv{
-				SHMDir: "a",
-			},
-			Config: monitor.Config{
-				"id":          "b",
-				"doodsEnable": "true",
-			},
-		}
-		args := "test"
+func TestGenArgs(t *testing.T) {
+	m := &monitor.Monitor{
+		Env: &storage.ConfigEnv{
+			SHMDir: "a",
+		},
+		Config: monitor.Config{
+			"id":          "b",
+			"doodsEnable": "true",
+		},
+	}
+	args := genArgs(m)
 
-		modifyMainArgs(nil, m, &args)
+	expected := " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
+		" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
+		" -restart_with_keyframe 1 -recovery_wait_time 1 a/doods/b/main.fifo"
 
-		expected := "test -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
-			" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
-			" -restart_with_keyframe 1 -recovery_wait_time 1 a/doods/b/main.fifo"
-
-		if args != expected {
-			t.Fatalf("expected: %v, got: %v", expected, args)
-		}
-	})
-	t.Run("disabled", func(t *testing.T) {
-		args := "test"
-		modifyMainArgs(nil, &monitor.Monitor{}, &args)
-
-		expected := "test"
-		if args != expected {
-			t.Fatalf("expected: %v, got: %v", expected, args)
-		}
-	})
+	if args != expected {
+		t.Fatalf("expected: %v, got: %v", expected, args)
+	}
 }
 
 func TestParseConfig(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
-				"size":            "4x6",
-				"doodsThresholds": `{"5":6}`,
-				"doodsDuration":   "0.000000004",
+				"timestampOffset": "6",
+				"doodsThresholds": `{"4":5}`,
+				"doodsDuration":   "0.000000003",
 				"doodsFrameScale": "half",
-				"doodsFeedRate":   "200000000",
+				"doodsFeedRate":   "500000000",
 			},
 		}
-		config, err := parseConfig(m, "1", odrpc.Detector{})
+		config, err := parseConfig(m, "1")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		actual := fmt.Sprintf("%v", config)
-		expected := "&{1 2 3 5 4 map[5:6] }"
+		expected := "&{1 2 3 map[4:5] 6000000 }"
 
 		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.\n", expected, actual)
 		}
-	})
-	t.Run("parseSize", func(t *testing.T) {
-		t.Run("detectorOveride", func(t *testing.T) {
-			detector := odrpc.Detector{
-				Width:  2,
-				Height: 2,
-			}
-			width, height, err := parseSize("1x1", "full", detector)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			actual := fmt.Sprintf("%vx%v", width, height)
-			expected := "2x2"
-
-			if actual != expected {
-				t.Fatalf("expected: %v, got: %v", expected, actual)
-			}
-		})
-		t.Run("invalidWidthErr", func(t *testing.T) {
-			m := &monitor.Monitor{
-				Config: monitor.Config{
-					"size": "nilx1",
-				},
-			}
-			if _, err := parseConfig(m, "", odrpc.Detector{}); err == nil {
-				t.Fatal("expected: error, got: nil")
-			}
-		})
-		t.Run("invalidHeightErr", func(t *testing.T) {
-			m := &monitor.Monitor{
-				Config: monitor.Config{
-					"size": "1xnil",
-				},
-			}
-			if _, err := parseConfig(m, "", odrpc.Detector{}); err == nil {
-				t.Fatal("expected: error, got: nil")
-			}
-		})
 	})
 	t.Run("threshErr", func(t *testing.T) {
 		m := &monitor.Monitor{
@@ -134,7 +82,7 @@ func TestParseConfig(t *testing.T) {
 				"doodsThresholds": "nil",
 			},
 		}
-		if _, err := parseConfig(m, "", odrpc.Detector{}); err == nil {
+		if _, err := parseConfig(m, ""); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -142,12 +90,13 @@ func TestParseConfig(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
 				"size":            "1x1",
+				"timestampOffset": "0",
 				"doodsDuration":   "1",
 				"doodsThresholds": `{"a":1,"b":2,"c":-1}`,
 				"doodsFeedRate":   "1",
 			},
 		}
-		config, err := parseConfig(m, "1", odrpc.Detector{})
+		config, err := parseConfig(m, "1")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -166,7 +115,7 @@ func TestParseConfig(t *testing.T) {
 				"doodsFeedRate":   "nil",
 			},
 		}
-		if _, err := parseConfig(m, "", odrpc.Detector{}); err == nil {
+		if _, err := parseConfig(m, ""); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -179,7 +128,20 @@ func TestParseConfig(t *testing.T) {
 				"doodsFeedRate":   "1",
 			},
 		}
-		if _, err := parseConfig(m, "", odrpc.Detector{}); err == nil {
+		if _, err := parseConfig(m, ""); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("timestampOffsetErr", func(t *testing.T) {
+		m := &monitor.Monitor{
+			Config: monitor.Config{
+				"size":            "1x1",
+				"doodsThresholds": "{}",
+				"doodsDuration":   "1",
+				"doodsFeedRate":   "1",
+			},
+		}
+		if _, err := parseConfig(m, ""); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -222,53 +184,102 @@ func TestPrepareEnv(t *testing.T) {
 }
 
 func TestGenerateArgs(t *testing.T) {
-	t.Run("minimal", func(t *testing.T) {
+	t.Run("working1", func(t *testing.T) {
 		a := addon{
-			id: "1",
-			c: &doodsConfig{
-				width:  2,
-				height: 3,
-			},
+			id: "3",
+			c:  &doodsConfig{},
 			env: &storage.ConfigEnv{
-				SHMDir: "4",
+				SHMDir: "2",
 			},
+			outputWidth:  300,
+			outputHeight: 300,
 		}
 		config := monitor.Config{
-			"logLevel": "5",
+			"size":          "600x400",
+			"logLevel":      "1",
+			"doodsFeedRate": "4",
 		}
-		args := a.generateFFmpegArgs(config)
+		args, xMultiplier, yMultiplier, err := a.generateFFmpegArgs(config)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-		actual := fmt.Sprintf("%v", args)
-		expected := "[-y -loglevel 5 -i 4/doods/1/main.fifo" +
-			" -filter fps=fps=,scale=2x3 -f rawvideo -pix_fmt rgb24 -]"
+		actual := fmt.Sprintf("%v %v %v", args, xMultiplier, yMultiplier)
+		expected := "[-y -loglevel 1 -i 2/doods/3/main.fifo -filter fps=fps=4," +
+			"scale=300:200,pad=300:300:0:0 -f rawvideo -pix_fmt rgb24 -] 1 1.5"
 
 		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 		}
 	})
-	t.Run("maximal", func(t *testing.T) {
+	t.Run("working2", func(t *testing.T) {
 		a := addon{
-			id: "1",
-			c: &doodsConfig{
-				width:  2,
-				height: 3,
-			},
+			id: "4",
+			c:  &doodsConfig{},
 			env: &storage.ConfigEnv{
-				SHMDir: "4",
+				SHMDir: "3",
 			},
+			outputWidth:  300,
+			outputHeight: 300,
 		}
 		config := monitor.Config{
-			"logLevel": "5",
-			"hwaccel":  "6",
+			"size":          "400x600",
+			"logLevel":      "1",
+			"hwaccel":       "2",
+			"doodsFeedRate": "5",
 		}
-		args := a.generateFFmpegArgs(config)
+		args, xMultiplier, yMultiplier, err := a.generateFFmpegArgs(config)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-		actual := fmt.Sprintf("%v", args)
-		expected := "[-y -loglevel 5 -hwaccel 6 -i 4/doods/1/main.fifo" +
-			" -filter fps=fps=,scale=2x3 -f rawvideo -pix_fmt rgb24 -]"
+		actual := fmt.Sprintf("%v %v %v", args, xMultiplier, yMultiplier)
+		expected := "[-y -loglevel 1 -hwaccel 2 -i 3/doods/4/main.fifo -filter fps=fps=5," +
+			"scale=200:300,pad=300:300:0:0 -f rawvideo -pix_fmt rgb24 -] 1.5 1"
 
 		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
+		}
+	})
+	t.Run("widthErr", func(t *testing.T) {
+		a := addon{}
+		config := monitor.Config{
+			"size": "nilx1",
+		}
+		if _, _, _, err := a.generateFFmpegArgs(config); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("heightErr", func(t *testing.T) {
+		a := addon{}
+		config := monitor.Config{
+			"size": "1xnil",
+		}
+		if _, _, _, err := a.generateFFmpegArgs(config); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("widthErr2", func(t *testing.T) {
+		a := addon{
+			outputWidth: 2,
+		}
+		config := monitor.Config{
+			"size": "1x1",
+		}
+		if _, _, _, err := a.generateFFmpegArgs(config); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("heightErr2", func(t *testing.T) {
+		a := addon{
+			outputWidth:  2,
+			outputHeight: 2,
+		}
+		config := monitor.Config{
+			"size": "2x1",
+		}
+		if _, _, _, err := a.generateFFmpegArgs(config); err == nil {
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 }
@@ -425,14 +436,16 @@ func newTestClient() (*doodsClient, log.Feed, func()) {
 
 	d := &doodsClient{
 		a: &addon{
+			outputWidth:  2,
+			outputHeight: 2,
+			xMultiplier:  1.1,
+			yMultiplier:  0.9,
+
 			log:     logger,
 			wg:      &sync.WaitGroup{},
 			trigger: make(monitor.Trigger),
 		},
-		c: &doodsConfig{
-			width:  2,
-			height: 2,
-		},
+		c:         &doodsConfig{},
 		stdout:    imgFeed(),
 		runClient: mockRunClient,
 		encoder: png.Encoder{
@@ -557,7 +570,8 @@ func TestParseDetections(t *testing.T) {
 		d, _, cancel := newTestClient()
 		defer cancel()
 
-		d.c.thresholds = thresholds{
+		d.a.c = d.c
+		d.a.c.thresholds = thresholds{
 			"b": 1,
 		}
 
@@ -567,20 +581,20 @@ func TestParseDetections(t *testing.T) {
 			},
 			{
 				Top:        0.1,
-				Left:       0.2,
-				Bottom:     0.3,
-				Right:      0.4,
+				Left:       0.1,
+				Bottom:     1,
+				Right:      1,
 				Label:      "b",
 				Confidence: 5,
 			},
 		}
 
-		go d.parseDetections(time.Time{}, detections)
+		go d.a.parseDetections(time.Time{}, detections)
 		output := <-d.a.trigger
 
 		actual := fmt.Sprintf("%v", output)
 
-		expected := "{0001-01-01 00:00:00 +0000 UTC [{b 5 &[10 20 30 40], <nil>}] 0s 0s}"
+		expected := "{0001-01-01 00:00:00 +0000 UTC [{b 5 &[9 11 90 110], <nil>}] 0s 0s}"
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
@@ -591,6 +605,6 @@ func TestParseDetections(t *testing.T) {
 		d, _, cancel := newTestClient()
 		defer cancel()
 
-		d.parseDetections(time.Time{}, []*odrpc.Detection{})
+		d.a.parseDetections(time.Time{}, []*odrpc.Detection{})
 	})
 }

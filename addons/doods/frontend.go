@@ -258,12 +258,6 @@ func javascript() string { //nolint:funlen
 			initial: "2",
 		}
 	),
-	doodsFrameScale: fieldTemplate.selectCustom(
-			"settings-monitors-doodsFrameScale",
-			"DOODS frame scale",
-			["full", "half", "third", "quarter", "sixth", "eighth"],
-			"full"
-	),
 	doodsDuration: fieldTemplate.integer(
 		"settings-monitors-doodsDuration",
 		"DOODS trigger duration (sec)",
