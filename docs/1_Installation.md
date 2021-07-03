@@ -42,16 +42,20 @@ Download Golang dependencies.
 Run service creation script
 
 	sudo ./utils/services/systemd.sh \
-		--name=nvr \
+		--name nvr \
 		--goBin /usr/bin/go \
-		--homeDir /home/_nvr/os-nvr \
-		--configDir /home/_nvr/os-nvr/configs
+		--env /home/_nvr/os-nvr/configs/env.yaml \
+		--homeDir /home/_nvr/os-nvr
 
+
+Copy sample env.yaml
+
+    sudo -u _nvr cp ./configs/env.yaml.sample ./configs/env.yaml
 
 Copy sample user.
 
     sudo -u _nvr cp ./configs/users.json.sample ./configs/users.json
-   
+
 Restart service.
 
 	sudo systemctl restart nvr
@@ -77,6 +81,7 @@ my.domain.com {
 	redir / /live
 	route / {
 		reverse_proxy localhost:2020
+		#reverse_proxy nvr:2020 # Docker
     }
 
     encode gzip
@@ -114,6 +119,7 @@ In this mode Caddy will sign the certificate locally. You do not require interne
 	redir / /live
 	route / {
 		reverse_proxy localhost:2020
+		#reverse_proxy nvr:2020 # Docker
     }
 
     encode gzip

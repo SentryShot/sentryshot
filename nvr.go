@@ -17,6 +17,7 @@ package nvr
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,8 +33,8 @@ import (
 )
 
 // Run .
-func Run(goBin string, configDir string) error {
-	app, err := newApp(goBin, configDir, hooks)
+func Run(envPath string) error {
+	app, err := newApp(envPath, hooks)
 	if err != nil {
 		return err
 	}
@@ -66,17 +67,22 @@ func Run(goBin string, configDir string) error {
 	return err
 }
 
-func newApp(goBin string, configDir string, hooks *hookList) (*app, error) { //nolint:funlen
+func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
 	logger := log.NewLogger()
 
-	env, err := storage.NewConfigEnv(goBin, configDir)
+	envYAML, err := ioutil.ReadFile(envPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not read env.yaml: %v", err)
+	}
+
+	env, err := storage.NewConfigEnv(envPath, envYAML)
 	if err != nil {
 		return nil, fmt.Errorf("could not get environment config: %v", err)
 	}
 
 	hooks.env(env)
 
-	general, err := storage.NewConfigGeneral(configDir)
+	general, err := storage.NewConfigGeneral(env.ConfigDir)
 	if err != nil {
 		return nil, fmt.Errorf("could not get general config: %v", err)
 	}
@@ -86,7 +92,7 @@ func newApp(goBin string, configDir string, hooks *hookList) (*app, error) { //n
 		return nil, fmt.Errorf("could not create monitor mager: %v", err)
 	}
 
-	a, err := auth.NewBasicAuthenticator(configDir+"/users.json", logger)
+	a, err := auth.NewBasicAuthenticator(env.ConfigDir+"/users.json", logger)
 	if err != nil {
 		return nil, err
 	}

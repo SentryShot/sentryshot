@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 // Manager handles storage interactions.
@@ -173,69 +175,77 @@ func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
 
 // ConfigEnv stores system configuration.
 type ConfigEnv struct {
-	Port      string `json:"port"`
-	FFmpegBin string `json:"ffmpegBin"`
-	goBin     string
+	Port      string `yaml:"port"`
+	GoBin     string `yaml:"goBin"`
+	FFmpegBin string `yaml:"ffmpegBin"`
 
-	StorageDir string `json:"storageDir"`
-	SHMDir     string `json:"shmDir"`
+	StorageDir string `yaml:"storageDir"`
+	SHMDir     string `yaml:"shmDir"`
 
-	WebDir    string `json:"webDir"`
+	HomeDir   string `yaml:"homeDir"`
+	WebDir    string `yaml:"webDir"`
 	ConfigDir string
 }
 
 // NewConfigEnv return new environment configuration.
-func NewConfigEnv(goBin string, configDir string) (*ConfigEnv, error) {
-	var config ConfigEnv
+func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
+	var env ConfigEnv
 
-	configPath := configDir + "/env.json"
-	if !dirExist(configDir) {
-		if err := os.MkdirAll(configDir, 0744); err != nil {
-			return &ConfigEnv{}, fmt.Errorf("could not generate config directory: %v", err)
-		}
+	if err := yaml.Unmarshal(envYAML, &env); err != nil {
+		return &ConfigEnv{}, fmt.Errorf("could not unmarshal env.yaml: %v", err)
 	}
 
-	if !dirExist(configPath) {
-		if err := generateEnvConfig(configPath); err != nil {
-			return &ConfigEnv{}, fmt.Errorf("could not generate environment config: %v", err)
-		}
+	env.ConfigDir = filepath.Dir(envPath)
+
+	if env.Port == "" {
+		env.Port = "2020"
+	}
+	if env.GoBin == "" {
+		env.GoBin = "/usr/bin/go"
+	}
+	if env.FFmpegBin == "" {
+		env.FFmpegBin = "/usr/bin/ffmpeg"
+	}
+	if env.HomeDir == "" {
+		env.HomeDir = filepath.Dir(env.ConfigDir)
+	}
+	if env.StorageDir == "" {
+		env.StorageDir = env.HomeDir + "/storage"
+	}
+	if env.WebDir == "" {
+		env.WebDir = env.HomeDir + "/web"
+	}
+	if env.SHMDir == "" {
+		env.SHMDir = "/dev/shm/nvr"
 	}
 
-	file, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return &ConfigEnv{}, err
+	if !dirExist(env.GoBin) {
+		return nil, fmt.Errorf("goBin '%v' does not exist", env.GoBin)
+	}
+	if !dirExist(env.FFmpegBin) {
+		return nil, fmt.Errorf("ffmpegBin '%v' does not exist", env.FFmpegBin)
 	}
 
-	err = json.Unmarshal(file, &config)
-	if err != nil {
-		return &ConfigEnv{}, err
+	if !filepath.IsAbs(env.GoBin) {
+		return nil, fmt.Errorf("goBin '%v' is not a absolute path", env.GoBin)
 	}
-	config.goBin = goBin
-	config.ConfigDir = configDir
-
-	// Check the only error filepath.Abs can throw.
-	if _, err := os.Getwd(); err != nil {
-		return &ConfigEnv{}, fmt.Errorf("could not get working directory: %v", err)
+	if !filepath.IsAbs(env.FFmpegBin) {
+		return nil, fmt.Errorf("ffmpegBin '%v' is not a absolute path", env.FFmpegBin)
 	}
-	config.StorageDir, _ = filepath.Abs(config.StorageDir)
-	config.SHMDir, _ = filepath.Abs(config.SHMDir)
-	config.WebDir, _ = filepath.Abs(config.WebDir)
-	config.ConfigDir, _ = filepath.Abs(config.ConfigDir)
-
-	return &config, nil
-}
-
-func generateEnvConfig(path string) error {
-	config := ConfigEnv{
-		Port:       "2020",
-		FFmpegBin:  "ffmpeg",
-		StorageDir: "/home/_nvr/os-nvr/storage",
-		SHMDir:     "/dev/shm/nvr",
-		WebDir:     "/home/_nvr/os-nvr/web",
+	if !filepath.IsAbs(env.HomeDir) {
+		return nil, fmt.Errorf("homeDir '%v' is not a absolute path", env.HomeDir)
 	}
-	c, _ := json.MarshalIndent(config, "", "    ")
+	if !filepath.IsAbs(env.StorageDir) {
+		return nil, fmt.Errorf("StorageDir '%v' is not a absolute path", env.StorageDir)
+	}
+	if !filepath.IsAbs(env.SHMDir) {
+		return nil, fmt.Errorf("shmDir '%v' is not a absolute path", env.SHMDir)
+	}
+	if !filepath.IsAbs(env.WebDir) {
+		return nil, fmt.Errorf("webDir '%v' is not a absolute path", env.WebDir)
+	}
 
-	return ioutil.WriteFile(path, c, 0600)
+	return &env, nil
 }
 
 // SHMhls returns path of temporary hls files.

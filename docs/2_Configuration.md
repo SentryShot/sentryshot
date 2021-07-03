@@ -148,25 +148,7 @@ Repeat password: Confirm password.
 
 <br>
 
-## Addons
-
-Addons are configured in `addons.conf` default location `/home/_nvr/os-nvr/configs/addons.conf`
-
-<br>
 
 ## Environment 
 
-Environment is configured in `env.json` default location `/home/_nvr/os-nvr/configs/env.json`
-
-##### Fields:
-
-port: `2020`
-
-ffmpegBin: Path to ffmpeg binary. default `ffmpeg`
-
-storageDir: Directory where recordings will be stored. default `/home/_nvr/os-nvr/storage`
-
-shmDir: Shared memory directory, used to store tempoary files. default `/dev/shm/os-nvr`
-
-webDir:`/home/_nvr/os-nvr/web`
-
+Environment is configured in `env.yaml` default location `/home/_nvr/os-nvr/configs/env.yaml`

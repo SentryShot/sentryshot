@@ -15,8 +15,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"text/template"
+
+	"gopkg.in/yaml.v2"
 )
 
 func main() {
@@ -27,41 +28,45 @@ func main() {
 }
 
 type configEnv struct {
-	homeDir   string
-	Addons    []string
-	GoBin     string
-	ConfigDir string
+	Addons  []string `yaml:"addons"`
+	GoBin   string   `yaml:"goBin"`
+	HomeDir string   `yaml:"homeDir"`
 }
 
 func start() error {
-	env, err := parseFlags()
+	envFlag := flag.String("env", "/home/_nvr/os-nvr/configs/env.yaml", "path to env.yaml")
+	flag.Parse()
+
+	if !dirExist(*envFlag) {
+		return fmt.Errorf("--env %v does not exist", *envFlag)
+	}
+
+	envPath, err := filepath.Abs(*envFlag)
+	if err != nil {
+		return fmt.Errorf("could not get absolute path of env.yaml: %v", err)
+	}
+
+	envYAML, err := ioutil.ReadFile(envPath)
+	if err != nil {
+		return fmt.Errorf("could not read env.yaml: %v", err)
+	}
+
+	env, err := parseEnv(envPath, envYAML)
 	if err != nil {
 		return err
 	}
 
-	if !dirExist(env.ConfigDir) {
-		if err := os.MkdirAll(env.ConfigDir, 0744); err != nil {
-			return fmt.Errorf("could not create configDir: %v", err)
-		}
-	}
+	buildDir := env.HomeDir + "/start/build"
+	os.Mkdir(buildDir, 0700) //nolint:errcheck
 
-	addons, err := getAddons(env.ConfigDir + "/addons.conf")
-	if err != nil {
-		return err
-	}
-	env.Addons = addons
+	main := buildDir + "/main.go"
 
-	main := "start/build/main.go"
-	filePath := env.homeDir + "/" + main
-
-	os.Mkdir(env.homeDir+"/start/build", 0700) //nolint:errcheck
-
-	if err := genFile(filePath, env); err != nil {
+	if err := genFile(main, env.Addons, envPath); err != nil {
 		return err
 	}
 
 	cmd := exec.Command(env.GoBin, "run", main)
-	cmd.Dir = env.homeDir
+	cmd.Dir = env.HomeDir
 
 	// Give parrents file descriptors and environment to child process.
 	cmd.Stdin = os.Stdin
@@ -73,84 +78,52 @@ func start() error {
 	return cmd.Run()
 }
 
-func parseFlags() (*configEnv, error) {
-	goBin := flag.String("goBin", "go", "golang binary")
-	homeDirectory := flag.String("homeDir", "/home/_nvr/os-nvr", "project home directory")
-	configDirectory := flag.String("configDir", *homeDirectory+"/configs", "configuration directory")
-	flag.Parse()
+func parseEnv(envPath string, envYAML []byte) (*configEnv, error) {
+	var env configEnv
 
-	homeDir, _ := filepath.Abs(*homeDirectory)
-	configDir, _ := filepath.Abs(*configDirectory)
-
-	if !dirExist(*goBin) {
-		return nil, fmt.Errorf("--goBin '%v' does not exist", *goBin)
-	}
-	if !dirExist(homeDir) {
-		return nil, fmt.Errorf("--homeDir '%v' does not exist", homeDir)
+	err := yaml.Unmarshal(envYAML, &env)
+	if err != nil {
+		return nil, fmt.Errorf("could not unmarshal env.yaml: %v", err)
 	}
 
-	env := configEnv{
-		homeDir:   homeDir,
-		GoBin:     *goBin,
-		ConfigDir: configDir,
+	if env.GoBin == "" {
+		env.GoBin = "/usr/bin/go"
+	}
+	if env.HomeDir == "" {
+		env.HomeDir = filepath.Dir(filepath.Dir(envPath))
+	}
+
+	if !dirExist(env.GoBin) {
+		return nil, fmt.Errorf("goBin '%v' does not exist", env.GoBin)
+	}
+	if !dirExist(env.HomeDir) {
+		return nil, fmt.Errorf("homeDir '%v' does not exist", env.HomeDir)
+	}
+
+	if !filepath.IsAbs(env.GoBin) {
+		return nil, fmt.Errorf("goBin '%v' is not absolute path", env.GoBin)
+	}
+	if !filepath.IsAbs(env.HomeDir) {
+		return nil, fmt.Errorf("homeDir '%v' is not absolute path", env.HomeDir)
 	}
 
 	return &env, nil
 }
 
-const addonFile = `# Uncomment to enable.
-
-# Motion detection. Multiple zones, cannot handle shadows.
-#nvr/addons/motion
-
-# Object detection. https://github.com/snowzach/doods
-#nvr/addons/doods`
-
-// getAddons reads and parses "addons.conf"
-func getAddons(addonPath string) ([]string, error) {
-	if !dirExist(addonPath) {
-		ioutil.WriteFile(addonPath, []byte(addonFile), 0600) //nolint:errcheck
-	}
-
-	file, err := ioutil.ReadFile(addonPath)
-	if err != nil {
-		return nil, fmt.Errorf("could not read addons.json: %v", err)
-	}
-
-	var addons []string
-	lines := strings.Split(strings.TrimSpace(string(file)), "\n")
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-
-		// Ignore lines starting with "#"
-		if len(trimmedLine) == 0 || string(trimmedLine[0]) == "#" {
-			continue
-		}
-
-		// Return error if trimmedLine contains spaces
-		if strings.Contains(trimmedLine, " ") {
-			return nil, fmt.Errorf("one addon per line: %v", trimmedLine)
-		}
-
-		addons = append(addons, trimmedLine)
-	}
-	return addons, nil
-}
-
 // genFile inserts addons into "main.go" template and writes to file.
-func genFile(path string, env *configEnv) error {
+func genFile(path string, addons []string, envPath string) error {
 	const file = `package main
 
 import (
 	"log"
 	"nvr"
 	"os"
-{{ range .Addons }}
+{{ range .addons }}
 	_ "{{ . }}"{{ end }}
 )
 
 func main() {
-	if err := nvr.Run("{{.GoBin}}", "{{.ConfigDir}}"); err != nil {
+	if err := nvr.Run("{{.envPath}}"); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(0)
@@ -159,7 +132,10 @@ func main() {
 
 	t := template.New("file")
 	t, _ = t.Parse(file)
-	data := env
+	data := template.FuncMap{
+		"addons":  addons,
+		"envPath": envPath,
+	}
 
 	var b bytes.Buffer
 	t.Execute(&b, data) //nolint:errcheck

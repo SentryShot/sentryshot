@@ -22,8 +22,11 @@ import (
 	"io/ioutil"
 	"nvr/pkg/log"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 func TestNewManager(t *testing.T) {
@@ -259,170 +262,262 @@ func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 	if err != nil {
 		t.Fatalf("could not create tempoary directory: %v", err)
 	}
+
 	cancelFunc := func() {
 		os.RemoveAll(tempDir)
 	}
 
-	envPath := tempDir + "/env.json"
+	homeDir := tempDir + "/home"
+	goBin := homeDir + "/go"
+	ffmpegBin := homeDir + "/ffmpeg"
+	configDir := homeDir + "/configs"
+	envPath := configDir + "/env.yaml"
 
-	config := &ConfigEnv{
-		FFmpegBin:  tempDir + "/1",
-		StorageDir: tempDir + "/2",
-		SHMDir:     tempDir + "/3",
-		WebDir:     tempDir + "/4",
+	if err := os.MkdirAll(homeDir, 0700); err != nil {
+		t.Fatalf("could not write homeDir: %v", err)
+	}
+	if err := os.MkdirAll(configDir, 0700); err != nil {
+		t.Fatalf("could not write configDir: %v", err)
+	}
+	if err := ioutil.WriteFile(goBin, []byte{}, 0600); err != nil {
+		t.Fatalf("could not write goBin: %v", err)
+	}
+	if err := ioutil.WriteFile(ffmpegBin, []byte{}, 0600); err != nil {
+		t.Fatalf("could not write ffmpegBin: %v", err)
 	}
 
-	c, err := json.MarshalIndent(config, "", "    ")
-	if err != nil {
-		t.Fatalf("could not marshal test config: %v", err)
-	}
-	if err := ioutil.WriteFile(envPath, c, 0600); err != nil {
-		t.Fatalf("could not write temp config: %v", err)
+	env := &ConfigEnv{
+		Port:       "2020",
+		GoBin:      goBin,
+		FFmpegBin:  ffmpegBin,
+		StorageDir: homeDir + "/storage",
+		SHMDir:     homeDir + "/shm",
+		HomeDir:    homeDir,
+		WebDir:     homeDir + "/web",
+		ConfigDir:  configDir,
 	}
 
-	return tempDir, config, cancelFunc
+	return envPath, env, cancelFunc
 }
 
 func TestNewConfigEnv(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
-		tempDir, config, cancel := newTestEnv(t)
+	t.Run("minimal", func(t *testing.T) {
+		envPath, _, cancel := newTestEnv(t)
 		defer cancel()
 
-		env, err := NewConfigEnv("", tempDir)
+		homeDir := filepath.Dir(filepath.Dir(envPath))
+
+		envYAML, err := yaml.Marshal(ConfigEnv{
+			GoBin:     homeDir + "/go",
+			FFmpegBin: homeDir + "/ffmpeg",
+		})
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		env, err := NewConfigEnv(envPath, envYAML)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		env.ConfigDir = ""
 		actual := fmt.Sprintf("%v", env)
-		expected := fmt.Sprintf("%v", config)
+
+		expected := fmt.Sprintf("%v", &ConfigEnv{
+			Port:       "2020",
+			GoBin:      homeDir + "/go",
+			FFmpegBin:  homeDir + "/ffmpeg",
+			StorageDir: homeDir + "/storage",
+			SHMDir:     "/dev/shm/nvr",
+			HomeDir:    homeDir,
+			WebDir:     homeDir + "/web",
+			ConfigDir:  homeDir + "/configs",
+		})
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 		}
 	})
-	t.Run("mkdir", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
-		defer os.RemoveAll(tempDir)
+	t.Run("maximal", func(t *testing.T) {
+		envPath, testEnv, cancel := newTestEnv(t)
+		defer cancel()
+
+		envYAML, err := yaml.Marshal(testEnv)
 		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
+			t.Fatalf("could not marshal env.yaml: %v", err)
 		}
 
-		configDir := tempDir + "/configs"
-
-		if dirExist(configDir) {
-			t.Fatal("configDir should not already exist")
-		}
-
-		if _, err := NewConfigEnv("", configDir); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if !dirExist(configDir) {
-			t.Fatal("configDir wasn't created")
-		}
-	})
-	t.Run("mkdirErr", func(t *testing.T) {
-		if _, err := NewConfigEnv("", "/dev/null/config"); err == nil {
-			t.Fatalf("expected error, got: nil")
-		}
-
-	})
-	t.Run("genConfig", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
-		defer os.RemoveAll(tempDir)
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
-
-		configDir := tempDir + "/configs"
-		configPath := configDir + "/env.json"
-
-		if dirExist(configPath) {
-			t.Fatal("configFile should not already exist")
-		}
-
-		expected := "&{2020 ffmpeg  /home/_nvr/os-nvr/storage /dev/shm/nvr /home/_nvr/os-nvr/web }"
-
-		config1, err := NewConfigEnv("", configDir)
+		env, err := NewConfigEnv(envPath, envYAML)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		config1.goBin = ""
-		config1.ConfigDir = ""
 
-		file, err := ioutil.ReadFile(configPath)
-		if err != nil {
-			t.Fatalf("could not read configFile: %v", err)
-		}
-		config2 := &ConfigEnv{}
-		if err := json.Unmarshal(file, config2); err != nil {
-			t.Fatalf("could not unmarshal config: %v", err)
-		}
+		actual := fmt.Sprintf("%v", env)
+		expected := fmt.Sprintf("%v", testEnv)
 
-		actual1 := fmt.Sprintf("%v", config1)
-		actual2 := fmt.Sprintf("%v", config2)
-
-		if actual1 != expected {
-			t.Fatalf("expected:\n%v.\ngot:\n%v.", expected, actual1)
-		}
-		if actual2 != expected {
-			t.Fatalf("expected: %v got: %v", expected, actual2)
-		}
-	})
-	t.Run("genConfigErr", func(t *testing.T) {
-		if _, err := NewConfigEnv("", "/dev/null"); err == nil {
-			t.Fatalf("expected error, got: nil")
-		}
-	})
-	t.Run("readFileErr", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
-		defer os.RemoveAll(tempDir)
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
-		configPath := tempDir + "/env.json"
-
-		os.MkdirAll(tempDir, 0744)
-		if err := ioutil.WriteFile(configPath, []byte{}, 0000); err != nil {
-			t.Fatalf("could not write config file: %v", err)
-		}
-
-		if _, err := NewConfigEnv("", tempDir); err == nil {
-			t.Fatalf("expected error, got: nil")
+		if actual != expected {
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 		}
 	})
 	t.Run("unmarshal error", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
-		defer os.RemoveAll(tempDir)
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
-
-		configPath := tempDir + "/env.json"
-
-		if err := ioutil.WriteFile(configPath, []byte("nil"), 0600); err != nil {
-			t.Fatalf("could not write temp config: %v", err)
-		}
-
-		if _, err := NewConfigEnv("", tempDir); err == nil {
+		if _, err := NewConfigEnv("", []byte("&")); err == nil {
 			t.Fatalf("expected error, got: nil")
 		}
 	})
 	t.Run("shmHls", func(t *testing.T) {
-		tempDir, config, cancel := newTestEnv(t)
+		envPath, testEnv, cancel := newTestEnv(t)
 		defer cancel()
 
-		env, err := NewConfigEnv("", tempDir)
+		envYAML, err := yaml.Marshal(testEnv)
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		env, err := NewConfigEnv(envPath, envYAML)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
 		actual := fmt.Sprintf("%v", env.SHMhls())
-		expected := config.SHMDir + "/hls"
+		expected := env.SHMDir + "/hls"
 
 		if actual != expected {
 			t.Fatalf("expected: %v got: %v", expected, actual)
+		}
+	})
+	t.Run("goBinExist", func(t *testing.T) {
+		envPath, testEnv, cancel := newTestEnv(t)
+		defer cancel()
+
+		testEnv.GoBin = "/dev/null/nil"
+
+		envYAML, err := yaml.Marshal(testEnv)
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("ffmpegBinExist", func(t *testing.T) {
+		envPath, testEnv, cancel := newTestEnv(t)
+		defer cancel()
+
+		testEnv.FFmpegBin = "/dev/null/nil"
+
+		envYAML, err := yaml.Marshal(testEnv)
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("storageAbs", func(t *testing.T) {
+		envPath, testEnv, cancel := newTestEnv(t)
+		defer cancel()
+
+		testEnv.StorageDir = "."
+
+		envYAML, err := yaml.Marshal(testEnv)
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("goBinAbs", func(t *testing.T) {
+		envPath, testEnv, cancel := newTestEnv(t)
+		defer cancel()
+
+		testEnv.GoBin = "."
+
+		envYAML, err := yaml.Marshal(testEnv)
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("ffmpegBinAbs", func(t *testing.T) {
+		envPath, testEnv, cancel := newTestEnv(t)
+		defer cancel()
+
+		testEnv.FFmpegBin = "."
+
+		envYAML, err := yaml.Marshal(testEnv)
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("homeDirAbs", func(t *testing.T) {
+		envPath, testEnv, cancel := newTestEnv(t)
+		defer cancel()
+
+		testEnv.HomeDir = "."
+
+		envYAML, err := yaml.Marshal(testEnv)
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("shmAbs", func(t *testing.T) {
+		envPath, testEnv, cancel := newTestEnv(t)
+		defer cancel()
+
+		testEnv.SHMDir = "."
+
+		envYAML, err := yaml.Marshal(testEnv)
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+
+	t.Run("shmAbs", func(t *testing.T) {
+		envPath, testEnv, cancel := newTestEnv(t)
+		defer cancel()
+
+		testEnv.SHMDir = "."
+
+		envYAML, err := yaml.Marshal(testEnv)
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("webDirAbs", func(t *testing.T) {
+		envPath, testEnv, cancel := newTestEnv(t)
+		defer cancel()
+
+		testEnv.WebDir = "."
+
+		envYAML, err := yaml.Marshal(testEnv)
+		if err != nil {
+			t.Fatalf("could not marshal env.yaml: %v", err)
+		}
+
+		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 }

@@ -42,7 +42,7 @@ run:
                 # Run ci, including formatting.
                 ./utils/ci-fmt.sh "$files_changed"
 
-                git checkout "${CI_COMMIT_REF_NAME}"
+                git checkout "${CI_COMMIT_REF_NAME}" --no-guess
                 git checkout ./go.mod ./go.sum ./package.json ./package-lock.json
                 git status -s
 
