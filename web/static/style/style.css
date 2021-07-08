@@ -271,10 +271,13 @@ a:focus {
 }
 
 .options-menu-btn {
-	width: var(--options-btn-width);
-	height: var(--options-btn-width);
-	padding: 0.2rem;
-	font-size: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--options-menu-btn-width);
+	height: var(--options-menu-btn-width);
+	color: var(--color-text);
+	font-size: 0.5rem;
 	background: var(--color2);
 }
 
@@ -284,6 +287,8 @@ a:focus {
 
 .options-menu-btn img {
 	height: 0.8rem;
+	margin: 0.2rem;
+	font-size: 0;
 }
 
 #options-checkbox:checked ~ #options-menu {

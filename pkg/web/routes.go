@@ -245,13 +245,13 @@ func UserDelete(a *auth.Authenticator) http.Handler {
 }
 
 // MonitorList returns a censored monitor list with ID, Name and CaptureAudio.
-func MonitorList(c *monitor.Manager) http.Handler {
+func MonitorList(monitorList func() monitor.Configs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
-		u, err := json.Marshal(c.MonitorList())
+		u, err := json.Marshal(monitorList())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

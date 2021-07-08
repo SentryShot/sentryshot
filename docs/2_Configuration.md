@@ -45,8 +45,11 @@ Arbitrary display name, can probably be any ASCII character.
 ### Enable
 Enable or Disable the monitor.
 
-### Url
-Video input url.
+### Main input
+Main camera feed, full resolution. Used when recording.
+
+### Sub input
+If your camera support a sub stream of lower resolution. Preferred by motion/object detection. Both inputs can be viewed from the live page.
 
 <br>
 

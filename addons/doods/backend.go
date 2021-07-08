@@ -39,11 +39,23 @@ import (
 )
 
 func init() {
-	nvr.RegisterMonitorStartProcessHook(main)
+	nvr.RegisterMonitorMainProcessHook(main)
+	nvr.RegisterMonitorSubProcessHook(sub)
 }
 
 func main(ctx context.Context, m *monitor.Monitor, args *string) {
-	if m.Config["doodsEnable"] != "true" {
+	if m.Config["doodsEnable"] != "true" || m.SubInputEnabled() {
+		return
+	}
+	*args += genArgs(m)
+
+	if err := start(ctx, m); err != nil {
+		m.Log.Printf("%v: doods: %v\n", m.Name(), err)
+	}
+}
+
+func sub(ctx context.Context, m *monitor.Monitor, args *string) {
+	if m.Config["doodsEnable"] != "true" || !m.SubInputEnabled() {
 		return
 	}
 	*args += genArgs(m)
@@ -78,8 +90,15 @@ func start(ctx context.Context, m *monitor.Monitor) error {
 		return fmt.Errorf("could not prepare environment: %v", err)
 	}
 
+	var size string
+	if !m.SubInputEnabled() {
+		size = m.Config["sizeMain"]
+	} else {
+		size = m.Config["sizeSub"]
+	}
+
 	var ffmpegArgs []string
-	ffmpegArgs, a.xMultiplier, a.yMultiplier, err = a.generateFFmpegArgs(m.Config)
+	ffmpegArgs, a.xMultiplier, a.yMultiplier, err = a.generateFFmpegArgs(m.Config, size)
 	if err != nil {
 		return fmt.Errorf("could not generate ffmpeg args: %v", err)
 	}
@@ -194,11 +213,11 @@ func (a *addon) prepareEnvironment() error {
 	return nil
 }
 
-func (a *addon) generateFFmpegArgs(config monitor.Config) ([]string, float32, float32, error) {
+func (a *addon) generateFFmpegArgs(config monitor.Config, size string) ([]string, float32, float32, error) {
 	// Output
 	// ffmpeg -hwaccel x -i main.pipe -filter 'fps=fps=3,scale=300:240,pad:300:300:0:0' -f rawvideo -pix_fmt rgb24 -
 
-	split := strings.Split(config["size"], "x")
+	split := strings.Split(size, "x")
 	inputWidth, err := strconv.ParseFloat(split[0], 32)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("could not get input width: %v %v", err, split)

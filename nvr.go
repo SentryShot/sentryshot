@@ -140,7 +140,7 @@ func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
 	mux.Handle("/api/user/set", a.Admin(a.CSRF(web.UserSet(a))))
 	mux.Handle("/api/user/delete", a.Admin(a.CSRF(web.UserDelete(a))))
 	mux.Handle("/api/user/myToken", a.Admin(a.MyToken()))
-	mux.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager)))
+	mux.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager.MonitorList)))
 	mux.Handle("/api/monitor/configs", a.Admin(web.MonitorConfigs(monitorManager)))
 	mux.Handle("/api/monitor/restart", a.Admin(a.CSRF(web.MonitorRestart(monitorManager))))
 	mux.Handle("/api/monitor/set", a.Admin(a.CSRF(web.MonitorSet(monitorManager))))

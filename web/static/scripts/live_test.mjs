@@ -13,12 +13,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { $ } from "./common.mjs";
-import { newViewer } from "./live.mjs";
+import { newViewer, resBtn } from "./live.mjs";
 
 class mockHls {
 	constructor() {}
 	attachMedia() {}
 	on() {}
+	destroy() {}
 }
 mockHls.Events = {
 	MEDIA_ATTACHED() {},
@@ -31,17 +32,25 @@ const monitors = {
 };
 
 describe("newViewer", () => {
+	const setup = () => {
+		document.body.innerHTML = `<div id="content-grid"></div>`;
+		const element = $("#content-grid");
+		const viewer = newViewer(element, monitors, mockHls);
+		viewer.lowRes();
+		viewer.highRes();
+		viewer.reset();
+		return element;
+	};
 	test("rendering", () => {
 		const expected = `
-			<div class="grid-item-container">
+			<div id="js-video-2 "class="grid-item-container">
 				<video
 					class="grid-item"
-					id="js-video-2"
 					muted=""
 					disablepictureinpicture=""
 				></video>
 			</div>
-			<div class="grid-item-container">
+			<div id="js-video-3" class="grid-item-container">
 				<input
 					class="player-overlay-checkbox"
 					id="3-player-checkbox"
@@ -52,9 +61,8 @@ describe("newViewer", () => {
 					for="3-player-checkbox"
 				></label>
 				<div class="player-overlay live-player-menu">
-					<button class="live-player-btn">
+					<button class="live-player-btn js-mute-btn">
 						<img
-							id="js-mute-btn-3"
 							class="icon"
 							src="static/icons/feather/volume-x.svg"
 						>
@@ -62,34 +70,91 @@ describe("newViewer", () => {
 				</div>
 				<video
 					class="grid-item"
-					id="js-video-3"
 					muted=""
 					disablepictureinpicture=""
 				></video>
 			</div>`.replace(/\s/g, "");
 
-		document.body.innerHTML = `<div id="content-grid"></div>`;
-		const element = $("#content-grid");
-		const viewer = newViewer(element, monitors, mockHls);
-		viewer.reset();
+		const element = setup();
 		const actual = element.innerHTML.replace(/\s/g, "");
 
 		expect(actual).toEqual(expected);
 	});
-
 	test("muteButton", () => {
-		const $video = $("#js-video-3");
-		const $img = $("#js-mute-btn-3");
+		setup();
+		const element = $("#js-video-3");
+		const $video = element.querySelector("video");
+		const $muteBtn = element.querySelector(".js-mute-btn");
+		const $img = $muteBtn.querySelector("img");
 
 		expect($video.muted).toBe(true);
 		expect($img.src).toEqual("http://localhost/static/icons/feather/volume-x.svg");
 
-		$img.click();
+		$muteBtn.click();
 		expect($video.muted).toBe(false);
 		expect($img.src).toEqual("http://localhost/static/icons/feather/volume.svg");
 
-		$img.click();
+		$muteBtn.click();
 		expect($video.muted).toBe(true);
 		expect($img.src).toEqual("http://localhost/static/icons/feather/volume-x.svg");
+	});
+});
+
+describe("resBtn", () => {
+	const mockContent = {
+		lowRes() {},
+		highRes() {},
+		reset() {},
+	};
+	test("working", () => {
+		document.body.innerHTML = `<div></div>`;
+		const element = $("div");
+
+		const res = resBtn();
+		element.innerHTML = res.html;
+
+		const $btn = $(".js-res");
+		expect($btn.textContent).toEqual("X");
+
+		res.init(element, mockContent);
+		expect($btn.textContent).toEqual("HD");
+
+		$btn.click();
+		expect($btn.textContent).toEqual("SD");
+		expect(localStorage.getItem("highRes")).toEqual("false");
+
+		$btn.click();
+		expect($btn.textContent).toEqual("HD");
+		expect(localStorage.getItem("highRes")).toEqual("true");
+
+		$btn.click();
+		expect($btn.textContent).toEqual("SD");
+		expect(localStorage.getItem("highRes")).toEqual("false");
+	});
+	test("contentCalled", () => {
+		document.body.innerHTML = `<div></div>`;
+		const element = $("div");
+
+		const res = resBtn();
+		element.innerHTML = res.html;
+
+		let low, high, reset;
+		const content = {
+			lowRes() {
+				low = true;
+			},
+			highRes() {
+				high = true;
+			},
+			reset() {
+				reset = true;
+			},
+		};
+
+		res.init(element, content);
+		$(".js-res").click();
+		expect(low).toEqual(true);
+		expect(high).toEqual(true);
+		expect(reset).toEqual(true);
 	});
 });

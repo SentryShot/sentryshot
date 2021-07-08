@@ -49,7 +49,7 @@ func TestGenArgs(t *testing.T) {
 		" -restart_with_keyframe 1 -recovery_wait_time 1 a/doods/b/main.fifo"
 
 	if args != expected {
-		t.Fatalf("expected: %v, got: %v", expected, args)
+		t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, args)
 	}
 }
 
@@ -57,6 +57,7 @@ func TestParseConfig(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
+				"sizeMain":        "4x6",
 				"timestampOffset": "6",
 				"doodsThresholds": `{"4":5}`,
 				"doodsDuration":   "0.000000003",
@@ -78,7 +79,7 @@ func TestParseConfig(t *testing.T) {
 	t.Run("threshErr", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
-				"size":            "1x1",
+				"sizeMain":        "1x1",
 				"doodsThresholds": "nil",
 			},
 		}
@@ -89,7 +90,7 @@ func TestParseConfig(t *testing.T) {
 	t.Run("cleanThresh", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
-				"size":            "1x1",
+				"sizeMain":        "1x1",
 				"timestampOffset": "0",
 				"doodsDuration":   "1",
 				"doodsThresholds": `{"a":1,"b":2,"c":-1}`,
@@ -110,7 +111,7 @@ func TestParseConfig(t *testing.T) {
 	t.Run("durationErr", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
-				"size":            "1x1",
+				"sizeMain":        "1x1",
 				"doodsThresholds": "{}",
 				"doodsFeedRate":   "nil",
 			},
@@ -122,7 +123,7 @@ func TestParseConfig(t *testing.T) {
 	t.Run("recDurationErr", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
-				"size":            "1x1",
+				"sizeMain":        "1x1",
 				"doodsThresholds": "{}",
 				"doodsDuration":   "nil",
 				"doodsFeedRate":   "1",
@@ -195,11 +196,10 @@ func TestGenerateArgs(t *testing.T) {
 			outputHeight: 300,
 		}
 		config := monitor.Config{
-			"size":          "600x400",
 			"logLevel":      "1",
 			"doodsFeedRate": "4",
 		}
-		args, xMultiplier, yMultiplier, err := a.generateFFmpegArgs(config)
+		args, xMultiplier, yMultiplier, err := a.generateFFmpegArgs(config, "600x400")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -223,12 +223,11 @@ func TestGenerateArgs(t *testing.T) {
 			outputHeight: 300,
 		}
 		config := monitor.Config{
-			"size":          "400x600",
 			"logLevel":      "1",
 			"hwaccel":       "2",
 			"doodsFeedRate": "5",
 		}
-		args, xMultiplier, yMultiplier, err := a.generateFFmpegArgs(config)
+		args, xMultiplier, yMultiplier, err := a.generateFFmpegArgs(config, "400x600")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -243,19 +242,13 @@ func TestGenerateArgs(t *testing.T) {
 	})
 	t.Run("widthErr", func(t *testing.T) {
 		a := addon{}
-		config := monitor.Config{
-			"size": "nilx1",
-		}
-		if _, _, _, err := a.generateFFmpegArgs(config); err == nil {
+		if _, _, _, err := a.generateFFmpegArgs(monitor.Config{}, "nilx1"); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("heightErr", func(t *testing.T) {
 		a := addon{}
-		config := monitor.Config{
-			"size": "1xnil",
-		}
-		if _, _, _, err := a.generateFFmpegArgs(config); err == nil {
+		if _, _, _, err := a.generateFFmpegArgs(monitor.Config{}, "1xnil"); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -263,10 +256,7 @@ func TestGenerateArgs(t *testing.T) {
 		a := addon{
 			outputWidth: 2,
 		}
-		config := monitor.Config{
-			"size": "1x1",
-		}
-		if _, _, _, err := a.generateFFmpegArgs(config); err == nil {
+		if _, _, _, err := a.generateFFmpegArgs(monitor.Config{}, "1x1"); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -275,10 +265,7 @@ func TestGenerateArgs(t *testing.T) {
 			outputWidth:  2,
 			outputHeight: 2,
 		}
-		config := monitor.Config{
-			"size": "2x1",
-		}
-		if _, _, _, err := a.generateFFmpegArgs(config); err == nil {
+		if _, _, _, err := a.generateFFmpegArgs(monitor.Config{}, "2x1"); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})

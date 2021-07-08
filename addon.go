@@ -24,10 +24,11 @@ import (
 type envHook func(*storage.ConfigEnv)
 
 type hookList struct {
-	onEnvLoad        []envHook
-	template         []web.Hook
-	monitorStart     []monitor.StartHook
-	monitorStartMain []monitor.StartMainHook
+	onEnvLoad          []envHook
+	template           []web.Hook
+	monitorStart       []monitor.StartHook
+	monitorMainProcess []monitor.StartInputHook
+	monitorSubProcess  []monitor.StartInputHook
 }
 
 var hooks = &hookList{}
@@ -48,8 +49,12 @@ func RegisterMonitorStartHook(h monitor.StartHook) {
 }
 
 // RegisterMonitorHook registers hook that's called when the main monitor process starts.
-func RegisterMonitorStartProcessHook(h monitor.StartMainHook) {
-	hooks.monitorStartMain = append(hooks.monitorStartMain, h)
+func RegisterMonitorMainProcessHook(h monitor.StartInputHook) {
+	hooks.monitorMainProcess = append(hooks.monitorMainProcess, h)
+}
+
+func RegisterMonitorSubProcessHook(h monitor.StartInputHook) {
+	hooks.monitorSubProcess = append(hooks.monitorSubProcess, h)
 }
 
 func (h *hookList) env(env *storage.ConfigEnv) {
@@ -74,7 +79,12 @@ func (h *hookList) monitor() monitor.Hooks {
 		}
 	}
 	startMainHook := func(ctx context.Context, m *monitor.Monitor, args *string) {
-		for _, hook := range h.monitorStartMain {
+		for _, hook := range h.monitorMainProcess {
+			hook(ctx, m, args)
+		}
+	}
+	startSubHook := func(ctx context.Context, m *monitor.Monitor, args *string) {
+		for _, hook := range h.monitorSubProcess {
 			hook(ctx, m, args)
 		}
 	}
@@ -82,5 +92,6 @@ func (h *hookList) monitor() monitor.Hooks {
 	return monitor.Hooks{
 		Start:     startHook,
 		StartMain: startMainHook,
+		StartSub:  startSubHook,
 	}
 }

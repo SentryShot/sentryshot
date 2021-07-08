@@ -34,11 +34,23 @@ import (
 )
 
 func init() {
-	nvr.RegisterMonitorStartProcessHook(main)
+	nvr.RegisterMonitorMainProcessHook(main)
+	nvr.RegisterMonitorSubProcessHook(sub)
 }
 
 func main(ctx context.Context, m *monitor.Monitor, args *string) {
-	if m.Config["motionDetection"] != "true" {
+	if m.Config["motionDetection"] != "true" || m.SubInputEnabled() {
+		return
+	}
+	*args += genArgs(m)
+
+	if err := onMonitorStart(ctx, m); err != nil {
+		m.Log.Printf("%v: motion: %v", m.Name(), err)
+	}
+}
+
+func sub(ctx context.Context, m *monitor.Monitor, args *string) {
+	if m.Config["motionDetection"] != "true" || !m.SubInputEnabled() {
 		return
 	}
 	*args += genArgs(m)
@@ -167,7 +179,12 @@ func (a addon) generateMasks(zones []zone, scale string) ([]string, error) {
 			continue
 		}
 
-		size := strings.Split(a.m.Size(), "x")
+		var size []string
+		if a.m.SubInputEnabled() {
+			size = strings.Split(a.m.Config["sizeMain"], "x")
+		} else {
+			size = strings.Split(a.m.Config["sizeSub"], "x")
+		}
 		w, _ := strconv.Atoi(size[0])
 		h, _ := strconv.Atoi(size[1])
 

@@ -68,7 +68,28 @@ if (isAdmin === "true") {
 		),
 		name: fieldTemplate.text("settings-monitors-name", "Name", "my_monitor"),
 		enable: fieldTemplate.toggle("settings-monitors-enable", "Enable", "true"),
-		url: fieldTemplate.text("settings-monitors-url", "Url", "rtsp://x.x.x.x/main"),
+		mainInput: newField(
+			[inputRules.notEmpty],
+			{
+				input: "text",
+			},
+			{
+				id: "settings-monitors-mainInput",
+				label: "Main input",
+				placeholder: "rtsp://x.x.x.x/main",
+			}
+		),
+		subInput: newField(
+			[],
+			{
+				input: "text",
+			},
+			{
+				id: "settings-monitors-subInput",
+				label: "Sub input",
+				placeholder: "rtsp//x.x.x.x/sub (optional)",
+			}
+		),
 		hwaccel: newField(
 			[],
 			{
