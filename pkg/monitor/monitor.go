@@ -679,7 +679,7 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 
 	if err := process.Start(ctx); err != nil {
 		abort()
-		return fmt.Errorf("could not generate thumbnail for %v: %v", videoPath, err)
+		return fmt.Errorf("could not generate thumbnail, args: %v error: %v", args, err)
 	}
 
 	duration, err := m.videoDuration(videoPath)
