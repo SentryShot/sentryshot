@@ -251,6 +251,21 @@ type Event struct {
 	RecDuration time.Duration `json:"-"`
 }
 
+func (e Event) String() string {
+	return fmt.Sprintf("\n Time: %v\n Detections: %v\n Duration: %v\n RecDuration: %v",
+		e.Time, e.Detections, e.Duration, e.RecDuration)
+}
+
+func (e Event) validate() error {
+	if e.Time == (time.Time{}) {
+		return fmt.Errorf("missing 'Time', event:%v", e)
+	}
+	if e.RecDuration == 0 {
+		return fmt.Errorf("missing 'RecDuration', event:%v", e)
+	}
+	return nil
+}
+
 type events []Event
 
 func (e events) query(start time.Time, end time.Time) events {
@@ -333,7 +348,10 @@ func (m *Monitor) Start() error {
 			select {
 			case <-ctx.Done():
 			case <-time.After(15 * time.Second):
-				m.Trigger <- Event{RecDuration: infinte}
+				m.Trigger <- Event{
+					Time:        time.Now(),
+					RecDuration: infinte,
+				}
 			}
 		}()
 	}
@@ -522,6 +540,10 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			m.WG.Done()
 			return
 		case event := <-m.Trigger: // Wait for trigger.
+			if err := event.validate(); err != nil {
+				m.Log.Printf("%v: recoder: invalid event: %v\n", m.Name(), err)
+				continue
+			}
 			m.eventsMu.Lock()
 			m.events = append(m.events, event)
 			m.eventsMu.Unlock()
@@ -541,7 +563,7 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 
 			// Stops recording when timeout is reached.
 			triggerTimeout = time.AfterFunc(time.Until(end), func() {
-				m.Log.Printf("%v: trigger reached end, stopping recording\n", m.Name())
+				m.Log.Printf("%v: recorder: trigger reached end, stopping recording\n", m.Name())
 				cancel()
 			})
 			m.WG.Add(1)

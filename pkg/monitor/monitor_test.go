@@ -582,6 +582,57 @@ func TestWatchdog(t *testing.T) {
 }
 
 func TestStartRecorder(t *testing.T) {
+	t.Run("missingTime", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor(t)
+		defer cancel()
+
+		m.startRecording = mockStartRecording
+		m.WG.Add(1)
+
+		feed, cancel2 := m.Log.Subscribe()
+		defer cancel2()
+
+		go m.startRecorder(ctx)
+		m.Trigger <- Event{RecDuration: 1}
+		actual := <-feed
+
+		expected := `: recoder: invalid event: missing 'Time', event:
+ Time: 0001-01-01 00:00:00 +0000 UTC
+ Detections: []
+ Duration: 0s
+ RecDuration: 1ns
+`
+
+		if actual != expected {
+			t.Fatalf("\nexpected: \n%v. \ngot: \n%v.", expected, actual)
+		}
+	})
+	t.Run("missingRecDuration", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor(t)
+		defer cancel()
+
+		m.startRecording = mockStartRecording
+		m.WG.Add(1)
+
+		feed, cancel2 := m.Log.Subscribe()
+		defer cancel2()
+
+		go m.startRecorder(ctx)
+		m.Trigger <- Event{Time: (time.Unix(1, 0).UTC())}
+		actual := <-feed
+
+		expected := `: recoder: invalid event: missing 'RecDuration', event:
+ Time: 1970-01-01 00:00:01 +0000 UTC
+ Detections: []
+ Duration: 0s
+ RecDuration: 0s
+`
+
+		if actual != expected {
+			t.Fatalf("\nexpected: \n%v. \ngot: \n%v.", expected, actual)
+		}
+	})
+
 	t.Run("timeout", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
@@ -594,13 +645,12 @@ func TestStartRecorder(t *testing.T) {
 		go m.startRecorder(ctx)
 		m.Trigger <- Event{
 			Time:        time.Now().Add(time.Duration(-1) * time.Hour),
-			RecDuration: 0,
+			RecDuration: 1,
 		}
 
-		msg := <-feed
-		actual := msg[:42]
+		actual := <-feed
 
-		expected := ": trigger reached end, stopping recording\n"
+		expected := ": recorder: trigger reached end, stopping recording\n"
 
 		if actual != expected {
 			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)

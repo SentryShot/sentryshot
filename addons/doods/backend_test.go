@@ -581,7 +581,11 @@ func TestParseDetections(t *testing.T) {
 
 		actual := fmt.Sprintf("%v", output)
 
-		expected := "{0001-01-01 00:00:00 +0000 UTC [{b 5 &[9 11 90 110], <nil>}] 0s 0s}"
+		expected := `
+ Time: 0001-01-01 00:00:00 +0000 UTC
+ Detections: [{b 5 &[9 11 90 110], <nil>}]
+ Duration: 0s
+ RecDuration: 0s`
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
