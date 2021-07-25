@@ -36,8 +36,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 		background: var(--color3);
 	}
 	#log-list > span {
-		border-color: var(--color4);
 		border-width: 0.04rem;
+		border-color: var(--color4);
 		border-top: solid;
 	}
 	#log-list > span:first-of-type {

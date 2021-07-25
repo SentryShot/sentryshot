@@ -224,8 +224,8 @@ a:focus {
 .topbar-btn {
 	display: flex;
 	flex-shrink: 0;
-	align-items: center;
 	justify-content: center;
+	align-items: center;
 	width: var(--topbar-height);
 	height: var(--topbar-height);
 }
@@ -272,8 +272,8 @@ a:focus {
 
 .options-menu-btn {
 	display: flex;
-	align-items: center;
 	justify-content: center;
+	align-items: center;
 	width: var(--options-menu-btn-width);
 	height: var(--options-menu-btn-width);
 	color: var(--color-text);
@@ -351,9 +351,9 @@ a:focus {
 	padding: 0.05rem;
 	color: var(--color-text);
 	background: var(--color3);
-	border-color: var(--color2);
-	border-style: solid;
 	border-width: 0.05rem;
+	border-style: solid;
+	border-color: var(--color2);
 	border-radius: 0.15rem;
 }
 
@@ -519,8 +519,8 @@ a:focus {
 	padding: var(--icon-padding);
 	padding-left: 0.3rem;
 	text-decoration: none;
-	border-color: var(--color1-hover);
 	border-width: 0.01rem;
+	border-color: var(--color1-hover);
 	border-bottom-style: solid;
 }
 
@@ -607,8 +607,8 @@ a:focus {
 .grid-item-container {
 	position: relative;
 	display: flex;
-	align-items: center;
 	justify-content: center;
+	align-items: center;
 	max-height: 100vh;
 
 	--player-timeline-width: 90%;
@@ -734,8 +734,8 @@ a:focus {
 /* Logout */
 #logout {
 	display: flex;
-	align-items: center;
 	justify-content: center;
+	align-items: center;
 	width: var(--sidebar-width);
 	margin-top: auto;
 }
@@ -746,9 +746,9 @@ a:focus {
 	color: var(--color-text);
 	font-size: 0.6rem;
 	background: var(--color2);
-	border-color: var(--colorbg);
-	border-style: solid;
 	border-width: 0.05rem;
+	border-style: solid;
+	border-color: var(--colorbg);
 	border-radius: 0.2rem;
 }
 
@@ -876,8 +876,8 @@ a:focus {
 	right: 0.2rem;
 	bottom: 1.7rem;
 	display: none;
-	grid-row-gap: 0.2rem;
 	grid-column-gap: 0.2rem;
+	grid-row-gap: 0.2rem;
 	padding: 0.1rem;
 	font-size: 0;
 	background: var(--colorbg);

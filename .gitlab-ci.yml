@@ -1,11 +1,11 @@
 default:
     image: osnvr/os-nvr_ci
 
-cache: &global_cache
-    key: ${CI_COMMIT_REF_SLUG}
-    paths:
-        - node_modules/
-        - .cache/
+    #cache: &global_cache
+    #    key: ${CI_COMMIT_REF_SLUG}
+    #    paths:
+    #        - node_modules/
+    #        - .cache/
 
 run:
     artifacts:
@@ -15,49 +15,20 @@ run:
     script:
         - |
             # Setup.
-            export GOPATH="$CI_PROJECT_DIR/.cache/GOPATH:$GOPATH"
-            export GOCACHE="$CI_PROJECT_DIR/.cache/GOCACHE"
-            export GOLANGCI_LINT_CACHE=$CI_PROJECT_DIR/.cache/GOLANGCI
+            #export GOPATH="$CI_PROJECT_DIR/.cache/GOPATH:$GOPATH"
+            #export GOCACHE="$CI_PROJECT_DIR/.cache/GOCACHE"
+            #export GOLANGCI_LINT_CACHE=$CI_PROJECT_DIR/.cache/GOLANGCI
 
-            npm install eslint-plugin-promise@latest --save-dev
+            npm install
 
             # Get changed files.
             git remote add upstream https://gitlab.com/osnvr/os-nvr.git
             git fetch upstream dev
             git diff --name-only upstream/dev "$CI_COMMIT_SHA"
-            files_changed="$(git diff --name-only upstream/dev $CI_COMMIT_SHA)"
+            files_changed="$(git diff --name-only upstream/dev $CI_COMMIT_SHA)" || echo "git error"
 
             if [ "$files_changed" == "" ]; then
                 files_changed="$(git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA)"
             fi
 
-
-            # Do not format if "no_fmt" is set.
-            if [ "${no_fmt}" != "" ]; then
-                ./utils/ci.sh "$files_changed"
-            elif [ "${GIT_PUSH_TOKEN}" == "" ]; then
-                printf "access token not found, formatting disabled\\n"
-                ./utils/ci.sh "$files_changed"
-            else
-                # Run ci, including formatting.
-                ./utils/ci-fmt.sh "$files_changed"
-
-                git checkout "${CI_COMMIT_REF_NAME}" --no-guess
-                git checkout ./go.mod ./go.sum ./package.json ./package-lock.json
-                git status -s
-
-                # If no files were modified during formatting.
-                files="$(git status -s | wc -l)"
-                if [ "$files" == 0 ]; then
-                    exit 0
-                fi
-
-                # Push formatted code.
-                printf "committing\\n"
-                git status -s
-                git config --global user.name "${GITLAB_USER_ID}"
-                git config --global user.email "${GITLAB_USER_EMAIL}"
-                git add .
-                git commit --amend --no-edit --allow-empty
-                git push -f "https://${GITLAB_USER_NAME}:${GIT_PUSH_TOKEN}@${CI_REPOSITORY_URL#*@}"
-            fi
+            ./utils/ci.sh "$files_changed"
