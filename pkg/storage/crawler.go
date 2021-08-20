@@ -15,8 +15,8 @@
 package storage
 
 import (
+	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -31,11 +31,22 @@ import (
 //         └── Monitor2
 //             ├── YYYY-MM-DD_hh-mm-ss_monitor2.jpeg  // Thumbnail.
 //             ├── YYYY-MM-DD_hh-mm-ss_monitor2.mp4   // Video.
-//             └── YYYY-MM-DD_hh-mm-ss_monitor2.json  // Event data, Not implemented.
+//             └── YYYY-MM-DD_hh-mm-ss_monitor2.json  // Event data.
 //
 // Thumbnail is only generated If video was saved successfully.
 // The job of these functions are to on-request
 // find and return recording paths.
+
+// CrawlerQuery query of recordings for crawler to find.
+type CrawlerQuery struct {
+	Time     string
+	Limit    int
+	Reverse  bool
+	Monitors []string
+	cache    queryCache
+}
+
+type queryCache map[string][]dir
 
 // Crawler crawls through storage looking for recordings.
 type Crawler struct {
@@ -45,28 +56,42 @@ type Crawler struct {
 // NewCrawler creates new crawler.
 func NewCrawler(path string) *Crawler {
 	return &Crawler{
-		path: path,
+		path: filepath.Clean(path),
 	}
 }
 
 // RecordingByQuery finds best matching recording and
 // returns limit number of subsequent videos
-func (c *Crawler) RecordingByQuery(limit int, query string) ([]Recording, error) {
+func (c *Crawler) RecordingByQuery(q *CrawlerQuery) ([]Recording, error) {
+	q.cache = make(queryCache)
 	var recordings []Recording
 
 	var file *dir
-	for len(recordings) < limit {
-		firstFile := file == nil
-		if firstFile {
-			file = c.findVideo(query)
+	var err error
+	for len(recordings) < q.Limit { // Run until limit is reached.
+		isFirstFile := file == nil
+		if isFirstFile {
+			file, err = c.findVideo(q)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		if file.name == query || !firstFile {
-			file = file.prevSibling()
+		// If last file is reached.
+		if file == nil {
+			return recordings, nil
 		}
 
-		if file.isNil() {
-			break
+		if !isFirstFile || file.name == q.Time {
+			file, err = file.sibling()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// If last file is reached.
+		if file == nil {
+			return recordings, nil
 		}
 
 		recordings = append(recordings, newVideo(c.cleanPath(file.path)))
@@ -76,52 +101,69 @@ func (c *Crawler) RecordingByQuery(limit int, query string) ([]Recording, error)
 
 // Removes storageDir from input and replaces it with "storage"
 func (c *Crawler) cleanPath(input string) string {
-	storageDirLen := len(c.path)
-	return "storage/recordings/" + input[storageDirLen:]
+	storageDirLen := len(filepath.Clean(c.path))
+	return "storage/recordings" + input[storageDirLen:]
 }
 
-type dir struct {
-	name   string
-	path   string
-	depth  int
-	parent *dir
-}
-
-func (d *dir) isNil() bool {
-	return *d == dir{}
-}
-
-func (c *Crawler) findVideo(id string) *dir {
-	query := []string{
-		id[:4],   // Year.
-		id[5:7],  // Month.
-		id[8:10], // Day.
+func (c *Crawler) findVideo(q *CrawlerQuery) (*dir, error) {
+	yearMonthDay := []string{
+		q.Time[:4],   // Year.
+		q.Time[5:7],  // Month.
+		q.Time[8:10], // Day.
 	}
 
 	root := &dir{
 		path:  c.path,
 		depth: 0,
+		query: q,
 	}
 
+	// Try to find exact file.
 	current := root
-	for _, val := range query {
-		parent := current
-		current = current.childByName(val)
-		if current.isNil() {
-			return parent.prevChildByName(val).latestFile()
+	var parent *dir
+	var err error
+	for _, val := range yearMonthDay {
+		parent = current
+		current, err = current.childByExactName(val)
+		if err != nil {
+			return nil, err
+		}
+		if current == nil {
+			// Exact match could not be found.
+			child, err := parent.childByName(val)
+			if err != nil {
+				return nil, err
+			}
+			if child == nil {
+				return parent.sibling()
+			}
+			return child.findFileDeep()
 		}
 	}
 
-	file := current.childByName(id)
-	if !file.isNil() {
-		return file
+	// If exact match found, return sibling of match.
+	file, err := current.childByExactName(q.Time)
+	if err != nil {
+		return nil, err
+	}
+	if file != nil {
+		return file.sibling()
 	}
 
-	return current.prevChildByName(id)
+	// If inexact file found, return match.
+	file, err = current.childByName(q.Time)
+	if err != nil {
+		return nil, err
+	}
+	if file != nil {
+		return file, nil
+	}
+
+	return current.sibling()
 }
 
 // Recording contains identifier and path.
-// ".mp4",".jpeg" or ".json" can be appended to the
+// `.mp4`, `.jpeg` or `.json` can be appended to the
 // path to get the video, thumbnail or data file.
 type Recording struct {
 	ID   string `json:"id"`
@@ -135,22 +177,42 @@ func newVideo(path string) Recording {
 	}
 }
 
-const monitorDepth = 3
+type dir struct {
+	name   string
+	path   string
+	depth  int
+	parent *dir
+	query  *CrawlerQuery
+}
 
-// children returns children of current directory.
-func (d *dir) children() []dir {
+const monitorDepth = 3
+const recDepth = 5
+
+// children of current directory. Special case if depth == monitorDepth.
+func (d *dir) children() ([]dir, error) {
+	cache := d.query.cache
+	cached, exist := cache[d.path]
+	if exist {
+		return cached, nil
+	}
+
 	if d.depth == monitorDepth {
-		thumbnails := d.findAllThumbnails()
+		thumbnails, err := d.findAllThumbnails()
+		if err != nil {
+			return nil, err
+		}
 
 		sort.Slice(thumbnails, func(i, j int) bool {
 			return thumbnails[i].name < thumbnails[j].name
 		})
-		return thumbnails
+
+		cache[d.path] = thumbnails
+		return cache[d.path], nil
 	}
 
 	files, err := ioutil.ReadDir(d.path)
 	if err != nil {
-		return []dir{}
+		return nil, err
 	}
 
 	var children []dir
@@ -158,91 +220,170 @@ func (d *dir) children() []dir {
 		if file.IsDir() {
 			children = append(children, dir{
 				name:   file.Name(),
-				path:   d.path + "/" + file.Name(),
+				path:   filepath.Join(d.path, file.Name()),
 				parent: d,
 				depth:  d.depth + 1,
+				query:  d.query,
 			})
 		}
 	}
-	return children
+	cache[d.path] = children
+	return cache[d.path], nil
 }
 
-// findAllThumbnails finds all jpeg files in decending directories.
-func (d *dir) findAllThumbnails() []dir {
+// findAllThumbnails finds all jpeg files beloning to
+// selected monitors in decending directories.
+// Only called by children()
+func (d *dir) findAllThumbnails() ([]dir, error) {
+	monitorDirs, err := ioutil.ReadDir(d.path)
+	if err != nil {
+		return nil, fmt.Errorf("could not read day directory: %v %v", d.path, err)
+	}
+
 	var thumbnails []dir
-	filepath.Walk(d.path, func(path string, file os.FileInfo, _ error) error { //nolint:errcheck
-		if !file.IsDir() && strings.Contains(file.Name(), ".jpeg") {
+	for _, m := range monitorDirs {
+		if len(d.query.Monitors) != 0 && !d.monitorSelected(m.Name()) {
+			continue
+		}
+		path := filepath.Join(d.path, m.Name())
+		files, err := ioutil.ReadDir(path)
+		if err != nil {
+			return nil, fmt.Errorf("could not read monitor directory: %v", path)
+		}
+		for _, file := range files {
+			if file.IsDir() {
+				return nil, fmt.Errorf("unexpected directory: %v", path)
+			}
+			if !strings.Contains(file.Name(), ".jpeg") {
+				continue
+			}
+			thumbPath := filepath.Join(path, file.Name())
 			thumbnails = append(thumbnails, dir{
 				name:   strings.TrimSuffix(file.Name(), ".jpeg"),
-				path:   strings.TrimSuffix(path, ".jpeg"),
+				path:   strings.TrimSuffix(thumbPath, ".jpeg"),
 				parent: d,
 				depth:  d.depth + 2,
+				query:  d.query,
 			})
 		}
-		return nil
-	})
-	return thumbnails
+	}
+	return thumbnails, nil
+}
+
+func (d *dir) monitorSelected(monitor string) bool {
+	for _, m := range d.query.Monitors {
+		if m == monitor {
+			return true
+		}
+	}
+	return false
+}
+
+// childByName Returns next or previus child.
+func (d *dir) childByName(name string) (*dir, error) {
+	children, err := d.children()
+	if err != nil {
+		return nil, err
+	}
+
+	if d.query.Reverse {
+		return d.nextChildByName(name, children)
+	}
+	return d.prevChildByName(name, children)
+}
+
+// nextChildByName iterates though children and returns the
+// first child with a name alphabetically before supplied name.
+func (d *dir) nextChildByName(name string, children []dir) (*dir, error) {
+	for _, child := range children {
+		if child.name > name {
+			return &child, nil
+		}
+	}
+	return nil, nil
 }
 
 // prevChildByName iterates though children in reverse and returns the
 // first child with a name alphabetically after supplied name.
-func (d *dir) prevChildByName(name string) *dir {
-	children := d.children()
-
+func (d *dir) prevChildByName(name string, children []dir) (*dir, error) {
 	for i := len(children) - 1; i >= 0; i-- { // Reverse range.
 		child := children[i]
 		if child.name < name {
-			return &child
+			return &child, nil
 		}
 	}
-
-	return &dir{}
+	return nil, nil
 }
 
-// childByName returns child of current directory by name.
+// childByExactName returns child of current directory by exact name.
 // returns nil if child doesn't exist.
-func (d *dir) childByName(name string) *dir {
-	children := d.children()
+func (d *dir) childByExactName(name string) (*dir, error) {
+	children, err := d.children()
+	if err != nil {
+		return nil, err
+	}
 	for _, child := range children {
 		if child.name == name {
-			return &child
+			return &child, nil
 		}
 	}
 
-	return &dir{}
+	return nil, nil
 }
 
-// latestFile returns the newest file in decending directories.
-func (d *dir) latestFile() *dir {
-	file := d
-	for file.depth < monitorDepth+2 {
-		children := file.children()
+// findFileDeep returns the newest or oldest file in all decending directories.
+func (d *dir) findFileDeep() (*dir, error) {
+	current := d
+	for current.depth < recDepth {
+		children, err := current.children()
+		if err != nil {
+			return nil, err
+		}
 		if len(children) == 0 {
 			if d.depth == 0 {
-				return &dir{}
+				return nil, nil
 			}
-			return file.prevSibling().latestFile()
+			sibling, err := current.sibling()
+			if err != nil {
+				return nil, err
+			}
+			return sibling.findFileDeep()
 		}
-		file = &children[len(children)-1]
+		if d.query.Reverse {
+			current = &children[0] // First child.
+		} else {
+			current = &children[len(children)-1] // Last child.
+		}
 	}
-	return file
+	return current, nil
 }
 
-// prevSibling returns the previus sibling alphabetically.
-func (d *dir) prevSibling() *dir {
+// sibling Returns next or previus sibling. Will climb.
+func (d *dir) sibling() (*dir, error) {
 	if d.depth == 0 {
-		return &dir{}
+		return nil, nil
 	}
 
-	siblings := d.parent.children()
+	siblings, err := d.parent.children()
+	if err != nil {
+		return nil, err
+	}
 
 	for i, sibling := range siblings {
 		if sibling == *d {
-			if i > 0 {
-				return siblings[i-1].latestFile()
+			// Next
+			if d.query.Reverse {
+				if i < len(siblings)-1 {
+					return siblings[i+1].findFileDeep()
+				}
+				return d.parent.sibling()
 			}
-			return d.parent.prevSibling()
+			// Previus
+			if i > 0 {
+				return siblings[i-1].findFileDeep()
+			}
+			return d.parent.sibling()
 		}
 	}
-	return d.parent.prevSibling()
+	return nil, fmt.Errorf("could not find sibling of: %v", d.path)
 }

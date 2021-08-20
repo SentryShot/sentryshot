@@ -145,7 +145,7 @@ func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
 	mux.Handle("/api/monitor/restart", a.Admin(a.CSRF(web.MonitorRestart(monitorManager))))
 	mux.Handle("/api/monitor/set", a.Admin(a.CSRF(web.MonitorSet(monitorManager))))
 	mux.Handle("/api/monitor/delete", a.Admin(a.CSRF(web.MonitorDelete(monitorManager))))
-	mux.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler)))
+	mux.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler, logger)))
 	mux.Handle("/api/logs", a.Admin(web.Logs(logger, a)))
 
 	server := &http.Server{Addr: ":" + env.Port, Handler: mux}

@@ -16,7 +16,6 @@
 			"gocognit",
 			"gocritic",
 			"gocyclo",
-			"godox",
 			"golint",
 			"goprintffuncname",
 			"gosimple",

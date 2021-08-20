@@ -379,7 +379,8 @@ func MonitorDelete(m *monitor.Manager) http.Handler {
 }
 
 // RecordingQuery handles recording queries.
-func RecordingQuery(s *storage.Crawler) http.Handler {
+// TODO: Replace api with: time, limit, reverse, monitors[]
+func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -401,22 +402,30 @@ func RecordingQuery(s *storage.Crawler) http.Handler {
 			http.Error(w, "before to short", http.StatusBadRequest)
 			return
 		}
+		reverse := query.Get("reverse")
 
 		limitInt, err := strconv.Atoi(limit)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("could not convert n to int: %v", err), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("could not convert limit to int: %v", err), http.StatusBadRequest)
 			return
 		}
 
-		recordings, err := s.RecordingByQuery(limitInt, before)
+		q := &storage.CrawlerQuery{
+			Time:    before,
+			Limit:   limitInt,
+			Reverse: reverse == "true",
+		}
+
+		recordings, err := crawler.RecordingByQuery(q)
 		if err != nil {
+			log.Printf("storage: crawler: could not process recording query: %v", err)
 			http.Error(w, "could not process recording query", http.StatusInternalServerError)
 			return
 		}
 
 		u, err := json.Marshal(recordings)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "could not marshal data", http.StatusInternalServerError)
 			return
 		}
 

@@ -129,11 +129,26 @@ Delete a monitor by id.
 
 ## Recording
 
-### GET /api/recording/query?limit=1&before=2025-12-28_23-59-59
+### GET /api/recording/query?limit=2&before=2025-12-28_23-59-59&reverse=true
 
 ##### Auth: user
 
 Query recordings.
+
+example response:
+
+```
+[
+  {
+    "id":"YYYY-MM-DD_hh-mm-ss_id",
+    "path":"storage/recordings/YYYY/MM/DD/id/YYYY-MM-DD_hh-mm-ss_id"
+  },
+  {
+    "id":"YYYY-MM-DD_hh-mm-ss_id",
+    "path":"storage/recordings/YYYY/MM/DD/id/YYYY-MM-DD_hh-mm-ss_id"
+  }
+]
+```
 
 <br>
 

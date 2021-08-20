@@ -37,58 +37,112 @@ import (
 │   └── 01
 │       └── 01
 │           └── m1
-│               └── 2000-02-01_1_m1.jpeg
+│               └── 2001-02-01_1_m1.jpeg
 ├── 2002
 │   └── 01
 │       ├── 01
 │       │   └── m1
 │       │       └── 2002-01-01_1_m1.jpeg
 │       └── 02
+├── 2003
+│   └── 01
+│       └── 01
+│           ├── m1
+│           │   └── 2003-01-01_1_m1.jpeg
+│           └── m2
+│               └── 2003-01-01_1_m2.jpeg
+├── 2004
+│   └── 01
+│       └── 01
+│           ├── 2004-01-01_1_m1.jpeg
+│           └── 2004-01-01_2_m1.jpeg
 └── 2099
     └── 01
         └── 01
             └── m1
                 └── 2099-01-01_1_m1.jpeg
+
+
 */
-func TestVideosByQuery(t *testing.T) {
-	c := NewCrawler("./testdata")
+func TestRecordingByQuery(t *testing.T) {
+	t.Run("working", func(t *testing.T) {
+		c := NewCrawler("./testdata")
 
-	cases := []struct{ name, query, expected string }{
-		{"noFiles", "0000-01-01", ""},
-		{"EOF", "1999-01-01", ""},
-		{"latest", "9999-01-01", "2099-01-01_1_m1"},
-		{"prev", "2000-01-01_2_m1", "2000-01-01_1_m1"},
-		{"prevDay", "2000-01-02_1_m1", "2000-01-01_2_m1"},
-		{"prevMonth", "2000-02-01_1_m1", "2000-01-02_1_m1"},
-		{"prevYear", "2001-01-01_1_m1", "2000-02-01_1_m1"},
-		{"emptyPrevDay", "2002-12-01", "2002-01-01_1_m1"},
-	}
+		cases := []struct{ name, time, expected string }{
+			{"noFiles", "0000-01-01", ""},
+			{"EOF", "1999-01-01", ""},
+			{"latest", "9999-01-01", "2099-01-01_1_m1"},
+			{"prev", "2000-01-01_2_m1", "2000-01-01_1_m1"},
+			{"prevDay", "2000-01-02_1_m1", "2000-01-01_2_m1"},
+			{"prevMonth", "2000-02-01_1_m1", "2000-01-02_1_m1"},
+			{"prevYear", "2001-01-01_1_m1", "2000-02-01_1_m1"},
+			{"emptyPrevDay", "2002-12-01", "2002-01-01_1_m1"},
+			{"sameDay", "2004-01-01_2", "2004-01-01_1_m1"},
+		}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			recordings, _ := c.RecordingByQuery(1, tc.query)
-			var actual string
-			if len(recordings) != 0 {
-				actual = recordings[0].ID
-			}
-			if actual != tc.expected {
-				t.Fatalf("%s, expected: %v, got: %v", tc.name, tc.expected, actual)
-			}
-		})
-	}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				query := &CrawlerQuery{
+					Time:  tc.time,
+					Limit: 1,
+				}
+				recordings, _ := c.RecordingByQuery(query)
+				var actual string
+				if len(recordings) != 0 {
+					actual = recordings[0].ID
+				}
+				if actual != tc.expected {
+					t.Fatalf("%s, expected:\n%v.\ngot:\n%v.", tc.name, tc.expected, actual)
+				}
+			})
+		}
+	})
+	t.Run("reverse", func(t *testing.T) {
+		c := NewCrawler("./testdata")
 
-	t.Run("getAll", func(t *testing.T) {
+		cases := []struct{ name, time, expected string }{
+			{"latest", "1111-01-01", "2000-01-01_1_m1"},
+			{"next", "2000-01-01_1_m1", "2000-01-01_2_m1"},
+			{"nextDay", "2000-01-01_2_m1", "2000-01-02_1_m1"},
+			{"nextMonth", "2000-01-02_1_m1", "2000-02-01_1_m1"},
+			{"nextYear", "2000-02-01_1_m1", "2001-02-01_1_m1"},
+			{"emptyNextDay", "2001-12-01", "2002-01-01_1_m1"},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				query := &CrawlerQuery{
+					Time:    tc.time,
+					Limit:   1,
+					Reverse: true,
+				}
+				recordings, _ := c.RecordingByQuery(query)
+				var actual string
+				if len(recordings) != 0 {
+					actual = recordings[0].ID
+				}
+				if actual != tc.expected {
+					t.Fatalf("%s, expected:\n%v.\ngot:\n%v.", tc.name, tc.expected, actual)
+				}
+			})
+		}
+	})
+	t.Run("multiple", func(t *testing.T) {
 		expected := strings.ReplaceAll(`
 			2099-01-01_1_m1
-			2002-01-01_1_m1
-			2000-02-01_1_m1
-			2000-02-01_1_m1
-			2000-01-02_1_m1
-			2000-01-01_2_m1
-			2000-01-01_1_m1`,
+			2004-01-01_2_m1
+			2004-01-01_1_m1
+			2003-01-01_1_m2
+			2003-01-01_1_m1`,
 			"\t", "")
 
-		recordings, _ := c.RecordingByQuery(10, "9999-01-01")
+		c := NewCrawler("./testdata")
+		recordings, _ := c.RecordingByQuery(
+			&CrawlerQuery{
+				Time:  "9999-01-01",
+				Limit: 5,
+			},
+		)
 
 		var actual string
 		for _, rec := range recordings {
@@ -96,19 +150,56 @@ func TestVideosByQuery(t *testing.T) {
 		}
 
 		if actual != expected {
-			t.Fatalf("getAll expected: %v \n got: %v", expected, actual)
+			t.Fatalf("expected: %v \n got: %v", expected, actual)
 		}
 	})
-}
+	t.Run("monitors", func(t *testing.T) {
+		expected := "\n2003-01-01_1_m1"
 
-func TestPrevSibling(t *testing.T) {
-	d := &dir{
-		depth:  1,
-		parent: &dir{},
-	}
-	s := d.prevSibling()
+		c := NewCrawler("./testdata")
+		recordings, _ := c.RecordingByQuery(
+			&CrawlerQuery{
+				Time:     "2003-02-01_1_m1",
+				Limit:    1,
+				Monitors: []string{"m1"},
+			},
+		)
 
-	if !s.isNil() {
-		t.Fatalf("expected nil, got %v", s)
-	}
+		var actual string
+		for _, rec := range recordings {
+			actual += "\n" + rec.ID
+		}
+
+		if actual != expected {
+			t.Fatalf("getAll expected:\n%v.\ngot:\n%v.", expected, actual)
+		}
+	})
+	t.Run("paths", func(t *testing.T) {
+		paths := []string{
+			"testdata",
+			"./testdata",
+			"./testdata/",
+		}
+		for _, path := range paths {
+			t.Run(path, func(t *testing.T) {
+				c := NewCrawler(path)
+				query := &CrawlerQuery{
+					Time:  "2003-01-01_1_m1",
+					Limit: 1,
+				}
+				recordings, _ := c.RecordingByQuery(query)
+				var actual string
+				if len(recordings) != 0 {
+					actual = recordings[0].Path
+				}
+
+				expected := "storage/recordings/2002/01/01/m1/2002-01-01_1_m1"
+
+				if actual != expected {
+					t.Fatalf("%v, expected:\n%v.\ngot:\n%v.", path, expected, actual)
+				}
+			})
+		}
+	})
+
 }
