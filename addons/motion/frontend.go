@@ -116,7 +116,7 @@ const javascript = `
 							/>
 						</button>
 					</div>
-					` + "` + modal.html() + `" + `
+					` + "` + modal.html + `" + `
 				</li> ` + "`" + `,
 			value() {
 				return JSON.stringify(zones);

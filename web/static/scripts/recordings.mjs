@@ -16,6 +16,7 @@ import { $, fetchGet } from "./common.mjs";
 import { newPlayer, newOptionsBtn, newOptionsMenu } from "./components.mjs";
 
 async function newViewer(monitorNameByID, $parent, timeZone) {
+	let selectedMonitors = [];
 	let maxPlayingVideos = 2;
 
 	let playingVideos;
@@ -71,7 +72,11 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 	const fetchRecordings = async () => {
 		const limit = gridSize;
 
-		const parameters = new URLSearchParams({ limit: limit, before: current });
+		const parameters = new URLSearchParams({
+			limit: limit,
+			before: current,
+			monitors: selectedMonitors.join(","),
+		});
 		const recordings = await fetchGet(
 			"api/recording/query?" + parameters,
 			"could not get recording"
@@ -137,6 +142,9 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 			selectedDate = dateToID(date);
 			reset();
 		},
+		setMonitors(input) {
+			selectedMonitors = input;
+		},
 		lazyLoadRecordings: lazyLoadRecordings,
 	};
 }
@@ -187,6 +195,8 @@ function newMonitorNameByID(monitors) {
 			return;
 		}
 
+		const groups = await fetchGet("api/group/configs", "could not get group");
+
 		const monitors = await fetchGet("api/monitor/list", "could not get monitor list");
 		const monitorNameByID = newMonitorNameByID(monitors);
 
@@ -196,7 +206,11 @@ function newMonitorNameByID(monitors) {
 		const viewer = await newViewer(monitorNameByID, $grid, timeZone);
 
 		const $options = $("#options-menu");
-		const buttons = [newOptionsBtn.gridSize(), newOptionsBtn.date(timeZone)];
+		const buttons = [
+			newOptionsBtn.gridSize(),
+			newOptionsBtn.date(timeZone),
+			newOptionsBtn.group(monitors, groups),
+		];
 		const optionsMenu = newOptionsMenu(buttons);
 		$options.innerHTML = optionsMenu.html;
 		optionsMenu.init($options, viewer);

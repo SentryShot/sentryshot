@@ -106,6 +106,10 @@ func (c *Crawler) cleanPath(input string) string {
 }
 
 func (c *Crawler) findVideo(q *CrawlerQuery) (*dir, error) {
+	if len(q.Time) < 10 {
+		return nil, fmt.Errorf("invalid time: %v", q.Time)
+	}
+
 	yearMonthDay := []string{
 		q.Time[:4],   // Year.
 		q.Time[5:7],  // Month.
@@ -346,6 +350,9 @@ func (d *dir) findFileDeep() (*dir, error) {
 			sibling, err := current.sibling()
 			if err != nil {
 				return nil, err
+			}
+			if sibling == nil {
+				return nil, nil
 			}
 			return sibling.findFileDeep()
 		}

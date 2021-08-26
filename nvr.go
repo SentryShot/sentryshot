@@ -21,9 +21,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
+	"nvr/pkg/group"
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
@@ -87,21 +89,30 @@ func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
 		return nil, fmt.Errorf("could not get general config: %v", err)
 	}
 
-	monitorManager, err := monitor.NewMonitorManager("./configs/monitors", env, logger, hooks.monitor())
+	monitorConfigDir := filepath.Join(env.ConfigDir, "monitors")
+	monitorManager, err := monitor.NewManager(monitorConfigDir, env, logger, hooks.monitor())
 	if err != nil {
-		return nil, fmt.Errorf("could not create monitor mager: %v", err)
+		return nil, fmt.Errorf("could not create monitor manager: %v", err)
 	}
 
-	a, err := auth.NewBasicAuthenticator(env.ConfigDir+"/users.json", logger)
+	groupConfigDir := filepath.Join(env.ConfigDir, "groups")
+	groupManager, err := group.NewManager(groupConfigDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not create monitor manager: %v", err)
+	}
+
+	usersConfigPath := filepath.Join(env.ConfigDir, "users.json")
+	a, err := auth.NewBasicAuthenticator(usersConfigPath, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	storageMager := storage.NewManager(env.StorageDir, general, logger)
+	storageManager := storage.NewManager(env.StorageDir, general, logger)
 
-	crawler := storage.NewCrawler(env.StorageDir + "/recordings/")
+	recordingsDir := filepath.Join(env.StorageDir, "recordings")
+	crawler := storage.NewCrawler(recordingsDir)
 
-	sys := system.New(storageMager.Usage, logger)
+	sys := system.New(storageManager.Usage, logger)
 
 	timeZone, err := system.TimeZone()
 	if err != nil {
@@ -113,7 +124,8 @@ func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
 		General: general.Get,
 	}
 
-	t, err := web.NewTemplater(env.WebDir+"/templates", a, templateData, hooks.tpl)
+	templatesDir := filepath.Join(env.WebDir, "templates")
+	t, err := web.NewTemplater(templatesDir, a, templateData, hooks.tpl)
 	if err != nil {
 		return nil, err
 	}
@@ -128,23 +140,32 @@ func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
 	mux.Handle("/debug", a.Admin(t.Render("debug.tpl")))
 	mux.Handle("/logout", web.Logout())
 
-	mux.Handle("/static/", a.User(web.Static(env.WebDir+"/static")))
+	staticDir := filepath.Join(env.WebDir, "static")
+	mux.Handle("/static/", a.User(web.Static(staticDir)))
 	mux.Handle("/storage/", a.User(web.Storage(env.StorageDir)))
 	mux.Handle("/hls/", a.User(web.HLS(env)))
 
 	mux.Handle("/api/system/status", a.User(web.Status(sys)))
 	mux.Handle("/api/system/timeZone", a.User(web.TimeZone(timeZone)))
+
 	mux.Handle("/api/general", a.Admin(web.General(general)))
 	mux.Handle("/api/general/set", a.Admin(a.CSRF(web.GeneralSet(general))))
+
 	mux.Handle("/api/users", a.Admin(web.Users(a)))
 	mux.Handle("/api/user/set", a.Admin(a.CSRF(web.UserSet(a))))
 	mux.Handle("/api/user/delete", a.Admin(a.CSRF(web.UserDelete(a))))
 	mux.Handle("/api/user/myToken", a.Admin(a.MyToken()))
+
 	mux.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager.MonitorList)))
 	mux.Handle("/api/monitor/configs", a.Admin(web.MonitorConfigs(monitorManager)))
 	mux.Handle("/api/monitor/restart", a.Admin(a.CSRF(web.MonitorRestart(monitorManager))))
 	mux.Handle("/api/monitor/set", a.Admin(a.CSRF(web.MonitorSet(monitorManager))))
 	mux.Handle("/api/monitor/delete", a.Admin(a.CSRF(web.MonitorDelete(monitorManager))))
+
+	mux.Handle("/api/group/configs", a.User(web.GroupConfigs(groupManager)))
+	mux.Handle("/api/group/set", a.Admin(a.CSRF(web.GroupSet(groupManager))))
+	mux.Handle("/api/group/delete", a.Admin(a.CSRF(web.GroupDelete(groupManager))))
+
 	mux.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler, logger)))
 	mux.Handle("/api/logs", a.Admin(web.Logs(logger, a)))
 
@@ -154,7 +175,7 @@ func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
 		log:            logger,
 		env:            env,
 		monitorManager: monitorManager,
-		storage:        storageMager,
+		storage:        storageManager,
 		system:         sys,
 		server:         server,
 	}, nil

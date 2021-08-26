@@ -164,7 +164,7 @@ func javascript() string { //nolint:funlen
 							/>
 						</button>
 					</div>
-					` + "` + modal.html() + `" + `
+					` + "` + modal.html + `" + `
 				</li> ` + "`" + `,
 			value() {
 				if (Object.entries(thresholds).length === 0) {

@@ -16,10 +16,12 @@ package web
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"nvr/pkg/group"
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
@@ -309,10 +311,6 @@ func MonitorRestart(m *monitor.Manager) http.Handler {
 	})
 }
 
-func containsSpaces(s string) bool {
-	return strings.Contains(s, " ")
-}
-
 // MonitorSet handler to set monitor configuration.
 func MonitorSet(c *monitor.Manager) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -333,18 +331,8 @@ func MonitorSet(c *monitor.Manager) http.Handler {
 			return
 		}
 
-		switch {
-		case m["id"] == "":
-			http.Error(w, "monitor id cannot be empty", http.StatusBadRequest)
-			return
-		case containsSpaces(m["id"]):
-			http.Error(w, "monitor id cannot contain spaces", http.StatusBadRequest)
-			return
-		case m["name"] == "":
-			http.Error(w, "monitor name cannot be empty", http.StatusBadRequest)
-			return
-		case containsSpaces(m["name"]):
-			http.Error(w, "monitor name cannot contain spaces", http.StatusBadRequest)
+		if err := checkIDandName(m); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -378,9 +366,97 @@ func MonitorDelete(m *monitor.Manager) http.Handler {
 	})
 }
 
+// GroupConfigs returns group configurations in json format.
+func GroupConfigs(m *group.Manager) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+		u, err := json.Marshal(m.GroupConfigs())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if _, err := w.Write(u); err != nil {
+			http.Error(w, "could not write data", http.StatusInternalServerError)
+			return
+		}
+	})
+}
+
+// GroupSet handler to set group configuration.
+func GroupSet(m *group.Manager) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "failed to read body", http.StatusBadRequest)
+			return
+		}
+
+		var g group.Config
+		if err = json.Unmarshal(body, &g); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := checkIDandName(g); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err = m.GroupSet(g["id"], g); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})
+}
+
+func checkIDandName(input map[string]string) error {
+	switch {
+	case input["id"] == "":
+		return errors.New("id cannot be empty")
+	case containsSpaces(input["id"]):
+		return errors.New("id cannot contain spaces")
+	case input["name"] == "":
+		return errors.New("name cannot be empty")
+	case containsSpaces(input["name"]):
+		return errors.New("name cannot contain spaces")
+	default:
+		return nil
+	}
+}
+
+// GroupDelete handler to delete group.
+func GroupDelete(m *group.Manager) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			http.Error(w, "id missing", http.StatusBadRequest)
+			return
+		}
+
+		err := m.GroupDelete(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})
+}
+
 // RecordingQuery handles recording queries.
 // TODO: Replace api with: time, limit, reverse, monitors[]
-func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler {
+func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //nolint:funlen
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -390,6 +466,12 @@ func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler {
 		limit := query.Get("limit")
 		if limit == "" {
 			http.Error(w, "limit missing", http.StatusBadRequest)
+			return
+		}
+
+		limitInt, err := strconv.Atoi(limit)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("could not convert limit to int: %v", err), http.StatusBadRequest)
 			return
 		}
 
@@ -404,16 +486,18 @@ func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler {
 		}
 		reverse := query.Get("reverse")
 
-		limitInt, err := strconv.Atoi(limit)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("could not convert limit to int: %v", err), http.StatusBadRequest)
-			return
+		monitorsCSV := query.Get("monitors")
+
+		var monitors []string
+		if monitorsCSV != "" {
+			monitors = strings.Split(monitorsCSV, ",")
 		}
 
 		q := &storage.CrawlerQuery{
-			Time:    before,
-			Limit:   limitInt,
-			Reverse: reverse == "true",
+			Time:     before,
+			Limit:    limitInt,
+			Reverse:  reverse == "true",
+			Monitors: monitors,
 		}
 
 		recordings, err := crawler.RecordingByQuery(q)
@@ -466,4 +550,8 @@ func Logs(log *log.Logger, a *auth.Authenticator) http.Handler {
 			}
 		}
 	})
+}
+
+func containsSpaces(s string) bool {
+	return strings.Contains(s, " ")
 }

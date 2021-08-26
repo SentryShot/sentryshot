@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $ } from "./common.mjs";
+import { $, sortByName } from "./common.mjs";
 
 /*
  * A form field can have the following functions.
@@ -411,20 +411,18 @@ function newModal(label) {
 		$wrapper.classList.remove("modal-open");
 	};
 	return {
-		html() {
-			return `
-				<div class="modal-wrapper js-modal-wrapper">
-					<div class="modal js-modal">
-						<header class="modal-header">
-							<span class="modal-title">${label}</span>
-							<button class="modal-close-btn">
-								<img class="modal-close-icon" src="static/icons/feather/x.svg"></img>
-							</button>
-						</header>
-						<div class="modal-content"></div>
-					</div>
-				</div>`;
-		},
+		html: `
+			<div class="modal-wrapper js-modal-wrapper">
+				<div class="modal js-modal">
+					<header class="modal-header">
+						<span class="modal-title">${label}</span>
+						<button class="modal-close-btn">
+							<img class="modal-close-icon" src="static/icons/feather/x.svg"></img>
+						</button>
+					</header>
+					<div class="modal-content"></div>
+				</div>
+			</div>`,
 		open() {
 			$wrapper.classList.add("modal-open");
 		},
@@ -791,7 +789,7 @@ function newDetectionRenderer(start, events) {
 	};
 }
 
-function newOptionsPopup(label, htmlContent) {
+function newOptionsPopup(label, icon, htmlContent) {
 	var element;
 
 	const toggle = () => {
@@ -800,26 +798,23 @@ function newOptionsPopup(label, htmlContent) {
 	return {
 		html: `
 			<button class="options-menu-btn js-${label}">
-				<img class="icon" src="static/icons/feather/calendar.svg">
+				<img class="icon" src="${icon}">
 			</button>
-			<div class="options-popup js-popup">
+			<div class="options-popup js-popup-${label}">
 				<div class="options-popup-content">
 				${htmlContent}
 				</div>
 			</div>`,
-		/*open() {
-			element.classList.add("options-popup-open");
-		},
-		close() {
-			element.classList.remove("options-popup-open");
-		},*/
 		toggle: toggle,
 		init($parent) {
-			element = $parent.querySelector(".js-popup");
+			element = $parent.querySelector(`.js-popup-${label}`);
 
 			$parent.querySelector(`.js-${label}`).addEventListener("click", () => {
 				toggle();
 			});
+		},
+		element() {
+			return element;
 		},
 	};
 }
@@ -999,7 +994,8 @@ function newDatePicker(timeZone) {
 
 	return {
 		html: datePickerHTML,
-		init($parent, c) {
+		init(popup, c) {
+			const $parent = popup.element();
 			content = c;
 
 			$month = $parent.querySelector(".js-month");
@@ -1089,6 +1085,59 @@ function newDatePicker(timeZone) {
 	};
 }
 
+function newGroupPicker(monitors, groups) {
+	let groupsHTML = "";
+	for (const group of sortByName(groups)) {
+		groupsHTML += `
+			<span 
+				class="group-picker-item"
+				data="${group.id}"
+			>${group.name}</span>`;
+	}
+
+	return {
+		html: `
+			<div class="group-picker">
+				<span class="group-picker-label">Groups</span>
+				${groupsHTML}
+			</div>`,
+		init(popup, content) {
+			const $parent = popup.element();
+			const element = $parent.querySelector(".group-picker");
+
+			const saved = localStorage.getItem("group");
+			if (groups[saved] != undefined) {
+				element
+					.querySelector(`.group-picker-item[data="${saved}"]`)
+					.classList.add("group-picker-item-selected");
+				const monitors = JSON.parse(groups[saved]["monitors"]);
+				content.setMonitors(monitors);
+			}
+
+			element.addEventListener("click", (event) => {
+				if (!event.target.classList.contains("group-picker-item")) {
+					return;
+				}
+
+				// Clear selection.
+				const fields = element.querySelectorAll(".group-picker-item");
+				for (const field of fields) {
+					field.classList.remove("group-picker-item-selected");
+				}
+
+				event.target.classList.add("group-picker-item-selected");
+
+				const groupID = event.target.attributes["data"].value;
+				const groupMonitors = JSON.parse(groups[groupID]["monitors"]);
+				content.setMonitors(groupMonitors);
+				content.reset();
+
+				localStorage.setItem("group", groupID);
+			});
+		},
+	};
+}
+
 const newOptionsBtn = {
 	gridSize() {
 		const getGridSize = () => {
@@ -1131,13 +1180,30 @@ const newOptionsBtn = {
 	},
 	date(timeZone) {
 		const datePicker = newDatePicker(timeZone);
-		const popup = newOptionsPopup("date", datePicker.html);
+		const icon = "static/icons/feather/calendar.svg";
+		const popup = newOptionsPopup("date", icon, datePicker.html);
 
 		return {
 			html: popup.html,
 			init($parent, content) {
 				popup.init($parent);
-				datePicker.init($parent, content);
+				datePicker.init(popup, content);
+			},
+		};
+	},
+	group(monitors, groups) {
+		if (Object.keys(groups).length == 0) {
+			return;
+		}
+		const groupPicker = newGroupPicker(monitors, groups);
+		const icon = "static/icons/feather/group.svg";
+		const popup = newOptionsPopup("group", icon, groupPicker.html);
+
+		return {
+			html: popup.html,
+			init($parent, content) {
+				popup.init($parent);
+				groupPicker.init(popup, content);
 			},
 		};
 	},
@@ -1149,7 +1215,9 @@ function newOptionsMenu(buttons) {
 	const html = () => {
 		let html = "";
 		for (const btn of buttons) {
-			html += btn.html;
+			if (btn != undefined && btn.html != undefined) {
+				html += btn.html;
+			}
 		}
 		return html;
 	};
@@ -1157,9 +1225,10 @@ function newOptionsMenu(buttons) {
 		html: html(),
 		init($parent, content) {
 			for (const btn of buttons) {
-				btn.init($parent, content);
+				if (btn != undefined && btn.init != undefined) {
+					btn.init($parent, content);
+				}
 			}
-
 			content.reset();
 		},
 	};

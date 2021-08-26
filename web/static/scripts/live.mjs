@@ -106,8 +106,22 @@ function newVideo(id, options, Hls) {
 }
 
 function newViewer($parent, monitors, Hls) {
+	let selectedMonitors = [];
 	let preferLowRes = false;
 	let videos = [];
+
+	const isMonitorSelected = (monitor) => {
+		if (selectedMonitors.length == 0) {
+			return true;
+		}
+		for (const id of selectedMonitors) {
+			if (monitor["id"] == id) {
+				return true;
+			}
+		}
+		return false;
+	};
+
 	return {
 		lowRes() {
 			preferLowRes = true;
@@ -121,6 +135,9 @@ function newViewer($parent, monitors, Hls) {
 			}
 			videos = [];
 			for (const monitor of Object.values(monitors)) {
+				if (!isMonitorSelected(monitor)) {
+					continue;
+				}
 				if (monitor["enable"] !== "true") {
 					continue;
 				}
@@ -142,6 +159,9 @@ function newViewer($parent, monitors, Hls) {
 			for (const video of videos) {
 				video.init($parent);
 			}
+		},
+		setMonitors(input) {
+			selectedMonitors = input;
 		},
 	};
 }
@@ -189,13 +209,19 @@ function resBtn() {
 
 		const $contentGrid = document.querySelector("#content-grid");
 
+		const groups = await fetchGet("api/group/configs", "could not get group");
+
 		const monitors = await fetchGet("api/monitor/list", "could not get monitor list");
 
 		const viewer = newViewer($contentGrid, monitors, Hls);
 
 		/* eslint-enable no-undef */
 		const $options = $("#options-menu");
-		const buttons = [newOptionsBtn.gridSize(), resBtn()];
+		const buttons = [
+			newOptionsBtn.gridSize(),
+			resBtn(),
+			newOptionsBtn.group(monitors, groups),
+		];
 		const optionsMenu = newOptionsMenu(buttons);
 		$options.innerHTML = optionsMenu.html;
 		optionsMenu.init($options, viewer);

@@ -174,6 +174,25 @@ func TestRecordingByQuery(t *testing.T) {
 			t.Fatalf("getAll expected:\n%v.\ngot:\n%v.", expected, actual)
 		}
 	})
+	t.Run("emptyMonitorsPanic", func(t *testing.T) {
+		c := NewCrawler("./testdata")
+		c.RecordingByQuery(
+			&CrawlerQuery{
+				Time:     "2003-02-01_1_m1",
+				Limit:    1,
+				Monitors: []string{""},
+			},
+		)
+	})
+	t.Run("invalidTimeErr", func(t *testing.T) {
+		c := NewCrawler("./testdata")
+		_, err := c.RecordingByQuery(
+			&CrawlerQuery{Time: "", Limit: 1},
+		)
+		if err == nil {
+			t.Fatal("expected error got: nil")
+		}
+	})
 	t.Run("paths", func(t *testing.T) {
 		paths := []string{
 			"testdata",

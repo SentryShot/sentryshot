@@ -78,4 +78,15 @@ async function fetchDelete(url, token, msg) {
 	return true;
 }
 
-export { $, $$, fetchGet, fetchPost, fetchPut, fetchDelete };
+function sortByName(input) {
+	input = Object.values(input);
+	input.sort((a, b) => {
+		if (a["name"] > b["name"]) {
+			return true;
+		}
+		return false;
+	});
+	return input;
+}
+
+export { $, $$, fetchGet, fetchPost, fetchPut, fetchDelete, sortByName };

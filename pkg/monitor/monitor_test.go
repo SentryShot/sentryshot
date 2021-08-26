@@ -82,7 +82,7 @@ func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 		cancel2()
 	}
 
-	manager, err := NewMonitorManager(
+	manager, err := NewManager(
 		configDir,
 		&storage.ConfigEnv{},
 		logger,
@@ -126,7 +126,7 @@ func TestNewManager(t *testing.T) {
 		}
 	})
 	t.Run("readFileErr", func(t *testing.T) {
-		_, err := NewMonitorManager(
+		_, err := NewManager(
 			"/dev/null/nil.json",
 			&storage.ConfigEnv{},
 			&log.Logger{},
@@ -146,7 +146,7 @@ func TestNewManager(t *testing.T) {
 			t.Fatalf("%v", err)
 		}
 
-		_, err := NewMonitorManager(
+		_, err := NewManager(
 			configDir,
 			&storage.ConfigEnv{},
 			&log.Logger{},

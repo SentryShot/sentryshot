@@ -29,7 +29,9 @@ import {
 	newRenderer,
 	newGeneral,
 	newMonitor,
+	newGroup,
 	newUser,
+	newSelectMonitor,
 } from "./static/scripts/settings.mjs";
 
 const CSRFtoken = "{{ .user.Token }}";
@@ -139,6 +141,25 @@ if (isAdmin === "true") {
 	};
 	const monitor = newMonitor(CSRFtoken, monitorFields);
 	renderer.addCategory(monitor);
+
+	const groupFields = {
+		id: (() => {
+			let value;
+			return {
+				value() {
+					return value;
+				},
+				set(input) {
+					value = input;
+				},
+			};
+		})(),
+		name: fieldTemplate.text("settings-group-name", "Name", "my_group"),
+		monitors: newSelectMonitor("settings-group-monitors"),
+	};
+
+	const group = newGroup(CSRFtoken, groupFields);
+	renderer.addCategory(group);
 
 	const userFields = {
 		id: {

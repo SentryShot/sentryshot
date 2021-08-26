@@ -55,7 +55,7 @@ type Hooks struct {
 
 // Manager for the monitors.
 type Manager struct {
-	Monitors map[string]*Monitor
+	Monitors monitors
 	env      *storage.ConfigEnv
 	log      *log.Logger
 	path     string
@@ -63,8 +63,8 @@ type Manager struct {
 	mu       sync.Mutex
 }
 
-// NewMonitorManager return new monitors configuration.
-func NewMonitorManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hooks Hooks) (*Manager, error) {
+// NewManager return new monitor manager.
+func NewManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hooks Hooks) (*Manager, error) {
 	configFiles, err := readConfigs(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read configuration files: %s", err)
@@ -77,7 +77,7 @@ func NewMonitorManager(configPath string, env *storage.ConfigEnv, log *log.Logge
 		hooks: hooks,
 	}
 
-	monitors := make(map[string]*Monitor)
+	monitors := make(monitors)
 	for _, file := range configFiles {
 		var config Config
 		if err := json.Unmarshal(file, &config); err != nil {
@@ -287,6 +287,9 @@ func (e events) query(start time.Time, end time.Time) events {
 
 // Trigger recording using event.
 type Trigger chan Event
+
+// monitors map.
+type monitors map[string]*Monitor
 
 // Monitor service.
 type Monitor struct {

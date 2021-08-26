@@ -415,7 +415,7 @@ describe("newForm", () => {
 test("newModal", () => {
 	const modal = newModal("test");
 
-	document.body.innerHTML = modal.html();
+	document.body.innerHTML = modal.html;
 	modal.init(document.body);
 
 	modal.open();
@@ -903,12 +903,89 @@ describe("optionsDate", () => {
 	});
 	test("popup", () => {
 		setup();
-		const $popup = $(".js-popup");
+		const $popup = $(".options-popup");
 		expect($popup.classList.contains("options-popup-open")).toEqual(false);
 		$(".js-date").click();
 		expect($popup.classList.contains("options-popup-open")).toEqual(true);
 		$(".js-date").click();
 		expect($popup.classList.contains("options-popup-open")).toEqual(false);
+	});
+});
+
+describe("optionsGroup", () => {
+	const setup = () => {
+		document.body.innerHTML = `<div></div>`;
+		const element = $("div");
+
+		const groups = {
+			a: {
+				id: "a",
+				name: "group1",
+				monitors: JSON.stringify(["1"]),
+			},
+			b: {
+				id: "b",
+				name: "group2",
+			},
+		};
+
+		const group = newOptionsBtn.group({}, groups);
+		element.innerHTML = group.html;
+		group.init(element, { setMonitors() {}, reset() {} });
+
+		return [group, element];
+	};
+	test("rendering", () => {
+		setup();
+		const expected = `
+			<span class="group-picker-label">Groups</span>
+			<span class="group-picker-item" data="a">group1</span>
+			<span class="group-picker-item" data="b">group2</span>`.replace(/\s/g, "");
+		const $picker = $(".group-picker");
+
+		let actual = $picker.innerHTML.replace(/\s/g, "");
+		expect(actual).toEqual(expected);
+
+		$(".group-picker-label").click();
+		actual = $picker.innerHTML.replace(/\s/g, "");
+		expect(actual).toEqual(expected);
+
+		const $group1 = $(".group-picker-item[data='a']");
+		expect($group1.classList.contains("group-picker-item-selected")).toEqual(false);
+		$group1.click();
+		expect($group1.classList.contains("group-picker-item-selected")).toEqual(true);
+	});
+	test("content", () => {
+		const [group, element] = setup();
+		let setMonitorsCalled = false;
+		let resetCalled = false;
+		const content = {
+			setMonitors() {
+				setMonitorsCalled = true;
+			},
+			reset() {
+				resetCalled = true;
+			},
+		};
+		group.init(element, content);
+		const $group1 = $(".group-picker-item[data='a']");
+		$group1.click();
+
+		expect(setMonitorsCalled).toEqual(true);
+		expect(resetCalled).toEqual(true);
+	});
+	test("popup", () => {
+		setup();
+		const $popup = $(".options-popup");
+		expect($popup.classList.contains("options-popup-open")).toEqual(false);
+		$(".js-group").click();
+		expect($popup.classList.contains("options-popup-open")).toEqual(true);
+		$(".js-group").click();
+		expect($popup.classList.contains("options-popup-open")).toEqual(false);
+	});
+	test("noGroups", () => {
+		const group = newOptionsBtn.group({}, {});
+		expect(group).toBeUndefined();
 	});
 });
 

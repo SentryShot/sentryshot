@@ -12,8 +12,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, $$, fetchGet, fetchPost, fetchPut, fetchDelete } from "./common.mjs";
-import { newForm } from "./components.mjs";
+import {
+	$,
+	$$,
+	fetchGet,
+	fetchPost,
+	fetchPut,
+	fetchDelete,
+	sortByName,
+} from "./common.mjs";
+import { newForm, newModal } from "./components.mjs";
 
 function newRenderer($parent) {
 	let categories = [];
@@ -349,18 +357,18 @@ function newMonitor(token, fields) {
 	const monitorLoad = (navElement, monitors) => {
 		form.reset();
 		const id = navElement.attributes.data.value;
-		const $monitor = $("#settings-monitors-id");
+		const $monitorID = $("#settings-monitors-id");
 		let monitor = {},
 			title;
 
 		if (id === "") {
 			monitor["id"] = randomString(5);
 			title = "Add";
-			$monitor.disabled = false;
+			$monitorID.disabled = false;
 		} else {
 			monitor = monitors[id];
 			title = monitor.name;
-			$monitor.disabled = true;
+			$monitorID.disabled = true;
 		}
 
 		category.setTitle(title);
@@ -379,7 +387,8 @@ function newMonitor(token, fields) {
 
 	const renderMonitorList = (monitors) => {
 		let html = "";
-		for (const m of Object.values(monitors)) {
+		const sortedMonitors = sortByName(monitors);
+		for (const m of sortedMonitors) {
 			html += ` 
 				<li
 					class="settings-category-nav-item js-nav"
@@ -467,6 +476,148 @@ function newMonitor(token, fields) {
 		form.buttons()["delete"].onClick(() => {
 			if (confirm("delete monitor?")) {
 				deleteMonitor(form.fields.id.value());
+			}
+		});
+	};
+
+	return {
+		name() {
+			return name;
+		},
+		title() {
+			return title;
+		},
+		icon() {
+			return icon;
+		},
+		html() {
+			return category.html();
+		},
+		init($parent) {
+			init($parent);
+		},
+		open() {
+			category.open();
+			load();
+		},
+	};
+}
+
+function newGroup(token, fields) {
+	const name = "groups";
+	const title = "Groups";
+	const icon = "static/icons/feather/group.svg";
+
+	const category = newCategory(name, title);
+	const form = newForm(fields);
+	form.addButton("save");
+	form.addButton("delete");
+	category.setForm(form);
+
+	const groupLoad = (navElement, groups) => {
+		form.reset();
+		const id = navElement.attributes.data.value;
+		let group = {},
+			title;
+
+		if (id === "") {
+			group["id"] = randomString(5);
+			title = "Add";
+		} else {
+			group = groups[id];
+			title = group.name;
+		}
+
+		category.setTitle(title);
+
+		// Set fields.
+		for (const key of Object.keys(form.fields)) {
+			if (form.fields[key] && form.fields[key].set) {
+				if (group[key]) {
+					form.fields[key].set(group[key], group, fields);
+				} else {
+					form.fields[key].set("", group, fields);
+				}
+			}
+		}
+	};
+
+	const renderGroupList = (groups) => {
+		let html = "";
+		const sortedGroups = sortByName(groups);
+		for (const m of sortedGroups) {
+			html += ` 
+				<li
+					class="settings-category-nav-item js-nav"
+					data="${m.id}"
+				>
+					<span>${m.name}</span>
+				</li>`;
+		}
+
+		html += `
+			<button class="settings-add-btn js-nav" data="">
+				<span>Add</span>
+			</button>`;
+
+		category.setNav(html);
+		category.onNav((element) => {
+			groupLoad(element, groups);
+		});
+	};
+
+	let groups = {};
+
+	const load = async () => {
+		category.closeSubcategory();
+		groups = await fetchGet("api/group/configs", "could not fetch group config");
+		renderGroupList(groups);
+	};
+
+	const saveGroup = async (form) => {
+		const err = form.validate();
+		if (err !== "") {
+			alert(`invalid form: ${err}`);
+			return;
+		}
+
+		const id = form.fields.id.value();
+		let group = groups[id] || {};
+		for (const key of Object.keys(form.fields)) {
+			group[key] = form.fields[key].value();
+		}
+
+		const ok = await fetchPut("api/group/set", group, token, "could not save group");
+		if (!ok) {
+			return;
+		}
+
+		load();
+	};
+
+	const deleteGroup = async (id) => {
+		const params = new URLSearchParams({ id: id });
+		const ok = await fetchDelete(
+			"api/group/delete?" + params,
+			token,
+			"could not delete group"
+		);
+		if (!ok) {
+			return;
+		}
+
+		load();
+	};
+
+	const init = () => {
+		category.init();
+		form.buttons()["save"].onClick(() => {
+			saveGroup(form, groups);
+		});
+
+		form.buttons()["delete"].onClick(() => {
+			if (confirm("delete group?")) {
+				deleteGroup(form.fields.id.value());
 			}
 		});
 	};
@@ -644,4 +795,123 @@ function randomString(length) {
 	return output;
 }
 
-export { newRenderer, newGeneral, newMonitor, newUser };
+function newSelectMonitor(id) {
+	const modal = newModal("Monitors");
+	let fields = {};
+	let loaded = false;
+	let initial = [];
+	let $content;
+
+	const newField = (id, name) => {
+		let $checkbox;
+		return {
+			html: `
+				<div class="monitor-selector-item item-${id}">
+					<span class="monitor-selector-label">${name}</span>
+					<div class="checkbox">
+					 	<input class="checkbox-checkbox" type="checkbox"/>
+						<div class="checkbox-box"></div>
+						<img class="checkbox-check" src="static/icons/feather/check.svg"/>
+					</div>
+				</div>`,
+			init($parent) {
+				$checkbox = $parent.querySelector(`.item-${id} .checkbox-checkbox`);
+			},
+			set(input) {
+				$checkbox.checked = input;
+			},
+			value() {
+				return $checkbox.checked;
+			},
+		};
+	};
+
+	const loadMonitors = async (element) => {
+		const monitorsList = await fetchGet(
+			"api/monitor/list",
+			"could not fetch monitor list"
+		);
+
+		fields = {};
+		let html = "";
+		const sortedMonitors = sortByName(monitorsList);
+		for (const monitor of sortedMonitors) {
+			const id = monitor["id"];
+			const field = newField(id, monitor["name"]);
+			html += field.html;
+			fields[id] = field;
+		}
+		$content.innerHTML = `
+			<div class="monitor-selector">
+				${html}
+			</div>`;
+
+		for (const field of Object.values(fields)) {
+			field.init(element);
+		}
+	};
+
+	const updateFields = (input) => {
+		for (const [id, field] of Object.entries(fields)) {
+			const state = input.includes(id);
+			field.set(state);
+		}
+	};
+
+	return {
+		html: `
+			<li id="${id}" class="settings-form-item-flex">
+				<label class="settings-label" for="${id}">Monitors</label>
+				<button class="settings-edit-btn color3">
+					<img src="static/icons/feather/edit-3.svg"/>
+				</button>
+				${modal.html}
+			</li> `,
+		init($parent) {
+			const element = $parent.querySelector(`#${id}`);
+			modal.init(element);
+
+			$content = element.querySelector(".modal-content");
+
+			element
+				.querySelector(".settings-edit-btn")
+				.addEventListener("click", async () => {
+					modal.open();
+					if (!loaded) {
+						await loadMonitors(element);
+						loaded = true;
+						updateFields(initial);
+					}
+				});
+		},
+		set(input) {
+			// Reset.
+			if (!input) {
+				$content.innerHTML = "";
+				loaded = false;
+				return;
+			}
+
+			const monitors = JSON.parse(input);
+			if (!initial || !loaded) {
+				initial = monitors;
+				return;
+			}
+			updateFields(monitors);
+		},
+		value() {
+			if (!loaded) {
+				return JSON.stringify(initial);
+			}
+			let selectedMonitors = [];
+			for (const [id, field] of Object.entries(fields)) {
+				if (field.value()) {
+					selectedMonitors.push(id);
+				}
+			}
+			return JSON.stringify(selectedMonitors);
+		},
+	};
+}
+
+export { newRenderer, newGeneral, newMonitor, newGroup, newUser, newSelectMonitor };

@@ -111,6 +111,7 @@
 
 .settings-category-nav-item {
 	align-items: center;
+	width: 100vw;
 	padding: 0.3rem;
 	border-color: var(--colorbg);
 	border-bottom: solid;
@@ -198,6 +199,15 @@
 	border-bottom-width: 0.05rem;
 }
 
+.settings-form-item-flex {
+	display: flex;
+	align-items: center;
+	padding: 0.25rem;
+	border-color: var(--colorbg);
+	border-bottom: solid;
+	border-bottom-width: 0.05rem;
+}
+
 .settings-form-item-error {
 	align-items: center;
 	padding: 0.2rem;
@@ -208,6 +218,7 @@
 }
 
 .settings-label {
+	flex-grow: 1;
 	float: left;
 	width: 95vw;
 	min-width: 4rem;
@@ -275,6 +286,28 @@
 	filter: var(--color-icons);
 }
 
+.monitor-selector {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.monitor-selector-item {
+	position: relative;
+	display: flex;
+	align-items: center;
+	width: 100%;
+	padding: 0.1rem 0.2rem;
+	border-width: 0.01rem;
+	border-style: solid;
+	border-color: var(--color1);
+}
+
+.monitor-selector-label {
+	margin-right: auto;
+	color: var(--color-text);
+	font-size: 1rem;
+}
+
 /* Tablet/Dektop. */
 @media only screen and (min-width: 768px) {
 	.settings-navbar {
@@ -305,6 +338,10 @@
 		visibility: visible;
 	}
 
+	.settings-category-nav-item {
+		width: auto;
+	}
+
 	.settings-menubar {
 		display: none;
 	}
@@ -320,5 +357,14 @@
 	.settings-users-info {
 		display: flex;
 		align-items: center;
+	}
+	.monitor-selector {
+		grid-auto-columns: min-content;
+	}
+	.monitor-selector-item {
+		width: auto;
+	}
+	.monitor-selector-label {
+		padding-right: 0.3rem;
 	}
 }
