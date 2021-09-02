@@ -38,7 +38,6 @@ type Manager struct {
 	removeAll func(string) error
 
 	log *log.Logger
-	o   sync.Once
 }
 
 // NewManager returns new manager.
@@ -139,38 +138,59 @@ func (s *Manager) purge() error {
 		return nil
 	}
 
+	const dayDepth = 3
+
 	// Find the oldest day.
-	path := s.path
-	for depth := 0; depth <= 3; depth++ {
+	path := s.RecordingsDir()
+	for depth := 1; depth <= dayDepth; depth++ {
 		list, err := ioutil.ReadDir(path)
 		if err != nil {
 			return fmt.Errorf("could not read directory %v: %v", path, err)
 		}
 
-		path += "/" + list[0].Name()
+		isDirEmpty := len(list) == 0
+		if isDirEmpty {
+			if depth <= 2 {
+				return nil
+			}
+
+			if err := s.removeAll(path); err != nil {
+				return fmt.Errorf("could not remove directory: %v", err)
+			}
+
+			path = s.RecordingsDir()
+			depth = 0
+			continue
+		}
+
+		firstFile := list[0].Name()
+		path = filepath.Join(path, firstFile)
 	}
 
 	// Delete all files from that day
 	if err := s.removeAll(path); err != nil {
-		return err
+		return fmt.Errorf("could not remove directory: %v", err)
 	}
 	return nil
 }
 
+// RecordingsDir Returns path to recordings diectory.
+func (s *Manager) RecordingsDir() string {
+	return filepath.Join(s.path, "recordings")
+}
+
 // PurgeLoop runs Purge on an interval until context is canceled.
 func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
-	s.o.Do(func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(duration):
-				if err := s.purge(); err != nil {
-					s.log.Printf("failed to purge storage: %v", err)
-				}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(duration):
+			if err := s.purge(); err != nil {
+				s.log.Printf("failed to purge storage: %v", err)
 			}
 		}
-	})
+	}
 }
 
 // ConfigEnv stores system configuration.

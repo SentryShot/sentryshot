@@ -144,75 +144,123 @@ var highUsage = func(_ string) int64 {
 }
 
 func TestPurge(t *testing.T) {
-	cases := []struct {
-		name      string
-		input     *Manager
-		expectErr bool
-	}{
-		{
-			"usage error",
-			&Manager{
-				general: diskSpaceErr,
-				usage: func(_ string) int64 {
-					return 1
+	t.Run("working", func(t *testing.T) {
+		cases := []struct {
+			name      string
+			input     *Manager
+			expectErr bool
+		}{
+			{
+				"usage error",
+				&Manager{
+					general: diskSpaceErr,
+					usage: func(string) int64 {
+						return 1
+					},
 				},
+				true,
 			},
-			true,
-		},
-		{
-			"below 99%",
-			&Manager{
-				general: diskSpace1,
-				usage: func(_ string) int64 {
-					return 1
+			{
+				"below 99%",
+				&Manager{
+					general: diskSpace1,
+					usage: func(string) int64 {
+						return 1
+					},
 				},
+				false,
 			},
-			false,
-		},
-		{
-			"readDir error",
-			&Manager{
-				general: diskSpace1,
-				usage:   highUsage,
-			},
-			true,
-		},
-		{
-			"working",
-			&Manager{
-				path:    "testdata",
-				general: diskSpace1,
-				usage:   highUsage,
-				removeAll: func(_ string) error {
-					return nil
+			{
+				"readDir error",
+				&Manager{
+					general: diskSpace1,
+					usage:   highUsage,
 				},
+				true,
 			},
-			false,
-		},
-		{
-			"removeAll error",
-			&Manager{
-				path:    "testdata",
-				general: diskSpace1,
-				usage:   highUsage,
-				removeAll: func(_ string) error {
-					return errors.New("")
+			{
+				"working",
+				&Manager{
+					path:    "testdata",
+					general: diskSpace1,
+					usage:   highUsage,
+					removeAll: func(string) error {
+						return nil
+					},
 				},
+				false,
 			},
-			true,
-		},
-	}
+			{
+				"removeAll error",
+				&Manager{
+					path:    "testdata",
+					general: diskSpace1,
+					usage:   highUsage,
+					removeAll: func(string) error {
+						return errors.New("")
+					},
+				},
+				true,
+			},
+		}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
 
-			err := tc.input.purge()
-			gotError := err != nil
-			if tc.expectErr != gotError {
-				t.Fatalf("\nexpected error %v\n     got %v", tc.expectErr, err)
-			}
-		})
+				err := tc.input.purge()
+				gotError := err != nil
+				if tc.expectErr != gotError {
+					t.Fatalf("\nexpected error %v\n     got %v", tc.expectErr, err)
+				}
+			})
+		}
+	})
+
+	t.Run("removeAll", func(t *testing.T) {
+		tempDir, err := ioutil.TempDir("", "")
+		if err != nil {
+			t.Fatalf("could not create tempoary directory: %v", err)
+		}
+		defer os.RemoveAll(tempDir)
+
+		testDir := filepath.Join(tempDir, "recordings", "2000", "01", "01")
+		if err := os.MkdirAll(testDir, 0700); err != nil {
+			t.Fatalf("could not create test directory: %v", err)
+		}
+
+		m := &Manager{
+			path: tempDir,
+			general: &ConfigGeneral{
+				Config: GeneralConfig{
+					DiskSpace: "1",
+				},
+			},
+			usage:     highUsage,
+			removeAll: os.RemoveAll,
+		}
+		if err := m.purge(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if err := m.purge(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if exist(filepath.Join(tempDir, "recordings", "1000")) {
+			t.Fatalf("empty year directory was not deleted")
+		}
+
+		if !exist(filepath.Join(tempDir, "recordings")) {
+			t.Fatalf("recordings directory was deleted")
+		}
+	})
+}
+
+func exist(path string) bool {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
 	}
+	return true
 }
 
 func TestPurgeLoop(t *testing.T) {

@@ -66,7 +66,7 @@ import (
 */
 func TestRecordingByQuery(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		c := NewCrawler("./testdata")
+		c := NewCrawler("./testdata/recordings")
 
 		cases := []struct{ name, time, expected string }{
 			{"noFiles", "0000-01-01", ""},
@@ -98,7 +98,7 @@ func TestRecordingByQuery(t *testing.T) {
 		}
 	})
 	t.Run("reverse", func(t *testing.T) {
-		c := NewCrawler("./testdata")
+		c := NewCrawler("./testdata/recordings")
 
 		cases := []struct{ name, time, expected string }{
 			{"latest", "1111-01-01", "2000-01-01_1_m1"},
@@ -136,7 +136,7 @@ func TestRecordingByQuery(t *testing.T) {
 			2003-01-01_1_m1`,
 			"\t", "")
 
-		c := NewCrawler("./testdata")
+		c := NewCrawler("./testdata/recordings")
 		recordings, _ := c.RecordingByQuery(
 			&CrawlerQuery{
 				Time:  "9999-01-01",
@@ -156,7 +156,7 @@ func TestRecordingByQuery(t *testing.T) {
 	t.Run("monitors", func(t *testing.T) {
 		expected := "\n2003-01-01_1_m1"
 
-		c := NewCrawler("./testdata")
+		c := NewCrawler("./testdata/recordings")
 		recordings, _ := c.RecordingByQuery(
 			&CrawlerQuery{
 				Time:     "2003-02-01_1_m1",
@@ -175,7 +175,7 @@ func TestRecordingByQuery(t *testing.T) {
 		}
 	})
 	t.Run("emptyMonitorsPanic", func(t *testing.T) {
-		c := NewCrawler("./testdata")
+		c := NewCrawler("./testdata/recordings")
 		c.RecordingByQuery(
 			&CrawlerQuery{
 				Time:     "2003-02-01_1_m1",
@@ -185,7 +185,7 @@ func TestRecordingByQuery(t *testing.T) {
 		)
 	})
 	t.Run("invalidTimeErr", func(t *testing.T) {
-		c := NewCrawler("./testdata")
+		c := NewCrawler("./testdata/recordings")
 		_, err := c.RecordingByQuery(
 			&CrawlerQuery{Time: "", Limit: 1},
 		)
@@ -195,9 +195,9 @@ func TestRecordingByQuery(t *testing.T) {
 	})
 	t.Run("paths", func(t *testing.T) {
 		paths := []string{
-			"testdata",
-			"./testdata",
-			"./testdata/",
+			"testdata/recordings",
+			"./testdata/recordings",
+			"./testdata/recordings/",
 		}
 		for _, path := range paths {
 			t.Run(path, func(t *testing.T) {

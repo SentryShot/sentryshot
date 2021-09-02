@@ -109,8 +109,7 @@ func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
 
 	storageManager := storage.NewManager(env.StorageDir, general, logger)
 
-	recordingsDir := filepath.Join(env.StorageDir, "recordings")
-	crawler := storage.NewCrawler(recordingsDir)
+	crawler := storage.NewCrawler(storageManager.RecordingsDir())
 
 	sys := system.New(storageManager.Usage, logger)
 
