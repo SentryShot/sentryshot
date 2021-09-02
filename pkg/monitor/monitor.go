@@ -40,17 +40,21 @@ type Config map[string]string
 // Configs Monitor configurations.
 type Configs map[string]Config
 
-// StartHook is called on monitor start.
+// StartHook is called when monitor start.
 type StartHook func(context.Context, *Monitor)
 
-// StartInputHook is called on input process start.
+// StartInputHook is called when input process start.
 type StartInputHook func(context.Context, *Monitor, *string)
+
+// RecSaveHook is called when recording is saved.
+type RecSaveHook func(*Monitor, *string)
 
 // Hooks monitor hooks.
 type Hooks struct {
 	Start     StartHook
 	StartMain StartInputHook
 	StartSub  StartInputHook
+	RecSave   RecSaveHook
 }
 
 // Manager for the monitors.
@@ -112,22 +116,22 @@ func (m *Manager) MonitorSet(id string, c Config) error {
 
 	monitor, exist := m.Monitors[id]
 	if exist {
-		monitor.mu.Lock()
+		monitor.Mu.Lock()
 		monitor.Config = c
-		monitor.mu.Unlock()
+		monitor.Mu.Unlock()
 	} else {
 		monitor = m.newMonitor(c)
 		m.Monitors[id] = monitor
 	}
 
 	// Update file.
-	monitor.mu.Lock()
+	monitor.Mu.Lock()
 	config, _ := json.MarshalIndent(monitor.Config, "", "    ")
 
 	if err := ioutil.WriteFile(m.configPath(id), config, 0600); err != nil {
 		return err
 	}
-	monitor.mu.Unlock()
+	monitor.Mu.Unlock()
 
 	return nil
 }
@@ -158,9 +162,9 @@ func (m *Manager) MonitorList() Configs {
 	configs := make(map[string]Config)
 	m.mu.Lock()
 	for _, monitor := range m.Monitors {
-		monitor.mu.Lock()
+		monitor.Mu.Lock()
 		c := monitor.Config
-		monitor.mu.Unlock()
+		monitor.Mu.Unlock()
 
 		audioEnabled := "false"
 		if monitor.audioEnabled() {
@@ -194,9 +198,9 @@ func (m *Manager) MonitorConfigs() map[string]Config {
 
 	m.mu.Lock()
 	for _, monitor := range m.Monitors {
-		monitor.mu.Lock()
+		monitor.Mu.Lock()
 		configs[monitor.Config["id"]] = monitor.Config
-		monitor.mu.Unlock()
+		monitor.Mu.Unlock()
 	}
 	m.mu.Unlock()
 
@@ -313,7 +317,7 @@ type Monitor struct {
 	videoDuration       ffmpeg.VideoDurationFunc
 	watchdogInterval    time.Duration
 
-	mu     sync.Mutex
+	Mu     sync.Mutex
 	WG     *sync.WaitGroup
 	Log    *log.Logger
 	cancel func()
@@ -321,8 +325,8 @@ type Monitor struct {
 
 // Start monitor.
 func (m *Monitor) Start() error {
-	defer m.mu.Unlock()
-	m.mu.Lock()
+	defer m.Mu.Unlock()
+	m.Mu.Lock()
 	if m.running {
 		return fmt.Errorf("monitor already running")
 	}
@@ -387,13 +391,13 @@ func (m *Monitor) startInputProcess(ctx context.Context, subProcess bool) {
 
 	for {
 		if ctx.Err() != nil {
-			m.mu.Lock()
+			m.Mu.Lock()
 
 			m.running = false
 			m.Log.Printf("%v: %v process: stopped\n", m.Name(), processName)
 			m.WG.Done()
 
-			m.mu.Unlock()
+			m.Mu.Unlock()
 			return
 		}
 		if err := m.runInputProcess(ctx, m, subProcess); err != nil {
@@ -419,7 +423,7 @@ func runInputProcess(ctx context.Context, m *Monitor, subProcess bool) error {
 		return fmt.Errorf("could not get size of stream: %v", err)
 	}
 
-	m.mu.Lock()
+	m.Mu.Lock()
 	var args string
 	var processName string
 	if !subProcess {
@@ -433,7 +437,7 @@ func runInputProcess(ctx context.Context, m *Monitor, subProcess bool) error {
 		args = generateInputArgs(m, true)
 		m.hooks.StartSub(ctx, m, &args)
 	}
-	m.mu.Unlock()
+	m.Mu.Unlock()
 
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 
@@ -552,13 +556,13 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			m.eventsMu.Unlock()
 
 			end := event.Time.Add(event.RecDuration)
-			m.mu.Lock()
+			m.Mu.Lock()
 			if m.recording {
 				if end.After(timeout) {
 					triggerTimeout.Reset(time.Until(end))
 					timeout = end
 				}
-				m.mu.Unlock()
+				m.Mu.Unlock()
 				continue
 			}
 
@@ -572,7 +576,7 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			m.WG.Add(1)
 
 			m.recording = true
-			m.mu.Unlock()
+			m.Mu.Unlock()
 
 			go m.startRecording(ctx2, m)
 		}
@@ -584,13 +588,13 @@ type startRecordingFunc func(context.Context, *Monitor)
 func startRecording(ctx context.Context, m *Monitor) {
 	for {
 		if ctx.Err() != nil {
-			m.mu.Lock()
+			m.Mu.Lock()
 
 			m.recording = false
 			m.Log.Printf("%v: recording stopped\n", m.Name())
 			m.WG.Done()
 
-			m.mu.Unlock()
+			m.Mu.Unlock()
 			return
 		}
 		if err := m.runRecordingProcess(ctx, m); err != nil {
@@ -635,10 +639,10 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	process.SetStdoutLogger(m.Log)
 	process.SetStderrLogger(m.Log)
 
-	m.mu.Lock()
+	m.Mu.Lock()
 	process.SetPrefix(m.Name() + ": recording process: ")
 	m.Log.Printf("%v: starting recording: %v\n", m.Name(), cmd)
-	m.mu.Unlock()
+	m.Mu.Unlock()
 
 	err = process.Start(ctx)
 
@@ -692,6 +696,8 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 		" -i " + videoPath + // Input.
 		" -frames:v 1 " + thumbPath // Output.
 
+	m.hooks.RecSave(m, &args)
+
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 
 	process := m.newProcess(cmd)
@@ -734,9 +740,9 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 
 // Stop monitor.
 func (m *Monitor) Stop() {
-	m.mu.Lock()
+	m.Mu.Lock()
 	m.running = false
-	m.mu.Unlock()
+	m.Mu.Unlock()
 
 	if m.cancel != nil {
 		m.cancel()

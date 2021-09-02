@@ -857,6 +857,7 @@ var mockHooks = Hooks{
 	Start:     func(context.Context, *Monitor) {},
 	StartMain: func(context.Context, *Monitor, *string) {},
 	StartSub:  func(context.Context, *Monitor, *string) {},
+	RecSave:   func(*Monitor, *string) {},
 }
 
 func TestGenInputArgs(t *testing.T) {
