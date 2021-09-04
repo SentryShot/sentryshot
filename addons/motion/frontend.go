@@ -56,24 +56,20 @@ func modifySettingsjs(tpl string) string {
 
 const javascript = `
 	motionDetection: fieldTemplate.toggle(
-		"settings-monitors-motionDetection",
 		"Detect motion",
 		"false"
 	),
 	motionFeedRate: fieldTemplate.integer(
-		"settings-monitors-motionFeedRate",
 		"Motion feed rate (fps)",
 		"",
 		"2"
 	),
 	motionFrameScale: fieldTemplate.select(
-			"settings-monitors-motionFrameScale",
 			"Motion frame scale",
 			["full", "half", "third", "quarter", "sixth", "eighth"],
 			"full"
 	),
 	motionDuration: fieldTemplate.integer(
-		"settings-monitors-motionDuration",
 		"Motion trigger duration (sec)",
 		"",
 		"120"
@@ -409,7 +405,6 @@ const javascript = `
 					const $zoneSelect = $content.querySelector("select");
 	
 					$zoneSelect.addEventListener("change", () => {
-						console.log("change");
 						loadZone();
 					});
 

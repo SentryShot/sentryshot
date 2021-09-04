@@ -89,4 +89,25 @@ function sortByName(input) {
 	return input;
 }
 
-export { $, $$, fetchGet, fetchPost, fetchPut, fetchDelete, sortByName };
+let idCount = 0;
+function uniqueID() {
+	idCount++;
+	return "uid" + idCount;
+}
+
+// Testing.
+function uidReset() {
+	idCount = 0;
+}
+
+export {
+	$,
+	$$,
+	fetchGet,
+	fetchPost,
+	fetchPut,
+	fetchDelete,
+	sortByName,
+	uniqueID,
+	uidReset,
+};

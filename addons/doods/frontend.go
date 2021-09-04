@@ -53,12 +53,10 @@ func javascript() string { //nolint:funlen
 
 	return `
 	doodsEnable: fieldTemplate.toggle(
-		"settings-monitors-doods",
 		"DOODS enable",
 		"false"
 	),
 	doodsDetectorName: fieldTemplate.select(
-		"settings-monitors-doodsDetector",
 		"DOODS detector",
 		[` + detectorList + `],
 		"default"
@@ -252,14 +250,12 @@ func javascript() string { //nolint:funlen
 			min: "0",
 		},
 		{
-			id: "settings-monitors-doodsFeedRate",
 			label: "DOODS feed rate (fps)",
 			placeholder: "",
 			initial: "2",
 		}
 	),
 	doodsDuration: fieldTemplate.integer(
-		"settings-monitors-doodsDuration",
 		"DOODS trigger duration (sec)",
 		"",
 		"120"

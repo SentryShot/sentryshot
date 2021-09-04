@@ -12,12 +12,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, sortByName } from "./common.mjs";
+import { $, sortByName, uniqueID } from "./common.mjs";
 
 /*
  * A form field can have the following functions.
  *
- * HTML()    Return all the html for the field to be rendered.
+ * HTML   html for the field to be rendered.
  *
  * value()   Return value from DOM input field.
  *
@@ -31,24 +31,12 @@ import { $, sortByName } from "./common.mjs";
  * Called after the html has been rendered. Parent element as parameter.
  * Used to set pointers to elements and to add event listeners.
  *
+ * element()   Returns field element. optional
  */
 
 /* Form field templates. */
 const fieldTemplate = {
-	passwordHTML(id, label, placeholder) {
-		return newHTMLfield(
-			{
-				errorField: true,
-				input: "password",
-			},
-			{
-				id: id,
-				label: label,
-				placeholder: placeholder,
-			}
-		);
-	},
-	text(id, label, placeholder, initial) {
+	text(label, placeholder, initial) {
 		return newField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
@@ -56,14 +44,13 @@ const fieldTemplate = {
 				input: "text",
 			},
 			{
-				id: id,
 				label: label,
 				placeholder: placeholder,
 				initial: initial,
 			}
 		);
 	},
-	integer(id, label, placeholder, initial) {
+	integer(label, placeholder, initial) {
 		return newField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
@@ -73,42 +60,38 @@ const fieldTemplate = {
 				step: "1",
 			},
 			{
-				id: id,
 				label: label,
 				placeholder: placeholder,
 				initial: initial,
 			}
 		);
 	},
-	toggle(id, label, initial) {
+	toggle(label, initial) {
 		return newField(
 			[],
 			{
 				select: ["true", "false"],
 			},
 			{
-				id: id,
 				label: label,
 				initial: initial,
 			}
 		);
 	},
-	select(id, label, options, initial) {
+	select(label, options, initial) {
 		return newField(
 			[],
 			{
 				select: options,
 			},
 			{
-				id: id,
 				label: label,
 				initial: initial,
 			}
 		);
 	},
-	selectCustom(id, label, options, initial) {
+	selectCustom(label, options, initial) {
 		return newSelectCustomField([inputRules.notEmpty, inputRules.noSpaces], options, {
-			id: id,
 			label: label,
 			initial: initial,
 		});
@@ -126,33 +109,40 @@ function $getInputAndError($parent) {
 }
 
 function newField(inputRules, options, values) {
-	let $input, $error, validate;
+	let element, $input, $error;
 
-	if (inputRules.len !== 0) {
-		validate = (input) => {
-			for (const rule of inputRules) {
-				if (rule[0].test(input)) {
-					return `${values.label} ${rule[1]}`;
-				}
-			}
+	const validate = (input) => {
+		if (inputRules.len === 0) {
 			return "";
-		};
-	}
+		}
+		for (const rule of inputRules) {
+			if (rule[0].test(input)) {
+				return `${values.label} ${rule[1]}`;
+			}
+		}
+		return "";
+	};
+
 	const value = () => {
 		return $input.value;
 	};
 
+	const id = uniqueID();
+
 	return {
-		html: newHTMLfield(options, values),
+		html: newHTMLfield(options, id, values.label, values.placeholder),
 		init() {
-			[$input, $error] = $getInputAndError($(`#js-${values.id}`));
+			element = $(`#js-${id}`);
+			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
 				if (options.errorField) {
 					$error.innerHTML = validate(value());
 				}
 			});
 		},
-		value: value,
+		value() {
+			return value();
+		},
 		set(input) {
 			if (input == "") {
 				$input.value = values.initial ? values.initial : "";
@@ -161,12 +151,103 @@ function newField(inputRules, options, values) {
 			}
 		},
 		validate: validate,
+		element() {
+			return element;
+		},
+	};
+}
+
+function newPasswordField() {
+	const newID = uniqueID();
+	const repeatID = uniqueID();
+	let $newInput, $newError, $repeatInput, $repeatError;
+
+	const passwordHTML = (id, label) => {
+		return `
+		<li id="js-${id}" class="settings-form-item-error">
+			<label for="${id}" class="settings-label">${label}</label>
+			<input
+				id="${id}"
+				class="settings-input-text js-input"
+				type="password"
+			/>
+			<span class="settings-error js-error"></span>
+		</li>`;
+	};
+
+	const validate = () => {
+		if (!isEmpty($newInput.value) && isEmpty($repeatInput.value)) {
+			return "repeat password";
+		} else if ($repeatInput.value !== $newInput.value) {
+			return "Passwords do not match";
+		}
+		return "";
+	};
+
+	const value = () => {
+		return $repeatInput.value;
+	};
+
+	const passwordStrength = (string) => {
+		const strongRegex = new RegExp(
+			"^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*])(?=.{8,})"
+		);
+		const mediumRegex = new RegExp(
+			"^(((?=.*[a-z])(?=.*[A-Z]))|((?=.*[a-z])(?=.*\\d))|((?=.*[A-Z])(?=.*\\d)))(?=.{6,})"
+		);
+
+		if (strongRegex.test(string) || string === "") {
+			return "";
+		} else if (mediumRegex.test(string)) {
+			return "strength: medium";
+		} else {
+			return "warning: weak password";
+		}
+	};
+	const checkPassword = () => {
+		$newError.innerHTML = passwordStrength($newInput.value);
+		$repeatError.innerHTML = validate(value());
+	};
+
+	return {
+		html:
+			passwordHTML(newID, "New password") +
+			passwordHTML(repeatID, "Repeat password"),
+		value: value,
+		set(input) {
+			$newInput.value = input;
+			$repeatInput.value = input;
+			checkPassword();
+		},
+		reset() {
+			$newInput.value = "";
+			$repeatInput.value = "";
+			$newError.textContent = "";
+			$repeatError.textContent = "";
+		},
+		init($parent) {
+			[$newInput, $newError] = $getInputAndError(
+				$parent.querySelector("#js-" + newID)
+			);
+			[$repeatInput, $repeatError] = $getInputAndError(
+				$parent.querySelector("#js-" + repeatID)
+			);
+
+			$newInput.addEventListener("change", () => {
+				checkPassword();
+			});
+			$repeatInput.addEventListener("change", () => {
+				checkPassword();
+			});
+		},
+		validate: validate,
 	};
 }
 
 // New select field with button to add custom value.
 function newSelectCustomField(inputRules, options, values) {
 	let $input, $error, validate;
+	const id = uniqueID();
 
 	const value = () => {
 		return $input.value;
@@ -179,7 +260,7 @@ function newSelectCustomField(inputRules, options, values) {
 		}
 
 		let customValue = true;
-		for (const option of $("#" + values.id).options) {
+		for (const option of $("#" + id).options) {
 			if (option.value === input) {
 				customValue = false;
 			}
@@ -201,6 +282,7 @@ function newSelectCustomField(inputRules, options, values) {
 			return "";
 		};
 	}
+
 	return {
 		html: (() => {
 			return newHTMLfield(
@@ -209,11 +291,13 @@ function newSelectCustomField(inputRules, options, values) {
 					custom: true,
 					errorField: true,
 				},
-				values
+				id,
+				values.label,
+				values.placeholder
 			);
 		})(),
 		init() {
-			const element = $(`#js-${values.id}`);
+			const element = $(`#js-${id}`);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
 				$error.innerHTML = validate(value());
@@ -231,9 +315,8 @@ function newSelectCustomField(inputRules, options, values) {
 	};
 }
 
-function newHTMLfield(options, values) {
+function newHTMLfield(options, id, label, placeholder) {
 	let { errorField, input, select, min, step, custom } = options;
-	let { id, label, placeholder } = values;
 
 	placeholder ? "" : (placeholder = "");
 	min ? (min = `min="${min}"`) : (min = "");
@@ -1245,6 +1328,7 @@ function pad(n) {
 export {
 	fieldTemplate,
 	newField,
+	newPasswordField,
 	inputRules,
 	newForm,
 	newModal,

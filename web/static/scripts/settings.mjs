@@ -357,7 +357,7 @@ function newMonitor(token, fields) {
 	const monitorLoad = (navElement, monitors) => {
 		form.reset();
 		const id = navElement.attributes.data.value;
-		const $monitorID = $("#settings-monitors-id");
+		const $monitorID = fields["id"].element();
 		let monitor = {},
 			title;
 
@@ -660,20 +660,18 @@ function newUser(token, fields) {
 		form.reset();
 
 		let id = navElement.attributes.data.value;
-		let user = {};
-		let title;
+		let username, isAdmin, title;
 
 		if (id === "") {
 			id = randomString(16);
 			title = "Add";
-			user.username = "";
-			user.isAdmin = "false";
+			username = "";
+			isAdmin = "false";
 		} else {
-			user = users[id];
-			title = user.username;
+			username = users[id]["username"];
+			isAdmin = String(users[id]["isAdmin"]);
+			title = username;
 		}
-
-		const { username, isAdmin } = user;
 
 		category.setTitle(title);
 		form.fields.id.value = id;
@@ -724,7 +722,7 @@ function newUser(token, fields) {
 			id: form.fields.id.value,
 			username: form.fields.username.value(),
 			isAdmin: form.fields.isAdmin.value() === "true",
-			rawPassword: form.fields.password.value()[0],
+			rawPassword: form.fields.password.value(),
 		};
 
 		const ok = await fetchPut("api/user/set", user, token, "could not save user");

@@ -13,10 +13,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { jest } from "@jest/globals";
-import { $ } from "./common.mjs";
+import { $, uidReset } from "./common.mjs";
 import {
 	fieldTemplate,
 	newForm,
+	newPasswordField,
 	inputRules,
 	newModal,
 	fromUTC,
@@ -43,46 +44,28 @@ describe("fieldTemplate", () => {
 		expect(field.value()).toEqual("");
 	};
 	const testOnChange = () => {
-		const [$input, $error] = $getInputAndError($("#js-1"));
+		const [$input, $error] = $getInputAndError($("#js-uid1"));
 		const e = new Event("change");
 		$input.dispatchEvent(e);
 
 		expect($error.innerHTML).not.toEqual("");
 	};
 
-	test("passwordHTML", () => {
-		const expected = `
-			<li id="js-1" class="settings-form-item-error">
-				<label for="1" class="settings-label">2</label>
-				<input
-					id="1"
-					class="settings-input-text js-input"
-					type="password"
-					placeholder="3"
-				/>
-				<span class="settings-error js-error"></span>
-			</li>
-		`.replace(/\s/g, "");
-
-		const actual = fieldTemplate.passwordHTML("1", "2", "3").replace(/\s/g, "");
-
-		expect(actual).toEqual(expected);
-	});
-
 	test("text", () => {
-		const field = fieldTemplate.text("1", "2", "3");
+		uidReset();
+		const field = fieldTemplate.text("1", "2");
 
 		const expected = `
 		<li
-			id="js-1"
+			id="js-uid1"
 			class="settings-form-item-error"
 		>
-			<label for="1" class="settings-label">2</label>
+			<label for="uid1" class="settings-label">1</label>
 			<input
-				id="1"
+				id="uid1"
 				class="settings-input-text js-input"
 				type="text"
-				placeholder="3"
+				placeholder="2"
 			/>
 			<span class="settings-error js-error"></span>
 		</li>`.replace(/\s/g, "");
@@ -101,19 +84,20 @@ describe("fieldTemplate", () => {
 		testOnChange();
 	});
 	test("integer", () => {
-		const field = fieldTemplate.integer("1", "2", "3");
+		uidReset();
+		const field = fieldTemplate.integer("1", "2");
 
 		const expected = `
 		<li
-			id="js-1"
+			id="js-uid1"
 			class="settings-form-item-error"
 		>
-			<label for="1" class="settings-label">2</label>
+			<label for="uid1" class="settings-label">1</label>
 			<input
-				id="1"
+				id="uid1"
 				class="settings-input-text js-input"
 				type="number"
-				placeholder="3"
+				placeholder="2"
 				min="0"
 				step="1"
 			/>
@@ -136,13 +120,14 @@ describe("fieldTemplate", () => {
 	});
 
 	test("toggle", () => {
-		const field = fieldTemplate.toggle("1", "2", "true");
+		uidReset();
+		const field = fieldTemplate.toggle("1", "true");
 
 		const expected = `
-		<li id="js-1" class="settings-form-item">
-			<label for="1" class="settings-label">2</label>
+		<li id="js-uid1" class="settings-form-item">
+			<label for="uid1" class="settings-label">1</label>
 			<div class="settings-select-container">
-				<select id="1" class="settings-select js-input">
+				<select id="uid1" class="settings-select js-input">
 					<option>true</option>
 					<option>false</option>
 				</select>
@@ -163,13 +148,14 @@ describe("fieldTemplate", () => {
 	});
 
 	test("select", () => {
-		const field = fieldTemplate.select("1", "2", ["a", "b", "c"], "a");
+		uidReset();
+		const field = fieldTemplate.select("1", ["a", "b", "c"], "a");
 
 		const expected = `
-		<li id="js-1" class="settings-form-item">
-			<label for="1" class="settings-label">2</label>
+		<li id="js-uid1" class="settings-form-item">
+			<label for="uid1" class="settings-label">1</label>
 			<div class="settings-select-container">
-				<select id="1" class="settings-select js-input">
+				<select id="uid1" class="settings-select js-input">
 					<option>a</option>
 					<option>b</option>
 					<option>c</option>
@@ -191,13 +177,14 @@ describe("fieldTemplate", () => {
 	});
 
 	test("selectCustom", () => {
-		const field = fieldTemplate.selectCustom("x", "y", ["a", "b", "c"], "a");
+		uidReset();
+		const field = fieldTemplate.selectCustom("y", ["a", "b", "c"], "a");
 
 		const expected = `
-		<li id="js-x" class="settings-form-item-error">
-			<label for="x" class="settings-label">y</label>
+		<li id="js-uid1" class="settings-form-item-error">
+			<label for="uid1" class="settings-label">y</label>
 			<div class="settings-select-container">
-				<select id="x" class="settings-select js-input">
+				<select id="uid1" class="settings-select js-input">
 					<option>a</option>
 					<option>b</option>
 					<option>c</option>
@@ -231,13 +218,96 @@ describe("fieldTemplate", () => {
 
 		expect(field.value()).toEqual("custom");
 
-		const $input = $("#x");
+		const $input = $("#uid1");
 		const $error = $(".js-error");
 
-		const e = new Event("change");
-		$input.dispatchEvent(e);
+		const change = new Event("change");
+		$input.dispatchEvent(change);
 
 		expect($error.innerHTML).toEqual("");
+	});
+});
+
+describe("passwordField", () => {
+	test("rendering", () => {
+		uidReset();
+		const expected = `
+			<li id="js-uid1" class="settings-form-item-error">
+				<label for="uid1" class="settings-label">New password</label>
+				<input
+					id="uid1"
+					class="settings-input-text js-input"
+					type="password"
+				/>
+				<span class="settings-error js-error"></span>
+			</li>
+			<li id="js-uid2" class="settings-form-item-error">
+				<label for="uid2" class="settings-label">Repeat password</label>
+				<input
+					id="uid2"
+					class="settings-input-text js-input"
+					type="password"
+				/>
+				<span class="settings-error js-error"></span>
+			</li>
+
+		`.replace(/\s/g, "");
+
+		const actual = newPasswordField().html.replace(/\s/g, "");
+
+		expect(actual).toEqual(expected);
+	});
+	describe("logic", () => {
+		let field, $newInput, $newError, $repeatInput, $repeatError;
+
+		beforeEach(() => {
+			uidReset();
+			document.body.innerHTML = "<div></div>";
+			field = newPasswordField();
+			const $div = $("div");
+			$div.innerHTML = field.html;
+			field.init($div);
+
+			[$newInput, $newError] = $getInputAndError($("#js-uid1"));
+			[$repeatInput, $repeatError] = $getInputAndError($("#js-uid2"));
+		});
+		const change = new Event("change");
+
+		test("initial", () => {
+			$newInput.dispatchEvent(change);
+			$repeatInput.dispatchEvent(change);
+
+			expect($newError.textContent).toEqual("");
+			expect($repeatError.textContent).toEqual("");
+		});
+		test("repeatPassword", () => {
+			$newInput.value = "A";
+			$newInput.dispatchEvent(change);
+			expect($newError.textContent).toEqual("warning: weak password");
+			expect($repeatError.textContent).toEqual("repeat password");
+			expect(field.validate()).toEqual("repeat password");
+		});
+		test("reset", () => {
+			field.reset();
+			expect($newError.textContent).toEqual("");
+			expect($repeatError.textContent).toEqual("");
+		});
+		test("strength", () => {
+			$newInput.value = "AAAAA1";
+			$newInput.dispatchEvent(change);
+			expect($newError.textContent).toEqual("strength: medium");
+		});
+		test("mismatch", () => {
+			$repeatInput.value = "x";
+			$repeatInput.dispatchEvent(change);
+			expect($repeatError.textContent).toEqual("Passwords do not match");
+			expect(field.validate()).toEqual("Passwords do not match");
+			expect(field.value()).toEqual("x");
+		});
+		test("validate", () => {
+			field.set("AAAAAa1@");
+			expect(field.validate()).toEqual("");
+		});
 	});
 });
 

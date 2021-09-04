@@ -28,7 +28,6 @@ func modifySettingsjs(tpl string) string {
 
 	const javascript = `
  		thumbScale:fieldTemplate.select(
-			"settings-monitors-thumbScale",
 			"Thumbnail scale",
 			["full", "half", "third", "quarter", "sixth", "eighth"],
 			"full",
