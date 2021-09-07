@@ -279,7 +279,7 @@ func TestPurgeLoop(t *testing.T) {
 	})
 	t.Run("error", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		logger := log.NewLogger()
+		logger := log.NewMockLogger()
 		go logger.Start(ctx)
 		feed, cancel2 := logger.Subscribe()
 
@@ -299,8 +299,8 @@ func TestPurgeLoop(t *testing.T) {
 		cancel()
 
 		expected := `failed to purge storage: strconv.ParseFloat: parsing "nil": invalid syntax`
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
 		}
 	})
 }

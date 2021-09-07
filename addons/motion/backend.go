@@ -45,7 +45,10 @@ func main(ctx context.Context, m *monitor.Monitor, args *string) {
 	*args += genArgs(m)
 
 	if err := onMonitorStart(ctx, m); err != nil {
-		m.Log.Printf("%v: motion: %v", m.Name(), err)
+		m.Log.Error().
+			Src("motion").
+			Monitor(m.ID()).
+			Msgf("failed to start %v", err)
 	}
 }
 
@@ -56,7 +59,10 @@ func sub(ctx context.Context, m *monitor.Monitor, args *string) {
 	*args += genArgs(m)
 
 	if err := onMonitorStart(ctx, m); err != nil {
-		m.Log.Printf("%v: motion: %v", m.Name(), err)
+		m.Log.Error().
+			Src("motion").
+			Monitor(m.ID()).
+			Msgf("failed to start %v", err)
 	}
 }
 
@@ -257,11 +263,19 @@ func (a addon) startDetector(ctx context.Context, args []string) {
 	for {
 		if ctx.Err() != nil {
 			a.m.WG.Done()
-			a.m.Log.Printf("%v: motion: detector stopped\n", a.m.Name())
+			a.m.Log.Info().
+				Src("motion").
+				Monitor(a.m.ID()).
+				Msg("detector stopped")
+
 			return
 		}
 		if err := a.detectorProcess(ctx, args); err != nil {
-			a.m.Log.Printf("%v: motion: %v\n", a.m.Name(), err)
+			a.m.Log.Error().
+				Src("motion").
+				Monitor(a.m.ID()).
+				Msg(err.Error())
+
 			time.Sleep(1 * time.Second)
 		}
 	}
@@ -279,7 +293,10 @@ func (a addon) detectorProcess(ctx context.Context, args []string) error {
 		return fmt.Errorf("stderr: %v", err)
 	}
 
-	a.m.Log.Printf("%v: motion: starting detector: %v\n", a.m.Name(), cmd)
+	a.m.Log.Info().
+		Src("motion").
+		Monitor(a.m.ID()).
+		Msgf("starting detector: %v", cmd)
 
 	go a.parseFFmpegOutput(stderr)
 
@@ -314,7 +331,11 @@ func (a addon) sendTrigger(id int, score float64) {
 	now := time.Now().Local()
 	timestamp := fmt.Sprintf("%v:%v:%v", now.Hour(), now.Minute(), now.Second())
 
-	a.m.Log.Printf("%v: motion: trigger id:%v score:%.2f time:%v\n", a.m.Name(), id, score, timestamp)
+	a.m.Log.Info().
+		Src("motion").
+		Monitor(a.m.ID()).
+		Msgf("trigger id:%v score:%.2f time:%v\n", id, score, timestamp)
+
 	a.m.Trigger <- monitor.Event{
 		Detections: []monitor.Detection{
 			{

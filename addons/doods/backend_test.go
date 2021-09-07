@@ -274,7 +274,7 @@ func TestGenerateArgs(t *testing.T) {
 func newTestFFmpeg() (*ffmpegConfig, log.Feed, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	logger := log.NewLogger()
+	logger := log.NewMockLogger()
 	go logger.Start(ctx)
 	feed, cancel2 := logger.Subscribe()
 
@@ -314,10 +314,10 @@ func TestStartFFmpeg(t *testing.T) {
 		go f.start(ctx)
 
 		actual := <-feed
-		expected := ": doods: process stopped\n"
+		expected := "process stopped"
 
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
 		}
 
 	})
@@ -334,10 +334,10 @@ func TestStartFFmpeg(t *testing.T) {
 		go f.start(ctx)
 
 		actual := <-feed
-		expected := ": doods: process crashed: mock\n"
+		expected := "process crashed: mock"
 
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
 		}
 	})
 }
@@ -412,7 +412,7 @@ var framePNG = "[137 80 78 71 13 10 26 10 0 0 0 13 73 72 68 82 0 0 0 2 0 0 0 2 1
 func newTestClient() (*doodsClient, log.Feed, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	logger := log.NewLogger()
+	logger := log.NewMockLogger()
 	go logger.Start(ctx)
 	feed, cancel2 := logger.Subscribe()
 
@@ -458,10 +458,10 @@ func TestStartClient(t *testing.T) {
 		go startClient(ctx, d)
 
 		actual := <-feed
-		expected := ": doods: client stopped\n"
+		expected := "client stopped"
 
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
 		}
 	})
 	t.Run("crashed", func(t *testing.T) {
@@ -476,10 +476,10 @@ func TestStartClient(t *testing.T) {
 		go startClient(ctx, d)
 
 		actual := <-feed
-		expected := ": doods: client crashed: mock\n"
+		expected := "client crashed: mock"
 
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
 		}
 	})
 }

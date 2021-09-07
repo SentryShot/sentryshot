@@ -65,7 +65,7 @@ func TestProcess(t *testing.T) {
 		t.Run("working", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
-			logger := log.NewLogger()
+			logger := log.NewMockLogger()
 			go logger.Start(ctx)
 			feed, cancel2 := logger.Subscribe()
 
@@ -79,12 +79,12 @@ func TestProcess(t *testing.T) {
 				t.Fatalf("failed to start %v", err)
 			}
 
-			compareOutput := func(input string) {
+			compareOutput := func(input log.Log) {
 				output1 := "test stdout: out\n"
 				output2 := "test stderr: err\n"
 				switch {
-				case input == output1:
-				case input == output2:
+				case input.Msg == output1:
+				case input.Msg == output2:
 				default:
 					t.Fatal("output does not match")
 				}

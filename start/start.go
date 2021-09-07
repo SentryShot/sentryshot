@@ -74,7 +74,7 @@ func start() error {
 	cmd.Stderr = os.Stderr
 	cmd.Env = os.Environ()
 
-	fmt.Println("running..")
+	fmt.Println("starting..")
 	return cmd.Run()
 }
 

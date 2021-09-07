@@ -49,6 +49,8 @@ func (m mockProcess) Stop() {
 }
 func (m mockProcess) SetTimeout(time.Duration)    {}
 func (m mockProcess) SetPrefix(string)            {}
+func (m mockProcess) SetMonitor(string)           {}
+func (m mockProcess) SetLogLevel(string)          {}
 func (m mockProcess) SetStdoutLogger(*log.Logger) {}
 func (m mockProcess) SetStderrLogger(*log.Logger) {}
 

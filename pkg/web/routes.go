@@ -502,7 +502,9 @@ func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //
 
 		recordings, err := crawler.RecordingByQuery(q)
 		if err != nil {
-			log.Printf("storage: crawler: could not process recording query: %v", err)
+			log.Error().Src("storage").
+				Msgf("crawler: could not process recording query: %v", err)
+
 			http.Error(w, "could not process recording query", http.StatusInternalServerError)
 			return
 		}
@@ -536,7 +538,7 @@ func Logs(log *log.Logger, a *auth.Authenticator) http.Handler {
 
 		authHeader := r.Header.Get("Authorization")
 		for {
-			msg := <-feed
+			log := <-feed
 
 			// Validate auth before each message.
 			auth := a.ValidateAuth(authHeader)
@@ -544,12 +546,38 @@ func Logs(log *log.Logger, a *auth.Authenticator) http.Handler {
 				return
 			}
 
-			err := c.WriteMessage(websocket.TextMessage, []byte(msg))
+			err := c.WriteMessage(websocket.TextMessage, []byte(formatLog(log)))
 			if err != nil {
 				return
 			}
 		}
 	})
+}
+
+// tempoary
+func formatLog(l log.Log) string {
+	var output string
+
+	switch l.Level {
+	case log.LevelError:
+		output += "[ERROR] "
+	case log.LevelWarning:
+		output += "[WARNING] "
+	case log.LevelInfo:
+		output += "[INFO] "
+	case log.LevelDebug:
+		output += "[DEBUG] "
+	}
+
+	if l.Monitor != "" {
+		output += l.Monitor + ": "
+	}
+	if l.Src != "" {
+		output += strings.Title(l.Src) + ": "
+	}
+
+	output += l.Msg
+	return output
 }
 
 func containsSpaces(s string) bool {

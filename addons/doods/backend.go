@@ -50,7 +50,10 @@ func main(ctx context.Context, m *monitor.Monitor, args *string) {
 	*args += genArgs(m)
 
 	if err := start(ctx, m); err != nil {
-		m.Log.Printf("%v: doods: %v\n", m.Name(), err)
+		m.Log.Error().
+			Src("doods").
+			Monitor(m.ID()).
+			Msgf("could not start: %v", err)
 	}
 }
 
@@ -61,7 +64,10 @@ func sub(ctx context.Context, m *monitor.Monitor, args *string) {
 	*args += genArgs(m)
 
 	if err := start(ctx, m); err != nil {
-		m.Log.Printf("%v: doods: %v\n", m.Name(), err)
+		m.Log.Error().
+			Src("doods").
+			Monitor(m.ID()).
+			Msgf("could not start: %v", err)
 	}
 }
 
@@ -314,11 +320,15 @@ func (f *ffmpegConfig) start(ctx context.Context) {
 	for {
 		if ctx.Err() != nil {
 			f.a.wg.Done()
-			f.a.log.Printf("%v: doods: process stopped\n", f.a.name)
+			f.a.log.Info().Src("doods").Monitor(f.a.id).Msg("process stopped")
 			return
 		}
 		if err := f.runFFmpeg(ctx, f); err != nil {
-			f.a.log.Printf("%v: doods: process crashed: %v\n", f.a.name, err)
+			f.a.log.Error().
+				Src("doods").
+				Monitor(f.a.id).
+				Msgf("process crashed: %v", err)
+
 			time.Sleep(1 * time.Second)
 		}
 	}
@@ -342,10 +352,12 @@ func runFFmpeg(ctx context.Context, f *ffmpegConfig) error {
 	f.a.wg.Add(1)
 	go f.startClient(ctx2, f.d)
 
-	f.a.log.Printf("%v: doods: starting process: %v\n", f.a.name, cmd)
-	err = process.Start(ctx)
+	f.a.log.Info().
+		Src("doods").
+		Monitor(f.a.id).
+		Msgf("starting process: %v", cmd)
 
-	if err != nil {
+	if err = process.Start(ctx); err != nil {
 		return fmt.Errorf("detector crashed: %v", err)
 	}
 	cancel()
@@ -371,12 +383,20 @@ type sendFrameFunc func(*doodsClient, time.Time, *bytes.Buffer) error
 func startClient(ctx context.Context, d *doodsClient) {
 	for {
 		if ctx.Err() != nil {
-			d.a.log.Printf("%v: doods: client stopped\n", d.a.name)
+			d.a.log.Info().
+				Src("doods").
+				Monitor(d.a.id).
+				Msg("client stopped")
+
 			d.a.wg.Done()
 			return
 		}
 		if err := d.runClient(ctx, d); err != nil {
-			d.a.log.Printf("%v: doods: client crashed: %v\n", d.a.name, err)
+			d.a.log.Error().
+				Src("doods").
+				Monitor(d.a.id).
+				Msgf("client crashed: %v", err)
+
 			time.Sleep(1 * time.Second)
 		}
 	}
@@ -512,8 +532,11 @@ func (a *addon) parseDetections(t time.Time, detections []*odrpc.Detection) {
 		now := time.Now().Local()
 		timestamp := fmt.Sprintf("%v:%v:%v", now.Hour(), now.Minute(), now.Second())
 
-		a.log.Printf("%v: doods: trigger: label:%v score:%.1f time:%v\n",
-			a.name, filtered[0].Label, filtered[0].Score, timestamp)
+		a.log.Info().
+			Src("doods").
+			Monitor(a.id).
+			Msgf("trigger: label:%v score:%.1f time:%v",
+				filtered[0].Label, filtered[0].Score, timestamp)
 
 		a.trigger <- monitor.Event{
 			Time:        t,

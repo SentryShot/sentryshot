@@ -22,72 +22,22 @@ import (
 	"time"
 )
 
-func newTestLogger() (context.Context, func(), *Logger) {
-	ctx, cancel := context.WithCancel(context.Background())
+func newTestLogger(t *testing.T) (context.Context, func(), *Logger) {
 	logger := NewLogger()
+
+	ctx, cancel := context.WithCancel(context.Background())
 	go logger.Start(ctx)
 
-	return ctx, cancel, logger
+	cancelFunc := func() {
+		cancel()
+	}
+
+	return ctx, cancelFunc, logger
 }
 
 func TestLogger(t *testing.T) {
-	t.Run("print", func(t *testing.T) {
-		_, cancel, logger := newTestLogger()
-		defer cancel()
-
-		feed, cancel2 := logger.Subscribe()
-		defer cancel2()
-
-		cases := []struct {
-			name     string
-			printer  func(...interface{})
-			msg      string
-			expected string
-		}{
-			{"Print", logger.Print, "test", "test"},
-			{"Println", logger.Println, "test", "test\n"},
-		}
-
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
-				go tc.printer(tc.msg)
-				actual := <-feed
-				if actual != tc.expected {
-					t.Fatalf("expected: %v, got %v", tc.msg, actual)
-				}
-			})
-		}
-	})
-	t.Run("printf", func(t *testing.T) {
-		_, cancel, logger := newTestLogger()
-		defer cancel()
-
-		feed, cancel2 := logger.Subscribe()
-		defer cancel2()
-
-		cases := []struct {
-			name     string
-			printer  func(string, ...interface{})
-			format   string
-			msg      string
-			expected string
-		}{
-			{"Printf", logger.Printf, "%s", "test", "test"},
-		}
-
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
-				go tc.printer(tc.format, tc.msg)
-
-				actual := <-feed
-				if actual != tc.expected {
-					t.Fatalf("expected: %v, got %v", tc.msg, actual)
-				}
-			})
-		}
-	})
 	t.Run("unsubBeforePrint", func(t *testing.T) {
-		_, cancel, logger := newTestLogger()
+		_, cancel, logger := newTestLogger(t)
 		defer cancel()
 
 		feed1, cancel1 := logger.Subscribe()
@@ -95,34 +45,34 @@ func TestLogger(t *testing.T) {
 		cancel2()
 
 		msg := "test"
-		logger.Print(msg)
+		logger.Info().Msg(msg)
 		actual1 := <-feed1
 		actual2 := <-feed2
 		cancel1()
 
-		if actual1 != msg {
-			t.Fatalf("expected: %v, got %v", msg, actual1)
+		if actual1.Msg != msg {
+			t.Fatalf("expected: %v, got %v", msg, actual1.Msg)
 		}
 
-		if actual2 != "" {
-			t.Fatalf("expected nil got: %v", actual2)
+		if actual2.Msg != "" {
+			t.Fatalf("expected nil got: %v", actual2.Msg)
 		}
 	})
 	t.Run("unsubAfterPrint", func(t *testing.T) {
-		_, cancel, logger := newTestLogger()
+		_, cancel, logger := newTestLogger(t)
 		defer cancel()
 
 		feed, cancel2 := logger.Subscribe()
 
-		go func() { logger.Print("test") }()
-		go func() { logger.Print("test") }()
-		go func() { logger.Print("test") }()
+		go func() { logger.Info().Msg("test") }()
+		go func() { logger.Info().Msg("test") }()
+		go func() { logger.Info().Msg("test") }()
 		time.Sleep(10 * time.Microsecond)
 		cancel2()
 
 		actual := <-feed
-		if actual != "" {
-			t.Fatalf("expected: nil, got %v", actual)
+		if actual.Msg != "" {
+			t.Fatalf("expected: nil, got %v", actual.Msg)
 		}
 	})
 	t.Run("logToStdout", func(t *testing.T) {
@@ -134,10 +84,14 @@ func TestLogger(t *testing.T) {
 			t.Fatalf("command failed: %v", err)
 		}
 		actual := string(output)
-		expected := "log test"
+		expected := `[ERROR] test
+[WARNING] test
+[INFO] test
+[DEBUG] test
+`
 
 		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 		}
 	})
 }
@@ -146,12 +100,15 @@ func TestLogToStdout(t *testing.T) {
 	if os.Getenv("GO_TEST_PROCESS") != "1" {
 		return
 	}
-	ctx, cancel, logger := newTestLogger()
+	ctx, cancel, logger := newTestLogger(t)
 	defer cancel()
 
 	go logger.LogToStdout(ctx)
 	time.Sleep(1 * time.Millisecond)
-	logger.Print("test")
+	logger.Error().Msg("test")
+	logger.Warn().Msg("test")
+	logger.Info().Msg("test")
+	logger.Debug().Msg("test")
 	time.Sleep(1 * time.Millisecond)
 
 	os.Exit(0)

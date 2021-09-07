@@ -139,7 +139,7 @@ func (a *Authenticator) logFailedLogin(r *http.Request) {
 	if remoteAddr != "" && remoteAddr != forwarded {
 		ip += "addr:" + remoteAddr
 	}
-	a.log.Printf("failed login: username: %v %v\n", username, ip)
+	a.log.Info().Src("auth").Msgf("failed login: username: %v %v\n", username, ip)
 }
 
 // Modified from net/http https://golang.org/src/net/http/request.go?s=30968:31034#L912

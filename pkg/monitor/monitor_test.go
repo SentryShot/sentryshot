@@ -72,7 +72,7 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 
 func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
-	logger := log.NewLogger()
+	logger := log.NewMockLogger()
 	go logger.Start(ctx)
 
 	configDir, cancel2 := prepareDir(t)
@@ -338,7 +338,7 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	logger := log.NewLogger()
+	logger := log.NewMockLogger()
 	go logger.Start(ctx)
 
 	cancelFunc := func() {
@@ -399,10 +399,10 @@ func TestStartMonitor(t *testing.T) {
 			}
 		}()
 
-		expected := "test: disabled\n"
+		expected := "disabled"
 		actual := <-feed
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
 		}
 	})
 	t.Run("tmpDirErr", func(t *testing.T) {
@@ -440,10 +440,10 @@ func TestStartMainProcess(t *testing.T) {
 		go m.startInputProcess(ctx, false)
 
 		actual := <-feed
-		expected := ": main process: stopped\n"
+		expected := "main process: stopped"
 
-		if actual != expected {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual.Msg)
 		}
 	})
 	t.Run("crashed", func(t *testing.T) {
@@ -459,10 +459,10 @@ func TestStartMainProcess(t *testing.T) {
 		go m.startInputProcess(ctx, true)
 
 		actual := <-feed
-		expected := ": sub process: crashed: mock\n"
+		expected := "sub process: crashed: mock"
 
-		if actual != expected {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual.Msg)
 		}
 	})
 }
@@ -554,10 +554,10 @@ func TestWatchdog(t *testing.T) {
 		mu.Unlock()
 
 		actual := <-feed
-		expected := ": x process: watchdog: possible freeze detected, restarting\n"
+		expected := "x process: possible freeze detected, restarting"
 
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
 		}
 	})
 	t.Run("fileErr", func(t *testing.T) {
@@ -573,10 +573,10 @@ func TestWatchdog(t *testing.T) {
 		go m.startWatchdog(ctx, ffmock.NewProcess(&exec.Cmd{}), "x")
 
 		actual := <-feed
-		expected := ": x process: watchdog: no such file or directory\n"
+		expected := "x process: no such file or directory"
 
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
 		}
 	})
 }
@@ -596,15 +596,14 @@ func TestStartRecorder(t *testing.T) {
 		m.Trigger <- Event{RecDuration: 1}
 		actual := <-feed
 
-		expected := `: recoder: invalid event: missing 'Time', event:
+		expected := `invalid event: missing 'Time', event:
  Time: 0001-01-01 00:00:00 +0000 UTC
  Detections: []
  Duration: 0s
- RecDuration: 1ns
-`
+ RecDuration: 1ns`
 
-		if actual != expected {
-			t.Fatalf("\nexpected: \n%v. \ngot: \n%v.", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
 		}
 	})
 	t.Run("missingRecDuration", func(t *testing.T) {
@@ -621,15 +620,14 @@ func TestStartRecorder(t *testing.T) {
 		m.Trigger <- Event{Time: (time.Unix(1, 0).UTC())}
 		actual := <-feed
 
-		expected := `: recoder: invalid event: missing 'RecDuration', event:
+		expected := `invalid event: missing 'RecDuration', event:
  Time: 1970-01-01 00:00:01 +0000 UTC
  Detections: []
  Duration: 0s
- RecDuration: 0s
-`
+ RecDuration: 0s`
 
-		if actual != expected {
-			t.Fatalf("\nexpected: \n%v. \ngot: \n%v.", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
 		}
 	})
 
@@ -650,10 +648,10 @@ func TestStartRecorder(t *testing.T) {
 
 		actual := <-feed
 
-		expected := ": recorder: trigger reached end, stopping recording\n"
+		expected := "trigger reached end, stopping recording"
 
-		if actual != expected {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual.Msg)
 		}
 	})
 	t.Run("timeoutUpdate", func(t *testing.T) {
@@ -725,11 +723,11 @@ func TestStartRecording(t *testing.T) {
 		m.WG.Add(1)
 		go startRecording(ctx2, m)
 
-		expected := ": recording stopped\n"
+		expected := "recording stopped"
 
 		actual := <-feed
-		if actual != expected {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual.Msg)
 		}
 	})
 	t.Run("crashed", func(t *testing.T) {
@@ -744,11 +742,11 @@ func TestStartRecording(t *testing.T) {
 		m.WG.Add(1)
 		go startRecording(ctx, m)
 
-		expected := ": recording process: mock\n"
+		expected := "recording process: mock"
 
 		actual := <-feed
-		if actual != expected {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual.Msg)
 		}
 	})
 }
@@ -781,10 +779,10 @@ func TestRunRecordingProcess(t *testing.T) {
 		<-feed
 		actual := <-feed
 
-		expected := ": recording finished\n"
+		expected := "recording finished"
 
-		if actual != expected {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual)
+		if actual.Msg != expected {
+			t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual.Msg)
 		}
 	})
 	t.Run("waitForKeyframeErr", func(t *testing.T) {

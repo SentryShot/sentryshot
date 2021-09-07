@@ -52,11 +52,12 @@ func Run(envPath string) error {
 	select {
 	case err = <-fatal:
 	case signal := <-stop:
-		app.log.Printf("\nReceived %v stopping.\n", signal)
+		app.log.Info().Msg("") // New line.
+		app.log.Info().Src("app").Msgf("Received %v stopping.", signal)
 	}
 
 	app.monitorManager.StopAll()
-	app.log.Println("Monitors stopped.")
+	app.log.Info().Src("app").Msg("Monitors stopped.")
 
 	cancel()
 
@@ -70,8 +71,6 @@ func Run(envPath string) error {
 }
 
 func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
-	logger := log.NewLogger()
-
 	envYAML, err := ioutil.ReadFile(envPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read env.yaml: %v", err)
@@ -83,6 +82,8 @@ func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
 	}
 
 	hooks.env(env)
+
+	logger := log.NewLogger()
 
 	general, err := storage.NewConfigGeneral(env.ConfigDir)
 	if err != nil {
@@ -192,8 +193,10 @@ type app struct {
 func (a *app) run(ctx context.Context) error {
 	go a.log.Start(ctx)
 	go a.log.LogToStdout(ctx)
+
 	time.Sleep(10 * time.Millisecond)
-	a.log.Println("starting..")
+
+	a.log.Info().Src("app").Msg("Starting..")
 
 	if err := a.env.PrepareEnvironment(); err != nil {
 		return fmt.Errorf("could not prepare environment: %v", err)

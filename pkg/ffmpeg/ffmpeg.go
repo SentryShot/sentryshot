@@ -43,6 +43,8 @@ type Process interface {
 	Stop()
 	SetTimeout(time.Duration)
 	SetPrefix(string)
+	SetMonitor(string)
+	SetLogLevel(string)
 	SetStdoutLogger(*log.Logger)
 	SetStderrLogger(*log.Logger)
 }
@@ -53,6 +55,8 @@ type process struct {
 	cmd     *exec.Cmd
 
 	prefix       string
+	monitorID    string
+	loglevel     string
 	stdoutLogger *log.Logger
 	stderrLogger *log.Logger
 
@@ -65,8 +69,9 @@ type NewProcessFunc func(*exec.Cmd) Process
 // NewProcess return process.
 func NewProcess(cmd *exec.Cmd) Process {
 	return &process{
-		timeout: 1000 * time.Millisecond,
-		cmd:     cmd,
+		timeout:  1000 * time.Millisecond,
+		cmd:      cmd,
+		loglevel: "info",
 	}
 }
 
@@ -78,7 +83,19 @@ func (p *process) attachLogger(l *log.Logger, label string, stdPipe func() (io.R
 	scanner := bufio.NewScanner(pipe)
 	go func() {
 		for scanner.Scan() {
-			l.Printf("%v%v: %v\n", p.prefix, label, scanner.Text())
+			msg := fmt.Sprintf("%v%v: %v\n", p.prefix, label, scanner.Text())
+
+			switch p.loglevel {
+			case "quiet":
+			case "fatal", "error":
+				l.Error().Src("ffmpeg").Monitor(p.monitorID).Msg(msg)
+			case "warning":
+				l.Warn().Src("ffmpeg").Monitor(p.monitorID).Msg(msg)
+			case "info":
+				l.Info().Src("ffmpeg").Monitor(p.monitorID).Msg(msg)
+			case "debug":
+				l.Debug().Src("ffmpeg").Monitor(p.monitorID).Msg(msg)
+			}
 		}
 	}()
 	return nil
@@ -141,6 +158,14 @@ func (p *process) SetTimeout(timeout time.Duration) {
 
 func (p *process) SetPrefix(prefix string) {
 	p.prefix = prefix
+}
+
+func (p *process) SetMonitor(monitorID string) {
+	p.monitorID = monitorID
+}
+
+func (p *process) SetLogLevel(level string) {
+	p.loglevel = level
 }
 
 func (p *process) SetStdoutLogger(l *log.Logger) {

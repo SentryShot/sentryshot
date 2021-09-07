@@ -101,11 +101,10 @@ func (s *System) StatusLoop(ctx context.Context) {
 	s.o.Do(func() {
 		for {
 			if ctx.Err() != nil {
-				fmt.Println("status stopped")
 				return
 			}
 			if err := s.update(ctx); err != nil {
-				s.log.Printf("could not update system status: %v", err)
+				s.log.Error().Src("app").Msgf("could not update system status: %v", err)
 			}
 		}
 	})

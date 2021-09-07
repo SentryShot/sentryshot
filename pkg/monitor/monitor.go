@@ -333,11 +333,11 @@ func (m *Monitor) Start() error {
 	m.running = true
 
 	if !m.isEnabled() {
-		m.Log.Printf("%v: disabled\n", m.Name())
+		m.Log.Info().Src("monitor").Monitor(m.ID()).Msg("disabled")
 		return nil
 	}
 
-	m.Log.Printf("%v: starting\n", m.Name())
+	m.Log.Info().Src("monitor").Monitor(m.ID()).Msg("starting")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
@@ -394,14 +394,22 @@ func (m *Monitor) startInputProcess(ctx context.Context, subProcess bool) {
 			m.Mu.Lock()
 
 			m.running = false
-			m.Log.Printf("%v: %v process: stopped\n", m.Name(), processName)
+			m.Log.Info().
+				Src("monitor").
+				Monitor(m.ID()).
+				Msgf("%v process: stopped", processName)
+
 			m.WG.Done()
 
 			m.Mu.Unlock()
 			return
 		}
 		if err := m.runInputProcess(ctx, m, subProcess); err != nil {
-			m.Log.Printf("%v: %v process: crashed: %v\n", m.Name(), processName, err)
+			m.Log.Error().
+				Src("monitor").
+				Monitor(m.ID()).
+				Msgf("%v process: crashed: %v", processName, err)
+
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -441,7 +449,10 @@ func runInputProcess(ctx context.Context, m *Monitor, subProcess bool) error {
 
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 
-	m.Log.Printf("%v: starting %v process: %v\n", m.Name(), processName, cmd)
+	m.Log.Info().
+		Src("monitor").
+		Monitor(m.ID()).
+		Msgf("starting %v process: %v", processName, cmd)
 
 	process = m.newProcess(cmd)
 	process.SetTimeout(10 * time.Second)
@@ -527,7 +538,11 @@ func (m *Monitor) startWatchdog(ctx context.Context, process ffmpeg.Process, pro
 		}
 		go func() {
 			if err := watchFile(); err != nil {
-				m.Log.Printf("%v: %v process: watchdog: %v\n", m.Name(), processName, err)
+				m.Log.Error().
+					Src("watchdog").
+					Monitor(m.ID()).
+					Msgf("%v process: %v", processName, err)
+
 				process.Stop()
 			}
 		}()
@@ -548,7 +563,11 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			return
 		case event := <-m.Trigger: // Wait for trigger.
 			if err := event.validate(); err != nil {
-				m.Log.Printf("%v: recoder: invalid event: %v\n", m.Name(), err)
+				m.Log.Error().
+					Src("recorder").
+					Monitor(m.ID()).
+					Msgf("invalid event: %v", err)
+
 				continue
 			}
 			m.eventsMu.Lock()
@@ -570,7 +589,11 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 
 			// Stops recording when timeout is reached.
 			triggerTimeout = time.AfterFunc(time.Until(end), func() {
-				m.Log.Printf("%v: recorder: trigger reached end, stopping recording\n", m.Name())
+				m.Log.Info().
+					Src("recorder").
+					Monitor(m.ID()).
+					Msg("trigger reached end, stopping recording")
+
 				cancel()
 			})
 			m.WG.Add(1)
@@ -591,14 +614,22 @@ func startRecording(ctx context.Context, m *Monitor) {
 			m.Mu.Lock()
 
 			m.recording = false
-			m.Log.Printf("%v: recording stopped\n", m.Name())
+			m.Log.Info().
+				Src("recorder").
+				Monitor(m.ID()).
+				Msg("recording stopped")
+
 			m.WG.Done()
 
 			m.Mu.Unlock()
 			return
 		}
 		if err := m.runRecordingProcess(ctx, m); err != nil {
-			m.Log.Printf("%v: recording process: %v\n", m.Name(), err)
+			m.Log.Error().
+				Src("recorder").
+				Monitor(m.ID()).
+				Msgf("recording process: %v", err)
+
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -641,20 +672,31 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 
 	m.Mu.Lock()
 	process.SetPrefix(m.Name() + ": recording process: ")
-	m.Log.Printf("%v: starting recording: %v\n", m.Name(), cmd)
+	m.Log.Info().
+		Src("recorder").
+		Monitor(m.ID()).
+		Msgf("starting recording: %v", cmd)
+
 	m.Mu.Unlock()
 
 	err = process.Start(ctx)
 
 	if err := m.saveRecording(filePath, startTime); err != nil {
-		m.Log.Printf("%v: could not save recording: %v\n", m.Name(), err)
+		m.Log.Error().
+			Src("recorder").
+			Monitor(m.ID()).
+			Msgf("could not save recording: %v", err)
 	}
 
 	if err != nil {
 		return fmt.Errorf("crashed: %v", err)
 	}
 
-	m.Log.Printf("%v: recording finished\n", m.Name())
+	m.Log.Info().
+		Src("recorder").
+		Monitor(m.ID()).
+		Msg("recording finished")
+
 	return nil
 }
 
@@ -691,7 +733,11 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 		os.Remove(thumbPath)
 	}
 
-	m.Log.Printf("%v: saving recording: %v\n", m.Name(), videoPath)
+	m.Log.Info().
+		Src("recorder").
+		Monitor(m.ID()).
+		Msgf("saving recording: %v", videoPath)
+
 	args := "-n -loglevel " + m.Config["logLevel"] + // LogLevel.
 		" -i " + videoPath + // Input.
 		" -frames:v 1 " + thumbPath // Output.
