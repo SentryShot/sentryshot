@@ -90,7 +90,7 @@ func start(ctx context.Context, m *monitor.Monitor) error {
 		return fmt.Errorf("could not parse config: %v", err)
 	}
 
-	a := newAddon(m, config, detector)
+	a := newAddon(m, config)
 
 	if err := a.prepareEnvironment(); err != nil {
 		return fmt.Errorf("could not prepare environment: %v", err)
@@ -103,11 +103,16 @@ func start(ctx context.Context, m *monitor.Monitor) error {
 		size = m.Config["sizeSub"]
 	}
 
-	var ffmpegArgs []string
-	ffmpegArgs, a.xMultiplier, a.yMultiplier, err = a.generateFFmpegArgs(m.Config, size)
+	outputWidth := int(detector.GetWidth())
+	outputHeight := int(detector.GetHeight())
+
+	inputs, err := parseInputs(size, outputWidth, outputHeight)
 	if err != nil {
-		return fmt.Errorf("could not generate ffmpeg args: %v", err)
+		return fmt.Errorf("could not parse ffmpeg inputs: %v", err)
 	}
+	a.inputs = inputs
+
+	ffmpegArgs := a.generateFFmpegArgs(m.Config, inputs)
 
 	a.wg.Add(1)
 	go a.newFFmpeg(ffmpegArgs).start(ctx)
@@ -164,7 +169,7 @@ func parseConfig(m *monitor.Monitor, ip string) (*doodsConfig, error) {
 	}, nil
 }
 
-func newAddon(m *monitor.Monitor, c *doodsConfig, detector odrpc.Detector) *addon {
+func newAddon(m *monitor.Monitor, c *doodsConfig) *addon {
 	return &addon{
 		c:       c,
 		wg:      m.WG,
@@ -172,9 +177,6 @@ func newAddon(m *monitor.Monitor, c *doodsConfig, detector odrpc.Detector) *addo
 		name:    m.Name(),
 		log:     m.Log,
 		trigger: m.Trigger,
-
-		outputWidth:  int(detector.GetWidth()),
-		outputHeight: int(detector.GetHeight()),
 
 		env: m.Env,
 
@@ -190,10 +192,7 @@ type addon struct {
 	log     *log.Logger
 	trigger monitor.Trigger
 
-	outputWidth  int
-	outputHeight int
-	xMultiplier  float32
-	yMultiplier  float32
+	inputs *inputs
 
 	env *storage.ConfigEnv
 
@@ -219,67 +218,93 @@ func (a *addon) prepareEnvironment() error {
 	return nil
 }
 
-func (a *addon) generateFFmpegArgs(config monitor.Config, size string) ([]string, float32, float32, error) {
-	// Output
-	// ffmpeg -hwaccel x -i main.pipe -filter 'fps=fps=3,scale=300:240,pad:300:300:0:0' -f rawvideo -pix_fmt rgb24 -
+type inputs struct {
+	inputWidth   float64
+	inputHeight  float64
+	outputWidth  int
+	outputHeight int
+	frameWidth   string
+	frameHeight  string
+	yMultiplier  float32
+	xMultiplier  float32
+}
 
+func parseInputs(size string, outputWidth, outputHeight int) (*inputs, error) {
 	split := strings.Split(size, "x")
 	inputWidth, err := strconv.ParseFloat(split[0], 32)
 	if err != nil {
-		return nil, 0, 0, fmt.Errorf("could not get input width: %v %v", err, split)
+		return nil, fmt.Errorf("could not get input width: %v %v", err, split)
 	}
 
 	inputHeight, err := strconv.ParseFloat(split[1], 32)
 	if err != nil {
-		return nil, 0, 0, fmt.Errorf("could not get input height: %v %v", err, split)
+		return nil, fmt.Errorf("could not get input height: %v %v", err, split)
 	}
 
-	if int(inputWidth) < a.outputWidth {
-		return nil, 0, 0, fmt.Errorf("input width is less than output width, %v %v", inputWidth, a.outputWidth)
+	if int(inputWidth) < outputWidth {
+		return nil, fmt.Errorf("input width is less than output width, %v %v", inputWidth, outputWidth)
 	}
-	if int(inputHeight) < a.outputHeight {
-		return nil, 0, 0, fmt.Errorf("input height is less than output height, %v %v", inputHeight, a.outputHeight)
+	if int(inputHeight) < outputHeight {
+		return nil, fmt.Errorf("input height is less than output height, %v %v", inputHeight, outputHeight)
 	}
 
-	outputWidthInt := a.outputWidth
-	outputHeightInt := a.outputHeight
-	frameWidth := strconv.Itoa(outputWidthInt)
-	frameHeight := strconv.Itoa(outputHeightInt)
+	frameWidth := strconv.Itoa(outputWidth)
+	frameHeight := strconv.Itoa(outputHeight)
 	var xMultiplier float32 = 1
 	var yMultiplier float32 = 1
 
-	if inputWidth > inputHeight {
-		height := float32(float64(outputHeightInt) * inputHeight / inputWidth)
+	widthRatio := inputWidth / float64(outputWidth)
+	heightRatio := inputHeight / float64(outputHeight)
+
+	if widthRatio > heightRatio {
+		height := float32(inputHeight / (inputWidth / float64(outputWidth)))
 		frameHeight = strconv.Itoa(int(height))
-		yMultiplier = float32(outputHeightInt) / height
-	} else if inputWidth < inputHeight {
-		fmt.Println(outputWidthInt, inputWidth, inputHeight)
-		width := float32(float64(outputWidthInt) * inputWidth / inputHeight)
+		yMultiplier = float32(outputHeight) / height
+	} else {
+		width := float32(inputWidth / (inputHeight / float64(outputHeight)))
 		frameWidth = strconv.Itoa(int(width))
-		xMultiplier = float32(outputWidthInt) / width
+		xMultiplier = float32(outputWidth) / width
 	}
 
-	logLevel := config["logLevel"]
-	outputWidth := strconv.Itoa(outputWidthInt)
-	outputHeight := strconv.Itoa(outputHeightInt)
+	return &inputs{
+		inputWidth:   inputWidth,
+		inputHeight:  inputHeight,
+		outputWidth:  outputWidth,
+		outputHeight: outputHeight,
+		frameWidth:   frameWidth,
+		frameHeight:  frameHeight,
+		yMultiplier:  yMultiplier,
+		xMultiplier:  xMultiplier,
+	}, nil
+}
 
+func (a *addon) generateFFmpegArgs(config monitor.Config, i *inputs) []string {
+	// Output
+	// ffmpeg -hwaccel x -i main.pipe -filter 'fps=fps=3,scale=300:240,pad:300:300:0:0' -f rawvideo -pix_fmt rgb24 -
+
+	logLevel := config["logLevel"]
+	hwaccel := config["hwaccel"]
 	fps := config["doodsFeedRate"]
+	outputWidth := strconv.Itoa(i.outputWidth)
+	outputHeight := strconv.Itoa(i.outputHeight)
 
 	var args []string
 
 	args = append(args, "-y", "-loglevel", logLevel)
 
-	hwaccel := config["hwaccel"]
 	if hwaccel != "" {
 		args = append(args, ffmpeg.ParseArgs("-hwaccel "+hwaccel)...)
 	}
 
 	args = append(args, "-i", a.mainPipe(), "-filter")
-	args = append(args, "fps=fps="+fps+",scale="+frameWidth+":"+frameHeight+",pad="+outputWidth+":"+outputHeight+":0:0")
+	args = append(args, "fps=fps="+fps+
+		",scale="+i.frameWidth+":"+i.frameHeight+
+		",pad="+outputWidth+":"+outputHeight+":0:0")
+
 	args = append(args, "-f", "rawvideo")
 	args = append(args, "-pix_fmt", "rgb24", "-")
 
-	return args, xMultiplier, yMultiplier, nil
+	return args
 }
 
 func (a *addon) newFFmpeg(args []string) *ffmpegConfig {
@@ -435,8 +460,11 @@ func runClient(ctx context.Context, d *doodsClient) error {
 }
 
 func (d *doodsClient) readFrames(ctx context.Context) error {
-	rect := image.Rect(0, 0, d.a.outputWidth, d.a.outputHeight)
-	frameSize := d.a.outputWidth * d.a.outputHeight * 3
+	outputWidth := d.a.inputs.outputWidth
+	outputHeight := d.a.inputs.outputHeight
+
+	rect := image.Rect(0, 0, outputWidth, outputHeight)
+	frameSize := outputWidth * outputHeight * 3
 
 	tmp := make([]byte, frameSize)
 	for {
@@ -512,15 +540,18 @@ func (a *addon) parseDetections(t time.Time, detections []*odrpc.Detection) {
 				return int(input * 100)
 			}
 
+			xMultiplier := a.inputs.xMultiplier
+			yMultiplier := a.inputs.yMultiplier
+
 			d := monitor.Detection{
 				Label: label,
 				Score: score,
 				Region: &monitor.Region{
 					Rect: &ffmpeg.Rect{
-						conv(detection.GetTop() * a.yMultiplier),
-						conv(detection.GetLeft() * a.xMultiplier),
-						conv(detection.GetBottom() * a.yMultiplier),
-						conv(detection.GetRight() * a.xMultiplier),
+						conv(detection.GetTop() * yMultiplier),
+						conv(detection.GetLeft() * xMultiplier),
+						conv(detection.GetBottom() * yMultiplier),
+						conv(detection.GetRight() * xMultiplier),
 					},
 				},
 			}

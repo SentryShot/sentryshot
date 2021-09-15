@@ -27,6 +27,7 @@ import (
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -184,6 +185,58 @@ func TestPrepareEnv(t *testing.T) {
 	})
 }
 
+func TestParseFFmpegInputs(t *testing.T) {
+	t.Run("widthErr", func(t *testing.T) {
+		if _, err := parseInputs("nilx1", 0, 0); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("heightErr", func(t *testing.T) {
+		if _, err := parseInputs("1xnil", 0, 0); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("widthErr2", func(t *testing.T) {
+		if _, err := parseInputs("1x2", 2, 1); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("heightErr2", func(t *testing.T) {
+		if _, err := parseInputs("2x1", 1, 2); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("frameSizes", func(t *testing.T) {
+		cases := []struct {
+			size         string
+			outputWidth  int
+			outputHeight int
+			expected     string
+		}{
+			{"600x400", 300, 300, "300x200 1 1.5"},
+			{"400x600", 300, 300, "200x300 1.5 1"},
+			{"640x480", 420, 280, "373x280 1.125 1"},
+			{"480x640", 280, 420, "280x373 1 1.125"},
+		}
+
+		for i, tc := range cases {
+			t.Run(strconv.Itoa(i), func(t *testing.T) {
+				inputs, err := parseInputs(tc.size, tc.outputWidth, tc.outputHeight)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				actual := fmt.Sprintf("%vx%v %v %v",
+					inputs.frameWidth, inputs.frameHeight, inputs.xMultiplier, inputs.yMultiplier)
+
+				if actual != tc.expected {
+					t.Fatalf("expected: %v, got: %v", tc.expected, actual)
+				}
+			})
+		}
+	})
+}
+
 func TestGenerateArgs(t *testing.T) {
 	t.Run("working1", func(t *testing.T) {
 		a := addon{
@@ -192,21 +245,25 @@ func TestGenerateArgs(t *testing.T) {
 			env: &storage.ConfigEnv{
 				SHMDir: "2",
 			},
-			outputWidth:  300,
-			outputHeight: 300,
 		}
 		config := monitor.Config{
 			"logLevel":      "1",
 			"doodsFeedRate": "4",
 		}
-		args, xMultiplier, yMultiplier, err := a.generateFFmpegArgs(config, "600x400")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		args := a.generateFFmpegArgs(config,
+			&inputs{
+				inputWidth:   600,
+				inputHeight:  400,
+				outputWidth:  300,
+				outputHeight: 300,
+				frameWidth:   "300",
+				frameHeight:  "200",
+			},
+		)
 
-		actual := fmt.Sprintf("%v %v %v", args, xMultiplier, yMultiplier)
+		actual := fmt.Sprintf("%v", args)
 		expected := "[-y -loglevel 1 -i 2/doods/3/main.fifo -filter fps=fps=4," +
-			"scale=300:200,pad=300:300:0:0 -f rawvideo -pix_fmt rgb24 -] 1 1.5"
+			"scale=300:200,pad=300:300:0:0 -f rawvideo -pix_fmt rgb24 -]"
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
@@ -219,54 +276,29 @@ func TestGenerateArgs(t *testing.T) {
 			env: &storage.ConfigEnv{
 				SHMDir: "3",
 			},
-			outputWidth:  300,
-			outputHeight: 300,
 		}
 		config := monitor.Config{
 			"logLevel":      "1",
-			"hwaccel":       "2",
 			"doodsFeedRate": "5",
+			"hwaccel":       "2",
 		}
-		args, xMultiplier, yMultiplier, err := a.generateFFmpegArgs(config, "400x600")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		args := a.generateFFmpegArgs(config,
+			&inputs{
+				inputWidth:   400,
+				inputHeight:  600,
+				outputWidth:  300,
+				outputHeight: 300,
+				frameWidth:   "200",
+				frameHeight:  "300",
+			},
+		)
 
-		actual := fmt.Sprintf("%v %v %v", args, xMultiplier, yMultiplier)
+		actual := fmt.Sprintf("%v", args)
 		expected := "[-y -loglevel 1 -hwaccel 2 -i 3/doods/4/main.fifo -filter fps=fps=5," +
-			"scale=200:300,pad=300:300:0:0 -f rawvideo -pix_fmt rgb24 -] 1.5 1"
+			"scale=200:300,pad=300:300:0:0 -f rawvideo -pix_fmt rgb24 -]"
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
-	})
-	t.Run("widthErr", func(t *testing.T) {
-		a := addon{}
-		if _, _, _, err := a.generateFFmpegArgs(monitor.Config{}, "nilx1"); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
-	})
-	t.Run("heightErr", func(t *testing.T) {
-		a := addon{}
-		if _, _, _, err := a.generateFFmpegArgs(monitor.Config{}, "1xnil"); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
-	})
-	t.Run("widthErr2", func(t *testing.T) {
-		a := addon{
-			outputWidth: 2,
-		}
-		if _, _, _, err := a.generateFFmpegArgs(monitor.Config{}, "1x1"); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
-	})
-	t.Run("heightErr2", func(t *testing.T) {
-		a := addon{
-			outputWidth:  2,
-			outputHeight: 2,
-		}
-		if _, _, _, err := a.generateFFmpegArgs(monitor.Config{}, "2x1"); err == nil {
-			t.Fatal("expected: error, got: nil")
 		}
 	})
 }
@@ -423,10 +455,12 @@ func newTestClient() (*doodsClient, log.Feed, func()) {
 
 	d := &doodsClient{
 		a: &addon{
-			outputWidth:  2,
-			outputHeight: 2,
-			xMultiplier:  1.1,
-			yMultiplier:  0.9,
+			inputs: &inputs{
+				outputWidth:  2,
+				outputHeight: 2,
+				xMultiplier:  1.1,
+				yMultiplier:  0.9,
+			},
 
 			log:     logger,
 			wg:      &sync.WaitGroup{},
