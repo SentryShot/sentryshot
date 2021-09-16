@@ -20,8 +20,9 @@ import {
 	fetchPut,
 	fetchDelete,
 	sortByName,
-} from "./common.mjs";
-import { newForm, newModal } from "./components.mjs";
+} from "./libs/common.mjs";
+import { newForm } from "./components/form.mjs";
+import { newModal } from "./components/modal.mjs";
 
 function newRenderer($parent) {
 	let categories = [];

@@ -12,7 +12,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { fetchGet } from "./common.mjs";
+// This component is unused.
+
+import { fetchGet } from "../libs/common.mjs";
 
 async function newStatusBar($statusbar) {
 	let fragment = document.createDocumentFragment();

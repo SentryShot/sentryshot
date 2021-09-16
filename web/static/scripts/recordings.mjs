@@ -12,8 +12,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, fetchGet } from "./common.mjs";
-import { newPlayer, newOptionsBtn, newOptionsMenu } from "./components.mjs";
+import { $, fetchGet } from "./libs/common.mjs";
+import { newPlayer } from "./components/player.mjs";
+import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
 
 async function newViewer(monitorNameByID, $parent, timeZone) {
 	let selectedMonitors = [];

@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $ } from "./common.mjs";
+import { $ } from "./libs/common.mjs";
 import { newViewer, resBtn } from "./live.mjs";
 
 class mockHls {

@@ -13,17 +13,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /* eslint-disable no-unused-vars */
-import { $, $$ } from "./static/scripts/common.mjs";
+import { $, $$ } from "./static/scripts/libs/common.mjs";
+import { newModal } from "./static/scripts/components/modal.mjs";
 import {
-	fieldTemplate,
-	newField,
-	newPasswordField,
 	newForm,
+	newField,
 	inputRules,
-	newModal,
-	isEmpty,
-	$getInputAndError,
-} from "./static/scripts/components.mjs";
+	fieldTemplate,
+	newPasswordField,
+} from "./static/scripts/components/form.mjs";
 
 /* eslint-enable no-unused-vars */
 import {

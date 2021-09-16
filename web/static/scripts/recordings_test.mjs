@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $ } from "./common.mjs";
+import { $ } from "./libs/common.mjs";
+import { fromUTC } from "./libs/time.mjs";
 import { newViewer, newMonitorNameByID } from "./recordings.mjs";
-import { fromUTC } from "./components.mjs";
 
 describe("newViewer", () => {
 	const monitorNameByID = newMonitorNameByID({});

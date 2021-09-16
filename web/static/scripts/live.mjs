@@ -12,8 +12,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, fetchGet } from "./common.mjs";
-import { newOptionsBtn, newOptionsMenu } from "./components.mjs";
+import { $, fetchGet } from "./libs/common.mjs";
+import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
 
 let hlsConfig = {
 	enableWorker: true,
