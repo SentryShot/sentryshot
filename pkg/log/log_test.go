@@ -16,19 +16,32 @@ package log
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
 
 func newTestLogger(t *testing.T) (context.Context, func(), *Logger) {
-	logger := NewLogger()
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("could not create tempoary directory: %v", err)
+	}
+
+	dbPath := filepath.Join(tempDir, "logs.db")
+	logger, err := NewLogger(dbPath, &sync.WaitGroup{})
+	if err != nil {
+		t.Fatalf("could not create test logger: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go logger.Start(ctx)
 
 	cancelFunc := func() {
+		os.RemoveAll(tempDir)
 		cancel()
 	}
 

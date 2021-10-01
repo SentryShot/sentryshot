@@ -23,7 +23,7 @@ run:
 
             # Get changed files.
             git remote add upstream https://gitlab.com/osnvr/os-nvr.git
-            git fetch upstream dev
+            git fetch upstream dev || echo "fetch error"
             git diff --name-only upstream/dev "$CI_COMMIT_SHA"
             files_changed="$(git diff --name-only upstream/dev $CI_COMMIT_SHA)" || echo "git error"
 

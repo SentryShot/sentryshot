@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -36,7 +37,8 @@ import (
 
 // Run .
 func Run(envPath string) error {
-	app, err := newApp(envPath, hooks)
+	wg := &sync.WaitGroup{}
+	app, err := newApp(envPath, wg, hooks)
 	if err != nil {
 		return err
 	}
@@ -60,6 +62,7 @@ func Run(envPath string) error {
 	app.log.Info().Src("app").Msg("Monitors stopped.")
 
 	cancel()
+	wg.Wait()
 
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel2()
@@ -70,7 +73,7 @@ func Run(envPath string) error {
 	return err
 }
 
-func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
+func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) { //nolint:funlen
 	envYAML, err := ioutil.ReadFile(envPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read env.yaml: %v", err)
@@ -83,7 +86,11 @@ func newApp(envPath string, hooks *hookList) (*app, error) { //nolint:funlen
 
 	hooks.env(env)
 
-	logger := log.NewLogger()
+	logDBpath := filepath.Join(env.StorageDir, "logs.db")
+	logger, err := log.NewLogger(logDBpath, wg)
+	if err != nil {
+		return nil, fmt.Errorf("could not create logger: %v", err)
+	}
 
 	general, err := storage.NewConfigGeneral(env.ConfigDir)
 	if err != nil {
@@ -191,8 +198,11 @@ type app struct {
 }
 
 func (a *app) run(ctx context.Context) error {
-	go a.log.Start(ctx)
+	if err := a.log.Start(ctx); err != nil {
+		return fmt.Errorf("could not start logger: %v", err)
+	}
 	go a.log.LogToStdout(ctx)
+	go a.log.LogToDB(ctx)
 
 	time.Sleep(10 * time.Millisecond)
 

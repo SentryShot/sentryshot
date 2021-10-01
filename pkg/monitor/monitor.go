@@ -703,7 +703,7 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 	videoLength, err := strconv.ParseFloat(m.Config["videoLength"], 64)
 	if err != nil {
-		return "", fmt.Errorf("%v: could not parse video length: %v", m.Name(), err)
+		return "", fmt.Errorf("could not parse video length: %v", err)
 	}
 	videoLengthSec := strconv.Itoa((int(videoLength * 60)))
 

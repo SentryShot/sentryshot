@@ -60,6 +60,8 @@ Restart service.
 
 	sudo systemctl restart nvr
 
+First start will take a few minutes.
+
 <br>
 
 ## Web server
