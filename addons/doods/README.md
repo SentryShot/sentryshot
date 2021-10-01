@@ -1,7 +1,9 @@
 ## Description
 [DOODS](https://github.com/snowzach/doods) is a GRPC/REST service that detects objects in images. It's designed to be very easy to use, run as a container and available remotely.
 
-## Usage
+## Installation
+
+##### Note: This is installed by default in Docker.
 
 Install and start the DOODS server.
 
@@ -9,7 +11,7 @@ Check if server is working.
 
 	curl 127.0.0.1:8080/version
 
-Add `nvr/addons/doods` to `configs/addons.conf`
+Uncomment `- nvr/addons/doods` in `configs/env.yaml`
 
 Restart OS-NVR
 
@@ -41,3 +43,7 @@ Frames per second to send to detector, decimals are allowed.
 #### DOODS trigger duration
 
 Recording trigger will be active for this duration in seconds.
+
+#### DOODS use substream
+
+If sub stream should be used instead of the main stream. Only applicable if `Sub input` is set. Results in much better performance.

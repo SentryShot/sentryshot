@@ -260,5 +260,9 @@ func javascript() string { //nolint:funlen
 		"",
 		"120"
 	),
+	doodsUseSubStream: fieldTemplate.toggle(
+		"DOODS use sub stream",
+		"true"
+	),
 	`
 }

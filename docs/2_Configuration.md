@@ -49,7 +49,7 @@ Enable or Disable the monitor.
 Main camera feed, full resolution. Used when recording.
 
 ### Sub input
-If your camera support a sub stream of lower resolution. Preferred by motion/object detection. Both inputs can be viewed from the live page.
+If your camera support a sub stream of lower resolution. Both inputs can be viewed from the live page.
 
 <br>
 

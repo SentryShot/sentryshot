@@ -45,12 +45,13 @@ func init() {
 }
 
 func main(ctx context.Context, m *monitor.Monitor, args *string) {
-	if m.Config["doodsEnable"] != "true" || m.SubInputEnabled() {
+	if m.Config["doodsEnable"] != "true" || useSubStream(m) {
 		return
 	}
+
 	*args += genArgs(m)
 
-	if err := start(ctx, m); err != nil {
+	if err := start(ctx, m, false); err != nil {
 		m.Log.Error().
 			Src("doods").
 			Monitor(m.ID()).
@@ -59,17 +60,25 @@ func main(ctx context.Context, m *monitor.Monitor, args *string) {
 }
 
 func sub(ctx context.Context, m *monitor.Monitor, args *string) {
-	if m.Config["doodsEnable"] != "true" || !m.SubInputEnabled() {
+	if m.Config["doodsEnable"] != "true" || !useSubStream(m) {
 		return
 	}
+
 	*args += genArgs(m)
 
-	if err := start(ctx, m); err != nil {
+	if err := start(ctx, m, true); err != nil {
 		m.Log.Error().
 			Src("doods").
 			Monitor(m.ID()).
 			Msgf("could not start: %v", err)
 	}
+}
+
+func useSubStream(m *monitor.Monitor) bool {
+	if m.SubInputEnabled() && m.Config["doodsUseSubStream"] == "true" {
+		return true
+	}
+	return false
 }
 
 func genArgs(m *monitor.Monitor) string {
@@ -80,7 +89,7 @@ func genArgs(m *monitor.Monitor) string {
 		" -restart_with_keyframe 1 -recovery_wait_time 1 " + pipePath
 }
 
-func start(ctx context.Context, m *monitor.Monitor) error {
+func start(ctx context.Context, m *monitor.Monitor, useSubStream bool) error {
 	detector, err := detectorByName(m.Config["doodsDetectorName"])
 	if err != nil {
 		return fmt.Errorf("could not get detectory: %v", err)
@@ -98,10 +107,10 @@ func start(ctx context.Context, m *monitor.Monitor) error {
 	}
 
 	var size string
-	if !m.SubInputEnabled() {
-		size = m.Config["sizeMain"]
-	} else {
+	if useSubStream {
 		size = m.Config["sizeSub"]
+	} else {
+		size = m.Config["sizeMain"]
 	}
 
 	outputWidth := int(detector.GetWidth())
