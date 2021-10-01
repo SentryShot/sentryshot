@@ -859,8 +859,8 @@ function newSelectMonitor(id) {
 
 	return {
 		html: `
-			<li id="${id}" class="settings-form-item-flex">
-				<label class="settings-label" for="${id}">Monitors</label>
+			<li id="${id}" class="form-field-flex">
+				<label class="form-field-label" for="${id}">Monitors</label>
 				<button class="settings-edit-btn color3">
 					<img src="static/icons/feather/edit-3.svg"/>
 				</button>

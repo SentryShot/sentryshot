@@ -30,11 +30,12 @@ type hookList struct {
 	monitorMainProcess []monitor.StartInputHook
 	monitorSubProcess  []monitor.StartInputHook
 	monitorRecSave     []monitor.RecSaveHook
+	logSource          []string
 }
 
 var hooks = &hookList{}
 
-// RegisterTplHook registers hook that's called when environment config is loaded.
+// RegisterEnvHook registers hook that's called when environment config is loaded.
 func RegisterEnvHook(h envHook) {
 	hooks.onEnvLoad = append(hooks.onEnvLoad, h)
 }
@@ -44,12 +45,12 @@ func RegisterTplHook(h web.Hook) {
 	hooks.template = append(hooks.template, h)
 }
 
-// RegisterMonitorHook registers hook that's called when the monitor starts.
+// RegisterMonitorStartHook registers hook that's called when the monitor starts.
 func RegisterMonitorStartHook(h monitor.StartHook) {
 	hooks.monitorStart = append(hooks.monitorStart, h)
 }
 
-// RegisterMonitorHook registers hook that's called when the main monitor process starts.
+// RegisterMonitorMainProcessHook registers hook that's called when the main monitor process starts.
 func RegisterMonitorMainProcessHook(h monitor.StartInputHook) {
 	hooks.monitorMainProcess = append(hooks.monitorMainProcess, h)
 }
@@ -62,6 +63,11 @@ func RegisterMonitorSubProcessHook(h monitor.StartInputHook) {
 // RegisterMonitorRecSaveHook registers hook that's called monitor saves recording.
 func RegisterMonitorRecSaveHook(h monitor.RecSaveHook) {
 	hooks.monitorRecSave = append(hooks.monitorRecSave, h)
+}
+
+// RegisterLogSource adds log source.
+func RegisterLogSource(s []string) {
+	hooks.logSource = append(hooks.logSource, s...)
 }
 
 func (h *hookList) env(env *storage.ConfigEnv) {

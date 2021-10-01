@@ -48,9 +48,9 @@ func TestQuery(t *testing.T) {
 	time.Sleep(1 * time.Millisecond)
 
 	cases := []struct {
-		name   string
-		input  Query
-		output *[]Log
+		name     string
+		input    Query
+		expected *[]Log
 	}{
 		{
 			name: "singleLevel",
@@ -58,7 +58,7 @@ func TestQuery(t *testing.T) {
 				Levels:  []Level{LevelWarning},
 				Sources: []string{"s1"},
 			},
-			output: &[]Log{msg2},
+			expected: &[]Log{msg2},
 		},
 		{
 			name: "multipleLevels",
@@ -66,7 +66,7 @@ func TestQuery(t *testing.T) {
 				Levels:  []Level{LevelError, LevelWarning},
 				Sources: []string{"s1"},
 			},
-			output: &[]Log{msg1, msg2},
+			expected: &[]Log{msg1, msg2},
 		},
 		{
 			name: "multipleSources",
@@ -74,7 +74,7 @@ func TestQuery(t *testing.T) {
 				Levels:  []Level{LevelError, LevelInfo},
 				Sources: []string{"s1", "s2"},
 			},
-			output: &[]Log{msg1, msg3},
+			expected: &[]Log{msg1, msg3},
 		},
 		{
 			name: "singleMonitor",
@@ -83,7 +83,7 @@ func TestQuery(t *testing.T) {
 				Sources:  []string{"s1", "s2"},
 				Monitors: []string{"m1"},
 			},
-			output: &[]Log{msg1},
+			expected: &[]Log{msg1},
 		},
 		{
 			name: "multipleMonitors",
@@ -92,7 +92,7 @@ func TestQuery(t *testing.T) {
 				Sources:  []string{"s1", "s2"},
 				Monitors: []string{"m1", "m2"},
 			},
-			output: &[]Log{msg1, msg3},
+			expected: &[]Log{msg1, msg3},
 		},
 		{
 			name: "all",
@@ -100,7 +100,7 @@ func TestQuery(t *testing.T) {
 				Levels:  []Level{LevelError, LevelWarning, LevelInfo, LevelDebug},
 				Sources: []string{"s1", "s2"},
 			},
-			output: &[]Log{msg1, msg2, msg3},
+			expected: &[]Log{msg1, msg2, msg3},
 		},
 		{
 			name: "limit",
@@ -109,7 +109,7 @@ func TestQuery(t *testing.T) {
 				Sources: []string{"s1", "s2"},
 				Limit:   2,
 			},
-			output: &[]Log{msg1, msg2},
+			expected: &[]Log{msg1, msg2},
 		},
 		{
 			name: "time",
@@ -118,7 +118,7 @@ func TestQuery(t *testing.T) {
 				Sources: []string{"s1", "s2"},
 				Time:    4000,
 			},
-			output: &[]Log{msg2, msg3},
+			expected: &[]Log{msg2, msg3},
 		},
 	}
 
@@ -129,7 +129,7 @@ func TestQuery(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			actual := fmt.Sprintf("%v", logs)
-			expected := fmt.Sprintf("%v", tc.output)
+			expected := fmt.Sprintf("%v", tc.expected)
 
 			if actual != expected {
 				t.Fatalf("\nexpected:\n%v.\ngot:\n%v", expected, actual)

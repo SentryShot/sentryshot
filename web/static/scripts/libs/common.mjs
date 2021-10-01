@@ -100,6 +100,17 @@ function uidReset() {
 	idCount = 0;
 }
 
+// Returns function that converts monitor ID to name.
+function newMonitorNameByID(monitors) {
+	return (id) => {
+		for (const monitor of Object.values(monitors)) {
+			if (monitor["id"] === id) {
+				return monitor.name;
+			}
+		}
+	};
+}
+
 export {
 	$,
 	$$,
@@ -110,4 +121,5 @@ export {
 	sortByName,
 	uniqueID,
 	uidReset,
+	newMonitorNameByID,
 };

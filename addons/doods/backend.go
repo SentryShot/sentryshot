@@ -41,6 +41,7 @@ import (
 func init() {
 	nvr.RegisterMonitorMainProcessHook(main)
 	nvr.RegisterMonitorSubProcessHook(sub)
+	nvr.RegisterLogSource([]string{"doods"})
 }
 
 func main(ctx context.Context, m *monitor.Monitor, args *string) {

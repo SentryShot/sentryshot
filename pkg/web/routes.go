@@ -522,9 +522,40 @@ func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //
 	})
 }
 
-// Logs opens a websocket with system logs.
-func Logs(log *log.Logger, a *auth.Authenticator) http.Handler {
+// LogFeed opens a websocket with system logs.
+func LogFeed(l *log.Logger, a *auth.Authenticator) http.Handler { //nolint:funlen,gocognit
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+		query := r.URL.Query()
+
+		levelsCSV := query.Get("levels")
+		var levels []log.Level
+		if levelsCSV != "" {
+			for _, levelStr := range strings.Split(levelsCSV, ",") {
+				levelInt, err := strconv.Atoi(levelStr)
+				if err != nil {
+					http.Error(w,
+						fmt.Sprintf("invalid levels list: %v %v", levelsCSV, err),
+						http.StatusBadRequest)
+				}
+				levels = append(levels, log.Level(levelInt))
+			}
+		}
+
+		sourcesCSV := query.Get("sources")
+		var sources []string
+		if sourcesCSV != "" {
+			sources = strings.Split(sourcesCSV, ",")
+		}
+
+		q := log.Query{
+			Levels:  levels,
+			Sources: sources,
+		}
+
 		upgrader := websocket.Upgrader{}
 		c, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -533,12 +564,30 @@ func Logs(log *log.Logger, a *auth.Authenticator) http.Handler {
 		}
 		defer c.Close()
 
-		feed, cancel := log.Subscribe()
+		feed, cancel := l.Subscribe()
 		defer cancel()
 
 		authHeader := r.Header.Get("Authorization")
 		for {
 			log := <-feed
+
+			levelMatching := false
+			for _, level := range q.Levels {
+				if level == log.Level {
+					levelMatching = true
+					break
+				}
+			}
+			sourceMatching := false
+			for _, src := range q.Sources {
+				if src == log.Src {
+					sourceMatching = true
+					break
+				}
+			}
+			if !levelMatching || !sourceMatching {
+				continue
+			}
 
 			// Validate auth before each message.
 			auth := a.ValidateAuth(authHeader)
@@ -546,38 +595,111 @@ func Logs(log *log.Logger, a *auth.Authenticator) http.Handler {
 				return
 			}
 
-			err := c.WriteMessage(websocket.TextMessage, []byte(formatLog(log)))
+			raw, err := json.Marshal(log)
 			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+
+			if err := c.WriteMessage(websocket.TextMessage, raw); err != nil {
 				return
 			}
 		}
 	})
 }
 
-// tempoary
-func formatLog(l log.Log) string {
-	var output string
+// LogQuery handles log queries.
+func LogQuery(l *log.Logger) http.Handler { //nolint:funlen
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+		query := r.URL.Query()
 
-	switch l.Level {
-	case log.LevelError:
-		output += "[ERROR] "
-	case log.LevelWarning:
-		output += "[WARNING] "
-	case log.LevelInfo:
-		output += "[INFO] "
-	case log.LevelDebug:
-		output += "[DEBUG] "
-	}
+		limit := query.Get("limit")
+		if limit == "" {
+			http.Error(w, "limit missing", http.StatusBadRequest)
+			return
+		}
 
-	if l.Monitor != "" {
-		output += l.Monitor + ": "
-	}
-	if l.Src != "" {
-		output += strings.Title(l.Src) + ": "
-	}
+		limitInt, err := strconv.Atoi(limit)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("could not convert limit to int: %v", err), http.StatusBadRequest)
+			return
+		}
 
-	output += l.Msg
-	return output
+		levelsCSV := query.Get("levels")
+		var levels []log.Level
+		if levelsCSV != "" {
+			for _, levelStr := range strings.Split(levelsCSV, ",") {
+				levelInt, err := strconv.Atoi(levelStr)
+				if err != nil {
+					http.Error(w,
+						fmt.Sprintf("invalid levels list: %v %v", levelsCSV, err),
+						http.StatusBadRequest)
+				}
+				levels = append(levels, log.Level(levelInt))
+			}
+		}
+
+		sourcesCSV := query.Get("sources")
+		var sources []string
+		if sourcesCSV != "" {
+			sources = strings.Split(sourcesCSV, ",")
+		}
+
+		time := query.Get("time")
+		timeInt, err := strconv.Atoi(time)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("could not convert limit to int: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		q := log.Query{
+			Levels:  levels,
+			Sources: sources,
+			Time:    log.UnixMillisecond(timeInt),
+			Limit:   limitInt,
+		}
+
+		logs, err := l.Query(q)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		logsJSON, err := json.Marshal(logs)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("could not marshal data: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		if _, err := w.Write(logsJSON); err != nil {
+			http.Error(w, fmt.Sprintf("could not write data: %v", err), http.StatusInternalServerError)
+			return
+		}
+	})
+}
+
+// LogSources handles list of log sources.
+func LogSources(l *log.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		sources, err := json.Marshal(l.Sources())
+		if err != nil {
+			http.Error(w, fmt.Sprintf("could not marshal data: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		if _, err := w.Write(sources); err != nil {
+			http.Error(w, fmt.Sprintf("could not write data: %v", err), http.StatusInternalServerError)
+			return
+		}
+	})
 }
 
 func containsSpaces(s string) bool {

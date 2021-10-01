@@ -32,7 +32,7 @@ func newTestLogger(t *testing.T) (context.Context, func(), *Logger) {
 	}
 
 	dbPath := filepath.Join(tempDir, "logs.db")
-	logger, err := NewLogger(dbPath, &sync.WaitGroup{})
+	logger, err := NewLogger(dbPath, &sync.WaitGroup{}, nil)
 	if err != nil {
 		t.Fatalf("could not create test logger: %v", err)
 	}

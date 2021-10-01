@@ -87,7 +87,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 	hooks.env(env)
 
 	logDBpath := filepath.Join(env.StorageDir, "logs.db")
-	logger, err := log.NewLogger(logDBpath, wg)
+	logger, err := log.NewLogger(logDBpath, wg, hooks.logSource)
 	if err != nil {
 		return nil, fmt.Errorf("could not create logger: %v", err)
 	}
@@ -174,7 +174,9 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 	mux.Handle("/api/group/delete", a.Admin(a.CSRF(web.GroupDelete(groupManager))))
 
 	mux.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler, logger)))
-	mux.Handle("/api/logs", a.Admin(web.Logs(logger, a)))
+	mux.Handle("/api/log/feed", a.Admin(web.LogFeed(logger, a)))
+	mux.Handle("/api/log/query", a.Admin(web.LogQuery(logger)))
+	mux.Handle("/api/log/sources", a.Admin(web.LogSources(logger)))
 
 	server := &http.Server{Addr: ":" + env.Port, Handler: mux}
 

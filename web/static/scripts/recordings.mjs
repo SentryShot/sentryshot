@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, fetchGet } from "./libs/common.mjs";
+import { $, fetchGet, newMonitorNameByID } from "./libs/common.mjs";
 import { newPlayer } from "./components/player.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
 
@@ -179,16 +179,6 @@ function dateToID(d) {
 	return `${YY}-${MM}-${DD}_${hh}-${mm}-${ss}`;
 }
 
-function newMonitorNameByID(monitors) {
-	return async (id) => {
-		for (const monitor of Object.values(await monitors)) {
-			if (monitor["id"] === id) {
-				return monitor.name;
-			}
-		}
-	};
-}
-
 // Init.
 (async () => {
 	try {
@@ -226,4 +216,4 @@ function newMonitorNameByID(monitors) {
 	}
 })();
 
-export { newViewer, newMonitorNameByID };
+export { newViewer };

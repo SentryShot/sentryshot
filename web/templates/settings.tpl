@@ -28,8 +28,5 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 			<ul id="settings-navbar-nav"></ul>
 		</nav>
 	</div>
-	<div id="js-modal-wrapper" class="modal-wrapper">
-		<div class="modal"></div>
-	</div>
 </body>
 {{ template "html2" }}

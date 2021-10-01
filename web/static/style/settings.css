@@ -191,41 +191,6 @@
 	text-align: center;
 }
 
-.settings-form-item {
-	align-items: center;
-	padding: 0.25rem;
-	border-color: var(--colorbg);
-	border-bottom: solid;
-	border-bottom-width: 0.05rem;
-}
-
-.settings-form-item-flex {
-	display: flex;
-	align-items: center;
-	padding: 0.25rem;
-	border-color: var(--colorbg);
-	border-bottom: solid;
-	border-bottom-width: 0.05rem;
-}
-
-.settings-form-item-error {
-	align-items: center;
-	padding: 0.2rem;
-	padding-bottom: 0.1rem;
-	border-color: var(--colorbg);
-	border-bottom: solid;
-	border-bottom-width: 0.05rem;
-}
-
-.settings-label {
-	flex-grow: 1;
-	float: left;
-	width: 95vw;
-	min-width: 4rem;
-	color: var(--color-text);
-	font-size: 0.6rem;
-}
-
 .settings-input-text {
 	width: 100%;
 	height: 1rem;
@@ -247,18 +212,12 @@
 	color: var(--color-orange);
 }
 
-.settings-select {
-	width: 100%;
-	height: 1rem;
-	font-size: 0.5rem;
-}
-
-.settings-select-container {
+.form-field-select-container {
 	display: flex;
 	width: 100%;
 }
 
-.settings-select-custom-btn {
+.form-field-select-custom-btn {
 	flex-shrink: 0;
 	width: 1rem;
 	height: 1rem;
@@ -268,7 +227,7 @@
 	border-radius: 0.2rem;
 }
 
-.settings-select-custom-btn:hover {
+.form-field-select-custom-btn:hover {
 	background: black;
 }
 
@@ -346,7 +305,7 @@
 		display: none;
 	}
 
-	.settings-label {
+	.form-field-label {
 		width: auto;
 	}
 

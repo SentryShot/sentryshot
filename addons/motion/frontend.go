@@ -96,11 +96,11 @@ const javascript = `
 			html: ` + "`" + `
 				<li
 					id="js-motionZones"
-						class="settings-form-item"
+						class="form-field"
 						style="display:flex; padding-bottom:0.25rem;"
 					>
 					<label
-						class="settings-label"
+						class="form-field-label"
 						for="motionZones"
 						style="width:100%"
 						>Motion zones
@@ -273,12 +273,12 @@ const javascript = `
 					
 					const html = ` + "`" + `<li
 						id="js-modal-zone-select"
-						class="settings-form-item"
+						class="form-field"
 					>
-						<div class="settings-select-container">
+						<div class="form-field-select-container">
 							<select
 								id="modal-zone"
-								class="settings-select js-input"
+								class="form-field-select js-input"
 							>
 								${renderOptions()}
 							</select>
@@ -299,17 +299,17 @@ const javascript = `
 
 						</div>
 					</li>
-					<li id="js-modal-preview" class="settings-form-item">
-						<label class="settings-label" for="modal-enable">Enable</label>
-						<div class="settings-select-container">
-							<select id="modal-enable" class="settings-select js-input">
+					<li id="js-modal-preview" class="form-field">
+						<label class="form-field-label" for="modal-enable">Enable</label>
+						<div class="form-field-select-container">
+							<select id="modal-enable" class="form-field-select js-input">
 								<option>true</option>
 								<option>false</option>
 							</select>
 						</div>
 					</li>
-					<li id="js-modal-threshold" class="settings-form-item">
-						<label for="modal-threshold" class="settings-label">Threshold</label>
+					<li id="js-modal-threshold" class="form-field">
+						<label for="modal-threshold" class="form-field-label">Threshold</label>
 						<input
 							id="modal-threshold"
 							class="settings-input-text"
@@ -319,10 +319,10 @@ const javascript = `
 							step="any"
 						/>
 					</li>
-					<li id="js-modal-preview" class="settings-form-item">
-						<label class="settings-label" for="modal-preview">Preview</label>
-						<div class="settings-select-container">
-							<select id="modal-preview" class="settings-select js-input">
+					<li id="js-modal-preview" class="form-field">
+						<label class="form-field-label" for="modal-preview">Preview</label>
+						<div class="form-field-select-container">
+							<select id="modal-preview" class="form-field-select js-input">
 								<option>true</option>
 								<option>false</option>
 							</select>
@@ -342,7 +342,7 @@ const javascript = `
 					</li>
 					<li 
 						id="js-modal-points"
-						class="settings-form-item modal-points-grid"
+						class="form-field modal-points-grid"
 					>
 					</li>` + "`" + `;
 					

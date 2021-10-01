@@ -221,9 +221,9 @@ describe("fieldTemplate", () => {
 		const expected = `
 		<li
 			id="js-uid1"
-			class="settings-form-item-error"
+			class="form-field-error"
 		>
-			<label for="uid1" class="settings-label">1</label>
+			<label for="uid1" class="form-field-label">1</label>
 			<input
 				id="uid1"
 				class="settings-input-text js-input"
@@ -253,9 +253,9 @@ describe("fieldTemplate", () => {
 		const expected = `
 		<li
 			id="js-uid1"
-			class="settings-form-item-error"
+			class="form-field-error"
 		>
-			<label for="uid1" class="settings-label">1</label>
+			<label for="uid1" class="form-field-label">1</label>
 			<input
 				id="uid1"
 				class="settings-input-text js-input"
@@ -287,10 +287,10 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.toggle("1", "true");
 
 		const expected = `
-		<li id="js-uid1" class="settings-form-item">
-			<label for="uid1" class="settings-label">1</label>
-			<div class="settings-select-container">
-				<select id="uid1" class="settings-select js-input">
+		<li id="js-uid1" class="form-field">
+			<label for="uid1" class="form-field-label">1</label>
+			<div class="form-field-select-container">
+				<select id="uid1" class="form-field-select js-input">
 					<option>true</option>
 					<option>false</option>
 				</select>
@@ -315,10 +315,10 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.select("1", ["a", "b", "c"], "a");
 
 		const expected = `
-		<li id="js-uid1" class="settings-form-item">
-			<label for="uid1" class="settings-label">1</label>
-			<div class="settings-select-container">
-				<select id="uid1" class="settings-select js-input">
+		<li id="js-uid1" class="form-field">
+			<label for="uid1" class="form-field-label">1</label>
+			<div class="form-field-select-container">
+				<select id="uid1" class="form-field-select js-input">
 					<option>a</option>
 					<option>b</option>
 					<option>c</option>
@@ -344,10 +344,10 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.selectCustom("y", ["a", "b", "c"], "a");
 
 		const expected = `
-		<li id="js-uid1" class="settings-form-item-error">
-			<label for="uid1" class="settings-label">y</label>
-			<div class="settings-select-container">
-				<select id="uid1" class="settings-select js-input">
+		<li id="js-uid1" class="form-field-error">
+			<label for="uid1" class="form-field-label">y</label>
+			<div class="form-field-select-container">
+				<select id="uid1" class="form-field-select js-input">
 					<option>a</option>
 					<option>b</option>
 					<option>c</option>
@@ -395,8 +395,8 @@ describe("passwordField", () => {
 	test("rendering", () => {
 		uidReset();
 		const expected = `
-			<li id="js-uid1" class="settings-form-item-error">
-				<label for="uid1" class="settings-label">New password</label>
+			<li id="js-uid1" class="form-field-error">
+				<label for="uid1" class="form-field-label">New password</label>
 				<input
 					id="uid1"
 					class="settings-input-text js-input"
@@ -404,8 +404,8 @@ describe("passwordField", () => {
 				/>
 				<span class="settings-error js-error"></span>
 			</li>
-			<li id="js-uid2" class="settings-form-item-error">
-				<label for="uid2" class="settings-label">Repeat password</label>
+			<li id="js-uid2" class="form-field-error">
+				<label for="uid2" class="form-field-label">Repeat password</label>
 				<input
 					id="uid2"
 					class="settings-input-text js-input"

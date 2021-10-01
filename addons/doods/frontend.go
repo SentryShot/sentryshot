@@ -146,11 +146,11 @@ func javascript() string { //nolint:funlen
 			html: ` + "`" + `
 				<li
 					id="js-doodsThresholds"
-						class="settings-form-item"
+						class="form-field"
 						style="display:flex; padding-bottom:0.25rem;"
 					>
 					<label
-						class="settings-label"
+						class="form-field-label"
 						for="doodsThresholds"
 						style="width:100%"
 						>DOODS thresholds

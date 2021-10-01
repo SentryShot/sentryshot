@@ -229,8 +229,8 @@ function newHTMLfield(options, id, label, placeholder) {
 			options += "\n<option>" + option + "</option>";
 		}
 		body = `
-			<div class="settings-select-container">
-				<select id="${id}" class="settings-select js-input">${options}
+			<div class="form-field-select-container">
+				<select id="${id}" class="form-field-select js-input">${options}
 				</select>
 				${
 					custom
@@ -246,9 +246,9 @@ function newHTMLfield(options, id, label, placeholder) {
 	return `
 		<li
 			id="js-${id}"
-			class="${errorField ? "settings-form-item-error" : "settings-form-item"}"
+			class="${errorField ? "form-field-error" : "form-field"}"
 		>
-			<label for="${id}" class="settings-label"
+			<label for="${id}" class="form-field-label"
 				>${label}</label
 			>${body}
 			${errorField ? '<span class="settings-error js-error"></span>' : ""}
@@ -404,8 +404,8 @@ function newPasswordField() {
 
 	const passwordHTML = (id, label) => {
 		return `
-		<li id="js-${id}" class="settings-form-item-error">
-			<label for="${id}" class="settings-label">${label}</label>
+		<li id="js-${id}" class="form-field-error">
+			<label for="${id}" class="form-field-label">${label}</label>
 			<input
 				id="${id}"
 				class="settings-input-text js-input"

@@ -62,6 +62,11 @@ type Log struct {
 	Monitor string          // Source monitor id.
 }
 
+// GetTime as time.Time.
+func (l Log) GetTime() time.Time {
+	return time.Unix(0, int64(l.Time*1000))
+}
+
 // Src sets event source.
 func (e *Event) Src(source string) *Event {
 	e.src = source
@@ -82,6 +87,7 @@ func (e *Event) Time(t time.Time) *Event {
 
 // Msg sends the *Event with msg added as the message field.
 func (e *Event) Msg(msg string) {
+	// TODO: check source.
 	log := Log{
 		Time:    e.time,
 		Level:   e.level,
@@ -108,13 +114,16 @@ type Logger struct {
 	sub   chan logFeed // subscribe requests.
 	unsub chan logFeed // unsubscribe requests.
 
-	wg     *sync.WaitGroup
-	db     *sql.DB
-	dbPath string
+	wg      *sync.WaitGroup
+	db      *sql.DB
+	dbPath  string
+	sources []string
 }
 
+var defaultSources = []string{"app", "monitor", "recorder", "storage", "watchdog"}
+
 // NewLogger starts and returns Logger.
-func NewLogger(dbPath string, wg *sync.WaitGroup) (*Logger, error) {
+func NewLogger(dbPath string, wg *sync.WaitGroup, addonSources []string) (*Logger, error) {
 	if err := checkDB(dbPath); err != nil {
 		return nil, err
 	}
@@ -125,8 +134,9 @@ func NewLogger(dbPath string, wg *sync.WaitGroup) (*Logger, error) {
 		sub:   make(chan logFeed),
 		unsub: make(chan logFeed),
 
-		wg:     wg,
-		dbPath: dbPath,
+		wg:      wg,
+		dbPath:  dbPath,
+		sources: append(defaultSources, addonSources...),
 	}, nil
 }
 
@@ -138,6 +148,11 @@ func NewMockLogger() *Logger {
 		unsub: make(chan logFeed),
 		wg:    &sync.WaitGroup{},
 	}
+}
+
+// Sources Returns log sources.
+func (l *Logger) Sources() []string {
+	return l.sources
 }
 
 const dbAPIversion = -1 // testing

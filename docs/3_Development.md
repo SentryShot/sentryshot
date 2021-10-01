@@ -4,6 +4,7 @@
 	-   [User](#user)
 	-   [Monitor](#monitor)
 	-   [Recording](#recording)
+	-   [Logs](#logs)
 -   [Websockets API](#websockets-api)
 	-   [Logs](#logs)
 
@@ -151,6 +152,48 @@ example response:
 ```
 
 <br>
+## Logs
+
+### GET /api/log/query?levels=16,24&sources=app,monitor&time=10000000000000000&limit=2
+
+##### Auth: admin
+
+Query logs. Time is in Unix milliseconds.
+
+example response:
+
+```
+[
+  {
+    "Level":0,
+    "Time":0,
+    "Msg":"",
+    "Src":"",
+    "Monitor":""
+  },
+  {
+    "Level":0,
+    "Time":0,
+    "Msg":"",
+    "Src":"",
+    "Monitor":""
+  }
+]
+```
+
+<br>
+
+### GET /api/log/sources
+
+##### Auth: admin
+
+List of log sources.
+
+example response:`["app","monitor","recorder","storage","watchdog"]`
+
+
+<br>
+<br>
 
 # Websockets API
 
@@ -162,7 +205,7 @@ curl doesn't support wss.
 
 ## Logs
 
-### /api/logs
+### /api/logs?levels=16,24&sources=app,monitor
 
 ##### Auth: admin
 
