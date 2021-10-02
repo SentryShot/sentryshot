@@ -185,60 +185,124 @@ func TestPrepareEnv(t *testing.T) {
 	})
 }
 
-func TestParseFFmpegInputs(t *testing.T) {
+func TestParseInputs(t *testing.T) {
+	t.Run("working", func(t *testing.T) {
+		inputs, err := parseInputs("1x2", "[3,4,5]", 6, 7)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		actual := fmt.Sprintf("%v", inputs)
+		expected := "&{1 2 3 4 5 6 7}"
+		if actual != expected {
+			t.Fatalf("expected:\n%v.\ngot:\n%v.", expected, actual)
+		}
+	})
 	t.Run("widthErr", func(t *testing.T) {
-		if _, err := parseInputs("nilx1", 0, 0); err == nil {
+		if _, err := parseInputs("nilx1", "", 0, 0); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("heightErr", func(t *testing.T) {
-		if _, err := parseInputs("1xnil", 0, 0); err == nil {
+		if _, err := parseInputs("1xnil", "", 0, 0); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
-	t.Run("widthErr2", func(t *testing.T) {
-		if _, err := parseInputs("1x2", 2, 1); err == nil {
+	t.Run("cropErr", func(t *testing.T) {
+		if _, err := parseInputs("1x1", `[1,2,"x"]`, 0, 0); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
-	t.Run("heightErr2", func(t *testing.T) {
-		if _, err := parseInputs("2x1", 1, 2); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
-	})
+}
+
+func TestCaclulateOutputs(t *testing.T) {
 	t.Run("frameSizes", func(t *testing.T) {
 		cases := []struct {
-			size         string
-			outputWidth  int
-			outputHeight int
+			inputWidth   float64
+			inputHeight  float64
+			cropX        float64
+			cropY        float64
+			cropSize     float64
+			outputWidth  float64
+			outputHeight float64
 			expected     string
 		}{
-			{"600x400", 300, 300, "300x200 1 1.5"},
-			{"400x600", 300, 300, "200x300 1.5 1"},
-			{"640x480", 420, 280, "373x280 1.125 1"},
-			{"480x640", 280, 420, "280x373 1 1.125"},
+			{600, 400, 0, 0, 100, 300, 300, "300x200 300x300 0:0 1:1.5 0.5:0.5"},
+			{400, 600, 0, 0, 100, 300, 300, "200x300 300x300 0:0 1.5:1 0.5:0.5"},
+			{640, 480, 0, 0, 100, 420, 280, "373x280 420x280 0:0 1.125:1 0.5:0.5"},
+			{480, 640, 0, 0, 100, 280, 420, "280x373 280x420 0:0 1:1.125 0.5:0.5"},
+			{100, 100, 5, 5, 90, 90, 90, "100x100 100x100 5:5 1:1 0.5:0.5"},
+			{100, 200, 5, 5, 90, 90, 90, "50x100 100x100 5:5 2:1 0.5:0.5"},
+			{200, 100, 5, 5, 90, 90, 90, "100x50 100x100 5:5 1:2 0.5:0.5"},
+			{200, 100, 0, 0, 90, 90, 90, "100x50 100x100 0:0 1:2 0.45:0.45"},
+			{200, 100, 0, 20, 80, 80, 80, "100x50 100x100 0:20 1:2 0.4:0.6"},
+			{854, 480, 20, 10, 60, 300, 300, "500x281 500x500 100:50 1:1.7791667 0.5:0.4"},
 		}
 
 		for i, tc := range cases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
-				inputs, err := parseInputs(tc.size, tc.outputWidth, tc.outputHeight)
+				outputs, err := calculateOutputs(&inputs{
+					inputWidth:   tc.inputWidth,
+					inputHeight:  tc.inputHeight,
+					cropX:        tc.cropX,
+					cropY:        tc.cropY,
+					cropSize:     tc.cropSize,
+					outputWidth:  tc.outputWidth,
+					outputHeight: tc.outputHeight,
+				})
+
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
 
-				actual := fmt.Sprintf("%vx%v %v %v",
-					inputs.frameWidth, inputs.frameHeight, inputs.xMultiplier, inputs.yMultiplier)
+				actual := fmt.Sprintf("%vx%v %vx%v %v:%v %v:%v %v:%v",
+					outputs.scaledWidth, outputs.scaledHeight,
+					outputs.paddedWidth, outputs.paddedHeight,
+					outputs.cropX, outputs.cropY,
+					outputs.paddingXmultiplier, outputs.paddingYmultiplier,
+					outputs.uncropXfunc(0.5), outputs.uncropYfunc(0.5),
+				)
 
 				if actual != tc.expected {
-					t.Fatalf("expected: %v, got: %v", tc.expected, actual)
+					t.Fatalf("expected:\n%v.\ngot:\n%v.", tc.expected, actual)
 				}
 			})
+		}
+	})
+	t.Run("widthErr", func(t *testing.T) {
+		if _, err := calculateOutputs(&inputs{
+			inputWidth:   1,
+			inputHeight:  2,
+			outputWidth:  2,
+			outputHeight: 1,
+		}); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("heightErr", func(t *testing.T) {
+		if _, err := calculateOutputs(&inputs{
+			inputWidth:   2,
+			inputHeight:  1,
+			outputWidth:  1,
+			outputHeight: 2,
+		}); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("scaledWidthErr", func(t *testing.T) {
+		if _, err := calculateOutputs(&inputs{
+			inputWidth:   100,
+			inputHeight:  100,
+			outputWidth:  80,
+			outputHeight: 80,
+			cropSize:     70,
+		}); err == nil {
+			t.Fatal("expected: error, got: nil")
 		}
 	})
 }
 
 func TestGenerateArgs(t *testing.T) {
-	t.Run("working1", func(t *testing.T) {
+	t.Run("minimal", func(t *testing.T) {
 		a := addon{
 			id: "3",
 			c:  &doodsConfig{},
@@ -251,25 +315,27 @@ func TestGenerateArgs(t *testing.T) {
 			"doodsFeedRate": "4",
 		}
 		args := a.generateFFmpegArgs(config,
-			&inputs{
-				inputWidth:   600,
-				inputHeight:  400,
-				outputWidth:  300,
-				outputHeight: 300,
-				frameWidth:   "300",
-				frameHeight:  "200",
+			&outputs{
+				scaledWidth:  "5",
+				scaledHeight: "6",
+				paddedWidth:  "7",
+				paddedHeight: "8",
+				outputWidth:  9,
+				outputHeight: 10,
+				cropX:        "11",
+				cropY:        "12",
 			},
 		)
 
 		actual := fmt.Sprintf("%v", args)
 		expected := "[-y -loglevel 1 -i 2/doods/3/main.fifo -filter fps=fps=4," +
-			"scale=300:200,pad=300:300:0:0 -f rawvideo -pix_fmt rgb24 -]"
+			"scale=5:6,pad=7:8:0:0,crop=9:10:11:12 -f rawvideo -pix_fmt rgb24 -]"
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 		}
 	})
-	t.Run("working2", func(t *testing.T) {
+	t.Run("maximal", func(t *testing.T) {
 		a := addon{
 			id: "4",
 			c:  &doodsConfig{},
@@ -283,19 +349,21 @@ func TestGenerateArgs(t *testing.T) {
 			"hwaccel":       "2",
 		}
 		args := a.generateFFmpegArgs(config,
-			&inputs{
-				inputWidth:   400,
-				inputHeight:  600,
-				outputWidth:  300,
-				outputHeight: 300,
-				frameWidth:   "200",
-				frameHeight:  "300",
+			&outputs{
+				scaledWidth:  "6",
+				scaledHeight: "7",
+				paddedWidth:  "8",
+				paddedHeight: "9",
+				outputWidth:  10,
+				outputHeight: 11,
+				cropX:        "12",
+				cropY:        "13",
 			},
 		)
 
 		actual := fmt.Sprintf("%v", args)
 		expected := "[-y -loglevel 1 -hwaccel 2 -i 3/doods/4/main.fifo -filter fps=fps=5," +
-			"scale=200:300,pad=300:300:0:0 -f rawvideo -pix_fmt rgb24 -]"
+			"scale=6:7,pad=8:9:0:0,crop=10:11:12:13 -f rawvideo -pix_fmt rgb24 -]"
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
@@ -455,11 +523,13 @@ func newTestClient() (*doodsClient, log.Feed, func()) {
 
 	d := &doodsClient{
 		a: &addon{
-			inputs: &inputs{
-				outputWidth:  2,
-				outputHeight: 2,
-				xMultiplier:  1.1,
-				yMultiplier:  0.9,
+			outputs: &outputs{
+				outputWidth:        2,
+				outputHeight:       2,
+				paddingXmultiplier: 1.1,
+				paddingYmultiplier: 0.9,
+				uncropXfunc:        func(i float32) float32 { return i },
+				uncropYfunc:        func(i float32) float32 { return i },
 			},
 
 			log:     logger,

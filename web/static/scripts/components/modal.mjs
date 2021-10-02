@@ -13,10 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 function newModal(label) {
-	var $wrapper;
-	const close = () => {
-		$wrapper.classList.remove("modal-open");
-	};
+	var $wrapper, onClose;
 	return {
 		html: `
 			<div class="modal-wrapper js-modal-wrapper">
@@ -34,9 +31,17 @@ function newModal(label) {
 			$wrapper.classList.add("modal-open");
 		},
 		close: close,
+		onClose(func) {
+			onClose = func;
+		},
 		init($parent) {
 			$wrapper = $parent.querySelector(".js-modal-wrapper");
-			$wrapper.querySelector(".modal-close-btn").addEventListener("click", close);
+			$wrapper.querySelector(".modal-close-btn").addEventListener("click", () => {
+				$wrapper.classList.remove("modal-open");
+				if (onClose) {
+					onClose();
+				}
+			});
 			return $wrapper.querySelector(".modal-content");
 		},
 	};

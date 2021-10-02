@@ -116,13 +116,18 @@ func start(ctx context.Context, m *monitor.Monitor, useSubStream bool) error {
 	outputWidth := int(detector.GetWidth())
 	outputHeight := int(detector.GetHeight())
 
-	inputs, err := parseInputs(size, outputWidth, outputHeight)
+	inputs, err := parseInputs(size, m.Config["doodsCrop"], outputWidth, outputHeight)
 	if err != nil {
-		return fmt.Errorf("could not parse ffmpeg inputs: %v", err)
+		return fmt.Errorf("could not parse inputs: %v", err)
 	}
-	a.inputs = inputs
 
-	ffmpegArgs := a.generateFFmpegArgs(m.Config, inputs)
+	outputs, err := calculateOutputs(inputs)
+	if err != nil {
+		return fmt.Errorf("could not calculate ffmpeg outputs: %v", err)
+	}
+	a.outputs = outputs
+
+	ffmpegArgs := a.generateFFmpegArgs(m.Config, outputs)
 
 	a.wg.Add(1)
 	go a.newFFmpeg(ffmpegArgs).start(ctx)
@@ -202,7 +207,7 @@ type addon struct {
 	log     *log.Logger
 	trigger monitor.Trigger
 
-	inputs *inputs
+	outputs *outputs
 
 	env *storage.ConfigEnv
 
@@ -231,66 +236,128 @@ func (a *addon) prepareEnvironment() error {
 type inputs struct {
 	inputWidth   float64
 	inputHeight  float64
-	outputWidth  int
-	outputHeight int
-	frameWidth   string
-	frameHeight  string
-	yMultiplier  float32
-	xMultiplier  float32
+	cropX        float64
+	cropY        float64
+	cropSize     float64
+	outputWidth  float64
+	outputHeight float64
 }
 
-func parseInputs(size string, outputWidth, outputHeight int) (*inputs, error) {
+func parseInputs(size string, rawCrop string, outputWidth int, outputHeight int) (*inputs, error) {
 	split := strings.Split(size, "x")
-	inputWidth, err := strconv.ParseFloat(split[0], 32)
+	inputWidth, err := strconv.ParseFloat(split[0], 64)
 	if err != nil {
-		return nil, fmt.Errorf("could not get input width: %v %v", err, split)
+		return nil, fmt.Errorf("could not parse input width: %v %v", err, split)
 	}
-
-	inputHeight, err := strconv.ParseFloat(split[1], 32)
+	inputHeight, err := strconv.ParseFloat(split[1], 64)
 	if err != nil {
-		return nil, fmt.Errorf("could not get input height: %v %v", err, split)
+		return nil, fmt.Errorf("could not parse input height: %v %v", err, split)
 	}
 
-	if int(inputWidth) < outputWidth {
-		return nil, fmt.Errorf("input width is less than output width, %v %v", inputWidth, outputWidth)
-	}
-	if int(inputHeight) < outputHeight {
-		return nil, fmt.Errorf("input height is less than output height, %v %v", inputHeight, outputHeight)
-	}
-
-	frameWidth := strconv.Itoa(outputWidth)
-	frameHeight := strconv.Itoa(outputHeight)
-	var xMultiplier float32 = 1
-	var yMultiplier float32 = 1
-
-	widthRatio := inputWidth / float64(outputWidth)
-	heightRatio := inputHeight / float64(outputHeight)
-
-	if widthRatio > heightRatio {
-		height := float32(inputHeight / (inputWidth / float64(outputWidth)))
-		frameHeight = strconv.Itoa(int(height))
-		yMultiplier = float32(outputHeight) / height
-	} else {
-		width := float32(inputWidth / (inputHeight / float64(outputHeight)))
-		frameWidth = strconv.Itoa(int(width))
-		xMultiplier = float32(outputWidth) / width
+	var crop [3]float64
+	if err := json.Unmarshal([]byte(rawCrop), &crop); err != nil {
+		return nil, fmt.Errorf("could not Unmarshal crop values: %v", err)
 	}
 
 	return &inputs{
 		inputWidth:   inputWidth,
 		inputHeight:  inputHeight,
-		outputWidth:  outputWidth,
-		outputHeight: outputHeight,
-		frameWidth:   frameWidth,
-		frameHeight:  frameHeight,
-		yMultiplier:  yMultiplier,
-		xMultiplier:  xMultiplier,
+		cropX:        crop[0],
+		cropY:        crop[1],
+		cropSize:     crop[2],
+		outputWidth:  float64(outputWidth),
+		outputHeight: float64(outputHeight),
 	}, nil
 }
 
-func (a *addon) generateFFmpegArgs(config monitor.Config, i *inputs) []string {
+type outputs struct {
+	paddedWidth  string
+	paddedHeight string
+	scaledWidth  string
+	scaledHeight string
+	cropX        string
+	cropY        string
+	outputWidth  int
+	outputHeight int
+
+	paddingYmultiplier float32
+	paddingXmultiplier float32
+	uncropXfunc        func(float32) float32
+	uncropYfunc        func(float32) float32
+}
+
+func calculateOutputs(i *inputs) (*outputs, error) { //nolint:funlen
+	if i.inputWidth < i.outputWidth {
+		return nil, fmt.Errorf("input width is less than output width, %v/%v", i.inputWidth, i.outputWidth)
+	}
+	if i.inputHeight < i.outputHeight {
+		return nil, fmt.Errorf("input height is less than output height, %v/%v", i.inputHeight, i.outputHeight)
+	}
+
+	paddedWidth := i.outputWidth * 100 / i.cropSize
+	paddedHeight := i.outputHeight * 100 / i.cropSize
+
+	cropOutX := paddedWidth * i.cropX / 100
+	cropOutY := paddedHeight * i.cropY / 100
+
+	widthRatio := i.inputWidth / i.outputWidth
+	heightRatio := i.inputHeight / i.outputHeight
+
+	scaledWidth := paddedWidth
+	scaledHeight := paddedHeight
+
+	var paddingXmultiplier float64 = 1
+	var paddingYmultiplier float64 = 1
+
+	if widthRatio > heightRatio {
+		scaledHeight = i.inputHeight * paddedWidth / i.inputWidth
+		paddingYmultiplier = paddedHeight / scaledHeight
+	} else if widthRatio < heightRatio {
+		scaledWidth = i.inputWidth * paddedHeight / i.inputHeight
+		paddingXmultiplier = paddedWidth / scaledWidth
+	}
+
+	if scaledWidth > i.inputWidth {
+		return nil, fmt.Errorf("scaled width is greater than input width: %v/%v", scaledWidth, i.inputWidth)
+	}
+
+	uncropXfunc := func(input float32) float32 {
+		newMin := paddedWidth * i.cropX / 100
+		newMax := paddedWidth * (i.cropX + i.cropSize) / 100
+		newRange := newMax - newMin
+		return float32((float64(input)*newRange + newMin) / paddedWidth)
+	}
+	uncropYfunc := func(input float32) float32 {
+		newMin := paddedHeight * i.cropY / 100
+		newMax := (paddedHeight * (i.cropY + i.cropSize) / 100)
+		newRange := newMax - newMin
+		return float32((float64(input)*newRange + newMin) / paddedHeight)
+	}
+
+	return &outputs{
+		paddedWidth:  strconv.Itoa(int(paddedWidth)),
+		paddedHeight: strconv.Itoa(int(paddedHeight)),
+		scaledWidth:  strconv.Itoa(int(scaledWidth)),
+		scaledHeight: strconv.Itoa(int(scaledHeight)),
+		cropX:        strconv.Itoa(int(cropOutX)),
+		cropY:        strconv.Itoa(int(cropOutY)),
+		outputWidth:  int(i.outputWidth),
+		outputHeight: int(i.outputHeight),
+
+		paddingYmultiplier: float32(paddingYmultiplier),
+		paddingXmultiplier: float32(paddingXmultiplier),
+		uncropXfunc:        uncropXfunc,
+		uncropYfunc:        uncropYfunc,
+	}, nil
+}
+
+func (a *addon) generateFFmpegArgs(config monitor.Config, i *outputs) []string {
 	// Output
-	// ffmpeg -hwaccel x -i main.pipe -filter 'fps=fps=3,scale=300:240,pad:300:300:0:0' -f rawvideo -pix_fmt rgb24 -
+	// ffmpeg -hwaccel x -i main.pipe -filter
+	//   'fps=fps=3,scale=320:260,pad=320:320:0:0,crop:300:300:10:10'
+	//   -f rawvideo -pix_fmt rgb24 -
+	// Padding is done after scaling for higher efficiency.
+	// Cropping must come after padding.
 
 	logLevel := config["logLevel"]
 	hwaccel := config["hwaccel"]
@@ -308,8 +375,9 @@ func (a *addon) generateFFmpegArgs(config monitor.Config, i *inputs) []string {
 
 	args = append(args, "-i", a.mainPipe(), "-filter")
 	args = append(args, "fps=fps="+fps+
-		",scale="+i.frameWidth+":"+i.frameHeight+
-		",pad="+outputWidth+":"+outputHeight+":0:0")
+		",scale="+i.scaledWidth+":"+i.scaledHeight+
+		",pad="+i.paddedWidth+":"+i.paddedHeight+":0:0"+
+		",crop="+outputWidth+":"+outputHeight+":"+i.cropX+":"+i.cropY)
 
 	args = append(args, "-f", "rawvideo")
 	args = append(args, "-pix_fmt", "rgb24", "-")
@@ -470,8 +538,8 @@ func runClient(ctx context.Context, d *doodsClient) error {
 }
 
 func (d *doodsClient) readFrames(ctx context.Context) error {
-	outputWidth := d.a.inputs.outputWidth
-	outputHeight := d.a.inputs.outputHeight
+	outputWidth := d.a.outputs.outputWidth
+	outputHeight := d.a.outputs.outputHeight
 
 	rect := image.Rect(0, 0, outputWidth, outputHeight)
 	frameSize := outputWidth * outputHeight * 3
@@ -546,22 +614,24 @@ func (a *addon) parseDetections(t time.Time, detections []*odrpc.Detection) {
 				continue
 			}
 
-			conv := func(input float32) int {
-				return int(input * 100)
+			convX := func(input float32) int {
+				return int(a.outputs.uncropXfunc(input) *
+					a.outputs.paddingXmultiplier * 100)
 			}
-
-			xMultiplier := a.inputs.xMultiplier
-			yMultiplier := a.inputs.yMultiplier
+			convY := func(input float32) int {
+				return int(a.outputs.uncropYfunc(input) *
+					a.outputs.paddingYmultiplier * 100)
+			}
 
 			d := monitor.Detection{
 				Label: label,
 				Score: score,
 				Region: &monitor.Region{
 					Rect: &ffmpeg.Rect{
-						conv(detection.GetTop() * yMultiplier),
-						conv(detection.GetLeft() * xMultiplier),
-						conv(detection.GetBottom() * yMultiplier),
-						conv(detection.GetRight() * xMultiplier),
+						convY(detection.GetTop()),
+						convX(detection.GetLeft()),
+						convY(detection.GetBottom()),
+						convX(detection.GetRight()),
 					},
 				},
 			}

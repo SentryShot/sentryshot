@@ -1,0 +1,1 @@
+This addon is deprecated.

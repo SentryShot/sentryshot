@@ -26,13 +26,26 @@ func init() {
 }
 
 func modifyTemplates(pageFiles map[string]string) error {
+	tpl, exists := pageFiles["settings.tpl"]
+	if !exists {
+		return errors.New("doods: could not find settings.tpl")
+	}
+	pageFiles["settings.tpl"] = modifySettings(tpl)
+
 	js, exists := pageFiles["settings.js"]
 	if !exists {
-		return errors.New("motion: could not find settings.js")
+		return errors.New("doods: could not find settings.js")
 	}
 
 	pageFiles["settings.js"] = modifySettingsjs(js)
 	return nil
+}
+
+func modifySettings(tpl string) string {
+	return strings.ReplaceAll(tpl,
+		`<script type="module" src="./settings.js" defer></script>`,
+		`<script type="module" src="./settings.js" defer></script>
+		<script src="static/scripts/vendor/hls.light.min.js" defer></script>`)
 }
 
 func modifySettingsjs(tpl string) string {
@@ -146,20 +159,13 @@ func javascript() string { //nolint:funlen
 			html: ` + "`" + `
 				<li
 					id="js-doodsThresholds"
-						class="form-field"
-						style="display:flex; padding-bottom:0.25rem;"
-					>
-					<label
-						class="form-field-label"
-						for="doodsThresholds"
-						style="width:100%"
-						>DOODS thresholds
-					</label>
+					class="form-field"
+					style="display:flex; padding-bottom:0.25rem;"
+				>
+					<label class="form-field-label">DOODS thresholds</label>
 					<div style="width:auto">
 						<button class="settings-edit-btn color3">
-							<img
-								src="static/icons/feather/edit-3.svg"
-							/>
+							<img src="static/icons/feather/edit-3.svg"/>
 						</button>
 					</div>
 					` + "` + modal.html + `" + `
@@ -183,7 +189,7 @@ func javascript() string { //nolint:funlen
 				thresholds = {};
 			},
 			init($parent) {
-				$content = modal.init($parent)
+				$content = modal.init($parent.querySelector("#js-doodsThresholds"))
 
 				// CSS.
 				let $style = document.createElement("style");
@@ -238,6 +244,275 @@ func javascript() string { //nolint:funlen
 					}
 
 					modal.open()
+				});
+			},
+		}
+	})(),
+	doodsCrop: (() => {
+		const detectors = JSON.parse(` + "`" + detectorsJSON + "`" + `)
+		const detectorAspectRatio = (name) => {
+			for (const detector of detectors) {
+				if (detector.name === name) {
+					return detector["width"] / detector["height"];
+				}
+			}
+		}
+
+		let fields = {};
+		let value = []
+		let $wrapper, $feed, $padding, $x, $y, $size;
+
+		const modal = newModal("DOODS crop");
+
+		const injectCSS = () => {
+			let $style = document.createElement("style");
+			$style.type = "text/css";
+			$style.innerHTML = ` + "`" + `
+				.doodsCrop-preview-feed {
+					width: 100%;
+					min-width: 0;
+					display: flex;
+					background: black;
+				}
+				.doodsCrop-preview-overlay {
+					position: absolute;
+					height: 100%;
+					width: 100%;
+					top: 0;
+				}
+				.doodsCrop-option-wrapper {
+					display: flex;
+					flex-wrap: wrap;
+				}
+				.doodsCrop-option {
+					display: flex;
+					background: var(--color2);
+					padding: 0.15rem;
+					border-radius: 0.15rem;
+					margin-right: 0.2rem;
+					margin-bottom: 0.2rem;
+				}
+				.doodsCrop-option-label {
+					font-size: 0.7rem;
+					color: var(--color-text);
+					margin-left: 0.1rem;
+					margin-right: 0.2rem;
+				}
+				.doodsCrop-option-input {
+					text-align: center;
+					font-size: 0.5rem;
+					border-style: none;
+					border-radius: 5px;
+					width: 1.4rem;
+				}` + "`" + `
+			$("head").appendChild($style);
+		}
+
+		const renderModal = ($parent) => {
+			const html = ` + "`" + `
+				<li id="doodsCrop-preview" class="form-field">
+					<label class="form-field-label" for="doodsCrop-preview" style="width: auto;">Preview</label>
+					<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
+						<video
+							class="js-feed doodsCrop-preview-feed"
+							muted
+							disablePictureInPicture
+						></video>
+						<div class="js-preview-padding" style="background: white;"></div>
+						<svg
+							class="js-overlay doodsCrop-preview-overlay"
+							viewBox="0 0 100 100"
+							preserveAspectRatio="none"
+							style="opacity: 0.7;"
+						>
+							<path
+								fill-rule="evenodd" 
+								d="m 0 0 L 100 0 L 100 100 L 0 100 L 0 0 M 20 20 L 80 20 L 80 80 L 20 80 L 20 20"
+							/>
+						</svg>
+					</div>
+				</li>
+				<li
+					class="js-options form-field doodsCrop-option-wrapper"
+				>
+					<div class="js-doodsCrop-option doodsCrop-option">
+						<span class="doodsCrop-option-label">X</span>
+						<input
+							class="js-x doodsCrop-option-input"
+							type="number"
+							min="0"
+							max="100"
+							value="0"
+						/>
+					</div>
+					<div class="js-doodsCrop-option doodsCrop-option">
+						<span class="doodsCrop-option-label">Y</span>
+						<input
+							class="js-y doodsCrop-option-input"
+							type="number"
+							min="0"
+							max="100"
+							value="0"
+						/>
+					</div>
+					<div class="js-doodsCrop-option doodsCrop-option">
+						<span class="doodsCrop-option-label">size</span>
+						<input
+							class="js-size doodsCrop-option-input"
+							type="number"
+							min="0"
+							max="100"
+							value="0"
+						/>
+					</div>
+				</li>` + "`" + `;
+
+			const $modal = modal.init($parent.querySelector("#js-doodsCrop"))
+			$modal.innerHTML = html;
+
+			$feed = $modal.querySelector(".js-feed");
+			$wrapper = $modal.querySelector(".js-preview-wrapper");
+			$padding = $modal.querySelector(".js-preview-padding");
+			$x = $modal.querySelector(".js-x");
+			$y = $modal.querySelector(".js-y");
+			$size = $modal.querySelector(".js-size");
+
+			set(value);
+
+			// Update padding if $feed size changes.
+			new ResizeObserver(updatePadding).observe($feed)
+
+			const $overlay = $modal.querySelector(".js-overlay")
+			$modal.querySelector(".js-options").addEventListener("change", () => {
+				$overlay.innerHTML = updatePreview();
+			})
+			$overlay.innerHTML = updatePreview();
+		}
+
+		let feed;
+		const attachFeed = () => {
+			feed = new Hls({
+				enableWorker: true,
+				maxBufferLength: 1,
+				liveBackBufferLength: 0,
+				liveSyncDuration: 0,
+				liveMaxLatencyDuration: 5,
+				liveDurationInfinity: true,
+				highBufferWatchdogPeriod: 1,
+			});
+
+			feed.attachMedia($feed);
+			feed.on(Hls.Events.MEDIA_ATTACHED, () => {
+			    const id = fields.id.value()
+				feed.loadSource("hls/" + id + "/" + id + ".m3u8");
+				$feed.play();
+			});
+		}
+
+		const updatePadding = () => {
+			const detectorName = fields.doodsDetectorName.value()
+			if (detectorName === "") {
+				alert("please select a detector")
+				return
+			}
+
+			const inputWidth = $feed.clientWidth
+			const inputHeight = $feed.clientHeight
+			const inputRatio = inputWidth / inputHeight
+			const outputRatio = detectorAspectRatio(detectorName)
+
+			if (inputRatio > outputRatio) {
+				const paddingHeight = (inputWidth * outputRatio) - inputHeight
+				$wrapper.style.display = "block"
+				$padding.style.width = "auto"
+				$padding.style.height = paddingHeight + "px"
+			} else {
+				const paddingWidth = (inputHeight * outputRatio) - inputWidth
+				$wrapper.style.display = "flex"
+				$padding.style.width = paddingWidth + "px"
+				$padding.style.height = "auto"
+			}
+		}
+
+		const updatePreview = () => {
+			const x = Number($x.value);
+			const y = Number($y.value);
+			let s = Number($size.value);
+
+			const max = Math.max(x, y);
+			if (max + s > 100) {
+				 s = 100 - max;
+				 $size.value = s
+			}
+
+			return ` + "`" + `
+				<path
+					fill-rule="evenodd"
+					d="m 0 0 L 100 0 L 100 100 L 0 100 L 0 0 M ${x} ${y} L ${x+s} ${y} L ${x+s} ${y+s} L ${x} ${y+s} L ${x} ${y}"
+				/>` + "`" + `;
+		}
+
+		const set = (input) => {
+			value = input;
+			$x.value = input[0];
+			$y.value = input[1];
+			$size.value = input[2];
+			updatePreview()
+		}
+
+		let rendered = false;
+
+		return {
+			html: ` + "`" + `
+				<li
+					id="js-doodsCrop"
+					class="form-field"
+					style="display:flex; padding-bottom:0.25rem;"
+				>
+					<label class="form-field-label">DOODS crop</label>
+					<div style="width:auto">
+						<button class="settings-edit-btn color3">
+							<img src="static/icons/feather/edit-3.svg"/>
+						</button>
+					</div>
+					` + "` + modal.html + `" + `
+				</li> ` + "`" + `,
+
+			value() {
+				if (!rendered) {
+					return JSON.stringify(value)
+				}
+				return JSON.stringify([
+					Number($x.value),
+					Number($y.value),
+					Number($size.value)
+				])
+			},
+			set(input, _, f) {
+				fields = f;
+				if (input === "") {
+					value = [0, 0, 100];
+				} else {
+					value = JSON.parse(input);
+				}
+				if (rendered) {
+					set(value)
+				}
+			},
+			init($parent) {
+				injectCSS()
+
+				$("#js-doodsCrop").querySelector(".settings-edit-btn").addEventListener("click", () => {
+					if (!rendered) {
+						rendered = true;
+						renderModal($parent)
+					}
+					modal.open()
+
+					attachFeed()
+					modal.onClose(() => {
+						feed.destroy()
+					})
 				});
 			},
 		}

@@ -36,6 +36,10 @@ Detector model used by DOODS to detect objects.
 
 Individual confidence thresholds for each type of object that can be detected.
 
+#### DOODS crop
+
+Crop frame to focus the detector and increase accuracy.
+
 #### DOODS feed rate
 
 Frames per second to send to detector, decimals are allowed.
