@@ -35,17 +35,23 @@ import (
 	"google.golang.org/grpc"
 )
 
-var ErrInvalidLengthRpc = fmt.Errorf("proto: negative length found during unmarshaling") //nolint:golint,stylecheck
-var ErrIntOverflowRpc = fmt.Errorf("proto: integer overflow")                            //nolint:golint,stylecheck
+var (
+	ErrInvalidLengthRpc = fmt.Errorf("proto: negative length found during unmarshaling") //nolint:revive,stylecheck
+	ErrIntOverflowRpc   = fmt.Errorf("proto: integer overflow")                          //nolint:revive,stylecheck
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
-var _ = proto.Marshal
-var _ = fmt.Errorf
-var _ = math.Inf
+var (
+	_ = proto.Marshal
+	_ = fmt.Errorf
+	_ = math.Inf
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
-var _ context.Context
-var _ grpc.ClientConn
+var (
+	_ context.Context
+	_ grpc.ClientConn
+)
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
@@ -133,10 +139,10 @@ func (m *Detector) GetChannels() int32 {
 	return 0
 }
 
-// The Process Request
+// The Process Request.
 type DetectRequest struct {
 	// The ID for the request.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` //nolint:golint,stylecheck
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` //nolint:revive,stylecheck
 	// The ID for the request.
 	DetectorName string `protobuf:"bytes,2,opt,name=detector_name,json=detectorName,proto3" json:"detector_name,omitempty"`
 	// The image data
@@ -167,7 +173,8 @@ func (r *DetectRequest) String() string {
 	}
 	mapStringForDetect += "}"
 
-	s := strings.Join([]string{`&DetectRequest{`,
+	s := strings.Join([]string{
+		`&DetectRequest{`,
 		`Id:` + fmt.Sprintf("%v", r.Id) + `,`,
 		`DetectorName:` + fmt.Sprintf("%v", r.DetectorName) + `,`,
 		`Data:` + fmt.Sprintf("%v", r.Data) + `,`,
@@ -193,7 +200,7 @@ type DetectRegion struct {
 func (m *DetectRegion) Reset()      { *m = DetectRegion{} }
 func (*DetectRegion) ProtoMessage() {}
 
-// Area for detection
+// Area for detection.
 type Detection struct {
 	// Coordinates
 	Top        float32 `protobuf:"fixed32,1,opt,name=top,proto3" json:"top"`
@@ -251,7 +258,7 @@ func (m *Detection) GetConfidence() float32 {
 
 type DetectResponse struct {
 	// The id for the response
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` //nolint:golint,stylecheck
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` //nolint:revive,stylecheck
 	// The detected areas
 	Detections []*Detection `protobuf:"bytes,2,rep,name=detections,proto3" json:"detections,omitempty"`
 	// If there was an error (streaming endpoint only)
@@ -261,7 +268,7 @@ type DetectResponse struct {
 func (r *DetectResponse) Reset()      { *r = DetectResponse{} }
 func (*DetectResponse) ProtoMessage() {}
 
-func (r *DetectResponse) GetId() string { //nolint:golint,stylecheck
+func (r *DetectResponse) GetId() string { //nolint:revive,stylecheck
 	if r != nil {
 		return r.Id
 	}
@@ -279,7 +286,8 @@ func (r *DetectResponse) String() string {
 	if r == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&DetectResponse{`,
+	s := strings.Join([]string{
+		`&DetectResponse{`,
 		`Id:` + fmt.Sprintf("%v", r.Id) + `,`,
 		`Detections:` + strings.Replace(fmt.Sprintf("%v", r.Detections), "Detection", "Detection", 1) + `,`, //nolint:gocritic
 		`Error:` + fmt.Sprintf("%v", r.Error) + `,`,
@@ -292,7 +300,7 @@ type odrpcClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewOdrpcClient(cc *grpc.ClientConn) *odrpcClient { //nolint:golint
+func NewOdrpcClient(cc *grpc.ClientConn) *odrpcClient { //nolint:revive
 	return &odrpcClient{cc}
 }
 
@@ -311,7 +319,7 @@ func (c *odrpcClient) DetectStream(ctx context.Context, opts ...grpc.CallOption)
 	return x, nil
 }
 
-type OdrpcDetectStreamClient struct { //nolint:golint
+type OdrpcDetectStreamClient struct { //nolint:revive
 	grpc.ClientStream
 }
 
@@ -327,5 +335,5 @@ func (x *OdrpcDetectStreamClient) Recv() (*DetectResponse, error) {
 	return m, nil
 }
 
-// Images are byte arrays
+// Images are byte arrays.
 type Raw []byte

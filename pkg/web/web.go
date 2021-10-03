@@ -24,6 +24,7 @@ import (
 	"nvr/pkg/storage"
 	"nvr/pkg/system"
 	"nvr/pkg/web/auth"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -68,13 +69,13 @@ func NewTemplater(path string, a *auth.Authenticator, data TemplateData, hook Ho
 		t := template.New(fileName)
 		t, err := t.Parse(page)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse page: %v", err)
+			return nil, fmt.Errorf("could not parse page: %w", err)
 		}
 
 		for _, include := range includeFiles {
 			t, err = t.Parse(include)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse include: %v", err)
+				return nil, fmt.Errorf("could not parse include: %w", err)
 			}
 		}
 		templates[fileName] = t
@@ -92,22 +93,22 @@ func NewTemplater(path string, a *auth.Authenticator, data TemplateData, hook Ho
 func readDir(dir string) (map[string]string, error) {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("could not read directory: %v", err)
+		return nil, fmt.Errorf("could not read directory: %w", err)
 	}
 
-	var fileContents = make(map[string]string)
+	fileContents := make(map[string]string)
 	for _, file := range files {
 		if !file.IsDir() && []rune(file.Name())[0] != []rune(".")[0] { // Check if file is hidden.
 			b, err := ioutil.ReadFile(dir + "/" + file.Name())
 			if err != nil {
-				return nil, fmt.Errorf("could not read file: %v", err)
+				return nil, fmt.Errorf("could not read file: %w", err)
 			}
 			fileContents[file.Name()] = string(b)
 		}
 	}
 
 	if len(fileContents) == 0 {
-		return nil, fmt.Errorf("no files in directory: %v", dir)
+		return nil, fmt.Errorf("%v: %w", dir, os.ErrNotExist)
 	}
 
 	return fileContents, nil

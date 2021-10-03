@@ -1,10 +1,10 @@
 package thumbscale
 
 import (
-	"errors"
 	"fmt"
 	"nvr"
 	"nvr/pkg/monitor"
+	"os"
 	"strings"
 )
 
@@ -16,7 +16,7 @@ func init() {
 func modifyTemplates(pageFiles map[string]string) error {
 	js, exists := pageFiles["settings.js"]
 	if !exists {
-		return errors.New("motion: could not find settings.js")
+		return fmt.Errorf("motion: settings.js: %w", os.ErrNotExist)
 	}
 
 	pageFiles["settings.js"] = modifySettingsjs(js)
@@ -71,7 +71,7 @@ func parseScale(scale string) string {
 	}
 }
 
-// Generate filter argument that divide height and width by ratio
+// Generate filter argument that divide height and width by ratio.
 func genFilter(ratio string) string {
 	// OUTPUT: -vf scale='iw/r:ih/2'
 	r := ratio

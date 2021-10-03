@@ -42,7 +42,7 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 	}
 	configDir := tempDir + "/monitors"
 
-	if err := os.Mkdir(configDir, 0700); err != nil {
+	if err := os.Mkdir(configDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -52,7 +52,7 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 			if err != nil {
 				return err
 			}
-			if err := ioutil.WriteFile(configDir+"/"+info.Name(), file, 0600); err != nil {
+			if err := ioutil.WriteFile(configDir+"/"+info.Name(), file, 0o600); err != nil {
 				return err
 			}
 
@@ -142,7 +142,7 @@ func TestNewManager(t *testing.T) {
 		defer cancel()
 
 		data := []byte("{")
-		if err := ioutil.WriteFile(configDir+"/1.json", data, 0600); err != nil {
+		if err := ioutil.WriteFile(configDir+"/1.json", data, 0o600); err != nil {
 			t.Fatalf("%v", err)
 		}
 
@@ -157,7 +157,6 @@ func TestNewManager(t *testing.T) {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
-
 }
 
 func TestMonitorSet(t *testing.T) {
@@ -248,7 +247,7 @@ func TestMonitorDelete(t *testing.T) {
 		defer cancel()
 
 		if _, exists := manager.Monitors["1"]; !exists {
-			t.Fatal("test monitor does not exist")
+			t.Fatalf("test %v", ErrNotExist.Error())
 		}
 
 		if err := manager.MonitorDelete("1"); err != nil {
@@ -278,6 +277,7 @@ func TestMonitorDelete(t *testing.T) {
 		}
 	})
 }
+
 func TestMonitorList(t *testing.T) {
 	_, manager, cancel := newTestManager(t)
 	defer cancel()
@@ -421,6 +421,7 @@ func TestStartMonitor(t *testing.T) {
 func mockRunInputProcess(context.Context, *Monitor, bool) error {
 	return nil
 }
+
 func mockRunInputProcessErr(context.Context, *Monitor, bool) error {
 	return errors.New("mock")
 }
@@ -543,7 +544,7 @@ func TestWatchdog(t *testing.T) {
 		feed, cancel2 := m.Log.Subscribe()
 		defer cancel2()
 
-		if err := os.MkdirAll(m.hlsPath(), 0700); err != nil {
+		if err := os.MkdirAll(m.hlsPath(), 0o700); err != nil {
 			t.Fatal(err)
 		}
 
@@ -596,11 +597,13 @@ func TestStartRecorder(t *testing.T) {
 		m.Trigger <- Event{RecDuration: 1}
 		actual := <-feed
 
-		expected := `invalid event: missing 'Time', event:
+		expected := `invalid event: {
  Time: 0001-01-01 00:00:00 +0000 UTC
  Detections: []
  Duration: 0s
- RecDuration: 1ns`
+ RecDuration: 1ns
+}
+'Time': ` + ErrValueMissing.Error()
 
 		if actual.Msg != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
@@ -620,11 +623,13 @@ func TestStartRecorder(t *testing.T) {
 		m.Trigger <- Event{Time: (time.Unix(1, 0).UTC())}
 		actual := <-feed
 
-		expected := `invalid event: missing 'RecDuration', event:
+		expected := `invalid event: {
  Time: 1970-01-01 00:00:01 +0000 UTC
  Detections: []
  Duration: 0s
- RecDuration: 0s`
+ RecDuration: 0s
+}
+'RecDuration': ` + ErrValueMissing.Error()
 
 		if actual.Msg != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
@@ -847,6 +852,7 @@ func TestRunRecordingProcess(t *testing.T) {
 func mockSizeFromStream(string) (string, error) {
 	return "123x456", nil
 }
+
 func mockSizeFromStreamErr(string) (string, error) {
 	return "", errors.New("mock")
 }
@@ -948,7 +954,7 @@ func TestSaveRecording(t *testing.T) {
 			Event{
 				Time: time.Time{}.Add(2 * time.Minute),
 				Detections: []Detection{
-					Detection{
+					{
 						Label: "10",
 						Score: 9,
 						Region: &Region{

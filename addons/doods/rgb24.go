@@ -80,7 +80,7 @@ func (p *RGB24) PixOffset(x, y int) int {
 }
 
 // RGB24Model .
-var RGB24Model color.Model = color.ModelFunc(rgbaModel)
+var RGB24Model = color.ModelFunc(rgbaModel)
 
 func rgbaModel(c color.Color) color.Color {
 	if _, ok := c.(RGB); ok {

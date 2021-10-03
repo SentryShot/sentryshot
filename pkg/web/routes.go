@@ -57,14 +57,14 @@ func Logout() http.Handler {
 	})
 }
 
-// Static serves files from web/static
+// Static serves files from `web/static`.
 func Static(path string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
-		//w.Header().Set("Cache-Control", "max-age=2629800")
+		// w.Header().Set("Cache-Control", "max-age=2629800")
 		w.Header().Set("Cache-Control", "no-cache")
 
 		h := http.StripPrefix("/static/", http.FileServer(http.Dir(path)))
@@ -72,7 +72,7 @@ func Static(path string) http.Handler {
 	})
 }
 
-// Storage serves files from web/static
+// Storage serves files from `web/static`.
 func Storage(path string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -84,7 +84,7 @@ func Storage(path string) http.Handler {
 	})
 }
 
-// HLS serves files from shmHLS
+// HLS serves files from shmHLS.
 func HLS(env *storage.ConfigEnv) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -417,16 +417,22 @@ func GroupSet(m *group.Manager) http.Handler {
 	})
 }
 
+// ErrEmptyValue value cannot be empty.
+var ErrEmptyValue = errors.New("value cannot be empty")
+
+// ErrContainsSpaces value cannot contain spaces.
+var ErrContainsSpaces = errors.New("value cannot contain spaces")
+
 func checkIDandName(input map[string]string) error {
 	switch {
 	case input["id"] == "":
-		return errors.New("id cannot be empty")
+		return fmt.Errorf("id: %w", ErrEmptyValue)
 	case containsSpaces(input["id"]):
-		return errors.New("id cannot contain spaces")
+		return fmt.Errorf("id: %w", ErrContainsSpaces)
 	case input["name"] == "":
-		return errors.New("name cannot be empty")
+		return fmt.Errorf("name: %w", ErrEmptyValue)
 	case containsSpaces(input["name"]):
-		return errors.New("name cannot contain spaces")
+		return fmt.Errorf("name. %w", ErrContainsSpaces)
 	default:
 		return nil
 	}
@@ -455,7 +461,7 @@ func GroupDelete(m *group.Manager) http.Handler {
 }
 
 // RecordingQuery handles recording queries.
-// TODO: Replace api with: time, limit, reverse, monitors[]
+// TODO: Replace api with: time, limit, reverse, monitors[].
 func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //nolint:funlen
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

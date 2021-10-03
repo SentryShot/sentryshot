@@ -31,6 +31,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// errors.
+var (
+	ErrMissingID       = errors.New("missing ID")
+	ErrMissingUsername = errors.New("missing username")
+	ErrNoPassword      = errors.New("password is required for new users")
+	ErrUserNotExist    = errors.New("user does not exist")
+)
+
 // Account contains user information.
 type Account struct {
 	ID          string `json:"id"`
@@ -110,7 +118,7 @@ func (a *Authenticator) ValidateAuth(auth string) Response {
 	name, pass := parseBasicAuth(auth)
 	user, found := a.userByName(name)
 
-	var r = Response{}
+	r := Response{}
 	if !found || name != user.Username {
 		// Generate fake hash to prevent timing based attacks.
 		bcrypt.GenerateFromPassword([]byte(name), a.hashCost) //nolint:errcheck
@@ -206,16 +214,16 @@ func (a *Authenticator) UserSet(newUser Account) error {
 	a.mu.Lock()
 
 	if newUser.ID == "" {
-		return errors.New("missing id")
+		return ErrMissingID
 	}
 
 	if newUser.Username == "" {
-		return errors.New("missing username")
+		return ErrMissingUsername
 	}
 
 	_, exists := a.accounts[newUser.ID]
 	if !exists && newUser.RawPassword == "" {
-		return errors.New("password required for new users")
+		return ErrNoPassword
 	}
 
 	user := a.accounts[newUser.ID]
@@ -235,7 +243,7 @@ func (a *Authenticator) UserSet(newUser Account) error {
 	a.authCache = make(map[string]Response)
 
 	if err := a.SaveUsersToFile(); err != nil {
-		return fmt.Errorf("could not save users to file: %v", err)
+		return fmt.Errorf("could not save users to file: %w", err)
 	}
 
 	return nil
@@ -246,7 +254,7 @@ func (a *Authenticator) UserDelete(id string) error {
 	defer a.mu.Unlock()
 	a.mu.Lock()
 	if _, exists := a.accounts[id]; !exists {
-		return errors.New("user does not exist")
+		return ErrUserNotExist
 	}
 	delete(a.accounts, id)
 
@@ -262,7 +270,7 @@ func (a *Authenticator) UserDelete(id string) error {
 func (a *Authenticator) SaveUsersToFile() error {
 	users, _ := json.MarshalIndent(a.accounts, "", "  ")
 
-	err := ioutil.WriteFile(a.path, users, 0600)
+	err := ioutil.WriteFile(a.path, users, 0o600)
 	if err != nil {
 		return err
 	}

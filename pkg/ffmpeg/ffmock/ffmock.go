@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// ErrMock mocking error.
+var ErrMock = errors.New("mock")
+
 // MockProcessConfig ProcessMocker config.
 type MockProcessConfig struct {
 	ReturnErr bool
@@ -37,7 +40,7 @@ func (m mockProcess) Start(ctx context.Context) error {
 		}
 	}
 	if m.c.ReturnErr {
-		return errors.New("mock")
+		return ErrMock
 	}
 	return nil
 }
@@ -60,7 +63,7 @@ var NewProcess = NewProcessMocker(MockProcessConfig{
 	Sleep:     15 * time.Millisecond,
 })
 
-// NewProcessNil returns nil
+// NewProcessNil returns nil.
 var NewProcessNil = NewProcessMocker(MockProcessConfig{
 	ReturnErr: false,
 })

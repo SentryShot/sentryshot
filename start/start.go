@@ -8,6 +8,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -20,10 +21,12 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var ErrNotAbsolute = errors.New("path is not absolute")
+
 func main() {
 	err := start()
 	if err != nil {
-		log.Fatal(fmt.Errorf("start: %v", err))
+		log.Fatal(fmt.Errorf("start: %w", err))
 	}
 }
 
@@ -38,17 +41,17 @@ func start() error {
 	flag.Parse()
 
 	if !dirExist(*envFlag) {
-		return fmt.Errorf("--env %v does not exist", *envFlag)
+		return fmt.Errorf("--env %v: %w", *envFlag, os.ErrNotExist)
 	}
 
 	envPath, err := filepath.Abs(*envFlag)
 	if err != nil {
-		return fmt.Errorf("could not get absolute path of env.yaml: %v", err)
+		return fmt.Errorf("could not get absolute path of env.yaml: %w", err)
 	}
 
 	envYAML, err := ioutil.ReadFile(envPath)
 	if err != nil {
-		return fmt.Errorf("could not read env.yaml: %v", err)
+		return fmt.Errorf("could not read env.yaml: %w", err)
 	}
 
 	env, err := parseEnv(envPath, envYAML)
@@ -57,7 +60,7 @@ func start() error {
 	}
 
 	buildDir := env.HomeDir + "/start/build"
-	os.Mkdir(buildDir, 0700) //nolint:errcheck
+	os.Mkdir(buildDir, 0o700) //nolint:errcheck
 
 	main := buildDir + "/main.go"
 
@@ -83,7 +86,7 @@ func parseEnv(envPath string, envYAML []byte) (*configEnv, error) {
 
 	err := yaml.Unmarshal(envYAML, &env)
 	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal env.yaml: %v", err)
+		return nil, fmt.Errorf("could not unmarshal env.yaml: %w", err)
 	}
 
 	if env.GoBin == "" {
@@ -94,17 +97,17 @@ func parseEnv(envPath string, envYAML []byte) (*configEnv, error) {
 	}
 
 	if !dirExist(env.GoBin) {
-		return nil, fmt.Errorf("goBin '%v' does not exist", env.GoBin)
+		return nil, fmt.Errorf("goBin '%v': %w", env.GoBin, os.ErrNotExist)
 	}
 	if !dirExist(env.HomeDir) {
-		return nil, fmt.Errorf("homeDir '%v' does not exist", env.HomeDir)
+		return nil, fmt.Errorf("homeDir '%v': %w", env.HomeDir, os.ErrNotExist)
 	}
 
 	if !filepath.IsAbs(env.GoBin) {
-		return nil, fmt.Errorf("goBin '%v' is not absolute path", env.GoBin)
+		return nil, fmt.Errorf("goBin '%v': %w", env.GoBin, ErrNotAbsolute)
 	}
 	if !filepath.IsAbs(env.HomeDir) {
-		return nil, fmt.Errorf("homeDir '%v' is not absolute path", env.HomeDir)
+		return nil, fmt.Errorf("homeDir '%v': %w", env.HomeDir, ErrNotAbsolute)
 	}
 
 	return &env, nil
@@ -140,8 +143,8 @@ func main() {
 	var b bytes.Buffer
 	t.Execute(&b, data) //nolint:errcheck
 
-	if err := ioutil.WriteFile(path, b.Bytes(), 0600); err != nil {
-		return fmt.Errorf("could not write build file: %v", err)
+	if err := ioutil.WriteFile(path, b.Bytes(), 0o600); err != nil {
+		return fmt.Errorf("could not write build file: %w", err)
 	}
 	return nil
 }

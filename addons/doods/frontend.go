@@ -16,8 +16,9 @@ package doods
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"nvr"
+	"os"
 	"strings"
 )
 
@@ -28,13 +29,13 @@ func init() {
 func modifyTemplates(pageFiles map[string]string) error {
 	tpl, exists := pageFiles["settings.tpl"]
 	if !exists {
-		return errors.New("doods: could not find settings.tpl")
+		return fmt.Errorf("doods: settings.tpl: %w", os.ErrNotExist)
 	}
 	pageFiles["settings.tpl"] = modifySettings(tpl)
 
 	js, exists := pageFiles["settings.js"]
 	if !exists {
-		return errors.New("doods: could not find settings.js")
+		return fmt.Errorf("doods: settings.js: %w", os.ErrNotExist)
 	}
 
 	pageFiles["settings.js"] = modifySettingsjs(js)

@@ -109,6 +109,31 @@ func TestParseConfig(t *testing.T) {
 			t.Fatalf("expected: %v, got: %v", expected, actual)
 		}
 	})
+	cases := []struct {
+		name        string
+		input       monitor.Config
+		expectedErr error
+	}{
+		{
+			"durationErr",
+			monitor.Config{
+				"sizeMain":        "1x1",
+				"doodsThresholds": "{}",
+				"doodsFeedRate":   "nil",
+			},
+			strconv.ErrSyntax,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := &monitor.Monitor{Config: tc.input}
+			_, err := parseConfig(m, "")
+			if !errors.Is(err, tc.expectedErr) {
+				t.Fatalf("expected: %v, got: %v", tc.expectedErr, err)
+			}
+		})
+	}
 	t.Run("durationErr", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
@@ -117,8 +142,9 @@ func TestParseConfig(t *testing.T) {
 				"doodsFeedRate":   "nil",
 			},
 		}
-		if _, err := parseConfig(m, ""); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err := parseConfig(m, "")
+		if !errors.Is(err, strconv.ErrSyntax) {
+			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
 		}
 	})
 	t.Run("recDurationErr", func(t *testing.T) {
@@ -130,8 +156,9 @@ func TestParseConfig(t *testing.T) {
 				"doodsFeedRate":   "1",
 			},
 		}
-		if _, err := parseConfig(m, ""); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err := parseConfig(m, "")
+		if !errors.Is(err, strconv.ErrSyntax) {
+			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
 		}
 	})
 	t.Run("timestampOffsetErr", func(t *testing.T) {
@@ -143,8 +170,9 @@ func TestParseConfig(t *testing.T) {
 				"doodsFeedRate":   "1",
 			},
 		}
-		if _, err := parseConfig(m, ""); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err := parseConfig(m, "")
+		if !errors.Is(err, strconv.ErrSyntax) {
+			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
 		}
 	})
 }
@@ -249,7 +277,6 @@ func TestCaclulateOutputs(t *testing.T) {
 					outputWidth:  tc.outputWidth,
 					outputHeight: tc.outputHeight,
 				})
-
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
@@ -419,7 +446,6 @@ func TestStartFFmpeg(t *testing.T) {
 		if actual.Msg != expected {
 			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
 		}
-
 	})
 	t.Run("crashed", func(t *testing.T) {
 		f, feed, cancel := newTestFFmpeg()
@@ -694,7 +720,6 @@ func TestParseDetections(t *testing.T) {
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 		}
-
 	})
 	t.Run("noDetections", func(t *testing.T) {
 		d, _, cancel := newTestClient()

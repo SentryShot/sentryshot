@@ -11,6 +11,7 @@ exit_code=0
 files=$(./utils/find.sh "*.go")
 for file in $files; do
 	goimports -w "$file" || exit_code=1
+	gofumpt -w "$file" || exit_code=1
 done
 
 exit "$exit_code"

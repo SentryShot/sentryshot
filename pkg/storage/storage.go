@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"nvr/pkg/log"
@@ -53,7 +54,7 @@ func NewManager(path string, general *ConfigGeneral, log *log.Logger) *Manager {
 	}
 }
 
-// DiskUsage in Bytes
+// DiskUsage in Bytes.
 type DiskUsage struct {
 	Used      int
 	Percent   int
@@ -61,10 +62,12 @@ type DiskUsage struct {
 	Formatted string
 }
 
-const kilobyte float64 = 1000
-const megabyte = kilobyte * 1000
-const gigabyte = megabyte * 1000
-const terabyte = gigabyte * 1000
+const (
+	kilobyte float64 = 1000
+	megabyte         = kilobyte * 1000
+	gigabyte         = megabyte * 1000
+	terabyte         = gigabyte * 1000
+)
 
 func formatDiskUsage(used float64) string {
 	switch {
@@ -145,7 +148,7 @@ func (s *Manager) purge() error {
 	for depth := 1; depth <= dayDepth; depth++ {
 		list, err := ioutil.ReadDir(path)
 		if err != nil {
-			return fmt.Errorf("could not read directory %v: %v", path, err)
+			return fmt.Errorf("could not read directory %v: %w", path, err)
 		}
 
 		isDirEmpty := len(list) == 0
@@ -155,7 +158,7 @@ func (s *Manager) purge() error {
 			}
 
 			if err := s.removeAll(path); err != nil {
-				return fmt.Errorf("could not remove directory: %v", err)
+				return fmt.Errorf("could not remove directory: %w", err)
 			}
 
 			path = s.RecordingsDir()
@@ -169,7 +172,7 @@ func (s *Manager) purge() error {
 
 	// Delete all files from that day
 	if err := s.removeAll(path); err != nil {
-		return fmt.Errorf("could not remove directory: %v", err)
+		return fmt.Errorf("could not remove directory: %w", err)
 	}
 	return nil
 }
@@ -207,12 +210,15 @@ type ConfigEnv struct {
 	ConfigDir string
 }
 
+// ErrNotAbsPath path is not absolute.
+var ErrNotAbsPath = errors.New("path is not absolute")
+
 // NewConfigEnv return new environment configuration.
 func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	var env ConfigEnv
 
 	if err := yaml.Unmarshal(envYAML, &env); err != nil {
-		return &ConfigEnv{}, fmt.Errorf("could not unmarshal env.yaml: %v", err)
+		return &ConfigEnv{}, fmt.Errorf("could not unmarshal env.yaml: %w", err)
 	}
 
 	env.ConfigDir = filepath.Dir(envPath)
@@ -240,29 +246,29 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	}
 
 	if !dirExist(env.GoBin) {
-		return nil, fmt.Errorf("goBin '%v' does not exist", env.GoBin)
+		return nil, fmt.Errorf("goBin '%v': %w", env.GoBin, os.ErrNotExist)
 	}
 	if !dirExist(env.FFmpegBin) {
-		return nil, fmt.Errorf("ffmpegBin '%v' does not exist", env.FFmpegBin)
+		return nil, fmt.Errorf("ffmpegBin '%v: %w' does not exist", env.FFmpegBin, os.ErrNotExist)
 	}
 
 	if !filepath.IsAbs(env.GoBin) {
-		return nil, fmt.Errorf("goBin '%v' is not a absolute path", env.GoBin)
+		return nil, fmt.Errorf("goBin '%v': %w", env.GoBin, ErrNotAbsPath)
 	}
 	if !filepath.IsAbs(env.FFmpegBin) {
-		return nil, fmt.Errorf("ffmpegBin '%v' is not a absolute path", env.FFmpegBin)
+		return nil, fmt.Errorf("ffmpegBin '%v': %w", env.FFmpegBin, ErrNotAbsPath)
 	}
 	if !filepath.IsAbs(env.HomeDir) {
-		return nil, fmt.Errorf("homeDir '%v' is not a absolute path", env.HomeDir)
+		return nil, fmt.Errorf("homeDir '%v': %w", env.HomeDir, ErrNotAbsPath)
 	}
 	if !filepath.IsAbs(env.StorageDir) {
-		return nil, fmt.Errorf("StorageDir '%v' is not a absolute path", env.StorageDir)
+		return nil, fmt.Errorf("StorageDir '%v': %w", env.StorageDir, ErrNotAbsPath)
 	}
 	if !filepath.IsAbs(env.SHMDir) {
-		return nil, fmt.Errorf("shmDir '%v' is not a absolute path", env.SHMDir)
+		return nil, fmt.Errorf("shmDir '%v': %w", env.SHMDir, ErrNotAbsPath)
 	}
 	if !filepath.IsAbs(env.WebDir) {
-		return nil, fmt.Errorf("webDir '%v' is not a absolute path", env.WebDir)
+		return nil, fmt.Errorf("webDir '%v': %w", env.WebDir, ErrNotAbsPath)
 	}
 
 	return &env, nil
@@ -276,14 +282,14 @@ func (env *ConfigEnv) SHMhls() string {
 // PrepareEnvironment prepares directories.
 func (env *ConfigEnv) PrepareEnvironment() error {
 	monitorsDir := env.ConfigDir + "/monitors"
-	if err := os.MkdirAll(monitorsDir, 0700); err != nil && err != os.ErrExist {
-		return fmt.Errorf("could not create monitor directory: %v: %v", monitorsDir, err)
+	if err := os.MkdirAll(monitorsDir, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("could not create monitor directory: %v: %w", monitorsDir, err)
 	}
 
 	// Reset tempoary directories.
 	os.RemoveAll(env.SHMhls())
-	if err := os.MkdirAll(env.SHMhls(), 0700); err != nil && err != os.ErrExist {
-		return fmt.Errorf("could not create hls directory: %v: %v", env.SHMhls(), err)
+	if err := os.MkdirAll(env.SHMhls(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("could not create hls directory: %v: %w", env.SHMhls(), err)
 	}
 	return nil
 }
@@ -311,7 +317,7 @@ func NewConfigGeneral(path string) (*ConfigGeneral, error) {
 
 	if !dirExist(configPath) {
 		if err := generateGeneralConfig(configPath); err != nil {
-			return &ConfigGeneral{}, fmt.Errorf("could not generate environment config: %v", err)
+			return &ConfigGeneral{}, fmt.Errorf("could not generate environment config: %w", err)
 		}
 	}
 
@@ -336,7 +342,7 @@ func generateGeneralConfig(path string) error {
 	}
 	c, _ := json.MarshalIndent(config, "", "    ")
 
-	return ioutil.WriteFile(path, c, 0600)
+	return ioutil.WriteFile(path, c, 0o600)
 }
 
 // Get returns general config.
@@ -352,7 +358,7 @@ func (general *ConfigGeneral) Set(newConfig GeneralConfig) error {
 
 	config, _ := json.MarshalIndent(newConfig, "", "    ")
 
-	if err := ioutil.WriteFile(general.path, config, 0600); err != nil {
+	if err := ioutil.WriteFile(general.path, config, 0o600); err != nil {
 		return err
 	}
 

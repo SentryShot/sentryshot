@@ -40,9 +40,11 @@ type Status struct {
 	DiskUsageFormatted string `json:"diskUsageFormatted"`
 }
 
-type cpuFunc func(context.Context, time.Duration, bool) ([]float64, error)
-type ramFunc func() (*mem.VirtualMemoryStat, error)
-type diskFunc func() (storage.DiskUsage, error)
+type (
+	cpuFunc  func(context.Context, time.Duration, bool) ([]float64, error)
+	ramFunc  func() (*mem.VirtualMemoryStat, error)
+	diskFunc func() (storage.DiskUsage, error)
+)
 
 // System .
 type System struct {
@@ -70,18 +72,19 @@ func New(disk diskFunc, log *log.Logger) *System {
 		log: log,
 	}
 }
+
 func (s *System) update(ctx context.Context) error {
 	cpuUsage, err := s.cpu(ctx, s.duration, false)
 	if err != nil {
-		return fmt.Errorf("could not get cpu usage %v", err)
+		return fmt.Errorf("could not get cpu usage %w", err)
 	}
 	ramUsage, err := s.ram()
 	if err != nil {
-		return fmt.Errorf("could not get ram usage %v", err)
+		return fmt.Errorf("could not get ram usage %w", err)
 	}
 	diskUsage, err := s.disk()
 	if err != nil {
-		return fmt.Errorf("could not get disk usage %v", err)
+		return fmt.Errorf("could not get disk usage %w", err)
 	}
 
 	s.mu.Lock()
@@ -116,6 +119,9 @@ func (s *System) Status() Status {
 	s.mu.Lock()
 	return s.status
 }
+
+// ErrNoTimeZone could not determine time zone.
+var ErrNoTimeZone = errors.New("could not determine time zone")
 
 // TimeZone returns system time zone location.
 func TimeZone() (string, error) {
@@ -157,5 +163,5 @@ func TimeZone() (string, error) {
 		return strings.TrimSpace(zone), nil
 	}
 
-	return "", errors.New("could not find time zone")
+	return "", ErrNoTimeZone
 }

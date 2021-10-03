@@ -220,5 +220,4 @@ func TestRecordingByQuery(t *testing.T) {
 			})
 		}
 	})
-
 }

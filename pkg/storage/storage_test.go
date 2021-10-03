@@ -23,6 +23,7 @@ import (
 	"nvr/pkg/log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -64,7 +65,6 @@ func TestUsage(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-
 			s := Manager{
 				path: "testdata",
 				general: &ConfigGeneral{
@@ -121,8 +121,8 @@ func TestUsage(t *testing.T) {
 			},
 		}
 		_, err := s.Usage()
-		if err == nil {
-			t.Fatalf("expected error, got %v", err)
+		if !errors.Is(err, strconv.ErrSyntax) {
+			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
 		}
 	})
 }
@@ -206,7 +206,6 @@ func TestPurge(t *testing.T) {
 
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
-
 				err := tc.input.purge()
 				gotError := err != nil
 				if tc.expectErr != gotError {
@@ -224,7 +223,7 @@ func TestPurge(t *testing.T) {
 		defer os.RemoveAll(tempDir)
 
 		testDir := filepath.Join(tempDir, "recordings", "2000", "01", "01")
-		if err := os.MkdirAll(testDir, 0700); err != nil {
+		if err := os.MkdirAll(testDir, 0o700); err != nil {
 			t.Fatalf("could not create test directory: %v", err)
 		}
 
@@ -321,16 +320,16 @@ func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 	configDir := homeDir + "/configs"
 	envPath := configDir + "/env.yaml"
 
-	if err := os.MkdirAll(homeDir, 0700); err != nil {
+	if err := os.MkdirAll(homeDir, 0o700); err != nil {
 		t.Fatalf("could not write homeDir: %v", err)
 	}
-	if err := os.MkdirAll(configDir, 0700); err != nil {
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		t.Fatalf("could not write configDir: %v", err)
 	}
-	if err := ioutil.WriteFile(goBin, []byte{}, 0600); err != nil {
+	if err := ioutil.WriteFile(goBin, []byte{}, 0o600); err != nil {
 		t.Fatalf("could not write goBin: %v", err)
 	}
-	if err := ioutil.WriteFile(ffmpegBin, []byte{}, 0600); err != nil {
+	if err := ioutil.WriteFile(ffmpegBin, []byte{}, 0o600); err != nil {
 		t.Fatalf("could not write ffmpegBin: %v", err)
 	}
 
@@ -408,7 +407,7 @@ func TestNewConfigEnv(t *testing.T) {
 	})
 	t.Run("unmarshal error", func(t *testing.T) {
 		if _, err := NewConfigEnv("", []byte("&")); err == nil {
-			t.Fatalf("expected error, got: nil")
+			t.Fatalf("expected: error, got: nil")
 		}
 	})
 	t.Run("shmHls", func(t *testing.T) {
@@ -443,8 +442,9 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("could not marshal env.yaml: %v", err)
 		}
 
-		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err = NewConfigEnv(envPath, envYAML)
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expected: %v, got: %v", os.ErrNotExist, err)
 		}
 	})
 	t.Run("ffmpegBinExist", func(t *testing.T) {
@@ -458,8 +458,9 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("could not marshal env.yaml: %v", err)
 		}
 
-		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err = NewConfigEnv(envPath, envYAML)
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expected: %v, got: %v", os.ErrNotExist, err)
 		}
 	})
 	t.Run("storageAbs", func(t *testing.T) {
@@ -473,8 +474,9 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("could not marshal env.yaml: %v", err)
 		}
 
-		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err = NewConfigEnv(envPath, envYAML)
+		if !errors.Is(err, ErrNotAbsPath) {
+			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
 		}
 	})
 	t.Run("goBinAbs", func(t *testing.T) {
@@ -488,8 +490,9 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("could not marshal env.yaml: %v", err)
 		}
 
-		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err = NewConfigEnv(envPath, envYAML)
+		if !errors.Is(err, ErrNotAbsPath) {
+			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
 		}
 	})
 	t.Run("ffmpegBinAbs", func(t *testing.T) {
@@ -503,8 +506,9 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("could not marshal env.yaml: %v", err)
 		}
 
-		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err = NewConfigEnv(envPath, envYAML)
+		if !errors.Is(err, ErrNotAbsPath) {
+			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
 		}
 	})
 	t.Run("homeDirAbs", func(t *testing.T) {
@@ -518,8 +522,9 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("could not marshal env.yaml: %v", err)
 		}
 
-		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err = NewConfigEnv(envPath, envYAML)
+		if !errors.Is(err, ErrNotAbsPath) {
+			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
 		}
 	})
 	t.Run("shmAbs", func(t *testing.T) {
@@ -533,24 +538,9 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("could not marshal env.yaml: %v", err)
 		}
 
-		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
-	})
-
-	t.Run("shmAbs", func(t *testing.T) {
-		envPath, testEnv, cancel := newTestEnv(t)
-		defer cancel()
-
-		testEnv.SHMDir = "."
-
-		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
-
-		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err = NewConfigEnv(envPath, envYAML)
+		if !errors.Is(err, ErrNotAbsPath) {
+			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
 		}
 	})
 	t.Run("webDirAbs", func(t *testing.T) {
@@ -564,8 +554,9 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("could not marshal env.yaml: %v", err)
 		}
 
-		if _, err := NewConfigEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
+		_, err = NewConfigEnv(envPath, envYAML)
+		if !errors.Is(err, ErrNotAbsPath) {
+			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
 		}
 	})
 }
@@ -585,7 +576,7 @@ func TestPrepareEnvironment(t *testing.T) {
 		}
 
 		testDir := env.SHMhls() + "/test"
-		if err := os.MkdirAll(testDir, 0744); err != nil {
+		if err := os.MkdirAll(testDir, 0o744); err != nil {
 			t.Fatalf("could not create temp directory: %v", err)
 		}
 
@@ -618,7 +609,7 @@ func TestPrepareEnvironment(t *testing.T) {
 		}
 
 		configDir := tempDir + "/configs"
-		if err := os.MkdirAll(configDir, 0700); err != nil {
+		if err := os.MkdirAll(configDir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 
@@ -627,8 +618,7 @@ func TestPrepareEnvironment(t *testing.T) {
 			ConfigDir: configDir,
 		}
 
-		err = env.PrepareEnvironment()
-		if err == nil {
+		if err = env.PrepareEnvironment(); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -650,7 +640,7 @@ func newTestGeneral(t *testing.T) (string, *ConfigGeneral, func()) {
 	}
 	data, _ := json.MarshalIndent(config, "", "    ")
 
-	if err := ioutil.WriteFile(configPath, data, 0660); err != nil {
+	if err := ioutil.WriteFile(configPath, data, 0o660); err != nil {
 		t.Fatalf("could not write config file: %v", err)
 	}
 
@@ -718,7 +708,7 @@ func TestNewConfigGeneral(t *testing.T) {
 	})
 	t.Run("genConfigErr", func(t *testing.T) {
 		if _, err := NewConfigGeneral("/dev/null"); err == nil {
-			t.Fatalf("expected error, got: nil")
+			t.Fatalf("expected: error, got: nil")
 		}
 	})
 	t.Run("unmarshalErr", func(t *testing.T) {
@@ -726,13 +716,12 @@ func TestNewConfigGeneral(t *testing.T) {
 		defer cancel()
 
 		configPath := tempDir + "/general.json"
-		if err := ioutil.WriteFile(configPath, []byte{}, 0660); err != nil {
+		if err := ioutil.WriteFile(configPath, []byte{}, 0o660); err != nil {
 			t.Fatalf("could not write configPath: %v", err)
 		}
 
-		_, err := NewConfigGeneral(tempDir)
-		if err == nil {
-			t.Fatalf("expected error, got: nil")
+		if _, err := NewConfigGeneral(tempDir); err == nil {
+			t.Fatalf("expected: error, got: nil")
 		}
 	})
 }
@@ -791,8 +780,9 @@ func TestGeneral(t *testing.T) {
 		general, _ := NewConfigGeneral(tempDir)
 		os.RemoveAll(tempDir)
 
-		if err := general.Set(GeneralConfig{}); err == nil {
-			t.Fatalf("expected error, got: nil")
+		err := general.Set(GeneralConfig{})
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expected: %v, got: %v", os.ErrNotExist, err)
 		}
 	})
 }

@@ -24,10 +24,10 @@ func newTestEnv(t *testing.T) (string, *configEnv, func()) {
 	homeDir := tempDir + "/home"
 	configDir := homeDir + "/configs"
 
-	if err := ioutil.WriteFile(goBin, []byte{}, 0600); err != nil {
+	if err := ioutil.WriteFile(goBin, []byte{}, 0o600); err != nil {
 		t.Fatalf("could not write goBin: %v", err)
 	}
-	if err := os.MkdirAll(configDir, 0700); err != nil {
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		t.Fatalf("could not write configDir: %v", err)
 	}
 
@@ -77,7 +77,7 @@ func TestParseEnv(t *testing.T) {
 			t.Fatalf("could not marshal env: %v", err)
 		}
 
-		if err := ioutil.WriteFile(envPath, envYAML, 0600); err != nil {
+		if err := ioutil.WriteFile(envPath, envYAML, 0o600); err != nil {
 			t.Fatalf("could not write env.yaml: %v", err)
 		}
 
@@ -97,7 +97,6 @@ func TestParseEnv(t *testing.T) {
 		if _, err := parseEnv("", []byte("&")); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
-
 	})
 	t.Run("goExistErr", func(t *testing.T) {
 		if _, err := parseEnv("", []byte{}); err == nil {

@@ -29,11 +29,13 @@ import (
 func mockCPU(_ context.Context, _ time.Duration, _ bool) ([]float64, error) {
 	return []float64{11}, nil
 }
+
 func mockRAM() (*mem.VirtualMemoryStat, error) {
 	return &mem.VirtualMemoryStat{
 		UsedPercent: 22.0,
 	}, nil
 }
+
 func mockDisk() (storage.DiskUsage, error) {
 	return storage.DiskUsage{
 		Percent:   33,
@@ -44,9 +46,11 @@ func mockDisk() (storage.DiskUsage, error) {
 func mockCPUErr(_ context.Context, _ time.Duration, _ bool) ([]float64, error) {
 	return nil, errors.New("")
 }
+
 func mockRAMerr() (*mem.VirtualMemoryStat, error) {
 	return &mem.VirtualMemoryStat{}, errors.New("")
 }
+
 func mockDiskErr() (storage.DiskUsage, error) {
 	return storage.DiskUsage{}, errors.New("")
 }
@@ -75,7 +79,6 @@ func TestUpdate(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-
 			s := System{
 				cpu:  tc.cpu,
 				ram:  tc.ram,
@@ -95,10 +98,8 @@ func TestUpdate(t *testing.T) {
 			if fmt.Sprintf("%v", actualValue) != tc.expectedValue {
 				t.Errorf("expected: %v, got: %v", tc.expectedValue, actualValue)
 			}
-
 		})
 	}
-
 }
 
 func TestLoop(t *testing.T) {

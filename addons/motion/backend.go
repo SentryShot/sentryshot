@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"io"
@@ -82,36 +83,36 @@ func onMonitorStart(ctx context.Context, m *monitor.Monitor) error {
 
 	a := newAddon(m)
 
-	if err := os.MkdirAll(a.zonesDir(), 0700); err != nil && err != os.ErrExist {
-		return fmt.Errorf("could not make directory for zones: %v", err)
+	if err := os.MkdirAll(a.zonesDir(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("could not make directory for zones: %w", err)
 	}
 
 	if err := ffmpeg.MakePipe(a.mainPipe()); err != nil {
-		return fmt.Errorf("could not make main pipe: %v", err)
+		return fmt.Errorf("could not make main pipe: %w", err)
 	}
 
 	var err error
 	a.zones, err = a.unmarshalZones()
 	if err != nil {
-		return fmt.Errorf("could not unmarshal zones: %v", err)
+		return fmt.Errorf("could not unmarshal zones: %w", err)
 	}
 
 	a.duration, err = ffmpeg.FeedRateToDuration(a.m.Config["motionFeedRate"])
 	if err != nil {
-		return fmt.Errorf("could not parse duration: %v", err)
+		return fmt.Errorf("could not parse duration: %w", err)
 	}
 
 	scale := parseScale(m.Config["motionFrameScale"])
 	masks, err := a.generateMasks(a.zones, scale)
 	if err != nil {
-		return fmt.Errorf("could not generate mask: %v", err)
+		return fmt.Errorf("could not generate mask: %w", err)
 	}
 
 	detectorArgs := a.generateDetectorArgs(masks, m.Config["hwaccel"], scale)
 
 	durationInt, err := strconv.Atoi(a.m.Config["motionDuration"])
 	if err != nil {
-		return fmt.Errorf("could not parse motionDuration: %v", err)
+		return fmt.Errorf("could not parse motionDuration: %w", err)
 	}
 	a.recDuration = time.Duration(durationInt) * time.Second
 
@@ -120,12 +121,14 @@ func onMonitorStart(ctx context.Context, m *monitor.Monitor) error {
 	return nil
 }
 
-type area []ffmpeg.Point
-type zone struct {
-	Enable    bool    `json:"enable"`
-	Threshold float64 `json:"threshold"`
-	Area      area    `json:"area"`
-}
+type (
+	area []ffmpeg.Point
+	zone struct {
+		Enable    bool    `json:"enable"`
+		Threshold float64 `json:"threshold"`
+		Area      area    `json:"area"`
+	}
+)
 
 func (zone zone) calculatePolygon(w int, h int) ffmpeg.Polygon {
 	polygon := make(ffmpeg.Polygon, len(zone.Area))
@@ -201,7 +204,7 @@ func (a addon) generateMasks(zones []zone, scale string) ([]string, error) {
 		maskPath := a.zonesDir() + "/zone" + strconv.Itoa(i) + ".png"
 		masks = append(masks, maskPath)
 		if err := ffmpeg.SaveImage(maskPath, mask); err != nil {
-			return nil, fmt.Errorf("could not save mask: %v", err)
+			return nil, fmt.Errorf("could not save mask: %w", err)
 		}
 	}
 	return masks, nil
@@ -291,7 +294,7 @@ func (a addon) detectorProcess(ctx context.Context, args []string) error {
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("stderr: %v", err)
+		return fmt.Errorf("stderr: %w", err)
 	}
 
 	a.m.Log.Info().
@@ -304,7 +307,7 @@ func (a addon) detectorProcess(ctx context.Context, args []string) error {
 	err = process.Start(ctx)
 
 	if err != nil {
-		return fmt.Errorf("detector crashed: %v", err)
+		return fmt.Errorf("detector crashed: %w", err)
 	}
 	return nil
 }
@@ -321,7 +324,7 @@ func (a addon) parseFFmpegOutput(stderr io.Reader) {
 			continue
 		}
 
-		//m.Log.Println(id, score)
+		// m.Log.Println(id, score)
 		if a.zones[id].Threshold < score {
 			a.sendTrigger(id, score)
 		}

@@ -5,19 +5,26 @@
 	},
 	"linters": {
 		"enable": [
+			"asciicheck",
 			"bodyclose",
 			"deadcode",
 			"depguard",
 			"dogsled",
 			"dupl",
+			"durationcheck",
 			"errcheck",
+			"errname",
+			"errorlint",
 			"exportloopref",
 			"exhaustive",
+			"forcetypeassert",
 			"funlen",
 			"gocognit",
 			"gocritic",
 			"gocyclo",
-			"golint",
+			"godot",
+			"goerr113",
+			"gofumpt",
 			"goprintffuncname",
 			"gosimple",
 			"govet",
@@ -28,6 +35,7 @@
 			"nestif",
 			"noctx",
 			"nolintlint",
+			"revive",
 			"rowserrcheck",
 			"staticcheck",
 			"structcheck",
@@ -45,13 +53,6 @@
 		"funlen": {},
 		"gocritic": {
 			"disabled-checks": ["commentFormatting"]
-		},
-		"gomnd": {
-			"settings": {
-				"mnd": {
-					"ignored-numbers": [100, 1000]
-				}
-			}
 		}
 	}
 }

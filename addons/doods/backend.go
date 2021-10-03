@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -92,18 +93,18 @@ func genArgs(m *monitor.Monitor) string {
 func start(ctx context.Context, m *monitor.Monitor, useSubStream bool) error {
 	detector, err := detectorByName(m.Config["doodsDetectorName"])
 	if err != nil {
-		return fmt.Errorf("could not get detectory: %v", err)
+		return fmt.Errorf("could not get detectory: %w", err)
 	}
 
 	config, err := parseConfig(m, doodsIP)
 	if err != nil {
-		return fmt.Errorf("could not parse config: %v", err)
+		return fmt.Errorf("could not parse config: %w", err)
 	}
 
 	a := newAddon(m, config)
 
 	if err := a.prepareEnvironment(); err != nil {
-		return fmt.Errorf("could not prepare environment: %v", err)
+		return fmt.Errorf("could not prepare environment: %w", err)
 	}
 
 	var size string
@@ -118,12 +119,12 @@ func start(ctx context.Context, m *monitor.Monitor, useSubStream bool) error {
 
 	inputs, err := parseInputs(size, m.Config["doodsCrop"], outputWidth, outputHeight)
 	if err != nil {
-		return fmt.Errorf("could not parse inputs: %v", err)
+		return fmt.Errorf("could not parse inputs: %w", err)
 	}
 
 	outputs, err := calculateOutputs(inputs)
 	if err != nil {
-		return fmt.Errorf("could not calculate ffmpeg outputs: %v", err)
+		return fmt.Errorf("could not calculate ffmpeg outputs: %w", err)
 	}
 	a.outputs = outputs
 
@@ -149,7 +150,7 @@ type doodsConfig struct {
 func parseConfig(m *monitor.Monitor, ip string) (*doodsConfig, error) {
 	var t thresholds
 	if err := json.Unmarshal([]byte(m.Config["doodsThresholds"]), &t); err != nil {
-		return nil, fmt.Errorf("could not unmarshal thresholds: %v", err)
+		return nil, fmt.Errorf("could not unmarshal thresholds: %w", err)
 	}
 	for key, thresh := range t {
 		if thresh == -1 {
@@ -165,13 +166,13 @@ func parseConfig(m *monitor.Monitor, ip string) (*doodsConfig, error) {
 
 	recDurationFloat, err := strconv.ParseFloat(m.Config["doodsDuration"], 64)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse doodsDuration: %v", err)
+		return nil, fmt.Errorf("could not parse doodsDuration: %w", err)
 	}
 	recDuration := time.Duration(recDurationFloat * float64(time.Second))
 
 	timestampOffset, err := strconv.Atoi(m.Config["timestampOffset"])
 	if err != nil {
-		return nil, fmt.Errorf("could not parse timestamp offset %v", err)
+		return nil, fmt.Errorf("could not parse timestamp offset %w", err)
 	}
 
 	return &doodsConfig{
@@ -223,11 +224,11 @@ func (a *addon) mainPipe() string {
 }
 
 func (a *addon) prepareEnvironment() error {
-	if err := os.MkdirAll(a.fifoDir(), 0700); err != nil && err != os.ErrExist {
-		return fmt.Errorf("could not make directory for pipe: %v", err)
+	if err := os.MkdirAll(a.fifoDir(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("could not make directory for pipe: %w", err)
 	}
 	if err := ffmpeg.MakePipe(a.mainPipe()); err != nil {
-		return fmt.Errorf("could not make main pipe: %v", err)
+		return fmt.Errorf("could not make main pipe: %w", err)
 	}
 
 	return nil
@@ -247,16 +248,16 @@ func parseInputs(size string, rawCrop string, outputWidth int, outputHeight int)
 	split := strings.Split(size, "x")
 	inputWidth, err := strconv.ParseFloat(split[0], 64)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse input width: %v %v", err, split)
+		return nil, fmt.Errorf("could not parse input width: %w %v", err, split)
 	}
 	inputHeight, err := strconv.ParseFloat(split[1], 64)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse input height: %v %v", err, split)
+		return nil, fmt.Errorf("could not parse input height: %w %v", err, split)
 	}
 
 	var crop [3]float64
 	if err := json.Unmarshal([]byte(rawCrop), &crop); err != nil {
-		return nil, fmt.Errorf("could not Unmarshal crop values: %v", err)
+		return nil, fmt.Errorf("could not Unmarshal crop values: %w", err)
 	}
 
 	return &inputs{
@@ -286,12 +287,17 @@ type outputs struct {
 	uncropYfunc        func(float32) float32
 }
 
+// ErrInvalidConfig .
+var ErrInvalidConfig = errors.New("")
+
 func calculateOutputs(i *inputs) (*outputs, error) { //nolint:funlen
 	if i.inputWidth < i.outputWidth {
-		return nil, fmt.Errorf("input width is less than output width, %v/%v", i.inputWidth, i.outputWidth)
+		return nil, fmt.Errorf("input width is less than output width, %v/%v %w",
+			i.inputWidth, i.outputWidth, ErrInvalidConfig)
 	}
 	if i.inputHeight < i.outputHeight {
-		return nil, fmt.Errorf("input height is less than output height, %v/%v", i.inputHeight, i.outputHeight)
+		return nil, fmt.Errorf("input height is less than output height, %v/%v %w",
+			i.inputHeight, i.outputHeight, ErrInvalidConfig)
 	}
 
 	paddedWidth := i.outputWidth * 100 / i.cropSize
@@ -318,7 +324,8 @@ func calculateOutputs(i *inputs) (*outputs, error) { //nolint:funlen
 	}
 
 	if scaledWidth > i.inputWidth {
-		return nil, fmt.Errorf("scaled width is greater than input width: %v/%v", scaledWidth, i.inputWidth)
+		return nil, fmt.Errorf("scaled width is greater than input width: %v/%v %w",
+			scaledWidth, i.inputWidth, ErrInvalidConfig)
 	}
 
 	uncropXfunc := func(input float32) float32 {
@@ -416,8 +423,10 @@ type ffmpegConfig struct {
 	startClient startClientFunc
 }
 
-type runFFmpegFunc func(context.Context, *ffmpegConfig) error
-type newProcessFunc func(*exec.Cmd) ffmpeg.Process
+type (
+	runFFmpegFunc  func(context.Context, *ffmpegConfig) error
+	newProcessFunc func(*exec.Cmd) ffmpeg.Process
+)
 
 func (f *ffmpegConfig) start(ctx context.Context) {
 	for {
@@ -445,7 +454,7 @@ func runFFmpeg(ctx context.Context, f *ffmpegConfig) error {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("stderr: %v", err)
+		return fmt.Errorf("stderr: %w", err)
 	}
 
 	ctx2, cancel := context.WithCancel(ctx)
@@ -461,7 +470,7 @@ func runFFmpeg(ctx context.Context, f *ffmpegConfig) error {
 		Msgf("starting process: %v", cmd)
 
 	if err = process.Start(ctx); err != nil {
-		return fmt.Errorf("detector crashed: %v", err)
+		return fmt.Errorf("detector crashed: %w", err)
 	}
 	cancel()
 	return nil
@@ -479,9 +488,11 @@ type doodsClient struct {
 	sendFrame sendFrameFunc
 }
 
-type startClientFunc func(context.Context, *doodsClient)
-type runClientFunc func(context.Context, *doodsClient) error
-type sendFrameFunc func(*doodsClient, time.Time, *bytes.Buffer) error
+type (
+	startClientFunc func(context.Context, *doodsClient)
+	runClientFunc   func(context.Context, *doodsClient) error
+	sendFrameFunc   func(*doodsClient, time.Time, *bytes.Buffer) error
+)
 
 func startClient(ctx context.Context, d *doodsClient) {
 	for {
@@ -516,7 +527,7 @@ func runClient(ctx context.Context, d *doodsClient) error {
 
 	conn, err := grpc.DialContext(ctx2, d.c.ip, dialOptions...)
 	if err != nil {
-		return fmt.Errorf("could not connect to server: %v", err)
+		return fmt.Errorf("could not connect to server: %w", err)
 	}
 	defer conn.Close()
 
@@ -524,14 +535,14 @@ func runClient(ctx context.Context, d *doodsClient) error {
 
 	d.stream, err = rpcClient.DetectStream(ctx)
 	if err != nil {
-		return fmt.Errorf("could not open stream: %v", err)
+		return fmt.Errorf("could not open stream: %w", err)
 	}
 	if err := d.readFrames(ctx); err != nil {
-		return fmt.Errorf("could not read frames: %v", err)
+		return fmt.Errorf("could not read frames: %w", err)
 	}
 
 	if err := d.stream.CloseSend(); err != nil {
-		return fmt.Errorf("could not close stream: %v", err)
+		return fmt.Errorf("could not close stream: %w", err)
 	}
 
 	return nil
@@ -550,11 +561,11 @@ func (d *doodsClient) readFrames(ctx context.Context) error {
 			return nil
 		}
 		if _, err := io.ReadAtLeast(d.stdout, tmp, frameSize); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				fmt.Println("eof")
 				return nil
 			}
-			return fmt.Errorf("could not read from stdout: %v", err)
+			return fmt.Errorf("could not read from stdout: %w", err)
 		}
 		t := time.Now()
 
@@ -568,7 +579,7 @@ func (d *doodsClient) readFrames(ctx context.Context) error {
 
 		err := d.sendFrame(d, t, &b)
 		if err != nil {
-			return fmt.Errorf("could not send frame: %v", err)
+			return fmt.Errorf("could not send frame: %w", err)
 		}
 	}
 }
@@ -581,17 +592,17 @@ func sendFrame(d *doodsClient, t time.Time, b *bytes.Buffer) error {
 			"*": 10,
 		},
 	}
-	//fmt.Println("sending")
+	// fmt.Println("sending")
 	if err := d.stream.Send(request); err != nil {
-		return fmt.Errorf("could not send: %v", err)
+		return fmt.Errorf("could not send: %w", err)
 	}
 
 	response, err := d.stream.Recv()
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("could not receive: %v", err)
+		return fmt.Errorf("could not receive: %w", err)
 	}
 
 	d.a.parseDetections(t, response.Detections)

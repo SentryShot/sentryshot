@@ -19,6 +19,7 @@ package log
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -105,8 +106,10 @@ func (e *Event) Msgf(format string, v ...interface{}) {
 }
 
 // Feed defines feed of logs.
-type Feed <-chan Log
-type logFeed chan Log
+type (
+	Feed    <-chan Log
+	logFeed chan Log
+)
 
 // Logger logs.
 type Logger struct {
@@ -157,6 +160,9 @@ func (l *Logger) Sources() []string {
 
 const dbAPIversion = -1 // testing
 
+// ErrDBversion invalid database version.
+var ErrDBversion = errors.New("invalid database version")
+
 func checkDB(dbPath string) error {
 	if !dirExist(dbPath) {
 		return createDB(dbPath)
@@ -164,7 +170,7 @@ func checkDB(dbPath string) error {
 
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		return fmt.Errorf("could not open database: %v", err)
+		return fmt.Errorf("could not open database: %w", err)
 	}
 	defer db.Close()
 
@@ -184,7 +190,7 @@ func checkDB(dbPath string) error {
 	}
 
 	if version != dbAPIversion {
-		return fmt.Errorf("invalid database version: %v", dbPath)
+		return fmt.Errorf("%v: %w", dbPath, ErrDBversion)
 	}
 
 	return nil
@@ -193,7 +199,7 @@ func checkDB(dbPath string) error {
 func createDB(dbPath string) error {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		return fmt.Errorf("could not create database: %v", err)
+		return fmt.Errorf("could not create database: %w", err)
 	}
 	defer db.Close()
 
@@ -206,12 +212,12 @@ func createDB(dbPath string) error {
 
 	_, err = db.Exec(sqlStmt)
 	if err != nil {
-		return fmt.Errorf("could not create table in database: %v", err)
+		return fmt.Errorf("could not create table in database: %w", err)
 	}
 
 	_, err = db.Exec("PRAGMA user_version = " + strconv.Itoa(dbAPIversion))
 	if err != nil {
-		return fmt.Errorf("could set database api version: %v", err)
+		return fmt.Errorf("could set database api version: %w", err)
 	}
 
 	return nil
@@ -221,7 +227,7 @@ func createDB(dbPath string) error {
 func (l *Logger) Start(ctx context.Context) error {
 	db, err := sql.Open("sqlite3", l.dbPath)
 	if err != nil {
-		return fmt.Errorf("could not open database: %v", err)
+		return fmt.Errorf("could not open database: %w", err)
 	}
 	l.db = db
 
@@ -338,21 +344,21 @@ const maxRows = "100000"
 func saveLogToDB(log Log, db *sql.DB) error {
 	tx, err := db.Begin()
 	if err != nil {
-		return fmt.Errorf("could not start transaction: %v", err)
+		return fmt.Errorf("could not start transaction: %w", err)
 	}
 	defer tx.Rollback() //nolint:errcheck
 
 	// Insert log.
 	insertStmt, err := tx.Prepare("insert into logs(time, level, src, monitor, msg) values(?, ?, ?, ?, ?)")
 	if err != nil {
-		return fmt.Errorf("prepare: %v", err)
+		return fmt.Errorf("prepare: %w", err)
 	}
 	defer insertStmt.Close()
 
 	// GO1.17 replace UnixNano with UnixMicro.
 	_, err = insertStmt.Exec(log.Time, log.Level, log.Src, log.Monitor, log.Msg)
 	if err != nil {
-		return fmt.Errorf("exec: %v", err)
+		return fmt.Errorf("exec: %w", err)
 	}
 
 	// Maintain table size.
@@ -360,11 +366,11 @@ func saveLogToDB(log Log, db *sql.DB) error {
 		"(SELECT rowid FROM `logs` ORDER BY `time` DESC LIMIT " + maxRows + ");"
 
 	if _, err = tx.Exec(sqlStmt); err != nil {
-		return fmt.Errorf("prepare: %v", err)
+		return fmt.Errorf("prepare: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("could not commit transtaction: %v", err)
+		return fmt.Errorf("could not commit transaction: %w", err)
 	}
 
 	return nil

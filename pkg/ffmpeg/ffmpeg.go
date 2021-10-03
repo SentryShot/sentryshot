@@ -171,6 +171,7 @@ func (p *process) SetLogLevel(level string) {
 func (p *process) SetStdoutLogger(l *log.Logger) {
 	p.stdoutLogger = l
 }
+
 func (p *process) SetStderrLogger(l *log.Logger) {
 	p.stderrLogger = l
 }
@@ -178,7 +179,7 @@ func (p *process) SetStderrLogger(l *log.Logger) {
 // MakePipe creates fifo pipe at specified location.
 func MakePipe(path string) error {
 	os.Remove(path)
-	err := syscall.Mkfifo(path, 0600)
+	err := syscall.Mkfifo(path, 0o600)
 	if err != nil {
 		return err
 	}
@@ -209,7 +210,7 @@ func (f *FFMPEG) SizeFromStream(url string) (string, error) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("%s %v", stderr.String(), err)
+		return "", fmt.Errorf("%s %w", stderr.String(), err)
 	}
 
 	re := regexp.MustCompile(`\b\d+x\d+\b`)
@@ -221,7 +222,8 @@ func (f *FFMPEG) SizeFromStream(url string) (string, error) {
 		return output, nil
 	}
 
-	return "", fmt.Errorf("no regex match %s", stderr.String())
+	return "", fmt.Errorf("no regex match %s: %w",
+		stderr.String(), strconv.ErrSyntax)
 }
 
 // VideoDurationFunc is used for mocking.
@@ -235,7 +237,7 @@ func (f *FFMPEG) VideoDuration(path string) (time.Duration, error) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return 0, fmt.Errorf("%s %v", stderr.String(), err)
+		return 0, fmt.Errorf("%s %w", stderr.String(), err)
 	}
 
 	// Input "Duration: 01:02:59.99, start: 0.000000, bitrate: 614 kb/s"
@@ -243,7 +245,8 @@ func (f *FFMPEG) VideoDuration(path string) (time.Duration, error) {
 	re := regexp.MustCompile(`\bDuration: (\d\d):(\d\d):(\d\d).(\d\d)`)
 	m := re.FindStringSubmatch(stderr.String())
 	if len(m) != 5 {
-		return 0, fmt.Errorf("could not find duration: %v, %v", m, stderr.String())
+		return 0, fmt.Errorf("could not find duration: %v, %v: %w",
+			m, stderr.String(), strconv.ErrSyntax)
 	}
 	output := m[1] + "h" + m[2] + "m" + m[3] + "s" + m[4] + "0ms"
 
@@ -274,13 +277,13 @@ func HWaccels(bin string) ([]string, error) {
 }
 */
 
-// Rect top, left, bottom, right
+// Rect top, left, bottom, right.
 type Rect [4]int
 
 // Point on image.
 type Point [2]int
 
-// Polygon slice of Points
+// Polygon slice of Points.
 type Polygon []Point
 
 // CreateMask creates an image mask from a polygon.
@@ -301,13 +304,13 @@ func CreateMask(w int, h int, poly Polygon) image.Image {
 }
 
 func vertexInsidePoly(x int, y int, poly Polygon) bool {
-	var inside = false
-	var j = len(poly) - 1
+	inside := false
+	j := len(poly) - 1
 	for i := 0; i < len(poly); i++ {
-		var xi = poly[i][0]
-		var yi = poly[i][1]
-		var xj = poly[j][0]
-		var yj = poly[j][1]
+		xi := poly[i][0]
+		yi := poly[i][1]
+		xj := poly[j][0]
+		yj := poly[j][1]
 
 		if ((yi > y) != (yj > y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi) {
 			inside = !inside
@@ -347,6 +350,9 @@ func ParseArgs(args string) []string {
 // WaitForKeyframeFunc is used for mocking.
 type WaitForKeyframeFunc func(context.Context, string) (time.Duration, error)
 
+// ErrKeyFrameTimeout .
+var ErrKeyFrameTimeout = errors.New("timeout")
+
 // WaitForKeyframe waits for ffmpeg to update ".m3u8" segment list
 // with a new keyframe, and returns that keyframes duration.
 // Used to calculate start time of the recording.
@@ -368,12 +374,15 @@ func WaitForKeyframe(ctx context.Context, hlsPath string) (time.Duration, error)
 		case err := <-watcher.Errors:
 			return 0, err
 		case <-time.After(30 * time.Second):
-			return 0, errors.New("timeout")
+			return 0, ErrKeyFrameTimeout
 		case <-ctx.Done():
 			return 0, nil
 		}
 	}
 }
+
+// ErrInvalidFile invalid m3u8 file.
+var ErrInvalidFile = errors.New("")
 
 func getKeyframeDuration(hlsPath string) (time.Duration, error) {
 	/* INPUT
@@ -397,13 +406,13 @@ func getKeyframeDuration(hlsPath string) (time.Duration, error) {
 	// Get second to last line. "#EXTINF:3.500000,"
 	lines := strings.Split(strings.TrimSpace(string(m3u8)), "\n")
 	if len(lines) < 2 {
-		return 0, fmt.Errorf("too few lines: %v", m3u8)
+		return 0, fmt.Errorf("too few lines: %v%w", m3u8, ErrInvalidFile)
 	}
 	keyframeLine := lines[len(lines)-2]
 
 	keyframeLine = strings.ReplaceAll(keyframeLine, ".", "")
 	if len(keyframeLine) < 12 {
-		return 0, fmt.Errorf("invalid line: %v", err)
+		return 0, fmt.Errorf("invalid line: %v%w", keyframeLine, ErrInvalidFile)
 	}
 
 	keyframeInterval, err := strconv.Atoi(keyframeLine[8:12])
@@ -414,11 +423,11 @@ func getKeyframeDuration(hlsPath string) (time.Duration, error) {
 	return time.Duration(keyframeInterval) * time.Millisecond, nil
 }
 
-// FeedRateToDuration calculates frame duration from feedrate (fps)
+// FeedRateToDuration calculates frame duration from feedrate (fps).
 func FeedRateToDuration(feedrate string) (time.Duration, error) {
 	feedRateFloat, err := strconv.ParseFloat(feedrate, 64)
 	if err != nil {
-		return 0, fmt.Errorf("could not parse feedrate: %v", err)
+		return 0, fmt.Errorf("could not parse feedrate: %w", err)
 	}
 
 	frameDurationFloat := 1 / feedRateFloat

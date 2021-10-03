@@ -19,7 +19,7 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 	}
 	configDir := tempDir + "/groups"
 
-	if err := os.Mkdir(configDir, 0700); err != nil {
+	if err := os.Mkdir(configDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -29,7 +29,7 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 			if err != nil {
 				return err
 			}
-			if err := ioutil.WriteFile(configDir+"/"+info.Name(), file, 0600); err != nil {
+			if err := ioutil.WriteFile(configDir+"/"+info.Name(), file, 0o600); err != nil {
 				return err
 			}
 
@@ -98,7 +98,6 @@ func TestNewManager(t *testing.T) {
 		_, err := NewManager(
 			"/dev/null/nil.json",
 		)
-
 		if err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
@@ -108,7 +107,7 @@ func TestNewManager(t *testing.T) {
 		defer cancel()
 
 		data := []byte("{")
-		if err := ioutil.WriteFile(configDir+"/1.json", data, 0600); err != nil {
+		if err := ioutil.WriteFile(configDir+"/1.json", data, 0o600); err != nil {
 			t.Fatalf("%v", err)
 		}
 
@@ -120,7 +119,6 @@ func TestNewManager(t *testing.T) {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
-
 }
 
 func TestGroupSet(t *testing.T) {

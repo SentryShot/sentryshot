@@ -17,6 +17,7 @@ package auth
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"nvr/pkg/log"
@@ -24,8 +25,10 @@ import (
 	"testing"
 )
 
-var pass1 = []byte("$2a$04$M0InS5zIFKk.xmjtcabjrudhKhukxJo6cnhJBq9I.J/slbgWE0F.S")
-var pass2 = []byte("$2a$04$A.F3L5bXO/5nF0e6dpmqM.VuOB66.vSt6MbvWvcxeoAqqnvchBMOq")
+var (
+	pass1 = []byte("$2a$04$M0InS5zIFKk.xmjtcabjrudhKhukxJo6cnhJBq9I.J/slbgWE0F.S")
+	pass2 = []byte("$2a$04$A.F3L5bXO/5nF0e6dpmqM.VuOB66.vSt6MbvWvcxeoAqqnvchBMOq")
+)
 
 func newTestAuth(t *testing.T) (string, *Authenticator, func()) {
 	tempDir, err := ioutil.TempDir("", "")
@@ -57,7 +60,7 @@ func newTestAuth(t *testing.T) (string, *Authenticator, func()) {
 	if err != nil {
 		t.Fatalf("could not marshal users: %v", err)
 	}
-	if err := ioutil.WriteFile(usersPath, data, 0600); err != nil {
+	if err := ioutil.WriteFile(usersPath, data, 0o600); err != nil {
 		t.Fatalf("could not write users file: %v", err)
 	}
 
@@ -99,41 +102,13 @@ func TestNewBasicAuthenticator(t *testing.T) {
 	})
 	t.Run("readFile error", func(t *testing.T) {
 		_, err := NewBasicAuthenticator("nil", &log.Logger{})
-		if err == nil {
-			t.Fatal("expected error, got: nil")
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expected %v, got: %v", os.ErrNotExist, err)
 		}
 	})
 }
 
 func TestBasicAuthenticator(t *testing.T) {
-	/*tempDir, err := ioutil.TempDir("", "")
-	defer os.RemoveAll(tempDir)
-	if err != nil {
-		t.Fatalf("could not create tempoary directory: %v", err)
-	}
-
-	usersPath := tempDir + "/users.json"
-
-	workingUsers := map[string]Account{
-		"1": {
-			ID:       "1",
-			Username: "admin",
-			Password: pass1,
-			IsAdmin:  true,
-		},
-		"2": {
-			ID:       "2",
-			Username: "user",
-			Password: pass2,
-			IsAdmin:  false,
-		},
-	}
-		writeWorkingUsers := func() {
-		data, _ := json.MarshalIndent(workingUsers, "", "    ")
-		ioutil.WriteFile(usersPath, data, 0600)
-	}
-	*/
-
 	adminExpected := "{1 admin " + fmt.Sprintf("%v", pass1) + "  true }"
 	userExpected := "{2 user " + fmt.Sprintf("%v", pass2) + "  false }"
 
@@ -327,9 +302,8 @@ func TestBasicAuthenticator(t *testing.T) {
 
 			a.path = ""
 
-			err := a.UserSet(Account{ID: "1", Username: "a"})
-			if err == nil {
-				t.Fatal("nil")
+			if err := a.UserSet(Account{ID: "1", Username: "a"}); err == nil {
+				t.Fatal("expected: error, got: nil")
 			}
 		})
 	})
@@ -340,8 +314,8 @@ func TestBasicAuthenticator(t *testing.T) {
 
 		t.Run("unknown user", func(t *testing.T) {
 			err := a.UserDelete("nil")
-			if err == nil {
-				t.Fatal("nil")
+			if !errors.Is(err, ErrUserNotExist) {
+				t.Fatalf("expected: %v, got: %v", ErrUserNotExist, err)
 			}
 		})
 		t.Run("working", func(t *testing.T) {
@@ -349,8 +323,7 @@ func TestBasicAuthenticator(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			_, exist := a.userByName("")
-			if exist {
+			if _, exist := a.userByName(""); exist {
 				t.Fatal("user was not deleted")
 			}
 		})

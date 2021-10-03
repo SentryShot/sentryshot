@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -60,8 +61,11 @@ func NewCrawler(path string) *Crawler {
 	}
 }
 
+// ErrInvalidValue invalid value.
+var ErrInvalidValue = errors.New("invalid value")
+
 // RecordingByQuery finds best matching recording and
-// returns limit number of subsequent videos
+// returns limit number of subsequent videos.
 func (c *Crawler) RecordingByQuery(q *CrawlerQuery) ([]Recording, error) {
 	q.cache = make(queryCache)
 	var recordings []Recording
@@ -99,7 +103,7 @@ func (c *Crawler) RecordingByQuery(q *CrawlerQuery) ([]Recording, error) {
 	return recordings, nil
 }
 
-// Removes storageDir from input and replaces it with "storage"
+// Removes storageDir from input and replaces it with "storage".
 func (c *Crawler) cleanPath(input string) string {
 	storageDirLen := len(filepath.Clean(c.path))
 	return "storage/recordings" + input[storageDirLen:]
@@ -107,7 +111,7 @@ func (c *Crawler) cleanPath(input string) string {
 
 func (c *Crawler) findVideo(q *CrawlerQuery) (*dir, error) {
 	if len(q.Time) < 10 {
-		return nil, fmt.Errorf("invalid time: %v", q.Time)
+		return nil, fmt.Errorf("time: %v: %w", q.Time, ErrInvalidValue)
 	}
 
 	yearMonthDay := []string{
@@ -189,8 +193,10 @@ type dir struct {
 	query  *CrawlerQuery
 }
 
-const monitorDepth = 3
-const recDepth = 5
+const (
+	monitorDepth = 3
+	recDepth     = 5
+)
 
 // children of current directory. Special case if depth == monitorDepth.
 func (d *dir) children() ([]dir, error) {
@@ -235,13 +241,16 @@ func (d *dir) children() ([]dir, error) {
 	return cache[d.path], nil
 }
 
+// ErrUnexpectedDir unexpected directory.
+var ErrUnexpectedDir = errors.New("unexpected directory")
+
 // findAllThumbnails finds all jpeg files beloning to
 // selected monitors in decending directories.
-// Only called by children()
+// Only called by `children()`.
 func (d *dir) findAllThumbnails() ([]dir, error) {
 	monitorDirs, err := ioutil.ReadDir(d.path)
 	if err != nil {
-		return nil, fmt.Errorf("could not read day directory: %v %v", d.path, err)
+		return nil, fmt.Errorf("could not read day directory: %v %w", d.path, err)
 	}
 
 	var thumbnails []dir
@@ -252,11 +261,11 @@ func (d *dir) findAllThumbnails() ([]dir, error) {
 		path := filepath.Join(d.path, m.Name())
 		files, err := ioutil.ReadDir(path)
 		if err != nil {
-			return nil, fmt.Errorf("could not read monitor directory: %v", path)
+			return nil, fmt.Errorf("could not read monitor directory: %v: %w", path, err)
 		}
 		for _, file := range files {
 			if file.IsDir() {
-				return nil, fmt.Errorf("unexpected directory: %v", path)
+				return nil, fmt.Errorf("%v: %w", path, ErrUnexpectedDir)
 			}
 			if !strings.Contains(file.Name(), ".jpeg") {
 				continue
@@ -365,6 +374,9 @@ func (d *dir) findFileDeep() (*dir, error) {
 	return current, nil
 }
 
+// ErrNoSibling could not find sibling.
+var ErrNoSibling = errors.New("could not find sibling")
+
 // sibling Returns next or previus sibling. Will climb.
 func (d *dir) sibling() (*dir, error) {
 	if d.depth == 0 {
@@ -392,5 +404,5 @@ func (d *dir) sibling() (*dir, error) {
 			return d.parent.sibling()
 		}
 	}
-	return nil, fmt.Errorf("could not find sibling of: %v", d.path)
+	return nil, fmt.Errorf("%v: %w", d.path, ErrNoSibling)
 }

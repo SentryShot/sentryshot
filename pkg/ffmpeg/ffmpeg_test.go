@@ -16,6 +16,7 @@ package ffmpeg
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"io/ioutil"
@@ -23,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -120,8 +122,8 @@ func TestProcess(t *testing.T) {
 			t.Fatalf("nil")
 		}
 	})
-
 }
+
 func TestMakePipe(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
 		tempDir, err := ioutil.TempDir("", "")
@@ -278,7 +280,8 @@ func TestCreateMask(t *testing.T) {
 				{3, 1},
 				{6, 6},
 				{0, 6},
-			}, `
+			},
+			`
 			XXXXXXX
 			XXXXXXX
 			XXX_XXX
@@ -297,7 +300,8 @@ func TestCreateMask(t *testing.T) {
 				{4, 7},
 				{0, 4},
 				{0, 2},
-			}, `
+			},
+			`
 			XX___XX
 			X_____X
 			_______
@@ -315,7 +319,8 @@ func TestCreateMask(t *testing.T) {
 				{6, 5},
 				{0, 7},
 				{0, 0},
-			}, `
+			},
+			`
 			_______
 			_______
 			_______
@@ -336,7 +341,6 @@ func TestCreateMask(t *testing.T) {
 				t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual)
 			}
 		})
-
 	}
 }
 
@@ -405,17 +409,16 @@ func TestParseArgs(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestWaitForKeyframe(t *testing.T) {
 	cases := []struct {
-		name      string
-		input     string
-		expected  time.Duration
-		expectErr bool
+		name        string
+		input       string
+		expected    time.Duration
+		expectedErr error
 	}{
-		{"empty", "", 0, true},
+		{"empty", "", 0, ErrInvalidFile},
 		{
 			"working",
 			`
@@ -431,8 +434,18 @@ INPUT
 11.ts
 `,
 			3500 * time.Millisecond,
-			false,
+			nil,
 		},
+		{
+			"invalidLine",
+			`
+1,
+2
+`,
+			0,
+			ErrInvalidFile,
+		},
+
 		{
 			"invalidDuration",
 			`
@@ -440,7 +453,7 @@ INPUT
 11.ts
 `,
 			0,
-			true,
+			strconv.ErrSyntax,
 		},
 	}
 
@@ -453,27 +466,25 @@ INPUT
 			defer os.RemoveAll(tempDir)
 
 			path := tempDir + "/test.m3u8"
-			if err := ioutil.WriteFile(path, []byte(tc.input), 0600); err != nil {
+			if err := ioutil.WriteFile(path, []byte(tc.input), 0o600); err != nil {
 				t.Fatalf("could not write file: %v", err)
 			}
 
 			go func() {
 				time.Sleep(10 * time.Millisecond)
 				// Simulate new keyframe
-				os.Chmod(path, 0601)
+				os.Chmod(path, 0o601)
 			}()
 
 			actual, err := WaitForKeyframe(context.Background(), path)
-			gotError := err != nil
-			if tc.expectErr != gotError {
-				t.Fatalf("\nexpected error %v\n     got %v", tc.expectErr, err)
+			if !errors.Is(err, tc.expectedErr) {
+				t.Fatalf("expected: %v, got: %v", tc.expectedErr, err)
 			}
 
 			if actual != tc.expected {
 				t.Fatalf("expected: %v, got: %v", tc.expected, actual)
 			}
 		})
-
 	}
 	t.Run("addErr", func(t *testing.T) {
 		tempDir, err := ioutil.TempDir("", "")
@@ -495,7 +506,7 @@ INPUT
 		defer os.RemoveAll(tempDir)
 
 		path := tempDir + "/test.m3u8"
-		if err := ioutil.WriteFile(path, []byte{}, 0600); err != nil {
+		if err := ioutil.WriteFile(path, []byte{}, 0o600); err != nil {
 			t.Fatalf("could not write file: %v", err)
 		}
 

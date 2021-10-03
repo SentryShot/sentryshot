@@ -44,7 +44,7 @@ func TestQuery(t *testing.T) {
 	logger.Error().Src("s1").Monitor("m1").Time(time.Unix(0, 4000000)).Msg("msg1")
 	logger.Warn().Src("s1").Time(time.Unix(0, 3000000)).Msg("msg2")
 	logger.Info().Src("s2").Monitor("m2").Time(time.Unix(0, 2000000)).Msg("msg3")
-	//logger.Debug().Src("s2").Time(time.Unix(0, 1000000)).Msg("msg4")
+	// logger.Debug().Src("s2").Time(time.Unix(0, 1000000)).Msg("msg4")
 	time.Sleep(1 * time.Millisecond)
 
 	cases := []struct {

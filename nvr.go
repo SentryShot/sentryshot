@@ -19,13 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"sync"
-	"syscall"
-	"time"
-
 	"nvr/pkg/group"
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
@@ -33,6 +26,12 @@ import (
 	"nvr/pkg/system"
 	"nvr/pkg/web"
 	"nvr/pkg/web/auth"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"sync"
+	"syscall"
+	"time"
 )
 
 // Run .
@@ -76,12 +75,12 @@ func Run(envPath string) error {
 func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) { //nolint:funlen
 	envYAML, err := ioutil.ReadFile(envPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read env.yaml: %v", err)
+		return nil, fmt.Errorf("could not read env.yaml: %w", err)
 	}
 
 	env, err := storage.NewConfigEnv(envPath, envYAML)
 	if err != nil {
-		return nil, fmt.Errorf("could not get environment config: %v", err)
+		return nil, fmt.Errorf("could not get environment config: %w", err)
 	}
 
 	hooks.env(env)
@@ -89,24 +88,24 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 	logDBpath := filepath.Join(env.StorageDir, "logs.db")
 	logger, err := log.NewLogger(logDBpath, wg, hooks.logSource)
 	if err != nil {
-		return nil, fmt.Errorf("could not create logger: %v", err)
+		return nil, fmt.Errorf("could not create logger: %w", err)
 	}
 
 	general, err := storage.NewConfigGeneral(env.ConfigDir)
 	if err != nil {
-		return nil, fmt.Errorf("could not get general config: %v", err)
+		return nil, fmt.Errorf("could not get general config: %w", err)
 	}
 
 	monitorConfigDir := filepath.Join(env.ConfigDir, "monitors")
 	monitorManager, err := monitor.NewManager(monitorConfigDir, env, logger, hooks.monitor())
 	if err != nil {
-		return nil, fmt.Errorf("could not create monitor manager: %v", err)
+		return nil, fmt.Errorf("could not create monitor manager: %w", err)
 	}
 
 	groupConfigDir := filepath.Join(env.ConfigDir, "groups")
 	groupManager, err := group.NewManager(groupConfigDir)
 	if err != nil {
-		return nil, fmt.Errorf("could not create monitor manager: %v", err)
+		return nil, fmt.Errorf("could not create monitor manager: %w", err)
 	}
 
 	usersConfigPath := filepath.Join(env.ConfigDir, "users.json")
@@ -201,7 +200,7 @@ type app struct {
 
 func (a *app) run(ctx context.Context) error {
 	if err := a.log.Start(ctx); err != nil {
-		return fmt.Errorf("could not start logger: %v", err)
+		return fmt.Errorf("could not start logger: %w", err)
 	}
 	go a.log.LogToStdout(ctx)
 	go a.log.LogToDB(ctx)
@@ -211,14 +210,14 @@ func (a *app) run(ctx context.Context) error {
 	a.log.Info().Src("app").Msg("Starting..")
 
 	if err := a.env.PrepareEnvironment(); err != nil {
-		return fmt.Errorf("could not prepare environment: %v", err)
+		return fmt.Errorf("could not prepare environment: %w", err)
 	}
 
 	// Start monitors
 	for _, monitor := range a.monitorManager.Monitors {
 		if err := monitor.Start(); err != nil {
 			a.monitorManager.StopAll()
-			return fmt.Errorf("could not start monitor: %v", err)
+			return fmt.Errorf("could not start monitor: %w", err)
 		}
 	}
 

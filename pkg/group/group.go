@@ -35,7 +35,7 @@ type Manager struct {
 func NewManager(configPath string) (*Manager, error) {
 	configFiles, err := readConfigs(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read configuration files: %s", err)
+		return nil, fmt.Errorf("could not read configuration files: %w", err)
 	}
 
 	manager := &Manager{path: configPath}
@@ -44,7 +44,7 @@ func NewManager(configPath string) (*Manager, error) {
 	for _, file := range configFiles {
 		var config Config
 		if err := json.Unmarshal(file, &config); err != nil {
-			return nil, fmt.Errorf("could not unmarshal config: %v: %s", err, file)
+			return nil, fmt.Errorf("could not unmarshal config: %w: %v", err, file)
 		}
 		groups[config["id"]] = manager.newGroup(config)
 	}
@@ -59,7 +59,7 @@ func readConfigs(path string) ([][]byte, error) {
 		if strings.Contains(path, ".json") {
 			file, err := ioutil.ReadFile(path)
 			if err != nil {
-				return fmt.Errorf("could not read file: %s %v", path, err)
+				return fmt.Errorf("could not read file: %v %w", path, err)
 			}
 			files = append(files, file)
 		}
@@ -87,13 +87,16 @@ func (m *Manager) GroupSet(id string, c Config) error {
 	group.mu.Lock()
 	config, _ := json.MarshalIndent(group.Config, "", "    ")
 
-	if err := ioutil.WriteFile(m.configPath(id), config, 0600); err != nil {
+	if err := ioutil.WriteFile(m.configPath(id), config, 0o600); err != nil {
 		return err
 	}
 	group.mu.Unlock()
 
 	return nil
 }
+
+// ErrGroupNotExist group does not exist.
+var ErrGroupNotExist = errors.New("group does not exist")
 
 // GroupDelete deletes group by id.
 func (m *Manager) GroupDelete(id string) error {
@@ -103,7 +106,7 @@ func (m *Manager) GroupDelete(id string) error {
 
 	_, exists := groups[id]
 	if !exists {
-		return errors.New("group does not exist")
+		return ErrGroupNotExist
 	}
 
 	delete(m.Groups, id)

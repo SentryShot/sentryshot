@@ -28,8 +28,10 @@ import (
 	"time"
 )
 
-var detectors []odrpc.Detector
-var doodsIP string
+var (
+	detectors []odrpc.Detector
+	doodsIP   string
+)
 
 func init() {
 	nvr.RegisterEnvHook(onEnvLoad)
@@ -57,18 +59,18 @@ type Config struct {
 func readConfig(configPath string) (string, error) {
 	if !dirExist(configPath) {
 		if err := genConfig(configPath); err != nil {
-			return "", fmt.Errorf("could not generate config: %v", err)
+			return "", fmt.Errorf("could not generate config: %w", err)
 		}
 	}
 
 	file, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return "", fmt.Errorf("could not read config: %v", err)
+		return "", fmt.Errorf("could not read config: %w", err)
 	}
 
 	var config Config
 	if err := json.Unmarshal(file, &config); err != nil {
-		return "", fmt.Errorf("could not unmarshal config: %v", err)
+		return "", fmt.Errorf("could not unmarshal config: %w", err)
 	}
 
 	return config.IP, nil
@@ -80,7 +82,7 @@ var defaultConfig = Config{
 
 func genConfig(path string) error {
 	data, _ := json.Marshal(defaultConfig)
-	if err := ioutil.WriteFile(path, data, 0600); err != nil {
+	if err := ioutil.WriteFile(path, data, 0o600); err != nil {
 		return err
 	}
 	return nil
@@ -102,23 +104,23 @@ func (f *fetcher) fetchDetectors() ([]odrpc.Detector, error) {
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, f.url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not create request: %v", err)
+		return nil, fmt.Errorf("could not create request: %w", err)
 	}
 
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %v", err)
+		return nil, fmt.Errorf("could not send request: %w", err)
 	}
 	defer response.Body.Close()
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("could not read body: %v", err)
+		return nil, fmt.Errorf("could not read body: %w", err)
 	}
 
 	var d getDetectorsResponce
 	if err := json.Unmarshal(body, &d); err != nil {
-		return nil, fmt.Errorf("could not unmarshal response: %v %v", body, err)
+		return nil, fmt.Errorf("could not unmarshal response: %v %w", body, err)
 	}
 
 	return d.Detectors, nil
@@ -134,7 +136,7 @@ func detectorByName(name string) (odrpc.Detector, error) {
 			return detector, nil
 		}
 	}
-	return odrpc.Detector{}, fmt.Errorf("could not find detectory by name: %v", name)
+	return odrpc.Detector{}, fmt.Errorf("%v: %w", name, os.ErrNotExist)
 }
 
 func dirExist(path string) bool {

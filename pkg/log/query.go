@@ -100,7 +100,7 @@ func genIN(n int) string {
 	return output + ")"
 }
 
-// GO1.18 Generics
+// GO1.18 Generics.
 func levelsToInterfaces(slice []Level) []interface{} {
 	output := make([]interface{}, len(slice))
 	for i, v := range slice {

@@ -71,7 +71,7 @@ type Manager struct {
 func NewManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hooks Hooks) (*Manager, error) {
 	configFiles, err := readConfigs(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read configuration files: %s", err)
+		return nil, fmt.Errorf("could not read configuration files: %w", err)
 	}
 
 	manager := &Manager{
@@ -85,7 +85,7 @@ func NewManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hook
 	for _, file := range configFiles {
 		var config Config
 		if err := json.Unmarshal(file, &config); err != nil {
-			return nil, fmt.Errorf("could not unmarshal config: %v: %s", err, file)
+			return nil, fmt.Errorf("could not unmarshal config: %w: %v", err, file)
 		}
 		monitors[config["id"]] = manager.newMonitor(config)
 	}
@@ -100,7 +100,7 @@ func readConfigs(path string) ([][]byte, error) {
 		if strings.Contains(path, ".json") {
 			file, err := ioutil.ReadFile(path)
 			if err != nil {
-				return fmt.Errorf("could not read file: %s %v", path, err)
+				return fmt.Errorf("could not read file: %v %w", path, err)
 			}
 			files = append(files, file)
 		}
@@ -128,13 +128,16 @@ func (m *Manager) MonitorSet(id string, c Config) error {
 	monitor.Mu.Lock()
 	config, _ := json.MarshalIndent(monitor.Config, "", "    ")
 
-	if err := ioutil.WriteFile(m.configPath(id), config, 0600); err != nil {
+	if err := ioutil.WriteFile(m.configPath(id), config, 0o600); err != nil {
 		return err
 	}
 	monitor.Mu.Unlock()
 
 	return nil
 }
+
+// ErrNotExist monitor does not exist.
+var ErrNotExist = errors.New("monitor does not exist")
 
 // MonitorDelete deletes monitor by id.
 func (m *Manager) MonitorDelete(id string) error {
@@ -144,7 +147,7 @@ func (m *Manager) MonitorDelete(id string) error {
 
 	monitor, exists := monitors[id]
 	if !exists {
-		return errors.New("monitor does not exist")
+		return ErrNotExist
 	}
 	monitor.Stop()
 
@@ -260,12 +263,15 @@ func (e Event) String() string {
 		e.Time, e.Detections, e.Duration, e.RecDuration)
 }
 
+// ErrValueMissing value missing.
+var ErrValueMissing = errors.New("value missing")
+
 func (e Event) validate() error {
 	if e.Time == (time.Time{}) {
-		return fmt.Errorf("missing 'Time', event:%v", e)
+		return fmt.Errorf("{%v\n}\n'Time': %w", e, ErrValueMissing)
 	}
 	if e.RecDuration == 0 {
-		return fmt.Errorf("missing 'RecDuration', event:%v", e)
+		return fmt.Errorf("{%v\n}\n'RecDuration': %w", e, ErrValueMissing)
 	}
 	return nil
 }
@@ -323,12 +329,15 @@ type Monitor struct {
 	cancel func()
 }
 
+// ErrRunning monitor is already running.
+var ErrRunning = errors.New("monitor is aleady running")
+
 // Start monitor.
 func (m *Monitor) Start() error {
 	defer m.Mu.Unlock()
 	m.Mu.Lock()
 	if m.running {
-		return fmt.Errorf("monitor already running")
+		return ErrRunning
 	}
 	m.running = true
 
@@ -345,8 +354,8 @@ func (m *Monitor) Start() error {
 	tmpDir := m.Env.SHMhls() + "/" + m.ID()
 
 	os.RemoveAll(tmpDir)
-	if err := os.MkdirAll(tmpDir, 0700); err != nil {
-		return fmt.Errorf("could not create temporary directory for HLS files: %v: %v", tmpDir, err)
+	if err := os.MkdirAll(tmpDir, 0o700); err != nil {
+		return fmt.Errorf("could not create temporary directory for HLS files: %v: %w", tmpDir, err)
 	}
 
 	if m.alwaysRecord() {
@@ -428,7 +437,7 @@ func runInputProcess(ctx context.Context, m *Monitor, subProcess bool) error {
 
 	size, err := m.sizeFromStream(input)
 	if err != nil {
-		return fmt.Errorf("could not get size of stream: %v", err)
+		return fmt.Errorf("could not get size of stream: %w", err)
 	}
 
 	m.Mu.Lock()
@@ -464,7 +473,7 @@ func runInputProcess(ctx context.Context, m *Monitor, subProcess bool) error {
 
 	err = process.Start(ctx)
 	if err != nil {
-		return fmt.Errorf("crashed: %v", err)
+		return fmt.Errorf("crashed: %w", err)
 	}
 
 	return nil
@@ -503,6 +512,9 @@ func generateInputArgs(m *Monitor, subProcess bool) string {
 	return args
 }
 
+// ErrFreeze possible freeze detected.
+var ErrFreeze = errors.New("possible freeze detected")
+
 // startWatchdog starts a watchdog that detects if the mainProcess freezes.
 // Freeze is detected by polling the output HLS manifest for file updates.
 func (m *Monitor) startWatchdog(ctx context.Context, process ffmpeg.Process, processName string) {
@@ -522,7 +534,7 @@ func (m *Monitor) startWatchdog(ctx context.Context, process ffmpeg.Process, pro
 			case <-watcher.Events: // file updated, process not frozen.
 				return nil
 			case <-time.After(m.watchdogInterval):
-				return errors.New("possible freeze detected, restarting")
+				return fmt.Errorf("%w, restarting", ErrFreeze)
 			case err := <-watcher.Errors:
 				return err
 			case <-ctx.Done():
@@ -641,12 +653,12 @@ type runRecordingProcessFunc func(context.Context, *Monitor) error
 func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	keyFrameDuration, err := m.waitForKeyframe(ctx, m.hlsPath())
 	if err != nil {
-		return fmt.Errorf("could not get keyframe duration: %v", err)
+		return fmt.Errorf("could not get keyframe duration: %w", err)
 	}
 
 	timestampOffset, err := strconv.Atoi(m.Config["timestampOffset"])
 	if err != nil {
-		return fmt.Errorf("could not parse timestamp offset %v", err)
+		return fmt.Errorf("could not parse timestamp offset %w", err)
 	}
 
 	offset := keyFrameDuration + time.Duration(timestampOffset)*time.Millisecond
@@ -655,8 +667,8 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	fileDir := m.Env.StorageDir + "/recordings/" + startTime.Format("2006/01/02/") + m.ID() + "/"
 	filePath := fileDir + startTime.Format("2006-01-02_15-04-05_") + m.ID()
 
-	if err := os.MkdirAll(fileDir, 0755); err != nil && err != os.ErrExist {
-		return fmt.Errorf("could not make directory for video: %v", err)
+	if err := os.MkdirAll(fileDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("could not make directory for video: %w", err)
 	}
 
 	args, err := m.generateRecorderArgs(filePath)
@@ -689,7 +701,7 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("crashed: %v", err)
+		return fmt.Errorf("crashed: %w", err)
 	}
 
 	m.Log.Info().
@@ -703,7 +715,7 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 	videoLength, err := strconv.ParseFloat(m.Config["videoLength"], 64)
 	if err != nil {
-		return "", fmt.Errorf("could not parse video length: %v", err)
+		return "", fmt.Errorf("could not parse video length: %w", err)
 	}
 	videoLengthSec := strconv.Itoa((int(videoLength * 60)))
 
@@ -756,13 +768,13 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 
 	if err := process.Start(ctx); err != nil {
 		abort()
-		return fmt.Errorf("could not generate thumbnail, args: %v error: %v", args, err)
+		return fmt.Errorf("could not generate thumbnail, args: %v error: %w", args, err)
 	}
 
 	duration, err := m.videoDuration(videoPath)
 	if err != nil {
 		abort()
-		return fmt.Errorf("could not get video duration of: %v: %v", videoPath, err)
+		return fmt.Errorf("could not get video duration of: %v: %w", videoPath, err)
 	}
 
 	endTime := startTime.Add(duration)
@@ -778,8 +790,8 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 	}
 	json, _ := json.MarshalIndent(data, "", "    ")
 
-	if err := ioutil.WriteFile(dataPath, json, 0600); err != nil {
-		return fmt.Errorf("could not write event file: %v", err)
+	if err := ioutil.WriteFile(dataPath, json, 0o600); err != nil {
+		return fmt.Errorf("could not write event file: %w", err)
 	}
 	return nil
 }
@@ -808,6 +820,7 @@ func (m *Manager) StopAll() {
 func (m *Monitor) isEnabled() bool {
 	return m.Config["enable"] == "true"
 }
+
 func (m *Monitor) alwaysRecord() bool {
 	return m.Config["alwaysRecord"] == "true"
 }

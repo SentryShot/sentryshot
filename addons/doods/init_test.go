@@ -48,7 +48,7 @@ func TestReadConfig(t *testing.T) {
 
 		file := `{ "ip": "test:8080" }`
 
-		if err := ioutil.WriteFile(configPath, []byte(file), 0600); err != nil {
+		if err := ioutil.WriteFile(configPath, []byte(file), 0o600); err != nil {
 			t.Fatalf("could not write test file: %v", err)
 		}
 
@@ -93,7 +93,7 @@ func TestReadConfig(t *testing.T) {
 		configPath, cancel := newTestConfig(t)
 		defer cancel()
 
-		if err := ioutil.WriteFile(configPath, []byte(""), 0600); err != nil {
+		if err := ioutil.WriteFile(configPath, []byte(""), 0o600); err != nil {
 			t.Fatalf("could not write test file: %v", err)
 		}
 
@@ -129,7 +129,6 @@ var testDetectors = []odrpc.Detector{
 }
 
 func TestFetchDetectors(t *testing.T) {
-
 	response, _ := json.Marshal(getDetectorsResponce{testDetectors})
 
 	t.Run("working", func(t *testing.T) {
