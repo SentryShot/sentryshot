@@ -31,6 +31,7 @@ import (
 	"nvr/pkg/storage"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -128,7 +129,12 @@ func start(ctx context.Context, m *monitor.Monitor, useSubStream bool) error {
 	}
 	a.outputs = outputs
 
-	ffmpegArgs := a.generateFFmpegArgs(m.Config, outputs)
+	maskPath, err := a.generateMask(m.Config["doodsMask"])
+	if err != nil {
+		return fmt.Errorf("could not generate mask: %w", err)
+	}
+
+	ffmpegArgs := a.generateFFmpegArgs(m.Config, maskPath)
 
 	a.wg.Add(1)
 	go a.newFFmpeg(ffmpegArgs).start(ctx)
@@ -272,10 +278,10 @@ func parseInputs(size string, rawCrop string, outputWidth int, outputHeight int)
 }
 
 type outputs struct {
-	paddedWidth  string
-	paddedHeight string
-	scaledWidth  string
-	scaledHeight string
+	paddedWidth  int
+	paddedHeight int
+	scaledWidth  int
+	scaledHeight int
 	cropX        string
 	cropY        string
 	outputWidth  int
@@ -342,10 +348,10 @@ func calculateOutputs(i *inputs) (*outputs, error) { //nolint:funlen
 	}
 
 	return &outputs{
-		paddedWidth:  strconv.Itoa(int(paddedWidth)),
-		paddedHeight: strconv.Itoa(int(paddedHeight)),
-		scaledWidth:  strconv.Itoa(int(scaledWidth)),
-		scaledHeight: strconv.Itoa(int(scaledHeight)),
+		paddedWidth:  int(paddedWidth),
+		paddedHeight: int(paddedHeight),
+		scaledWidth:  int(scaledWidth),
+		scaledHeight: int(scaledHeight),
 		cropX:        strconv.Itoa(int(cropOutX)),
 		cropY:        strconv.Itoa(int(cropOutY)),
 		outputWidth:  int(i.outputWidth),
@@ -358,19 +364,65 @@ func calculateOutputs(i *inputs) (*outputs, error) { //nolint:funlen
 	}, nil
 }
 
-func (a *addon) generateFFmpegArgs(config monitor.Config, i *outputs) []string {
-	// Output
-	// ffmpeg -hwaccel x -i main.pipe -filter
+type mask struct {
+	Enable bool           `json:"enable"`
+	Area   ffmpeg.Polygon `json:"area"`
+}
+
+func (a *addon) generateMask(rawMask string) (string, error) {
+	var m mask
+	if err := json.Unmarshal([]byte(rawMask), &m); err != nil {
+		return "", fmt.Errorf("could not unmarshal doodsMask: %w", err)
+	}
+
+	if !m.Enable {
+		return "", nil
+	}
+
+	w := a.outputs.scaledWidth
+	h := a.outputs.scaledHeight
+
+	path := filepath.Join(a.env.SHMDir, "doods", a.id+"_mask.png")
+
+	polygon := m.Area.ToAbs(w, h)
+	mask := ffmpeg.CreateMask(w, h, polygon)
+
+	if err := ffmpeg.SaveImage(path, mask); err != nil {
+		return "", fmt.Errorf("could not save mask: %w", err)
+	}
+
+	return path, nil
+}
+
+func (a *addon) generateFFmpegArgs(config monitor.Config, maskPath string) []string {
+	// Output minimal
+	// ffmpeg -i main.pipe -filter
 	//   'fps=fps=3,scale=320:260,pad=320:320:0:0,crop:300:300:10:10'
 	//   -f rawvideo -pix_fmt rgb24 -
+	//
+	// Output maximal
+	// ffmpeg -hwaccel x -i main.pipe -i mask.png -filter_complex
+	//   '[0:v]fps=fps=3,scale=320:260[bg];[bg][1:v]overlay,pad=320:320:0:0,crop:300:300:10:10'
+	//   -f rawvideo -pix_fmt rgb24 -
+	//
 	// Padding is done after scaling for higher efficiency.
 	// Cropping must come after padding.
+	// Mask is overlayed on scaled frame.
+
+	o := a.outputs
 
 	logLevel := config["logLevel"]
 	hwaccel := config["hwaccel"]
 	fps := config["doodsFeedRate"]
-	outputWidth := strconv.Itoa(i.outputWidth)
-	outputHeight := strconv.Itoa(i.outputHeight)
+	scaledWidth := strconv.Itoa(o.scaledWidth)
+	scaledHeight := strconv.Itoa(o.scaledHeight)
+
+	// Padding cannot be equal to input in some cases. ffmpeg bug?
+	paddedWidth := strconv.Itoa(o.paddedWidth + 1)
+	paddedHeight := strconv.Itoa(o.paddedHeight + 1)
+
+	outputWidth := strconv.Itoa(o.outputWidth)
+	outputHeight := strconv.Itoa(o.outputHeight)
 
 	var args []string
 
@@ -380,11 +432,21 @@ func (a *addon) generateFFmpegArgs(config monitor.Config, i *outputs) []string {
 		args = append(args, ffmpeg.ParseArgs("-hwaccel "+hwaccel)...)
 	}
 
-	args = append(args, "-i", a.mainPipe(), "-filter")
-	args = append(args, "fps=fps="+fps+
-		",scale="+i.scaledWidth+":"+i.scaledHeight+
-		",pad="+i.paddedWidth+":"+i.paddedHeight+":0:0"+
-		",crop="+outputWidth+":"+outputHeight+":"+i.cropX+":"+i.cropY)
+	args = append(args, "-i", a.mainPipe())
+
+	if maskPath == "" {
+		args = append(args, "-filter")
+		args = append(args, "fps=fps="+fps+
+			",scale="+scaledWidth+":"+scaledHeight+
+			",pad="+paddedWidth+":"+paddedHeight+":0:0"+
+			",crop="+outputWidth+":"+outputHeight+":"+o.cropX+":"+o.cropY)
+	} else {
+		args = append(args, "-i", maskPath, "-filter_complex")
+		args = append(args, "[0:v]fps=fps="+fps+
+			",scale="+scaledWidth+":"+scaledHeight+"[bg];[bg][1:v]overlay"+
+			",pad="+paddedWidth+":"+paddedHeight+":0:0"+
+			",crop="+outputWidth+":"+outputHeight+":"+o.cropX+":"+o.cropY)
+	}
 
 	args = append(args, "-f", "rawvideo")
 	args = append(args, "-pix_fmt", "rgb24", "-")
@@ -651,14 +713,11 @@ func (a *addon) parseDetections(t time.Time, detections []*odrpc.Detection) {
 	}
 
 	if len(filtered) != 0 {
-		now := time.Now().Local()
-		timestamp := fmt.Sprintf("%v:%v:%v", now.Hour(), now.Minute(), now.Second())
-
 		a.log.Info().
 			Src("doods").
 			Monitor(a.id).
-			Msgf("trigger: label:%v score:%.1f time:%v",
-				filtered[0].Label, filtered[0].Score, timestamp)
+			Msgf("trigger: label:%v score:%.1f",
+				filtered[0].Label, filtered[0].Score)
 
 		a.trigger <- monitor.Event{
 			Time:        t,

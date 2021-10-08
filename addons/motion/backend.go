@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"log"
 	"nvr"
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/monitor"
@@ -38,6 +39,7 @@ func init() {
 	nvr.RegisterMonitorMainProcessHook(main)
 	nvr.RegisterMonitorSubProcessHook(sub)
 	nvr.RegisterLogSource([]string{"motion"})
+	log.Fatal("motion addon is depricated")
 }
 
 func main(ctx context.Context, m *monitor.Monitor, args *string) {
@@ -179,7 +181,7 @@ func (a addon) unmarshalZones() ([]zone, error) {
 func (zone zone) generateMask(w int, h int) image.Image {
 	polygon := zone.calculatePolygon(w, h)
 
-	return ffmpeg.CreateMask(w, h, polygon)
+	return ffmpeg.CreateInvertedMask(w, h, polygon)
 }
 
 func (a addon) generateMasks(zones []zone, scale string) ([]string, error) {

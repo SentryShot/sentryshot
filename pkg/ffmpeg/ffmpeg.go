@@ -286,9 +286,40 @@ type Point [2]int
 // Polygon slice of Points.
 type Polygon []Point
 
+// ToAbs returns polygon converted from percentage values to absolute values.
+func (p Polygon) ToAbs(w, h int) Polygon {
+	polygon := make(Polygon, len(p))
+	for i, point := range p {
+		px := point[0]
+		py := point[1]
+		polygon[i] = [2]int{
+			int(float64(w) * (float64(px) / 100)),
+			int(float64(h) * (float64(py) / 100)),
+		}
+	}
+	return polygon
+}
+
 // CreateMask creates an image mask from a polygon.
-// Pixels outside the polygon are masked.
+// Pixels inside the polygon are masked.
 func CreateMask(w int, h int, poly Polygon) image.Image {
+	img := image.NewAlpha(image.Rect(0, 0, w, h))
+
+	for y := 0; y < w; y++ {
+		for x := 0; x < h; x++ {
+			if vertexInsidePoly(y, x, poly) {
+				img.Set(y, x, color.Alpha{255})
+			} else {
+				img.Set(y, x, color.Alpha{0})
+			}
+		}
+	}
+	return img
+}
+
+// CreateInvertedMask creates an image mask from a polygon.
+// Pixels outside the polygon are masked.
+func CreateInvertedMask(w int, h int, poly Polygon) image.Image {
 	img := image.NewAlpha(image.Rect(0, 0, w, h))
 
 	for y := 0; y < w; y++ {

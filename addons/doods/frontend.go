@@ -325,12 +325,7 @@ func javascript() string { //nolint:funlen
 							viewBox="0 0 100 100"
 							preserveAspectRatio="none"
 							style="opacity: 0.7;"
-						>
-							<path
-								fill-rule="evenodd" 
-								d="m 0 0 L 100 0 L 100 100 L 0 100 L 0 0 M 20 20 L 80 20 L 80 80 L 20 80 L 20 20"
-							/>
-						</svg>
+						></svg>
 					</div>
 				</li>
 				<li
@@ -458,7 +453,6 @@ func javascript() string { //nolint:funlen
 			$x.value = input[0];
 			$y.value = input[1];
 			$size.value = input[2];
-			updatePreview()
 		}
 
 		let rendered = false;
@@ -476,7 +470,7 @@ func javascript() string { //nolint:funlen
 							<img src="static/icons/feather/edit-3.svg"/>
 						</button>
 					</div>
-					` + "` + modal.html + `" + `
+					${modal.html}
 				</li> ` + "`" + `,
 
 			value() {
@@ -504,6 +498,272 @@ func javascript() string { //nolint:funlen
 				injectCSS()
 
 				$("#js-doodsCrop").querySelector(".settings-edit-btn").addEventListener("click", () => {
+					if (!rendered) {
+						rendered = true;
+						renderModal($parent)
+					}
+					modal.open()
+
+					attachFeed()
+					modal.onClose(() => {
+						feed.destroy()
+					})
+				});
+			},
+		}
+	})(),
+	doodsMask: (() => {
+		const injectCSS = () => {
+			let $style = document.createElement("style");
+			$style.type = "text/css";
+			$style.innerHTML = ` + "`" + `
+				.doodsMask-preview-feed {
+					width: 100%;
+					min-width: 0;
+					display: flex;
+					background: black;
+				}
+				.doodsMask-preview-overlay {
+					position: absolute;
+					height: 100%;
+					width: 100%;
+					top: 0;
+				}
+				.doodsMask-points-grid {
+					display: grid;
+					grid-template-columns: repeat(auto-fit, minmax(3.6rem, 3.7rem));
+					column-gap: 0.1rem;
+					row-gap: 0.1rem;
+				}
+				.doodsMask-point {
+					display: flex;
+					background: var(--color2);
+					padding: 0.15rem;
+					border-radius: 0.15rem;
+				}
+				.doodsMask-point-label {
+					font-size: 0.7rem;
+					color: var(--color-text);
+					margin-left: 0.1rem;
+					margin-right: 0.1rem;
+				}
+				.doodsMask-point-input {
+					text-align: center;
+					font-size: 0.5rem;
+					border-style: none;
+					border-radius: 5px;
+					min-width: 0;
+				}
+				.doodsMask-button {
+					background: var(--color2);
+				}
+				.doodsMask-button:hover {
+					background: var(--color1);
+				}` + "`" + `
+
+			$("head").appendChild($style);
+		}
+
+		let fields = {};
+		let value = {}
+		let $wrapper, $feed, $enable, $overlay, $points;
+
+		const modal = newModal("DOODS mask");
+
+		const renderModal = ($parent) => {
+			const html = ` + "`" + `
+				<li class="js-enable doodsMask-enabled form-field">
+					<label class="form-field-label" for="doodsMask-enable">Enable</label>
+					<div class="form-field-select-container">
+						<select id="modal-enable" class="form-field-select js-input">
+							<option>true</option>
+							<option>false</option>
+						</select>
+					</div>
+				</li>
+				<li id="doodsMask-preview" class="form-field">
+					<label class="form-field-label" for="doodsMask-preview">Preview</label>
+					<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
+						<video
+							class="js-feed doodsCrop-preview-feed"
+							muted
+							disablePictureInPicture
+						></video>
+						<svg
+							class="js-overlay doodsMask-preview-overlay"
+							viewBox="0 0 100 100"
+							preserveAspectRatio="none"
+							style="opacity: 0.7;"
+						></svg>
+					</div>
+				</li>
+				<li class="js-points form-field doodsMask-points-grid"></li>` + "`" + `;
+
+			const $modal = modal.init($parent.querySelector("#js-doodsMask"))
+			$modal.innerHTML = html;
+
+			$enable = $modal.querySelector(".js-enable .js-input")
+			$enable.addEventListener("change", () => {
+				value.enable = ($enable.value == "true");
+			})
+
+			$feed = $modal.querySelector(".js-feed");
+			$wrapper = $modal.querySelector(".js-preview-wrapper");
+			$overlay = $modal.querySelector(".js-overlay")
+			$points = $modal.querySelector(".js-points");
+
+			renderValue();
+			renderPreview();
+		}
+
+		let feed;
+		const attachFeed = () => {
+			feed = new Hls({
+				enableWorker: true,
+				maxBufferLength: 1,
+				liveBackBufferLength: 0,
+				liveSyncDuration: 0,
+				liveMaxLatencyDuration: 5,
+				liveDurationInfinity: true,
+				highBufferWatchdogPeriod: 1,
+			});
+
+			feed.attachMedia($feed);
+			feed.on(Hls.Events.MEDIA_ATTACHED, () => {
+			    const id = fields.id.value()
+				feed.loadSource("hls/" + id + "/" + id + ".m3u8");
+				$feed.play();
+			});
+		}
+
+		const renderPreview = () => {
+			let points = "";
+			for (const p of value.area) {
+				points += p[0] + "," + p[1] + " ";
+			}
+			$overlay.innerHTML = ` + "`" + `
+				<polygon
+					style="fill: black;"
+					points="${points}"
+				/>` + "`" + `
+		}
+
+		const renderValue = () => {
+			$enable.value = value.enable;
+
+			let html = "";
+			for (const point of Object.entries(value.area)) {
+				const index = point[0];
+				const [x, y] = point[1];
+				html +=  ` + "`" + `
+					<div class="js-point doodsMask-point">
+						<input
+							class="doodsMask-point-input"
+							type="number"
+							min="0"
+							max="100"
+							value="${x}"
+						/>
+						<span class="doodsMask-point-label">${index}</span>
+						<input
+							class="doodsMask-point-input"
+							type="number"
+							min="0"
+							max="100"
+							value="${y}"
+						/>
+					</div>` + "`" + `
+			}
+			html += ` + "`" + `
+				<div style="display: flex; column-gap: 0.2rem;">
+					<button
+						class="js-plus settings-edit-btn doodsMask-button"
+						style="margin: 0;"
+					>
+						<img src="static/icons/feather/plus.svg">
+					</button>
+					<button
+						class="js-minus settings-edit-btn doodsMask-button"
+						style="margin: 0;"
+					>
+						<img src="static/icons/feather/minus.svg">
+					</button>
+				</div>` + "`" + `;
+
+			$points.innerHTML = html;
+
+			for (const element of $points.querySelectorAll(".js-point")) {
+				element.addEventListener("change", () => {
+					const index = element.querySelector("span").innerHTML;
+					const $points = element.querySelectorAll("input")
+					const x = parseInt($points[0].value)
+					const y = parseInt($points[1].value)
+					value.area[index] = [x, y];
+					renderPreview();
+				});
+			}
+
+			$points.querySelector(".js-plus").addEventListener("click", () => {
+				value.area.push([50,50]);
+				renderValue();
+			});
+			$points.querySelector(".js-minus").addEventListener("click", () => {
+				if (value.area.length > 3) {
+					value.area.pop();
+					renderValue();
+				}
+			});
+
+			renderPreview();
+		};
+
+		const initialValue = () => {
+			return {
+				enable: false,
+				area: [
+					[20, 20],
+					[80, 20],
+					[50, 50],
+				],
+			};
+		}
+
+		let rendered = false;
+
+		return {
+			html: ` + "`" + `
+				<li
+					id="js-doodsMask"
+					class="form-field"
+					style="display:flex; padding-bottom:0.25rem;"
+				>
+					<label class="form-field-label">DOODS mask</label>
+					<div style="width:auto">
+						<button class="settings-edit-btn color3">
+							<img src="static/icons/feather/edit-3.svg"/>
+						</button>
+					</div>
+					${modal.html}
+				</li> ` + "`" + `,
+
+			value() {
+				return JSON.stringify(value)
+			},
+			set(input, _, f) {
+				fields = f;
+				if (input === "") {
+					value = initialValue()
+				} else {
+					value = JSON.parse(input);
+				}
+				if (rendered) {
+					renderValue()
+				}
+			},
+			init($parent) {
+				injectCSS()
+
+				$("#js-doodsMask").querySelector(".settings-edit-btn").addEventListener("click", () => {
 					if (!rendered) {
 						rendered = true;
 						renderModal($parent)

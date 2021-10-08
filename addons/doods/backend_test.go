@@ -27,6 +27,7 @@ import (
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
@@ -328,6 +329,62 @@ func TestCaclulateOutputs(t *testing.T) {
 	})
 }
 
+func TestGenerateMask(t *testing.T) {
+	t.Run("working", func(t *testing.T) {
+		tempDir, err := ioutil.TempDir("", "")
+		if err != nil {
+			t.Fatalf("could not create tempoary directory: %v", err)
+		}
+		defer os.RemoveAll(tempDir)
+
+		if err := os.Mkdir(filepath.Join(tempDir, "doods"), 0o700); err != nil {
+			t.Fatalf("could not create doods directory %v", err)
+		}
+
+		a := &addon{
+			env: &storage.ConfigEnv{
+				SHMDir: tempDir,
+			},
+			outputs: &outputs{
+				scaledWidth:  1,
+				scaledHeight: 1,
+			},
+		}
+		_, err = a.generateMask(`{"enable":true}`)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("unmarshalErr", func(t *testing.T) {
+		a := &addon{}
+		if _, err := a.generateMask(""); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("disabled", func(t *testing.T) {
+		a := &addon{}
+		path, err := a.generateMask(`{"enable":false}`)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if path != "" {
+			t.Fatalf("expected '': got: %v", path)
+		}
+	})
+	t.Run("saveErr", func(t *testing.T) {
+		a := &addon{
+			env: &storage.ConfigEnv{
+				SHMDir: "/dev/null",
+			},
+			outputs: &outputs{},
+		}
+		_, err := a.generateMask(`{"enable":true}`)
+		if err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+}
+
 func TestGenerateArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		a := addon{
@@ -336,27 +393,26 @@ func TestGenerateArgs(t *testing.T) {
 			env: &storage.ConfigEnv{
 				SHMDir: "2",
 			},
+			outputs: &outputs{
+				scaledWidth:  5,
+				scaledHeight: 6,
+				paddedWidth:  7,
+				paddedHeight: 8,
+				outputWidth:  11,
+				outputHeight: 12,
+				cropX:        "13",
+				cropY:        "14",
+			},
 		}
 		config := monitor.Config{
 			"logLevel":      "1",
 			"doodsFeedRate": "4",
 		}
-		args := a.generateFFmpegArgs(config,
-			&outputs{
-				scaledWidth:  "5",
-				scaledHeight: "6",
-				paddedWidth:  "7",
-				paddedHeight: "8",
-				outputWidth:  9,
-				outputHeight: 10,
-				cropX:        "11",
-				cropY:        "12",
-			},
-		)
+		args := a.generateFFmpegArgs(config, "")
 
 		actual := fmt.Sprintf("%v", args)
 		expected := "[-y -loglevel 1 -i 2/doods/3/main.fifo -filter fps=fps=4," +
-			"scale=5:6,pad=7:8:0:0,crop=9:10:11:12 -f rawvideo -pix_fmt rgb24 -]"
+			"scale=5:6,pad=8:9:0:0,crop=11:12:13:14 -f rawvideo -pix_fmt rgb24 -]"
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
@@ -369,28 +425,28 @@ func TestGenerateArgs(t *testing.T) {
 			env: &storage.ConfigEnv{
 				SHMDir: "3",
 			},
+			outputs: &outputs{
+				scaledWidth:  7,
+				scaledHeight: 8,
+				paddedWidth:  9,
+				paddedHeight: 10,
+				outputWidth:  13,
+				outputHeight: 14,
+				cropX:        "15",
+				cropY:        "16",
+			},
 		}
 		config := monitor.Config{
 			"logLevel":      "1",
-			"doodsFeedRate": "5",
+			"doodsFeedRate": "6",
 			"hwaccel":       "2",
 		}
-		args := a.generateFFmpegArgs(config,
-			&outputs{
-				scaledWidth:  "6",
-				scaledHeight: "7",
-				paddedWidth:  "8",
-				paddedHeight: "9",
-				outputWidth:  10,
-				outputHeight: 11,
-				cropX:        "12",
-				cropY:        "13",
-			},
-		)
+		args := a.generateFFmpegArgs(config, "5")
 
 		actual := fmt.Sprintf("%v", args)
-		expected := "[-y -loglevel 1 -hwaccel 2 -i 3/doods/4/main.fifo -filter fps=fps=5," +
-			"scale=6:7,pad=8:9:0:0,crop=10:11:12:13 -f rawvideo -pix_fmt rgb24 -]"
+		expected := "[-y -loglevel 1 -hwaccel 2 -i 3/doods/4/main.fifo -i 5" +
+			" -filter_complex [0:v]fps=fps=6,scale=7:8[bg];[bg][1:v]overlay,pad=10:11:0:0,crop=13:14:15:16" +
+			" -f rawvideo -pix_fmt rgb24 -]"
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)

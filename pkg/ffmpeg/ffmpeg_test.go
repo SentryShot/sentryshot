@@ -268,7 +268,97 @@ func imageToText(img image.Image) string {
 	return text
 }
 
+func TestPolygonToAbs(t *testing.T) {
+	polygon := Polygon{
+		Point{5, 10},
+		Point{15, 20},
+		Point{25, 30},
+	}
+	actual := fmt.Sprintf("%v", polygon.ToAbs(400, 200))
+	expected := "[[20 20] [60 40] [100 60]]"
+
+	if expected != actual {
+		t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual)
+	}
+}
+
 func TestCreateMask(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    Polygon
+		expected string
+	}{
+		{
+			"triangle",
+			Polygon{
+				{3, 1},
+				{6, 6},
+				{0, 6},
+			},
+			`
+			_______
+			_______
+			___X___
+			__XXX__
+			__XXX__
+			_XXXXX_
+			_______`,
+		},
+		{
+			"octagon",
+			Polygon{
+				{2, 0},
+				{5, 0},
+				{7, 3},
+				{7, 4},
+				{4, 7},
+				{0, 4},
+				{0, 2},
+			},
+			`
+			__XXX__
+			_XXXXX_
+			XXXXXXX
+			XXXXXXX
+			XXXXXXX
+			_XXXXX_
+			__XXX__`,
+		},
+		{
+			"inverted", // Lines cross over themselves at the bottom.
+			Polygon{
+				{7, 0},
+				{7, 7},
+				{1, 5},
+				{6, 5},
+				{0, 7},
+				{0, 0},
+			},
+			`
+			XXXXXXX
+			XXXXXXX
+			XXXXXXX
+			XXXXXXX
+			XXXXXXX
+			X_____X
+			XXX_XXX`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mask := CreateMask(7, 7, tc.input)
+			actual := imageToText(mask)
+			expected := strings.ReplaceAll(tc.expected, "\t", "")
+
+			if expected != actual {
+				t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual)
+			}
+		})
+	}
+}
+
+func TestCreateInvertedMask(t *testing.T) {
 	cases := []struct {
 		name     string
 		input    Polygon
@@ -333,7 +423,7 @@ func TestCreateMask(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			mask := CreateMask(7, 7, tc.input)
+			mask := CreateInvertedMask(7, 7, tc.input)
 			actual := imageToText(mask)
 			expected := strings.ReplaceAll(tc.expected, "\t", "")
 

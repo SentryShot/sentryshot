@@ -762,7 +762,7 @@ a:focus {
 .form-field-label {
 	flex-grow: 1;
 	float: left;
-	width: 95vw;
+	width: 100%;
 	min-width: 4rem;
 	color: var(--color-text);
 	font-size: 0.6rem;
@@ -1024,6 +1024,7 @@ a:focus {
 	height: 100%;
 	stroke: var(--color-red);
 	fill-opacity: 0;
+	stroke-width: 0.015rem;
 }
 
 .player-detection-text {

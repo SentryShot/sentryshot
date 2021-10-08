@@ -359,17 +359,19 @@ function newMonitor(token, fields) {
 		form.reset();
 		const id = navElement.attributes.data.value;
 		const $monitorID = fields["id"].element();
+		const $monitorIDinput = $monitorID.querySelector("input");
+
 		let monitor = {},
 			title;
 
 		if (id === "") {
 			monitor["id"] = randomString(5);
 			title = "Add";
-			$monitorID.disabled = false;
+			$monitorIDinput.disabled = false;
 		} else {
 			monitor = monitors[id];
 			title = monitor.name;
-			$monitorID.disabled = true;
+			$monitorIDinput.disabled = true;
 		}
 
 		category.setTitle(title);

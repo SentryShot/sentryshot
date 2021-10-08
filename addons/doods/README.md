@@ -40,6 +40,10 @@ Individual confidence thresholds for each type of object that can be detected.
 
 Crop frame to focus the detector and increase accuracy.
 
+#### DOODS mask
+
+Mask areas you want the detector to ignore.
+
 #### DOODS feed rate
 
 Frames per second to send to detector, decimals are allowed.
