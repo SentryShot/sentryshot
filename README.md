@@ -1,29 +1,25 @@
-<img src="https://gitlab.com/osnvr/os-nvr-assets/-/raw/master/screenshots/settings.png">
+<img src="https://gitlab.com/osnvr/os-nvr-assets/-/raw/master/screenshots/recordings.png">
 
-### OS-NVR is a lightweight extensible CCTV system.
-
-- [Overview](#overview)
-- [Features](#features)
-- [Documentation](#documentation)
-- [License](#license)
+[Screenshots](https://gitlab.com/osnvr/os-nvr_assets/-/tree/master/screenshots)
 
 ## Overview
 
-##### Warning: this is a beta version, features are lacking. [#1](https://gitlab.com/osnvr/os-nvr/-/issues/1)
+##### beta release.
 
-"OS-NVR" is a temporary name. [#2](https://gitlab.com/osnvr/os-nvr/-/issues/2)
+OS-NVR is a mobile-friendly extensible CCTV system.
+
+Frontend is written completely from scratch to give the best performance on mobile/low-end devices. Backend is written in Go using FFmpeg for video processing.
+
+`OS-NVR` is a temporary name. [#2](https://gitlab.com/osnvr/os-nvr/-/issues/2)
 
 Use [Issues]() for bug reports, feature requests and support.
 
-## Features
-- +70% test coverage
-- Mobile-first user interface
-- [DOODS](https://github.com/snowzach/doods) object detection addon.
-
 ## Documentation
-- [Installation](docs/1_Installation.md)
-- [Configuration](docs/2_Configuration.md)
-- [Development](docs/3_Development.md)
+
+- [Installation](./docs/1_Installation.md)
+- [Configuration](./docs/2_Configuration.md)
+- [Development](./docs/3_Development.md)
+- [Object Detection](./addons/doods/README.md)
 	
 <br>
 
