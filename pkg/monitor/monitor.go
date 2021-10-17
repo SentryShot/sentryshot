@@ -469,7 +469,10 @@ func runInputProcess(ctx context.Context, m *Monitor, subProcess bool) error {
 	process.SetStdoutLogger(m.Log)
 	process.SetStderrLogger(m.Log)
 
-	go m.startWatchdog(ctx, process, processName)
+	ctx2, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go m.startWatchdog(ctx2, process, processName)
 
 	err = process.Start(ctx)
 	if err != nil {
