@@ -122,8 +122,8 @@ func (m *Manager) configPath(id string) string {
 	return m.path + "/" + id + ".json"
 }
 
-// GroupConfigs returns configurations for all groups.
-func (m *Manager) GroupConfigs() map[string]Config {
+// Configs returns configurations for all groups.
+func (m *Manager) Configs() map[string]Config {
 	configs := make(map[string]Config)
 
 	m.mu.Lock()

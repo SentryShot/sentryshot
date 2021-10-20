@@ -16,7 +16,9 @@ package nvr
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"nvr/pkg/group"
@@ -125,16 +127,34 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 		return nil, err
 	}
 
-	templateData := web.TemplateData{
-		Status:  sys.Status,
-		General: general.Get,
-	}
-
 	templatesDir := filepath.Join(env.WebDir, "templates")
-	t, err := web.NewTemplater(templatesDir, a, templateData, hooks.tpl)
+	t, err := web.NewTemplater(templatesDir, a, hooks.tpl)
 	if err != nil {
 		return nil, err
 	}
+
+	t.RegisterTemplateDataFuncs(
+		func(data template.FuncMap, _ string) {
+			data["theme"] = general.Get().Theme
+		},
+		func(data template.FuncMap, _ string) {
+			data["tz"] = timeZone
+		},
+		func(data template.FuncMap, page string) {
+			groups, _ := json.Marshal(groupManager.Configs())
+			data["groups"] = string(groups)
+		},
+		func(data template.FuncMap, page string) {
+			monitors, _ := json.Marshal(monitorManager.MonitorList())
+			data["monitors"] = string(monitors)
+		},
+		func(data template.FuncMap, page string) {
+			data["logSources"] = logger.Sources()
+		},
+		func(data template.FuncMap, _ string) {
+			data["status"] = sys.Status()
+		},
+	)
 
 	mux := http.NewServeMux()
 

@@ -373,7 +373,7 @@ func GroupConfigs(m *group.Manager) http.Handler {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
-		u, err := json.Marshal(m.GroupConfigs())
+		u, err := json.Marshal(m.Configs())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

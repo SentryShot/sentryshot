@@ -21,8 +21,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"nvr/pkg/storage"
-	"nvr/pkg/system"
 	"nvr/pkg/web/auth"
 	"os"
 	"path/filepath"
@@ -30,26 +28,28 @@ import (
 	"time"
 )
 
-// Hook addon template hook.
-type Hook func(map[string]string) error
+type (
+	templates map[string]*template.Template
+
+	// TemplateHook .
+	TemplateHook func(map[string]string) error
+
+	// TemplateDataFunc is a function thats called on page
+	// render and allows template data to be modified.
+	TemplateDataFunc func(template.FuncMap, string)
+)
 
 // Templater is used to render html from templates.
 type Templater struct {
-	auth      *auth.Authenticator
-	data      TemplateData
-	templates map[string]*template.Template
+	auth              *auth.Authenticator
+	templates         templates
+	templateDataFuncs []TemplateDataFunc
 
 	lastModified time.Time
 }
 
-// TemplateData is used when rendering templates.
-type TemplateData struct {
-	Status  func() system.Status
-	General func() storage.GeneralConfig
-}
-
 // NewTemplater return template renderer.
-func NewTemplater(path string, a *auth.Authenticator, data TemplateData, hook Hook) (*Templater, error) {
+func NewTemplater(path string, a *auth.Authenticator, hook TemplateHook) (*Templater, error) {
 	pageFiles, err := readDir(path)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,6 @@ func NewTemplater(path string, a *auth.Authenticator, data TemplateData, hook Ho
 
 	return &Templater{
 		auth:         a,
-		data:         data,
 		templates:    templates,
 		lastModified: time.Now().UTC(),
 	}, nil
@@ -114,8 +113,14 @@ func readDir(dir string) (map[string]string, error) {
 	return fileContents, nil
 }
 
+// RegisterTemplateDataFuncs .
+func (templater *Templater) RegisterTemplateDataFuncs(dataFuncs ...TemplateDataFunc) {
+	templater.templateDataFuncs = append(
+		templater.templateDataFuncs, dataFuncs...)
+}
+
 // Render executes a template.
-func (templater Templater) Render(page string) http.Handler {
+func (templater *Templater) Render(page string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t, exists := templater.templates[page]
 		if !exists {
@@ -128,16 +133,21 @@ func (templater Templater) Render(page string) http.Handler {
 		}
 
 		data := make(template.FuncMap)
+
 		data["currentPage"] = strings.Title(strings.TrimSuffix(page, filepath.Ext(page)))
-		data["status"] = templater.data.Status()
-		data["general"] = templater.data.General()
 
 		auth := templater.auth.ValidateAuth(r.Header.Get("Authorization"))
 		data["user"] = auth.User
 
-		tls := r.Header["X-Forwarded-Proto"]
-		if len(tls) != 0 {
-			data["tls"] = tls[0]
+		if page == "debug.tpl" {
+			tls := r.Header["X-Forwarded-Proto"]
+			if len(tls) != 0 {
+				data["tls"] = tls[0]
+			}
+		}
+
+		for _, dataFunc := range templater.templateDataFuncs {
+			dataFunc(data, page)
 		}
 
 		var b bytes.Buffer

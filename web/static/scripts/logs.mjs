@@ -318,9 +318,9 @@ function newLogSelector(logger, formFields) {
 }
 
 async function init() {
-	const logSources = await fetchGet("api/log/sources", "could not get log sources");
-	const monitors = await fetchGet("api/monitor/list", "could not get monitor list");
-	const timeZone = await fetchGet("api/system/timeZone", "could not get time zone");
+	const logSources = LogSources; // eslint-disable-line no-undef
+	const monitors = Monitors; // eslint-disable-line no-undef
+	const timeZone = TZ; // eslint-disable-line no-undef
 
 	const monitorNameByID = newMonitorNameByID(monitors);
 	const formatLog = newFormater(monitorNameByID, timeZone);

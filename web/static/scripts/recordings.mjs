@@ -186,12 +186,11 @@ function dateToID(d) {
 			return;
 		}
 
-		const groups = await fetchGet("api/group/configs", "could not get group");
+		const timeZone = TZ; // eslint-disable-line no-undef
+		const groups = Groups; // eslint-disable-line no-undef
+		const monitors = Monitors; // eslint-disable-line no-undef
 
-		const monitors = await fetchGet("api/monitor/list", "could not get monitor list");
 		const monitorNameByID = newMonitorNameByID(monitors);
-
-		const timeZone = await fetchGet("api/system/timeZone", "could not get time zone");
 
 		const $grid = document.querySelector("#content-grid");
 		const viewer = await newViewer(monitorNameByID, $grid, timeZone);

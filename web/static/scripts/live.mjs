@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, fetchGet } from "./libs/common.mjs";
+import { $ } from "./libs/common.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
 
 let hlsConfig = {
@@ -209,9 +209,8 @@ function resBtn() {
 
 		const $contentGrid = document.querySelector("#content-grid");
 
-		const groups = await fetchGet("api/group/configs", "could not get group");
-
-		const monitors = await fetchGet("api/monitor/list", "could not get monitor list");
+		const groups = Groups; // eslint-disable-line no-undef
+		const monitors = Monitors; // eslint-disable-line no-undef
 
 		const viewer = newViewer($contentGrid, monitors, Hls);
 

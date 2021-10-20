@@ -241,7 +241,7 @@ func TestGroupConfigs(t *testing.T) {
 
 	expected := "map[1:map[id:1 monitors:[\"1\"] name:one] 2:map[id:2 monitors:[\"2\"] name:two]]"
 
-	actual := fmt.Sprintf("%v", manager.GroupConfigs())
+	actual := fmt.Sprintf("%v", manager.Configs())
 	if actual != expected {
 		t.Fatalf("\nexpected:\n%v.\ngot:\n%v", expected, actual)
 	}

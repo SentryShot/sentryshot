@@ -25,7 +25,7 @@ type envHook func(*storage.ConfigEnv)
 
 type hookList struct {
 	onEnvLoad          []envHook
-	template           []web.Hook
+	template           []web.TemplateHook
 	monitorStart       []monitor.StartHook
 	monitorMainProcess []monitor.StartInputHook
 	monitorSubProcess  []monitor.StartInputHook
@@ -41,7 +41,7 @@ func RegisterEnvHook(h envHook) {
 }
 
 // RegisterTplHook registers hook that's called on page render.
-func RegisterTplHook(h web.Hook) {
+func RegisterTplHook(h web.TemplateHook) {
 	hooks.template = append(hooks.template, h)
 }
 
