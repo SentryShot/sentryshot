@@ -39,6 +39,12 @@ type (
 	TemplateDataFunc func(template.FuncMap, string)
 )
 
+// TemplateHooks .
+type TemplateHooks struct {
+	Tpl TemplateHook
+	Sub TemplateHook
+}
+
 // Templater is used to render html from templates.
 type Templater struct {
 	auth              *auth.Authenticator
@@ -49,18 +55,20 @@ type Templater struct {
 }
 
 // NewTemplater return template renderer.
-func NewTemplater(path string, a *auth.Authenticator, hook TemplateHook) (*Templater, error) {
+func NewTemplater(path string, a *auth.Authenticator, hooks TemplateHooks) (*Templater, error) {
 	pageFiles, err := readDir(path)
 	if err != nil {
 		return nil, err
 	}
-
-	if err := hook(pageFiles); err != nil {
+	if err := hooks.Tpl(pageFiles); err != nil {
 		return nil, err
 	}
 
 	includeFiles, err := readDir(path + "/includes")
 	if err != nil {
+		return nil, err
+	}
+	if err := hooks.Sub(includeFiles); err != nil {
 		return nil, err
 	}
 

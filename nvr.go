@@ -45,6 +45,10 @@ func Run(envPath string) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	if err := hooks.appRun(ctx); err != nil {
+		cancel()
+		return err
+	}
 
 	fatal := make(chan error, 1)
 	go func() { fatal <- app.run(ctx) }()
@@ -74,7 +78,7 @@ func Run(envPath string) error {
 	return err
 }
 
-func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) { //nolint:funlen
+func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) { //nolint:funlen
 	envYAML, err := ioutil.ReadFile(envPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read env.yaml: %w", err)
@@ -84,7 +88,6 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get environment config: %w", err)
 	}
-
 	hooks.env(env)
 
 	logDBpath := filepath.Join(env.StorageDir, "logs.db")
@@ -92,6 +95,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create logger: %w", err)
 	}
+	hooks.log(logger)
 
 	general, err := storage.NewConfigGeneral(env.ConfigDir)
 	if err != nil {
@@ -115,12 +119,12 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 	if err != nil {
 		return nil, err
 	}
+	hooks.auth(a)
 
 	storageManager := storage.NewManager(env.StorageDir, general, logger)
+	hooks.storage(storageManager)
 
 	crawler := storage.NewCrawler(storageManager.RecordingsDir())
-
-	sys := system.New(storageManager.Usage, logger)
 
 	timeZone, err := system.TimeZone()
 	if err != nil {
@@ -128,7 +132,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 	}
 
 	templatesDir := filepath.Join(env.WebDir, "templates")
-	t, err := web.NewTemplater(templatesDir, a, hooks.tpl)
+	t, err := web.NewTemplater(templatesDir, a, hooks.tplHooks())
 	if err != nil {
 		return nil, err
 	}
@@ -151,10 +155,8 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 		func(data template.FuncMap, page string) {
 			data["logSources"] = logger.Sources()
 		},
-		func(data template.FuncMap, _ string) {
-			data["status"] = sys.Status()
-		},
 	)
+	t.RegisterTemplateDataFuncs(hooks.templateData...)
 
 	mux := http.NewServeMux()
 
@@ -171,7 +173,6 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 	mux.Handle("/storage/", a.User(web.Storage(env.StorageDir)))
 	mux.Handle("/hls/", a.User(web.HLS(env)))
 
-	mux.Handle("/api/system/status", a.User(web.Status(sys)))
 	mux.Handle("/api/system/timeZone", a.User(web.TimeZone(timeZone)))
 
 	mux.Handle("/api/general", a.Admin(web.General(general)))
@@ -196,29 +197,29 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*app, error) {
 	mux.Handle("/api/log/feed", a.Admin(web.LogFeed(logger, a)))
 	mux.Handle("/api/log/query", a.Admin(web.LogQuery(logger)))
 	mux.Handle("/api/log/sources", a.Admin(web.LogSources(logger)))
+	hooks.mux(mux)
 
 	server := &http.Server{Addr: ":" + env.Port, Handler: mux}
 
-	return &app{
+	return &App{
 		log:            logger,
 		env:            env,
 		monitorManager: monitorManager,
 		storage:        storageManager,
-		system:         sys,
 		server:         server,
 	}, nil
 }
 
-type app struct {
+// App is the main application struct.
+type App struct {
 	log            *log.Logger
 	env            *storage.ConfigEnv
 	monitorManager *monitor.Manager
 	storage        *storage.Manager
-	system         *system.System
 	server         *http.Server
 }
 
-func (a *app) run(ctx context.Context) error {
+func (a *App) run(ctx context.Context) error {
 	if err := a.log.Start(ctx); err != nil {
 		return fmt.Errorf("could not start logger: %w", err)
 	}
@@ -242,8 +243,6 @@ func (a *app) run(ctx context.Context) error {
 	}
 
 	go a.storage.PurgeLoop(ctx, 10*time.Minute)
-
-	go a.system.StatusLoop(ctx)
 
 	return a.server.ListenAndServe()
 }

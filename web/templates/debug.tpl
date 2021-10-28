@@ -101,7 +101,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 			}
 		}, 5);
 	}
-	const path = window.location.pathname.replace("debug", "api/logs");
+	const path = window.location.pathname.replace("debug", "api/log/feed");
 	const ws = new WebSocket("wss://" + window.location.host + path);
 
     waitForSocket(ws, () => {

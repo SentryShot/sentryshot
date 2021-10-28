@@ -18,14 +18,6 @@ All requests require basic auth, POST, PUT and DELETE requests need to have a ma
 
 ## System
 
-### GET /api/system/status
-
-##### Auth: user
-
-CPU, RAM and Disk usage.
-
-<br>
-
 ### GET /api/system/timeZone
 
 ##### Auth: user

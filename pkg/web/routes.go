@@ -25,7 +25,6 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
-	"nvr/pkg/system"
 	"nvr/pkg/web/auth"
 	"strconv"
 	"strings"
@@ -95,20 +94,6 @@ func HLS(env *storage.ConfigEnv) http.Handler {
 
 		h := http.StripPrefix("/hls/", http.FileServer(http.Dir(env.SHMhls())))
 		h.ServeHTTP(w, r)
-	})
-}
-
-// Status returns system status.
-func Status(sys *system.System) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(sys.Status()); err != nil {
-			http.Error(w, "could not encode json", http.StatusInternalServerError)
-		}
 	})
 }
 

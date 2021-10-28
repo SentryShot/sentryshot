@@ -16,16 +16,33 @@ package nvr
 
 import (
 	"context"
+	"net/http"
+	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
 	"nvr/pkg/web"
+	"nvr/pkg/web/auth"
 )
 
-type envHook func(*storage.ConfigEnv)
+type (
+	envHook     func(*storage.ConfigEnv)
+	logHook     func(*log.Logger)
+	authHook    func(*auth.Authenticator)
+	storageHook func(*storage.Manager)
+	muxHook     func(*http.ServeMux)
+	appRunHook  func(context.Context) error
+)
 
 type hookList struct {
-	onEnvLoad          []envHook
+	onEnv              []envHook
+	onAuth             []authHook
+	onStorage          []storageHook
+	onLog              []logHook
+	onMux              []muxHook
+	onAppRun           []appRunHook
 	template           []web.TemplateHook
+	templateSub        []web.TemplateHook
+	templateData       []web.TemplateDataFunc
 	monitorStart       []monitor.StartHook
 	monitorMainProcess []monitor.StartInputHook
 	monitorSubProcess  []monitor.StartInputHook
@@ -37,12 +54,48 @@ var hooks = &hookList{}
 
 // RegisterEnvHook registers hook that's called when environment config is loaded.
 func RegisterEnvHook(h envHook) {
-	hooks.onEnvLoad = append(hooks.onEnvLoad, h)
+	hooks.onEnv = append(hooks.onEnv, h)
 }
 
-// RegisterTplHook registers hook that's called on page render.
+// RegisterLogHook is used to grab the logger.
+func RegisterLogHook(h logHook) {
+	hooks.onLog = append(hooks.onLog, h)
+}
+
+// RegisterAuthHook is used to grab the authenticator.
+func RegisterAuthHook(h authHook) {
+	hooks.onAuth = append(hooks.onAuth, h)
+}
+
+// RegisterStorageHook is used to grab the storage manager.
+func RegisterStorageHook(h storageHook) {
+	hooks.onStorage = append(hooks.onStorage, h)
+}
+
+// RegisterMuxHook registers hook used to modifiy routes.
+func RegisterMuxHook(h muxHook) {
+	hooks.onMux = append(hooks.onMux, h)
+}
+
+// RegisterAppRunHook registers hook that's called when app runs.
+func RegisterAppRunHook(h appRunHook) {
+	hooks.onAppRun = append(hooks.onAppRun, h)
+}
+
+// RegisterTplHook registers function used to modify templates.
 func RegisterTplHook(h web.TemplateHook) {
 	hooks.template = append(hooks.template, h)
+}
+
+// RegisterTplSubHook registers function used to modify sub templates.
+func RegisterTplSubHook(h web.TemplateHook) {
+	hooks.templateSub = append(hooks.templateSub, h)
+}
+
+// RegisterTplDataHook registers function thats called
+// on page render. Used to modify template data.
+func RegisterTplDataHook(h web.TemplateDataFunc) {
+	hooks.templateData = append(hooks.templateData, h)
 }
 
 // RegisterMonitorStartHook registers hook that's called when the monitor starts.
@@ -71,18 +124,66 @@ func RegisterLogSource(s []string) {
 }
 
 func (h *hookList) env(env *storage.ConfigEnv) {
-	for _, hook := range h.onEnvLoad {
+	for _, hook := range h.onEnv {
 		hook(env)
 	}
 }
 
-func (h *hookList) tpl(pageFiles map[string]string) error {
-	for _, hook := range h.template {
-		if err := hook(pageFiles); err != nil {
+func (h *hookList) log(log *log.Logger) {
+	for _, hook := range h.onLog {
+		hook(log)
+	}
+}
+
+func (h *hookList) auth(a *auth.Authenticator) {
+	for _, hook := range h.onAuth {
+		hook(a)
+	}
+}
+
+func (h *hookList) storage(s *storage.Manager) {
+	for _, hook := range h.onStorage {
+		hook(s)
+	}
+}
+
+func (h *hookList) mux(mux *http.ServeMux) {
+	for _, hook := range h.onMux {
+		hook(mux)
+	}
+}
+
+func (h *hookList) appRun(ctx context.Context) error {
+	for _, hook := range h.onAppRun {
+		if err := hook(ctx); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (h *hookList) tplHooks() web.TemplateHooks {
+	tplHook := func(pageFiles map[string]string) error {
+		for _, hook := range h.template {
+			if err := hook(pageFiles); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	tplSubHook := func(pageFiles map[string]string) error {
+		for _, hook := range h.templateSub {
+			if err := hook(pageFiles); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	return web.TemplateHooks{
+		Tpl: tplHook,
+		Sub: tplSubHook,
+	}
 }
 
 func (h *hookList) monitor() monitor.Hooks {

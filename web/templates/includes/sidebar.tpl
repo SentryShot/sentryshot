@@ -1,21 +1,3 @@
-{{ define "" }}
-	<!--
-Copyright 2020-2021 The OS-NVR Authors.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
--->
-{{ end }}
-
 {{ define "sidebar" }}
 	<input type="checkbox" id="sidebar-checkbox" />
 	<header id="topbar">
@@ -67,55 +49,5 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 				</button>
 			</div>
 		</nav>
-		<ul id="statusbar">
-			<li>
-				<div class="statusbar-text-container">
-					<span class="statusbar-text">CPU</span>
-					<span class="statusbar-text statusbar-number" id="statusbar-cpu"
-						>{{ .status.CPUUsage }}%</span
-					>
-				</div>
-				<div class="statusbar-progressbar">
-					<span
-						id="statusbar-cpu-bar"
-						style="width: {{ .status.CPUUsage }}%"
-					></span>
-				</div>
-			</li>
-			<li>
-				<div class="statusbar-text-container">
-					<span class="statusbar-text">RAM</span>
-					<span class="statusbar-text statusbar-number" id="statusbar-ram"
-						>{{ .status.RAMUsage }}%</span
-					>
-				</div>
-				<div class="statusbar-progressbar">
-					<span
-						id="statusbar-ram-bar"
-						style="width: {{ .status.RAMUsage }}%"
-					></span>
-				</div>
-			</li>
-			<li>
-				<div class="statusbar-text-container">
-					<span class="statusbar-text">DISK</span>
-					<span
-						style="margin: auto; font-size: 0.35rem"
-						class="statusbar-text"
-						id="statusbar-disk-formatted"
-						>{{ .status.DiskUsageFormatted }}</span
-					>
-					<span class="statusbar-text statusbar-number" id="statusbar-disk"
-						>{{ .status.DiskUsage }}%</span
-					>
-				</div>
-				<div class="statusbar-progressbar">
-					<span
-						id="statusbar-disk-bar"
-						style="width: {{ .status.DiskUsage }}%"
-					></span>
-				</div>
-			</li>
-		</ul>
 	</aside>
 {{ end }}

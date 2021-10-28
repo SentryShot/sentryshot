@@ -1,6 +1,20 @@
+// Copyright 2020-2021 The OS-NVR Authors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; version 2.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package
 // the purpuse of this script is to create a "main.go" with addons from
-// addons.conf inserted into the import field. This will include the addons
+// env.yaml inserted into the import field. This will include the addons
 // with the build. The file will then be run with the same environment and
 // file descriptors as this script.
 
@@ -21,6 +35,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// ErrNotAbsolute path is not absolute.
 var ErrNotAbsolute = errors.New("path is not absolute")
 
 func main() {

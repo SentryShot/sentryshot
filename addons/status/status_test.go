@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package system
+package status
 
 import (
 	"context"
@@ -56,7 +56,7 @@ func mockDiskErr() (storage.DiskUsage, error) {
 }
 
 func TestNew(t *testing.T) {
-	s := New(mockDisk, &log.Logger{})
+	s := newSystem(mockDisk, &log.Logger{})
 	if s == nil {
 		t.Fatal("nil")
 	}
@@ -79,7 +79,7 @@ func TestUpdate(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			s := System{
+			s := system{
 				cpu:  tc.cpu,
 				ram:  tc.ram,
 				disk: tc.disk,
@@ -94,7 +94,7 @@ func TestUpdate(t *testing.T) {
 				t.Errorf("expected error: %v, error: %v", tc.expectedError, actualError)
 			}
 
-			actualValue := s.Status()
+			actualValue := s.getStatus()
 			if fmt.Sprintf("%v", actualValue) != tc.expectedValue {
 				t.Errorf("expected: %v, got: %v", tc.expectedValue, actualValue)
 			}
@@ -103,7 +103,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestLoop(t *testing.T) {
-	s := System{
+	s := system{
 		cpu:  mockCPU,
 		ram:  mockRAM,
 		disk: mockDisk,
