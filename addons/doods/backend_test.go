@@ -65,6 +65,7 @@ func TestParseConfig(t *testing.T) {
 				"doodsDuration":   "0.000000003",
 				"doodsFrameScale": "half",
 				"doodsFeedRate":   "500000000",
+				"doodsDelay":      "7",
 			},
 		}
 		config, err := parseConfig(m, "1")
@@ -72,7 +73,7 @@ func TestParseConfig(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		actual := fmt.Sprintf("%v", config)
-		expected := "&{1 2 3 map[4:5] 6000000 }"
+		expected := "&{1 2 3 map[4:5] 6000000 7000000 }"
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.\n", expected, actual)
@@ -97,6 +98,7 @@ func TestParseConfig(t *testing.T) {
 				"doodsDuration":   "1",
 				"doodsThresholds": `{"a":1,"b":2,"c":-1}`,
 				"doodsFeedRate":   "1",
+				"doodsDelay":      "1",
 			},
 		}
 		config, err := parseConfig(m, "1")

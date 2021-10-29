@@ -150,6 +150,7 @@ type doodsConfig struct {
 	recDuration     time.Duration
 	thresholds      thresholds
 	timestampOffset time.Duration
+	delay           time.Duration
 	detectorName    string
 }
 
@@ -181,12 +182,18 @@ func parseConfig(m *monitor.Monitor, ip string) (*doodsConfig, error) {
 		return nil, fmt.Errorf("could not parse timestamp offset %w", err)
 	}
 
+	delay, err := strconv.Atoi(m.Config["doodsDelay"])
+	if err != nil {
+		return nil, fmt.Errorf("could not parse doodsDelay %w", err)
+	}
+
 	return &doodsConfig{
 		ip:              ip,
 		duration:        duration,
 		recDuration:     recDuration,
 		thresholds:      t,
 		timestampOffset: time.Duration(timestampOffset) * time.Millisecond,
+		delay:           time.Duration(delay) * time.Millisecond,
 		detectorName:    m.Config["doodsDetectorName"],
 	}, nil
 }
@@ -629,9 +636,10 @@ func (d *doodsClient) readFrames(ctx context.Context) error {
 			}
 			return fmt.Errorf("could not read from stdout: %w", err)
 		}
-		t := time.Now()
 
-		t.Add(-d.c.timestampOffset)
+		t := time.Now().
+			Add(-d.c.timestampOffset).
+			Add(-d.c.delay)
 
 		img := NewRGB24(rect)
 		img.Pix = tmp

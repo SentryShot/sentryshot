@@ -791,6 +791,11 @@ func javascript() string { //nolint:funlen
 			initial: "2",
 		}
 	),
+	doodsDelay: fieldTemplate.integer(
+		"DOODS delay (ms)",
+		"",
+		"500"
+	),
 	doodsDuration: fieldTemplate.integer(
 		"DOODS trigger duration (sec)",
 		"",
