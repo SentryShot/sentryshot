@@ -34,20 +34,19 @@ type (
 )
 
 type hookList struct {
-	onEnv              []envHook
-	onAuth             []authHook
-	onStorage          []storageHook
-	onLog              []logHook
-	onMux              []muxHook
-	onAppRun           []appRunHook
-	template           []web.TemplateHook
-	templateSub        []web.TemplateHook
-	templateData       []web.TemplateDataFunc
-	monitorStart       []monitor.StartHook
-	monitorMainProcess []monitor.StartInputHook
-	monitorSubProcess  []monitor.StartInputHook
-	monitorRecSave     []monitor.RecSaveHook
-	logSource          []string
+	onEnv               []envHook
+	onAuth              []authHook
+	onStorage           []storageHook
+	onLog               []logHook
+	onMux               []muxHook
+	onAppRun            []appRunHook
+	template            []web.TemplateHook
+	templateSub         []web.TemplateHook
+	templateData        []web.TemplateDataFunc
+	monitorStart        []monitor.StartHook
+	monitorInputProcess []monitor.StartInputHook
+	monitorRecSave      []monitor.RecSaveHook
+	logSource           []string
 }
 
 var hooks = &hookList{}
@@ -103,14 +102,10 @@ func RegisterMonitorStartHook(h monitor.StartHook) {
 	hooks.monitorStart = append(hooks.monitorStart, h)
 }
 
-// RegisterMonitorMainProcessHook registers hook that's called when the main monitor process starts.
-func RegisterMonitorMainProcessHook(h monitor.StartInputHook) {
-	hooks.monitorMainProcess = append(hooks.monitorMainProcess, h)
-}
-
-// RegisterMonitorSubProcessHook registers hook that's called when the sub monitor process starts.
-func RegisterMonitorSubProcessHook(h monitor.StartInputHook) {
-	hooks.monitorSubProcess = append(hooks.monitorSubProcess, h)
+// RegisterMonitorInputProcessHook registers hook that's
+// called when the monitor input process starts.
+func RegisterMonitorInputProcessHook(h monitor.StartInputHook) {
+	hooks.monitorInputProcess = append(hooks.monitorInputProcess, h)
 }
 
 // RegisterMonitorRecSaveHook registers hook that's called monitor saves recording.
@@ -192,14 +187,9 @@ func (h *hookList) monitor() monitor.Hooks {
 			hook(ctx, m)
 		}
 	}
-	startMainHook := func(ctx context.Context, m *monitor.Monitor, args *string) {
-		for _, hook := range h.monitorMainProcess {
-			hook(ctx, m, args)
-		}
-	}
-	startSubHook := func(ctx context.Context, m *monitor.Monitor, args *string) {
-		for _, hook := range h.monitorSubProcess {
-			hook(ctx, m, args)
+	startInputHook := func(ctx context.Context, i *monitor.InputProcess, args *[]string) {
+		for _, hook := range h.monitorInputProcess {
+			hook(ctx, i, args)
 		}
 	}
 	recSaveHook := func(m *monitor.Monitor, args *string) {
@@ -209,9 +199,8 @@ func (h *hookList) monitor() monitor.Hooks {
 	}
 
 	return monitor.Hooks{
-		Start:     startHook,
-		StartMain: startMainHook,
-		StartSub:  startSubHook,
-		RecSave:   recSaveHook,
+		Start:      startHook,
+		StartInput: startInputHook,
+		RecSave:    recSaveHook,
 	}
 }

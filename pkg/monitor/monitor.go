@@ -34,27 +34,79 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-// Config Monitor configuration.
-type Config map[string]string
-
-// Configs Monitor configurations.
-type Configs map[string]Config
-
 // StartHook is called when monitor start.
 type StartHook func(context.Context, *Monitor)
 
 // StartInputHook is called when input process start.
-type StartInputHook func(context.Context, *Monitor, *string)
+type StartInputHook func(context.Context, *InputProcess, *[]string)
 
 // RecSaveHook is called when recording is saved.
 type RecSaveHook func(*Monitor, *string)
 
 // Hooks monitor hooks.
 type Hooks struct {
-	Start     StartHook
-	StartMain StartInputHook
-	StartSub  StartInputHook
-	RecSave   RecSaveHook
+	Start      StartHook
+	StartInput StartInputHook
+	RecSave    RecSaveHook
+}
+
+// Configs Monitor configurations.
+type Configs map[string]Config
+
+// Config Monitor configuration.
+type Config map[string]string
+
+func (c Config) enabled() bool {
+	return c["enable"] == "true"
+}
+
+// ID returns id of monitor.
+func (c Config) ID() string {
+	return c["id"]
+}
+
+// Name returns name of monitor.
+func (c Config) Name() string {
+	return c["name"]
+}
+
+func (c Config) audioEnabled() bool {
+	switch c["audioEncoder"] {
+	case "":
+		return false
+	case "none":
+		return false
+	}
+	return true
+}
+
+// MainInput main input url.
+func (c Config) MainInput() string {
+	return c["mainInput"]
+}
+
+// SubInput sub input url.
+func (c Config) SubInput() string {
+	return c["subInput"]
+}
+
+// SubInputEnabled if sub input is available.
+func (c Config) SubInputEnabled() bool {
+	return c.SubInput() != ""
+}
+
+func (c Config) videoLength() string {
+	return c["videoLength"]
+}
+
+// LogLevel getter.
+func (c Config) LogLevel() string {
+	return c["logLevel"]
+}
+
+// Hwacell getter.
+func (c Config) Hwacell() string {
+	return c["hwaccel"]
 }
 
 // Manager for the monitors.
@@ -160,8 +212,9 @@ func (m *Manager) MonitorDelete(id string) error {
 	return nil
 }
 
-// MonitorList returns values needed for live page.
-func (m *Manager) MonitorList() Configs {
+// MonitorsInfo returns common information about the monitors.
+// This will be accessesable by normal users.
+func (m *Manager) MonitorsInfo() Configs {
 	configs := make(map[string]Config)
 	m.mu.Lock()
 	for _, monitor := range m.Monitors {
@@ -169,20 +222,25 @@ func (m *Manager) MonitorList() Configs {
 		c := monitor.Config
 		monitor.Mu.Unlock()
 
+		enable := "false"
+		if c.enabled() {
+			enable = "true"
+		}
+
 		audioEnabled := "false"
-		if monitor.audioEnabled() {
+		if c.audioEnabled() {
 			audioEnabled = "true"
 		}
 
 		subInputEnabled := "false"
-		if monitor.SubInputEnabled() {
+		if c.SubInputEnabled() {
 			subInputEnabled = "true"
 		}
 
-		configs[c["id"]] = Config{
-			"id":              c["id"],
-			"name":            c["name"],
-			"enable":          c["enable"],
+		configs[c.ID()] = Config{
+			"id":              c.ID(),
+			"name":            c.Name(),
+			"enable":          enable,
 			"audioEnabled":    audioEnabled,
 			"subInputEnabled": subInputEnabled,
 		}
@@ -202,7 +260,7 @@ func (m *Manager) MonitorConfigs() map[string]Config {
 	m.mu.Lock()
 	for _, monitor := range m.Monitors {
 		monitor.Mu.Lock()
-		configs[monitor.Config["id"]] = monitor.Config
+		configs[monitor.Config.ID()] = monitor.Config
 		monitor.Mu.Unlock()
 	}
 	m.mu.Unlock()
@@ -211,7 +269,7 @@ func (m *Manager) MonitorConfigs() map[string]Config {
 }
 
 func (m *Manager) newMonitor(config Config) *Monitor {
-	return &Monitor{
+	monitor := &Monitor{
 		Env:    m.env,
 		Config: config,
 
@@ -219,18 +277,19 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		eventsMu: &sync.Mutex{},
 
 		hooks:               m.hooks,
-		runInputProcess:     runInputProcess,
 		startRecording:      startRecording,
 		runRecordingProcess: runRecordingProcess,
 		newProcess:          ffmpeg.NewProcess,
-		sizeFromStream:      ffmpeg.New(m.env.FFmpegBin).SizeFromStream,
 		waitForKeyframe:     ffmpeg.WaitForKeyframe,
 		videoDuration:       ffmpeg.New(m.env.FFmpegBin).VideoDuration,
-		watchdogInterval:    10 * time.Second,
 
 		WG:  &sync.WaitGroup{},
 		Log: m.log,
 	}
+	monitor.mainInput = monitor.newInputProcess(false)
+	monitor.subInput = monitor.newInputProcess(true)
+
+	return monitor
 }
 
 // Region where detection occurred.
@@ -313,15 +372,15 @@ type Monitor struct {
 	running   bool
 	recording bool
 
+	mainInput *InputProcess
+	subInput  *InputProcess
+
 	hooks               Hooks
-	runInputProcess     runInputProcessFunc
 	startRecording      startRecordingFunc
 	runRecordingProcess runRecordingProcessFunc
 	newProcess          ffmpeg.NewProcessFunc
-	sizeFromStream      ffmpeg.SizeFromStreamFunc
 	waitForKeyframe     ffmpeg.WaitForKeyframeFunc
 	videoDuration       ffmpeg.VideoDurationFunc
-	watchdogInterval    time.Duration
 
 	Mu     sync.Mutex
 	WG     *sync.WaitGroup
@@ -341,21 +400,21 @@ func (m *Monitor) Start() error {
 	}
 	m.running = true
 
-	if !m.isEnabled() {
-		m.Log.Info().Src("monitor").Monitor(m.ID()).Msg("disabled")
+	id := m.Config.ID()
+
+	if !m.Config.enabled() {
+		m.Log.Info().Src("monitor").Monitor(id).Msg("disabled")
 		return nil
 	}
 
-	m.Log.Info().Src("monitor").Monitor(m.ID()).Msg("starting")
+	m.Log.Info().Src("monitor").Monitor(id).Msg("starting")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
 
-	tmpDir := m.Env.SHMhls() + "/" + m.ID()
-
-	os.RemoveAll(tmpDir)
-	if err := os.MkdirAll(tmpDir, 0o700); err != nil {
-		return fmt.Errorf("could not create temporary directory for HLS files: %v: %w", tmpDir, err)
+	os.RemoveAll(m.tmpDir())
+	if err := os.MkdirAll(m.tmpDir(), 0o700); err != nil {
+		return fmt.Errorf("could not create temporary directory for HLS files: %v: %w", m.tmpDir(), err)
 	}
 
 	if m.alwaysRecord() {
@@ -375,11 +434,11 @@ func (m *Monitor) Start() error {
 	m.hooks.Start(ctx, m)
 
 	m.WG.Add(1)
-	go m.startInputProcess(ctx, false)
+	go m.mainInput.start(ctx, m)
 
-	if m.SubInputEnabled() {
+	if m.Config.SubInputEnabled() {
 		m.WG.Add(1)
-		go m.startInputProcess(ctx, true)
+		go m.subInput.start(ctx, m)
 	}
 
 	m.WG.Add(1)
@@ -388,36 +447,121 @@ func (m *Monitor) Start() error {
 	return nil
 }
 
-type runInputProcessFunc func(context.Context, *Monitor, bool) error
-
-func (m *Monitor) startInputProcess(ctx context.Context, subProcess bool) {
-	var processName string
-	if !subProcess {
-		processName = "main"
-	} else {
-		processName = "sub"
+func (m *Monitor) newInputProcess(isSubInput bool) *InputProcess {
+	i := &InputProcess{
+		isSubInput:       isSubInput,
+		M:                m,
+		runInputProcess:  runInputProcess,
+		sizeFromStream:   ffmpeg.New(m.Env.FFmpegBin).SizeFromStream,
+		newProcess:       ffmpeg.NewProcess,
+		watchdogInterval: 10 * time.Second,
 	}
 
+	return i
+}
+
+func (i *InputProcess) generateArgs() string {
+	// OUTPUT
+	// -loglevel error -hwaccel x -i rtsp:x -c:a aac -c:v libx264
+	// -preset veryfast -f hls -hls_flags delete_segments -hls_list_size 2
+	// -hls_allow_cache 0 tmpDir/hls/id/id.m3u8
+
+	c := i.M.Config
+	var args string
+
+	args += "-loglevel " + c.LogLevel()
+	if c.Hwacell() != "" {
+		args += " -hwaccel " + c.Hwacell()
+	}
+
+	args += " -i " + i.input() // Input.
+
+	if i.M.Config.audioEnabled() {
+		args += " -c:a " + c["audioEncoder"]
+	} else {
+		args += " -an" // Skip audio.
+	}
+
+	args += " -c:v " + c["videoEncoder"] + " -preset veryfast" // Video encoder.
+
+	// HLS output.
+	args += " -f hls -hls_flags delete_segments" +
+		" -hls_list_size 2 -hls_allow_cache 0 " + i.hlsPath()
+
+	return args
+}
+
+type runInputProcessFunc func(context.Context, *InputProcess) error
+
+// InputProcess monitor input process.
+type InputProcess struct {
+	isSubInput bool
+	size       string
+	cancel     func()
+
+	M *Monitor
+
+	runInputProcess  runInputProcessFunc
+	sizeFromStream   ffmpeg.SizeFromStreamFunc
+	newProcess       ffmpeg.NewProcessFunc
+	watchdogInterval time.Duration
+}
+
+// IsSubInput getter.
+func (i *InputProcess) IsSubInput() bool {
+	return i.isSubInput
+}
+
+// Size getter.
+func (i *InputProcess) Size() string {
+	return i.size
+}
+
+func (i *InputProcess) processName() string {
+	if i.isSubInput {
+		return "sub"
+	}
+	return "main"
+}
+
+func (i *InputProcess) input() string {
+	if i.isSubInput {
+		return i.M.Config.SubInput()
+	}
+	return i.M.Config.MainInput()
+}
+
+func (i *InputProcess) hlsPath() string {
+	id := i.M.Config.ID()
+	if i.isSubInput {
+		return filepath.Join(i.M.tmpDir(), id+"_sub.m3u8")
+	}
+	return filepath.Join(i.M.tmpDir(), id+".m3u8")
+}
+
+// Cancel process context.
+func (i *InputProcess) Cancel() {
+	i.cancel()
+}
+
+func (i *InputProcess) start(ctx context.Context, m *Monitor) {
 	for {
 		if ctx.Err() != nil {
-			m.Mu.Lock()
-
-			m.running = false
 			m.Log.Info().
 				Src("monitor").
-				Monitor(m.ID()).
-				Msgf("%v process: stopped", processName)
+				Monitor(i.M.Config.ID()).
+				Msgf("%v process: stopped", i.processName())
 
 			m.WG.Done()
 
-			m.Mu.Unlock()
 			return
 		}
-		if err := m.runInputProcess(ctx, m, subProcess); err != nil {
+
+		if err := i.runInputProcess(ctx, i); err != nil {
 			m.Log.Error().
 				Src("monitor").
-				Monitor(m.ID()).
-				Msgf("%v process: crashed: %v", processName, err)
+				Monitor(i.M.Config.ID()).
+				Msgf("%v process: crashed: %v", i.processName(), err)
 
 			time.Sleep(1 * time.Second)
 			continue
@@ -425,102 +569,51 @@ func (m *Monitor) startInputProcess(ctx context.Context, subProcess bool) {
 	}
 }
 
-func runInputProcess(ctx context.Context, m *Monitor, subProcess bool) error {
-	var process ffmpeg.Process
-
-	var input string
-	if !subProcess {
-		input = m.MainInput()
-	} else {
-		input = m.SubInput()
-	}
-
-	size, err := m.sizeFromStream(input)
+func runInputProcess(ctx context.Context, i *InputProcess) error {
+	var err error
+	i.size, err = i.sizeFromStream(i.input())
 	if err != nil {
 		return fmt.Errorf("could not get size of stream: %w", err)
 	}
 
-	m.Mu.Lock()
-	var args string
-	var processName string
-	if !subProcess {
-		processName = "main"
-		m.Config["sizeMain"] = size
-		args = generateInputArgs(m, false)
-		m.hooks.StartMain(ctx, m, &args)
-	} else {
-		processName = "sub"
-		m.Config["sizeSub"] = size
-		args = generateInputArgs(m, true)
-		m.hooks.StartSub(ctx, m, &args)
-	}
-	m.Mu.Unlock()
+	processCTX, cancel := context.WithCancel(ctx)
+	i.cancel = cancel
 
-	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
+	args := ffmpeg.ParseArgs(i.generateArgs())
 
-	m.Log.Info().
-		Src("monitor").
-		Monitor(m.ID()).
-		Msgf("starting %v process: %v", processName, cmd)
+	i.M.hooks.StartInput(processCTX, i, &args)
 
-	process = m.newProcess(cmd)
+	cmd := exec.Command(i.M.Env.FFmpegBin, args...)
+	process := i.newProcess(cmd)
 	process.SetTimeout(10 * time.Second)
-	process.SetPrefix(m.Name() + ": " + processName + " process: ")
-	process.SetStdoutLogger(m.Log)
-	process.SetStderrLogger(m.Log)
+	process.SetPrefix(i.M.Config.Name() + ": " + i.processName() + " process: ")
+	process.SetStdoutLogger(i.M.Log)
+	process.SetStderrLogger(i.M.Log)
 
-	ctx2, cancel := context.WithCancel(ctx)
-	defer cancel()
+	fmt.Println(args)
+	i.M.Log.Info().
+		Src("monitor").
+		Monitor(i.M.Config.ID()).
+		Msgf("starting %v process: %v", i.processName(), cmd)
 
-	go m.startWatchdog(ctx2, process, processName)
+	go i.startWatchdog(processCTX)
 
-	err = process.Start(ctx)
+	err = process.Start(processCTX) // Blocks until process exits.
 	if err != nil {
+		cancel()
 		return fmt.Errorf("crashed: %w", err)
 	}
 
+	cancel()
 	return nil
-}
-
-func generateInputArgs(m *Monitor, subProcess bool) string {
-	var args string
-
-	args += "-loglevel " + m.Config["logLevel"]
-	if m.Config["hwaccel"] != "" {
-		args += " -hwaccel " + m.Config["hwaccel"]
-	}
-
-	if !subProcess { // Input
-		args += " -i " + m.Config["mainInput"]
-	} else {
-		args += " -i " + m.Config["subInput"]
-	}
-
-	if m.audioEnabled() {
-		args += " -c:a " + m.Config["audioEncoder"]
-	} else {
-		args += " -an" // Skip audio.
-	}
-
-	args += " -c:v " + m.Config["videoEncoder"] + " -preset veryfast"                 // Video encoder.
-	args += " -f hls -hls_flags delete_segments -hls_list_size 2 -hls_allow_cache 0 " // HLS settings.
-	args += m.Env.SHMDir + "/hls/" + m.ID() + "/" + m.ID()
-
-	if !subProcess {
-		args += ".m3u8"
-	} else {
-		args += "_sub.m3u8"
-	}
-
-	return args
 }
 
 // ErrFreeze possible freeze detected.
 var ErrFreeze = errors.New("possible freeze detected")
 
-// startWatchdog starts a watchdog that detects if the mainProcess freezes.
+// startWatchdog starts a watchdog that detects if the process freezes.
 // Freeze is detected by polling the output HLS manifest for file updates.
-func (m *Monitor) startWatchdog(ctx context.Context, process ffmpeg.Process, processName string) {
+func (i *InputProcess) startWatchdog(ctx context.Context) {
 	watchFile := func() error {
 		watcher, err := fsnotify.NewWatcher()
 		if err != nil {
@@ -528,7 +621,7 @@ func (m *Monitor) startWatchdog(ctx context.Context, process ffmpeg.Process, pro
 		}
 		defer watcher.Close()
 
-		err = watcher.Add(m.hlsPath())
+		err = watcher.Add(i.hlsPath())
 		if err != nil {
 			return err
 		}
@@ -536,7 +629,7 @@ func (m *Monitor) startWatchdog(ctx context.Context, process ffmpeg.Process, pro
 			select {
 			case <-watcher.Events: // file updated, process not frozen.
 				return nil
-			case <-time.After(m.watchdogInterval):
+			case <-time.After(i.watchdogInterval):
 				return fmt.Errorf("%w, restarting", ErrFreeze)
 			case err := <-watcher.Errors:
 				return err
@@ -547,18 +640,18 @@ func (m *Monitor) startWatchdog(ctx context.Context, process ffmpeg.Process, pro
 	}
 	for {
 		select {
-		case <-time.After(m.watchdogInterval):
+		case <-time.After(i.watchdogInterval):
 		case <-ctx.Done():
 			return
 		}
 		go func() {
 			if err := watchFile(); err != nil {
-				m.Log.Error().
+				i.M.Log.Error().
 					Src("watchdog").
-					Monitor(m.ID()).
-					Msgf("%v process: %v", processName, err)
+					Monitor(i.M.Config.ID()).
+					Msgf("%v process: %v", i.processName(), err)
 
-				process.Stop()
+				i.Cancel()
 			}
 		}()
 	}
@@ -580,7 +673,7 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			if err := event.validate(); err != nil {
 				m.Log.Error().
 					Src("recorder").
-					Monitor(m.ID()).
+					Monitor(m.Config.ID()).
 					Msgf("invalid event: %v", err)
 
 				continue
@@ -606,7 +699,7 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			triggerTimeout = time.AfterFunc(time.Until(end), func() {
 				m.Log.Info().
 					Src("recorder").
-					Monitor(m.ID()).
+					Monitor(m.Config.ID()).
 					Msg("trigger reached end, stopping recording")
 
 				cancel()
@@ -631,7 +724,7 @@ func startRecording(ctx context.Context, m *Monitor) {
 			m.recording = false
 			m.Log.Info().
 				Src("recorder").
-				Monitor(m.ID()).
+				Monitor(m.Config.ID()).
 				Msg("recording stopped")
 
 			m.WG.Done()
@@ -642,7 +735,7 @@ func startRecording(ctx context.Context, m *Monitor) {
 		if err := m.runRecordingProcess(ctx, m); err != nil {
 			m.Log.Error().
 				Src("recorder").
-				Monitor(m.ID()).
+				Monitor(m.Config.ID()).
 				Msgf("recording process: %v", err)
 
 			time.Sleep(1 * time.Second)
@@ -654,7 +747,7 @@ func startRecording(ctx context.Context, m *Monitor) {
 type runRecordingProcessFunc func(context.Context, *Monitor) error
 
 func runRecordingProcess(ctx context.Context, m *Monitor) error {
-	keyFrameDuration, err := m.waitForKeyframe(ctx, m.hlsPath())
+	keyFrameDuration, err := m.waitForKeyframe(ctx, m.mainInput.hlsPath())
 	if err != nil {
 		return fmt.Errorf("could not get keyframe duration: %w", err)
 	}
@@ -667,8 +760,10 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	offset := keyFrameDuration + time.Duration(timestampOffset)*time.Millisecond
 	startTime := time.Now().UTC().Add(-offset)
 
-	fileDir := m.Env.StorageDir + "/recordings/" + startTime.Format("2006/01/02/") + m.ID() + "/"
-	filePath := fileDir + startTime.Format("2006-01-02_15-04-05_") + m.ID()
+	id := m.Config.ID()
+
+	fileDir := filepath.Join(m.Env.StorageDir, "recordings", startTime.Format("2006/01/02/")+id)
+	filePath := filepath.Join(fileDir, startTime.Format("2006-01-02_15-04-05_")+id)
 
 	if err := os.MkdirAll(fileDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("could not make directory for video: %w", err)
@@ -684,22 +779,21 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	process.SetTimeout(10 * time.Second)
 	process.SetStdoutLogger(m.Log)
 	process.SetStderrLogger(m.Log)
-
 	m.Mu.Lock()
-	process.SetPrefix(m.Name() + ": recording process: ")
+	process.SetPrefix(m.Config.Name() + ": recording process: ")
+	m.Mu.Unlock()
+
 	m.Log.Info().
 		Src("recorder").
-		Monitor(m.ID()).
+		Monitor(id).
 		Msgf("starting recording: %v", cmd)
-
-	m.Mu.Unlock()
 
 	err = process.Start(ctx)
 
 	if err := m.saveRecording(filePath, startTime); err != nil {
 		m.Log.Error().
 			Src("recorder").
-			Monitor(m.ID()).
+			Monitor(id).
 			Msgf("could not save recording: %v", err)
 	}
 
@@ -709,22 +803,22 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 
 	m.Log.Info().
 		Src("recorder").
-		Monitor(m.ID()).
+		Monitor(id).
 		Msg("recording finished")
 
 	return nil
 }
 
 func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
-	videoLength, err := strconv.ParseFloat(m.Config["videoLength"], 64)
+	videoLength, err := strconv.ParseFloat(m.Config.videoLength(), 64)
 	if err != nil {
 		return "", fmt.Errorf("could not parse video length: %w", err)
 	}
 	videoLengthSec := strconv.Itoa((int(videoLength * 60)))
 
-	args := "-y -loglevel " + m.Config["logLevel"] +
+	args := "-y -loglevel " + m.Config.LogLevel() +
 		" -live_start_index -1" + // HLS segment to start from.
-		" -i " + m.hlsPath() + // Input.
+		" -i " + m.mainInput.hlsPath() + // Input.
 		" -t " + videoLengthSec + // Max video length.
 		" -c:v copy " + filePath + ".mp4" // Output.
 
@@ -750,10 +844,10 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 
 	m.Log.Info().
 		Src("recorder").
-		Monitor(m.ID()).
+		Monitor(m.Config.ID()).
 		Msgf("saving recording: %v", videoPath)
 
-	args := "-n -loglevel " + m.Config["logLevel"] + // LogLevel.
+	args := "-n -loglevel " + m.Config.LogLevel() +
 		" -i " + videoPath + // Input.
 		" -frames:v 1 " + thumbPath // Output.
 
@@ -762,7 +856,7 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 
 	process := m.newProcess(cmd)
-	process.SetPrefix(m.Name() + ": thumbnail process: ")
+	process.SetPrefix(m.Config.Name() + ": thumbnail process: ")
 	process.SetStdoutLogger(m.Log)
 	process.SetStderrLogger(m.Log)
 
@@ -820,49 +914,10 @@ func (m *Manager) StopAll() {
 	m.mu.Unlock()
 }
 
-func (m *Monitor) isEnabled() bool {
-	return m.Config["enable"] == "true"
-}
-
 func (m *Monitor) alwaysRecord() bool {
 	return m.Config["alwaysRecord"] == "true"
 }
 
-// ID returns id of monitor.
-func (m *Monitor) ID() string {
-	return m.Config["id"]
-}
-
-// Name returns name of monitor.
-func (m *Monitor) Name() string {
-	return m.Config["name"]
-}
-
-// MainInput main input url.
-func (m *Monitor) MainInput() string {
-	return m.Config["mainInput"]
-}
-
-// SubInput sub input url.
-func (m *Monitor) SubInput() string {
-	return m.Config["subInput"]
-}
-
-// SubInputEnabled if sub input is available.
-func (m *Monitor) SubInputEnabled() bool {
-	return m.SubInput() != ""
-}
-
-func (m *Monitor) audioEnabled() bool {
-	switch m.Config["audioEncoder"] {
-	case "":
-		return false
-	case "none":
-		return false
-	}
-	return true
-}
-
-func (m *Monitor) hlsPath() string {
-	return m.Env.SHMhls() + "/" + m.ID() + "/" + m.ID() + ".m3u8"
+func (m *Monitor) tmpDir() string {
+	return filepath.Join(m.Env.SHMhls(), m.Config.ID())
 }

@@ -29,6 +29,7 @@ import (
 	"nvr/pkg/storage"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -36,47 +37,37 @@ import (
 )
 
 func init() {
-	nvr.RegisterMonitorMainProcessHook(main)
-	nvr.RegisterMonitorSubProcessHook(sub)
+	nvr.RegisterMonitorInputProcessHook(onInputProcessStart)
 	nvr.RegisterLogSource([]string{"motion"})
 	log.Fatal("motion addon is depricated")
 }
 
-func main(ctx context.Context, m *monitor.Monitor, args *string) {
-	if m.Config["motionDetection"] != "true" || m.SubInputEnabled() {
+func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]string) {
+	m := i.M
+	if m.Config["motionDetection"] != "true" {
 		return
 	}
-	*args += genArgs(m)
+	if m.Config.SubInputEnabled() != i.IsSubInput() {
+		return
+	}
+
+	//*args += genArgs(m)
 
 	if err := onMonitorStart(ctx, m); err != nil {
 		m.Log.Error().
 			Src("motion").
-			Monitor(m.ID()).
+			Monitor(m.Config.ID()).
 			Msgf("failed to start %v", err)
 	}
 }
 
-func sub(ctx context.Context, m *monitor.Monitor, args *string) {
-	if m.Config["motionDetection"] != "true" || !m.SubInputEnabled() {
-		return
-	}
-	*args += genArgs(m)
-
-	if err := onMonitorStart(ctx, m); err != nil {
-		m.Log.Error().
-			Src("motion").
-			Monitor(m.ID()).
-			Msgf("failed to start %v", err)
-	}
-}
-
-func genArgs(m *monitor.Monitor) string {
-	pipePath := m.Env.SHMDir + "/motion/" + m.ID() + "/main.fifo"
+/*func genArgs(m *monitor.Monitor) string {
+	pipePath := filepath.Join(m.Env.SHMDir, "motion", m.Config.ID(), "main.fifo")
 
 	return " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
 		" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
 		" -restart_with_keyframe 1 -recovery_wait_time 1 " + pipePath
-}
+}*/
 
 func onMonitorStart(ctx context.Context, m *monitor.Monitor) error {
 	if m.Config["motionDetection"] != "true" {
@@ -160,15 +151,15 @@ func newAddon(m *monitor.Monitor) addon {
 }
 
 func (a addon) fifoDir() string {
-	return a.env.SHMDir + "/motion/"
+	return filepath.Join(a.env.SHMDir, "motion")
 }
 
 func (a addon) zonesDir() string {
-	return a.fifoDir() + a.m.ID()
+	return filepath.Join(a.fifoDir(), a.m.Config.ID())
 }
 
 func (a addon) mainPipe() string {
-	return a.fifoDir() + a.m.ID() + "/main.fifo"
+	return filepath.Join(a.fifoDir(), a.m.Config.ID(), "main.fifo")
 }
 
 func (a addon) unmarshalZones() ([]zone, error) {
@@ -192,11 +183,12 @@ func (a addon) generateMasks(zones []zone, scale string) ([]string, error) {
 		}
 
 		var size []string
-		if a.m.SubInputEnabled() {
-			size = strings.Split(a.m.Config["sizeMain"], "x")
+		// Broken.
+		/*if a.m.Config.SubInputEnabled() {
+			size = strings.Split(a.m.Config["size"], "x")
 		} else {
-			size = strings.Split(a.m.Config["sizeSub"], "x")
-		}
+			size = strings.Split(a.m.Config["size"], "x")
+		}*/
 		w, _ := strconv.Atoi(size[0])
 		h, _ := strconv.Atoi(size[1])
 
@@ -271,7 +263,7 @@ func (a addon) startDetector(ctx context.Context, args []string) {
 			a.m.WG.Done()
 			a.m.Log.Info().
 				Src("motion").
-				Monitor(a.m.ID()).
+				Monitor(a.m.Config.ID()).
 				Msg("detector stopped")
 
 			return
@@ -279,7 +271,7 @@ func (a addon) startDetector(ctx context.Context, args []string) {
 		if err := a.detectorProcess(ctx, args); err != nil {
 			a.m.Log.Error().
 				Src("motion").
-				Monitor(a.m.ID()).
+				Monitor(a.m.Config.ID()).
 				Msg(err.Error())
 
 			time.Sleep(1 * time.Second)
@@ -301,7 +293,7 @@ func (a addon) detectorProcess(ctx context.Context, args []string) error {
 
 	a.m.Log.Info().
 		Src("motion").
-		Monitor(a.m.ID()).
+		Monitor(a.m.Config.ID()).
 		Msgf("starting detector: %v", cmd)
 
 	go a.parseFFmpegOutput(stderr)
@@ -339,7 +331,7 @@ func (a addon) sendTrigger(id int, score float64) {
 
 	a.m.Log.Info().
 		Src("motion").
-		Monitor(a.m.ID()).
+		Monitor(a.m.Config.ID()).
 		Msgf("trigger id:%v score:%.2f time:%v\n", id, score, timestamp)
 
 	a.m.Trigger <- monitor.Event{

@@ -25,8 +25,8 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -279,14 +279,46 @@ func TestMonitorDelete(t *testing.T) {
 }
 
 func TestMonitorList(t *testing.T) {
-	_, manager, cancel := newTestManager(t)
-	defer cancel()
+	manager := Manager{
+		Monitors: monitors{
+			"x": &Monitor{
+				Config: Config{
+					"id":   "1",
+					"name": "2",
+				},
+			},
+			"y": &Monitor{
+				Config: Config{
+					"id":           "3",
+					"name":         "4",
+					"enable":       "true",
+					"audioEncoder": "x",
+					"subInput":     "x",
+					"secret":       "x",
+				},
+			},
+		},
+	}
 
-	expected := "map[1:map[audioEnabled:true enable:false id:1 name:one subInputEnabled:false]" +
-		" 2:map[audioEnabled:false enable:false id:2 name:two subInputEnabled:true]]"
+	actual := manager.MonitorsInfo()
+	expected := Configs{
+		"1": Config{
+			"audioEnabled":    "false",
+			"enable":          "false",
+			"id":              "1",
+			"name":            "2",
+			"subInputEnabled": "false",
+		},
+		"3": Config{
+			"audioEnabled":    "true",
+			"enable":          "true",
+			"id":              "3",
+			"name":            "4",
+			"subInputEnabled": "true",
+		},
+	}
 
-	actual := fmt.Sprintf("%v", manager.MonitorList())
-	if actual != expected {
+	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 	}
 }
@@ -331,6 +363,19 @@ func mockWaitForKeyframe(_ context.Context, _ string) (time.Duration, error) {
 	return 0, nil
 }
 
+func newMockInputProcess(m *Monitor, isSubInput bool) *InputProcess {
+	return &InputProcess{
+		isSubInput: isSubInput,
+
+		M: m,
+
+		sizeFromStream:   mockSizeFromStream,
+		runInputProcess:  mockRunInputProcess,
+		newProcess:       ffmock.NewProcess,
+		watchdogInterval: 10 * time.Second,
+	}
+}
+
 func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 	tempDir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -361,18 +406,19 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 		running:  true,
 
 		hooks:               mockHooks,
-		runInputProcess:     mockRunInputProcess,
 		startRecording:      mockStartRecording,
 		runRecordingProcess: mockRunRecordingProcess,
 		newProcess:          ffmock.NewProcess,
-		sizeFromStream:      mockSizeFromStream,
 		waitForKeyframe:     mockWaitForKeyframe,
 		videoDuration:       mockVideoDuration,
-		watchdogInterval:    10 * time.Second,
 
 		WG:  &sync.WaitGroup{},
 		Log: logger,
 	}
+
+	m.mainInput = newMockInputProcess(m, false)
+	m.subInput = newMockInputProcess(m, true)
+
 	return m, ctx, cancelFunc
 }
 
@@ -418,15 +464,15 @@ func TestStartMonitor(t *testing.T) {
 	})
 }
 
-func mockRunInputProcess(context.Context, *Monitor, bool) error {
+func mockRunInputProcess(context.Context, *InputProcess) error {
 	return nil
 }
 
-func mockRunInputProcessErr(context.Context, *Monitor, bool) error {
+func mockRunInputProcessErr(context.Context, *InputProcess) error {
 	return errors.New("mock")
 }
 
-func TestStartMainProcess(t *testing.T) {
+func TestStartInputProcess(t *testing.T) {
 	t.Run("canceled", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
@@ -438,7 +484,7 @@ func TestStartMainProcess(t *testing.T) {
 		defer cancel3()
 
 		m.WG.Add(1)
-		go m.startInputProcess(ctx, false)
+		go m.newInputProcess(false).start(ctx, m)
 
 		actual := <-feed
 		expected := "main process: stopped"
@@ -451,16 +497,17 @@ func TestStartMainProcess(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
-		m.runInputProcess = mockRunInputProcessErr
+		m.mainInput.runInputProcess = mockRunInputProcessErr
+		m.subInput.runInputProcess = mockRunInputProcessErr
 
 		feed, cancel2 := m.Log.Subscribe()
 		defer cancel2()
 
 		m.WG.Add(1)
-		go m.startInputProcess(ctx, true)
+		go m.mainInput.start(ctx, m)
 
 		actual := <-feed
-		expected := "sub process: crashed: mock"
+		expected := "main process: crashed: mock"
 
 		if actual.Msg != expected {
 			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual.Msg)
@@ -468,16 +515,25 @@ func TestStartMainProcess(t *testing.T) {
 	})
 }
 
+func newTestInputProcess(t *testing.T) (*InputProcess, context.Context, func()) {
+	m, ctx, cancel := newTestMonitor(t)
+
+	i := newMockInputProcess(m, false)
+	i.M = m
+
+	return i, ctx, cancel
+}
+
 func TestRunInputProcess(t *testing.T) {
 	t.Run("sizeFromStream", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
+		i, ctx, cancel := newTestInputProcess(t)
 		defer cancel()
 
-		if err := runInputProcess(ctx, m, false); err != nil {
+		if err := runInputProcess(ctx, i); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		actual := m.Config["sizeMain"]
+		actual := i.size
 
 		expected := "123x456"
 		if actual != expected {
@@ -485,41 +541,22 @@ func TestRunInputProcess(t *testing.T) {
 		}
 	})
 	t.Run("sizeFromStreamErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
+		i, ctx, cancel := newTestInputProcess(t)
 		defer cancel()
 
-		m.sizeFromStream = mockSizeFromStreamErr
+		i.sizeFromStream = mockSizeFromStreamErr
 
-		if err := runInputProcess(ctx, m, false); err == nil {
+		if err := runInputProcess(ctx, i); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
-	t.Run("stopped", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
-		defer cancel()
-
-		m.newProcess = ffmock.NewProcessNil
-
-		go func() {
-			if err := runInputProcess(ctx, m, true); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-		}()
-
-		time.Sleep(10 * time.Millisecond)
-		m.Stop()
-
-		if m.running {
-			t.Fatal("monitor did not stop")
-		}
-	})
 	t.Run("crashed", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
+		i, ctx, cancel := newTestInputProcess(t)
 		defer cancel()
 
-		m.newProcess = ffmock.NewProcessErr
+		i.newProcess = ffmock.NewProcessErr
 
-		if err := runInputProcess(ctx, m, false); err == nil {
+		if err := runInputProcess(ctx, i); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -527,54 +564,53 @@ func TestRunInputProcess(t *testing.T) {
 
 func TestWatchdog(t *testing.T) {
 	t.Run("freeze", func(t *testing.T) {
-		mu := &sync.Mutex{}
-		onStop := func() {
-			mu.Unlock()
-		}
-		mocker := ffmock.NewProcessMocker(ffmock.MockProcessConfig{
-			OnStop: onStop,
-		})
-
-		m, ctx, cancel := newTestMonitor(t)
+		i, ctx, cancel := newTestInputProcess(t)
 		defer cancel()
 
-		m.Config["id"] = "id"
-		m.watchdogInterval = 10 * time.Millisecond
+		i.M.Config["id"] = "id"
+		i.watchdogInterval = 10 * time.Millisecond
 
-		feed, cancel2 := m.Log.Subscribe()
+		feed, cancel2 := i.M.Log.Subscribe()
 		defer cancel2()
 
-		if err := os.MkdirAll(m.hlsPath(), 0o700); err != nil {
+		if err := os.MkdirAll(i.hlsPath(), 0o700); err != nil {
 			t.Fatal(err)
 		}
 
+		mu := sync.Mutex{}
+		i.cancel = func() {
+			mu.Unlock()
+		}
+
 		mu.Lock()
-		go m.startWatchdog(ctx, mocker(&exec.Cmd{}), "x")
+		go i.startWatchdog(ctx)
 
 		mu.Lock()
 		mu.Unlock()
 
 		actual := <-feed
-		expected := "x process: possible freeze detected, restarting"
+		expected := "main process: possible freeze detected, restarting"
 
 		if actual.Msg != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
 		}
 	})
 	t.Run("fileErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
+		i, ctx, cancel := newTestInputProcess(t)
 		defer cancel()
 
-		m.Config["id"] = "id"
-		m.watchdogInterval = 10 * time.Millisecond
+		i.isSubInput = true
+		i.M.Config["id"] = "id"
+		i.watchdogInterval = 10 * time.Millisecond
+		i.cancel = func() {}
 
-		feed, cancel2 := m.Log.Subscribe()
+		feed, cancel2 := i.M.Log.Subscribe()
 		defer cancel2()
 
-		go m.startWatchdog(ctx, ffmock.NewProcess(&exec.Cmd{}), "x")
+		go i.startWatchdog(ctx)
 
 		actual := <-feed
-		expected := "x process: no such file or directory"
+		expected := "sub process: no such file or directory"
 
 		if actual.Msg != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
@@ -858,25 +894,26 @@ func mockSizeFromStreamErr(string) (string, error) {
 }
 
 var mockHooks = Hooks{
-	Start:     func(context.Context, *Monitor) {},
-	StartMain: func(context.Context, *Monitor, *string) {},
-	StartSub:  func(context.Context, *Monitor, *string) {},
-	RecSave:   func(*Monitor, *string) {},
+	Start:      func(context.Context, *Monitor) {},
+	StartInput: func(context.Context, *InputProcess, *[]string) {},
+	RecSave:    func(*Monitor, *string) {},
 }
 
 func TestGenInputArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
-		m := &Monitor{
-			Env: &storage.ConfigEnv{},
-			Config: map[string]string{
-				"logLevel":     "1",
-				"mainInput":    "2",
-				"audioEncoder": "3",
-				"videoEncoder": "4",
-				"id":           "id",
+		i := &InputProcess{
+			M: &Monitor{
+				Env: &storage.ConfigEnv{},
+				Config: map[string]string{
+					"logLevel":     "1",
+					"mainInput":    "2",
+					"audioEncoder": "3",
+					"videoEncoder": "4",
+					"id":           "id",
+				},
 			},
 		}
-		actual := generateInputArgs(m, false)
+		actual := i.generateArgs()
 		expected := "-loglevel 1 -i 2 -c:a 3 -c:v 4 -preset veryfast -f hls -hls_flags" +
 			" delete_segments -hls_list_size 2 -hls_allow_cache 0 /hls/id/id.m3u8"
 		if actual != expected {
@@ -884,18 +921,21 @@ func TestGenInputArgs(t *testing.T) {
 		}
 	})
 	t.Run("hwaccel", func(t *testing.T) {
-		m := &Monitor{
-			Env: &storage.ConfigEnv{},
-			Config: map[string]string{
-				"logLevel":     "1",
-				"hwaccel":      "2",
-				"subInput":     "3",
-				"audioEncoder": "4",
-				"videoEncoder": "5",
-				"id":           "id",
+		i := &InputProcess{
+			isSubInput: true,
+			M: &Monitor{
+				Env: &storage.ConfigEnv{},
+				Config: map[string]string{
+					"logLevel":     "1",
+					"hwaccel":      "2",
+					"subInput":     "3",
+					"audioEncoder": "4",
+					"videoEncoder": "5",
+					"id":           "id",
+				},
 			},
 		}
-		actual := generateInputArgs(m, true)
+		actual := i.generateArgs()
 		expected := "-loglevel 1 -hwaccel 2 -i 3 -c:a 4 -c:v 5 -preset veryfast -f hls -hls_flags" +
 			" delete_segments -hls_list_size 2 -hls_allow_cache 0 /hls/id/id_sub.m3u8"
 		if actual != expected {
@@ -906,7 +946,7 @@ func TestGenInputArgs(t *testing.T) {
 
 func TestGenRecorderArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
-		m := Monitor{
+		m := &Monitor{
 			Env: &storage.ConfigEnv{},
 			Config: map[string]string{
 				"logLevel":    "1",
@@ -914,6 +954,8 @@ func TestGenRecorderArgs(t *testing.T) {
 				"id":          "id",
 			},
 		}
+		m.mainInput = newMockInputProcess(m, false)
+
 		actual, err := m.generateRecorderArgs("path")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)

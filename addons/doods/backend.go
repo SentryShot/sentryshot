@@ -41,84 +41,68 @@ import (
 )
 
 func init() {
-	nvr.RegisterMonitorMainProcessHook(main)
-	nvr.RegisterMonitorSubProcessHook(sub)
+	nvr.RegisterMonitorInputProcessHook(onInputProcessStart)
 	nvr.RegisterLogSource([]string{"doods"})
 }
 
-func main(ctx context.Context, m *monitor.Monitor, args *string) {
-	if m.Config["doodsEnable"] != "true" || useSubStream(m) {
+func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, args *[]string) {
+	m := i.M
+	if m.Config["doodsEnable"] != "true" {
+		return
+	}
+	if useSubStream(m) != i.IsSubInput() {
 		return
 	}
 
-	*args += genArgs(m)
+	modifyArgs(args, m)
 
-	if err := start(ctx, m, false); err != nil {
+	if err := start(ctx, i); err != nil {
 		m.Log.Error().
 			Src("doods").
-			Monitor(m.ID()).
-			Msgf("could not start: %v", err)
-	}
-}
-
-func sub(ctx context.Context, m *monitor.Monitor, args *string) {
-	if m.Config["doodsEnable"] != "true" || !useSubStream(m) {
-		return
-	}
-
-	*args += genArgs(m)
-
-	if err := start(ctx, m, true); err != nil {
-		m.Log.Error().
-			Src("doods").
-			Monitor(m.ID()).
+			Monitor(m.Config.ID()).
 			Msgf("could not start: %v", err)
 	}
 }
 
 func useSubStream(m *monitor.Monitor) bool {
-	if m.SubInputEnabled() && m.Config["doodsUseSubStream"] == "true" {
+	if m.Config.SubInputEnabled() && m.Config["doodsUseSubStream"] == "true" {
 		return true
 	}
 	return false
 }
 
-func genArgs(m *monitor.Monitor) string {
-	pipePath := m.Env.SHMDir + "/doods/" + m.ID() + "/main.fifo"
+func modifyArgs(args *[]string, m *monitor.Monitor) {
+	pipePath := filepath.Join(m.Env.SHMDir, "doods", m.Config.ID(), "main.fifo")
 
-	return " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
-		" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
-		" -restart_with_keyframe 1 -recovery_wait_time 1 " + pipePath
+	newArgs := []string{
+		"-c:v", "copy", "-map", "0:v", "-f", "fifo", "-fifo_format", "mpegts",
+		"-drop_pkts_on_overflow", "1", "-attempt_recovery", "1",
+		"-restart_with_keyframe", "1", "-recovery_wait_time", "1", pipePath,
+	}
+	*args = append(*args, newArgs...)
 }
 
-func start(ctx context.Context, m *monitor.Monitor, useSubStream bool) error {
-	detector, err := detectorByName(m.Config["doodsDetectorName"])
+func start(ctx context.Context, i *monitor.InputProcess) error {
+	detector, err := detectorByName(i.M.Config["doodsDetectorName"])
 	if err != nil {
 		return fmt.Errorf("could not get detectory: %w", err)
 	}
 
-	config, err := parseConfig(m, doodsIP)
+	config, err := parseConfig(i.M, doodsIP)
 	if err != nil {
 		return fmt.Errorf("could not parse config: %w", err)
 	}
 
-	a := newAddon(m, config)
+	a := newAddon(i.M, config)
 
 	if err := a.prepareEnvironment(); err != nil {
 		return fmt.Errorf("could not prepare environment: %w", err)
 	}
 
-	var size string
-	if useSubStream {
-		size = m.Config["sizeSub"]
-	} else {
-		size = m.Config["sizeMain"]
-	}
-
 	outputWidth := int(detector.GetWidth())
 	outputHeight := int(detector.GetHeight())
 
-	inputs, err := parseInputs(size, m.Config["doodsCrop"], outputWidth, outputHeight)
+	inputs, err := parseInputs(i.Size(), i.M.Config["doodsCrop"], outputWidth, outputHeight)
 	if err != nil {
 		return fmt.Errorf("could not parse inputs: %w", err)
 	}
@@ -129,12 +113,12 @@ func start(ctx context.Context, m *monitor.Monitor, useSubStream bool) error {
 	}
 	a.outputs = outputs
 
-	maskPath, err := a.generateMask(m.Config["doodsMask"])
+	maskPath, err := a.generateMask(i.M.Config["doodsMask"])
 	if err != nil {
 		return fmt.Errorf("could not generate mask: %w", err)
 	}
 
-	ffmpegArgs := a.generateFFmpegArgs(m.Config, maskPath)
+	ffmpegArgs := a.generateFFmpegArgs(i.M.Config, maskPath)
 
 	a.wg.Add(1)
 	go a.newFFmpeg(ffmpegArgs).start(ctx)
@@ -202,8 +186,8 @@ func newAddon(m *monitor.Monitor, c *doodsConfig) *addon {
 	return &addon{
 		c:       c,
 		wg:      m.WG,
-		id:      m.ID(),
-		name:    m.Name(),
+		id:      m.Config.ID(),
+		name:    m.Config.Name(),
 		log:     m.Log,
 		trigger: m.Trigger,
 
@@ -401,7 +385,7 @@ func (a *addon) generateMask(rawMask string) (string, error) {
 	return path, nil
 }
 
-func (a *addon) generateFFmpegArgs(config monitor.Config, maskPath string) []string {
+func (a *addon) generateFFmpegArgs(c monitor.Config, maskPath string) []string {
 	// Output minimal
 	// ffmpeg -i main.pipe -filter
 	//   'fps=fps=3,scale=320:260,pad=320:320:0:0,crop:300:300:10:10'
@@ -418,9 +402,7 @@ func (a *addon) generateFFmpegArgs(config monitor.Config, maskPath string) []str
 
 	o := a.outputs
 
-	logLevel := config["logLevel"]
-	hwaccel := config["hwaccel"]
-	fps := config["doodsFeedRate"]
+	fps := c["doodsFeedRate"]
 	scaledWidth := strconv.Itoa(o.scaledWidth)
 	scaledHeight := strconv.Itoa(o.scaledHeight)
 
@@ -433,10 +415,10 @@ func (a *addon) generateFFmpegArgs(config monitor.Config, maskPath string) []str
 
 	var args []string
 
-	args = append(args, "-y", "-loglevel", logLevel)
+	args = append(args, "-y", "-loglevel", c.LogLevel())
 
-	if hwaccel != "" {
-		args = append(args, ffmpeg.ParseArgs("-hwaccel "+hwaccel)...)
+	if c.Hwacell() != "" {
+		args = append(args, ffmpeg.ParseArgs("-hwaccel "+c.Hwacell())...)
 	}
 
 	args = append(args, "-i", a.mainPipe())
@@ -631,7 +613,6 @@ func (d *doodsClient) readFrames(ctx context.Context) error {
 		}
 		if _, err := io.ReadAtLeast(d.stdout, tmp, frameSize); err != nil {
 			if errors.Is(err, io.EOF) {
-				fmt.Println("eof")
 				return nil
 			}
 			return fmt.Errorf("could not read from stdout: %w", err)

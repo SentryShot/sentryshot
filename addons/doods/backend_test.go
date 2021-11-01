@@ -28,6 +28,7 @@ import (
 	"nvr/pkg/storage"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"sync"
 	"testing"
@@ -35,22 +36,25 @@ import (
 )
 
 func TestGenArgs(t *testing.T) {
+	args := []string{"x"}
 	m := &monitor.Monitor{
 		Env: &storage.ConfigEnv{
 			SHMDir: "a",
 		},
 		Config: monitor.Config{
-			"id":          "b",
-			"doodsEnable": "true",
+			"id": "b",
 		},
 	}
-	args := genArgs(m)
 
-	expected := " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
-		" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
-		" -restart_with_keyframe 1 -recovery_wait_time 1 a/doods/b/main.fifo"
+	modifyArgs(&args, m)
 
-	if args != expected {
+	expected := []string{
+		"x", "-c:v", "copy", "-map", "0:v", "-f", "fifo", "-fifo_format", "mpegts",
+		"-drop_pkts_on_overflow", "1", "-attempt_recovery", "1",
+		"-restart_with_keyframe", "1", "-recovery_wait_time", "1", "a/doods/b/main.fifo",
+	}
+
+	if !reflect.DeepEqual(args, expected) {
 		t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, args)
 	}
 }
@@ -59,7 +63,6 @@ func TestParseConfig(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
-				"sizeMain":        "4x6",
 				"timestampOffset": "6",
 				"doodsThresholds": `{"4":5}`,
 				"doodsDuration":   "0.000000003",
@@ -82,7 +85,6 @@ func TestParseConfig(t *testing.T) {
 	t.Run("threshErr", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
-				"sizeMain":        "1x1",
 				"doodsThresholds": "nil",
 			},
 		}
@@ -93,7 +95,6 @@ func TestParseConfig(t *testing.T) {
 	t.Run("cleanThresh", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
-				"sizeMain":        "1x1",
 				"timestampOffset": "0",
 				"doodsDuration":   "1",
 				"doodsThresholds": `{"a":1,"b":2,"c":-1}`,
@@ -120,7 +121,6 @@ func TestParseConfig(t *testing.T) {
 		{
 			"durationErr",
 			monitor.Config{
-				"sizeMain":        "1x1",
 				"doodsThresholds": "{}",
 				"doodsFeedRate":   "nil",
 			},
@@ -140,7 +140,6 @@ func TestParseConfig(t *testing.T) {
 	t.Run("durationErr", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
-				"sizeMain":        "1x1",
 				"doodsThresholds": "{}",
 				"doodsFeedRate":   "nil",
 			},
@@ -153,7 +152,6 @@ func TestParseConfig(t *testing.T) {
 	t.Run("recDurationErr", func(t *testing.T) {
 		m := &monitor.Monitor{
 			Config: monitor.Config{
-				"sizeMain":        "1x1",
 				"doodsThresholds": "{}",
 				"doodsDuration":   "nil",
 				"doodsFeedRate":   "1",
