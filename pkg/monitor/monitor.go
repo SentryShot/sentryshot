@@ -30,8 +30,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/fsnotify/fsnotify"
 )
 
 // StartHook is called when monitor start.
@@ -486,7 +484,7 @@ func (i *InputProcess) generateArgs() string {
 
 	// HLS output.
 	args += " -f hls -hls_flags delete_segments" +
-		" -hls_list_size 2 -hls_allow_cache 0 " + i.hlsPath()
+		" -hls_list_size 2 -hls_allow_cache 0 " + i.HlsPath()
 
 	return args
 }
@@ -517,7 +515,8 @@ func (i *InputProcess) Size() string {
 	return i.size
 }
 
-func (i *InputProcess) processName() string {
+// ProcessName .
+func (i *InputProcess) ProcessName() string {
 	if i.isSubInput {
 		return "sub"
 	}
@@ -531,7 +530,8 @@ func (i *InputProcess) input() string {
 	return i.M.Config.MainInput()
 }
 
-func (i *InputProcess) hlsPath() string {
+// HlsPath path to hls manitfest file.
+func (i *InputProcess) HlsPath() string {
 	id := i.M.Config.ID()
 	if i.isSubInput {
 		return filepath.Join(i.M.tmpDir(), id+"_sub.m3u8")
@@ -550,7 +550,7 @@ func (i *InputProcess) start(ctx context.Context, m *Monitor) {
 			m.Log.Info().
 				Src("monitor").
 				Monitor(i.M.Config.ID()).
-				Msgf("%v process: stopped", i.processName())
+				Msgf("%v process: stopped", i.ProcessName())
 
 			m.WG.Done()
 
@@ -561,7 +561,7 @@ func (i *InputProcess) start(ctx context.Context, m *Monitor) {
 			m.Log.Error().
 				Src("monitor").
 				Monitor(i.M.Config.ID()).
-				Msgf("%v process: crashed: %v", i.processName(), err)
+				Msgf("%v process: crashed: %v", i.ProcessName(), err)
 
 			time.Sleep(1 * time.Second)
 			continue
@@ -586,7 +586,7 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	cmd := exec.Command(i.M.Env.FFmpegBin, args...)
 	process := i.newProcess(cmd)
 	process.SetTimeout(10 * time.Second)
-	process.SetPrefix(i.M.Config.Name() + ": " + i.processName() + " process: ")
+	process.SetPrefix(i.M.Config.Name() + ": " + i.ProcessName() + " process: ")
 	process.SetStdoutLogger(i.M.Log)
 	process.SetStderrLogger(i.M.Log)
 
@@ -594,9 +594,7 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	i.M.Log.Info().
 		Src("monitor").
 		Monitor(i.M.Config.ID()).
-		Msgf("starting %v process: %v", i.processName(), cmd)
-
-	go i.startWatchdog(processCTX)
+		Msgf("starting %v process: %v", i.ProcessName(), cmd)
 
 	err = process.Start(processCTX) // Blocks until process exits.
 	if err != nil {
@@ -606,55 +604,6 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 
 	cancel()
 	return nil
-}
-
-// ErrFreeze possible freeze detected.
-var ErrFreeze = errors.New("possible freeze detected")
-
-// startWatchdog starts a watchdog that detects if the process freezes.
-// Freeze is detected by polling the output HLS manifest for file updates.
-func (i *InputProcess) startWatchdog(ctx context.Context) {
-	watchFile := func() error {
-		watcher, err := fsnotify.NewWatcher()
-		if err != nil {
-			return err
-		}
-		defer watcher.Close()
-
-		err = watcher.Add(i.hlsPath())
-		if err != nil {
-			return err
-		}
-		for {
-			select {
-			case <-watcher.Events: // file updated, process not frozen.
-				return nil
-			case <-time.After(i.watchdogInterval):
-				return fmt.Errorf("%w, restarting", ErrFreeze)
-			case err := <-watcher.Errors:
-				return err
-			case <-ctx.Done():
-				return nil
-			}
-		}
-	}
-	for {
-		select {
-		case <-time.After(i.watchdogInterval):
-		case <-ctx.Done():
-			return
-		}
-		go func() {
-			if err := watchFile(); err != nil {
-				i.M.Log.Error().
-					Src("watchdog").
-					Monitor(i.M.Config.ID()).
-					Msgf("%v process: %v", i.processName(), err)
-
-				i.Cancel()
-			}
-		}()
-	}
 }
 
 func (m *Monitor) startRecorder(ctx context.Context) {
@@ -747,7 +696,7 @@ func startRecording(ctx context.Context, m *Monitor) {
 type runRecordingProcessFunc func(context.Context, *Monitor) error
 
 func runRecordingProcess(ctx context.Context, m *Monitor) error {
-	keyFrameDuration, err := m.waitForKeyframe(ctx, m.mainInput.hlsPath())
+	keyFrameDuration, err := m.waitForKeyframe(ctx, m.mainInput.HlsPath())
 	if err != nil {
 		return fmt.Errorf("could not get keyframe duration: %w", err)
 	}
@@ -818,7 +767,7 @@ func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 
 	args := "-y -loglevel " + m.Config.LogLevel() +
 		" -live_start_index -1" + // HLS segment to start from.
-		" -i " + m.mainInput.hlsPath() + // Input.
+		" -i " + m.mainInput.HlsPath() + // Input.
 		" -t " + videoLengthSec + // Max video length.
 		" -c:v copy " + filePath + ".mp4" // Output.
 

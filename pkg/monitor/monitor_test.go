@@ -562,62 +562,6 @@ func TestRunInputProcess(t *testing.T) {
 	})
 }
 
-func TestWatchdog(t *testing.T) {
-	t.Run("freeze", func(t *testing.T) {
-		i, ctx, cancel := newTestInputProcess(t)
-		defer cancel()
-
-		i.M.Config["id"] = "id"
-		i.watchdogInterval = 10 * time.Millisecond
-
-		feed, cancel2 := i.M.Log.Subscribe()
-		defer cancel2()
-
-		if err := os.MkdirAll(i.hlsPath(), 0o700); err != nil {
-			t.Fatal(err)
-		}
-
-		mu := sync.Mutex{}
-		i.cancel = func() {
-			mu.Unlock()
-		}
-
-		mu.Lock()
-		go i.startWatchdog(ctx)
-
-		mu.Lock()
-		mu.Unlock()
-
-		actual := <-feed
-		expected := "main process: possible freeze detected, restarting"
-
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
-		}
-	})
-	t.Run("fileErr", func(t *testing.T) {
-		i, ctx, cancel := newTestInputProcess(t)
-		defer cancel()
-
-		i.isSubInput = true
-		i.M.Config["id"] = "id"
-		i.watchdogInterval = 10 * time.Millisecond
-		i.cancel = func() {}
-
-		feed, cancel2 := i.M.Log.Subscribe()
-		defer cancel2()
-
-		go i.startWatchdog(ctx)
-
-		actual := <-feed
-		expected := "sub process: no such file or directory"
-
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
-		}
-	})
-}
-
 func TestStartRecorder(t *testing.T) {
 	t.Run("missingTime", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
