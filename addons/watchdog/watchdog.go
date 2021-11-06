@@ -17,6 +17,7 @@ import (
 
 func init() {
 	nvr.RegisterMonitorInputProcessHook(onInputProcessStart)
+	nvr.RegisterLogSource([]string{"watchdog"})
 }
 
 const defaultInterval = 10 * time.Second

@@ -16,39 +16,51 @@ package log
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"sync"
+	"reflect"
 	"testing"
 	"time"
 )
 
 func newTestLogger(t *testing.T) (context.Context, func(), *Logger) {
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("could not create tempoary directory: %v", err)
-	}
-
-	dbPath := filepath.Join(tempDir, "logs.db")
-	logger, err := NewLogger(dbPath, &sync.WaitGroup{}, nil)
-	if err != nil {
-		t.Fatalf("could not create test logger: %v", err)
-	}
+	logger := NewMockLogger()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go logger.Start(ctx)
 
-	cancelFunc := func() {
-		os.RemoveAll(tempDir)
-		cancel()
-	}
-
-	return ctx, cancelFunc, logger
+	return ctx, cancel, logger
 }
 
 func TestLogger(t *testing.T) {
+	t.Run("Msg", func(t *testing.T) {
+		_, cancel, logger := newTestLogger(t)
+		defer cancel()
+
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			logger.Info().Src("s1").Monitor("m1").Time(time.Unix(0, 1000)).Msg("1")
+			logger.Warn().Src("s2").Monitor("m2").Time(time.Unix(0, 2000)).Msg("2")
+			logger.Error().Src("s3").Monitor("m3").Time(time.Unix(0, 3000)).Msg("3")
+			logger.Debug().Src("s4").Monitor("m4").Time(time.Unix(0, 4000)).Msg("4")
+		}()
+
+		feed, cancel2 := logger.Subscribe()
+		defer cancel2()
+
+		actual := []Log{<-feed, <-feed, <-feed, <-feed}
+
+		expected := []Log{
+			{Level: LevelInfo, Src: "s1", Monitor: "m1", Msg: "1", Time: 1},
+			{Level: LevelWarning, Src: "s2", Monitor: "m2", Msg: "2", Time: 2},
+			{Level: LevelError, Src: "s3", Monitor: "m3", Msg: "3", Time: 3},
+			{Level: LevelDebug, Src: "s4", Monitor: "m4", Msg: "4", Time: 4},
+		}
+
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("expected:\n%v.\ngot\n%v.", expected, actual)
+		}
+	})
 	t.Run("unsubBeforePrint", func(t *testing.T) {
 		_, cancel, logger := newTestLogger(t)
 		defer cancel()
@@ -122,7 +134,7 @@ func TestLogToStdout(t *testing.T) {
 	logger.Warn().Msg("test")
 	logger.Info().Msg("test")
 	logger.Debug().Msg("test")
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 
 	os.Exit(0)
 }

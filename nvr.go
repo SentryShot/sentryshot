@@ -91,11 +91,10 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	hooks.env(env)
 
 	logDBpath := filepath.Join(env.StorageDir, "logs.db")
-	logger, err := log.NewLogger(logDBpath, wg, hooks.logSource)
-	if err != nil {
-		return nil, fmt.Errorf("could not create logger: %w", err)
-	}
+	logger := log.NewLogger(wg, hooks.logSource)
 	hooks.log(logger)
+
+	logDB := log.NewDB(logDBpath, wg)
 
 	general, err := storage.NewConfigGeneral(env.ConfigDir)
 	if err != nil {
@@ -195,7 +194,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 
 	mux.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler, logger)))
 	mux.Handle("/api/log/feed", a.Admin(web.LogFeed(logger, a)))
-	mux.Handle("/api/log/query", a.Admin(web.LogQuery(logger)))
+	mux.Handle("/api/log/query", a.Admin(web.LogQuery(logDB)))
 	mux.Handle("/api/log/sources", a.Admin(web.LogSources(logger)))
 	hooks.mux(mux)
 
@@ -203,6 +202,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 
 	return &App{
 		log:            logger,
+		logDB:          logDB,
 		env:            env,
 		monitorManager: monitorManager,
 		storage:        storageManager,
@@ -213,6 +213,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 // App is the main application struct.
 type App struct {
 	log            *log.Logger
+	logDB          *log.DB
 	env            *storage.ConfigEnv
 	monitorManager *monitor.Manager
 	storage        *storage.Manager
@@ -223,10 +224,17 @@ func (a *App) run(ctx context.Context) error {
 	if err := a.log.Start(ctx); err != nil {
 		return fmt.Errorf("could not start logger: %w", err)
 	}
-	go a.log.LogToStdout(ctx)
-	go a.log.LogToDB(ctx)
 
-	time.Sleep(10 * time.Millisecond)
+	go a.log.LogToStdout(ctx)
+
+	if err := a.logDB.Init(ctx); err != nil {
+		// Continue even if log database is corrupt.
+		time.Sleep(10 * time.Millisecond)
+		a.log.Error().Src("app").Msgf("could not initialize log database: %v", err)
+	} else {
+		go a.logDB.SaveLogs(ctx, a.log)
+		time.Sleep(10 * time.Millisecond)
+	}
 
 	a.log.Info().Src("app").Msg("Starting..")
 

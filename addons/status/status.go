@@ -16,6 +16,7 @@ package status
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"nvr"
@@ -132,7 +133,8 @@ func (s *system) StatusLoop(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		if err := s.update(ctx); err != nil {
+		err := s.update(ctx)
+		if err != nil && !errors.Is(err, context.Canceled) {
 			s.log.Error().Src("app").Msgf("could not update system status: %v", err)
 		}
 	}

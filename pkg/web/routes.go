@@ -599,7 +599,7 @@ func LogFeed(l *log.Logger, a *auth.Authenticator) http.Handler { //nolint:funle
 }
 
 // LogQuery handles log queries.
-func LogQuery(l *log.Logger) http.Handler { //nolint:funlen
+func LogQuery(logDB *log.DB) http.Handler { //nolint:funlen
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -653,7 +653,7 @@ func LogQuery(l *log.Logger) http.Handler { //nolint:funlen
 			Limit:   limitInt,
 		}
 
-		logs, err := l.Query(q)
+		logs, err := logDB.Query(q)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
