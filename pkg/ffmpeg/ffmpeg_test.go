@@ -505,13 +505,20 @@ func TestWaitForKeyframe(t *testing.T) {
 	cases := []struct {
 		name        string
 		input       string
+		nSegments   int
 		expected    time.Duration
 		expectedErr error
 	}{
-		{"empty", "", 0, ErrInvalidFile},
 		{
-			"working",
-			`
+			name:        "empty",
+			input:       "",
+			nSegments:   1,
+			expected:    0,
+			expectedErr: ErrInvalidFile,
+		},
+		{
+			name: "singleFrame",
+			input: `
 INPUT
 #EXTM3U
 #EXT-X-VERSION:3
@@ -523,27 +530,43 @@ INPUT
 #EXTINF:3.500000,
 11.ts
 `,
-			3500 * time.Millisecond,
-			nil,
+			nSegments:   1,
+			expected:    3500 * time.Millisecond,
+			expectedErr: nil,
 		},
 		{
-			"invalidLine",
-			`
+			name: "multipleFrames",
+			input: `
+#EXTINF:9.000000,
+9.ts
+#EXTINF:4.250000,
+10.ts
+#EXTINF:3.500000,
+11.ts
+`,
+			nSegments:   2,
+			expected:    7750 * time.Millisecond,
+			expectedErr: nil,
+		},
+		{
+			name: "invalidLine",
+			input: `
 1,
 2
 `,
-			0,
-			ErrInvalidFile,
+			nSegments:   1,
+			expected:    0,
+			expectedErr: ErrInvalidFile,
 		},
-
 		{
-			"invalidDuration",
-			`
-#EXTINF:3.5#0000,
-11.ts
-`,
-			0,
-			strconv.ErrSyntax,
+			name: "invalidDuration",
+			input: `
+				#EXTINF:3.5#0000,
+				11.ts
+				`,
+			nSegments:   1,
+			expected:    0,
+			expectedErr: strconv.ErrSyntax,
 		},
 	}
 
@@ -560,13 +583,15 @@ INPUT
 				t.Fatalf("could not write file: %v", err)
 			}
 
-			go func() {
-				time.Sleep(10 * time.Millisecond)
-				// Simulate new keyframe
-				os.Chmod(path, 0o601)
-			}()
+			go func(nFrames int) {
+				for i := 1; i <= nFrames; i++ {
+					time.Sleep(10 * time.Millisecond)
+					// Simulate new keyframe
+					os.Chmod(path, 0o601)
+				}
+			}(tc.nSegments)
 
-			actual, err := WaitForKeyframe(context.Background(), path)
+			actual, err := WaitForKeyframe(context.Background(), path, tc.nSegments)
 			if !errors.Is(err, tc.expectedErr) {
 				t.Fatalf("expected: %v, got: %v", tc.expectedErr, err)
 			}
@@ -583,7 +608,7 @@ INPUT
 		}
 		defer os.RemoveAll(tempDir)
 
-		_, err = WaitForKeyframe(context.Background(), tempDir+"/nil")
+		_, err = WaitForKeyframe(context.Background(), "nil", 1)
 		if err == nil {
 			t.Fatal("expected: error got: nil")
 		}
@@ -603,7 +628,7 @@ INPUT
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err = WaitForKeyframe(ctx, path)
+		_, err = WaitForKeyframe(ctx, path, 1)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

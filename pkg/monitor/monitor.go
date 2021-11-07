@@ -590,7 +590,6 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	process.SetStdoutLogger(i.M.Log)
 	process.SetStderrLogger(i.M.Log)
 
-	fmt.Println(args)
 	i.M.Log.Info().
 		Src("monitor").
 		Monitor(i.M.Config.ID()).
@@ -696,17 +695,17 @@ func startRecording(ctx context.Context, m *Monitor) {
 type runRecordingProcessFunc func(context.Context, *Monitor) error
 
 func runRecordingProcess(ctx context.Context, m *Monitor) error {
-	keyFrameDuration, err := m.waitForKeyframe(ctx, m.mainInput.HlsPath())
+	segmentDuration, err := m.waitForKeyframe(ctx, m.mainInput.HlsPath(), 2)
 	if err != nil {
 		return fmt.Errorf("could not get keyframe duration: %w", err)
 	}
 
-	timestampOffset, err := strconv.Atoi(m.Config["timestampOffset"])
+	timestampOffsetInt, err := strconv.Atoi(m.Config["timestampOffset"])
 	if err != nil {
 		return fmt.Errorf("could not parse timestamp offset %w", err)
 	}
 
-	offset := keyFrameDuration + time.Duration(timestampOffset)*time.Millisecond
+	offset := segmentDuration + time.Duration(timestampOffsetInt)*time.Millisecond
 	startTime := time.Now().UTC().Add(-offset)
 
 	id := m.Config.ID()
@@ -766,7 +765,7 @@ func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 	videoLengthSec := strconv.Itoa((int(videoLength * 60)))
 
 	args := "-y -loglevel " + m.Config.LogLevel() +
-		" -live_start_index -1" + // HLS segment to start from.
+		" -live_start_index -2" + // HLS segment to start from.
 		" -i " + m.mainInput.HlsPath() + // Input.
 		" -t " + videoLengthSec + // Max video length.
 		" -c:v copy " + filePath + ".mp4" // Output.

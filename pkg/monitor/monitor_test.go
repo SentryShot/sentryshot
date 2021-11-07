@@ -359,7 +359,7 @@ func TestStopAllMonitors(t *testing.T) {
 	}
 }
 
-func mockWaitForKeyframe(_ context.Context, _ string) (time.Duration, error) {
+func mockWaitForKeyframe(context.Context, string, int) (time.Duration, error) {
 	return 0, nil
 }
 
@@ -771,7 +771,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		}
 	})
 	t.Run("waitForKeyframeErr", func(t *testing.T) {
-		mockWaitForKeyframeErr := func(_ context.Context, _ string) (time.Duration, error) {
+		mockWaitForKeyframeErr := func(context.Context, string, int) (time.Duration, error) {
 			return 0, errors.New("mock")
 		}
 
@@ -894,7 +894,7 @@ func TestGenRecorderArgs(t *testing.T) {
 			Env: &storage.ConfigEnv{},
 			Config: map[string]string{
 				"logLevel":    "1",
-				"videoLength": "2",
+				"videoLength": "3",
 				"id":          "id",
 			},
 		}
@@ -904,7 +904,7 @@ func TestGenRecorderArgs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		expected := "-y -loglevel 1 -live_start_index -1 -i /hls/id/id.m3u8 -t 120 -c:v copy path.mp4"
+		expected := "-y -loglevel 1 -live_start_index -2 -i /hls/id/id.m3u8 -t 180 -c:v copy path.mp4"
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot\n%v.", expected, actual)
 		}

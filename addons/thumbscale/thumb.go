@@ -49,7 +49,6 @@ func onRecSave(m *monitor.Monitor, args *string) {
 	target := " -frames"
 	filter := genFilter(scale)
 	*args = strings.ReplaceAll(*args, target, filter+target)
-	fmt.Println("save", filter, *args)
 }
 
 func parseScale(scale string) string {

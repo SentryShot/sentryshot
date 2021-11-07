@@ -293,7 +293,6 @@ func TestPurgeLoop(t *testing.T) {
 		go m.PurgeLoop(ctx, 0)
 
 		actual := <-feed
-		fmt.Println(actual)
 		cancel2()
 		cancel()
 
