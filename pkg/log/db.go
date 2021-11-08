@@ -139,7 +139,7 @@ type Query struct {
 	Limit    int
 }
 
-// Query for logs in database.
+// Query logs in database.
 func (logDB *DB) Query(q Query) (*[]Log, error) {
 	var logs []Log
 
@@ -181,7 +181,7 @@ func (logDB *DB) Query(q Query) (*[]Log, error) {
 			limit = defaultMaxKeys
 		}
 
-		for count := 1; count < limit; count++ {
+		for len(logs) < limit {
 			key, value := c.Prev()
 			if key == nil {
 				return nil

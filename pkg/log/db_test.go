@@ -156,6 +156,15 @@ func TestQuery(t *testing.T) {
 				expected: &[]Log{msg1, msg2},
 			},
 			{
+				name: "limit2",
+				input: Query{
+					Levels: []Level{LevelInfo},
+					Limit:  1,
+				},
+				expected: &[]Log{msg3},
+			},
+
+			{
 				name: "exactTime",
 				input: Query{
 					Levels:  []Level{LevelError, LevelWarning, LevelInfo, LevelDebug},
