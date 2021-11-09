@@ -216,28 +216,39 @@ func TestPrepareEnv(t *testing.T) {
 
 func TestParseInputs(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		inputs, err := parseInputs("1x2", "[3,4,5]", 6, 7)
+		inputs, err := parseInputs("1x2", "[3,4,5]", 6, 7, "gray_x")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		actual := fmt.Sprintf("%v", inputs)
-		expected := "&{1 2 3 4 5 6 7}"
+		expected := "&{1 2 3 4 5 6 7 true}"
+		if actual != expected {
+			t.Fatalf("expected:\n%v.\ngot:\n%v.", expected, actual)
+		}
+	})
+	t.Run("gray", func(t *testing.T) {
+		inputs, err := parseInputs("1x2", "[3,4,5]", 6, 7, "gray-x")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		actual := fmt.Sprintf("%v", inputs)
+		expected := "&{1 2 3 4 5 6 7 false}"
 		if actual != expected {
 			t.Fatalf("expected:\n%v.\ngot:\n%v.", expected, actual)
 		}
 	})
 	t.Run("widthErr", func(t *testing.T) {
-		if _, err := parseInputs("nilx1", "", 0, 0); err == nil {
+		if _, err := parseInputs("nilx1", "", 0, 0, ""); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("heightErr", func(t *testing.T) {
-		if _, err := parseInputs("1xnil", "", 0, 0); err == nil {
+		if _, err := parseInputs("1xnil", "", 0, 0, ""); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("cropErr", func(t *testing.T) {
-		if _, err := parseInputs("1x1", `[1,2,"x"]`, 0, 0); err == nil {
+		if _, err := parseInputs("1x1", `[1,2,"x"]`, 0, 0, ""); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -408,7 +419,7 @@ func TestGenerateArgs(t *testing.T) {
 			"logLevel":      "1",
 			"doodsFeedRate": "4",
 		}
-		args := a.generateFFmpegArgs(config, "")
+		args := a.generateFFmpegArgs(config, "", false)
 
 		actual := fmt.Sprintf("%v", args)
 		expected := "[-y -loglevel 1 -i 2/doods/3/main.fifo -filter fps=fps=4," +
@@ -441,11 +452,12 @@ func TestGenerateArgs(t *testing.T) {
 			"doodsFeedRate": "6",
 			"hwaccel":       "2",
 		}
-		args := a.generateFFmpegArgs(config, "5")
+		args := a.generateFFmpegArgs(config, "5", true)
 
 		actual := fmt.Sprintf("%v", args)
 		expected := "[-y -loglevel 1 -hwaccel 2 -i 3/doods/4/main.fifo -i 5" +
-			" -filter_complex [0:v]fps=fps=6,scale=7:8[bg];[bg][1:v]overlay,pad=10:11:0:0,crop=13:14:15:16" +
+			" -filter_complex [0:v]fps=fps=6,scale=7:8[bg];" +
+			"[bg][1:v]overlay,pad=10:11:0:0,crop=13:14:15:16,hue=s=0" +
 			" -f rawvideo -pix_fmt rgb24 -]"
 
 		if actual != expected {

@@ -83,7 +83,8 @@ func modifyArgs(args *[]string, m *monitor.Monitor) {
 }
 
 func start(ctx context.Context, i *monitor.InputProcess) error {
-	detector, err := detectorByName(i.M.Config["doodsDetectorName"])
+	detectorName := i.M.Config["doodsDetectorName"]
+	detector, err := detectorByName(detectorName)
 	if err != nil {
 		return fmt.Errorf("could not get detectory: %w", err)
 	}
@@ -102,7 +103,7 @@ func start(ctx context.Context, i *monitor.InputProcess) error {
 	outputWidth := int(detector.GetWidth())
 	outputHeight := int(detector.GetHeight())
 
-	inputs, err := parseInputs(i.Size(), i.M.Config["doodsCrop"], outputWidth, outputHeight)
+	inputs, err := parseInputs(i.Size(), i.M.Config["doodsCrop"], outputWidth, outputHeight, detectorName)
 	if err != nil {
 		return fmt.Errorf("could not parse inputs: %w", err)
 	}
@@ -118,7 +119,7 @@ func start(ctx context.Context, i *monitor.InputProcess) error {
 		return fmt.Errorf("could not generate mask: %w", err)
 	}
 
-	ffmpegArgs := a.generateFFmpegArgs(i.M.Config, maskPath)
+	ffmpegArgs := a.generateFFmpegArgs(i.M.Config, maskPath, inputs.grayMode)
 
 	a.wg.Add(1)
 	go a.newFFmpeg(ffmpegArgs).start(ctx)
@@ -239,9 +240,10 @@ type inputs struct {
 	cropSize     float64
 	outputWidth  float64
 	outputHeight float64
+	grayMode     bool
 }
 
-func parseInputs(size string, rawCrop string, outputWidth int, outputHeight int) (*inputs, error) {
+func parseInputs(size string, rawCrop string, outputWidth int, outputHeight int, detectorName string) (*inputs, error) {
 	split := strings.Split(size, "x")
 	inputWidth, err := strconv.ParseFloat(split[0], 64)
 	if err != nil {
@@ -257,6 +259,11 @@ func parseInputs(size string, rawCrop string, outputWidth int, outputHeight int)
 		return nil, fmt.Errorf("could not Unmarshal crop values: %w", err)
 	}
 
+	grayMode := false
+	if len(detectorName) > 5 && detectorName[0:5] == "gray_" {
+		grayMode = true
+	}
+
 	return &inputs{
 		inputWidth:   inputWidth,
 		inputHeight:  inputHeight,
@@ -265,6 +272,7 @@ func parseInputs(size string, rawCrop string, outputWidth int, outputHeight int)
 		cropSize:     crop[2],
 		outputWidth:  float64(outputWidth),
 		outputHeight: float64(outputHeight),
+		grayMode:     grayMode,
 	}, nil
 }
 
@@ -385,7 +393,7 @@ func (a *addon) generateMask(rawMask string) (string, error) {
 	return path, nil
 }
 
-func (a *addon) generateFFmpegArgs(c monitor.Config, maskPath string) []string {
+func (a *addon) generateFFmpegArgs(c monitor.Config, maskPath string, grayMode bool) []string {
 	// Output minimal
 	// ffmpeg -i main.pipe -filter
 	//   'fps=fps=3,scale=320:260,pad=320:320:0:0,crop:300:300:10:10'
@@ -393,7 +401,8 @@ func (a *addon) generateFFmpegArgs(c monitor.Config, maskPath string) []string {
 	//
 	// Output maximal
 	// ffmpeg -hwaccel x -i main.pipe -i mask.png -filter_complex
-	//   '[0:v]fps=fps=3,scale=320:260[bg];[bg][1:v]overlay,pad=320:320:0:0,crop:300:300:10:10'
+	//   '[0:v]fps=fps=3,scale=320:260[bg];
+	//     [bg][1:v]overlay,pad=320:320:0:0,crop:300:300:10:10,hue=s=0'
 	//   -f rawvideo -pix_fmt rgb24 -
 	//
 	// Padding is done after scaling for higher efficiency.
@@ -423,18 +432,22 @@ func (a *addon) generateFFmpegArgs(c monitor.Config, maskPath string) []string {
 
 	args = append(args, "-i", a.mainPipe())
 
+	var filter string
+	filter += ",pad=" + paddedWidth + ":" + paddedHeight + ":0:0"
+	filter += ",crop=" + outputWidth + ":" + outputHeight + ":" + o.cropX + ":" + o.cropY
+
+	if grayMode {
+		filter += ",hue=s=0"
+	}
+
 	if maskPath == "" {
 		args = append(args, "-filter")
 		args = append(args, "fps=fps="+fps+
-			",scale="+scaledWidth+":"+scaledHeight+
-			",pad="+paddedWidth+":"+paddedHeight+":0:0"+
-			",crop="+outputWidth+":"+outputHeight+":"+o.cropX+":"+o.cropY)
+			",scale="+scaledWidth+":"+scaledHeight+filter)
 	} else {
 		args = append(args, "-i", maskPath, "-filter_complex")
 		args = append(args, "[0:v]fps=fps="+fps+
-			",scale="+scaledWidth+":"+scaledHeight+"[bg];[bg][1:v]overlay"+
-			",pad="+paddedWidth+":"+paddedHeight+":0:0"+
-			",crop="+outputWidth+":"+outputHeight+":"+o.cropX+":"+o.cropY)
+			",scale="+scaledWidth+":"+scaledHeight+"[bg];[bg][1:v]overlay"+filter)
 	}
 
 	args = append(args, "-f", "rawvideo")
