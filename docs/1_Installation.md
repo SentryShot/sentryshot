@@ -19,7 +19,7 @@
 
 Install dependencies
 
-- [Golang](https://golang.org/doc/install) 1.15+
+- [Golang](https://golang.org/doc/install) 1.16+
 - [ffmpeg](https://ffmpeg.org/download.html) 4.3+
 - `git sed which`
 

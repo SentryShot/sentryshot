@@ -21,10 +21,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	stdLog "log"
 	"net/http"
 	"nvr/pkg/log"
+	"os"
 	"strings"
 	"sync"
 
@@ -80,7 +80,7 @@ func NewBasicAuthenticator(path string, logger *log.Logger) (*Authenticator, err
 		log:      logger,
 	}
 
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		return &Authenticator{}, err
 	}
@@ -270,7 +270,7 @@ func (a *Authenticator) UserDelete(id string) error {
 func (a *Authenticator) SaveUsersToFile() error {
 	users, _ := json.MarshalIndent(a.accounts, "", "  ")
 
-	err := ioutil.WriteFile(a.path, users, 0o600)
+	err := os.WriteFile(a.path, users, 0o600)
 	if err != nil {
 		return err
 	}

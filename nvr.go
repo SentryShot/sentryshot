@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net/http"
 	"nvr/pkg/group"
 	"nvr/pkg/log"
@@ -79,7 +78,7 @@ func Run(envPath string) error {
 }
 
 func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) { //nolint:funlen
-	envYAML, err := ioutil.ReadFile(envPath)
+	envYAML, err := os.ReadFile(envPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read env.yaml: %w", err)
 	}

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,7 +56,7 @@ func readConfigs(path string) ([][]byte, error) {
 	var files [][]byte
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, ".json") {
-			file, err := ioutil.ReadFile(path)
+			file, err := os.ReadFile(path)
 			if err != nil {
 				return fmt.Errorf("could not read file: %v %w", path, err)
 			}
@@ -87,7 +86,7 @@ func (m *Manager) GroupSet(id string, c Config) error {
 	group.mu.Lock()
 	config, _ := json.MarshalIndent(group.Config, "", "    ")
 
-	if err := ioutil.WriteFile(m.configPath(id), config, 0o600); err != nil {
+	if err := os.WriteFile(m.configPath(id), config, 0o600); err != nil {
 		return err
 	}
 	group.mu.Unlock()

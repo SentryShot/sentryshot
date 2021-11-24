@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"image/png"
-	"io/ioutil"
 	"nvr/addons/doods/odrpc"
 	"nvr/pkg/ffmpeg/ffmock"
 	"nvr/pkg/log"
@@ -180,7 +179,7 @@ func TestParseConfig(t *testing.T) {
 
 func TestPrepareEnv(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
@@ -342,7 +341,7 @@ func TestCaclulateOutputs(t *testing.T) {
 
 func TestGenerateMask(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}

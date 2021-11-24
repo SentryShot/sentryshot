@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"nvr/pkg/group"
 	"nvr/pkg/log"
@@ -138,7 +137,7 @@ func GeneralSet(general *storage.ConfigGeneral) http.Handler {
 			return
 		}
 
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "failed to read body", http.StatusBadRequest)
 			return
@@ -189,7 +188,7 @@ func UserSet(a *auth.Authenticator) http.Handler {
 			return
 		}
 
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "failed to read body", http.StatusBadRequest)
 			return
@@ -304,7 +303,7 @@ func MonitorSet(c *monitor.Manager) http.Handler {
 			return
 		}
 
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "failed to read body", http.StatusBadRequest)
 			return
@@ -378,7 +377,7 @@ func GroupSet(m *group.Manager) http.Handler {
 			return
 		}
 
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "failed to read body", http.StatusBadRequest)
 			return

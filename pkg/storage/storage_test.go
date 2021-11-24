@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"nvr/pkg/log"
 	"os"
 	"path/filepath"
@@ -216,7 +215,7 @@ func TestPurge(t *testing.T) {
 	})
 
 	t.Run("removeAll", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
@@ -304,7 +303,7 @@ func TestPurgeLoop(t *testing.T) {
 }
 
 func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("could not create tempoary directory: %v", err)
 	}
@@ -325,10 +324,10 @@ func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		t.Fatalf("could not write configDir: %v", err)
 	}
-	if err := ioutil.WriteFile(goBin, []byte{}, 0o600); err != nil {
+	if err := os.WriteFile(goBin, []byte{}, 0o600); err != nil {
 		t.Fatalf("could not write goBin: %v", err)
 	}
-	if err := ioutil.WriteFile(ffmpegBin, []byte{}, 0o600); err != nil {
+	if err := os.WriteFile(ffmpegBin, []byte{}, 0o600); err != nil {
 		t.Fatalf("could not write ffmpegBin: %v", err)
 	}
 
@@ -562,7 +561,7 @@ func TestNewConfigEnv(t *testing.T) {
 
 func TestPrepareEnvironment(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		defer os.RemoveAll(tempDir)
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
@@ -601,7 +600,7 @@ func TestPrepareEnvironment(t *testing.T) {
 		}
 	})
 	t.Run("hlsMkdirErr", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		defer os.RemoveAll(tempDir)
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
@@ -624,7 +623,7 @@ func TestPrepareEnvironment(t *testing.T) {
 }
 
 func newTestGeneral(t *testing.T) (string, *ConfigGeneral, func()) {
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("could not create tempoary directory: %v", err)
 	}
@@ -639,7 +638,7 @@ func newTestGeneral(t *testing.T) (string, *ConfigGeneral, func()) {
 	}
 	data, _ := json.MarshalIndent(config, "", "    ")
 
-	if err := ioutil.WriteFile(configPath, data, 0o660); err != nil {
+	if err := os.WriteFile(configPath, data, 0o660); err != nil {
 		t.Fatalf("could not write config file: %v", err)
 	}
 
@@ -666,7 +665,7 @@ func TestNewConfigGeneral(t *testing.T) {
 		}
 	})
 	t.Run("genConfig", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		defer os.RemoveAll(tempDir)
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
@@ -685,7 +684,7 @@ func TestNewConfigGeneral(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		file, err := ioutil.ReadFile(configFile)
+		file, err := os.ReadFile(configFile)
 		if err != nil {
 			t.Fatalf("could not read configFile: %v", err)
 		}
@@ -715,7 +714,7 @@ func TestNewConfigGeneral(t *testing.T) {
 		defer cancel()
 
 		configPath := tempDir + "/general.json"
-		if err := ioutil.WriteFile(configPath, []byte{}, 0o660); err != nil {
+		if err := os.WriteFile(configPath, []byte{}, 0o660); err != nil {
 			t.Fatalf("could not write configPath: %v", err)
 		}
 
@@ -750,7 +749,7 @@ func TestGeneral(t *testing.T) {
 		}
 		general.Set(newConfig)
 
-		file, err := ioutil.ReadFile(general.path)
+		file, err := os.ReadFile(general.path)
 		if err != nil {
 			t.Fatalf("could not read config file: %v", err)
 		}

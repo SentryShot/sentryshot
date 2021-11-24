@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/ffmpeg/ffmock"
 	"nvr/pkg/log"
@@ -36,7 +35,7 @@ import (
 type cancelFunc func()
 
 func prepareDir(t *testing.T) (string, cancelFunc) {
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,11 +47,11 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 
 	err = filepath.Walk("./testdata/monitors/", func(path string, info os.FileInfo, _ error) error {
 		if !info.IsDir() {
-			file, err := ioutil.ReadFile(path)
+			file, err := os.ReadFile(path)
 			if err != nil {
 				return err
 			}
-			if err := ioutil.WriteFile(configDir+"/"+info.Name(), file, 0o600); err != nil {
+			if err := os.WriteFile(configDir+"/"+info.Name(), file, 0o600); err != nil {
 				return err
 			}
 
@@ -96,7 +95,7 @@ func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 }
 
 func readConfig(path string) (Config, error) {
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +141,7 @@ func TestNewManager(t *testing.T) {
 		defer cancel()
 
 		data := []byte("{")
-		if err := ioutil.WriteFile(configDir+"/1.json", data, 0o600); err != nil {
+		if err := os.WriteFile(configDir+"/1.json", data, 0o600); err != nil {
 			t.Fatalf("%v", err)
 		}
 
@@ -377,7 +376,7 @@ func newMockInputProcess(m *Monitor, isSubInput bool) *InputProcess {
 }
 
 func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("could not create temp dir: %v", err)
 	}
@@ -967,7 +966,7 @@ func TestSaveRecording(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		b, err := ioutil.ReadFile(filePath + ".json")
+		b, err := os.ReadFile(filePath + ".json")
 		if err != nil {
 			t.Fatalf("could not read file: %v", err)
 		}

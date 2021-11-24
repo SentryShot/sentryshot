@@ -24,7 +24,6 @@ import (
 	"image/color"
 	"image/png"
 	"io"
-	"io/ioutil"
 	"nvr/pkg/log"
 	"os"
 	"os/exec"
@@ -429,7 +428,7 @@ func getSegmentDuration(hlsPath string, nSegments int) (time.Duration, error) {
 	*/
 	// OUTPUT 3500
 
-	m3u8, err := ioutil.ReadFile(hlsPath)
+	m3u8, err := os.ReadFile(hlsPath)
 	if err != nil {
 		return 0, err
 	}

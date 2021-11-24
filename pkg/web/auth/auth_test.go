@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"nvr/pkg/log"
 	"os"
 	"testing"
@@ -31,7 +30,7 @@ var (
 )
 
 func newTestAuth(t *testing.T) (string, *Authenticator, func()) {
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("could not create tempoary directory: %v", err)
 	}
@@ -60,7 +59,7 @@ func newTestAuth(t *testing.T) (string, *Authenticator, func()) {
 	if err != nil {
 		t.Fatalf("could not marshal users: %v", err)
 	}
-	if err := ioutil.WriteFile(usersPath, data, 0o600); err != nil {
+	if err := os.WriteFile(usersPath, data, 0o600); err != nil {
 		t.Fatalf("could not write users file: %v", err)
 	}
 
@@ -277,7 +276,7 @@ func TestBasicAuthenticator(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			file, err := ioutil.ReadFile(tempDir + "/users.json")
+			file, err := os.ReadFile(tempDir + "/users.json")
 			if err != nil {
 				t.Fatalf("could not read file: %v", err)
 			}

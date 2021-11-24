@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,7 +10,7 @@ import (
 )
 
 func newTestEnv(t *testing.T) (string, *configEnv, func()) {
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("could not create tempoary directory: %v", err)
 	}
@@ -24,7 +23,7 @@ func newTestEnv(t *testing.T) (string, *configEnv, func()) {
 	homeDir := tempDir + "/home"
 	configDir := homeDir + "/configs"
 
-	if err := ioutil.WriteFile(goBin, []byte{}, 0o600); err != nil {
+	if err := os.WriteFile(goBin, []byte{}, 0o600); err != nil {
 		t.Fatalf("could not write goBin: %v", err)
 	}
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
@@ -77,7 +76,7 @@ func TestParseEnv(t *testing.T) {
 			t.Fatalf("could not marshal env: %v", err)
 		}
 
-		if err := ioutil.WriteFile(envPath, envYAML, 0o600); err != nil {
+		if err := os.WriteFile(envPath, envYAML, 0o600); err != nil {
 			t.Fatalf("could not write env.yaml: %v", err)
 		}
 
@@ -152,7 +151,7 @@ func TestParseEnv(t *testing.T) {
 
 func TestGenFile(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		defer os.RemoveAll(tempDir)
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
@@ -165,7 +164,7 @@ func TestGenFile(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		file, err := ioutil.ReadFile(path)
+		file, err := os.ReadFile(path)
 		actual := string(file)
 		expected := `package main
 

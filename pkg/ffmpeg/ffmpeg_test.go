@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"io/ioutil"
 	"nvr/pkg/log"
 	"os"
 	"os/exec"
@@ -126,7 +125,7 @@ func TestProcess(t *testing.T) {
 
 func TestMakePipe(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
@@ -436,7 +435,7 @@ func TestCreateInvertedMask(t *testing.T) {
 
 func TestSaveImage(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
@@ -460,7 +459,7 @@ func TestSaveImage(t *testing.T) {
 		}
 	})
 	t.Run("encodeErr", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
@@ -572,14 +571,14 @@ INPUT
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tempDir, err := ioutil.TempDir("", "")
+			tempDir, err := os.MkdirTemp("", "")
 			if err != nil {
 				t.Fatalf("could not create tempoary directory: %v", err)
 			}
 			defer os.RemoveAll(tempDir)
 
 			path := tempDir + "/test.m3u8"
-			if err := ioutil.WriteFile(path, []byte(tc.input), 0o600); err != nil {
+			if err := os.WriteFile(path, []byte(tc.input), 0o600); err != nil {
 				t.Fatalf("could not write file: %v", err)
 			}
 
@@ -602,7 +601,7 @@ INPUT
 		})
 	}
 	t.Run("addErr", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
@@ -614,14 +613,14 @@ INPUT
 		}
 	})
 	t.Run("canceled", func(t *testing.T) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
 		defer os.RemoveAll(tempDir)
 
 		path := tempDir + "/test.m3u8"
-		if err := ioutil.WriteFile(path, []byte{}, 0o600); err != nil {
+		if err := os.WriteFile(path, []byte{}, 0o600); err != nil {
 			t.Fatalf("could not write file: %v", err)
 		}
 

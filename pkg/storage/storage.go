@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"nvr/pkg/log"
 	"os"
 	"path/filepath"
@@ -146,7 +145,7 @@ func (s *Manager) purge() error {
 	// Find the oldest day.
 	path := s.RecordingsDir()
 	for depth := 1; depth <= dayDepth; depth++ {
-		list, err := ioutil.ReadDir(path)
+		list, err := os.ReadDir(path)
 		if err != nil {
 			return fmt.Errorf("could not read directory %v: %w", path, err)
 		}
@@ -321,7 +320,7 @@ func NewConfigGeneral(path string) (*ConfigGeneral, error) {
 		}
 	}
 
-	file, err := ioutil.ReadFile(configPath)
+	file, err := os.ReadFile(configPath)
 	if err != nil {
 		return &ConfigGeneral{}, err
 	}
@@ -342,7 +341,7 @@ func generateGeneralConfig(path string) error {
 	}
 	c, _ := json.MarshalIndent(config, "", "    ")
 
-	return ioutil.WriteFile(path, c, 0o600)
+	return os.WriteFile(path, c, 0o600)
 }
 
 // Get returns general config.
@@ -358,7 +357,7 @@ func (general *ConfigGeneral) Set(newConfig GeneralConfig) error {
 
 	config, _ := json.MarshalIndent(newConfig, "", "    ")
 
-	if err := ioutil.WriteFile(general.path, config, 0o600); err != nil {
+	if err := os.WriteFile(general.path, config, 0o600); err != nil {
 		return err
 	}
 

@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"nvr/addons/doods/odrpc"
@@ -27,7 +26,7 @@ import (
 )
 
 func newTestConfig(t *testing.T) (string, func()) {
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("could not create tempoary directory: %v", err)
 	}
@@ -48,7 +47,7 @@ func TestReadConfig(t *testing.T) {
 
 		file := `{ "ip": "test:8080" }`
 
-		if err := ioutil.WriteFile(configPath, []byte(file), 0o600); err != nil {
+		if err := os.WriteFile(configPath, []byte(file), 0o600); err != nil {
 			t.Fatalf("could not write test file: %v", err)
 		}
 
@@ -70,7 +69,7 @@ func TestReadConfig(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		file, err := ioutil.ReadFile(configPath)
+		file, err := os.ReadFile(configPath)
 		if err != nil {
 			t.Fatalf("could not read addon file: %v", err)
 		}
@@ -93,7 +92,7 @@ func TestReadConfig(t *testing.T) {
 		configPath, cancel := newTestConfig(t)
 		defer cancel()
 
-		if err := ioutil.WriteFile(configPath, []byte(""), 0o600); err != nil {
+		if err := os.WriteFile(configPath, []byte(""), 0o600); err != nil {
 			t.Fatalf("could not write test file: %v", err)
 		}
 

@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"nvr"
@@ -63,7 +63,7 @@ func readConfig(configPath string) (string, error) {
 		}
 	}
 
-	file, err := ioutil.ReadFile(configPath)
+	file, err := os.ReadFile(configPath)
 	if err != nil {
 		return "", fmt.Errorf("could not read config: %w", err)
 	}
@@ -82,7 +82,7 @@ var defaultConfig = Config{
 
 func genConfig(path string) error {
 	data, _ := json.Marshal(defaultConfig)
-	if err := ioutil.WriteFile(path, data, 0o600); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return err
 	}
 	return nil
@@ -113,7 +113,7 @@ func (f *fetcher) fetchDetectors() ([]odrpc.Detector, error) {
 	}
 	defer response.Body.Close()
 
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("could not read body: %w", err)
 	}

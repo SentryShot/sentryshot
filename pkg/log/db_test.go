@@ -17,7 +17,7 @@ package log
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -27,7 +27,7 @@ import (
 )
 
 func newTestDB(t *testing.T) (*DB, func()) {
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("could not create tempoary directory: %v", err)
 	}

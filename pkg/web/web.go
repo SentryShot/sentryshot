@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"nvr/pkg/web/auth"
 	"os"
@@ -98,7 +97,7 @@ func NewTemplater(path string, a *auth.Authenticator, hooks TemplateHooks) (*Tem
 
 // readDir reads and returns contents of files in given directory.
 func readDir(dir string) (map[string]string, error) {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("could not read directory: %w", err)
 	}
@@ -106,7 +105,7 @@ func readDir(dir string) (map[string]string, error) {
 	fileContents := make(map[string]string)
 	for _, file := range files {
 		if !file.IsDir() && []rune(file.Name())[0] != []rune(".")[0] { // Check if file is hidden.
-			b, err := ioutil.ReadFile(dir + "/" + file.Name())
+			b, err := os.ReadFile(dir + "/" + file.Name())
 			if err != nil {
 				return nil, fmt.Errorf("could not read file: %w", err)
 			}

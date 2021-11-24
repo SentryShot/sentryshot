@@ -25,7 +25,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -64,7 +63,7 @@ func start() error {
 		return fmt.Errorf("could not get absolute path of env.yaml: %w", err)
 	}
 
-	envYAML, err := ioutil.ReadFile(envPath)
+	envYAML, err := os.ReadFile(envPath)
 	if err != nil {
 		return fmt.Errorf("could not read env.yaml: %w", err)
 	}
@@ -158,7 +157,7 @@ func main() {
 	var b bytes.Buffer
 	t.Execute(&b, data) //nolint:errcheck
 
-	if err := ioutil.WriteFile(path, b.Bytes(), 0o600); err != nil {
+	if err := os.WriteFile(path, b.Bytes(), 0o600); err != nil {
 		return fmt.Errorf("could not write build file: %w", err)
 	}
 	return nil
