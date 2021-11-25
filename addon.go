@@ -181,7 +181,7 @@ func (h *hookList) tplHooks() web.TemplateHooks {
 	}
 }
 
-func (h *hookList) monitor() monitor.Hooks {
+func (h *hookList) monitor() *monitor.Hooks {
 	startHook := func(ctx context.Context, m *monitor.Monitor) {
 		for _, hook := range h.monitorStart {
 			hook(ctx, m)
@@ -198,7 +198,7 @@ func (h *hookList) monitor() monitor.Hooks {
 		}
 	}
 
-	return monitor.Hooks{
+	return &monitor.Hooks{
 		Start:      startHook,
 		StartInput: startInputHook,
 		RecSave:    recSaveHook,

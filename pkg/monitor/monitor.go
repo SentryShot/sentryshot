@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
@@ -112,12 +113,16 @@ type Manager struct {
 	env      *storage.ConfigEnv
 	log      *log.Logger
 	path     string
-	hooks    Hooks
+	hooks    *Hooks
 	mu       sync.Mutex
 }
 
 // NewManager return new monitor manager.
-func NewManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hooks Hooks) (*Manager, error) {
+func NewManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hooks *Hooks) (*Manager, error) {
+	if err := os.MkdirAll(configPath, 0o700); err != nil {
+		return nil, fmt.Errorf("could not create monitors directory: %w", err)
+	}
+
 	configFiles, err := readConfigs(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read configuration files: %w", err)
@@ -145,14 +150,19 @@ func NewManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hook
 
 func readConfigs(path string) ([][]byte, error) {
 	var files [][]byte
-	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		if strings.Contains(path, ".json") {
-			file, err := os.ReadFile(path)
-			if err != nil {
-				return fmt.Errorf("could not read file: %v %w", path, err)
-			}
-			files = append(files, file)
+	fileSystem := os.DirFS(path)
+	err := fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
+		if d.IsDir() || !strings.Contains(path, ".json") {
+			return nil
+		}
+		file, err := fs.ReadFile(fileSystem, path)
+		if err != nil {
+			return fmt.Errorf("could not read file: %v %w", path, err)
+		}
+		files = append(files, file)
 		return nil
 	})
 	return files, err
@@ -372,7 +382,7 @@ type Monitor struct {
 	mainInput *InputProcess
 	subInput  *InputProcess
 
-	hooks               Hooks
+	hooks               *Hooks
 	startRecording      startRecordingFunc
 	runRecordingProcess runRecordingProcessFunc
 	newProcess          ffmpeg.NewProcessFunc

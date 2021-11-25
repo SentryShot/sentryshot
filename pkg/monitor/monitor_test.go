@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/ffmpeg/ffmock"
 	"nvr/pkg/log"
@@ -39,23 +40,29 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	configDir := tempDir + "/monitors"
 
-	if err := os.Mkdir(configDir, 0o700); err != nil {
+	testConfigDir := tempDir + "/monitors"
+	if err := os.Mkdir(testConfigDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
-	err = filepath.Walk("./testdata/monitors/", func(path string, info os.FileInfo, _ error) error {
-		if !info.IsDir() {
-			file, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			if err := os.WriteFile(configDir+"/"+info.Name(), file, 0o600); err != nil {
-				return err
-			}
-
+	fileSystem := os.DirFS("./testdata/monitors/")
+	err = fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
+		if d.IsDir() {
+			return nil
+		}
+		file, err := fs.ReadFile(fileSystem, path)
+		if err != nil {
+			return err
+		}
+		newFilePath := filepath.Join(testConfigDir, d.Name())
+		if err := os.WriteFile(newFilePath, file, 0o600); err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -66,7 +73,7 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 	cancel := func() {
 		os.RemoveAll(tempDir)
 	}
-	return configDir, cancel
+	return testConfigDir, cancel
 }
 
 func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
@@ -85,7 +92,7 @@ func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 		configDir,
 		&storage.ConfigEnv{},
 		logger,
-		Hooks{},
+		&Hooks{},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -124,12 +131,17 @@ func TestNewManager(t *testing.T) {
 			t.Fatalf("expected: %v, got %v", expected, actual)
 		}
 	})
+	t.Run("mkDirErr", func(t *testing.T) {
+		if _, err := NewManager("/dev/null/nil", nil, nil, nil); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
 	t.Run("readFileErr", func(t *testing.T) {
 		_, err := NewManager(
 			"/dev/null/nil.json",
 			&storage.ConfigEnv{},
 			&log.Logger{},
-			Hooks{},
+			&Hooks{},
 		)
 
 		if err == nil {
@@ -149,7 +161,7 @@ func TestNewManager(t *testing.T) {
 			configDir,
 			&storage.ConfigEnv{},
 			&log.Logger{},
-			Hooks{},
+			&Hooks{},
 		)
 
 		if err == nil {
@@ -439,9 +451,7 @@ func TestStartMonitor(t *testing.T) {
 		defer cancel2()
 
 		go func() {
-			if err := m.Start(); err != nil {
-				t.Fatalf("%v", err)
-			}
+			m.Start()
 		}()
 
 		expected := "disabled"
@@ -754,9 +764,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		defer cancel2()
 
 		go func() {
-			if err := runRecordingProcess(ctx, m); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+			runRecordingProcess(ctx, m)
 		}()
 
 		<-feed
@@ -836,7 +844,7 @@ func mockSizeFromStreamErr(string) (string, error) {
 	return "", errors.New("mock")
 }
 
-var mockHooks = Hooks{
+var mockHooks = &Hooks{
 	Start:      func(context.Context, *Monitor) {},
 	StartInput: func(context.Context, *InputProcess, *[]string) {},
 	RecSave:    func(*Monitor, *string) {},

@@ -16,9 +16,9 @@ package system
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -35,20 +35,24 @@ func TimeZone() (string, error) {
 	}
 
 	// Fallback 1
-	data, _ := os.ReadFile("/etc/timezone")
-	zone = string(data)
+	file, _ := os.ReadFile("/etc/timezone")
+	zone = string(file)
 	if zone != "" {
 		return strings.TrimSpace(zone), nil
 	}
 
 	// Fallback 2
 	localtime, _ := os.ReadFile("/etc/localtime")
-	_ = filepath.Walk("/usr/share/zoneinfo", func(filePath string, file os.FileInfo, err error) error {
-		if err != nil || file.IsDir() {
-			return err
+	fileSystem := os.DirFS("/usr/share/zoneinfo")
+	fs.WalkDir(fileSystem, ".", func(filePath string, d fs.DirEntry, err error) error { //nolint:errcheck
+		if err != nil || d.IsDir() {
+			return nil
 		}
-		data, _ := os.ReadFile(filePath)
-		if string(data) == string(localtime) {
+		file, err := fs.ReadFile(fileSystem, filePath)
+		if err != nil {
+			return nil
+		}
+		if string(file) == string(localtime) {
 			dir, city := path.Split(filePath)
 			region := path.Base(dir)
 			zone = city
@@ -62,9 +66,8 @@ func TimeZone() (string, error) {
 		}
 		return nil
 	})
-	if zone != "" {
-		return strings.TrimSpace(zone), nil
+	if zone == "" {
+		return "", ErrNoTimeZone
 	}
-
-	return "", ErrNoTimeZone
+	return strings.TrimSpace(zone), nil
 }

@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"nvr/pkg/log"
 	"os"
 	"path/filepath"
@@ -89,10 +90,18 @@ func formatDiskUsage(used float64) string {
 
 func diskUsage(path string) int64 {
 	var used int64
-	filepath.Walk(path+"/", func(_ string, info os.FileInfo, err error) error { //nolint:errcheck
-		if info != nil && !info.IsDir() {
-			used += info.Size()
+
+	fileSystem := os.DirFS(path)
+	fs.WalkDir(fileSystem, ".", func(_ string, d fs.DirEntry, err error) error { //nolint:errcheck
+		if err != nil || d.IsDir() {
+			return nil
 		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		used += info.Size()
+
 		return nil
 	})
 	return used

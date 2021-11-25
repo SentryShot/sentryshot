@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,16 +23,21 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 		t.Fatal(err)
 	}
 
-	err = filepath.Walk("./testdata/groups/", func(path string, info os.FileInfo, _ error) error {
-		if !info.IsDir() {
-			file, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			if err := os.WriteFile(configDir+"/"+info.Name(), file, 0o600); err != nil {
-				return err
-			}
-
+	fileSystem := os.DirFS("./testdata/groups/")
+	err = fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		file, err := fs.ReadFile(fileSystem, path)
+		if err != nil {
+			return err
+		}
+		newFilePath := filepath.Join(configDir, d.Name())
+		if err := os.WriteFile(newFilePath, file, 0o600); err != nil {
+			return err
 		}
 		return nil
 	})
@@ -93,11 +99,8 @@ func TestNewManager(t *testing.T) {
 			t.Fatalf("expected: %v, got %v", expected, actual)
 		}
 	})
-	t.Run("readFileErr", func(t *testing.T) {
-		_, err := NewManager(
-			"/dev/null/nil.json",
-		)
-		if err == nil {
+	t.Run("mkDirErr", func(t *testing.T) {
+		if _, err := NewManager("/dev/null/nil"); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
