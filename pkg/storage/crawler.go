@@ -17,6 +17,7 @@ package storage
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -220,7 +221,7 @@ func (d *dir) children() ([]dir, error) {
 		return cache[d.path], nil
 	}
 
-	files, err := os.ReadDir(d.path)
+	files, err := fs.ReadDir(os.DirFS(d.path), ".")
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +249,7 @@ var ErrUnexpectedDir = errors.New("unexpected directory")
 // selected monitors in decending directories.
 // Only called by `children()`.
 func (d *dir) findAllThumbnails() ([]dir, error) {
-	monitorDirs, err := os.ReadDir(d.path)
+	monitorDirs, err := fs.ReadDir(os.DirFS(d.path), ".")
 	if err != nil {
 		return nil, fmt.Errorf("could not read day directory: %v %w", d.path, err)
 	}
@@ -259,7 +260,7 @@ func (d *dir) findAllThumbnails() ([]dir, error) {
 			continue
 		}
 		path := filepath.Join(d.path, m.Name())
-		files, err := os.ReadDir(path)
+		files, err := fs.ReadDir(os.DirFS(path), ".")
 		if err != nil {
 			return nil, fmt.Errorf("could not read monitor directory: %v: %w", path, err)
 		}

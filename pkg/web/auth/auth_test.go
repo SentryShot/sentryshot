@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"nvr/pkg/log"
 	"os"
 	"testing"
@@ -276,7 +277,7 @@ func TestBasicAuthenticator(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			file, err := os.ReadFile(tempDir + "/users.json")
+			file, err := fs.ReadFile(os.DirFS(tempDir), "users.json")
 			if err != nil {
 				t.Fatalf("could not read file: %v", err)
 			}

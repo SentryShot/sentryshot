@@ -641,7 +641,7 @@ func LogQuery(logDB *log.DB) http.Handler { //nolint:funlen
 		time := query.Get("time")
 		timeInt, err := strconv.Atoi(time)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("could not convert limit to int: %v", err), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("could not convert time to int: %v", err), http.StatusBadRequest)
 			return
 		}
 

@@ -154,7 +154,7 @@ func (s *Manager) purge() error {
 	// Find the oldest day.
 	path := s.RecordingsDir()
 	for depth := 1; depth <= dayDepth; depth++ {
-		list, err := os.ReadDir(path)
+		list, err := fs.ReadDir(os.DirFS(path), ".")
 		if err != nil {
 			return fmt.Errorf("could not read directory %v: %w", path, err)
 		}

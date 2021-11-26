@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/fs"
 	"net/http"
 	"nvr/pkg/web/auth"
 	"os"
@@ -96,25 +97,28 @@ func NewTemplater(path string, a *auth.Authenticator, hooks TemplateHooks) (*Tem
 }
 
 // readDir reads and returns contents of files in given directory.
-func readDir(dir string) (map[string]string, error) {
-	files, err := os.ReadDir(dir)
+func readDir(path string) (map[string]string, error) {
+	fileSystem := os.DirFS(path)
+	files, err := fs.ReadDir(fileSystem, ".")
 	if err != nil {
 		return nil, fmt.Errorf("could not read directory: %w", err)
 	}
 
 	fileContents := make(map[string]string)
 	for _, file := range files {
-		if !file.IsDir() && []rune(file.Name())[0] != []rune(".")[0] { // Check if file is hidden.
-			b, err := os.ReadFile(dir + "/" + file.Name())
-			if err != nil {
-				return nil, fmt.Errorf("could not read file: %w", err)
-			}
-			fileContents[file.Name()] = string(b)
+		fileIsHidden := []rune(file.Name())[0] == []rune(".")[0]
+		if file.IsDir() || fileIsHidden {
+			continue
 		}
+		data, err := fs.ReadFile(fileSystem, file.Name())
+		if err != nil {
+			return nil, fmt.Errorf("could not read file: %w", err)
+		}
+		fileContents[file.Name()] = string(data)
 	}
 
 	if len(fileContents) == 0 {
-		return nil, fmt.Errorf("%v: %w", dir, os.ErrNotExist)
+		return nil, fmt.Errorf("%v: %w", path, os.ErrNotExist)
 	}
 
 	return fileContents, nil
