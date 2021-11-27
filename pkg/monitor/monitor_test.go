@@ -866,7 +866,7 @@ func TestGenInputArgs(t *testing.T) {
 		}
 		actual := i.generateArgs()
 		expected := "-loglevel 1 -i 2 -c:a 3 -c:v 4 -preset veryfast -f hls -hls_flags" +
-			" delete_segments -hls_list_size 2 -hls_allow_cache 0 /hls/id/id.m3u8"
+			" delete_segments -hls_list_size 2 -hls_allow_cache 0 hls/id/id.m3u8"
 		if actual != expected {
 			t.Fatalf("\nexpected: \n%v \ngot \n%v", expected, actual)
 		}
@@ -888,7 +888,7 @@ func TestGenInputArgs(t *testing.T) {
 		}
 		actual := i.generateArgs()
 		expected := "-loglevel 1 -hwaccel 2 -i 3 -c:a 4 -c:v 5 -preset veryfast -f hls -hls_flags" +
-			" delete_segments -hls_list_size 2 -hls_allow_cache 0 /hls/id/id_sub.m3u8"
+			" delete_segments -hls_list_size 2 -hls_allow_cache 0 hls/id/id_sub.m3u8"
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot\n%v.", expected, actual)
 		}
@@ -911,7 +911,7 @@ func TestGenRecorderArgs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		expected := "-y -loglevel 1 -live_start_index -2 -i /hls/id/id.m3u8 -t 180 -c:v copy path.mp4"
+		expected := "-y -loglevel 1 -live_start_index -2 -i hls/id/id.m3u8 -t 180 -c:v copy path.mp4"
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot\n%v.", expected, actual)
 		}

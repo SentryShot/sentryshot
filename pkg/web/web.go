@@ -19,10 +19,9 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/fs"
 	"net/http"
 	"nvr/pkg/web/auth"
-	"os"
+	tpls "nvr/web/templates"
 	"path/filepath"
 	"strings"
 	"time"
@@ -55,19 +54,13 @@ type Templater struct {
 }
 
 // NewTemplater return template renderer.
-func NewTemplater(path string, a *auth.Authenticator, hooks TemplateHooks) (*Templater, error) {
-	pageFiles, err := readDir(path)
-	if err != nil {
-		return nil, err
-	}
+func NewTemplater(a *auth.Authenticator, hooks TemplateHooks) (*Templater, error) {
+	pageFiles := tpls.PageFiles
 	if err := hooks.Tpl(pageFiles); err != nil {
 		return nil, err
 	}
 
-	includeFiles, err := readDir(path + "/includes")
-	if err != nil {
-		return nil, err
-	}
+	includeFiles := tpls.IncludeFiles
 	if err := hooks.Sub(includeFiles); err != nil {
 		return nil, err
 	}
@@ -94,34 +87,6 @@ func NewTemplater(path string, a *auth.Authenticator, hooks TemplateHooks) (*Tem
 		templates:    templates,
 		lastModified: time.Now().UTC(),
 	}, nil
-}
-
-// readDir reads and returns contents of files in given directory.
-func readDir(path string) (map[string]string, error) {
-	fileSystem := os.DirFS(path)
-	files, err := fs.ReadDir(fileSystem, ".")
-	if err != nil {
-		return nil, fmt.Errorf("could not read directory: %w", err)
-	}
-
-	fileContents := make(map[string]string)
-	for _, file := range files {
-		fileIsHidden := []rune(file.Name())[0] == []rune(".")[0]
-		if file.IsDir() || fileIsHidden {
-			continue
-		}
-		data, err := fs.ReadFile(fileSystem, file.Name())
-		if err != nil {
-			return nil, fmt.Errorf("could not read file: %w", err)
-		}
-		fileContents[file.Name()] = string(data)
-	}
-
-	if len(fileContents) == 0 {
-		return nil, fmt.Errorf("%v: %w", path, os.ErrNotExist)
-	}
-
-	return fileContents, nil
 }
 
 // RegisterTemplateDataFuncs .

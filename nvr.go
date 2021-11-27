@@ -129,8 +129,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		return nil, err
 	}
 
-	templatesDir := filepath.Join(env.WebDir, "templates")
-	t, err := web.NewTemplater(templatesDir, a, hooks.tplHooks())
+	t, err := web.NewTemplater(a, hooks.tplHooks())
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +165,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/debug", a.Admin(t.Render("debug.tpl")))
 	mux.Handle("/logout", web.Logout())
 
-	staticDir := filepath.Join(env.WebDir, "static")
-	mux.Handle("/static/", a.User(web.Static(staticDir)))
+	mux.Handle("/static/", a.User(web.Static()))
 	mux.Handle("/storage/", a.User(web.Storage(env.StorageDir)))
 	mux.Handle("/hls/", a.User(web.HLS(env)))
 

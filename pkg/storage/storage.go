@@ -214,7 +214,6 @@ type ConfigEnv struct {
 	SHMDir     string `yaml:"shmDir"`
 
 	HomeDir   string `yaml:"homeDir"`
-	WebDir    string `yaml:"webDir"`
 	ConfigDir string
 }
 
@@ -244,10 +243,7 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 		env.HomeDir = filepath.Dir(env.ConfigDir)
 	}
 	if env.StorageDir == "" {
-		env.StorageDir = env.HomeDir + "/storage"
-	}
-	if env.WebDir == "" {
-		env.WebDir = env.HomeDir + "/web"
+		env.StorageDir = filepath.Join(env.HomeDir, "storage")
 	}
 	if env.SHMDir == "" {
 		env.SHMDir = "/dev/shm/nvr"
@@ -275,21 +271,18 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	if !filepath.IsAbs(env.SHMDir) {
 		return nil, fmt.Errorf("shmDir '%v': %w", env.SHMDir, ErrNotAbsPath)
 	}
-	if !filepath.IsAbs(env.WebDir) {
-		return nil, fmt.Errorf("webDir '%v': %w", env.WebDir, ErrNotAbsPath)
-	}
 
 	return &env, nil
 }
 
 // SHMhls returns path of temporary hls files.
 func (env *ConfigEnv) SHMhls() string {
-	return env.SHMDir + "/hls"
+	return filepath.Join(env.SHMDir, "hls")
 }
 
 // PrepareEnvironment prepares directories.
 func (env *ConfigEnv) PrepareEnvironment() error {
-	monitorsDir := env.ConfigDir + "/monitors"
+	monitorsDir := filepath.Join(env.ConfigDir, "monitors")
 	if err := os.MkdirAll(monitorsDir, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("could not create monitor directory: %v: %w", monitorsDir, err)
 	}

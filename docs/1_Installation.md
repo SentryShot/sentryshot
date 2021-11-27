@@ -146,7 +146,7 @@ In this mode Caddy will sign the certificate locally. You do not require interne
 ## Before continuing
 Default login: `admin:pass`
 
-If the installation was successful, then you should now be able to access the debug page `https://my.domain.com/debug` 
+If the installation was successful, then you should now be able to access the debug page. `https://127.0.0.1/debug`
 
 
 Please fix any errors before continuing to [Configuration](2_Configuration.md)

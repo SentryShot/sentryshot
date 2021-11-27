@@ -312,11 +312,11 @@ func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 		os.RemoveAll(tempDir)
 	}
 
-	homeDir := tempDir + "/home"
-	goBin := homeDir + "/go"
-	ffmpegBin := homeDir + "/ffmpeg"
-	configDir := homeDir + "/configs"
-	envPath := configDir + "/env.yaml"
+	homeDir := filepath.Join(tempDir, "home")
+	goBin := filepath.Join(homeDir, "go")
+	ffmpegBin := filepath.Join(homeDir, "ffmpeg")
+	configDir := filepath.Join(homeDir, "configs")
+	envPath := filepath.Join(configDir, "env.yaml")
 
 	if err := os.MkdirAll(homeDir, 0o700); err != nil {
 		t.Fatalf("could not write homeDir: %v", err)
@@ -335,10 +335,9 @@ func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 		Port:       "2020",
 		GoBin:      goBin,
 		FFmpegBin:  ffmpegBin,
-		StorageDir: homeDir + "/storage",
-		SHMDir:     homeDir + "/shm",
+		StorageDir: filepath.Join(homeDir, "storage"),
+		SHMDir:     filepath.Join(homeDir, "shm"),
 		HomeDir:    homeDir,
-		WebDir:     homeDir + "/web",
 		ConfigDir:  configDir,
 	}
 
@@ -353,8 +352,8 @@ func TestNewConfigEnv(t *testing.T) {
 		homeDir := filepath.Dir(filepath.Dir(envPath))
 
 		envYAML, err := yaml.Marshal(ConfigEnv{
-			GoBin:     homeDir + "/go",
-			FFmpegBin: homeDir + "/ffmpeg",
+			GoBin:     filepath.Join(homeDir, "go"),
+			FFmpegBin: filepath.Join(homeDir, "ffmpeg"),
 		})
 		if err != nil {
 			t.Fatalf("could not marshal env.yaml: %v", err)
@@ -369,13 +368,12 @@ func TestNewConfigEnv(t *testing.T) {
 
 		expected := fmt.Sprintf("%v", &ConfigEnv{
 			Port:       "2020",
-			GoBin:      homeDir + "/go",
-			FFmpegBin:  homeDir + "/ffmpeg",
-			StorageDir: homeDir + "/storage",
+			GoBin:      filepath.Join(homeDir, "go"),
+			FFmpegBin:  filepath.Join(homeDir, "ffmpeg"),
+			StorageDir: filepath.Join(homeDir, "storage"),
 			SHMDir:     "/dev/shm/nvr",
 			HomeDir:    homeDir,
-			WebDir:     homeDir + "/web",
-			ConfigDir:  homeDir + "/configs",
+			ConfigDir:  filepath.Join(homeDir, "configs"),
 		})
 
 		if actual != expected {
@@ -423,7 +421,7 @@ func TestNewConfigEnv(t *testing.T) {
 		}
 
 		actual := fmt.Sprintf("%v", env.SHMhls())
-		expected := env.SHMDir + "/hls"
+		expected := filepath.Join(env.SHMDir, "hls")
 
 		if actual != expected {
 			t.Fatalf("expected: %v got: %v", expected, actual)
@@ -541,22 +539,6 @@ func TestNewConfigEnv(t *testing.T) {
 			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
 		}
 	})
-	t.Run("webDirAbs", func(t *testing.T) {
-		envPath, testEnv, cancel := newTestEnv(t)
-		defer cancel()
-
-		testEnv.WebDir = "."
-
-		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
-
-		_, err = NewConfigEnv(envPath, envYAML)
-		if !errors.Is(err, ErrNotAbsPath) {
-			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
-		}
-	})
 }
 
 func TestPrepareEnvironment(t *testing.T) {
@@ -566,14 +548,14 @@ func TestPrepareEnvironment(t *testing.T) {
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
-		configDir := tempDir + "/configs"
+		configDir := filepath.Join(tempDir, "configs")
 
 		env := &ConfigEnv{
 			SHMDir:    tempDir,
 			ConfigDir: configDir,
 		}
 
-		testDir := env.SHMhls() + "/test"
+		testDir := filepath.Join(env.SHMhls(), "test")
 		if err := os.MkdirAll(testDir, 0o744); err != nil {
 			t.Fatalf("could not create temp directory: %v", err)
 		}
@@ -586,7 +568,7 @@ func TestPrepareEnvironment(t *testing.T) {
 			t.Fatal("testDir wasn't reset")
 		}
 
-		if !dirExist(configDir + "/monitors") {
+		if !dirExist(filepath.Join(configDir, "monitors")) {
 			t.Fatal("configs/monitors wasn't created")
 		}
 	})
@@ -606,7 +588,7 @@ func TestPrepareEnvironment(t *testing.T) {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
 
-		configDir := tempDir + "/configs"
+		configDir := filepath.Join(tempDir, "configs")
 		if err := os.MkdirAll(configDir, 0o700); err != nil {
 			t.Fatal(err)
 		}
@@ -631,7 +613,7 @@ func newTestGeneral(t *testing.T) (string, *ConfigGeneral, func()) {
 		os.RemoveAll(tempDir)
 	}
 
-	configPath := tempDir + "/general.json"
+	configPath := filepath.Join(tempDir, "general.json")
 
 	config := GeneralConfig{
 		DiskSpace: "1",
@@ -671,7 +653,7 @@ func TestNewConfigGeneral(t *testing.T) {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
 		configDir := tempDir
-		configFile := configDir + "/general.json"
+		configFile := filepath.Join(configDir, "general.json")
 
 		if dirExist(configFile) {
 			t.Fatal("configFile should not already exist")
@@ -713,7 +695,7 @@ func TestNewConfigGeneral(t *testing.T) {
 		tempDir, _, cancel := newTestGeneral(t)
 		defer cancel()
 
-		configPath := tempDir + "/general.json"
+		configPath := filepath.Join(tempDir, "general.json")
 		if err := os.WriteFile(configPath, []byte{}, 0o660); err != nil {
 			t.Fatalf("could not write configPath: %v", err)
 		}

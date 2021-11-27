@@ -25,6 +25,7 @@ import (
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
 	"nvr/pkg/web/auth"
+	"nvr/web/static"
 	"strconv"
 	"strings"
 
@@ -56,7 +57,7 @@ func Logout() http.Handler {
 }
 
 // Static serves files from `web/static`.
-func Static(path string) http.Handler {
+func Static() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -65,7 +66,7 @@ func Static(path string) http.Handler {
 		// w.Header().Set("Cache-Control", "max-age=2629800")
 		w.Header().Set("Cache-Control", "no-cache")
 
-		h := http.StripPrefix("/static/", http.FileServer(http.Dir(path)))
+		h := http.StripPrefix("/static/", http.FileServer(http.FS(static.Static)))
 		h.ServeHTTP(w, r)
 	})
 }
