@@ -114,22 +114,20 @@ function newSimpleCategory(category, title) {
 			const $wrapper = $(`#js-settings-wrapper-${category}`);
 
 			const $navBtn = $(`#js-set-category-${category}`);
-			const $navbar = $("#js-settings-navbar");
 
 			form.init($wrapper);
 
 			close = () => {
-				$navbar.classList.remove("settings-navbar-closed");
 				for (const element of $$(".js-set-settings-category")) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
+				$wrapper.classList.remove("settings-category-selected");
 			};
 
 			open = () => {
 				closeAllCategories();
 
 				$wrapper.classList.add("settings-category-selected");
-				$navbar.classList.add("settings-navbar-closed");
 				$navBtn.classList.add("settings-nav-btn-selected");
 			};
 
@@ -146,7 +144,7 @@ function newSimpleCategory(category, title) {
 }
 
 function newCategory(category, title) {
-	let $wrapper, $category, $subcategory, $title, form, open, close, $nav, onNav;
+	let $wrapper, $subcategory, $title, form, open, close, $nav, onNav;
 
 	const closeSubcategory = () => {
 		for (const element of $$(`.settings-category-nav-item`)) {
@@ -163,7 +161,6 @@ function newCategory(category, title) {
 		}
 
 		$subcategory.classList.add("settings-subcategory-open");
-		$category.classList.add("settings-navbar-closed");
 	};
 
 	return {
@@ -219,12 +216,11 @@ function newCategory(category, title) {
 			$nav = $wrapper.querySelector(".settings-category-nav");
 
 			const $navBtn = $(`#js-set-category-${category}`);
-			const $navbar = $("#js-settings-navbar");
 
 			form.init($wrapper);
 
 			close = () => {
-				$navbar.classList.remove("settings-navbar-closed");
+				$wrapper.classList.remove("settings-category-selected");
 				for (const element of $$(".js-set-settings-category")) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
@@ -235,14 +231,12 @@ function newCategory(category, title) {
 				closeSubcategory();
 
 				$wrapper.classList.add("settings-category-selected");
-				$navbar.classList.add("settings-navbar-closed");
 				$navBtn.classList.add("settings-nav-btn-selected");
 			};
 
 			const $backBtn = $wrapper.querySelector(".js-settings-category-back");
 			$backBtn.addEventListener("click", close);
 
-			$category = $wrapper.querySelector(".settings-category");
 			$subcategory = $wrapper.querySelector(".settings-sub-category");
 
 			$wrapper

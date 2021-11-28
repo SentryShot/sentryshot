@@ -20,23 +20,18 @@
 
 #content {
 	display: flex;
+	overflow-x: hidden;
 }
 
 .settings-navbar {
 	flex-shrink: 0;
 	width: 100%;
-	overflow-x: hidden;
 	background: var(--color2);
-	transition: width 400ms;
-}
-
-.settings-navbar-closed {
-	width: 0;
 }
 
 #settings-navbar-nav {
-	width: 100vw;
 	height: 100%;
+	overflow-y: auto;
 }
 
 .settings-nav-item {
@@ -51,7 +46,6 @@
 .settings-nav-item img {
 	height: 0.7rem;
 	margin-right: 0.3rem;
-	overflow-x: hidden;
 	font-size: 0.8rem;
 	filter: var(--color-icons);
 }
@@ -74,10 +68,12 @@
 }
 
 .settings-category-wrapper {
-	display: none;
-	width: 0;
-	overflow-x: hidden;
-	transition: width 400ms;
+	position: absolute;
+	display: flex;
+	width: 100%;
+	height: var(--size-minus-topbar);
+	transform: translateX(100%);
+	transition: transform 400ms;
 }
 
 .settings-simple-category {
@@ -87,31 +83,26 @@
 .settings-category {
 	z-index: 0;
 	display: flex;
-	flex-grow: 1;
 	flex-shrink: 0;
 	flex-direction: column;
+	width: 100%;
 	height: 100%;
-	overflow-x: hidden;
 	overflow-y: auto;
 	background: var(--color3);
-	transition: width 400ms;
 }
 
 .settings-category-selected {
-	display: flex;
-	width: 100%;
+	transform: none;
 }
 
 .settings-category-nav {
 	display: flex;
 	flex-direction: column;
-	overflow-x: hidden;
 	overflow-y: auto;
 }
 
 .settings-category-nav-item {
 	align-items: center;
-	width: 100vw;
 	padding: 0.3rem;
 	border-color: var(--colorbg);
 	border-bottom: solid;
@@ -129,26 +120,26 @@
 }
 
 .settings-sub-category {
+	position: absolute;
 	display: flex;
 	flex-direction: column;
-	width: 0;
+	height: 100%;
 	background: var(--color2);
-	transition: width 400ms;
+	transform: translateX(100%);
+	transition: transform 400ms;
 }
 
 .settings-subcategory-open {
-	width: 100%;
+	transform: none;
 }
 
 .settings-menubar {
 	display: flex;
-	width: 100vw;
 	height: var(--barsize);
 	background: var(--color2);
 }
 
 .settings-subcategory-menubar {
-	width: 100vw;
 	background: var(--color3);
 }
 
@@ -165,8 +156,10 @@
 }
 
 .settings-add-btn {
+	flex-shrink: 0;
 	margin-top: 0.2rem;
 	margin-right: auto;
+	margin-bottom: 0.2rem;
 	margin-left: 0.3rem;
 	padding: 0.1rem;
 	background: var(--color-green);
@@ -267,30 +260,56 @@
 	font-size: 1rem;
 }
 
+/* Mobile Landscape mode. */
+@media (min-aspect-ratio: 3/2) {
+	.settings-category-wrapper {
+		width: var(--size-minus-topbar);
+		height: 100%;
+	}
+	.settings-category-nav {
+		flex-shrink: 0;
+	}
+	.settings-sub-category {
+		height: 100%;
+		overflow-y: auto;
+	}
+	.form {
+		overflow-y: initial;
+	}
+}
+
 /* Tablet/Dektop. */
 @media only screen and (min-width: 768px) {
 	.settings-navbar {
 		width: auto;
 		padding-top: 2rem;
 	}
-
-	#settings-navbar-nav {
-		width: auto;
+	.settings-navbar-closed {
+		transform: none;
 	}
 
 	.settings-category {
 		width: auto;
-		min-width: 5rem;
-		transition: width 0ms;
+		min-width: 6rem;
+		max-width: 9rem;
 	}
 
 	.settings-category-wrapper {
-		transition: width 0ms;
+		position: relative;
+		display: none;
+		height: auto;
+		transform: none;
+		transition: transform 0ms;
+	}
+	.settings-category-selected {
+		display: flex;
 	}
 
 	.settings-sub-category {
-		width: 1000%;
+		position: relative;
+		max-width: 9rem;
 		visibility: hidden;
+		transition: transform 0ms;
 	}
 
 	.settings-subcategory-open {
