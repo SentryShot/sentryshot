@@ -583,7 +583,7 @@ func TestStartRecorder(t *testing.T) {
 		defer cancel2()
 
 		go m.startRecorder(ctx)
-		m.Trigger <- Event{RecDuration: 1}
+		m.Trigger <- storage.Event{RecDuration: 1}
 		actual := <-feed
 
 		expected := `invalid event: {
@@ -592,7 +592,7 @@ func TestStartRecorder(t *testing.T) {
  Duration: 0s
  RecDuration: 1ns
 }
-'Time': ` + ErrValueMissing.Error()
+'Time': ` + storage.ErrValueMissing.Error()
 
 		if actual.Msg != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
@@ -609,7 +609,7 @@ func TestStartRecorder(t *testing.T) {
 		defer cancel2()
 
 		go m.startRecorder(ctx)
-		m.Trigger <- Event{Time: (time.Unix(1, 0).UTC())}
+		m.Trigger <- storage.Event{Time: (time.Unix(1, 0).UTC())}
 		actual := <-feed
 
 		expected := `invalid event: {
@@ -618,7 +618,7 @@ func TestStartRecorder(t *testing.T) {
  Duration: 0s
  RecDuration: 0s
 }
-'RecDuration': ` + ErrValueMissing.Error()
+'RecDuration': ` + storage.ErrValueMissing.Error()
 
 		if actual.Msg != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
@@ -635,7 +635,7 @@ func TestStartRecorder(t *testing.T) {
 		defer cancel2()
 
 		go m.startRecorder(ctx)
-		m.Trigger <- Event{
+		m.Trigger <- storage.Event{
 			Time:        time.Now().Add(time.Duration(-1) * time.Hour),
 			RecDuration: 1,
 		}
@@ -667,8 +667,8 @@ func TestStartRecorder(t *testing.T) {
 		go m.startRecorder(ctx)
 
 		now := time.Now()
-		m.Trigger <- Event{Time: now, RecDuration: 10 * time.Millisecond}
-		m.Trigger <- Event{Time: now, RecDuration: 50 * time.Millisecond}
+		m.Trigger <- storage.Event{Time: now, RecDuration: 10 * time.Millisecond}
+		m.Trigger <- storage.Event{Time: now, RecDuration: 50 * time.Millisecond}
 
 		mu.Lock()
 		mu.Unlock()
@@ -691,9 +691,9 @@ func TestStartRecorder(t *testing.T) {
 		go m.startRecorder(ctx)
 
 		now := time.Now()
-		m.Trigger <- Event{Time: now, RecDuration: 10 * time.Millisecond}
-		m.Trigger <- Event{Time: now, RecDuration: 11 * time.Millisecond}
-		m.Trigger <- Event{Time: now, RecDuration: 0 * time.Millisecond}
+		m.Trigger <- storage.Event{Time: now, RecDuration: 10 * time.Millisecond}
+		m.Trigger <- storage.Event{Time: now, RecDuration: 11 * time.Millisecond}
+		m.Trigger <- storage.Event{Time: now, RecDuration: 0 * time.Millisecond}
 
 		mu.Lock()
 		mu.Unlock()
@@ -940,17 +940,17 @@ func TestSaveRecording(t *testing.T) {
 		m, _, cancel := newTestMonitor(t)
 		defer cancel()
 
-		m.events = events{
-			Event{
+		m.events = storage.Events{
+			storage.Event{
 				Time: time.Time{},
 			},
-			Event{
+			storage.Event{
 				Time: time.Time{}.Add(2 * time.Minute),
-				Detections: []Detection{
+				Detections: []storage.Detection{
 					{
 						Label: "10",
 						Score: 9,
-						Region: &Region{
+						Region: &storage.Region{
 							Rect: &ffmpeg.Rect{1, 2, 3, 4},
 							Polygon: &ffmpeg.Polygon{
 								ffmpeg.Point{5, 6},
@@ -961,7 +961,7 @@ func TestSaveRecording(t *testing.T) {
 				},
 				Duration: 11,
 			},
-			Event{
+			storage.Event{
 				Time: time.Time{}.Add(11 * time.Minute),
 			},
 		}

@@ -334,8 +334,8 @@ func (a addon) sendTrigger(id int, score float64) {
 		Monitor(a.m.Config.ID()).
 		Msgf("trigger id:%v score:%.2f time:%v\n", id, score, timestamp)
 
-	a.m.Trigger <- monitor.Event{
-		Detections: []monitor.Detection{
+	a.m.Trigger <- storage.Event{
+		Detections: []storage.Detection{
 			{
 				Score: score,
 			},

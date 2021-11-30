@@ -678,7 +678,7 @@ func (a *addon) parseDetections(t time.Time, detections []*odrpc.Detection) {
 		return
 	}
 
-	filtered := []monitor.Detection{}
+	filtered := []storage.Detection{}
 
 	for _, detection := range detections {
 		score := float64(detection.GetConfidence())
@@ -698,10 +698,10 @@ func (a *addon) parseDetections(t time.Time, detections []*odrpc.Detection) {
 					a.outputs.paddingYmultiplier * 100)
 			}
 
-			d := monitor.Detection{
+			d := storage.Detection{
 				Label: label,
 				Score: score,
-				Region: &monitor.Region{
+				Region: &storage.Region{
 					Rect: &ffmpeg.Rect{
 						convY(detection.GetTop()),
 						convX(detection.GetLeft()),
@@ -721,7 +721,7 @@ func (a *addon) parseDetections(t time.Time, detections []*odrpc.Detection) {
 			Msgf("trigger: label:%v score:%.1f",
 				filtered[0].Label, filtered[0].Score)
 
-		a.trigger <- monitor.Event{
+		a.trigger <- storage.Event{
 			Time:        t,
 			Detections:  filtered,
 			Duration:    a.c.duration,

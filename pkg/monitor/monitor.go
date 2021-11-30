@@ -299,70 +299,8 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 	return monitor
 }
 
-// Region where detection occurred.
-type Region struct {
-	Rect    *ffmpeg.Rect    `json:"rect,omitempty"`
-	Polygon *ffmpeg.Polygon `json:"polygon,omitempty"`
-}
-
-func (r *Region) String() string {
-	return fmt.Sprintf("%v, %v", r.Rect, r.Polygon)
-}
-
-// Detection .
-type Detection struct {
-	Label  string  `json:"label,omitempty"`
-	Score  float64 `json:"score,omitempty"`
-	Region *Region `json:"region,omitempty"`
-}
-
-// Event is a recording trigger event.
-type Event struct {
-	Time        time.Time     `json:"time,omitempty"`
-	Detections  []Detection   `json:"detections,omitempty"`
-	Duration    time.Duration `json:"duration,omitempty"`
-	RecDuration time.Duration `json:"-"`
-}
-
-func (e Event) String() string {
-	return fmt.Sprintf("\n Time: %v\n Detections: %v\n Duration: %v\n RecDuration: %v",
-		e.Time, e.Detections, e.Duration, e.RecDuration)
-}
-
-// ErrValueMissing value missing.
-var ErrValueMissing = errors.New("value missing")
-
-func (e Event) validate() error {
-	if e.Time == (time.Time{}) {
-		return fmt.Errorf("{%v\n}\n'Time': %w", e, ErrValueMissing)
-	}
-	if e.RecDuration == 0 {
-		return fmt.Errorf("{%v\n}\n'RecDuration': %w", e, ErrValueMissing)
-	}
-	return nil
-}
-
-type events []Event
-
-func (e events) query(start time.Time, end time.Time) events {
-	newEvents := events{}
-	returnEvents := events{}
-	for _, event := range e {
-		if event.Time.Before(start) { // Discard events before start time.
-			continue
-		}
-		newEvents = append(newEvents, event) //nolint:staticcheck
-
-		if event.Time.Before(end) {
-			returnEvents = append(returnEvents, event)
-		}
-	}
-	e = newEvents //nolint:ineffassign,staticcheck
-	return returnEvents
-}
-
 // Trigger recording using event.
-type Trigger chan Event
+type Trigger chan storage.Event
 
 // monitors map.
 type monitors map[string]*Monitor
@@ -373,7 +311,7 @@ type Monitor struct {
 	Config Config
 
 	Trigger  Trigger
-	events   events
+	events   storage.Events
 	eventsMu *sync.Mutex
 
 	running   bool
@@ -430,7 +368,7 @@ func (m *Monitor) Start() error {
 			select {
 			case <-ctx.Done():
 			case <-time.After(15 * time.Second):
-				m.Trigger <- Event{
+				m.Trigger <- storage.Event{
 					Time:        time.Now(),
 					RecDuration: infinte,
 				}
@@ -627,7 +565,7 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			m.WG.Done()
 			return
 		case event := <-m.Trigger: // Wait for trigger.
-			if err := event.validate(); err != nil {
+			if err := event.Validate(); err != nil {
 				m.Log.Error().
 					Src("recorder").
 					Monitor(m.Config.ID()).
@@ -782,13 +720,6 @@ func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 	return args, nil
 }
 
-// RecData recording data marshaled to json and saved next to video and thumbnail.
-type RecData struct {
-	Start  time.Time `json:"start"`
-	End    time.Time `json:"end"`
-	Events []Event   `json:"events"`
-}
-
 func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 	videoPath := filePath + ".mp4"
 	thumbPath := filePath + ".jpeg"
@@ -834,10 +765,10 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 	endTime := startTime.Add(duration)
 
 	m.eventsMu.Lock()
-	e := m.events.query(startTime, endTime)
+	e := queryEvents(m.events, startTime, endTime)
 	m.eventsMu.Unlock()
 
-	data := RecData{
+	data := storage.RecordingData{
 		Start:  startTime,
 		End:    endTime,
 		Events: e,
@@ -848,6 +779,23 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 		return fmt.Errorf("could not write event file: %w", err)
 	}
 	return nil
+}
+
+func queryEvents(e storage.Events, start time.Time, end time.Time) storage.Events {
+	newEvents := storage.Events{}
+	returnEvents := storage.Events{}
+	for _, event := range e {
+		if event.Time.Before(start) { // Discard events before start time.
+			continue
+		}
+		newEvents = append(newEvents, event) //nolint:staticcheck
+
+		if event.Time.Before(end) {
+			returnEvents = append(returnEvents, event)
+		}
+	}
+	e = newEvents //nolint:ineffassign,staticcheck
+	return returnEvents
 }
 
 // Stop monitor.

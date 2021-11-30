@@ -171,14 +171,6 @@ func (c *Crawler) findVideo(q *CrawlerQuery) (*dir, error) {
 	return current.sibling()
 }
 
-// Recording contains identifier and path.
-// `.mp4`, `.jpeg` or `.json` can be appended to the
-// path to get the video, thumbnail or data file.
-type Recording struct {
-	ID   string `json:"id"`
-	Path string `json:"path"`
-}
-
 func newVideo(path string) Recording {
 	return Recording{
 		ID:   filepath.Base(path),
