@@ -122,25 +122,44 @@ Delete a monitor by id.
 
 ## Recording
 
-### GET /api/recording/query?limit=2&before=2025-12-28_23-59-59&reverse=true
+### GET /api/recording/query?limit=1&before=2025-12-28_23-59-59&reverse=true&monitors=m1,m2&data=true
 
 ##### Auth: user
 
 Query recordings.
 
-example response:
+example response: data=false
 
 ```
 [
   {
     "id":"YYYY-MM-DD_hh-mm-ss_id",
-    "path":"storage/recordings/YYYY/MM/DD/id/YYYY-MM-DD_hh-mm-ss_id"
-  },
-  {
-    "id":"YYYY-MM-DD_hh-mm-ss_id",
-    "path":"storage/recordings/YYYY/MM/DD/id/YYYY-MM-DD_hh-mm-ss_id"
+    "path":"storage/recordings/YYYY/MM/DD/id/YYYY-MM-DD_hh-mm-ss_id",
+    "data": null
   }
 ]
+```
+
+example response: data=true
+
+```
+[{
+  "id":"YYYY-MM-DD_hh-mm-ss_id",
+  "path":"storage/recordings/YYYY/MM/DD/id/YYYY-MM-DD_hh-mm-ss_id",
+  "data": {
+    "start": "YYYY-MM-DDThh:mm:ss.000000000Z",
+    "end": "YYYY-MM-DDThh:mm:ss.000000000Z",
+    "events": [{
+        "time": "YYYY-MM-DDThh:mm:ss.000000000Z",
+        "detections": [{
+            "label": "person",
+            "score": 100,
+            "region": {
+              "rect": [0, 0, 100, 100]
+            }
+        }],
+        "duration": 000000000
+}]}}}
 ```
 
 <br>

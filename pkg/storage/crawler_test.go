@@ -15,6 +15,9 @@
 package storage
 
 import (
+	"encoding/json"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -60,7 +63,8 @@ import (
     └── 01
         └── 01
             └── m1
-                └── 2099-01-01_1_m1.jpeg
+                ├── 2099-01-01_1_m1.jpeg
+                └── 2099-01-01_1_m1.json
 
 
 */
@@ -218,6 +222,52 @@ func TestRecordingByQuery(t *testing.T) {
 					t.Fatalf("%v, expected:\n%v.\ngot:\n%v.", path, expected, actual)
 				}
 			})
+		}
+	})
+	t.Run("data", func(t *testing.T) {
+		c := NewCrawler("./testdata/recordings")
+		rec, err := c.RecordingByQuery(
+			&CrawlerQuery{
+				Time:  "9999-01-01",
+				Limit: 1,
+				Data:  true,
+			},
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		dataFile, err := os.ReadFile("./testdata/recordings/2099/01/01/m1/2099-01-01_1_m1.json")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		var expected RecordingData
+		if err := json.Unmarshal(dataFile, &expected); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		actual := *rec[0].Data
+
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("expected:\n%v.\ngot:\n%v.", expected, actual)
+		}
+	})
+	t.Run("missingData", func(t *testing.T) {
+		c := NewCrawler("./testdata/recordings")
+		rec, err := c.RecordingByQuery(
+			&CrawlerQuery{
+				Time:  "2002-01-01",
+				Limit: 1,
+				Data:  true,
+			},
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		actual := rec[0].Data
+		if actual != nil {
+			t.Fatalf("expected: nil, got: %v", actual)
 		}
 	})
 }

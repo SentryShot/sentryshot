@@ -77,36 +77,21 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 			limit: limit,
 			before: current,
 			monitors: selectedMonitors.join(","),
+			data: true,
 		});
 		const recordings = await fetchGet(
 			"api/recording/query?" + parameters,
 			"could not get recording"
 		);
 
-		if (recordings == undefined || recordings.length < limit) {
+		if (recordings == undefined) {
 			lastVideo = true;
 			console.log("last recording");
-			if (recordings == undefined) {
-				return;
-			}
+			return;
 		}
-
-		const fetchData = async (rec) => {
-			const response = await fetch(rec.path + ".json", { method: "get" });
-			if (response.status !== 200) {
-				return;
-			}
-			rec.data = await response.json();
-		};
-
-		let batch = [];
-		for (const rec of Object.values(recordings)) {
-			batch.push(fetchData(rec));
-		}
-		await Promise.all(batch);
-
 		current = await renderRecordings(recordings);
 	};
+
 	const lazyLoadRecordings = async () => {
 		while (
 			!loading &&

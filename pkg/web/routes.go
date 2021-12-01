@@ -484,11 +484,17 @@ func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //
 			monitors = strings.Split(monitorsCSV, ",")
 		}
 
+		var data bool
+		if query.Get("data") == "true" {
+			data = true
+		}
+
 		q := &storage.CrawlerQuery{
 			Time:     before,
 			Limit:    limitInt,
 			Reverse:  reverse == "true",
 			Monitors: monitors,
+			Data:     data,
 		}
 
 		recordings, err := crawler.RecordingByQuery(q)

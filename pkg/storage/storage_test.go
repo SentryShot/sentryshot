@@ -37,7 +37,7 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestDiskUsage(t *testing.T) {
-	var expected int64 = 2
+	var expected int64 = 302
 
 	actual := diskUsage("testdata")
 	if actual != expected {

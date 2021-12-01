@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -45,6 +46,7 @@ type CrawlerQuery struct {
 	Limit    int
 	Reverse  bool
 	Monitors []string
+	Data     bool // If data should be read from file and included.
 	cache    queryCache
 }
 
@@ -99,7 +101,7 @@ func (c *Crawler) RecordingByQuery(q *CrawlerQuery) ([]Recording, error) {
 			return recordings, nil
 		}
 
-		recordings = append(recordings, newVideo(c.cleanPath(file.path)))
+		recordings = append(recordings, c.newRecording(file.path, q.Data))
 	}
 	return recordings, nil
 }
@@ -171,11 +173,29 @@ func (c *Crawler) findVideo(q *CrawlerQuery) (*dir, error) {
 	return current.sibling()
 }
 
-func newVideo(path string) Recording {
+func (c *Crawler) newRecording(rawPath string, data bool) Recording {
+	path := c.cleanPath(rawPath)
+	var d *RecordingData
+	if data {
+		d = readDataFile(rawPath + ".json")
+	}
 	return Recording{
 		ID:   filepath.Base(path),
 		Path: path,
+		Data: d,
 	}
+}
+
+func readDataFile(path string) *RecordingData {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var data RecordingData
+	if err := json.Unmarshal(file, &data); err != nil {
+		return nil
+	}
+	return &data
 }
 
 type dir struct {
