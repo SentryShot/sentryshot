@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { $, fetchGet, uniqueID, newMonitorNameByID } from "./libs/common.mjs";
-import { fromUTC } from "./libs/time.mjs";
+import { fromUTC2 } from "./libs/time.mjs";
 import { newForm, fieldTemplate } from "./components/form.mjs";
 
 // Log level constants.
@@ -145,19 +145,10 @@ function newLogger(formatLog) {
 
 function newFormater(monitorNameByID, timeZone) {
 	const unixToDateStr = (unixMillisecond) => {
-		const pad = (n) => {
-			return n < 10 ? "0" + n : n;
-		};
-
-		const d = fromUTC(new Date(unixMillisecond / 1000), timeZone);
-
-		const YY = d.getFullYear(),
-			MM = pad(d.getMonth() + 1),
-			DD = pad(d.getDate()), // Day.
-			hh = pad(d.getHours()),
-			mm = pad(d.getMinutes()),
-			ss = pad(d.getSeconds());
-
+		const { YY, MM, DD, hh, mm, ss } = fromUTC2(
+			new Date(unixMillisecond / 1000),
+			timeZone
+		);
 		return `${YY}-${MM}-${DD}_${hh}:${mm}:${ss}`;
 	};
 

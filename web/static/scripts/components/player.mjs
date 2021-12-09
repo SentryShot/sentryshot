@@ -30,12 +30,12 @@ function newPlayer(data) {
 	const start = fromUTC(new Date(d.start), d.timeZone);
 
 	const parseDate = (d) => {
-		const YY = d.getFullYear(),
-			MM = pad(d.getMonth() + 1),
-			DD = pad(d.getDate()), // Day.
-			hh = pad(d.getHours()),
-			mm = pad(d.getMinutes()),
-			ss = pad(d.getSeconds());
+		const YY = d.getUTCFullYear(),
+			MM = pad(d.getUTCMonth() + 1),
+			DD = pad(d.getUTCDate()), // Day.
+			hh = pad(d.getUTCHours()),
+			mm = pad(d.getUTCMinutes()),
+			ss = pad(d.getUTCSeconds());
 
 		return [`${YY}-${MM}-${DD}`, `${hh}:${mm}:${ss}`];
 	};

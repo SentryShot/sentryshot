@@ -18,7 +18,7 @@ import { newPlayer, newDetectionRenderer } from "./player.mjs";
 const millisecond = 1000000;
 const events = [
 	{
-		time: "2001-06-02T00:01:00+00:00",
+		time: "2001-06-02T00:01:00.000000Z",
 		duration: 60000 * millisecond,
 		detections: [
 			{
@@ -31,7 +31,7 @@ const events = [
 		],
 	},
 	{
-		time: "2001-06-02T00:09:30+00:00",
+		time: "2001-06-02T00:09:30.000000Z",
 		duration: 60000 * millisecond,
 	},
 ];
@@ -41,7 +41,7 @@ describe("newPlayer", () => {
 		id: "A",
 		path: "B",
 		name: "C",
-		start: Date.parse("2001-06-02T00:00:01+00:00"),
+		start: Date.parse("2001-06-02T00:00:01.000000Z"),
 		timeZone: "gmt",
 	};
 
@@ -49,8 +49,8 @@ describe("newPlayer", () => {
 		id: "A",
 		path: "B",
 		name: "C",
-		start: Date.parse("2001-06-02T00:00:00+00:00"),
-		end: Date.parse("2001-06-02T00:10:00+00:00"),
+		start: Date.parse("2001-06-02T00:00:00.000000Z"),
+		end: Date.parse("2001-06-02T00:10:00.000000Z"),
 		timeZone: "gmt",
 		events: events,
 	};
@@ -168,7 +168,7 @@ describe("newPlayer", () => {
 
 describe("detectionRenderer", () => {
 	const newTestRenderer = () => {
-		const start = Date.parse("2001-06-02T00:00:01+00:00");
+		const start = Date.parse("2001-06-02T00:00:01.000000Z");
 		const d = newDetectionRenderer(start, events);
 
 		document.body.innerHTML = "<div></div>";

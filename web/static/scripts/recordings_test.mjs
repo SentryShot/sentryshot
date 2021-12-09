@@ -13,7 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { $, newMonitorNameByID } from "./libs/common.mjs";
-import { fromUTC } from "./libs/time.mjs";
 import { newViewer } from "./recordings.mjs";
 
 describe("newViewer", () => {
@@ -103,7 +102,7 @@ describe("newViewer", () => {
 			}
 		};
 
-		await viewer.setDate(fromUTC(new Date("2000-01-02T03:04:05+00:00"), "utc"));
+		await viewer.setDate(new Date("2000-01-02T03:04:05.000000"));
 
 		expect(ok).toEqual(true);
 	});
