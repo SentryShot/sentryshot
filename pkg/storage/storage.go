@@ -280,17 +280,15 @@ func (env *ConfigEnv) SHMhls() string {
 	return filepath.Join(env.SHMDir, "hls")
 }
 
+// RecordingsDir return recordings directory.
+func (env *ConfigEnv) RecordingsDir() string {
+	return filepath.Join(env.StorageDir, "recordings")
+}
+
 // PrepareEnvironment prepares directories.
 func (env *ConfigEnv) PrepareEnvironment() error {
-	monitorsDir := filepath.Join(env.ConfigDir, "monitors")
-	if err := os.MkdirAll(monitorsDir, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("could not create monitor directory: %v: %w", monitorsDir, err)
-	}
-
-	// Reset tempoary directories.
-	os.RemoveAll(env.SHMhls())
-	if err := os.MkdirAll(env.SHMhls(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("could not create hls directory: %v: %w", env.SHMhls(), err)
+	if err := os.MkdirAll(env.RecordingsDir(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("could not create recordings directory: %v: %w", env.StorageDir, err)
 	}
 	return nil
 }

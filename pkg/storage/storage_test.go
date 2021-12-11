@@ -544,61 +544,30 @@ func TestNewConfigEnv(t *testing.T) {
 func TestPrepareEnvironment(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
-		defer os.RemoveAll(tempDir)
 		if err != nil {
 			t.Fatalf("could not create tempoary directory: %v", err)
 		}
-		configDir := filepath.Join(tempDir, "configs")
+		defer os.RemoveAll(tempDir)
 
+		storageDir := filepath.Join(tempDir, "configs")
 		env := &ConfigEnv{
-			SHMDir:    tempDir,
-			ConfigDir: configDir,
-		}
-
-		testDir := filepath.Join(env.SHMhls(), "test")
-		if err := os.MkdirAll(testDir, 0o744); err != nil {
-			t.Fatalf("could not create temp directory: %v", err)
+			StorageDir: storageDir,
 		}
 
 		if err := env.PrepareEnvironment(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if dirExist(testDir) {
-			t.Fatal("testDir wasn't reset")
-		}
-
-		if !dirExist(filepath.Join(configDir, "monitors")) {
-			t.Fatal("configs/monitors wasn't created")
+		if !dirExist(env.RecordingsDir()) {
+			t.Fatal("recordingsDir wasn't created")
 		}
 	})
-	t.Run("monitorsMkdirErr", func(t *testing.T) {
+	t.Run("storageMkdirErr", func(t *testing.T) {
 		env := ConfigEnv{
-			ConfigDir: "/dev/null",
+			StorageDir: "/dev/null",
 		}
 
 		if err := env.PrepareEnvironment(); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
-	})
-	t.Run("hlsMkdirErr", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "")
-		defer os.RemoveAll(tempDir)
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
-
-		configDir := filepath.Join(tempDir, "configs")
-		if err := os.MkdirAll(configDir, 0o700); err != nil {
-			t.Fatal(err)
-		}
-
-		env := ConfigEnv{
-			SHMDir:    "/dev/null",
-			ConfigDir: configDir,
-		}
-
-		if err = env.PrepareEnvironment(); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})

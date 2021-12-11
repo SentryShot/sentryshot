@@ -119,7 +119,7 @@ func TestNewManager(t *testing.T) {
 		configDir, manager, cancel := newTestManager(t)
 		defer cancel()
 
-		config, err := readConfig(configDir + "/1.json")
+		config, err := readConfig(filepath.Join(configDir, "1.json"))
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -129,6 +129,27 @@ func TestNewManager(t *testing.T) {
 
 		if expected != actual {
 			t.Fatalf("expected: %v, got %v", expected, actual)
+		}
+	})
+	t.Run("resetHLS", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "")
+		if err != nil {
+			t.Fatalf("could not create tempoary directory: %v", err)
+		}
+
+		env := storage.ConfigEnv{SHMDir: tempDir}
+
+		testDir := filepath.Join(env.SHMhls(), "test")
+		if err := os.MkdirAll(testDir, 0o744); err != nil {
+			t.Fatalf("could not create temporary directory: %v", err)
+		}
+
+		if _, err := NewManager(tempDir, &env, nil, nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if dirExist(testDir) {
+			t.Fatal("testDir wasn't reset")
 		}
 	})
 	t.Run("mkDirErr", func(t *testing.T) {
@@ -1019,4 +1040,14 @@ func TestSaveRecording(t *testing.T) {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
+}
+
+func dirExist(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+		return false
+	}
+	return true
 }

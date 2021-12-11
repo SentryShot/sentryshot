@@ -123,6 +123,12 @@ func NewManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hook
 		return nil, fmt.Errorf("could not create monitors directory: %w", err)
 	}
 
+	// Reset HLS directory.
+	os.RemoveAll(env.SHMhls())
+	if err := os.MkdirAll(env.SHMhls(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		return nil, fmt.Errorf("could not create hls directory: %v: %w", env.SHMhls(), err)
+	}
+
 	configFiles, err := readConfigs(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read configuration files: %w", err)
@@ -657,7 +663,7 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 
 	id := m.Config.ID()
 
-	fileDir := filepath.Join(m.Env.StorageDir, "recordings", startTime.Format("2006/01/02/")+id)
+	fileDir := filepath.Join(m.Env.RecordingsDir(), startTime.Format("2006/01/02/")+id)
 	filePath := filepath.Join(fileDir, startTime.Format("2006-01-02_15-04-05_")+id)
 
 	if err := os.MkdirAll(fileDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
