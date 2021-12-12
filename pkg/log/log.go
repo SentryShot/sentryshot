@@ -144,7 +144,7 @@ type (
 	logFeed chan Log
 )
 
-var defaultSources = []string{"app", "monitor", "recorder", "storage"}
+var defaultSources = []string{"app", "auth", "monitor", "recorder", "storage"}
 
 // NewLogger starts and returns Logger.
 func NewLogger(wg *sync.WaitGroup, addonSources []string) *Logger {

@@ -67,7 +67,7 @@ describe("MultiSelect", () => {
 		const expected = `
 			<li id="uid4" class="form-field">
 				<label class="form-field-label">test</label>
-				<div>
+				<div class="source-fields">
 					<div class="log-selector-item item-uid1">
 						<div class="checkbox">
 							<input class="checkbox-checkbox" type="checkbox">
@@ -145,7 +145,7 @@ describe("logSelector", () => {
 
 		document.body.innerHTML = `
 			<div>
-				<div class="log-sidebar"></div>
+				<div class="js-sidebar"></div>
 				<div class="js-back"></div>
 			</div>`;
 		const element = $("div");
@@ -154,13 +154,13 @@ describe("logSelector", () => {
 
 		const actual = element.innerHTML.replace(/\s/g, "");
 		const expected = `
-			<div class="log-sidebar">
+			<div class="js-sidebar">
 				<ul class="form">
 					levelHTML
 					sourcesHTML
 					<div class="form-button-wrapper"></div>
 				</ul>
-				<div id="log-buttons">
+				<div>
 					<button class="form-button log-reset-btn js-reset">
 						<span>Reset</span>
 					</button>
@@ -219,7 +219,8 @@ describe("logSelector", () => {
 			logSelector = newLogSelector(logger, fields);
 			document.body.innerHTML = `
 				<div>
-					<div class="log-sidebar"></div>
+					<div class="js-sidebar"></div>
+					<div class="js-list"></div>
 					<div class="js-back"></div>
 				</div>`;
 			element = $("div");
@@ -247,17 +248,18 @@ describe("logSelector", () => {
 			sourcesValue = "b";
 			loggerReset = false;
 
-			const $sidebar = element.querySelector(".log-sidebar");
-			expect($sidebar.classList.contains("log-sidebar-close")).toEqual(false);
+			const $list = element.querySelector(".js-list");
+			console.log($list);
+			expect($list.classList.contains("log-list-open")).toEqual(false);
 
 			element.querySelector(".js-apply").click();
-			expect($sidebar.classList.contains("log-sidebar-close")).toEqual(true);
+			expect($list.classList.contains("log-list-open")).toEqual(true);
 			expect(loggerLevel).toEqual("a");
 			expect(loggerSources).toEqual("b");
 			expect(loggerReset).toEqual(true);
 
 			element.querySelector(".js-back").click();
-			expect($sidebar.classList.contains("log-sidebar-close")).toEqual(false);
+			expect($list.classList.contains("log-list-open")).toEqual(false);
 		});
 	});
 });

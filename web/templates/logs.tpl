@@ -23,8 +23,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 <body>
 	{{ template "sidebar" . }}
 	<div id="content">
-		<div class="log-sidebar"></div>
-		<div id="log-list-wrapper">
+		<div class="log-sidebar js-sidebar"></div>
+		<div class="log-list-wrapper js-list">
 			<div id="log-menubar">
 				<nav id="log-back-btn" class="js-back">
 					<img src="static/icons/feather/arrow-left.svg" />
@@ -37,16 +37,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 <style>
 	#content {
 		display: flex;
+		overflow-x: hidden;
+		background: var(--color2);
 	}
 	.log-sidebar {
 		flex-shrink: 0;
 		width: 100%;
 		height: 100%;
-		background: var(--color2);
-		transition: width 400ms;
+		overflow-y: auto;
 	}
-	.log-sidebar-close {
-		width: 0;
+	.source-fields {
+		position: relative;
 	}
 	.log-selector-item {
 		display: flex;
@@ -75,7 +76,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 		background: var(--color-green-hover);
 	}
 	#log-menubar {
-		width: 100vw;
 		height: var(--barsize);
 		background: var(--color2);
 	}
@@ -88,19 +88,22 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 		padding: var(--icon-padding);
 		filter: var(--color-icons);
 	}
-	#log-buttons {
-		width: 100vw;
-	}
-	#log-list-wrapper {
+	.log-list-wrapper {
+		position: absolute;
 		z-index: 1;
 		display: flex;
 		flex-direction: column;
 		width: 100%;
+		height: var(--size-minus-topbar);
 		overflow-x: hidden;
 		background: var(--color3);
+		transform: translateX(100%);
+		transition: transform 400ms;
+	}
+	.log-list-open {
+		transform: none;
 	}
 	#log-list {
-		width: 100vw;
 		overflow-y: auto;
 		color: var(--color-text);
 		font-size: 0.5rem;
@@ -108,29 +111,35 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 		background: var(--color3);
 	}
 	#log-list > span {
-		border-width: 0.04rem;
 		border-color: var(--color4);
 		border-top: solid;
+		border-top-width: 0.04rem;
 	}
 	#log-list > span:first-of-type {
 		border-top: none;
 	}
 
+	/* Mobile Landscape mode. */
+	@media (min-aspect-ratio: 3/2) {
+		.log-list-wrapper {
+			width: var(--size-minus-topbar);
+			height: 100%;
+		}
+	}
+
+	/* Tablet/Dektop. */
 	@media only screen and (min-width: 768px) {
-		.log-sidebar-close {
-			width: 6rem;
+		.log-list-wrapper {
+			position: static;
+			width: 100%;
+			height: 100%;
+			transform: none;
 		}
 		.log-sidebar {
 			width: 6rem;
 		}
-		#log-buttons {
-			width: auto;
-		}
 		#log-menubar {
 			display: none;
-		}
-		#log-list {
-			width: auto;
 		}
 	}
 </style>

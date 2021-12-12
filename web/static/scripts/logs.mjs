@@ -236,7 +236,7 @@ function newMultiSelect(label, values, initial) {
 		html: `
 			<li id="${id}" class="form-field">
 				<label class="form-field-label">${label}</label>
-				<div>${htmlFields}</div>
+				<div class="source-fields">${htmlFields}</div>
 			</li>`,
 		init($parent) {
 			const element = $parent.querySelector("#" + id);
@@ -276,7 +276,7 @@ function newLogSelector(logger, formFields) {
 
 	const html = `
 				${form.html()}
-		<div id="log-buttons">
+		<div>
 			<button class="form-button log-reset-btn js-reset">
 				<span>Reset</span>
 			</button>
@@ -287,7 +287,9 @@ function newLogSelector(logger, formFields) {
 
 	return {
 		init($parent) {
-			$sidebar = $parent.querySelector(".log-sidebar");
+			$sidebar = $parent.querySelector(".js-sidebar");
+			const $list = $parent.querySelector(".js-list");
+
 			$sidebar.innerHTML = html;
 			form.init($sidebar);
 			form.reset();
@@ -298,11 +300,11 @@ function newLogSelector(logger, formFields) {
 				apply();
 			});
 			$sidebar.querySelector(".js-apply").addEventListener("click", () => {
-				$sidebar.classList.add("log-sidebar-close");
+				$list.classList.add("log-list-open");
 				apply();
 			});
 			$parent.querySelector(".js-back").addEventListener("click", () => {
-				$sidebar.classList.remove("log-sidebar-close");
+				$list.classList.remove("log-list-open");
 			});
 		},
 	};
