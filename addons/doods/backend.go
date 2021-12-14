@@ -424,7 +424,7 @@ func (a *addon) generateFFmpegArgs(c monitor.Config, maskPath string, grayMode b
 
 	var args []string
 
-	args = append(args, "-y", "-loglevel", c.LogLevel())
+	args = append(args, "-y", "-threads", "1", "-loglevel", c.LogLevel())
 
 	if c.Hwacell() != "" {
 		args = append(args, ffmpeg.ParseArgs("-hwaccel "+c.Hwacell())...)

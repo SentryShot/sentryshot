@@ -421,7 +421,7 @@ func TestGenerateArgs(t *testing.T) {
 		args := a.generateFFmpegArgs(config, "", false)
 
 		actual := fmt.Sprintf("%v", args)
-		expected := "[-y -loglevel 1 -i 2/doods/3/main.fifo -filter fps=fps=4," +
+		expected := "[-y -threads 1 -loglevel 1 -i 2/doods/3/main.fifo -filter fps=fps=4," +
 			"scale=5:6,pad=8:9:0:0,crop=11:12:13:14 -f rawvideo -pix_fmt rgb24 -]"
 
 		if actual != expected {
@@ -454,7 +454,7 @@ func TestGenerateArgs(t *testing.T) {
 		args := a.generateFFmpegArgs(config, "5", true)
 
 		actual := fmt.Sprintf("%v", args)
-		expected := "[-y -loglevel 1 -hwaccel 2 -i 3/doods/4/main.fifo -i 5" +
+		expected := "[-y -threads 1 -loglevel 1 -hwaccel 2 -i 3/doods/4/main.fifo -i 5" +
 			" -filter_complex [0:v]fps=fps=6,scale=7:8[bg];" +
 			"[bg][1:v]overlay,pad=10:11:0:0,crop=13:14:15:16,hue=s=0" +
 			" -f rawvideo -pix_fmt rgb24 -]"

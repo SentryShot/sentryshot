@@ -413,14 +413,14 @@ func (m *Monitor) newInputProcess(isSubInput bool) *InputProcess {
 
 func (i *InputProcess) generateArgs() string {
 	// OUTPUT
-	// -loglevel error -hwaccel x -i rtsp:x -c:a aac -c:v libx264
+	// -threads 1 -loglevel error -hwaccel x -i rtsp:x -c:a aac -c:v libx264
 	// -preset veryfast -f hls -hls_flags delete_segments -hls_list_size 2
 	// -hls_allow_cache 0 tmpDir/hls/id/id.m3u8
 
 	c := i.M.Config
 	var args string
 
-	args += "-loglevel " + c.LogLevel()
+	args += "-threads 1 -loglevel " + c.LogLevel()
 	if c.Hwacell() != "" {
 		args += " -hwaccel " + c.Hwacell()
 	}
@@ -717,7 +717,7 @@ func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 	}
 	videoLengthSec := strconv.Itoa((int(videoLength * 60)))
 
-	args := "-y -loglevel " + m.Config.LogLevel() +
+	args := "-y -threads 1 -loglevel " + m.Config.LogLevel() +
 		" -live_start_index -2" + // HLS segment to start from.
 		" -i " + m.mainInput.HlsPath() + // Input.
 		" -t " + videoLengthSec + // Max video length.
@@ -741,7 +741,7 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 		Monitor(m.Config.ID()).
 		Msgf("saving recording: %v", videoPath)
 
-	args := "-n -loglevel " + m.Config.LogLevel() +
+	args := "-n -threads 1 -loglevel " + m.Config.LogLevel() +
 		" -i " + videoPath + // Input.
 		" -frames:v 1 " + thumbPath // Output.
 
