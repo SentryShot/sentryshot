@@ -226,6 +226,7 @@ describe("optionsGroup", () => {
 			b: {
 				id: "b",
 				name: "group2",
+				monitors: {},
 			},
 		};
 
@@ -238,22 +239,22 @@ describe("optionsGroup", () => {
 	test("rendering", () => {
 		setup();
 		const expected = `
-			<span class="group-picker-label">Groups</span>
-			<span class="group-picker-item" data="a">group1</span>
-			<span class="group-picker-item" data="b">group2</span>`.replace(/\s/g, "");
-		const $picker = $(".group-picker");
+			<span class="select-one-label">Groups</span>
+			<span class="select-one-item" data="group1">group1</span>
+			<span class="select-one-item" data="group2">group2</span>`.replace(/\s/g, "");
+		const $picker = $(".select-one");
 
 		let actual = $picker.innerHTML.replace(/\s/g, "");
 		expect(actual).toEqual(expected);
 
-		$(".group-picker-label").click();
+		$(".select-one-label").click();
 		actual = $picker.innerHTML.replace(/\s/g, "");
 		expect(actual).toEqual(expected);
 
-		const $group1 = $(".group-picker-item[data='a']");
-		expect($group1.classList.contains("group-picker-item-selected")).toEqual(false);
+		const $group1 = $(".select-one-item[data='group1']");
+		expect($group1.classList.contains("select-one-item-selected")).toEqual(false);
 		$group1.click();
-		expect($group1.classList.contains("group-picker-item-selected")).toEqual(true);
+		expect($group1.classList.contains("select-one-item-selected")).toEqual(true);
 	});
 	test("content", () => {
 		const [group, element] = setup();
@@ -268,7 +269,7 @@ describe("optionsGroup", () => {
 			},
 		};
 		group.init(element, content);
-		const $group1 = $(".group-picker-item[data='a']");
+		const $group1 = $(".select-one-item[data='group1']");
 		$group1.click();
 
 		expect(setMonitorsCalled).toEqual(true);

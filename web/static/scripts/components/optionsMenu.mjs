@@ -408,53 +408,84 @@ function newDatePicker(timeZone) {
 }
 
 function newGroupPicker(monitors, groups) {
-	let groupsHTML = "";
+	let options = [];
+	let nameToID = {};
 	for (const group of sortByName(groups)) {
-		groupsHTML += `
+		options.push(group.name);
+		nameToID[group.name] = group.id;
+	}
+
+	let content;
+	const onSelect = (selected) => {
+		const selectedGroup = groups[nameToID[selected]];
+		const groupMonitors = JSON.parse(selectedGroup["monitors"]);
+		content.setMonitors(groupMonitors);
+		content.reset();
+	};
+
+	const selectOne = newSelectOne(options, onSelect, "group");
+
+	return {
+		html: selectOne.html,
+		init(popup, c) {
+			content = c;
+			selectOne.init(popup);
+		},
+	};
+}
+
+function newSelectOne(options, onSelect, alias) {
+	options.sort();
+	let optionsHTML = "";
+	for (const option of options) {
+		optionsHTML += `
 			<span 
-				class="group-picker-item"
-				data="${group.id}"
-			>${group.name}</span>`;
+				class="select-one-item"
+				data="${option}"
+			>${option}</span>`;
 	}
 
 	return {
+		value() {
+			const saved = localStorage.getItem(alias);
+			if (saved in options) {
+				return saved;
+			}
+			return options[0];
+		},
 		html: `
-			<div class="group-picker">
-				<span class="group-picker-label">Groups</span>
-				${groupsHTML}
+			<div class="select-one">
+				<span class="select-one-label">Groups</span>
+				${optionsHTML}
 			</div>`,
-		init(popup, content) {
+		init(popup) {
 			const $parent = popup.element();
-			const element = $parent.querySelector(".group-picker");
+			const element = $parent.querySelector(".select-one");
 
-			const saved = localStorage.getItem("group");
-			if (groups[saved] != undefined) {
+			const saved = localStorage.getItem(alias);
+			if (saved in options) {
 				element
-					.querySelector(`.group-picker-item[data="${saved}"]`)
-					.classList.add("group-picker-item-selected");
-				const monitors = JSON.parse(groups[saved]["monitors"]);
-				content.setMonitors(monitors);
+					.querySelector(`.select-one-item[data="${saved}"]`)
+					.classList.add("select-one-item-selected");
 			}
 
 			element.addEventListener("click", (event) => {
-				if (!event.target.classList.contains("group-picker-item")) {
+				if (!event.target.classList.contains("select-one-item")) {
 					return;
 				}
 
 				// Clear selection.
-				const fields = element.querySelectorAll(".group-picker-item");
+				const fields = element.querySelectorAll(".select-one-item");
 				for (const field of fields) {
-					field.classList.remove("group-picker-item-selected");
+					field.classList.remove("select-one-item-selected");
 				}
 
-				event.target.classList.add("group-picker-item-selected");
+				event.target.classList.add("select-one-item-selected");
 
-				const groupID = event.target.attributes["data"].value;
-				const groupMonitors = JSON.parse(groups[groupID]["monitors"]);
-				content.setMonitors(groupMonitors);
-				content.reset();
+				const selected = event.target.attributes["data"].value;
+				onSelect(selected);
 
-				localStorage.setItem("group", groupID);
+				localStorage.setItem(alias, selected);
 			});
 		},
 	};
@@ -464,4 +495,4 @@ function pad(n) {
 	return n < 10 ? "0" + n : n;
 }
 
-export { newOptionsMenu, newOptionsBtn, newOptionsPopup };
+export { newOptionsMenu, newOptionsBtn, newOptionsPopup, newSelectOne };

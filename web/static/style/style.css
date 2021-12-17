@@ -444,18 +444,18 @@ a:focus {
 	background: var(--color-green-hover);
 }
 
-/* Group picker. */
-.group-picker {
+/* Select one. */
+.select-one {
 	display: flex;
 	flex-direction: column;
 	color: var(--color-text);
 	text-align: center;
 }
-.group-picker-label {
+.select-one-label {
 	padding: 0.1rem;
 	font-size: 0.8rem;
 }
-.group-picker-item {
+.select-one-item {
 	display: block ruby;
 	padding-top: 0.1rem;
 	padding-right: 0.2rem;
@@ -468,11 +468,11 @@ a:focus {
 	border-top-color: var(--color2);
 }
 
-.group-picker-item:hover {
+.select-one-item:hover {
 	background: var(--color3-hover);
 }
 
-.group-picker-item-selected {
+.select-one-item-selected {
 	background: var(--color2);
 }
 
