@@ -719,6 +719,28 @@ func TestStartRecorder(t *testing.T) {
 		mu.Lock()
 		mu.Unlock()
 	})
+	// Only update timeout if new time is after current time.
+	t.Run("updateTimeout", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor(t)
+		defer cancel()
+
+		m.startRecording = mockStartRecording
+
+		feed, cancel2 := m.Log.Subscribe()
+		defer cancel2()
+
+		go m.startRecorder(ctx)
+
+		now := time.Now()
+		m.Trigger <- storage.Event{Time: now, RecDuration: 40 * time.Millisecond}
+		m.Trigger <- storage.Event{Time: now, RecDuration: 1 * time.Millisecond}
+
+		select {
+		case <-time.After(30 * time.Millisecond):
+		case <-feed:
+			t.Fatal("the second trigger reset the timeout")
+		}
+	})
 }
 
 func mockStartRecording(context.Context, *Monitor) {}

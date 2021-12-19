@@ -584,12 +584,13 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			m.eventsMu.Unlock()
 
 			end := event.Time.Add(event.RecDuration)
+			if end.After(timeout) {
+				timeout = end
+			}
+
 			m.Mu.Lock()
 			if m.recording {
-				if end.After(timeout) {
-					triggerTimeout.Reset(time.Until(end))
-					timeout = end
-				}
+				triggerTimeout.Reset(time.Until(timeout))
 				m.Mu.Unlock()
 				continue
 			}
@@ -597,7 +598,7 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			ctx2, cancel := context.WithCancel(ctx)
 
 			// Stops recording when timeout is reached.
-			triggerTimeout = time.AfterFunc(time.Until(end), func() {
+			triggerTimeout = time.AfterFunc(time.Until(timeout), func() {
 				m.Log.Info().
 					Src("recorder").
 					Monitor(m.Config.ID()).
