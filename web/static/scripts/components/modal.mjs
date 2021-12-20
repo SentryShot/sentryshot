@@ -34,6 +34,9 @@ function newModal(label) {
 		onClose(func) {
 			onClose = func;
 		},
+		isOpen() {
+			return $wrapper.classList.contains("modal-open");
+		},
 		init($parent) {
 			$wrapper = $parent.querySelector(".js-modal-wrapper");
 			$wrapper.querySelector(".modal-close-btn").addEventListener("click", () => {

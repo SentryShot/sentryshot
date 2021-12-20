@@ -21,6 +21,11 @@ test("newModal", () => {
 	document.body.innerHTML = modal.html;
 	modal.init(document.body);
 
+	let onCloseCalled = false;
+	modal.onClose(() => {
+		onCloseCalled = true;
+	});
+
 	modal.open();
 	let expected = `
 		<header class="modal-header">
@@ -35,9 +40,10 @@ test("newModal", () => {
 	let actual = $(".modal").innerHTML.replace(/\s/g, "");
 	expect(actual).toEqual(expected);
 
-	const $wrapper = $(".js-modal-wrapper");
-	expect($wrapper.classList.contains("modal-open")).toEqual(true);
+	expect(modal.isOpen()).toEqual(true);
+	expect(onCloseCalled).toEqual(false);
 
 	$(".modal-close-btn").click();
-	expect($wrapper.classList.contains("modal-open")).toEqual(false);
+	expect(modal.isOpen()).toEqual(false);
+	expect(onCloseCalled).toEqual(true);
 });
