@@ -448,7 +448,7 @@ function newSelectOne(options, onSelect, alias) {
 	return {
 		value() {
 			const saved = localStorage.getItem(alias);
-			if (saved in options) {
+			if (options.includes(saved)) {
 				return saved;
 			}
 			return options[0];
@@ -463,7 +463,7 @@ function newSelectOne(options, onSelect, alias) {
 			const element = $parent.querySelector(".select-one");
 
 			const saved = localStorage.getItem(alias);
-			if (saved in options) {
+			if (options.includes(saved)) {
 				element
 					.querySelector(`.select-one-item[data="${saved}"]`)
 					.classList.add("select-one-item-selected");

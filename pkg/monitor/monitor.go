@@ -41,11 +41,15 @@ type StartInputHook func(context.Context, *InputProcess, *[]string)
 // RecSaveHook is called when recording is saved.
 type RecSaveHook func(*Monitor, *string)
 
+// RecSavedHook is called after recording have been saved successfully.
+type RecSavedHook func(*Monitor, string, storage.RecordingData)
+
 // Hooks monitor hooks.
 type Hooks struct {
 	Start      StartHook
 	StartInput StartInputHook
 	RecSave    RecSaveHook
+	RecSaved   RecSavedHook
 }
 
 // Configs Monitor configurations.
@@ -292,7 +296,7 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		hooks:               m.hooks,
 		startRecording:      startRecording,
 		runRecordingProcess: runRecordingProcess,
-		newProcess:          ffmpeg.NewProcess,
+		NewProcess:          ffmpeg.NewProcess,
 		waitForKeyframe:     ffmpeg.WaitForKeyframe,
 		videoDuration:       ffmpeg.New(m.env.FFmpegBin).VideoDuration,
 
@@ -329,7 +333,7 @@ type Monitor struct {
 	hooks               *Hooks
 	startRecording      startRecordingFunc
 	runRecordingProcess runRecordingProcessFunc
-	newProcess          ffmpeg.NewProcessFunc
+	NewProcess          ffmpeg.NewProcessFunc
 	waitForKeyframe     ffmpeg.WaitForKeyframeFunc
 	videoDuration       ffmpeg.VideoDurationFunc
 
@@ -677,7 +681,7 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	}
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 
-	process := m.newProcess(cmd)
+	process := m.NewProcess(cmd)
 	process.SetTimeout(10 * time.Second)
 	process.SetStdoutLogger(m.Log)
 	process.SetStderrLogger(m.Log)
@@ -750,7 +754,7 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 
-	process := m.newProcess(cmd)
+	process := m.NewProcess(cmd)
 	process.SetPrefix(m.Config.Name() + ": thumbnail process: ")
 	process.SetStdoutLogger(m.Log)
 	process.SetStderrLogger(m.Log)
@@ -785,6 +789,8 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 	if err := os.WriteFile(dataPath, json, 0o600); err != nil {
 		return fmt.Errorf("could not write event file: %w", err)
 	}
+
+	m.hooks.RecSaved(m, filePath, data)
 	return nil
 }
 

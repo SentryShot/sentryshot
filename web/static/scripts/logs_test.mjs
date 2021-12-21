@@ -249,7 +249,6 @@ describe("logSelector", () => {
 			loggerReset = false;
 
 			const $list = element.querySelector(".js-list");
-			console.log($list);
 			expect($list.classList.contains("log-list-open")).toEqual(false);
 
 			element.querySelector(".js-apply").click();

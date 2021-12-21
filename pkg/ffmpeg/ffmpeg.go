@@ -377,6 +377,26 @@ func ParseArgs(args string) []string {
 	return strings.Split(strings.TrimSpace(args), " ")
 }
 
+// ParseScaleString converts string to number that's used in the FFmpeg scale filter.
+func ParseScaleString(scale string) string {
+	switch strings.ToLower(scale) {
+	case "full":
+		return "1"
+	case "half":
+		return "2"
+	case "third":
+		return "3"
+	case "quarter":
+		return "4"
+	case "sixth":
+		return "6"
+	case "eighth":
+		return "8"
+	default:
+		return "1"
+	}
+}
+
 // WaitForKeyframeFunc is used for mocking.
 type WaitForKeyframeFunc func(context.Context, string, int) (time.Duration, error)
 

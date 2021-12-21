@@ -206,10 +206,11 @@ function newField(inputRules, options, values) {
 }
 
 function newHTMLfield(options, id, label, placeholder) {
-	let { errorField, input, select, min, step, custom } = options;
+	let { errorField, input, select, min, max, step, custom } = options;
 
 	placeholder ? "" : (placeholder = "");
 	min ? (min = `min="${min}"`) : (min = "");
+	max ? (max = `max="${max}"`) : (max = "");
 	step ? (step = `step="${step}"`) : (step = "");
 
 	let body = "";
@@ -221,6 +222,7 @@ function newHTMLfield(options, id, label, placeholder) {
 				type="${input}"
 				placeholder="${placeholder}"
 				${min}
+				${max}
 				${step}
 			/>`;
 	} else if (select) {

@@ -3,6 +3,7 @@ package thumbscale
 import (
 	"fmt"
 	"nvr"
+	"nvr/pkg/ffmpeg"
 	"nvr/pkg/monitor"
 	"os"
 	"strings"
@@ -40,7 +41,7 @@ func onRecSave(m *monitor.Monitor, args *string) {
 	m.Mu.Lock()
 	defer m.Mu.Unlock()
 
-	scale := parseScale(m.Config["thumbScale"])
+	scale := ffmpeg.ParseScaleString(m.Config["thumbScale"])
 	if scale == "1" {
 		return
 	}
@@ -49,25 +50,6 @@ func onRecSave(m *monitor.Monitor, args *string) {
 	target := " -frames"
 	filter := genFilter(scale)
 	*args = strings.ReplaceAll(*args, target, filter+target)
-}
-
-func parseScale(scale string) string {
-	switch strings.ToLower(scale) {
-	case "full":
-		return "1"
-	case "half":
-		return "2"
-	case "third":
-		return "3"
-	case "quarter":
-		return "4"
-	case "sixth":
-		return "6"
-	case "eighth":
-		return "8"
-	default:
-		return "1"
-	}
 }
 
 // Generate filter argument that divide height and width by ratio.

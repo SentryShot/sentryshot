@@ -56,11 +56,13 @@ function fromUTC2(date, timezone) {
 		minute: "2-digit",
 		second: "2-digit",
 	});
+
+	const hh = str.slice(12, 14);
 	return {
 		YY: str.slice(6, 10),
 		MM: str.slice(0, 2),
 		DD: str.slice(3, 5),
-		hh: str.slice(12, 14),
+		hh: hh == "24" ? "00" : hh,
 		mm: str.slice(15, 17),
 		ss: str.slice(18, 20),
 	};

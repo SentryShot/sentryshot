@@ -11,10 +11,6 @@ func TestOnRecSave(t *testing.T) {
 		{"", " -frames"},
 		{"full", " -frames"},
 		{"half", " -vf scale='iw/2:ih/2' -frames"},
-		{"third", " -vf scale='iw/3:ih/3' -frames"},
-		{"quarter", " -vf scale='iw/4:ih/4' -frames"},
-		{"sixth", " -vf scale='iw/6:ih/6' -frames"},
-		{"eighth", " -vf scale='iw/8:ih/8' -frames"},
 	}
 	for _, tc := range cases {
 		m := &monitor.Monitor{

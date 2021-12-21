@@ -30,7 +30,9 @@ function newModal(label) {
 		open() {
 			$wrapper.classList.add("modal-open");
 		},
-		close: close,
+		close() {
+			$wrapper.classList.remove("modal-open");
+		},
 		onClose(func) {
 			onClose = func;
 		},

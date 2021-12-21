@@ -25,17 +25,19 @@ import (
 )
 
 type (
-	envHook     func(*storage.ConfigEnv)
-	logHook     func(*log.Logger)
-	authHook    func(*auth.Authenticator)
-	storageHook func(*storage.Manager)
-	muxHook     func(*http.ServeMux)
-	appRunHook  func(context.Context) error
+	envHook       func(*storage.ConfigEnv)
+	logHook       func(*log.Logger)
+	authHook      func(*auth.Authenticator)
+	templaterHook func(*web.Templater)
+	storageHook   func(*storage.Manager)
+	muxHook       func(*http.ServeMux)
+	appRunHook    func(context.Context) error
 )
 
 type hookList struct {
 	onEnv               []envHook
 	onAuth              []authHook
+	onTemplater         []templaterHook
 	onStorage           []storageHook
 	onLog               []logHook
 	onMux               []muxHook
@@ -46,6 +48,7 @@ type hookList struct {
 	monitorStart        []monitor.StartHook
 	monitorInputProcess []monitor.StartInputHook
 	monitorRecSave      []monitor.RecSaveHook
+	monitorRecSaved     []monitor.RecSavedHook
 	logSource           []string
 }
 
@@ -64,6 +67,11 @@ func RegisterLogHook(h logHook) {
 // RegisterAuthHook is used to grab the authenticator.
 func RegisterAuthHook(h authHook) {
 	hooks.onAuth = append(hooks.onAuth, h)
+}
+
+// RegisterTemplaterHook is used to grab the templater.
+func RegisterTemplaterHook(h templaterHook) {
+	hooks.onTemplater = append(hooks.onTemplater, h)
 }
 
 // RegisterStorageHook is used to grab the storage manager.
@@ -108,9 +116,14 @@ func RegisterMonitorInputProcessHook(h monitor.StartInputHook) {
 	hooks.monitorInputProcess = append(hooks.monitorInputProcess, h)
 }
 
-// RegisterMonitorRecSaveHook registers hook that's called monitor saves recording.
+// RegisterMonitorRecSaveHook registers hook that's called when monitor saves recording.
 func RegisterMonitorRecSaveHook(h monitor.RecSaveHook) {
 	hooks.monitorRecSave = append(hooks.monitorRecSave, h)
+}
+
+// RegisterMonitorRecSavedHook registers hook that's called after monitor have saved recording.
+func RegisterMonitorRecSavedHook(h monitor.RecSavedHook) {
+	hooks.monitorRecSaved = append(hooks.monitorRecSaved, h)
 }
 
 // RegisterLogSource adds log source.
@@ -133,6 +146,12 @@ func (h *hookList) log(log *log.Logger) {
 func (h *hookList) auth(a *auth.Authenticator) {
 	for _, hook := range h.onAuth {
 		hook(a)
+	}
+}
+
+func (h *hookList) templater(t *web.Templater) {
+	for _, hook := range h.onTemplater {
+		hook(t)
 	}
 }
 
@@ -197,10 +216,16 @@ func (h *hookList) monitor() *monitor.Hooks {
 			hook(m, args)
 		}
 	}
+	recSavedHook := func(m *monitor.Monitor, recPath string, recData storage.RecordingData) {
+		for _, hook := range h.monitorRecSaved {
+			hook(m, recPath, recData)
+		}
+	}
 
 	return &monitor.Hooks{
 		Start:      startHook,
 		StartInput: startInputHook,
 		RecSave:    recSaveHook,
+		RecSaved:   recSavedHook,
 	}
 }

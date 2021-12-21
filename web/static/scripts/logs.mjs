@@ -119,7 +119,6 @@ function newLogger(formatLog) {
 		},
 		lazyLoadSavedLogs: lazyLoadSavedLogs,
 		setLevel(input) {
-			console.log(input);
 			switch (input) {
 				case "error":
 					levels = [LevelError];

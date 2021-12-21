@@ -35,6 +35,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 	</div>
 </body>
 <style>
+	#nav-link-logs {
+		background: var(--color1-hover);
+	}
 	#content {
 		display: flex;
 		overflow-x: hidden;

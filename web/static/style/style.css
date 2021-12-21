@@ -582,7 +582,6 @@ a:focus {
 	width: 100%;
 	height: 100%;
 	padding-top: var(--barsize);
-	overflow-y: hidden;
 }
 
 /* needed for scrolling on overflow */

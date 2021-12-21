@@ -440,7 +440,7 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 		hooks:               mockHooks,
 		startRecording:      mockStartRecording,
 		runRecordingProcess: mockRunRecordingProcess,
-		newProcess:          ffmock.NewProcess,
+		NewProcess:          ffmock.NewProcess,
 		waitForKeyframe:     mockWaitForKeyframe,
 		videoDuration:       mockVideoDuration,
 
@@ -801,7 +801,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
-		m.newProcess = ffmock.NewProcessNil
+		m.NewProcess = ffmock.NewProcessNil
 
 		feed, cancel2 := m.Log.Subscribe()
 		defer cancel2()
@@ -828,7 +828,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
-		m.newProcess = ffmock.NewProcess
+		m.NewProcess = ffmock.NewProcess
 		m.waitForKeyframe = mockWaitForKeyframeErr
 
 		m.WG.Add(1)
@@ -871,7 +871,7 @@ func TestRunRecordingProcess(t *testing.T) {
 	t.Run("crashed", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
-		m.newProcess = ffmock.NewProcessErr
+		m.NewProcess = ffmock.NewProcessErr
 
 		if err := runRecordingProcess(ctx, m); err == nil {
 			t.Fatal("expected: error, got: nil")
@@ -891,6 +891,7 @@ var mockHooks = &Hooks{
 	Start:      func(context.Context, *Monitor) {},
 	StartInput: func(context.Context, *InputProcess, *[]string) {},
 	RecSave:    func(*Monitor, *string) {},
+	RecSaved:   func(*Monitor, string, storage.RecordingData) {},
 }
 
 func TestGenInputArgs(t *testing.T) {
@@ -1038,7 +1039,7 @@ func TestSaveRecording(t *testing.T) {
 		m, _, cancel := newTestMonitor(t)
 		defer cancel()
 
-		m.newProcess = ffmock.NewProcessErr
+		m.NewProcess = ffmock.NewProcessErr
 
 		if err := m.saveRecording("", time.Time{}); err == nil {
 			t.Fatal("expected: error, got: nil")

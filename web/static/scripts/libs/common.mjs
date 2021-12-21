@@ -82,9 +82,9 @@ function sortByName(input) {
 	input = Object.values(input);
 	input.sort((a, b) => {
 		if (a["name"] > b["name"]) {
-			return true;
+			return 1;
 		}
-		return false;
+		return -1;
 	});
 	return input;
 }

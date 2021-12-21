@@ -500,6 +500,25 @@ func TestParseArgs(t *testing.T) {
 	}
 }
 
+func TestParseScaleString(t *testing.T) {
+	cases := []struct{ input, expected string }{
+		{"", "1"},
+		{"full", "1"},
+		{"half", "2"},
+		{"third", "3"},
+		{"quarter", "4"},
+		{"sixth", "6"},
+		{"eighth", "8"},
+	}
+	for _, tc := range cases {
+		actual := ParseScaleString(tc.input)
+
+		if actual != tc.expected {
+			t.Fatalf("%v, expected:%v got:%v", tc.input, tc.expected, actual)
+		}
+	}
+}
+
 func TestWaitForKeyframe(t *testing.T) {
 	cases := []struct {
 		name        string

@@ -1,4 +1,4 @@
-<img src="https://gitlab.com/osnvr/os-nvr-assets/-/raw/master/screenshots/recordings.png">
+<img src="https://gitlab.com/osnvr/os-nvr-assets/-/raw/master/screenshots/readme.png">
 
 [Screenshots](https://gitlab.com/osnvr/os-nvr_assets/-/tree/master/screenshots)
 
@@ -20,7 +20,8 @@ Use [Issues]() for bug reports, feature requests and support.
 - [Configuration](./docs/2_Configuration.md)
 - [Development](./docs/3_Development.md)
 - [Object Detection](./addons/doods/README.md)
-	
+- [Timeline viewer](./addons/timeline/README.md)
+
 <br>
 
 ## Similar projects

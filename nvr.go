@@ -44,6 +44,7 @@ func Run(envPath string) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	if err := hooks.appRun(ctx); err != nil {
 		cancel()
 		return err
@@ -57,9 +58,10 @@ func Run(envPath string) error {
 
 	select {
 	case err = <-fatal:
+		app.log.Info().Src("app").Msgf("fatal error: %v", err)
 	case signal := <-stop:
 		app.log.Info().Msg("") // New line.
-		app.log.Info().Src("app").Msgf("Received %v stopping.", signal)
+		app.log.Info().Src("app").Msgf("received %v, stopping", signal)
 	}
 
 	app.monitorManager.StopAll()
@@ -71,10 +73,10 @@ func Run(envPath string) error {
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel2()
 
-	if err := app.server.Shutdown(ctx2); err != nil {
+	if err != nil {
 		return err
 	}
-	return err
+	return app.server.Shutdown(ctx2)
 }
 
 func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) { //nolint:funlen
@@ -133,6 +135,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	hooks.templater(t)
 
 	t.RegisterTemplateDataFuncs(
 		func(data template.FuncMap, _ string) {
