@@ -541,15 +541,24 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	i.M.hooks.StartInput(processCTX, i, &args)
 
 	cmd := exec.Command(i.M.Env.FFmpegBin, args...)
-	process := i.newProcess(cmd)
-	process.SetTimeout(10 * time.Second)
-	process.SetPrefix(i.M.Config.Name() + ": " + i.ProcessName() + " process: ")
-	process.SetStdoutLogger(i.M.Log)
-	process.SetStderrLogger(i.M.Log)
+
+	id := i.M.Config.ID()
+
+	logFunc := func(msg string) {
+		i.M.Log.FFmpegLevel(i.M.Config.LogLevel()).
+			Src("monitor").
+			Monitor(id).
+			Msgf("%v process: %v", i.ProcessName(), msg)
+	}
+
+	process := i.newProcess(cmd).
+		Timeout(10 * time.Second).
+		StdoutLogger(logFunc).
+		StderrLogger(logFunc)
 
 	i.M.Log.Info().
 		Src("monitor").
-		Monitor(i.M.Config.ID()).
+		Monitor(id).
 		Msgf("starting %v process: %v", i.ProcessName(), cmd)
 
 	err = process.Start(processCTX) // Blocks until process exits.
@@ -681,18 +690,21 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	}
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 
-	process := m.NewProcess(cmd)
-	process.SetTimeout(10 * time.Second)
-	process.SetStdoutLogger(m.Log)
-	process.SetStderrLogger(m.Log)
 	m.Mu.Lock()
-	process.SetPrefix(m.Config.Name() + ": recording process: ")
+	logFunc := func(msg string) {
+		m.Log.FFmpegLevel(m.Config.LogLevel()).
+			Src("recorder").
+			Monitor(id).
+			Msgf("recording process:%v", cmd)
+	}
 	m.Mu.Unlock()
 
-	m.Log.Info().
-		Src("recorder").
-		Monitor(id).
-		Msgf("starting recording: %v", cmd)
+	process := m.NewProcess(cmd).
+		Timeout(10 * time.Second).
+		StdoutLogger(logFunc).
+		StderrLogger(logFunc)
+
+	m.Log.Info().Src("recorder").Monitor(id).Msgf("starting recording: %v", cmd)
 
 	err = process.Start(ctx)
 
@@ -701,16 +713,13 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 			Src("recorder").
 			Monitor(id).
 			Msgf("could not save recording: %v", err)
+	} else {
+		m.Log.Info().Src("recorder").Monitor(id).Msg("recording finished")
 	}
 
 	if err != nil {
 		return fmt.Errorf("crashed: %w", err)
 	}
-
-	m.Log.Info().
-		Src("recorder").
-		Monitor(id).
-		Msg("recording finished")
 
 	return nil
 }
@@ -741,10 +750,7 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 		os.Remove(thumbPath)
 	}
 
-	m.Log.Info().
-		Src("recorder").
-		Monitor(m.Config.ID()).
-		Msgf("saving recording: %v", videoPath)
+	m.Log.Info().Src("recorder").Monitor(m.Config.ID()).Msgf("saving recording: %v", videoPath)
 
 	args := "-n -threads 1 -loglevel " + m.Config.LogLevel() +
 		" -i " + videoPath + // Input.
@@ -754,14 +760,18 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 
 	cmd := exec.Command(m.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 
-	process := m.NewProcess(cmd)
-	process.SetPrefix(m.Config.Name() + ": thumbnail process: ")
-	process.SetStdoutLogger(m.Log)
-	process.SetStderrLogger(m.Log)
+	logFunc := func(msg string) {
+		m.Log.FFmpegLevel(m.Config.LogLevel()).
+			Src("recorder").
+			Monitor(m.Config.ID()).
+			Msgf("thumbnail process: %v", msg)
+	}
+	process := m.NewProcess(cmd).
+		StdoutLogger(logFunc).
+		StderrLogger(logFunc)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
 	if err := process.Start(ctx); err != nil {
 		abort()
 		return fmt.Errorf("could not generate thumbnail, args: %v error: %w", args, err)
@@ -785,7 +795,6 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 		Events: e,
 	}
 	json, _ := json.MarshalIndent(data, "", "    ")
-
 	if err := os.WriteFile(dataPath, json, 0o600); err != nil {
 		return fmt.Errorf("could not write event file: %w", err)
 	}

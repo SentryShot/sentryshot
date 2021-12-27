@@ -102,6 +102,29 @@ func (l *Logger) Debug() *Event {
 	}
 }
 
+// FFmpegLevel start a new message with converted ffmpeg log level.
+// You must call Msg on the returned event in order to send the event.
+func (l *Logger) FFmpegLevel(logLevel string) *Event {
+	var level Level
+
+	switch logLevel {
+	case "quiet":
+	case "fatal", "error":
+		level = LevelError
+	case "warning":
+		level = LevelWarning
+	case "info":
+		level = LevelInfo
+	case "debug":
+		level = LevelDebug
+	}
+	return &Event{
+		level:  level,
+		time:   UnixMillisecond(time.Now().UnixNano() / 1000),
+		logger: l,
+	}
+}
+
 // Src sets event source.
 func (e *Event) Src(source string) *Event {
 	e.src = source

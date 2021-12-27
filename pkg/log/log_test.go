@@ -33,7 +33,7 @@ func newTestLogger(t *testing.T) (context.Context, func(), *Logger) {
 }
 
 func TestLogger(t *testing.T) {
-	t.Run("Msg", func(t *testing.T) {
+	t.Run("msg", func(t *testing.T) {
 		_, cancel, logger := newTestLogger(t)
 		defer cancel()
 
@@ -61,6 +61,37 @@ func TestLogger(t *testing.T) {
 			t.Fatalf("expected:\n%v.\ngot\n%v.", expected, actual)
 		}
 	})
+	t.Run("ffmpegLevel", func(t *testing.T) {
+		_, cancel, logger := newTestLogger(t)
+		defer cancel()
+
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			logger.FFmpegLevel("fatal").Time(time.Unix(0, 1000)).Msg("")
+			logger.FFmpegLevel("error").Time(time.Unix(0, 2000)).Msg("")
+			logger.FFmpegLevel("warning").Time(time.Unix(0, 3000)).Msg("")
+			logger.FFmpegLevel("info").Time(time.Unix(0, 4000)).Msg("")
+			logger.FFmpegLevel("debug").Time(time.Unix(0, 5000)).Msg("")
+		}()
+
+		feed, cancel2 := logger.Subscribe()
+		defer cancel2()
+
+		actual := []Log{<-feed, <-feed, <-feed, <-feed, <-feed}
+
+		expected := []Log{
+			{Level: LevelError, Time: 1},
+			{Level: LevelError, Time: 2},
+			{Level: LevelWarning, Time: 3},
+			{Level: LevelInfo, Time: 4},
+			{Level: LevelDebug, Time: 5},
+		}
+
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("expected:\n%v.\ngot\n%v.", expected, actual)
+		}
+	})
+
 	t.Run("unsubBeforePrint", func(t *testing.T) {
 		_, cancel, logger := newTestLogger(t)
 		defer cancel()

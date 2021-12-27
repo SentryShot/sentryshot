@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"nvr/pkg/ffmpeg"
-	"nvr/pkg/log"
 	"os/exec"
 	"time"
 )
@@ -32,6 +31,10 @@ type mockProcess struct {
 	c MockProcessConfig
 }
 
+func (m mockProcess) Timeout(time.Duration) ffmpeg.Process       { return m }
+func (m mockProcess) StdoutLogger(ffmpeg.LogFunc) ffmpeg.Process { return m }
+func (m mockProcess) StderrLogger(ffmpeg.LogFunc) ffmpeg.Process { return m }
+
 func (m mockProcess) Start(ctx context.Context) error {
 	if m.c.Sleep != 0 {
 		select {
@@ -50,12 +53,6 @@ func (m mockProcess) Stop() {
 		m.c.OnStop()
 	}
 }
-func (m mockProcess) SetTimeout(time.Duration)    {}
-func (m mockProcess) SetPrefix(string)            {}
-func (m mockProcess) SetMonitor(string)           {}
-func (m mockProcess) SetLogLevel(string)          {}
-func (m mockProcess) SetStdoutLogger(*log.Logger) {}
-func (m mockProcess) SetStderrLogger(*log.Logger) {}
 
 // NewProcess returns Sleeps for 15ms before returning.
 var NewProcess = NewProcessMocker(MockProcessConfig{

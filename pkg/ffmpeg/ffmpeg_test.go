@@ -70,24 +70,28 @@ func TestProcess(t *testing.T) {
 			go logger.Start(ctx)
 			feed, cancel2 := logger.Subscribe()
 
-			p := NewProcess(fakeExecCommand())
-			p.SetTimeout(0)
-			p.SetPrefix("test ")
-			p.SetStdoutLogger(logger)
-			p.SetStderrLogger(logger)
+			logFunc := func(msg string) {
+				logger.FFmpegLevel("info").
+					Msgf("test %v", msg)
+			}
+
+			p := NewProcess(fakeExecCommand()).
+				Timeout(0).
+				StdoutLogger(logFunc).
+				StderrLogger(logFunc)
 
 			if err := p.Start(ctx); err != nil {
 				t.Fatalf("failed to start %v", err)
 			}
 
 			compareOutput := func(input log.Log) {
-				output1 := "test stdout: out\n"
-				output2 := "test stderr: err\n"
+				output1 := "test stdout: out"
+				output2 := "test stderr: err"
 				switch {
 				case input.Msg == output1:
 				case input.Msg == output2:
 				default:
-					t.Fatal("output does not match")
+					t.Fatalf("output does not match: '%v'", input.Msg)
 				}
 			}
 
@@ -104,18 +108,22 @@ func TestProcess(t *testing.T) {
 	}
 
 	t.Run("stdoutErr", func(t *testing.T) {
-		p := process{cmd: fakeExecCommand()}
-		p.cmd.Stdout = pw
-		p.SetStdoutLogger(&log.Logger{})
+		cmd := fakeExecCommand()
+		cmd.Stdout = pw
+
+		p := process{cmd: cmd}.
+			StdoutLogger(func(string) {})
 
 		if err := p.Start(context.Background()); err == nil {
 			t.Fatalf("nil")
 		}
 	})
 	t.Run("stderrErr", func(t *testing.T) {
-		p := process{cmd: fakeExecCommand()}
-		p.cmd.Stderr = pw
-		p.SetStderrLogger(&log.Logger{})
+		cmd := fakeExecCommand()
+		cmd.Stderr = pw
+
+		p := process{cmd: cmd}.
+			StderrLogger(func(string) {})
 
 		if err := p.Start(context.Background()); err == nil {
 			t.Fatalf("nil")

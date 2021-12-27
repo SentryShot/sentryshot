@@ -54,10 +54,16 @@ func onRecSaved(m *monitor.Monitor, recPath string, recData storage.RecordingDat
 
 	cmd := exec.Command(m.Env.FFmpegBin, args...)
 
-	process := m.NewProcess(cmd)
-	process.SetPrefix(m.Config.Name() + ": timeline process: ")
-	process.SetStdoutLogger(m.Log)
-	process.SetStderrLogger(m.Log)
+	logFunc := func(msg string) {
+		m.Log.FFmpegLevel(m.Config.LogLevel()).
+			Src("timeline").
+			Monitor(m.Config.ID()).
+			Msgf("process: %v", msg)
+	}
+
+	process := m.NewProcess(cmd).
+		StdoutLogger(logFunc).
+		StderrLogger(logFunc)
 
 	recDuration := recData.End.Sub(recData.Start)
 	ctx, cancel := context.WithTimeout(context.Background(), recDuration)

@@ -24,7 +24,6 @@ import (
 	"image/color"
 	"image/png"
 	"io"
-	"nvr/pkg/log"
 	"os"
 	"os/exec"
 	"regexp"
@@ -36,16 +35,26 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+// LogFunc used to log stdout and stderr.
+type LogFunc func(string)
+
 // Process interface only used for testing.
 type Process interface {
+
+	// Set timeout for process to exit after being stopped.
+	Timeout(time.Duration) Process
+
+	// Set function called on stdout line.
+	StdoutLogger(LogFunc) Process
+
+	// Set function called on stderr line.
+	StderrLogger(LogFunc) Process
+
+	// Start process with context.
 	Start(ctx context.Context) error
+
+	// Stop process.
 	Stop()
-	SetTimeout(time.Duration)
-	SetPrefix(string)
-	SetMonitor(string)
-	SetLogLevel(string)
-	SetStdoutLogger(*log.Logger)
-	SetStderrLogger(*log.Logger)
 }
 
 // process manages subprocesses.
@@ -53,11 +62,8 @@ type process struct {
 	timeout time.Duration
 	cmd     *exec.Cmd
 
-	prefix       string
-	monitorID    string
-	loglevel     string
-	stdoutLogger *log.Logger
-	stderrLogger *log.Logger
+	stdoutLogger LogFunc
+	stderrLogger LogFunc
 
 	done chan struct{}
 }
@@ -67,50 +73,41 @@ type NewProcessFunc func(*exec.Cmd) Process
 
 // NewProcess return process.
 func NewProcess(cmd *exec.Cmd) Process {
-	return &process{
-		timeout:  1000 * time.Millisecond,
-		cmd:      cmd,
-		loglevel: "info",
+	return process{
+		timeout: 1000 * time.Millisecond,
+		cmd:     cmd,
 	}
 }
 
-func (p *process) attachLogger(l *log.Logger, label string, stdPipe func() (io.ReadCloser, error)) error {
-	pipe, err := stdPipe()
-	if err != nil {
-		return err
-	}
-	scanner := bufio.NewScanner(pipe)
-	go func() {
-		for scanner.Scan() {
-			msg := fmt.Sprintf("%v%v: %v\n", p.prefix, label, scanner.Text())
-
-			switch p.loglevel {
-			case "quiet":
-			case "fatal", "error":
-				l.Error().Src("ffmpeg").Monitor(p.monitorID).Msg(msg)
-			case "warning":
-				l.Warn().Src("ffmpeg").Monitor(p.monitorID).Msg(msg)
-			case "info":
-				l.Info().Src("ffmpeg").Monitor(p.monitorID).Msg(msg)
-			case "debug":
-				l.Debug().Src("ffmpeg").Monitor(p.monitorID).Msg(msg)
-			}
-		}
-	}()
-	return nil
+func (p process) Timeout(timeout time.Duration) Process {
+	p.timeout = timeout
+	return p
 }
 
-// Start starts process with context.
-func (p *process) Start(ctx context.Context) error {
+func (p process) StdoutLogger(l LogFunc) Process {
+	p.stdoutLogger = l
+	return p
+}
+
+func (p process) StderrLogger(l LogFunc) Process {
+	p.stderrLogger = l
+	return p
+}
+
+func (p process) Start(ctx context.Context) error {
 	if p.stdoutLogger != nil {
-		if err := p.attachLogger(p.stdoutLogger, "stdout", p.cmd.StdoutPipe); err != nil {
+		pipe, err := p.cmd.StdoutPipe()
+		if err != nil {
 			return err
 		}
+		p.attachLogger(p.stdoutLogger, "stdout", pipe)
 	}
 	if p.stderrLogger != nil {
-		if err := p.attachLogger(p.stderrLogger, "stderr", p.cmd.StderrPipe); err != nil {
+		pipe, err := p.cmd.StderrPipe()
+		if err != nil {
 			return err
 		}
+		p.attachLogger(p.stderrLogger, "stderr", pipe)
 	}
 
 	if err := p.cmd.Start(); err != nil {
@@ -138,9 +135,19 @@ func (p *process) Start(ctx context.Context) error {
 	return err
 }
 
+func (p process) attachLogger(logFunc LogFunc, label string, pipe io.ReadCloser) {
+	scanner := bufio.NewScanner(pipe)
+	go func() {
+		for scanner.Scan() {
+			msg := fmt.Sprintf("%v: %v", label, scanner.Text())
+			logFunc(msg)
+		}
+	}()
+}
+
 // Note, can't use CommandContext to Stop process as it would
 // kill the process before it has a chance to exit on its own.
-func (p *process) Stop() {
+func (p process) Stop() {
 	p.cmd.Process.Signal(os.Interrupt) //nolint:errcheck
 
 	select {
@@ -149,30 +156,6 @@ func (p *process) Stop() {
 		p.cmd.Process.Signal(os.Kill) //nolint:errcheck
 		<-p.done
 	}
-}
-
-func (p *process) SetTimeout(timeout time.Duration) {
-	p.timeout = timeout
-}
-
-func (p *process) SetPrefix(prefix string) {
-	p.prefix = prefix
-}
-
-func (p *process) SetMonitor(monitorID string) {
-	p.monitorID = monitorID
-}
-
-func (p *process) SetLogLevel(level string) {
-	p.loglevel = level
-}
-
-func (p *process) SetStdoutLogger(l *log.Logger) {
-	p.stdoutLogger = l
-}
-
-func (p *process) SetStderrLogger(l *log.Logger) {
-	p.stderrLogger = l
 }
 
 // MakePipe creates fifo pipe at specified location.

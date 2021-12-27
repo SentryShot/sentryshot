@@ -14,28 +14,7 @@
 
 package motion
 
-import (
-	"bufio"
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"image"
-	"io"
-	"log"
-	"nvr"
-	"nvr/pkg/ffmpeg"
-	"nvr/pkg/monitor"
-	"nvr/pkg/storage"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
-)
-
+/*
 func init() {
 	nvr.RegisterMonitorInputProcessHook(onInputProcessStart)
 	nvr.RegisterLogSource([]string{"motion"})
@@ -67,7 +46,7 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 	return " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
 		" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
 		" -restart_with_keyframe 1 -recovery_wait_time 1 " + pipePath
-}*/
+}*/ /*
 
 func onMonitorStart(ctx context.Context, m *monitor.Monitor) error {
 	if m.Config["motionDetection"] != "true" {
@@ -188,7 +167,7 @@ func (a addon) generateMasks(zones []zone, scale string) ([]string, error) {
 			size = strings.Split(a.m.Config["size"], "x")
 		} else {
 			size = strings.Split(a.m.Config["size"], "x")
-		}*/
+		}*/ /*
 		w, _ := strconv.Atoi(size[0])
 		h, _ := strconv.Atoi(size[1])
 
@@ -214,7 +193,7 @@ func (a addon) generateDetectorArgs(masks []string, hwaccel string, scale string
 		[in2][2:v]overlay,metadata=add:key=id:value=1,select='gte(scene\,0)',metadata=print[out2]" \
 		-map "[out1]" -f null - \
 		-map "[out2]" -f null -
-	*/
+*/ /*
 
 	args = append(args, "-y")
 
@@ -280,29 +259,30 @@ func (a addon) startDetector(ctx context.Context, args []string) {
 }
 
 func (a addon) detectorProcess(ctx context.Context, args []string) error {
-	cmd := exec.Command(a.env.FFmpegBin, args...)
+	/*
+		cmd := exec.Command(a.env.FFmpegBin, args...)
+		process := ffmpeg.NewProcess(cmd)
+		process.SetPrefix("motion: process:")
+		process.SetStdoutLogger(a.m.Log)
 
-	process := ffmpeg.NewProcess(cmd)
-	process.SetPrefix("motion: process:")
-	process.SetStdoutLogger(a.m.Log)
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return fmt.Errorf("stderr: %w", err)
+		}
 
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("stderr: %w", err)
-	}
+		a.m.Log.Info().
+			Src("motion").
+			Monitor(a.m.Config.ID()).
+			Msgf("starting detector: %v", cmd)
 
-	a.m.Log.Info().
-		Src("motion").
-		Monitor(a.m.Config.ID()).
-		Msgf("starting detector: %v", cmd)
+		go a.parseFFmpegOutput(stderr)
 
-	go a.parseFFmpegOutput(stderr)
+		err = process.Start(ctx)
 
-	err = process.Start(ctx)
-
-	if err != nil {
-		return fmt.Errorf("detector crashed: %w", err)
-	}
+		if err != nil {
+			return fmt.Errorf("detector crashed: %w", err)
+		}
+*/ /*
 	return nil
 }
 
@@ -355,7 +335,7 @@ func drainReader(r io.Reader) {
 		}
 	}
 }
-*/
+*/ /*
 
 func parseScale(scale string) string {
 	switch strings.ToLower(scale) {
@@ -391,7 +371,7 @@ func newParser() parser {
 /*	[Parsed_metadata_5 @ 0x] frame:35   pts:39      pts_time:19.504x
 	[Parsed_metadata_5 @ 0x] id=0
 	[Parsed_metadata_5 @ 0x] lavfi.scene_score=0.008761
-*/
+*/ /*
 func (p parser) parseLine(line string) (int, float64) {
 	*p.segment += "\n" + line
 	endOfSegment := strings.Contains(line, "lavfi.scene_score")
@@ -428,3 +408,4 @@ func parseSegment(segment string) (int, float64) {
 
 	return id, score * 100
 }
+*/

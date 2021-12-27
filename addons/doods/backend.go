@@ -122,7 +122,7 @@ func start(ctx context.Context, i *monitor.InputProcess) error {
 	ffmpegArgs := a.generateFFmpegArgs(i.M.Config, maskPath, inputs.grayMode)
 
 	a.wg.Add(1)
-	go a.newFFmpeg(ffmpegArgs).start(ctx)
+	go a.newFFmpeg(ffmpegArgs, i.M.Config.LogLevel()).start(ctx)
 
 	return nil
 }
@@ -456,7 +456,7 @@ func (a *addon) generateFFmpegArgs(c monitor.Config, maskPath string, grayMode b
 	return args
 }
 
-func (a *addon) newFFmpeg(args []string) *ffmpegConfig {
+func (a *addon) newFFmpeg(args []string, logLevel string) *ffmpegConfig {
 	return &ffmpegConfig{
 		a:    a,
 		args: args,
@@ -472,6 +472,7 @@ func (a *addon) newFFmpeg(args []string) *ffmpegConfig {
 		},
 
 		newProcess:  ffmpeg.NewProcess,
+		logLevel:    logLevel,
 		runFFmpeg:   runFFmpeg,
 		startClient: startClient,
 	}
@@ -484,6 +485,7 @@ type ffmpegConfig struct {
 
 	runFFmpeg   runFFmpegFunc
 	newProcess  newProcessFunc
+	logLevel    string
 	startClient startClientFunc
 }
 
@@ -512,9 +514,16 @@ func (f *ffmpegConfig) start(ctx context.Context) {
 
 func runFFmpeg(ctx context.Context, f *ffmpegConfig) error {
 	cmd := exec.Command(f.a.env.FFmpegBin, f.args...)
-	process := f.newProcess(cmd)
-	process.SetPrefix(f.a.name + ": doods: process: ")
-	process.SetStderrLogger(f.a.log)
+
+	logFunc := func(msg string) {
+		f.a.log.FFmpegLevel(f.logLevel).
+			Src("doods").
+			Monitor(f.a.id).
+			Msgf("process: %v", msg)
+	}
+
+	process := f.newProcess(cmd).
+		StderrLogger(logFunc)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
