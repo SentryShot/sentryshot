@@ -28,10 +28,7 @@ import (
 
 func init() {
 	nvr.RegisterLogSource([]string{"timeline"})
-	nvr.RegisterMonitorRecSavedHook(
-		func(m *monitor.Monitor, recPath string, recData storage.RecordingData) {
-			go onRecSaved(m, recPath, recData)
-		})
+	nvr.RegisterMonitorRecSavedHook(onRecSaved)
 }
 
 func onRecSaved(m *monitor.Monitor, recPath string, recData storage.RecordingData) {

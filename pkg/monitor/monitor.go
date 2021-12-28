@@ -708,19 +708,11 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 
 	err = process.Start(ctx)
 
-	if err := m.saveRecording(filePath, startTime); err != nil {
-		m.Log.Error().
-			Src("recorder").
-			Monitor(id).
-			Msgf("could not save recording: %v", err)
-	} else {
-		m.Log.Info().Src("recorder").Monitor(id).Msg("recording finished")
-	}
+	go m.saveRecording(filePath, startTime)
 
 	if err != nil {
 		return fmt.Errorf("crashed: %w", err)
 	}
-
 	return nil
 }
 
@@ -740,7 +732,18 @@ func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 	return args, nil
 }
 
-func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
+func (m *Monitor) saveRecording(filePath string, startTime time.Time) {
+	id := m.Config.ID()
+
+	err := m.saveRec(filePath, startTime)
+	if err != nil {
+		m.Log.Error().Src("recorder").Monitor(id).Msgf("could not save recording: %v", err)
+	} else {
+		m.Log.Info().Src("recorder").Monitor(id).Msg("recording finished")
+	}
+}
+
+func (m *Monitor) saveRec(filePath string, startTime time.Time) error {
 	videoPath := filePath + ".mp4"
 	thumbPath := filePath + ".jpeg"
 	dataPath := filePath + ".json"
@@ -799,7 +802,7 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) error {
 		return fmt.Errorf("could not write event file: %w", err)
 	}
 
-	m.hooks.RecSaved(m, filePath, data)
+	go m.hooks.RecSaved(m, filePath, data)
 	return nil
 }
 

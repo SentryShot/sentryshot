@@ -437,7 +437,7 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 		eventsMu: &sync.Mutex{},
 		running:  true,
 
-		hooks:               mockHooks,
+		hooks:               mockHooks(),
 		startRecording:      mockStartRecording,
 		runRecordingProcess: mockRunRecordingProcess,
 		NewProcess:          ffmock.NewProcess,
@@ -820,6 +820,17 @@ func TestRunRecordingProcess(t *testing.T) {
 			t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual.Msg)
 		}
 	})
+	t.Run("saveRecordingAsync", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor(t)
+		defer cancel()
+
+		m.NewProcess = ffmock.NewProcessNil
+		m.hooks.RecSave = func(*Monitor, *string) {
+			time.Sleep(1 * time.Hour)
+		}
+
+		runRecordingProcess(ctx, m)
+	})
 	t.Run("waitForKeyframeErr", func(t *testing.T) {
 		mockWaitForKeyframeErr := func(context.Context, string, int) (time.Duration, error) {
 			return 0, errors.New("mock")
@@ -887,11 +898,13 @@ func mockSizeFromStreamErr(string) (string, error) {
 	return "", errors.New("mock")
 }
 
-var mockHooks = &Hooks{
-	Start:      func(context.Context, *Monitor) {},
-	StartInput: func(context.Context, *InputProcess, *[]string) {},
-	RecSave:    func(*Monitor, *string) {},
-	RecSaved:   func(*Monitor, string, storage.RecordingData) {},
+func mockHooks() *Hooks {
+	return &Hooks{
+		Start:      func(context.Context, *Monitor) {},
+		StartInput: func(context.Context, *InputProcess, *[]string) {},
+		RecSave:    func(*Monitor, *string) {},
+		RecSaved:   func(*Monitor, string, storage.RecordingData) {},
+	}
 }
 
 func TestGenInputArgs(t *testing.T) {
@@ -1014,7 +1027,7 @@ func TestSaveRecording(t *testing.T) {
 		tempdir := m.Env.SHMDir
 		filePath := tempdir + "file"
 
-		if err := m.saveRecording(filePath, start); err != nil {
+		if err := m.saveRec(filePath, start); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1041,7 +1054,7 @@ func TestSaveRecording(t *testing.T) {
 
 		m.NewProcess = ffmock.NewProcessErr
 
-		if err := m.saveRecording("", time.Time{}); err == nil {
+		if err := m.saveRec("", time.Time{}); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -1051,7 +1064,7 @@ func TestSaveRecording(t *testing.T) {
 
 		m.videoDuration = mockVideoDurationErr
 
-		if err := m.saveRecording("", time.Time{}); err == nil {
+		if err := m.saveRec("", time.Time{}); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
@@ -1059,7 +1072,7 @@ func TestSaveRecording(t *testing.T) {
 		m, _, cancel := newTestMonitor(t)
 		defer cancel()
 
-		if err := m.saveRecording("/dev/null/", time.Time{}); err == nil {
+		if err := m.saveRec("/dev/null/", time.Time{}); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
