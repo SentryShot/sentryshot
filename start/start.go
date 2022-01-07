@@ -28,7 +28,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"text/template"
 
 	"gopkg.in/yaml.v2"
@@ -92,7 +94,19 @@ func start() error {
 	cmd.Env = os.Environ()
 
 	fmt.Println("starting..")
-	return cmd.Run()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	// Redirect interrupt to child process.
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-stop
+		cmd.Process.Signal(os.Interrupt) // nolint:errcheck
+	}()
+
+	return cmd.Wait()
 }
 
 func parseEnv(envPath string, envYAML []byte) (*configEnv, error) {
