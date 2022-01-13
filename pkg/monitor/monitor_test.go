@@ -371,9 +371,10 @@ func TestMonitorConfigs(t *testing.T) {
 func TestStopAllMonitors(t *testing.T) {
 	runningMonitor := func() *Monitor {
 		return &Monitor{
-			running: true,
-			WG:      &sync.WaitGroup{},
-			cancel:  func() {},
+			eventChan: make(chan storage.Event),
+			running:   true,
+			WG:        &sync.WaitGroup{},
+			cancel:    func() {},
 		}
 	}
 	m := Manager{
@@ -418,11 +419,6 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 	logger := log.NewMockLogger()
 	go logger.Start(ctx)
 
-	cancelFunc := func() {
-		cancel()
-		os.RemoveAll(tempDir)
-	}
-
 	m := &Monitor{
 		Env: &storage.ConfigEnv{
 			SHMDir:     tempDir,
@@ -433,9 +429,9 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 			"videoLength":     "0.0003", // 18ms
 			"timestampOffset": "0",
 		},
-		Trigger:  make(Trigger),
-		eventsMu: &sync.Mutex{},
-		running:  true,
+		eventsMu:  &sync.Mutex{},
+		eventChan: make(chan storage.Event),
+		running:   true,
 
 		hooks:               mockHooks(),
 		startRecording:      mockStartRecording,
@@ -446,6 +442,12 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 
 		WG:  &sync.WaitGroup{},
 		Log: logger,
+	}
+
+	cancelFunc := func() {
+		cancel()
+		close(m.eventChan)
+		os.RemoveAll(tempDir)
 	}
 
 	m.mainInput = newMockInputProcess(m, false)
@@ -592,6 +594,17 @@ func TestRunInputProcess(t *testing.T) {
 	})
 }
 
+func TestSendEvent(t *testing.T) {
+	t.Run("canceled", func(t *testing.T) {
+		m := &Monitor{running: false}
+
+		err := m.SendEvent(storage.Event{})
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected: %v got :%v", context.Canceled, err)
+		}
+	})
+}
+
 func TestStartRecorder(t *testing.T) {
 	t.Run("missingTime", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
@@ -600,13 +613,9 @@ func TestStartRecorder(t *testing.T) {
 		m.startRecording = mockStartRecording
 		m.WG.Add(1)
 
-		feed, cancel2 := m.Log.Subscribe()
-		defer cancel2()
-
 		go m.startRecorder(ctx)
-		m.Trigger <- storage.Event{RecDuration: 1}
-		actual := <-feed
 
+		actual := m.SendEvent(storage.Event{RecDuration: 1}).Error()
 		expected := `invalid event: {
  Time: 0001-01-01 00:00:00 +0000 UTC
  Detections: []
@@ -615,8 +624,8 @@ func TestStartRecorder(t *testing.T) {
 }
 'Time': ` + storage.ErrValueMissing.Error()
 
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
+		if actual != expected {
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 		}
 	})
 	t.Run("missingRecDuration", func(t *testing.T) {
@@ -626,13 +635,10 @@ func TestStartRecorder(t *testing.T) {
 		m.startRecording = mockStartRecording
 		m.WG.Add(1)
 
-		feed, cancel2 := m.Log.Subscribe()
-		defer cancel2()
-
 		go m.startRecorder(ctx)
-		m.Trigger <- storage.Event{Time: (time.Unix(1, 0).UTC())}
-		actual := <-feed
+		err := m.SendEvent(storage.Event{Time: (time.Unix(1, 0).UTC())})
 
+		actual := err.Error()
 		expected := `invalid event: {
  Time: 1970-01-01 00:00:01 +0000 UTC
  Detections: []
@@ -641,8 +647,8 @@ func TestStartRecorder(t *testing.T) {
 }
 'RecDuration': ` + storage.ErrValueMissing.Error()
 
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
+		if actual != expected {
+			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 		}
 	})
 
@@ -656,9 +662,12 @@ func TestStartRecorder(t *testing.T) {
 		defer cancel2()
 
 		go m.startRecorder(ctx)
-		m.Trigger <- storage.Event{
+		err := m.SendEvent(storage.Event{
 			Time:        time.Now().Add(time.Duration(-1) * time.Hour),
 			RecDuration: 1,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 
 		actual := <-feed
@@ -688,8 +697,8 @@ func TestStartRecorder(t *testing.T) {
 		go m.startRecorder(ctx)
 
 		now := time.Now()
-		m.Trigger <- storage.Event{Time: now, RecDuration: 10 * time.Millisecond}
-		m.Trigger <- storage.Event{Time: now, RecDuration: 50 * time.Millisecond}
+		m.eventChan <- storage.Event{Time: now, RecDuration: 10 * time.Millisecond}
+		m.eventChan <- storage.Event{Time: now, RecDuration: 50 * time.Millisecond}
 
 		mu.Lock()
 		mu.Unlock()
@@ -712,9 +721,9 @@ func TestStartRecorder(t *testing.T) {
 		go m.startRecorder(ctx)
 
 		now := time.Now()
-		m.Trigger <- storage.Event{Time: now, RecDuration: 10 * time.Millisecond}
-		m.Trigger <- storage.Event{Time: now, RecDuration: 11 * time.Millisecond}
-		m.Trigger <- storage.Event{Time: now, RecDuration: 0 * time.Millisecond}
+		m.eventChan <- storage.Event{Time: now, RecDuration: 10 * time.Millisecond}
+		m.eventChan <- storage.Event{Time: now, RecDuration: 11 * time.Millisecond}
+		m.eventChan <- storage.Event{Time: now, RecDuration: 0 * time.Millisecond}
 
 		mu.Lock()
 		mu.Unlock()
@@ -732,8 +741,8 @@ func TestStartRecorder(t *testing.T) {
 		go m.startRecorder(ctx)
 
 		now := time.Now()
-		m.Trigger <- storage.Event{Time: now, RecDuration: 40 * time.Millisecond}
-		m.Trigger <- storage.Event{Time: now, RecDuration: 1 * time.Millisecond}
+		m.eventChan <- storage.Event{Time: now, RecDuration: 40 * time.Millisecond}
+		m.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Millisecond}
 
 		select {
 		case <-time.After(30 * time.Millisecond):

@@ -290,8 +290,8 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		Env:    m.env,
 		Config: config,
 
-		Trigger:  make(Trigger),
-		eventsMu: &sync.Mutex{},
+		eventsMu:  &sync.Mutex{},
+		eventChan: make(chan storage.Event),
 
 		hooks:               m.hooks,
 		startRecording:      startRecording,
@@ -309,9 +309,6 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 	return monitor
 }
 
-// Trigger recording using event.
-type Trigger chan storage.Event
-
 // monitors map.
 type monitors map[string]*Monitor
 
@@ -320,9 +317,9 @@ type Monitor struct {
 	Env    *storage.ConfigEnv
 	Config Config
 
-	Trigger  Trigger
-	events   storage.Events
-	eventsMu *sync.Mutex
+	events    storage.Events
+	eventsMu  *sync.Mutex
+	eventChan chan storage.Event
 
 	running   bool
 	recording bool
@@ -378,9 +375,14 @@ func (m *Monitor) Start() error {
 			select {
 			case <-ctx.Done():
 			case <-time.After(15 * time.Second):
-				m.Trigger <- storage.Event{
+				err := m.SendEvent(storage.Event{
 					Time:        time.Now(),
 					RecDuration: infinte,
+				})
+				if err != nil {
+					m.Log.Error().
+						Src("monitor").Monitor(id).
+						Msgf("could not start continuous recording: %v", err)
 				}
 			}
 		}()
@@ -571,6 +573,25 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	return nil
 }
 
+// SendEventFunc send event signature.
+type SendEventFunc func(storage.Event) error
+
+// SendEvent sends event to monitor.
+func (m *Monitor) SendEvent(event storage.Event) error {
+	m.Mu.Lock()
+	if !m.running {
+		m.Mu.Unlock()
+		return context.Canceled
+	}
+	m.Mu.Unlock()
+
+	if err := event.Validate(); err != nil {
+		return fmt.Errorf("invalid event: %w", err)
+	}
+	m.eventChan <- event
+	return nil
+}
+
 func (m *Monitor) startRecorder(ctx context.Context) {
 	var triggerTimeout *time.Timer
 	var timeout time.Time
@@ -583,15 +604,7 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			}
 			m.WG.Done()
 			return
-		case event := <-m.Trigger: // Wait for trigger.
-			if err := event.Validate(); err != nil {
-				m.Log.Error().
-					Src("recorder").
-					Monitor(m.Config.ID()).
-					Msgf("invalid event: %v", err)
-
-				continue
-			}
+		case event := <-m.eventChan: // Wait for event.
 			m.eventsMu.Lock()
 			m.events = append(m.events, event)
 			m.eventsMu.Unlock()

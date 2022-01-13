@@ -625,9 +625,8 @@ func newTestClient() (*doodsClient, log.Feed, func()) {
 				uncropYfunc:        func(i float32) float32 { return i },
 			},
 
-			log:     logger,
-			wg:      &sync.WaitGroup{},
-			trigger: make(monitor.Trigger),
+			log: logger,
+			wg:  &sync.WaitGroup{},
 		},
 		c:         &doodsConfig{},
 		stdout:    imgFeed(),
@@ -751,6 +750,12 @@ func TestReadFrames(t *testing.T) {
 
 func TestParseDetections(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
+		var event storage.Event
+		sendEvent := func(e storage.Event) error {
+			event = e
+			return nil
+		}
+
 		d, _, cancel := newTestClient()
 		defer cancel()
 
@@ -758,6 +763,7 @@ func TestParseDetections(t *testing.T) {
 		d.a.c.thresholds = thresholds{
 			"b": 1,
 		}
+		d.a.sendEvent = sendEvent
 
 		detections := []*odrpc.Detection{
 			{
@@ -773,8 +779,8 @@ func TestParseDetections(t *testing.T) {
 			},
 		}
 
-		go d.a.parseDetections(time.Time{}, detections)
-		output := <-d.a.trigger
+		d.a.parseDetections(time.Time{}, detections)
+		output := event
 
 		actual := fmt.Sprintf("%v", output)
 

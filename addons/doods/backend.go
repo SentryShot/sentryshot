@@ -185,12 +185,12 @@ func parseConfig(m *monitor.Monitor, ip string) (*doodsConfig, error) {
 
 func newAddon(m *monitor.Monitor, c *doodsConfig) *addon {
 	return &addon{
-		c:       c,
-		wg:      m.WG,
-		id:      m.Config.ID(),
-		name:    m.Config.Name(),
-		log:     m.Log,
-		trigger: m.Trigger,
+		c:         c,
+		wg:        m.WG,
+		id:        m.Config.ID(),
+		name:      m.Config.Name(),
+		log:       m.Log,
+		sendEvent: m.SendEvent,
 
 		env: m.Env,
 
@@ -199,12 +199,12 @@ func newAddon(m *monitor.Monitor, c *doodsConfig) *addon {
 }
 
 type addon struct {
-	c       *doodsConfig
-	id      string
-	wg      *sync.WaitGroup
-	name    string
-	log     *log.Logger
-	trigger monitor.Trigger
+	c         *doodsConfig
+	id        string
+	wg        *sync.WaitGroup
+	name      string
+	log       *log.Logger
+	sendEvent monitor.SendEventFunc
 
 	outputs *outputs
 
@@ -730,11 +730,14 @@ func (a *addon) parseDetections(t time.Time, detections []*odrpc.Detection) {
 			Msgf("trigger: label:%v score:%.1f",
 				filtered[0].Label, filtered[0].Score)
 
-		a.trigger <- storage.Event{
+		err := a.sendEvent(storage.Event{
 			Time:        t,
 			Detections:  filtered,
 			Duration:    a.c.duration,
 			RecDuration: a.c.recDuration,
+		})
+		if err != nil {
+			a.log.Error().Src("doods").Monitor(a.id).Msgf("could not send event: %v", err)
 		}
 	}
 }
