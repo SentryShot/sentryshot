@@ -27,7 +27,7 @@ func newTestLogger(t *testing.T) (context.Context, func(), *Logger) {
 	logger := NewMockLogger()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go logger.Start(ctx)
+	logger.Start(ctx)
 
 	return ctx, cancel, logger
 }

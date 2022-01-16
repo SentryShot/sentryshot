@@ -417,7 +417,7 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := log.NewMockLogger()
-	go logger.Start(ctx)
+	logger.Start(ctx)
 
 	m := &Monitor{
 		Env: &storage.ConfigEnv{

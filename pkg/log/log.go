@@ -152,6 +152,9 @@ func (e *Event) Msg(msg string) {
 		Src:     e.src,
 		Monitor: e.monitor,
 	}
+	if e.logger.ctx.Err() != nil {
+		return
+	}
 
 	e.logger.feed <- log
 }
@@ -198,6 +201,7 @@ type Logger struct {
 	unsub chan logFeed // unsubscribe requests.
 
 	wg      *sync.WaitGroup
+	ctx     context.Context
 	sources []string
 }
 
@@ -208,6 +212,7 @@ func (l *Logger) Sources() []string {
 
 // Start logger.
 func (l *Logger) Start(ctx context.Context) error {
+	l.ctx = ctx
 	drainFeed := func() <-chan struct{} {
 		done := make(chan struct{})
 		go func() {

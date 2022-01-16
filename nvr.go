@@ -45,6 +45,7 @@ func Run(envPath string) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	if err := hooks.appRun(ctx); err != nil {
 		cancel()
 		return err
