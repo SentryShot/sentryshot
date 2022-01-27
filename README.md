@@ -32,4 +32,4 @@ Use [Issues]() for bug reports, feature requests and support.
 - [Motion](https://github.com/Motion-Project/motion)[Eye](https://github.com/ccrisan/motioneye/)[OS](https://github.com/ccrisan/motioneyeos)
 
 ## License
-All code is licensed under [GPL-2.0-only](LICENSE) 
+All code is licensed under [GPLv2 or Later](LICENSE)
