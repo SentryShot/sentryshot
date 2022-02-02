@@ -16,7 +16,6 @@
 			"errname",
 			"errorlint",
 			"exportloopref",
-			"exhaustive",
 			"forcetypeassert",
 			"funlen",
 			"gocognit",
