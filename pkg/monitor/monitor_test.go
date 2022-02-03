@@ -25,6 +25,7 @@ import (
 	"nvr/pkg/ffmpeg/ffmock"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
+	"nvr/pkg/video/rtsp"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -80,19 +81,27 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := log.NewMockLogger()
-	go logger.Start(ctx)
+	logger.Start(ctx)
+
+	wg := sync.WaitGroup{}
+	rtspServer := rtsp.NewServer(logger, &wg, 2021)
+	if err := rtspServer.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
 
 	configDir, cancel2 := prepareDir(t)
 
 	cancelFunc := func() {
 		cancel()
 		cancel2()
+		wg.Wait()
 	}
 
 	manager, err := NewManager(
 		configDir,
-		&storage.ConfigEnv{},
+		storage.ConfigEnv{},
 		logger,
+		rtspServer,
 		&Hooks{},
 	)
 	if err != nil {
@@ -145,7 +154,7 @@ func TestNewManager(t *testing.T) {
 			t.Fatalf("could not create temporary directory: %v", err)
 		}
 
-		if _, err := NewManager(tempDir, &env, nil, nil); err != nil {
+		if _, err := NewManager(tempDir, env, nil, nil, nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -154,15 +163,17 @@ func TestNewManager(t *testing.T) {
 		}
 	})
 	t.Run("mkDirErr", func(t *testing.T) {
-		if _, err := NewManager("/dev/null/nil", nil, nil, nil); err == nil {
+		_, err := NewManager("/dev/null/nil", storage.ConfigEnv{}, nil, nil, nil)
+		if err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("readFileErr", func(t *testing.T) {
 		_, err := NewManager(
 			"/dev/null/nil.json",
-			&storage.ConfigEnv{},
+			storage.ConfigEnv{},
 			&log.Logger{},
+			&rtsp.Server{},
 			&Hooks{},
 		)
 
@@ -181,8 +192,9 @@ func TestNewManager(t *testing.T) {
 
 		_, err := NewManager(
 			configDir,
-			&storage.ConfigEnv{},
+			storage.ConfigEnv{},
 			&log.Logger{},
+			&rtsp.Server{},
 			&Hooks{},
 		)
 
@@ -420,12 +432,19 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 	logger := log.NewMockLogger()
 	logger.Start(ctx)
 
+	wg := sync.WaitGroup{}
+	rtspServer := rtsp.NewServer(logger, &wg, 2021)
+	if err := rtspServer.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
 	m := &Monitor{
-		Env: &storage.ConfigEnv{
+		Env: storage.ConfigEnv{
 			SHMDir:     tempDir,
 			StorageDir: tempDir + "/storage",
 		},
 		Config: map[string]string{
+			"id":              "test",
 			"enable":          "true",
 			"videoLength":     "0.0003", // 18ms
 			"timestampOffset": "0",
@@ -441,14 +460,16 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 		waitForKeyframe:     mockWaitForKeyframe,
 		videoDuration:       mockVideoDuration,
 
-		WG:  &sync.WaitGroup{},
-		Log: logger,
+		WG:         &sync.WaitGroup{},
+		Log:        logger,
+		rtspServer: rtspServer,
 	}
 
 	cancelFunc := func() {
 		cancel()
 		close(m.eventChan)
 		os.RemoveAll(tempDir)
+		wg.Wait()
 	}
 
 	m.mainInput = newMockInputProcess(m, false)
@@ -588,6 +609,35 @@ func TestRunInputProcess(t *testing.T) {
 		defer cancel()
 
 		i.newProcess = ffmock.NewProcessErr
+
+		if err := runInputProcess(ctx, i); err == nil {
+			t.Fatal("expected: error, got: nil")
+		}
+	})
+	t.Run("rtspPath", func(t *testing.T) {
+		i, ctx, cancel := newTestInputProcess(t)
+		i.isSubInput = true
+
+		go runInputProcess(ctx, i)
+
+		time.Sleep(10 * time.Millisecond)
+		if !i.M.rtspServer.PathExist(i.M.Config.ID() + "_sub") {
+			t.Fatal("expected path to have been added")
+		}
+
+		cancel()
+		i.M.WG.Wait()
+
+		if i.M.rtspServer.PathExist(i.M.Config.ID() + "_sub") {
+			t.Fatal("expected path to have been removed")
+		}
+	})
+
+	t.Run("rtspPathErr", func(t *testing.T) {
+		i, ctx, cancel := newTestInputProcess(t)
+		defer cancel()
+
+		i.M.Config["id"] = ""
 
 		if err := runInputProcess(ctx, i); err == nil {
 			t.Fatal("expected: error, got: nil")
@@ -861,7 +911,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 
-		m.Env = &storage.ConfigEnv{
+		m.Env = storage.ConfigEnv{
 			StorageDir: "/dev/null",
 		}
 
@@ -920,29 +970,35 @@ func mockHooks() *Hooks {
 func TestGenInputArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		i := &InputProcess{
+			rtspProtocol: "5",
+			rtspAddress:  "6",
 			M: &Monitor{
-				Env: &storage.ConfigEnv{},
+				Env: storage.ConfigEnv{},
 				Config: map[string]string{
 					"logLevel":     "1",
 					"mainInput":    "2",
-					"audioEncoder": "3",
+					"audioEncoder": "none",
 					"videoEncoder": "4",
 					"id":           "id",
 				},
 			},
 		}
 		actual := i.generateArgs()
-		expected := "-threads 1 -loglevel 1 -i 2 -c:a 3 -c:v 4 -preset veryfast -f hls" +
-			" -hls_flags delete_segments -hls_list_size 2 -hls_allow_cache 0 hls/id/id.m3u8"
+		expected := "-threads 1 -loglevel 1 -i 2 -an -c:v 4 -preset veryfast" +
+			" -f tee -map 0:a -map 0:v [f=hls:hls_flags=delete_segments" +
+			":hls_list_size=2:hls_allow_cache=0]hls/id/id.m3u8" +
+			"|[f=rtsp:rtsp_transport=5]6"
 		if actual != expected {
 			t.Fatalf("\nexpected: \n%v \ngot \n%v", expected, actual)
 		}
 	})
-	t.Run("hwaccel", func(t *testing.T) {
+	t.Run("maximal", func(t *testing.T) {
 		i := &InputProcess{
-			isSubInput: true,
+			isSubInput:   true,
+			rtspProtocol: "6",
+			rtspAddress:  "7",
 			M: &Monitor{
-				Env: &storage.ConfigEnv{},
+				Env: storage.ConfigEnv{},
 				Config: map[string]string{
 					"logLevel":     "1",
 					"hwaccel":      "2",
@@ -954,8 +1010,10 @@ func TestGenInputArgs(t *testing.T) {
 			},
 		}
 		actual := i.generateArgs()
-		expected := "-threads 1 -loglevel 1 -hwaccel 2 -i 3 -c:a 4 -c:v 5 -preset veryfast -f hls" +
-			" -hls_flags delete_segments -hls_list_size 2 -hls_allow_cache 0 hls/id/id_sub.m3u8"
+		expected := "-threads 1 -loglevel 1 -hwaccel 2 -i 3 -c:a 4 -c:v 5" +
+			" -preset veryfast -f tee -map 0:a -map 0:v [f=hls" +
+			":hls_flags=delete_segments:hls_list_size=2:hls_allow_cache=0]" +
+			"hls/id/id_sub.m3u8|[f=rtsp:rtsp_transport=6]7"
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot\n%v.", expected, actual)
 		}
@@ -965,7 +1023,7 @@ func TestGenInputArgs(t *testing.T) {
 func TestGenRecorderArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		m := &Monitor{
-			Env: &storage.ConfigEnv{},
+			Env: storage.ConfigEnv{},
 			Config: map[string]string{
 				"logLevel":    "1",
 				"videoLength": "3",
@@ -985,7 +1043,7 @@ func TestGenRecorderArgs(t *testing.T) {
 	})
 	t.Run("videoLengthErr", func(t *testing.T) {
 		m := Monitor{
-			Env: &storage.ConfigEnv{},
+			Env: storage.ConfigEnv{},
 		}
 		_, err := m.generateRecorderArgs("path")
 		if err == nil {

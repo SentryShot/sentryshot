@@ -153,11 +153,10 @@ func (e *Event) Msg(msg string) {
 		Src:     e.src,
 		Monitor: e.monitor,
 	}
-	if e.logger.ctx.Err() != nil {
-		return
+	select {
+	case <-e.logger.ctx.Done():
+	case e.logger.feed <- log:
 	}
-
-	e.logger.feed <- log
 }
 
 // Msgf sends the event with formatted msg added as the message field.

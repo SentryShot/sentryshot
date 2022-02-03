@@ -26,11 +26,13 @@ import (
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
 	"nvr/pkg/system"
+	"nvr/pkg/video/rtsp"
 	"nvr/pkg/web"
 	"nvr/pkg/web/auth"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -104,8 +106,16 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		return nil, fmt.Errorf("could not get general config: %w", err)
 	}
 
+	rtspServer := rtsp.NewServer(logger, wg, env.RTSPport)
+
 	monitorConfigDir := filepath.Join(env.ConfigDir, "monitors")
-	monitorManager, err := monitor.NewManager(monitorConfigDir, env, logger, hooks.monitor())
+	monitorManager, err := monitor.NewManager(
+		monitorConfigDir,
+		*env,
+		logger,
+		rtspServer,
+		hooks.monitor(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("could not create monitor manager: %w", err)
 	}
@@ -200,14 +210,16 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/api/log/sources", a.Admin(web.LogSources(logger)))
 	hooks.mux(mux)
 
-	server := &http.Server{Addr: ":" + env.Port, Handler: mux}
+	address := ":" + strconv.Itoa(env.Port)
+	server := &http.Server{Addr: address, Handler: mux}
 
 	return &App{
 		log:            logger,
 		logDB:          logDB,
-		env:            env,
+		env:            *env,
 		monitorManager: monitorManager,
 		storage:        storageManager,
+		rtspServer:     rtspServer,
 		server:         server,
 	}, nil
 }
@@ -216,9 +228,10 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 type App struct {
 	log            *log.Logger
 	logDB          *log.DB
-	env            *storage.ConfigEnv
+	env            storage.ConfigEnv
 	monitorManager *monitor.Manager
 	storage        *storage.Manager
+	rtspServer     *rtsp.Server
 	server         *http.Server
 }
 
@@ -242,6 +255,10 @@ func (a *App) run(ctx context.Context) error {
 
 	if err := a.env.PrepareEnvironment(); err != nil {
 		return fmt.Errorf("could not prepare environment: %w", err)
+	}
+
+	if err := a.rtspServer.Start(ctx); err != nil {
+		return fmt.Errorf("could not start RTSP server: %w", err)
 	}
 
 	// Start monitors

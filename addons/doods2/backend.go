@@ -29,7 +29,6 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -42,7 +41,7 @@ func init() {
 	nvr.RegisterMonitorInputProcessHook(onInputProcessStart)
 }
 
-func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, args *[]string) {
+func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]string) {
 	m := i.M
 	if m.Config["doodsEnable"] != "true" {
 		return
@@ -50,8 +49,6 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, args *[]s
 	if useSubStream(m) != i.IsSubInput() {
 		return
 	}
-
-	modifyArgs(args, m)
 
 	if err := start(ctx, i); err != nil {
 		m.Log.Error().
@@ -68,17 +65,6 @@ func useSubStream(m *monitor.Monitor) bool {
 	return false
 }
 
-func modifyArgs(args *[]string, m *monitor.Monitor) {
-	pipePath := filepath.Join(m.Env.SHMDir, "doods", m.Config.ID(), "main.fifo")
-
-	newArgs := []string{
-		"-c:v", "copy", "-map", "0:v", "-f", "fifo", "-fifo_format", "mpegts",
-		"-drop_pkts_on_overflow", "1", "-attempt_recovery", "1",
-		"-restart_with_keyframe", "1", "-recovery_wait_time", "1", pipePath,
-	}
-	*args = append(*args, newArgs...)
-}
-
 func start(ctx context.Context, input *monitor.InputProcess) error {
 	detectorName := input.M.Config["doodsDetectorName"]
 	detector, err := detectorByName(detectorName)
@@ -86,16 +72,12 @@ func start(ctx context.Context, input *monitor.InputProcess) error {
 		return fmt.Errorf("could not get detector: %w", err)
 	}
 
-	config, err := parseConfig(input.M)
+	config, err := parseConfig(input.M.Config)
 	if err != nil {
 		return fmt.Errorf("could not parse config: %w", err)
 	}
 
-	i := newInstance(addon.sendRequest, input.M, *config)
-
-	if err := i.prepareEnvironment(); err != nil {
-		return fmt.Errorf("could not prepare environment: %w", err)
-	}
+	i := newInstance(addon.sendRequest, input, *config)
 
 	outputWidth := int(detector.Width)
 	outputHeight := int(detector.Height)
@@ -135,13 +117,12 @@ type config struct {
 	recDuration     time.Duration
 	thresholds      thresholds
 	timestampOffset time.Duration
-	delay           time.Duration
 	detectorName    string
 }
 
-func parseConfig(m *monitor.Monitor) (*config, error) {
+func parseConfig(conf monitor.Config) (*config, error) {
 	var t thresholds
-	if err := json.Unmarshal([]byte(m.Config["doodsThresholds"]), &t); err != nil {
+	if err := json.Unmarshal([]byte(conf["doodsThresholds"]), &t); err != nil {
 		return nil, fmt.Errorf("could not unmarshal thresholds: %w", err)
 	}
 	for key, thresh := range t {
@@ -150,26 +131,21 @@ func parseConfig(m *monitor.Monitor) (*config, error) {
 		}
 	}
 
-	feedRate := m.Config["doodsFeedRate"]
+	feedRate := conf["doodsFeedRate"]
 	duration, err := ffmpeg.FeedRateToDuration(feedRate)
 	if err != nil {
 		return nil, err
 	}
 
-	recDurationFloat, err := strconv.ParseFloat(m.Config["doodsDuration"], 64)
+	recDurationFloat, err := strconv.ParseFloat(conf["doodsDuration"], 64)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse doodsDuration: %w", err)
 	}
 	recDuration := time.Duration(recDurationFloat * float64(time.Second))
 
-	timestampOffset, err := strconv.Atoi(m.Config["timestampOffset"])
+	timestampOffset, err := strconv.Atoi(conf["timestampOffset"])
 	if err != nil {
 		return nil, fmt.Errorf("could not parse timestamp offset %w", err)
-	}
-
-	delay, err := strconv.Atoi(m.Config["doodsDelay"])
-	if err != nil {
-		return nil, fmt.Errorf("could not parse doodsDelay %w", err)
 	}
 
 	return &config{
@@ -177,28 +153,31 @@ func parseConfig(m *monitor.Monitor) (*config, error) {
 		recDuration:     recDuration,
 		thresholds:      t,
 		timestampOffset: time.Duration(timestampOffset) * time.Millisecond,
-		delay:           time.Duration(delay) * time.Millisecond,
-		detectorName:    m.Config["doodsDetectorName"],
+		detectorName:    conf["doodsDetectorName"],
 	}, nil
 }
 
-func newInstance(sendRequest sendRequestFunc, m *monitor.Monitor, c config) *instance {
+func newInstance(sendRequest sendRequestFunc, i *monitor.InputProcess, c config) *instance {
+	mConf := i.M.Config
 	return &instance{
-		c:           c,
-		wg:          m.WG,
-		monitorID:   m.Config.ID(),
-		monitorName: m.Config.Name(),
-		log:         m.Log,
-		logLevel:    m.Config.LogLevel(),
-		sendEvent:   m.SendEvent,
+		c:            c,
+		wg:           i.M.WG,
+		monitorID:    mConf.ID(),
+		monitorName:  mConf.Name(),
+		rtspAddress:  i.RTSPaddress(),
+		rtspProtocol: i.RTSPprotocol(),
+		log:          i.M.Log,
+		logLevel:     mConf.LogLevel(),
+		sendEvent:    i.M.SendEvent,
+		warmup:       10 * time.Second,
 
-		env: *m.Env,
+		env: i.M.Env,
 
-		newProcess:  ffmpeg.NewProcess,
-		runFFmpeg:   runFFmpeg,
-		startReader: startInstance,
-		runInstance: runInstance,
-		sendRequest: sendRequest,
+		newProcess:    ffmpeg.NewProcess,
+		runFFmpeg:     runFFmpeg,
+		startInstance: startInstance,
+		runInstance:   runInstance,
+		sendRequest:   sendRequest,
 
 		encoder: png.Encoder{
 			CompressionLevel: png.BestSpeed,
@@ -207,12 +186,15 @@ func newInstance(sendRequest sendRequestFunc, m *monitor.Monitor, c config) *ins
 }
 
 type instance struct {
-	c           config
-	monitorID   string
-	monitorName string
-	log         *log.Logger
-	logLevel    string
-	sendEvent   monitor.SendEventFunc
+	c            config
+	monitorID    string
+	monitorName  string
+	rtspAddress  string
+	rtspProtocol string
+	log          *log.Logger
+	logLevel     string
+	sendEvent    monitor.SendEventFunc
+	warmup       time.Duration
 
 	outputs       outputs
 	ffArgs        []string
@@ -221,31 +203,15 @@ type instance struct {
 	env storage.ConfigEnv
 	wg  *sync.WaitGroup
 
-	newProcess  ffmpeg.NewProcessFunc
-	runFFmpeg   runFFmpegFunc
-	startReader startReaderFunc
-	runInstance runInstanceFunc
-	sendRequest sendRequestFunc
-	encoder     png.Encoder
-}
+	newProcess    ffmpeg.NewProcessFunc
+	runFFmpeg     runFFmpegFunc
+	startInstance startInstanceFunc
+	runInstance   runInstanceFunc
+	sendRequest   sendRequestFunc
+	encoder       png.Encoder
 
-func (i *instance) fifoDir() string {
-	return i.env.SHMDir + "/doods/" + i.monitorID
-}
-
-func (i *instance) mainPipe() string {
-	return i.fifoDir() + "/main.fifo"
-}
-
-func (i *instance) prepareEnvironment() error {
-	if err := os.MkdirAll(i.fifoDir(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("could not make directory for pipe: %w", err)
-	}
-	if err := ffmpeg.MakePipe(i.mainPipe()); err != nil {
-		return fmt.Errorf("could not make main pipe: %w", err)
-	}
-
-	return nil
+	// watchdogTimer restart process if it stops outputting frames.
+	watchdogTimer *time.Timer
 }
 
 type inputs struct {
@@ -457,7 +423,7 @@ func (i *instance) generateFFmpegArgs(c monitor.Config, maskPath string, grayMod
 		args = append(args, ffmpeg.ParseArgs("-hwaccel "+c.Hwacell())...)
 	}
 
-	args = append(args, "-i", i.mainPipe())
+	args = append(args, "-rtsp_transport", i.rtspProtocol, "-i", i.rtspAddress)
 
 	var filter string
 	filter += ",pad=" + paddedWidth + ":" + paddedHeight + ":0:0"
@@ -484,6 +450,13 @@ func (i *instance) generateFFmpegArgs(c monitor.Config, maskPath string, grayMod
 }
 
 func (i instance) startFFmpeg(ctx context.Context) {
+	// Wait for monitor to warm up.
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(i.warmup):
+	}
+
 	for {
 		if ctx.Err() != nil {
 			i.wg.Done()
@@ -495,8 +468,7 @@ func (i instance) startFFmpeg(ctx context.Context) {
 				Src("doods").
 				Monitor(i.monitorID).
 				Msgf("process crashed: %v", err)
-
-			time.Sleep(1 * time.Second)
+			time.Sleep(3 * time.Second)
 		}
 	}
 }
@@ -518,28 +490,39 @@ func runFFmpeg(ctx context.Context, i instance) error {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("stderr: %w", err)
+		return fmt.Errorf("could not get stderr pipe: %w", err)
 	}
 
 	ctx2, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	i.watchdogTimer = time.AfterFunc(10*time.Second, func() {
+		if ctx.Err() != nil {
+			return
+		}
+		i.log.Error().
+			Src("doods").
+			Monitor(i.monitorID).
+			Msg("watchdog: process stopped outputting frames, restarting")
+		process.Stop()
+	})
+
 	i.wg.Add(1)
-	go i.startReader(ctx2, i, stdout)
+	go i.startInstance(ctx2, i, stdout)
 
 	i.log.Info().
 		Src("doods").
 		Monitor(i.monitorID).
 		Msgf("starting process: %v", cmd)
 
-	if err = process.Start(ctx); err != nil {
+	err = process.Start(ctx) // Blocks until process exists.
+	if err != nil && !errors.Is(err, context.Canceled) {
 		return fmt.Errorf("detector crashed: %w", err)
 	}
-	cancel()
 	return nil
 }
 
-type startReaderFunc func(context.Context, instance, io.Reader)
+type startInstanceFunc func(context.Context, instance, io.Reader)
 
 func startInstance(ctx context.Context, i instance, stdout io.Reader) {
 	for {
@@ -547,18 +530,19 @@ func startInstance(ctx context.Context, i instance, stdout io.Reader) {
 			i.log.Info().
 				Src("doods").
 				Monitor(i.monitorID).
-				Msg("client stopped")
+				Msg("instance stopped")
 
 			i.wg.Done()
 			return
 		}
-		if err := i.runInstance(ctx, i, stdout); err != nil {
+		err := i.runInstance(ctx, i, stdout)
+		if err != nil && !errors.Is(err, context.Canceled) {
 			i.log.Error().
 				Src("doods").
 				Monitor(i.monitorID).
-				Msgf("client crashed: %v", err)
+				Msgf("instance crashed: %v", err)
 
-			time.Sleep(1 * time.Second)
+			time.Sleep(3 * time.Second)
 		}
 	}
 }
@@ -581,10 +565,10 @@ func runInstance(ctx context.Context, i instance, stdout io.Reader) error {
 			}
 			return fmt.Errorf("could not read from stdout: %w", err)
 		}
-		t := time.Now().Add(-i.c.timestampOffset).Add(-i.c.delay)
+		t := time.Now().Add(-i.c.timestampOffset)
+		i.watchdogTimer.Reset(10 * time.Second)
 
 		img.Pix = inputBuffer
-
 		b := bytes.NewBuffer(tmpBuffer)
 		if err := i.encoder.Encode(b, img); err != nil {
 			return fmt.Errorf("could not encode frame: %w", err)
@@ -610,7 +594,7 @@ func runInstance(ctx context.Context, i instance, stdout io.Reader) error {
 			continue
 		}
 
-		i.log.Info().
+		i.log.Debug().
 			Src("doods").
 			Monitor(i.monitorID).
 			Msgf("trigger: label:%v score:%.1f",

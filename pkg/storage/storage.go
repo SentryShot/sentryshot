@@ -207,7 +207,8 @@ func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
 
 // ConfigEnv stores system configuration.
 type ConfigEnv struct {
-	Port      string `yaml:"port"`
+	Port      int    `yaml:"port"`
+	RTSPport  int    `yaml:"rtspPort"`
 	GoBin     string `yaml:"goBin"`
 	FFmpegBin string `yaml:"ffmpegBin"`
 
@@ -226,13 +227,16 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	var env ConfigEnv
 
 	if err := yaml.Unmarshal(envYAML, &env); err != nil {
-		return &ConfigEnv{}, fmt.Errorf("could not unmarshal env.yaml: %w", err)
+		return nil, fmt.Errorf("could not unmarshal env.yaml: %w", err)
 	}
 
 	env.ConfigDir = filepath.Dir(envPath)
 
-	if env.Port == "" {
-		env.Port = "2020"
+	if env.Port == 0 {
+		env.Port = 2020
+	}
+	if env.RTSPport == 0 {
+		env.RTSPport = 2021
 	}
 	if env.GoBin == "" {
 		env.GoBin = "/usr/bin/go"
@@ -277,17 +281,17 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 }
 
 // SHMhls returns path of temporary hls files.
-func (env *ConfigEnv) SHMhls() string {
+func (env ConfigEnv) SHMhls() string {
 	return filepath.Join(env.SHMDir, "hls")
 }
 
 // RecordingsDir return recordings directory.
-func (env *ConfigEnv) RecordingsDir() string {
+func (env ConfigEnv) RecordingsDir() string {
 	return filepath.Join(env.StorageDir, "recordings")
 }
 
 // PrepareEnvironment prepares directories.
-func (env *ConfigEnv) PrepareEnvironment() error {
+func (env ConfigEnv) PrepareEnvironment() error {
 	if err := os.MkdirAll(env.RecordingsDir(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("could not create recordings directory: %v: %w", env.StorageDir, err)
 	}

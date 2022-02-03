@@ -38,7 +38,7 @@ import (
 func TestGenArgs(t *testing.T) {
 	args := []string{"x"}
 	m := &monitor.Monitor{
-		Env: &storage.ConfigEnv{
+		Env: storage.ConfigEnv{
 			SHMDir: "a",
 		},
 		Config: monitor.Config{
@@ -188,7 +188,7 @@ func TestPrepareEnv(t *testing.T) {
 
 		a := addon{
 			id: "id",
-			env: &storage.ConfigEnv{
+			env: storage.ConfigEnv{
 				SHMDir: tempDir + "/shm",
 			},
 		}
@@ -204,7 +204,7 @@ func TestPrepareEnv(t *testing.T) {
 	})
 	t.Run("mkdirErr", func(t *testing.T) {
 		a := addon{
-			env: &storage.ConfigEnv{
+			env: storage.ConfigEnv{
 				SHMDir: "/dev/null",
 			},
 		}
@@ -353,7 +353,7 @@ func TestGenerateMask(t *testing.T) {
 		}
 
 		a := &addon{
-			env: &storage.ConfigEnv{
+			env: storage.ConfigEnv{
 				SHMDir: tempDir,
 			},
 			outputs: &outputs{
@@ -384,7 +384,7 @@ func TestGenerateMask(t *testing.T) {
 	})
 	t.Run("saveErr", func(t *testing.T) {
 		a := &addon{
-			env: &storage.ConfigEnv{
+			env: storage.ConfigEnv{
 				SHMDir: "/dev/null",
 			},
 			outputs: &outputs{},
@@ -401,7 +401,7 @@ func TestGenerateArgs(t *testing.T) {
 		a := addon{
 			id: "3",
 			c:  &doodsConfig{},
-			env: &storage.ConfigEnv{
+			env: storage.ConfigEnv{
 				SHMDir: "2",
 			},
 			outputs: &outputs{
@@ -433,7 +433,7 @@ func TestGenerateArgs(t *testing.T) {
 		a := addon{
 			id: "4",
 			c:  &doodsConfig{},
-			env: &storage.ConfigEnv{
+			env: storage.ConfigEnv{
 				SHMDir: "3",
 			},
 			outputs: &outputs{
@@ -482,7 +482,7 @@ func newTestFFmpeg() (*ffmpegConfig, log.Feed, func()) {
 		a: &addon{
 			log: logger,
 			wg:  &sync.WaitGroup{},
-			env: &storage.ConfigEnv{},
+			env: storage.ConfigEnv{},
 		},
 		d:           &doodsClient{},
 		runFFmpeg:   mockRunFFmpeg,

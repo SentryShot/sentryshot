@@ -24,6 +24,7 @@ import (
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
+	"nvr/pkg/video/rtsp"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -114,16 +115,22 @@ func (c Config) Hwacell() string {
 
 // Manager for the monitors.
 type Manager struct {
-	Monitors monitors
-	env      *storage.ConfigEnv
-	log      *log.Logger
-	path     string
-	hooks    *Hooks
-	mu       sync.Mutex
+	Monitors   monitors
+	env        storage.ConfigEnv
+	log        *log.Logger
+	rtspServer *rtsp.Server
+	path       string
+	hooks      *Hooks
+	mu         sync.Mutex
 }
 
 // NewManager return new monitor manager.
-func NewManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hooks *Hooks) (*Manager, error) {
+func NewManager(
+	configPath string,
+	env storage.ConfigEnv,
+	log *log.Logger,
+	rtspServer *rtsp.Server,
+	hooks *Hooks) (*Manager, error) {
 	if err := os.MkdirAll(configPath, 0o700); err != nil {
 		return nil, fmt.Errorf("could not create monitors directory: %w", err)
 	}
@@ -140,10 +147,11 @@ func NewManager(configPath string, env *storage.ConfigEnv, log *log.Logger, hook
 	}
 
 	manager := &Manager{
-		env:   env,
-		log:   log,
-		path:  configPath,
-		hooks: hooks,
+		env:        env,
+		log:        log,
+		rtspServer: rtspServer,
+		path:       configPath,
+		hooks:      hooks,
 	}
 
 	monitors := make(monitors)
@@ -288,8 +296,10 @@ func (m *Manager) MonitorConfigs() map[string]Config {
 
 func (m *Manager) newMonitor(config Config) *Monitor {
 	monitor := &Monitor{
-		Env:    m.env,
-		Config: config,
+		Env:        m.env,
+		rtspServer: m.rtspServer,
+		Log:        m.log,
+		Config:     config,
 
 		eventsMu:  &sync.Mutex{},
 		eventChan: make(chan storage.Event),
@@ -301,8 +311,7 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		waitForKeyframe:     ffmpeg.WaitForKeyframe,
 		videoDuration:       ffmpeg.New(m.env.FFmpegBin).VideoDuration,
 
-		WG:  &sync.WaitGroup{},
-		Log: m.log,
+		WG: &sync.WaitGroup{},
 	}
 	monitor.mainInput = monitor.newInputProcess(false)
 	monitor.subInput = monitor.newInputProcess(true)
@@ -315,8 +324,10 @@ type monitors map[string]*Monitor
 
 // Monitor service.
 type Monitor struct {
-	Env    *storage.ConfigEnv
-	Config Config
+	Env        storage.ConfigEnv
+	rtspServer *rtsp.Server
+	Log        *log.Logger
+	Config     Config
 
 	events    storage.Events
 	eventsMu  *sync.Mutex
@@ -337,7 +348,6 @@ type Monitor struct {
 
 	Mu     sync.Mutex
 	WG     *sync.WaitGroup
-	Log    *log.Logger
 	cancel func()
 }
 
@@ -418,44 +428,15 @@ func (m *Monitor) newInputProcess(isSubInput bool) *InputProcess {
 	return i
 }
 
-func (i *InputProcess) generateArgs() string {
-	// OUTPUT
-	// -threads 1 -loglevel error -hwaccel x -i rtsp:x -c:a aac -c:v libx264
-	// -preset veryfast -f hls -hls_flags delete_segments -hls_list_size 2
-	// -hls_allow_cache 0 tmpDir/hls/id/id.m3u8
-
-	c := i.M.Config
-	var args string
-
-	args += "-threads 1 -loglevel " + c.LogLevel()
-	if c.Hwacell() != "" {
-		args += " -hwaccel " + c.Hwacell()
-	}
-
-	args += " -i " + i.input() // Input.
-
-	if i.M.Config.audioEnabled() {
-		args += " -c:a " + c["audioEncoder"]
-	} else {
-		args += " -an" // Skip audio.
-	}
-
-	args += " -c:v " + c["videoEncoder"] + " -preset veryfast" // Video encoder.
-
-	// HLS output.
-	args += " -f hls -hls_flags delete_segments" +
-		" -hls_list_size 2 -hls_allow_cache 0 " + i.HlsPath()
-
-	return args
-}
-
 type runInputProcessFunc func(context.Context, *InputProcess) error
 
 // InputProcess monitor input process.
 type InputProcess struct {
-	isSubInput bool
-	size       string
-	cancel     func()
+	isSubInput   bool
+	rtspAddress  string
+	rtspProtocol string
+	size         string
+	cancel       func()
 
 	M *Monitor
 
@@ -468,6 +449,16 @@ type InputProcess struct {
 // IsSubInput getter.
 func (i *InputProcess) IsSubInput() bool {
 	return i.isSubInput
+}
+
+// RTSPaddress getter.
+func (i *InputProcess) RTSPaddress() string {
+	return i.rtspAddress
+}
+
+// RTSPprotocol getter.
+func (i *InputProcess) RTSPprotocol() string {
+	return i.rtspProtocol
 }
 
 // Size getter.
@@ -484,7 +475,7 @@ func (i *InputProcess) ProcessName() string {
 }
 
 func (i *InputProcess) input() string {
-	if i.isSubInput {
+	if i.IsSubInput() {
 		return i.M.Config.SubInput()
 	}
 	return i.M.Config.MainInput()
@@ -497,6 +488,14 @@ func (i *InputProcess) HlsPath() string {
 		return filepath.Join(i.M.tmpDir(), id+"_sub.m3u8")
 	}
 	return filepath.Join(i.M.tmpDir(), id+".m3u8")
+}
+
+func (i *InputProcess) rtspPathName() string {
+	id := i.M.Config.ID()
+	if i.isSubInput {
+		return id + "_sub"
+	}
+	return id
 }
 
 // Cancel process context.
@@ -530,22 +529,32 @@ func (i *InputProcess) start(ctx context.Context, m *Monitor) {
 }
 
 func runInputProcess(ctx context.Context, i *InputProcess) error {
-	var err error
+	id := i.M.Config.ID()
+
+	pathConf := rtsp.PathConf{MonitorID: id, IsSub: i.IsSubInput()}
+	rtspAddress, rtspProtocol, cancel, err :=
+		i.M.rtspServer.NewPath(i.rtspPathName(), pathConf)
+	if err != nil {
+		return fmt.Errorf("could not add path to RTSP server: %w", err)
+	}
+	defer cancel()
+	i.rtspAddress = rtspAddress
+	i.rtspProtocol = rtspProtocol
+
 	i.size, err = i.sizeFromStream(i.input())
 	if err != nil {
 		return fmt.Errorf("could not get size of stream: %w", err)
 	}
 
-	processCTX, cancel := context.WithCancel(ctx)
-	i.cancel = cancel
+	processCTX, cancel2 := context.WithCancel(ctx)
+	i.cancel = cancel2
+	defer cancel2()
 
 	args := ffmpeg.ParseArgs(i.generateArgs())
 
 	i.M.hooks.StartInput(processCTX, i, &args)
 
 	cmd := exec.Command(i.M.Env.FFmpegBin, args...)
-
-	id := i.M.Config.ID()
 
 	logFunc := func(msg string) {
 		i.M.Log.FFmpegLevel(i.M.Config.LogLevel()).
@@ -566,12 +575,46 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 
 	err = process.Start(processCTX) // Blocks until process exits.
 	if err != nil {
-		cancel()
 		return fmt.Errorf("crashed: %w", err)
 	}
 
-	cancel()
 	return nil
+}
+
+//   '[0:v]fps=fps=3,scale=320:260[bg];
+//     [bg][1:v]overlay,pad=320:320:0:0,crop:300:300:10:10,hue=s=0'
+//   -f rawvideo -pix_fmt rgb24 -
+
+func (i *InputProcess) generateArgs() string {
+	// OUTPUT
+	// -threads 1 -loglevel error -hwaccel x -i rtsp://x
+	// -c:a aac -c:v libx264 -preset veryfast
+	// -f tee -map 0:a -map 0:v '[f=hls:hls_flags=delete_segments
+	// :hls_list_size=2:hls_allow_cache=0]tmpDir/hls/id/id.m3u8
+	// |[f=rtsp:rtsp_transport=tcp]rtsp://127.0.0.1:2021/test'
+
+	c := i.M.Config
+
+	var args string
+
+	args += "-threads 1 -loglevel " + c.LogLevel()
+	if c.Hwacell() != "" {
+		args += " -hwaccel " + c.Hwacell()
+	}
+	args += " -i " + i.input()
+
+	if i.M.Config.audioEnabled() {
+		args += " -c:a " + c["audioEncoder"]
+	} else {
+		args += " -an" // Skip audio.
+	}
+	args += " -c:v " + c["videoEncoder"] + " -preset veryfast"
+
+	args += " -f tee -map 0:a -map 0:v [f=hls:hls_flags=delete_segments" +
+		":hls_list_size=2:hls_allow_cache=0]" + i.HlsPath() +
+		"|[f=rtsp:rtsp_transport=" + i.RTSPprotocol() + "]" + i.RTSPaddress()
+
+	return args
 }
 
 // SendEventFunc send event signature.

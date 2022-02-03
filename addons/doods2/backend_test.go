@@ -36,74 +36,40 @@ import (
 	"time"
 )
 
-func TestGenArgs(t *testing.T) {
-	args := []string{"x"}
-	m := &monitor.Monitor{
-		Env: &storage.ConfigEnv{
-			SHMDir: "a",
-		},
-		Config: monitor.Config{
-			"id": "b",
-		},
-	}
-
-	modifyArgs(&args, m)
-
-	expected := []string{
-		"x", "-c:v", "copy", "-map", "0:v", "-f", "fifo", "-fifo_format", "mpegts",
-		"-drop_pkts_on_overflow", "1", "-attempt_recovery", "1",
-		"-restart_with_keyframe", "1", "-recovery_wait_time", "1", "a/doods/b/main.fifo",
-	}
-
-	if !reflect.DeepEqual(args, expected) {
-		t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, args)
-	}
-}
-
 func TestParseConfig(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		m := &monitor.Monitor{
-			Config: monitor.Config{
-				"timestampOffset": "6",
-				"doodsThresholds": `{"4":5}`,
-				"doodsDuration":   "0.000000003",
-				"doodsFrameScale": "half",
-				"doodsFeedRate":   "500000000",
-				"doodsDelay":      "7",
-			},
+		c := monitor.Config{
+			"timestampOffset": "6",
+			"doodsThresholds": `{"4":5}`,
+			"doodsDuration":   "0.000000003",
+			"doodsFrameScale": "half",
+			"doodsFeedRate":   "500000000",
 		}
-		config, err := parseConfig(m)
+		config, err := parseConfig(c)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		actual := fmt.Sprintf("%v", config)
-		expected := "&{2 3 map[4:5] 6000000 7000000 }"
+		expected := "&{2 3 map[4:5] 6000000 }"
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.\n", expected, actual)
 		}
 	})
 	t.Run("threshErr", func(t *testing.T) {
-		m := &monitor.Monitor{
-			Config: monitor.Config{
-				"doodsThresholds": "nil",
-			},
-		}
-		if _, err := parseConfig(m); err == nil {
+		c := monitor.Config{"doodsThresholds": "nil"}
+		if _, err := parseConfig(c); err == nil {
 			t.Fatal("expected: error, got: nil")
 		}
 	})
 	t.Run("cleanThresh", func(t *testing.T) {
-		m := &monitor.Monitor{
-			Config: monitor.Config{
-				"timestampOffset": "0",
-				"doodsDuration":   "1",
-				"doodsThresholds": `{"a":1,"b":2,"c":-1}`,
-				"doodsFeedRate":   "1",
-				"doodsDelay":      "1",
-			},
+		c := monitor.Config{
+			"timestampOffset": "0",
+			"doodsDuration":   "1",
+			"doodsThresholds": `{"a":1,"b":2,"c":-1}`,
+			"doodsFeedRate":   "1",
 		}
-		config, err := parseConfig(m)
+		config, err := parseConfig(c)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -131,101 +97,43 @@ func TestParseConfig(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			m := &monitor.Monitor{Config: tc.input}
-			_, err := parseConfig(m)
+			_, err := parseConfig(tc.input)
 			if !errors.Is(err, tc.expectedErr) {
 				t.Fatalf("expected: %v, got: %v", tc.expectedErr, err)
 			}
 		})
 	}
 	t.Run("durationErr", func(t *testing.T) {
-		m := &monitor.Monitor{
-			Config: monitor.Config{
-				"doodsThresholds": "{}",
-				"doodsFeedRate":   "nil",
-			},
+		c := monitor.Config{
+			"doodsThresholds": "{}",
+			"doodsFeedRate":   "nil",
 		}
-		_, err := parseConfig(m)
+		_, err := parseConfig(c)
 		if !errors.Is(err, strconv.ErrSyntax) {
 			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
 		}
 	})
 	t.Run("recDurationErr", func(t *testing.T) {
-		m := &monitor.Monitor{
-			Config: monitor.Config{
-				"doodsThresholds": "{}",
-				"doodsDuration":   "nil",
-				"doodsFeedRate":   "1",
-			},
+		c := monitor.Config{
+			"doodsThresholds": "{}",
+			"doodsDuration":   "nil",
+			"doodsFeedRate":   "1",
 		}
-		_, err := parseConfig(m)
+		_, err := parseConfig(c)
 		if !errors.Is(err, strconv.ErrSyntax) {
 			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
 		}
 	})
 	t.Run("timestampOffsetErr", func(t *testing.T) {
-		m := &monitor.Monitor{
-			Config: monitor.Config{
-				"size":            "1x1",
-				"doodsThresholds": "{}",
-				"doodsDuration":   "1",
-				"doodsFeedRate":   "1",
-			},
+		c := monitor.Config{
+			"size":            "1x1",
+			"doodsThresholds": "{}",
+			"doodsDuration":   "1",
+			"doodsFeedRate":   "1",
 		}
-		_, err := parseConfig(m)
+		_, err := parseConfig(c)
 		if !errors.Is(err, strconv.ErrSyntax) {
 			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
-		}
-	})
-	t.Run("doodsDelayErr", func(t *testing.T) {
-		m := &monitor.Monitor{
-			Config: monitor.Config{
-				"size":            "1x1",
-				"doodsThresholds": "{}",
-				"doodsDuration":   "1",
-				"doodsFeedRate":   "1",
-				"timestampOffset": "0",
-			},
-		}
-		_, err := parseConfig(m)
-		if !errors.Is(err, strconv.ErrSyntax) {
-			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
-		}
-	})
-}
-
-func TestPrepareEnv(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "")
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
-		defer os.RemoveAll(tempDir)
-
-		a := instance{
-			monitorID: "id",
-			env: storage.ConfigEnv{
-				SHMDir: tempDir + "/shm",
-			},
-		}
-		if err := a.prepareEnvironment(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !dirExist(a.fifoDir()) {
-			t.Fatal("fifoDir wasn't created")
-		}
-		if !dirExist(a.mainPipe()) {
-			t.Fatal("main pipe wasn't created")
-		}
-	})
-	t.Run("mkdirErr", func(t *testing.T) {
-		a := instance{
-			env: storage.ConfigEnv{
-				SHMDir: "/dev/null",
-			},
-		}
-		if err := a.prepareEnvironment(); err == nil {
-			t.Fatal("expected: error, got: nil")
 		}
 	})
 }
@@ -415,20 +323,17 @@ func TestGenerateMask(t *testing.T) {
 func TestGenerateArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		a := instance{
-			c:         config{},
-			monitorID: "3",
-			env: storage.ConfigEnv{
-				SHMDir: "2",
-			},
+			rtspProtocol: "2",
+			rtspAddress:  "3",
 			outputs: outputs{
 				scaledWidth:  5,
 				scaledHeight: 6,
-				paddedWidth:  7,
-				paddedHeight: 8,
-				width:        11,
-				height:       12,
-				cropX:        "13",
-				cropY:        "14",
+				paddedWidth:  6,
+				paddedHeight: 7,
+				width:        9,
+				height:       10,
+				cropX:        "11",
+				cropY:        "12",
 			},
 		}
 		config := monitor.Config{
@@ -438,8 +343,9 @@ func TestGenerateArgs(t *testing.T) {
 		args := a.generateFFmpegArgs(config, "", false)
 
 		actual := fmt.Sprintf("%v", args)
-		expected := "[-y -threads 1 -loglevel 1 -i 2/doods/3/main.fifo -filter fps=fps=4," +
-			"scale=5:6,pad=8:9:0:0,crop=11:12:13:14 -f rawvideo -pix_fmt rgb24 -]"
+		expected := "[-y -threads 1 -loglevel 1 -rtsp_transport 2 -i 3" +
+			" -filter fps=fps=4,scale=5:6,pad=7:8:0:0,crop=9:10:11:12" +
+			" -f rawvideo -pix_fmt rgb24 -]"
 
 		if actual != expected {
 			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
@@ -447,20 +353,17 @@ func TestGenerateArgs(t *testing.T) {
 	})
 	t.Run("maximal", func(t *testing.T) {
 		a := instance{
-			monitorID: "4",
-			c:         config{},
-			env: storage.ConfigEnv{
-				SHMDir: "3",
-			},
+			rtspProtocol: "3",
+			rtspAddress:  "4",
 			outputs: outputs{
 				scaledWidth:  7,
 				scaledHeight: 8,
-				paddedWidth:  9,
-				paddedHeight: 10,
-				width:        13,
-				height:       14,
-				cropX:        "15",
-				cropY:        "16",
+				paddedWidth:  8,
+				paddedHeight: 9,
+				width:        11,
+				height:       12,
+				cropX:        "13",
+				cropY:        "14",
 			},
 		}
 		config := monitor.Config{
@@ -471,9 +374,9 @@ func TestGenerateArgs(t *testing.T) {
 		args := a.generateFFmpegArgs(config, "5", true)
 
 		actual := fmt.Sprintf("%v", args)
-		expected := "[-y -threads 1 -loglevel 1 -hwaccel 2 -i 3/doods/4/main.fifo -i 5" +
-			" -filter_complex [0:v]fps=fps=6,scale=7:8[bg];" +
-			"[bg][1:v]overlay,pad=10:11:0:0,crop=13:14:15:16,hue=s=0" +
+		expected := "[-y -threads 1 -loglevel 1 -hwaccel 2 -rtsp_transport 3" +
+			" -i 4 -i 5 -filter_complex [0:v]fps=fps=6,scale=7:8[bg];" +
+			"[bg][1:v]overlay,pad=9:10:0:0,crop=11:12:13:14,hue=s=0" +
 			" -f rawvideo -pix_fmt rgb24 -]"
 
 		if actual != expected {
@@ -486,23 +389,6 @@ func mockRunFFmpeg(context.Context, instance) error    { return nil }
 func mockRunFFmpegErr(context.Context, instance) error { return errors.New("mock") }
 
 func TestStartFFmpeg(t *testing.T) {
-	t.Run("canceled", func(t *testing.T) {
-		i, feed, cancel := newTestInstance()
-		defer cancel()
-
-		ctx, cancel2 := context.WithCancel(context.Background())
-		cancel2()
-
-		i.wg.Add(1)
-		go i.startFFmpeg(ctx)
-
-		actual := <-feed
-		expected := "process stopped"
-
-		if actual.Msg != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
-		}
-	})
 	t.Run("crashed", func(t *testing.T) {
 		i, feed, cancel := newTestInstance()
 		defer cancel()
@@ -561,7 +447,7 @@ func TestRunFFmpeg(t *testing.T) {
 		i, _, cancel := newTestInstance()
 		defer cancel()
 
-		i.startReader = mockStartReader
+		i.startInstance = mockStartReader
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
@@ -628,10 +514,11 @@ func newTestInstance() (instance, log.Feed, func()) {
 		encoder: png.Encoder{
 			CompressionLevel: png.NoCompression,
 		},
-		newProcess:  ffmock.NewProcess,
-		runFFmpeg:   mockRunFFmpeg,
-		startReader: mockStartInstance,
-		runInstance: mockRunInstance,
+		newProcess:    ffmock.NewProcess,
+		runFFmpeg:     mockRunFFmpeg,
+		startInstance: mockStartInstance,
+		runInstance:   mockRunInstance,
+		watchdogTimer: time.NewTimer(0),
 	}
 
 	return i, feed, cancelFunc
@@ -657,7 +544,7 @@ func TestStartInstance(t *testing.T) {
 		go startInstance(ctx, i, imgFeed())
 
 		actual := <-feed
-		expected := "client stopped"
+		expected := "instance stopped"
 
 		if actual.Msg != expected {
 			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
@@ -675,7 +562,7 @@ func TestStartInstance(t *testing.T) {
 		go startInstance(ctx, i, imgFeed())
 
 		actual := <-feed
-		expected := "client crashed: mock"
+		expected := "instance crashed: mock"
 
 		if actual.Msg != expected {
 			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)

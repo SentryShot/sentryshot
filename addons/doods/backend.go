@@ -209,7 +209,7 @@ type addon struct {
 
 	outputs *outputs
 
-	env *storage.ConfigEnv
+	env storage.ConfigEnv
 
 	runFFmpeg runFFmpegFunc
 }
