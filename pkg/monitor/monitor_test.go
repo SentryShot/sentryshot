@@ -28,25 +28,24 @@ import (
 	"nvr/pkg/video/rtsp"
 	"os"
 	"path/filepath"
-	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 type cancelFunc func()
 
 func prepareDir(t *testing.T) (string, cancelFunc) {
 	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	testConfigDir := tempDir + "/monitors"
-	if err := os.Mkdir(testConfigDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
+	err = os.Mkdir(testConfigDir, 0o700)
+	require.NoError(t, err)
 
 	fileSystem := os.DirFS("./testdata/monitors/")
 	err = fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
@@ -85,9 +84,9 @@ func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 
 	wg := sync.WaitGroup{}
 	rtspServer := rtsp.NewServer(logger, &wg, 2021)
-	if err := rtspServer.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
+
+	err := rtspServer.Start(ctx)
+	require.NoError(t, err)
 
 	configDir, cancel2 := prepareDir(t)
 
@@ -104,69 +103,47 @@ func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 		rtspServer,
 		&Hooks{},
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	return configDir, manager, cancelFunc
 }
 
-func readConfig(path string) (Config, error) {
+func readConfig(t *testing.T, path string) Config {
 	file, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	var config Config
-	if json.Unmarshal(file, &config); err != nil {
-		return nil, err
-	}
-	return config, nil
+	err = json.Unmarshal(file, &config)
+	require.NoError(t, err)
+
+	return config
 }
 
 func TestNewManager(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		configDir, manager, cancel := newTestManager(t)
 		defer cancel()
 
-		config, err := readConfig(filepath.Join(configDir, "1.json"))
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-
-		expected := fmt.Sprintf("%v", config)
-		actual := fmt.Sprintf("%v", manager.Monitors["1"].Config)
-
-		if expected != actual {
-			t.Fatalf("expected: %v, got %v", expected, actual)
-		}
+		config := readConfig(t, filepath.Join(configDir, "1.json"))
+		require.Equal(t, config, manager.Monitors["1"].Config)
 	})
 	t.Run("resetHLS", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
+		require.NoError(t, err)
 
 		env := storage.ConfigEnv{SHMDir: tempDir}
-
 		testDir := filepath.Join(env.SHMhls(), "test")
-		if err := os.MkdirAll(testDir, 0o744); err != nil {
-			t.Fatalf("could not create temporary directory: %v", err)
-		}
 
-		if _, err := NewManager(tempDir, env, nil, nil, nil); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err = os.MkdirAll(testDir, 0o744)
+		require.NoError(t, err)
 
-		if dirExist(testDir) {
-			t.Fatal("testDir wasn't reset")
-		}
+		_, err = NewManager(tempDir, env, nil, nil, nil)
+		require.NoError(t, err)
+		require.NoDirExists(t, testDir)
 	})
 	t.Run("mkDirErr", func(t *testing.T) {
 		_, err := NewManager("/dev/null/nil", storage.ConfigEnv{}, nil, nil, nil)
-		if err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		require.Error(t, err)
 	})
 	t.Run("readFileErr", func(t *testing.T) {
 		_, err := NewManager(
@@ -176,31 +153,25 @@ func TestNewManager(t *testing.T) {
 			&rtsp.Server{},
 			&Hooks{},
 		)
-
-		if err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		require.Error(t, err)
 	})
 	t.Run("unmarshalErr", func(t *testing.T) {
 		configDir, cancel := prepareDir(t)
 		defer cancel()
 
 		data := []byte("{")
-		if err := os.WriteFile(configDir+"/1.json", data, 0o600); err != nil {
-			t.Fatalf("%v", err)
-		}
+		err := os.WriteFile(configDir+"/1.json", data, 0o600)
+		require.NoError(t, err)
 
-		_, err := NewManager(
+		_, err = NewManager(
 			configDir,
 			storage.ConfigEnv{},
 			&log.Logger{},
 			&rtsp.Server{},
 			&Hooks{},
 		)
-
-		if err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		var e *json.SyntaxError
+		require.ErrorAs(t, err, &e)
 	})
 }
 
@@ -211,28 +182,16 @@ func TestMonitorSet(t *testing.T) {
 
 		config := manager.Monitors["1"].Config
 		config["name"] = "new"
+
 		err := manager.MonitorSet("new", config)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
+		require.NoError(t, err)
 
 		newName := manager.Monitors["new"].Config["name"]
-		if newName != "new" {
-			t.Fatalf("expected: new, got: %v", newName)
-		}
+		require.Equal(t, newName, "new")
 
 		// Check if changes were saved to file.
-		config, err = readConfig(configDir + "/new.json")
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-
-		expected := fmt.Sprintf("%v", manager.Monitors["new"].Config)
-		actual := fmt.Sprintf("%v", config)
-
-		if expected != actual {
-			t.Fatalf("expected: %v, got %v", expected, actual)
-		}
+		config = readConfig(t, configDir+"/new.json")
+		require.Equal(t, config, manager.Monitors["new"].Config)
 	})
 	t.Run("setOld", func(t *testing.T) {
 		configDir, manager, cancel := newTestManager(t)
@@ -242,74 +201,53 @@ func TestMonitorSet(t *testing.T) {
 		oldMonitor.running = true
 
 		oldname := oldMonitor.Config["name"]
-		if oldname != "one" {
-			t.Fatalf("expected: one, got: %v", oldname)
-		}
+		require.Equal(t, oldname, "one")
 
 		config := oldMonitor.Config
 		config["name"] = "two"
-		err := manager.MonitorSet("1", config)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
 
-		if !manager.Monitors["1"].running {
-			t.Fatal("old monitor was reset")
-		}
+		err := manager.MonitorSet("1", config)
+		require.NoError(t, err)
+
+		running := manager.Monitors["1"].running
+		require.True(t, running, "old monitor was reset")
 
 		newName := manager.Monitors["1"].Config["name"]
-		if newName != "two" {
-			t.Fatalf("expected: two, got: %v", newName)
-		}
+		require.Equal(t, newName, "two")
 
 		// Check if changes were saved to file.
-		config, err = readConfig(configDir + "/1.json")
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-
-		expected := fmt.Sprintf("%v", manager.Monitors["1"].Config)
-		actual := fmt.Sprintf("%v", config)
-
-		if expected != actual {
-			t.Fatalf("expected: %v, got %v", expected, actual)
-		}
+		config = readConfig(t, configDir+"/1.json")
+		require.Equal(t, config, manager.Monitors["1"].Config)
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
 		_, manager, cancel := newTestManager(t)
 		defer cancel()
 
 		manager.path = "/dev/null"
-		if err := manager.MonitorSet("1", Config{}); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+
+		err := manager.MonitorSet("1", Config{})
+		require.Error(t, err)
 	})
 }
 
 func TestMonitorDelete(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		_, manager, cancel := newTestManager(t)
 		defer cancel()
 
-		if _, exists := manager.Monitors["1"]; !exists {
-			t.Fatalf("test %v", ErrNotExist.Error())
-		}
+		require.NotNil(t, manager.Monitors["1"])
 
-		if err := manager.MonitorDelete("1"); err != nil {
-			t.Fatalf("%v", err)
-		}
+		err := manager.MonitorDelete("1")
+		require.NoError(t, err)
 
-		if _, exists := manager.Monitors["1"]; exists {
-			t.Fatal("monitor was not deleted")
-		}
+		require.Nil(t, manager.Monitors["1"])
 	})
 	t.Run("existErr", func(t *testing.T) {
 		_, manager, cancel := newTestManager(t)
 		defer cancel()
 
-		if err := manager.MonitorDelete("nil"); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := manager.MonitorDelete("nil")
+		require.ErrorIs(t, err, ErrNotExist)
 	})
 	t.Run("removeErr", func(t *testing.T) {
 		_, manager, cancel := newTestManager(t)
@@ -317,9 +255,8 @@ func TestMonitorDelete(t *testing.T) {
 
 		manager.path = "/dev/null"
 
-		if err := manager.MonitorDelete("1"); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := manager.MonitorDelete("1")
+		require.Error(t, err)
 	})
 }
 
@@ -363,22 +300,18 @@ func TestMonitorList(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-	}
+	require.Equal(t, actual, expected)
 }
 
 func TestMonitorConfigs(t *testing.T) {
 	_, manager, cancel := newTestManager(t)
 	defer cancel()
 
+	actual := fmt.Sprintf("%v", manager.MonitorConfigs())
 	expected := "map[1:map[audioEncoder:copy enable:false id:1 mainInput:x1 name:one]" +
 		" 2:map[enable:false id:2 name:two subInput:x2]]"
 
-	actual := fmt.Sprintf("%v", manager.MonitorConfigs())
-	if actual != expected {
-		t.Fatalf("\nexpected:\n%v.\ngot:\n%v", expected, actual)
-	}
+	require.Equal(t, actual, expected)
 }
 
 func TestStopAllMonitors(t *testing.T) {
@@ -396,13 +329,14 @@ func TestStopAllMonitors(t *testing.T) {
 			"2": runningMonitor(),
 		},
 	}
-	if !m.Monitors["1"].running || !m.Monitors["2"].running {
-		t.Fatal("monitors are not running")
-	}
+
+	require.True(t, m.Monitors["1"].running)
+	require.True(t, m.Monitors["2"].running)
+
 	m.StopAll()
-	if m.Monitors["1"].running || m.Monitors["2"].running {
-		t.Fatal("monitors did not stop")
-	}
+
+	require.False(t, m.Monitors["1"].running)
+	require.False(t, m.Monitors["2"].running)
 }
 
 func mockWaitForKeyframe(context.Context, string, int) (time.Duration, error) {
@@ -424,9 +358,7 @@ func newMockInputProcess(m *Monitor, isSubInput bool) *InputProcess {
 
 func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("could not create temp dir: %v", err)
-	}
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := log.NewMockLogger()
@@ -434,9 +366,9 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 
 	wg := sync.WaitGroup{}
 	rtspServer := rtsp.NewServer(logger, &wg, 2021)
-	if err := rtspServer.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
+
+	err = rtspServer.Start(ctx)
+	require.NoError(t, err)
 
 	m := &Monitor{
 		Env: storage.ConfigEnv{
@@ -481,9 +413,9 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 func TestStartMonitor(t *testing.T) {
 	t.Run("runningErr", func(t *testing.T) {
 		m := Monitor{running: true}
-		if err := m.Start(); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+
+		err := m.Start()
+		require.ErrorIs(t, err, ErrRunning)
 	})
 	t.Run("disabled", func(t *testing.T) {
 		m, _, cancel := newTestMonitor(t)
@@ -499,11 +431,8 @@ func TestStartMonitor(t *testing.T) {
 			m.Start()
 		}()
 
-		expected := "disabled"
 		actual := <-feed
-		if actual.Msg != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "disabled")
 	})
 	t.Run("tmpDirErr", func(t *testing.T) {
 		m, _, cancel := newTestMonitor(t)
@@ -512,9 +441,8 @@ func TestStartMonitor(t *testing.T) {
 		m.running = false
 		m.Env.SHMDir = "/dev/null"
 
-		if err := m.Start(); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := m.Start()
+		require.Error(t, err)
 	})
 }
 
@@ -541,11 +469,7 @@ func TestStartInputProcess(t *testing.T) {
 		go m.newInputProcess(false).start(ctx, m)
 
 		actual := <-feed
-		expected := "main process: stopped"
-
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "main process: stopped")
 	})
 	t.Run("crashed", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
@@ -561,11 +485,7 @@ func TestStartInputProcess(t *testing.T) {
 		go m.mainInput.start(ctx, m)
 
 		actual := <-feed
-		expected := "main process: crashed: mock"
-
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected: \n%v \ngot: \n%v", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "main process: crashed: mock")
 	})
 }
 
@@ -583,16 +503,9 @@ func TestRunInputProcess(t *testing.T) {
 		i, ctx, cancel := newTestInputProcess(t)
 		defer cancel()
 
-		if err := runInputProcess(ctx, i); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		actual := i.size
-
-		expected := "123x456"
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
-		}
+		err := runInputProcess(ctx, i)
+		require.NoError(t, err)
+		require.Equal(t, i.size, "123x456")
 	})
 	t.Run("sizeFromStreamErr", func(t *testing.T) {
 		i, ctx, cancel := newTestInputProcess(t)
@@ -600,9 +513,8 @@ func TestRunInputProcess(t *testing.T) {
 
 		i.sizeFromStream = mockSizeFromStreamErr
 
-		if err := runInputProcess(ctx, i); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runInputProcess(ctx, i)
+		require.Error(t, err)
 	})
 	t.Run("crashed", func(t *testing.T) {
 		i, ctx, cancel := newTestInputProcess(t)
@@ -610,9 +522,8 @@ func TestRunInputProcess(t *testing.T) {
 
 		i.newProcess = ffmock.NewProcessErr
 
-		if err := runInputProcess(ctx, i); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runInputProcess(ctx, i)
+		require.Error(t, err)
 	})
 	t.Run("rtspPath", func(t *testing.T) {
 		i, ctx, cancel := newTestInputProcess(t)
@@ -621,16 +532,14 @@ func TestRunInputProcess(t *testing.T) {
 		go runInputProcess(ctx, i)
 
 		time.Sleep(10 * time.Millisecond)
-		if !i.M.rtspServer.PathExist(i.M.Config.ID() + "_sub") {
-			t.Fatal("expected path to have been added")
-		}
+
+		path := i.M.Config.ID() + "_sub"
+		require.True(t, i.M.rtspServer.PathExist(path))
 
 		cancel()
 		i.M.WG.Wait()
 
-		if i.M.rtspServer.PathExist(i.M.Config.ID() + "_sub") {
-			t.Fatal("expected path to have been removed")
-		}
+		require.False(t, i.M.rtspServer.PathExist(path))
 	})
 
 	t.Run("rtspPathErr", func(t *testing.T) {
@@ -639,9 +548,8 @@ func TestRunInputProcess(t *testing.T) {
 
 		i.M.Config["id"] = ""
 
-		if err := runInputProcess(ctx, i); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runInputProcess(ctx, i)
+		require.ErrorIs(t, err, rtsp.ErrEmptyPathName)
 	})
 }
 
@@ -650,9 +558,7 @@ func TestSendEvent(t *testing.T) {
 		m := &Monitor{running: false}
 
 		err := m.SendEvent(storage.Event{})
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("expected: %v got :%v", context.Canceled, err)
-		}
+		require.ErrorIs(t, err, context.Canceled)
 	})
 }
 
@@ -675,9 +581,7 @@ func TestStartRecorder(t *testing.T) {
 }
 'Time': ` + storage.ErrValueMissing.Error()
 
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 	t.Run("missingRecDuration", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
@@ -698,9 +602,7 @@ func TestStartRecorder(t *testing.T) {
 }
 'RecDuration': ` + storage.ErrValueMissing.Error()
 
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 
 	t.Run("timeout", func(t *testing.T) {
@@ -717,17 +619,11 @@ func TestStartRecorder(t *testing.T) {
 			Time:        time.Now().Add(time.Duration(-1) * time.Hour),
 			RecDuration: 1,
 		})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		actual := <-feed
-
 		expected := "trigger reached end, stopping recording"
-
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, expected)
 	})
 	t.Run("timeoutUpdate", func(t *testing.T) {
 		mu := sync.Mutex{}
@@ -820,12 +716,8 @@ func TestStartRecording(t *testing.T) {
 		m.WG.Add(1)
 		go startRecording(ctx2, m)
 
-		expected := "recording stopped"
-
 		actual := <-feed
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "recording stopped")
 	})
 	t.Run("crashed", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
@@ -839,12 +731,8 @@ func TestStartRecording(t *testing.T) {
 		m.WG.Add(1)
 		go startRecording(ctx, m)
 
-		expected := "recording process: mock"
-
 		actual := <-feed
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "recording process: mock")
 	})
 }
 
@@ -873,12 +761,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		<-feed
 		<-feed
 		actual := <-feed
-
-		expected := "recording finished"
-
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "recording finished")
 	})
 	t.Run("saveRecordingAsync", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
@@ -903,9 +786,8 @@ func TestRunRecordingProcess(t *testing.T) {
 		m.waitForKeyframe = mockWaitForKeyframeErr
 
 		m.WG.Add(1)
-		if err := runRecordingProcess(ctx, m); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runRecordingProcess(ctx, m)
+		require.Error(t, err)
 	})
 	t.Run("mkdirErr", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
@@ -915,9 +797,8 @@ func TestRunRecordingProcess(t *testing.T) {
 			StorageDir: "/dev/null",
 		}
 
-		if err := runRecordingProcess(ctx, m); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runRecordingProcess(ctx, m)
+		require.Error(t, err)
 	})
 	t.Run("genArgsErr", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
@@ -925,9 +806,8 @@ func TestRunRecordingProcess(t *testing.T) {
 
 		m.Config["videoLength"] = ""
 
-		if err := runRecordingProcess(ctx, m); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runRecordingProcess(ctx, m)
+		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 	t.Run("parseOffsetErr", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
@@ -935,18 +815,16 @@ func TestRunRecordingProcess(t *testing.T) {
 
 		m.Config["timestampOffset"] = ""
 
-		if err := runRecordingProcess(ctx, m); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runRecordingProcess(ctx, m)
+		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 	t.Run("crashed", func(t *testing.T) {
 		m, ctx, cancel := newTestMonitor(t)
 		defer cancel()
 		m.NewProcess = ffmock.NewProcessErr
 
-		if err := runRecordingProcess(ctx, m); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runRecordingProcess(ctx, m)
+		require.Error(t, err)
 	})
 }
 
@@ -988,9 +866,8 @@ func TestGenInputArgs(t *testing.T) {
 			" -f tee -map 0:a -map 0:v [f=hls:hls_flags=delete_segments" +
 			":hls_list_size=2:hls_allow_cache=0]hls/id/id.m3u8" +
 			"|[f=rtsp:rtsp_transport=5]6"
-		if actual != expected {
-			t.Fatalf("\nexpected: \n%v \ngot \n%v", expected, actual)
-		}
+
+		require.Equal(t, actual, expected)
 	})
 	t.Run("maximal", func(t *testing.T) {
 		i := &InputProcess{
@@ -1009,14 +886,13 @@ func TestGenInputArgs(t *testing.T) {
 				},
 			},
 		}
-		actual := i.generateArgs()
+		args := i.generateArgs()
 		expected := "-threads 1 -loglevel 1 -hwaccel 2 -i 3 -c:a 4 -c:v 5" +
 			" -preset veryfast -f tee -map 0:a -map 0:v [f=hls" +
 			":hls_flags=delete_segments:hls_list_size=2:hls_allow_cache=0]" +
 			"hls/id/id_sub.m3u8|[f=rtsp:rtsp_transport=6]7"
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot\n%v.", expected, actual)
-		}
+
+		require.Equal(t, args, expected)
 	})
 }
 
@@ -1032,23 +908,18 @@ func TestGenRecorderArgs(t *testing.T) {
 		}
 		m.mainInput = newMockInputProcess(m, false)
 
-		actual, err := m.generateRecorderArgs("path")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		args, err := m.generateRecorderArgs("path")
+		require.NoError(t, err)
+
 		expected := "-y -threads 1 -loglevel 1 -live_start_index -2 -i hls/id/id.m3u8 -t 180 -c:v copy path.mp4"
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot\n%v.", expected, actual)
-		}
+		require.Equal(t, args, expected)
 	})
 	t.Run("videoLengthErr", func(t *testing.T) {
 		m := Monitor{
 			Env: storage.ConfigEnv{},
 		}
 		_, err := m.generateRecorderArgs("path")
-		if err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 }
 
@@ -1061,7 +932,7 @@ func mockVideoDurationErr(string) (time.Duration, error) {
 }
 
 func TestSaveRecording(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		m, _, cancel := newTestMonitor(t)
 		defer cancel()
 
@@ -1095,14 +966,12 @@ func TestSaveRecording(t *testing.T) {
 		tempdir := m.Env.SHMDir
 		filePath := tempdir + "file"
 
-		if err := m.saveRec(filePath, start); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := m.saveRec(filePath, start)
+		require.NoError(t, err)
 
 		b, err := os.ReadFile(filePath + ".json")
-		if err != nil {
-			t.Fatalf("could not read file: %v", err)
-		}
+		require.NoError(t, err)
+
 		actual := string(b)
 		actual = strings.ReplaceAll(actual, " ", "")
 		actual = strings.ReplaceAll(actual, "\n", "")
@@ -1112,9 +981,7 @@ func TestSaveRecording(t *testing.T) {
 			`[{"label":"10","score":9,"region":{"rect":[1,2,3,4],` +
 			`"polygon":[[5,6],[7,8]]}}],"duration":11}]}`
 
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 	t.Run("genThumbnailErr", func(t *testing.T) {
 		m, _, cancel := newTestMonitor(t)
@@ -1122,9 +989,8 @@ func TestSaveRecording(t *testing.T) {
 
 		m.NewProcess = ffmock.NewProcessErr
 
-		if err := m.saveRec("", time.Time{}); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := m.saveRec("", time.Time{})
+		require.Error(t, err)
 	})
 	t.Run("durationErr", func(t *testing.T) {
 		m, _, cancel := newTestMonitor(t)
@@ -1132,26 +998,14 @@ func TestSaveRecording(t *testing.T) {
 
 		m.videoDuration = mockVideoDurationErr
 
-		if err := m.saveRec("", time.Time{}); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := m.saveRec("", time.Time{})
+		require.Error(t, err)
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
 		m, _, cancel := newTestMonitor(t)
 		defer cancel()
 
-		if err := m.saveRec("/dev/null/", time.Time{}); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := m.saveRec("/dev/null/", time.Time{})
+		require.Error(t, err)
 	})
-}
-
-func dirExist(path string) bool {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-		return false
-	}
-	return true
 }

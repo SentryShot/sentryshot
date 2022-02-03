@@ -557,7 +557,7 @@ func runInstance(ctx context.Context, i instance, stdout io.Reader) error {
 
 	for {
 		if ctx.Err() != nil {
-			return nil
+			return context.Canceled
 		}
 		if _, err := io.ReadAtLeast(stdout, inputBuffer, i.outputs.frameSize); err != nil {
 			if errors.Is(err, io.EOF) {

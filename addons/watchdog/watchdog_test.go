@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func newTestWatchdog(t *testing.T) (context.Context, watchdog, log.Feed, func()) {
@@ -48,11 +50,7 @@ func TestWatchdog(t *testing.T) {
 		mu.Unlock()
 
 		actual := <-feed
-		expected := "x process: possible freeze detected, restarting"
-
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "x process: possible freeze detected, restarting")
 	})
 	t.Run("fileErr", func(t *testing.T) {
 		ctx, d, feed, cancel := newTestWatchdog(t)
@@ -63,10 +61,6 @@ func TestWatchdog(t *testing.T) {
 		go d.start(ctx)
 
 		actual := <-feed
-		expected := "x process: no such file or directory"
-
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "x process: no such file or directory")
 	})
 }

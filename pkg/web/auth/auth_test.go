@@ -18,12 +18,13 @@ package auth
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"nvr/pkg/log"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -33,9 +34,7 @@ var (
 
 func newTestAuth(t *testing.T) (string, *Authenticator, func()) {
 	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("could not create tempoary directory: %v", err)
-	}
+	require.NoError(t, err)
 
 	cancelFunc := func() {
 		os.RemoveAll(tempDir)
@@ -58,12 +57,10 @@ func newTestAuth(t *testing.T) (string, *Authenticator, func()) {
 		},
 	}
 	data, err := json.MarshalIndent(users, "", "    ")
-	if err != nil {
-		t.Fatalf("could not marshal users: %v", err)
-	}
-	if err := os.WriteFile(usersPath, data, 0o600); err != nil {
-		t.Fatalf("could not write users file: %v", err)
-	}
+	require.NoError(t, err)
+
+	err = os.WriteFile(usersPath, data, 0o600)
+	require.NoError(t, err)
 
 	auth := Authenticator{
 		path:      usersPath,
@@ -84,34 +81,36 @@ func clearTokens(auth *Authenticator) {
 }
 
 func TestNewBasicAuthenticator(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		tempDir, testAuth, cancel := newTestAuth(t)
 		defer cancel()
 
 		auth, err := NewBasicAuthenticator(tempDir+"/users.json", &log.Logger{})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
+
 		clearTokens(auth)
 
-		actual := fmt.Sprintf("%v", auth.accounts)
-		expected := fmt.Sprintf("%v", testAuth.accounts)
-
-		if actual != expected {
-			t.Fatalf("\nexpected\n%v.\ngot\n%v.", expected, actual)
-		}
+		require.Equal(t, auth.accounts, testAuth.accounts)
 	})
 	t.Run("readFile error", func(t *testing.T) {
 		_, err := NewBasicAuthenticator("nil", &log.Logger{})
-		if !errors.Is(err, os.ErrNotExist) {
-			t.Fatalf("expected %v, got: %v", os.ErrNotExist, err)
-		}
+		require.ErrorIs(t, err, os.ErrNotExist)
 	})
 }
 
 func TestBasicAuthenticator(t *testing.T) {
-	adminExpected := "{1 admin " + fmt.Sprintf("%v", pass1) + "  true }"
-	userExpected := "{2 user " + fmt.Sprintf("%v", pass2) + "  false }"
+	adminExpected := Account{
+		ID:       "1",
+		Username: "admin",
+		Password: pass1,
+		IsAdmin:  true,
+	}
+	userExpected := Account{
+		ID:       "2",
+		Username: "user",
+		Password: pass2,
+		IsAdmin:  false,
+	}
 
 	t.Run("userByName", func(t *testing.T) {
 		_, a, cancel := newTestAuth(t)
@@ -120,26 +119,20 @@ func TestBasicAuthenticator(t *testing.T) {
 		cases := []struct {
 			username    string
 			shouldExist bool
-			expected    string
+			expected    Account
 		}{
 			{"admin", true, adminExpected},
 			{"user", true, userExpected},
-			{"nil", false, "{  []  false }"},
+			{"nil", false, Account{}},
 		}
 
 		for _, tc := range cases {
 			t.Run(tc.username, func(t *testing.T) {
 				account, exists := a.userByName(tc.username)
-				if exists != tc.shouldExist {
-					t.Fatalf("should exists: %v, got %v", tc.shouldExist, exists)
-				}
+				require.Equal(t, exists, tc.shouldExist)
+
 				account.Token = ""
-
-				actual := fmt.Sprintf("%v", account)
-
-				if actual != tc.expected {
-					t.Fatalf("\nexpected %v\n     got %v", tc.expected, actual)
-				}
+				require.Equal(t, account, tc.expected)
 			})
 		}
 	})
@@ -154,13 +147,13 @@ func TestBasicAuthenticator(t *testing.T) {
 			username string
 			password string
 			valid    bool
-			expected string
+			expected Account
 		}{
 			{"admin", "pass1", true, adminExpected},
 			{"user", "pass2", true, userExpected},
 			{"user", "pass2", true, userExpected}, // test cache
-			{"user", "wrongPass", false, "{  []  false }"},
-			{"nil", "", false, "{  []  false }"},
+			{"user", "wrongPass", false, Account{}},
+			{"nil", "", false, Account{}},
 		}
 
 		for _, tc := range cases {
@@ -169,39 +162,27 @@ func TestBasicAuthenticator(t *testing.T) {
 				auth := base64.StdEncoding.EncodeToString([]byte(plainAuth))
 
 				response := a.ValidateAuth("Basic " + auth)
-				if response.IsValid != tc.valid {
-					t.Fatalf("expected valid: %v, got: %v", tc.valid, response.IsValid)
-				}
+				require.Equal(t, response.IsValid, tc.valid)
 
 				user := response.User
 				user.Token = ""
-				actual := fmt.Sprintf("%v", user)
-
-				if actual != tc.expected {
-					t.Fatalf("expected %v, got %v", tc.expected, actual)
-				}
+				require.Equal(t, user, tc.expected)
 			})
 		}
 
 		t.Run("invalid prefix", func(t *testing.T) {
 			auth := base64.StdEncoding.EncodeToString([]byte("admin:pass1"))
 			response := a.ValidateAuth("nil" + auth)
-			if response.IsValid {
-				t.Fatal("expected invalid response")
-			}
+			require.False(t, response.IsValid, "expected invalid response")
 		})
 		t.Run("invalid base64", func(t *testing.T) {
 			response := a.ValidateAuth("Basic nil")
-			if response.IsValid {
-				t.Fatal("expected invalid response")
-			}
+			require.False(t, response.IsValid, "expected invalid response")
 		})
 		t.Run("invalid auth", func(t *testing.T) {
 			auth := base64.StdEncoding.EncodeToString([]byte("admin@pass1"))
 			response := a.ValidateAuth("Basic " + auth)
-			if response.IsValid {
-				t.Fatal("expected invalid response")
-			}
+			require.False(t, response.IsValid, "expected invalid response")
 		})
 	})
 
@@ -213,10 +194,7 @@ func TestBasicAuthenticator(t *testing.T) {
 
 		actual := fmt.Sprintf("%v", users)
 		expected := "map[1:{1 admin []  true } 2:{2 user []  false }]"
-
-		if actual != expected {
-			t.Fatalf("\nexpected\n%v.\ngot\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 
 	t.Run("userSet", func(t *testing.T) {
@@ -246,17 +224,12 @@ func TestBasicAuthenticator(t *testing.T) {
 					IsAdmin:     tc.isAdmin,
 				})
 				gotError := err != nil
-				if tc.err != gotError {
-					t.Errorf("expected error: %v, error: %v", tc.err, err)
-				}
+				require.Equal(t, gotError, tc.err)
+
 				if tc.id != "" && !tc.err {
 					u, _ := a.userByName(tc.username)
-					if u.ID != tc.id {
-						t.Errorf("id does not match")
-					}
-					if u.IsAdmin != tc.isAdmin {
-						t.Errorf("isAdmin does not match")
-					}
+					require.Equal(t, u.ID, tc.id, "IDs does not match")
+					require.Equal(t, u.IsAdmin, tc.isAdmin, "isAdmin does not match")
 				}
 			})
 		}
@@ -275,27 +248,24 @@ func TestBasicAuthenticator(t *testing.T) {
 				Token:       "d",
 			}
 			err := a.UserSet(user)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+			require.NoError(t, err)
+
 			file, err := fs.ReadFile(os.DirFS(tempDir), "users.json")
-			if err != nil {
-				t.Fatalf("could not read file: %v", err)
-			}
+			require.NoError(t, err)
+
 			var users map[string]Account
 			err = json.Unmarshal(file, &users)
-			if err != nil {
-				t.Fatalf("could not unmarshal: %v", err)
-			}
+			require.NoError(t, err)
 
 			u := users["10"]
 			u.Password = nil
 
-			expected := "{10 a []  true }"
-			actual := fmt.Sprintf("%v", u)
-			if actual != expected {
-				t.Fatalf("\nexpected%v\n.\ngot\n%v\n", expected, actual)
+			expected := Account{
+				ID:       "10",
+				Username: "a",
+				IsAdmin:  true,
 			}
+			require.Equal(t, u, expected)
 		})
 		t.Run("saveErr", func(t *testing.T) {
 			_, a, cancel := newTestAuth(t)
@@ -303,9 +273,8 @@ func TestBasicAuthenticator(t *testing.T) {
 
 			a.path = ""
 
-			if err := a.UserSet(Account{ID: "1", Username: "a"}); err == nil {
-				t.Fatal("expected: error, got: nil")
-			}
+			err := a.UserSet(Account{ID: "1", Username: "a"})
+			require.Error(t, err)
 		})
 	})
 
@@ -315,25 +284,19 @@ func TestBasicAuthenticator(t *testing.T) {
 
 		t.Run("unknown user", func(t *testing.T) {
 			err := a.UserDelete("nil")
-			if !errors.Is(err, ErrUserNotExist) {
-				t.Fatalf("expected: %v, got: %v", ErrUserNotExist, err)
-			}
+			require.ErrorIs(t, err, ErrUserNotExist)
 		})
-		t.Run("working", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
 			err := a.UserDelete("2")
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if _, exist := a.userByName(""); exist {
-				t.Fatal("user was not deleted")
-			}
+			require.NoError(t, err)
+
+			_, exist := a.userByName("")
+			require.False(t, exist, "user was not deleted")
 		})
 		t.Run("save error", func(t *testing.T) {
 			a.path = ""
 			err := a.UserDelete("1")
-			if err == nil {
-				t.Fatal("nil")
-			}
+			require.Error(t, err)
 		})
 	})
 }

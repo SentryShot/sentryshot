@@ -18,25 +18,21 @@ package doods
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestConfig(t *testing.T) (string, func()) {
 	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("could not create tempoary directory: %v", err)
-	}
+	require.NoError(t, err)
 
 	cancelFunc := func() {
 		os.RemoveAll(tempDir)
@@ -48,75 +44,53 @@ func newTestConfig(t *testing.T) (string, func()) {
 }
 
 func TestReadConfig(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		configPath, cancel := newTestConfig(t)
 		defer cancel()
 
 		file := `{ "ip": "test:8080" }`
 
-		if err := os.WriteFile(configPath, []byte(file), 0o600); err != nil {
-			t.Fatalf("could not write test file: %v", err)
-		}
+		err := os.WriteFile(configPath, []byte(file), 0o600)
+		require.NoError(t, err)
 
-		actual, err := readConfig(configPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		expected := "test:8080"
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
-		}
+		ip, err := readConfig(configPath)
+		require.NoError(t, err)
+		require.Equal(t, ip, "test:8080")
 	})
 	t.Run("genFile", func(t *testing.T) {
 		configPath, cancel := newTestConfig(t)
 		defer cancel()
 
-		if _, err := readConfig(configPath); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		_, err := readConfig(configPath)
+		require.NoError(t, err)
 
 		file, err := os.ReadFile(configPath)
-		if err != nil {
-			t.Fatalf("could not read addon file: %v", err)
-		}
+		require.NoError(t, err)
 
-		actual := string(file)
-
-		file, _ = json.Marshal(defaultConfig)
-		expected := string(file)
-
-		if actual != expected {
-			t.Errorf("expected: %v, got: %v", expected, actual)
-		}
+		defaultConfigJSON, _ := json.Marshal(defaultConfig)
+		require.Equal(t, file, defaultConfigJSON)
 	})
 	t.Run("genFileErr", func(t *testing.T) {
-		if _, err := readConfig("/dev/null/nil"); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err := readConfig("/dev/null/nil")
+		var e *os.PathError
+		require.ErrorAs(t, err, &e)
 	})
 	t.Run("unmarshalErr", func(t *testing.T) {
 		configPath, cancel := newTestConfig(t)
 		defer cancel()
 
-		if err := os.WriteFile(configPath, []byte(""), 0o600); err != nil {
-			t.Fatalf("could not write test file: %v", err)
-		}
+		err := os.WriteFile(configPath, []byte(""), 0o600)
+		require.NoError(t, err)
 
-		if _, err := readConfig(configPath); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err = readConfig(configPath)
+		var e *json.SyntaxError
+		require.ErrorAs(t, err, &e)
 	})
 }
 
 func TestNewFetcher(t *testing.T) {
 	f := newFetcher("test")
-	actual := f.url
-	expected := "http://test/detectors"
-
-	if actual != expected {
-		t.Fatalf("expected: %v, got: %v", expected, actual)
-	}
+	require.Equal(t, f.url, "http://test/detectors")
 }
 
 var testDetectors = detectors{
@@ -133,75 +107,60 @@ var testDetectors = detectors{
 }
 
 func TestFetchDetectors(t *testing.T) {
-	response, _ := json.Marshal(getDetectorsResponce{testDetectors})
+	response, err := json.Marshal(getDetectorsResponce{testDetectors})
+	require.NoError(t, err)
 
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if _, err := io.WriteString(w, string(response)); err != nil {
-				t.Fatalf("could not write response: %v", err)
-			}
+			_, err := io.WriteString(w, string(response))
+			require.NoError(t, err)
 		}))
 		defer ts.Close()
 
 		f := fetcher{url: ts.URL}
+
 		detectors, err := f.fetchDetectors()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		actual := fmt.Sprintf("%v", detectors)
-		expected := fmt.Sprintf("%v", testDetectors)
-
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
-		}
+		require.NoError(t, err)
+		require.Equal(t, detectors, testDetectors)
 	})
 	t.Run("createRequestErr", func(t *testing.T) {
 		f := fetcher{url: string(rune(0x7f))}
-		if _, err := f.fetchDetectors(); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err := f.fetchDetectors()
+		require.Error(t, err)
 	})
 	t.Run("sendErr", func(t *testing.T) {
 		f := fetcher{url: ""}
-		if _, err := f.fetchDetectors(); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err := f.fetchDetectors()
+		require.Error(t, err)
 	})
 	t.Run("unmarshalErr", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if _, err := io.WriteString(w, "nil"); err != nil {
-				t.Fatalf("could not write response: %v", err)
-			}
+			_, err := io.WriteString(w, "nil")
+			require.NoError(t, err)
 		}))
 		defer ts.Close()
 
 		f := fetcher{url: ts.URL}
-		if _, err := f.fetchDetectors(); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+
+		_, err := f.fetchDetectors()
+		var e *json.SyntaxError
+		require.ErrorAs(t, err, &e)
 	})
 }
 
 func TestDetectorByName(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		addon.detectorList = testDetectors
-		d, err := detectorByName("1")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		actual := fmt.Sprintf("%v", d)
-		expected := fmt.Sprintf("%v", testDetectors[0])
 
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
-		}
+		detector, err := detectorByName("1")
+		require.NoError(t, err)
+		require.Equal(t, detector, testDetectors[0])
 	})
-	t.Run("error", func(t *testing.T) {
+	t.Run("existError", func(t *testing.T) {
 		addon.detectorList = testDetectors
-		if _, err := detectorByName("nil"); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+
+		_, err := detectorByName("nil")
+		require.ErrorIs(t, err, os.ErrNotExist)
 	})
 }
 
@@ -214,22 +173,17 @@ func TestClient(t *testing.T) {
 		defer cancel2()
 
 		client := newClient(ctx, ts.ip)
-		if err := client.dial(); err != nil {
-			t.Fatal(err)
-		}
+		err := client.dial()
+		require.NoError(t, err)
+
 		go client.start()
 
-		actual, err := client.sendRequest(
+		d, err := client.sendRequest(
 			context.Background(),
 			detectRequest{DetectorName: "1"},
 		)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		expected := detections{Detection{Label: "1"}}
-		if !reflect.DeepEqual(*actual, expected) {
-			t.Fatalf("expected: %v, got: %v", expected, *actual)
-		}
+		require.NoError(t, err)
+		require.Equal(t, d, &detections{Detection{Label: "1"}})
 	})
 	t.Run("readReconnect", func(t *testing.T) {
 		ts, cancel := newTestServer(t)
@@ -239,25 +193,20 @@ func TestClient(t *testing.T) {
 		defer cancel2()
 
 		client := newClient(ctx, ts.ip)
-		if err := client.dial(); err != nil {
-			t.Fatal(err)
-		}
+		err := client.dial()
+		require.NoError(t, err)
+
 		go client.start()
 
 		ts.closeConn()
 		time.Sleep(10 * time.Millisecond)
 
-		actual, err := client.sendRequest(
+		d, err := client.sendRequest(
 			context.Background(),
 			detectRequest{DetectorName: "1"},
 		)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		expected := detections{Detection{Label: "1"}}
-		if !reflect.DeepEqual(*actual, expected) {
-			t.Fatalf("expected: %v, got: %v", expected, *actual)
-		}
+		require.NoError(t, err)
+		require.Equal(t, d, &detections{Detection{Label: "1"}})
 	})
 	t.Run("canceled", func(t *testing.T) {
 		ctx, cancel2 := context.WithCancel(context.Background())
@@ -266,9 +215,7 @@ func TestClient(t *testing.T) {
 		client := &client{ctx: ctx}
 
 		_, err := client.sendRequest(context.Background(), detectRequest{})
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("expected: %v, got: %v", context.Canceled, err)
-		}
+		require.ErrorIs(t, err, context.Canceled)
 	})
 	t.Run("canceled2", func(t *testing.T) {
 		ts, cancel := newTestServer(t)
@@ -278,9 +225,9 @@ func TestClient(t *testing.T) {
 		defer cancel2()
 
 		client := newClient(ctx, ts.ip)
-		if err := client.dial(); err != nil {
-			t.Fatal(err)
-		}
+		err := client.dial()
+		require.NoError(t, err)
+
 		go client.start()
 
 		ts.sendPause()
@@ -291,10 +238,8 @@ func TestClient(t *testing.T) {
 			cancel2()
 		}()
 
-		_, err := client.sendRequest(context.Background(), detectRequest{})
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("expected: %v, got: %v", context.Canceled, err)
-		}
+		_, err = client.sendRequest(context.Background(), detectRequest{})
+		require.ErrorIs(t, err, context.Canceled)
 	})
 	t.Run("canceled3", func(t *testing.T) {
 		ts, cancel := newTestServer(t)
@@ -304,9 +249,9 @@ func TestClient(t *testing.T) {
 		defer cancel2()
 
 		client := newClient(ctx, ts.ip)
-		if err := client.dial(); err != nil {
-			t.Fatal(err)
-		}
+		err := client.dial()
+		require.NoError(t, err)
+
 		go client.start()
 
 		ts.sendPause()
@@ -315,17 +260,13 @@ func TestClient(t *testing.T) {
 		ctx2, cancel3 := context.WithCancel(context.Background())
 		cancel3()
 
-		_, err := client.sendRequest(ctx2, detectRequest{})
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("expected: %v, got: %v", context.Canceled, err)
-		}
+		_, err = client.sendRequest(ctx2, detectRequest{})
+		require.ErrorIs(t, err, context.Canceled)
 	})
 	t.Run("connectErr", func(t *testing.T) {
 		client := newClient(context.Background(), "nil")
 		err := client.dial()
-		if err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		require.Error(t, err)
 	})
 }
 
@@ -347,9 +288,7 @@ func newTestServer(t *testing.T) (*testServer, cancelFunc) {
 		ctx2, cancel2 := context.WithCancel(ctx)
 
 		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		// Reciver.
 		go func() {

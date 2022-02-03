@@ -17,35 +17,33 @@ package log
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	bolt "go.etcd.io/bbolt"
 )
 
 func newTestDB(t *testing.T) (*DB, func()) {
 	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("could not create tempoary directory: %v", err)
-	}
-	dbPath := filepath.Join(tempDir, "logs.db")
+	require.NoError(t, err)
 
+	dbPath := filepath.Join(tempDir, "logs.db")
 	logDB := NewDB(dbPath, &sync.WaitGroup{})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	if err := logDB.Init(ctx); err != nil {
-		t.Fatal(err)
-	}
+	logDB.Init(ctx)
+	require.NoError(t, err)
 
 	return logDB, cancel
 }
 
 func TestQuery(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		msg1 := Log{
 			Level:   LevelError,
 			Time:    4000,
@@ -188,15 +186,9 @@ func TestQuery(t *testing.T) {
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
 				logs, err := logDB.Query(tc.input)
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				actual := fmt.Sprintf("%v", logs)
-				expected := fmt.Sprintf("%v", tc.expected)
+				require.NoError(t, err)
 
-				if actual != expected {
-					t.Fatalf("\nexpected:\n%v.\ngot:\n%v", expected, actual)
-				}
+				require.Equal(t, logs, tc.expected)
 			})
 		}
 	})
@@ -208,25 +200,20 @@ func TestQuery(t *testing.T) {
 			b := tx.Bucket([]byte(dbAPIversion))
 			return b.Put([]byte("invalid"), []byte("nil"))
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
-		if _, err := logDB.Query(Query{}); err == nil {
-			t.Fatalf("expected: error, got: nil.")
-		}
+		_, err = logDB.Query(Query{})
+		var e *json.SyntaxError
+		require.ErrorAs(t, err, &e)
 
 		err = logDB.db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(dbAPIversion))
 			return b.Put([]byte("valid"), []byte(encodeValue(Log{})))
 		})
-		if err != nil {
-			t.Fatalf("could not add valid value to db: %v", err)
-		}
+		require.NoError(t, err)
 
-		if _, err := logDB.Query(Query{}); err == nil {
-			t.Fatalf("expected: error, got: nil.")
-		}
+		_, err = logDB.Query(Query{})
+		require.ErrorAs(t, err, &e)
 	})
 }
 
@@ -238,9 +225,8 @@ func TestDB(t *testing.T) {
 		logDB.maxKeys = 3
 
 		logDB.db.View(func(tx *bolt.Tx) error {
-			if tx.Bucket([]byte(dbAPIversion)).Stats().KeyN != 0 {
-				t.Fatalf("database is not empty")
-			}
+			keyN := tx.Bucket([]byte(dbAPIversion)).Stats().KeyN
+			require.Equal(t, keyN, 0, "database is not empty")
 			return nil
 		})
 
@@ -252,9 +238,7 @@ func TestDB(t *testing.T) {
 
 		logDB.db.View(func(tx *bolt.Tx) error {
 			keyN := tx.Bucket([]byte(dbAPIversion)).Stats().KeyN
-			if keyN != logDB.maxKeys {
-				t.Fatalf("expected: %v number of keys, got %v", logDB.maxKeys, keyN)
-			}
+			require.Equal(t, logDB.maxKeys, keyN)
 			return nil
 		})
 	})
@@ -262,8 +246,7 @@ func TestDB(t *testing.T) {
 		logDB := &DB{
 			dbPath: "/dev/null",
 		}
-		if err := logDB.Init(context.Background()); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := logDB.Init(context.Background())
+		require.Error(t, err)
 	})
 }

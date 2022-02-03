@@ -18,6 +18,7 @@ package doods
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image/png"
@@ -29,15 +30,16 @@ import (
 	"nvr/pkg/storage"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseConfig(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		c := monitor.Config{
 			"timestampOffset": "6",
 			"doodsThresholds": `{"4":5}`,
@@ -46,21 +48,16 @@ func TestParseConfig(t *testing.T) {
 			"doodsFeedRate":   "500000000",
 		}
 		config, err := parseConfig(c)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		actual := fmt.Sprintf("%v", config)
-		expected := "&{2 3 map[4:5] 6000000 }"
+		require.NoError(t, err)
 
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.\n", expected, actual)
-		}
+		actual := fmt.Sprintf("%v", config)
+		require.Equal(t, actual, "&{2 3 map[4:5] 6000000 }")
 	})
 	t.Run("threshErr", func(t *testing.T) {
 		c := monitor.Config{"doodsThresholds": "nil"}
-		if _, err := parseConfig(c); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err := parseConfig(c)
+		var e *json.SyntaxError
+		require.ErrorAs(t, err, &e)
 	})
 	t.Run("cleanThresh", func(t *testing.T) {
 		c := monitor.Config{
@@ -70,20 +67,15 @@ func TestParseConfig(t *testing.T) {
 			"doodsFeedRate":   "1",
 		}
 		config, err := parseConfig(c)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		actual := fmt.Sprintf("%v", config.thresholds)
-		expected := "map[a:1 b:2]"
+		require.NoError(t, err)
 
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
-		}
+		actual := fmt.Sprintf("%v", config.thresholds)
+		require.Equal(t, actual, "map[a:1 b:2]")
 	})
+
 	cases := []struct {
-		name        string
-		input       monitor.Config
-		expectedErr error
+		name   string
+		config monitor.Config
 	}{
 		{
 			"durationErr",
@@ -91,90 +83,60 @@ func TestParseConfig(t *testing.T) {
 				"doodsThresholds": "{}",
 				"doodsFeedRate":   "nil",
 			},
-			strconv.ErrSyntax,
+		},
+		{
+			"recDurationErr",
+			monitor.Config{
+				"doodsThresholds": "{}",
+				"doodsDuration":   "nil",
+				"doodsFeedRate":   "1",
+			},
+		},
+		{
+			"timestampOffsetErr",
+			monitor.Config{
+				"size":            "1x1",
+				"doodsThresholds": "{}",
+				"doodsDuration":   "1",
+				"doodsFeedRate":   "1",
+			},
 		},
 	}
-
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := parseConfig(tc.input)
-			if !errors.Is(err, tc.expectedErr) {
-				t.Fatalf("expected: %v, got: %v", tc.expectedErr, err)
-			}
+			_, err := parseConfig(tc.config)
+			require.ErrorIs(t, err, strconv.ErrSyntax)
 		})
 	}
-	t.Run("durationErr", func(t *testing.T) {
-		c := monitor.Config{
-			"doodsThresholds": "{}",
-			"doodsFeedRate":   "nil",
-		}
-		_, err := parseConfig(c)
-		if !errors.Is(err, strconv.ErrSyntax) {
-			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
-		}
-	})
-	t.Run("recDurationErr", func(t *testing.T) {
-		c := monitor.Config{
-			"doodsThresholds": "{}",
-			"doodsDuration":   "nil",
-			"doodsFeedRate":   "1",
-		}
-		_, err := parseConfig(c)
-		if !errors.Is(err, strconv.ErrSyntax) {
-			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
-		}
-	})
-	t.Run("timestampOffsetErr", func(t *testing.T) {
-		c := monitor.Config{
-			"size":            "1x1",
-			"doodsThresholds": "{}",
-			"doodsDuration":   "1",
-			"doodsFeedRate":   "1",
-		}
-		_, err := parseConfig(c)
-		if !errors.Is(err, strconv.ErrSyntax) {
-			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
-		}
-	})
 }
 
 func TestParseInputs(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		inputs, err := parseInputs("1x2", "[3,4,5]", 6, 7, "gray_x")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
+
 		actual := fmt.Sprintf("%v", inputs)
-		expected := "&{1 2 3 4 5 6 7 true}"
-		if actual != expected {
-			t.Fatalf("expected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, "&{1 2 3 4 5 6 7 true}")
 	})
 	t.Run("gray", func(t *testing.T) {
 		inputs, err := parseInputs("1x2", "[3,4,5]", 6, 7, "gray-x")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
+
 		actual := fmt.Sprintf("%v", inputs)
-		expected := "&{1 2 3 4 5 6 7 false}"
-		if actual != expected {
-			t.Fatalf("expected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, "&{1 2 3 4 5 6 7 false}")
 	})
 	t.Run("widthErr", func(t *testing.T) {
-		if _, err := parseInputs("nilx1", "", 0, 0, ""); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err := parseInputs("nilx1", "", 0, 0, "")
+		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 	t.Run("heightErr", func(t *testing.T) {
-		if _, err := parseInputs("1xnil", "", 0, 0, ""); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err := parseInputs("1xnil", "", 0, 0, "")
+		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 	t.Run("cropErr", func(t *testing.T) {
-		if _, err := parseInputs("1x1", `[1,2,"x"]`, 0, 0, ""); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err := parseInputs("1x1", `[1,2,"x"]`, 0, 0, "")
+		var e *json.UnmarshalTypeError
+		require.ErrorAs(t, err, &e)
 	})
 }
 
@@ -213,9 +175,7 @@ func TestCaclulateOutputs(t *testing.T) {
 					outputWidth:  tc.outputWidth,
 					outputHeight: tc.outputHeight,
 				})
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
+				require.NoError(t, err)
 
 				actual := fmt.Sprintf("%vx%v %vx%v %v:%v %v:%v %v:%v",
 					outputs.scaledWidth, outputs.scaledHeight,
@@ -224,57 +184,48 @@ func TestCaclulateOutputs(t *testing.T) {
 					reverse.paddingXmultiplier, reverse.paddingYmultiplier,
 					reverse.uncropXfunc(0.5), reverse.uncropYfunc(0.5),
 				)
-
-				if actual != tc.expected {
-					t.Fatalf("expected:\n%v.\ngot:\n%v.", tc.expected, actual)
-				}
+				require.Equal(t, actual, tc.expected)
 			})
 		}
 	})
 	t.Run("widthErr", func(t *testing.T) {
-		if _, _, err := calculateOutputs(&inputs{
+		_, _, err := calculateOutputs(&inputs{
 			inputWidth:   1,
 			inputHeight:  2,
 			outputWidth:  2,
 			outputHeight: 1,
-		}); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		})
+		require.ErrorIs(t, err, ErrInvalidConfig)
 	})
 	t.Run("heightErr", func(t *testing.T) {
-		if _, _, err := calculateOutputs(&inputs{
+		_, _, err := calculateOutputs(&inputs{
 			inputWidth:   2,
 			inputHeight:  1,
 			outputWidth:  1,
 			outputHeight: 2,
-		}); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		})
+		require.ErrorIs(t, err, ErrInvalidConfig)
 	})
 	t.Run("scaledWidthErr", func(t *testing.T) {
-		if _, _, err := calculateOutputs(&inputs{
+		_, _, err := calculateOutputs(&inputs{
 			inputWidth:   100,
 			inputHeight:  100,
 			outputWidth:  80,
 			outputHeight: 80,
 			cropSize:     70,
-		}); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		})
+		require.ErrorIs(t, err, ErrInvalidConfig)
 	})
 }
 
 func TestGenerateMask(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
+		require.NoError(t, err)
 		defer os.RemoveAll(tempDir)
 
-		if err := os.Mkdir(filepath.Join(tempDir, "doods"), 0o700); err != nil {
-			t.Fatalf("could not create doods directory %v", err)
-		}
+		err = os.Mkdir(filepath.Join(tempDir, "doods"), 0o700)
+		require.NoError(t, err, "could not create doods directory")
 
 		a := &instance{
 			env: storage.ConfigEnv{
@@ -286,25 +237,19 @@ func TestGenerateMask(t *testing.T) {
 			},
 		}
 		_, err = a.generateMask(`{"enable":true}`)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 	})
 	t.Run("unmarshalErr", func(t *testing.T) {
 		a := &instance{}
-		if _, err := a.generateMask(""); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err := a.generateMask("")
+		var e *json.SyntaxError
+		require.ErrorAs(t, err, &e)
 	})
 	t.Run("disabled", func(t *testing.T) {
 		a := &instance{}
 		path, err := a.generateMask(`{"enable":false}`)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if path != "" {
-			t.Fatalf("expected '': got: %v", path)
-		}
+		require.NoError(t, err)
+		require.Empty(t, path)
 	})
 	t.Run("saveErr", func(t *testing.T) {
 		a := &instance{
@@ -314,9 +259,8 @@ func TestGenerateMask(t *testing.T) {
 			outputs: outputs{},
 		}
 		_, err := a.generateMask(`{"enable":true}`)
-		if err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		var e *os.PathError
+		require.ErrorAs(t, err, &e)
 	})
 }
 
@@ -346,10 +290,7 @@ func TestGenerateArgs(t *testing.T) {
 		expected := "[-y -threads 1 -loglevel 1 -rtsp_transport 2 -i 3" +
 			" -filter fps=fps=4,scale=5:6,pad=7:8:0:0,crop=9:10:11:12" +
 			" -f rawvideo -pix_fmt rgb24 -]"
-
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 	t.Run("maximal", func(t *testing.T) {
 		a := instance{
@@ -378,10 +319,7 @@ func TestGenerateArgs(t *testing.T) {
 			" -i 4 -i 5 -filter_complex [0:v]fps=fps=6,scale=7:8[bg];" +
 			"[bg][1:v]overlay,pad=9:10:0:0,crop=11:12:13:14,hue=s=0" +
 			" -f rawvideo -pix_fmt rgb24 -]"
-
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 }
 
@@ -402,25 +340,20 @@ func TestStartFFmpeg(t *testing.T) {
 		go i.startFFmpeg(ctx)
 
 		actual := <-feed
-		expected := "process crashed: mock"
-
-		if actual.Msg != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "process crashed: mock")
 	})
 }
 
 func TestRunFFmpeg(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		i, _, cancel := newTestInstance()
 		defer cancel()
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
-		if err := runFFmpeg(ctx, i); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := runFFmpeg(ctx, i)
+		require.NoError(t, err)
 	})
 	t.Run("crashed", func(t *testing.T) {
 		i, _, cancel := newTestInstance()
@@ -431,17 +364,13 @@ func TestRunFFmpeg(t *testing.T) {
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
-		if err := runFFmpeg(ctx, i); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runFFmpeg(ctx, i)
+		require.ErrorIs(t, err, ffmock.ErrMock)
 	})
 	t.Run("startClientCalled", func(t *testing.T) {
-		mu := sync.Mutex{}
-		called := false
+		startReaderCalled := make(chan struct{})
 		mockStartReader := func(context.Context, instance, io.Reader) {
-			mu.Lock()
-			called = true
-			mu.Unlock()
+			go close(startReaderCalled)
 		}
 
 		i, _, cancel := newTestInstance()
@@ -452,17 +381,10 @@ func TestRunFFmpeg(t *testing.T) {
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
-		if err := runFFmpeg(ctx, i); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := runFFmpeg(ctx, i)
+		require.NoError(t, err)
 
-		time.Sleep(10 * time.Millisecond)
-
-		defer mu.Unlock()
-		mu.Lock()
-		if !called {
-			t.Fatal("startClient wasn't called")
-		}
+		<-startReaderCalled
 	})
 }
 
@@ -544,11 +466,7 @@ func TestStartInstance(t *testing.T) {
 		go startInstance(ctx, i, imgFeed())
 
 		actual := <-feed
-		expected := "instance stopped"
-
-		if actual.Msg != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "instance stopped")
 	})
 	t.Run("crashed", func(t *testing.T) {
 		i, feed, cancel := newTestInstance()
@@ -562,16 +480,12 @@ func TestStartInstance(t *testing.T) {
 		go startInstance(ctx, i, imgFeed())
 
 		actual := <-feed
-		expected := "instance crashed: mock"
-
-		if actual.Msg != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "instance crashed: mock")
 	})
 }
 
 func TestRunInstance(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		mu := sync.Mutex{}
 
 		var firstRequest string
@@ -607,19 +521,13 @@ func TestRunInstance(t *testing.T) {
 		defer mu.Unlock()
 		mu.Lock()
 
-		if firstRequest != secondRequest {
-			t.Fatalf("frames dosen't match:\nfirst:\n%v.\nsecond:\n%v", firstRequest, secondRequest)
-		}
+		require.Equal(t, firstRequest, secondRequest)
+		require.Equal(t, firstRequest, framePNG)
 
-		if firstRequest != framePNG {
-			t.Fatalf("expected: %v, got: %v", framePNG, firstRequest)
-		}
-
-		event.Time = time.Unix(0, 1)
+		event.Time = time.Time{}
 		actual := event
 
 		expected := storage.Event{
-			Time: time.Unix(0, 1),
 			Detections: []storage.Detection{{
 				Label:  "1",
 				Region: &storage.Region{Rect: &ffmpeg.Rect{}},
@@ -627,10 +535,7 @@ func TestRunInstance(t *testing.T) {
 			Duration:    2,
 			RecDuration: 3,
 		}
-
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 	t.Run("canceled", func(t *testing.T) {
 		i, _, cancel := newTestInstance()
@@ -639,9 +544,8 @@ func TestRunInstance(t *testing.T) {
 		ctx, cancel2 := context.WithCancel(context.Background())
 		cancel2()
 
-		if err := runInstance(ctx, i, imgFeed()); err != nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runInstance(ctx, i, imgFeed())
+		require.ErrorIs(t, err, context.Canceled)
 	})
 	t.Run("sendFrameErr", func(t *testing.T) {
 		mockSendRequestErr := func(context.Context, detectRequest) (*detections, error) {
@@ -656,14 +560,13 @@ func TestRunInstance(t *testing.T) {
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
-		if err := runInstance(ctx, i, imgFeed()); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := runInstance(ctx, i, imgFeed())
+		require.Error(t, err)
 	})
 }
 
 func TestParseDetections(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		reverse := reverseValues{
 			paddingXmultiplier: 1.1,
 			paddingYmultiplier: 0.9,
@@ -691,10 +594,7 @@ func TestParseDetections(t *testing.T) {
 				},
 			},
 		}
-
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 	t.Run("noDetections", func(t *testing.T) {
 		parseDetections(reverseValues{}, detections{})

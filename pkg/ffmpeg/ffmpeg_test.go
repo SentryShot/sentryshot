@@ -17,17 +17,17 @@ package ffmpeg
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"image"
 	"nvr/pkg/log"
 	"os"
 	"os/exec"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFakeProcess(t *testing.T) {
@@ -59,12 +59,10 @@ func TestProcess(t *testing.T) {
 
 		p := NewProcess(fakeExecCommand())
 		err := p.Start(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 	})
 	t.Run("startWithLogger", func(t *testing.T) {
-		t.Run("working", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
 			logger := log.NewMockLogger()
@@ -81,9 +79,8 @@ func TestProcess(t *testing.T) {
 				StdoutLogger(logFunc).
 				StderrLogger(logFunc)
 
-			if err := p.Start(ctx); err != nil {
-				t.Fatalf("failed to start %v", err)
-			}
+			err := p.Start(ctx)
+			require.NoError(t, err)
 
 			compareOutput := func(input log.Log) {
 				output1 := "test stdout: out"
@@ -92,7 +89,7 @@ func TestProcess(t *testing.T) {
 				case input.Msg == output1:
 				case input.Msg == output2:
 				default:
-					t.Fatalf("output does not match: '%v'", input.Msg)
+					t.Fatalf("outputs doesn't match: '%v'", input.Msg)
 				}
 			}
 
@@ -104,9 +101,7 @@ func TestProcess(t *testing.T) {
 		})
 	})
 	_, pw, err := os.Pipe()
-	if err != nil {
-		t.Fatal("could not create pipe")
-	}
+	require.NoError(t, err)
 
 	t.Run("stdoutErr", func(t *testing.T) {
 		cmd := fakeExecCommand()
@@ -115,9 +110,8 @@ func TestProcess(t *testing.T) {
 		p := process{cmd: cmd}.
 			StdoutLogger(func(string) {})
 
-		if err := p.Start(context.Background()); err == nil {
-			t.Fatalf("nil")
-		}
+		err := p.Start(context.Background())
+		require.Error(t, err)
 	})
 	t.Run("stderrErr", func(t *testing.T) {
 		cmd := fakeExecCommand()
@@ -126,33 +120,27 @@ func TestProcess(t *testing.T) {
 		p := process{cmd: cmd}.
 			StderrLogger(func(string) {})
 
-		if err := p.Start(context.Background()); err == nil {
-			t.Fatalf("nil")
-		}
+		err := p.Start(context.Background())
+		require.Error(t, err)
 	})
 }
 
 func TestMakePipe(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
+		require.NoError(t, err)
 		defer os.RemoveAll(tempDir)
 
 		pipePath := tempDir + "/pipe.fifo"
-		if err := MakePipe(pipePath); err != nil {
-			t.Fatalf("could not create pipe: %v", err)
-		}
+		err = MakePipe(pipePath)
+		require.NoError(t, err)
 
-		if _, err := os.Stat(pipePath); os.IsNotExist(err) {
-			t.Fatal("pipe were not created")
-		}
+		_, err = os.Stat(pipePath)
+		require.NoError(t, err)
 	})
 	t.Run("MkfifoErr", func(t *testing.T) {
-		if err := MakePipe(""); err == nil {
-			t.Fatal("nil")
-		}
+		err := MakePipe("")
+		require.Error(t, err)
 	})
 }
 
@@ -182,33 +170,25 @@ func fakeExecCommandNoOutput(...string) *exec.Cmd {
 }
 
 func TestSizeFromStream(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		f := New("")
 		f.command = fakeExecCommandSize
 
 		actual, err := f.SizeFromStream("")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		expected := "720x1280"
-		if expected != actual {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
-		}
+		require.NoError(t, err)
+		require.Equal(t, actual, "720x1280")
 	})
 	t.Run("runErr", func(t *testing.T) {
 		f := New("")
-		if _, err := f.SizeFromStream(""); err == nil {
-			t.Fatal("nil")
-		}
+		_, err := f.SizeFromStream("")
+		require.Error(t, err)
 	})
 	t.Run("regexErr", func(t *testing.T) {
 		f := New("")
 		f.command = fakeExecCommandNoOutput
 
-		if _, err := f.SizeFromStream(""); err == nil {
-			t.Fatal("nil")
-		}
+		_, err := f.SizeFromStream("")
+		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 }
 
@@ -229,33 +209,27 @@ func fakeExecCommandDuration(...string) *exec.Cmd {
 }
 
 func TestVideoDuration(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		f := New("")
 		f.command = fakeExecCommandDuration
 
 		output, err := f.VideoDuration("")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
+
 		actual := fmt.Sprintf("%v", output)
-		expected := "1h2m59.99s"
-		if expected != actual {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
-		}
+		require.Equal(t, actual, "1h2m59.99s")
 	})
 	t.Run("runErr", func(t *testing.T) {
 		f := New("")
-		if _, err := f.VideoDuration(""); err == nil {
-			t.Fatal("nil")
-		}
+		_, err := f.VideoDuration("")
+		require.Error(t, err)
 	})
 	t.Run("regexErr", func(t *testing.T) {
 		f := New("")
 		f.command = fakeExecCommandNoOutput
 
-		if _, err := f.VideoDuration(""); err == nil {
-			t.Fatal("nil")
-		}
+		_, err := f.VideoDuration("")
+		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 }
 
@@ -283,11 +257,7 @@ func TestPolygonToAbs(t *testing.T) {
 		Point{25, 30},
 	}
 	actual := fmt.Sprintf("%v", polygon.ToAbs(400, 200))
-	expected := "[[20 20] [60 40] [100 60]]"
-
-	if expected != actual {
-		t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual)
-	}
+	require.Equal(t, actual, "[[20 20] [60 40] [100 60]]")
 }
 
 func TestCreateMask(t *testing.T) {
@@ -356,12 +326,10 @@ func TestCreateMask(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			mask := CreateMask(7, 7, tc.input)
+
 			actual := imageToText(mask)
 			expected := strings.ReplaceAll(tc.expected, "\t", "")
-
-			if expected != actual {
-				t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual)
-			}
+			require.Equal(t, actual, expected)
 		})
 	}
 }
@@ -432,59 +400,49 @@ func TestCreateInvertedMask(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			mask := CreateInvertedMask(7, 7, tc.input)
+
 			actual := imageToText(mask)
 			expected := strings.ReplaceAll(tc.expected, "\t", "")
-
-			if expected != actual {
-				t.Fatalf("\nexpected:\n%v\ngot:\n%v", expected, actual)
-			}
+			require.Equal(t, actual, expected)
 		})
 	}
 }
 
 func TestSaveImage(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
+		require.NoError(t, err)
 		defer os.RemoveAll(tempDir)
 
 		imgPath := tempDir + "/img.png"
 		img := image.NewAlpha(image.Rect(0, 0, 1, 1))
 
-		if err := SaveImage(imgPath, img); err != nil {
-			t.Fatalf("could not save image: %v", err)
-		}
+		err = SaveImage(imgPath, img)
+		require.NoError(t, err)
 
-		if _, err := os.Stat(imgPath); os.IsNotExist(err) {
-			t.Fatal("image were not created")
-		}
+		_, err = os.Stat(imgPath)
+		require.NoError(t, err)
 	})
 	t.Run("createErr", func(t *testing.T) {
 		img := image.NewAlpha(image.Rect(0, 0, 1, 1))
-		if err := SaveImage("", img); err == nil {
-			t.Fatal("nil")
-		}
+		err := SaveImage("", img)
+		require.Error(t, err)
 	})
 	t.Run("encodeErr", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
+		require.NoError(t, err)
 
 		imgPath := tempDir + "/img.png"
+
 		file, err := os.Create(imgPath)
-		if err != nil {
-			t.Fatalf("could not create image: %v", err)
-		}
+		require.NoError(t, err)
 		defer file.Close()
 
 		img := image.NewAlpha(image.Rect(0, 0, 1, 1))
 		img.Rect = image.Rectangle{}
-		if err := SaveImage(imgPath, img); err == nil {
-			t.Fatal("nil")
-		}
+
+		err = SaveImage(imgPath, img)
+		require.Error(t, err)
 	})
 }
 
@@ -501,10 +459,7 @@ func TestParseArgs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := ParseArgs(tc.input)
-
-			if !reflect.DeepEqual(actual, tc.expected) {
-				t.Fatalf("expected: %v, got: %v", tc.expected, actual)
-			}
+			require.Equal(t, actual, tc.expected)
 		})
 	}
 }
@@ -521,10 +476,7 @@ func TestParseScaleString(t *testing.T) {
 	}
 	for _, tc := range cases {
 		actual := ParseScaleString(tc.input)
-
-		if actual != tc.expected {
-			t.Fatalf("%v, expected:%v got:%v", tc.input, tc.expected, actual)
-		}
+		require.Equal(t, actual, tc.expected)
 	}
 }
 
@@ -600,15 +552,13 @@ INPUT
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			tempDir, err := os.MkdirTemp("", "")
-			if err != nil {
-				t.Fatalf("could not create tempoary directory: %v", err)
-			}
+			require.NoError(t, err)
 			defer os.RemoveAll(tempDir)
 
 			path := tempDir + "/test.m3u8"
-			if err := os.WriteFile(path, []byte(tc.input), 0o600); err != nil {
-				t.Fatalf("could not write file: %v", err)
-			}
+
+			err = os.WriteFile(path, []byte(tc.input), 0o600)
+			require.NoError(t, err)
 
 			go func(nFrames int) {
 				for i := 1; i <= nFrames; i++ {
@@ -619,46 +569,32 @@ INPUT
 			}(tc.nSegments)
 
 			actual, err := WaitForKeyframe(context.Background(), path, tc.nSegments)
-			if !errors.Is(err, tc.expectedErr) {
-				t.Fatalf("expected: %v, got: %v", tc.expectedErr, err)
-			}
-
-			if actual != tc.expected {
-				t.Fatalf("expected: %v, got: %v", tc.expected, actual)
-			}
+			require.ErrorIs(t, err, tc.expectedErr)
+			require.Equal(t, actual, tc.expected)
 		})
 	}
 	t.Run("addErr", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
+		require.NoError(t, err)
 		defer os.RemoveAll(tempDir)
 
 		_, err = WaitForKeyframe(context.Background(), "nil", 1)
-		if err == nil {
-			t.Fatal("expected: error got: nil")
-		}
+		require.Error(t, err)
 	})
 	t.Run("canceled", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
+		require.NoError(t, err)
 		defer os.RemoveAll(tempDir)
 
 		path := tempDir + "/test.m3u8"
-		if err := os.WriteFile(path, []byte{}, 0o600); err != nil {
-			t.Fatalf("could not write file: %v", err)
-		}
+		err = os.WriteFile(path, []byte{}, 0o600)
+		require.NoError(t, err)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
 		_, err = WaitForKeyframe(ctx, path, 1)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 	})
 }
 
@@ -675,19 +611,14 @@ func TestFeedRateToDuration(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			output, err := FeedRateToDuration(tc.input)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			actual := fmt.Sprintf("%v", output)
+			require.NoError(t, err)
 
-			if tc.expected != actual {
-				t.Fatalf("expected: %v, got: %v", tc.expected, actual)
-			}
+			actual := fmt.Sprintf("%v", output)
+			require.Equal(t, actual, tc.expected)
 		})
 	}
 	t.Run("parseFloatErr", func(t *testing.T) {
-		if _, err := FeedRateToDuration("nil"); err == nil {
-			t.Fatal("expected: error got: nil")
-		}
+		_, err := FeedRateToDuration("nil")
+		require.Error(t, err)
 	})
 }

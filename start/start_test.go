@@ -1,19 +1,17 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
 func newTestEnv(t *testing.T) (string, *configEnv, func()) {
 	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("could not create tempoary directory: %v", err)
-	}
+	require.NoError(t, err)
 
 	cancelFunc := func() {
 		os.RemoveAll(tempDir)
@@ -23,12 +21,11 @@ func newTestEnv(t *testing.T) (string, *configEnv, func()) {
 	homeDir := tempDir + "/home"
 	configDir := homeDir + "/configs"
 
-	if err := os.WriteFile(goBin, []byte{}, 0o600); err != nil {
-		t.Fatalf("could not write goBin: %v", err)
-	}
-	if err := os.MkdirAll(configDir, 0o700); err != nil {
-		t.Fatalf("could not write configDir: %v", err)
-	}
+	err = os.WriteFile(goBin, []byte{}, 0o600)
+	require.NoError(t, err)
+
+	err = os.MkdirAll(configDir, 0o700)
+	require.NoError(t, err)
 
 	envPath := configDir + "/env.yaml"
 
@@ -49,58 +46,35 @@ func TestParseEnv(t *testing.T) {
 		testEnv.HomeDir = ""
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env: %v", err)
-		}
-
-		env, err := parseEnv(envPath, envYAML)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		actual := fmt.Sprintf("%v", env)
+		require.NoError(t, err)
 
 		testEnv.HomeDir = filepath.Dir(filepath.Dir(envPath))
-		expected := fmt.Sprintf("%v", testEnv)
 
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
-		}
+		env, err := parseEnv(envPath, envYAML)
+		require.NoError(t, err)
+		require.Equal(t, env, testEnv)
 	})
 	t.Run("maximal", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
 		defer cancel()
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env: %v", err)
-		}
+		require.NoError(t, err)
 
-		if err := os.WriteFile(envPath, envYAML, 0o600); err != nil {
-			t.Fatalf("could not write env.yaml: %v", err)
-		}
+		err = os.WriteFile(envPath, envYAML, 0o600)
+		require.NoError(t, err)
 
 		env, err := parseEnv(envPath, envYAML)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		actual := fmt.Sprintf("%v", env)
-		expected := fmt.Sprintf("%v", testEnv)
-
-		if actual != expected {
-			t.Fatalf("expected: %v, got: %v", expected, actual)
-		}
+		require.NoError(t, err)
+		require.Equal(t, env, testEnv)
 	})
 	t.Run("unmarshalErr", func(t *testing.T) {
-		if _, err := parseEnv("", []byte("&")); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err := parseEnv("", []byte("&"))
+		require.Error(t, err)
 	})
 	t.Run("goExistErr", func(t *testing.T) {
-		if _, err := parseEnv("", []byte{}); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err := parseEnv("", []byte{})
+		require.Error(t, err)
 	})
 	t.Run("homeExistErr", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
@@ -109,13 +83,10 @@ func TestParseEnv(t *testing.T) {
 		testEnv.HomeDir = "nil"
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env: %v", err)
-		}
+		require.NoError(t, err)
 
-		if _, err := parseEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err = parseEnv(envPath, envYAML)
+		require.Error(t, err)
 	})
 	t.Run("goBinAbs", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
@@ -124,13 +95,10 @@ func TestParseEnv(t *testing.T) {
 		testEnv.GoBin = "."
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
-		if _, err := parseEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err = parseEnv(envPath, envYAML)
+		require.ErrorIs(t, err, ErrPathNotAbsolute)
 	})
 	t.Run("homeDirAbs", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
@@ -139,30 +107,24 @@ func TestParseEnv(t *testing.T) {
 		testEnv.HomeDir = "."
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
-		if _, err := parseEnv(envPath, envYAML); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		_, err = parseEnv(envPath, envYAML)
+		require.ErrorIs(t, err, ErrPathNotAbsolute)
 	})
 }
 
 func TestGenFile(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
+		require.NoError(t, err)
 		defer os.RemoveAll(tempDir)
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
 
 		path := tempDir + "/main.go"
 		addons := []string{"a", "b", "c"}
 
-		if err := genFile(path, addons, "d"); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err = genFile(path, addons, "d")
+		require.NoError(t, err)
 
 		file, err := os.ReadFile(path)
 		actual := string(file)
@@ -185,17 +147,10 @@ func main() {
 	os.Exit(0)
 }
 `
-
-		if actual != expected {
-			//for i := range actual {
-			//	fmt.Println(i, actual[i], expected[i], string(actual[i]), string(expected[i]))
-			//}
-			t.Fatalf("\nexpected: \n%v.\ngot: \n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
-		if err := genFile("/dev/null/", nil, ""); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := genFile("/dev/null/", nil, "")
+		require.Error(t, err)
 	})
 }

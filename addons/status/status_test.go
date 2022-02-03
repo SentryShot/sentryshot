@@ -19,12 +19,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"testing"
 	"time"
 
 	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/stretchr/testify/require"
 )
 
 func mockCPU(_ context.Context, _ time.Duration, _ bool) ([]float64, error) {
@@ -56,13 +56,6 @@ func mockDiskErr() (storage.DiskUsage, error) {
 	return storage.DiskUsage{}, errors.New("")
 }
 
-func TestNew(t *testing.T) {
-	s := newSystem(mockDisk, &log.Logger{})
-	if s == nil {
-		t.Fatal("nil")
-	}
-}
-
 func TestUpdate(t *testing.T) {
 	cases := []struct {
 		name          string
@@ -75,7 +68,7 @@ func TestUpdate(t *testing.T) {
 		{"cpuErr", mockCPUErr, mockRAM, mockDisk, true, "{0 0 0 }"},
 		{"ramErr", mockCPU, mockRAMerr, mockDisk, true, "{0 0 0 }"},
 		{"diskErr", mockCPU, mockRAM, mockDiskErr, true, "{0 0 0 }"},
-		{"working", mockCPU, mockRAM, mockDisk, false, "{11 22 33 44}"},
+		{"ok", mockCPU, mockRAM, mockDisk, false, "{11 22 33 44}"},
 	}
 
 	for _, tc := range cases {
@@ -91,14 +84,10 @@ func TestUpdate(t *testing.T) {
 
 			actualError := s.update(ctx)
 			gotError := actualError != nil
-			if tc.expectedError != gotError {
-				t.Errorf("expected error: %v, error: %v", tc.expectedError, actualError)
-			}
+			require.Equal(t, gotError, tc.expectedError)
 
-			actualValue := s.getStatus()
-			if fmt.Sprintf("%v", actualValue) != tc.expectedValue {
-				t.Errorf("expected: %v, got: %v", tc.expectedValue, actualValue)
-			}
+			actualValue := fmt.Sprintf("%v", s.getStatus())
+			require.Equal(t, actualValue, tc.expectedValue)
 		})
 	}
 }

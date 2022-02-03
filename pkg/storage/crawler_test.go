@@ -18,9 +18,10 @@ package storage
 import (
 	"encoding/json"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 /* /testdata/
@@ -92,13 +93,11 @@ func TestRecordingByQuery(t *testing.T) {
 					Limit: 1,
 				}
 				recordings, _ := c.RecordingByQuery(query)
-				var actual string
+				var id string
 				if len(recordings) != 0 {
-					actual = recordings[0].ID
+					id = recordings[0].ID
 				}
-				if actual != tc.expected {
-					t.Fatalf("%s, expected:\n%v.\ngot:\n%v.", tc.name, tc.expected, actual)
-				}
+				require.Equal(t, id, tc.expected)
 			})
 		}
 	})
@@ -122,25 +121,15 @@ func TestRecordingByQuery(t *testing.T) {
 					Reverse: true,
 				}
 				recordings, _ := c.RecordingByQuery(query)
-				var actual string
+				var id string
 				if len(recordings) != 0 {
-					actual = recordings[0].ID
+					id = recordings[0].ID
 				}
-				if actual != tc.expected {
-					t.Fatalf("%s, expected:\n%v.\ngot:\n%v.", tc.name, tc.expected, actual)
-				}
+				require.Equal(t, id, tc.expected)
 			})
 		}
 	})
 	t.Run("multiple", func(t *testing.T) {
-		expected := strings.ReplaceAll(`
-			2099-01-01_1_m1
-			2004-01-01_2_m1
-			2004-01-01_1_m1
-			2003-01-01_1_m2
-			2003-01-01_1_m1`,
-			"\t", "")
-
 		c := NewCrawler("./testdata/recordings")
 		recordings, _ := c.RecordingByQuery(
 			&CrawlerQuery{
@@ -149,14 +138,20 @@ func TestRecordingByQuery(t *testing.T) {
 			},
 		)
 
-		var actual string
+		var id string
 		for _, rec := range recordings {
-			actual += "\n" + rec.ID
+			id += "\n" + rec.ID
 		}
 
-		if actual != expected {
-			t.Fatalf("expected: %v \n got: %v", expected, actual)
-		}
+		expected := strings.ReplaceAll(`
+			2099-01-01_1_m1
+			2004-01-01_2_m1
+			2004-01-01_1_m1
+			2003-01-01_1_m2
+			2003-01-01_1_m1`,
+			"\t", "")
+
+		require.Equal(t, id, expected)
 	})
 	t.Run("monitors", func(t *testing.T) {
 		expected := "\n2003-01-01_1_m1"
@@ -170,14 +165,12 @@ func TestRecordingByQuery(t *testing.T) {
 			},
 		)
 
-		var actual string
+		var id string
 		for _, rec := range recordings {
-			actual += "\n" + rec.ID
+			id += "\n" + rec.ID
 		}
 
-		if actual != expected {
-			t.Fatalf("getAll expected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, id, expected)
 	})
 	t.Run("emptyMonitorsPanic", func(t *testing.T) {
 		c := NewCrawler("./testdata/recordings")
@@ -194,9 +187,7 @@ func TestRecordingByQuery(t *testing.T) {
 		_, err := c.RecordingByQuery(
 			&CrawlerQuery{Time: "", Limit: 1},
 		)
-		if err == nil {
-			t.Fatal("expected error got: nil")
-		}
+		require.Error(t, err)
 	})
 	t.Run("paths", func(t *testing.T) {
 		paths := []string{
@@ -212,16 +203,12 @@ func TestRecordingByQuery(t *testing.T) {
 					Limit: 1,
 				}
 				recordings, _ := c.RecordingByQuery(query)
-				var actual string
+				var path string
 				if len(recordings) != 0 {
-					actual = recordings[0].Path
+					path = recordings[0].Path
 				}
-
 				expected := "storage/recordings/2002/01/01/m1/2002-01-01_1_m1"
-
-				if actual != expected {
-					t.Fatalf("%v, expected:\n%v.\ngot:\n%v.", path, expected, actual)
-				}
+				require.Equal(t, path, expected)
 			})
 		}
 	})
@@ -234,24 +221,18 @@ func TestRecordingByQuery(t *testing.T) {
 				Data:  true,
 			},
 		)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		dataFile, err := os.ReadFile("./testdata/recordings/2099/01/01/m1/2099-01-01_1_m1.json")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		data, err := os.ReadFile("./testdata/recordings/2099/01/01/m1/2099-01-01_1_m1.json")
+		require.NoError(t, err)
+
 		var expected RecordingData
-		if err := json.Unmarshal(dataFile, &expected); err != nil {
+		if err := json.Unmarshal(data, &expected); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
 		actual := *rec[0].Data
-
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("expected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 	t.Run("missingData", func(t *testing.T) {
 		c := NewCrawler("./testdata/recordings")
@@ -262,13 +243,7 @@ func TestRecordingByQuery(t *testing.T) {
 				Data:  true,
 			},
 		)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		actual := rec[0].Data
-		if actual != nil {
-			t.Fatalf("expected: nil, got: %v", actual)
-		}
+		require.NoError(t, err)
+		require.Nil(t, rec[0].Data)
 	})
 }

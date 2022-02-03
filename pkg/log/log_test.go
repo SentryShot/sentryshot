@@ -19,9 +19,10 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func newTestLogger(t *testing.T) (context.Context, func(), *Logger) {
@@ -58,9 +59,7 @@ func TestLogger(t *testing.T) {
 			{Level: LevelDebug, Src: "s4", Monitor: "m4", Msg: "4", Time: 4},
 		}
 
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("expected:\n%v.\ngot\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 	t.Run("ffmpegLevel", func(t *testing.T) {
 		_, cancel, logger := newTestLogger(t)
@@ -88,9 +87,7 @@ func TestLogger(t *testing.T) {
 			{Level: LevelDebug, Time: 5},
 		}
 
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("expected:\n%v.\ngot\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 
 	t.Run("unsubBeforePrint", func(t *testing.T) {
@@ -107,13 +104,8 @@ func TestLogger(t *testing.T) {
 		actual2 := <-feed2
 		cancel1()
 
-		if actual1.Msg != msg {
-			t.Fatalf("expected: %v, got %v", msg, actual1.Msg)
-		}
-
-		if actual2.Msg != "" {
-			t.Fatalf("expected nil got: %v", actual2.Msg)
-		}
+		require.Equal(t, actual1.Msg, msg)
+		require.Equal(t, actual2.Msg, "")
 	})
 	t.Run("unsubAfterPrint", func(t *testing.T) {
 		_, cancel, logger := newTestLogger(t)
@@ -128,28 +120,23 @@ func TestLogger(t *testing.T) {
 		cancel2()
 
 		actual := <-feed
-		if actual.Msg != "" {
-			t.Fatalf("expected: nil, got %v", actual.Msg)
-		}
+		require.Equal(t, actual.Msg, "")
 	})
 	t.Run("logToStdout", func(t *testing.T) {
 		cs := []string{"-test.run=TestLogToStdout"}
 		cmd := exec.Command(os.Args[0], cs...)
 		cmd.Env = []string{"GO_TEST_PROCESS=1"}
+
 		output, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("command failed: %v", err)
-		}
+		require.NoError(t, err)
+
 		actual := string(output)
 		expected := `[ERROR] test
 [WARNING] test
 [INFO] test
 [DEBUG] test
 `
-
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 }
 

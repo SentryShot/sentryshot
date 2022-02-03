@@ -1,9 +1,10 @@
 package storage
 
 import (
-	"errors"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateEvent(t *testing.T) {
@@ -19,9 +20,8 @@ func TestValidateEvent(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := tc.input.Validate(); !errors.Is(err, tc.expected) {
-				t.Fatalf("expected: %v, got: %v", tc.expected, err)
-			}
+			err := tc.input.Validate()
+			require.ErrorIs(t, err, tc.expected)
 		})
 	}
 }

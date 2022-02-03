@@ -16,8 +16,9 @@
 package timeline
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenArgs(t *testing.T) {
@@ -39,9 +40,7 @@ func TestGenArgs(t *testing.T) {
 			"-vsync", "vfr", "-vf", "mpdecimate,fps=0.0167,mpdecimate",
 			"-movflags", "empty_moov+default_base_moof+frag_keyframe", "4",
 		}
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 	t.Run("maximal", func(t *testing.T) {
 		actual := genArgs(argOpts{
@@ -61,8 +60,6 @@ func TestGenArgs(t *testing.T) {
 			"-vsync", "vfr", "-vf", "mpdecimate,fps=1.0000,mpdecimate,scale='iw/2:ih/2'",
 			"-movflags", "empty_moov+default_base_moof+frag_keyframe", "4",
 		}
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, actual, expected)
 	})
 }

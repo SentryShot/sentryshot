@@ -37,8 +37,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// ErrNotAbsolute path is not absolute.
-var ErrNotAbsolute = errors.New("path is not absolute")
+// ErrPathNotAbsolute path is not absolute.
+var ErrPathNotAbsolute = errors.New("path is not absolute")
 
 func main() {
 	err := start()
@@ -133,10 +133,10 @@ func parseEnv(envPath string, envYAML []byte) (*configEnv, error) {
 	}
 
 	if !filepath.IsAbs(env.GoBin) {
-		return nil, fmt.Errorf("goBin '%v': %w", env.GoBin, ErrNotAbsolute)
+		return nil, fmt.Errorf("goBin '%v': %w", env.GoBin, ErrPathNotAbsolute)
 	}
 	if !filepath.IsAbs(env.HomeDir) {
-		return nil, fmt.Errorf("homeDir '%v': %w", env.HomeDir, ErrNotAbsolute)
+		return nil, fmt.Errorf("homeDir '%v': %w", env.HomeDir, ErrPathNotAbsolute)
 	}
 
 	return &env, nil

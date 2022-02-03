@@ -219,8 +219,8 @@ type ConfigEnv struct {
 	ConfigDir string
 }
 
-// ErrNotAbsPath path is not absolute.
-var ErrNotAbsPath = errors.New("path is not absolute")
+// ErrPathNotAbsolute path is not absolute.
+var ErrPathNotAbsolute = errors.New("path is not absolute")
 
 // NewConfigEnv return new environment configuration.
 func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
@@ -262,19 +262,19 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	}
 
 	if !filepath.IsAbs(env.GoBin) {
-		return nil, fmt.Errorf("goBin '%v': %w", env.GoBin, ErrNotAbsPath)
+		return nil, fmt.Errorf("goBin '%v': %w", env.GoBin, ErrPathNotAbsolute)
 	}
 	if !filepath.IsAbs(env.FFmpegBin) {
-		return nil, fmt.Errorf("ffmpegBin '%v': %w", env.FFmpegBin, ErrNotAbsPath)
+		return nil, fmt.Errorf("ffmpegBin '%v': %w", env.FFmpegBin, ErrPathNotAbsolute)
 	}
 	if !filepath.IsAbs(env.HomeDir) {
-		return nil, fmt.Errorf("homeDir '%v': %w", env.HomeDir, ErrNotAbsPath)
+		return nil, fmt.Errorf("homeDir '%v': %w", env.HomeDir, ErrPathNotAbsolute)
 	}
 	if !filepath.IsAbs(env.StorageDir) {
-		return nil, fmt.Errorf("StorageDir '%v': %w", env.StorageDir, ErrNotAbsPath)
+		return nil, fmt.Errorf("StorageDir '%v': %w", env.StorageDir, ErrPathNotAbsolute)
 	}
 	if !filepath.IsAbs(env.SHMDir) {
-		return nil, fmt.Errorf("shmDir '%v': %w", env.SHMDir, ErrNotAbsPath)
+		return nil, fmt.Errorf("shmDir '%v': %w", env.SHMDir, ErrPathNotAbsolute)
 	}
 
 	return &env, nil

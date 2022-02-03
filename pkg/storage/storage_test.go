@@ -27,23 +27,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
-func TestNewManager(t *testing.T) {
-	m := NewManager("", &ConfigGeneral{}, &log.Logger{})
-	if m == nil {
-		t.Fatal("nil")
-	}
-}
-
 func TestDiskUsage(t *testing.T) {
-	var expected int64 = 302
-
-	actual := diskUsage("testdata")
-	if actual != expected {
-		t.Fatalf("expected %v, got %v", expected, actual)
-	}
+	require.Equal(t, diskUsage("testdata"), int64(302))
 }
 
 func TestUsage(t *testing.T) {
@@ -77,13 +66,10 @@ func TestUsage(t *testing.T) {
 				},
 			}
 			u, err := s.Usage()
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+			require.NoError(t, err)
+
 			actual := fmt.Sprintf("%v", u)
-			if actual != tc.expected {
-				t.Fatalf("\nexpected %v\n     got %v", tc.expected, actual)
-			}
+			require.Equal(t, actual, tc.expected)
 		})
 	}
 
@@ -100,14 +86,10 @@ func TestUsage(t *testing.T) {
 			},
 		}
 		u, err := s.Usage()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
+
 		actual := fmt.Sprintf("%v", u)
-		expected := "{1000 0 0 0MB}"
-		if actual != expected {
-			t.Fatalf("\nexpected %v\n     got %v", expected, actual)
-		}
+		require.Equal(t, actual, "{1000 0 0 0MB}")
 	})
 	t.Run("diskSpace error", func(t *testing.T) {
 		s := Manager{
@@ -121,9 +103,7 @@ func TestUsage(t *testing.T) {
 			},
 		}
 		_, err := s.Usage()
-		if !errors.Is(err, strconv.ErrSyntax) {
-			t.Fatalf("expected: %v, got: %v", strconv.ErrSyntax, err)
-		}
+		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 }
 
@@ -144,7 +124,7 @@ var highUsage = func(_ string) int64 {
 }
 
 func TestPurge(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		cases := []struct {
 			name      string
 			input     *Manager
@@ -179,7 +159,7 @@ func TestPurge(t *testing.T) {
 				true,
 			},
 			{
-				"working",
+				"ok",
 				&Manager{
 					path:    "testdata",
 					general: diskSpace1,
@@ -208,24 +188,19 @@ func TestPurge(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				err := tc.input.purge()
 				gotError := err != nil
-				if tc.expectErr != gotError {
-					t.Fatalf("\nexpected error %v\n     got %v", tc.expectErr, err)
-				}
+				require.Equal(t, tc.expectErr, gotError)
 			})
 		}
 	})
 
 	t.Run("removeAll", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
+		require.NoError(t, err)
 		defer os.RemoveAll(tempDir)
 
 		testDir := filepath.Join(tempDir, "recordings", "2000", "01", "01")
-		if err := os.MkdirAll(testDir, 0o700); err != nil {
-			t.Fatalf("could not create test directory: %v", err)
-		}
+		err = os.MkdirAll(testDir, 0o700)
+		require.NoError(t, err)
 
 		m := &Manager{
 			path: tempDir,
@@ -237,33 +212,22 @@ func TestPurge(t *testing.T) {
 			usage:     highUsage,
 			removeAll: os.RemoveAll,
 		}
-		if err := m.purge(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if err := m.purge(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err = m.purge()
+		require.NoError(t, err)
 
-		if exist(filepath.Join(tempDir, "recordings", "1000")) {
-			t.Fatalf("empty year directory was not deleted")
-		}
+		err = m.purge()
+		require.NoError(t, err)
 
-		if !exist(filepath.Join(tempDir, "recordings")) {
-			t.Fatalf("recordings directory was deleted")
-		}
+		yearDir := filepath.Join(tempDir, "recordings", "1000")
+		require.NoDirExists(t, yearDir, "empty year directory was not deleted")
+
+		recordingsDir := filepath.Join(tempDir, "recordings")
+		require.DirExists(t, recordingsDir, "recordings directory was deleted")
 	})
 }
 
-func exist(path string) bool {
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
 func TestPurgeLoop(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		m := &Manager{
 			path:    "testdata",
 			general: diskSpace1,
@@ -297,17 +261,13 @@ func TestPurgeLoop(t *testing.T) {
 		cancel()
 
 		expected := `failed to purge storage: strconv.ParseFloat: parsing "nil": invalid syntax`
-		if actual.Msg != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual.Msg)
-		}
+		require.Equal(t, actual.Msg, expected)
 	})
 }
 
 func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("could not create tempoary directory: %v", err)
-	}
+	require.NoError(t, err)
 
 	cancelFunc := func() {
 		os.RemoveAll(tempDir)
@@ -319,18 +279,17 @@ func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 	configDir := filepath.Join(homeDir, "configs")
 	envPath := filepath.Join(configDir, "env.yaml")
 
-	if err := os.MkdirAll(homeDir, 0o700); err != nil {
-		t.Fatalf("could not write homeDir: %v", err)
-	}
-	if err := os.MkdirAll(configDir, 0o700); err != nil {
-		t.Fatalf("could not write configDir: %v", err)
-	}
-	if err := os.WriteFile(goBin, []byte{}, 0o600); err != nil {
-		t.Fatalf("could not write goBin: %v", err)
-	}
-	if err := os.WriteFile(ffmpegBin, []byte{}, 0o600); err != nil {
-		t.Fatalf("could not write ffmpegBin: %v", err)
-	}
+	err = os.MkdirAll(homeDir, 0o700)
+	require.NoError(t, err)
+
+	err = os.MkdirAll(configDir, 0o700)
+	require.NoError(t, err)
+
+	err = os.WriteFile(goBin, []byte{}, 0o600)
+	require.NoError(t, err)
+
+	err = os.WriteFile(ffmpegBin, []byte{}, 0o600)
+	require.NoError(t, err)
 
 	env := &ConfigEnv{
 		Port:       2020,
@@ -357,18 +316,12 @@ func TestNewConfigEnv(t *testing.T) {
 			GoBin:     filepath.Join(homeDir, "go"),
 			FFmpegBin: filepath.Join(homeDir, "ffmpeg"),
 		})
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
 		env, err := NewConfigEnv(envPath, envYAML)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		actual := fmt.Sprintf("%v", env)
-
-		expected := fmt.Sprintf("%v", &ConfigEnv{
+		expected := ConfigEnv{
 			Port:       2020,
 			RTSPport:   2021,
 			GoBin:      filepath.Join(homeDir, "go"),
@@ -377,58 +330,37 @@ func TestNewConfigEnv(t *testing.T) {
 			SHMDir:     "/dev/shm/nvr",
 			HomeDir:    homeDir,
 			ConfigDir:  filepath.Join(homeDir, "configs"),
-		})
-
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
 		}
+		require.Equal(t, *env, expected)
 	})
 	t.Run("maximal", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
 		defer cancel()
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
 		env, err := NewConfigEnv(envPath, envYAML)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		actual := fmt.Sprintf("%v", env)
-		expected := fmt.Sprintf("%v", testEnv)
-
-		if actual != expected {
-			t.Fatalf("\nexpected:\n%v.\ngot:\n%v.", expected, actual)
-		}
+		require.Equal(t, env, testEnv)
 	})
 	t.Run("unmarshal error", func(t *testing.T) {
-		if _, err := NewConfigEnv("", []byte("&")); err == nil {
-			t.Fatalf("expected: error, got: nil")
-		}
+		_, err := NewConfigEnv("", []byte("&"))
+		require.Error(t, err)
 	})
 	t.Run("shmHls", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
 		defer cancel()
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
 		env, err := NewConfigEnv(envPath, envYAML)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		actual := fmt.Sprintf("%v", env.SHMhls())
 		expected := filepath.Join(env.SHMDir, "hls")
-
-		if actual != expected {
-			t.Fatalf("expected: %v got: %v", expected, actual)
-		}
+		require.Equal(t, env.SHMhls(), expected)
 	})
 	t.Run("goBinExist", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
@@ -437,14 +369,10 @@ func TestNewConfigEnv(t *testing.T) {
 		testEnv.GoBin = "/dev/null/nil"
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
 		_, err = NewConfigEnv(envPath, envYAML)
-		if !errors.Is(err, os.ErrNotExist) {
-			t.Fatalf("expected: %v, got: %v", os.ErrNotExist, err)
-		}
+		require.ErrorIs(t, err, os.ErrNotExist)
 	})
 	t.Run("ffmpegBinExist", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
@@ -453,14 +381,10 @@ func TestNewConfigEnv(t *testing.T) {
 		testEnv.FFmpegBin = "/dev/null/nil"
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
 		_, err = NewConfigEnv(envPath, envYAML)
-		if !errors.Is(err, os.ErrNotExist) {
-			t.Fatalf("expected: %v, got: %v", os.ErrNotExist, err)
-		}
+		require.ErrorIs(t, err, os.ErrNotExist)
 	})
 	t.Run("storageAbs", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
@@ -469,14 +393,10 @@ func TestNewConfigEnv(t *testing.T) {
 		testEnv.StorageDir = "."
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
 		_, err = NewConfigEnv(envPath, envYAML)
-		if !errors.Is(err, ErrNotAbsPath) {
-			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
-		}
+		require.ErrorIs(t, err, ErrPathNotAbsolute)
 	})
 	t.Run("goBinAbs", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
@@ -485,14 +405,10 @@ func TestNewConfigEnv(t *testing.T) {
 		testEnv.GoBin = "."
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
 		_, err = NewConfigEnv(envPath, envYAML)
-		if !errors.Is(err, ErrNotAbsPath) {
-			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
-		}
+		require.ErrorIs(t, err, ErrPathNotAbsolute)
 	})
 	t.Run("ffmpegBinAbs", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
@@ -501,14 +417,10 @@ func TestNewConfigEnv(t *testing.T) {
 		testEnv.FFmpegBin = "."
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
 		_, err = NewConfigEnv(envPath, envYAML)
-		if !errors.Is(err, ErrNotAbsPath) {
-			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
-		}
+		require.ErrorIs(t, err, ErrPathNotAbsolute)
 	})
 	t.Run("homeDirAbs", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
@@ -517,14 +429,10 @@ func TestNewConfigEnv(t *testing.T) {
 		testEnv.HomeDir = "."
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
 		_, err = NewConfigEnv(envPath, envYAML)
-		if !errors.Is(err, ErrNotAbsPath) {
-			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
-		}
+		require.ErrorIs(t, err, ErrPathNotAbsolute)
 	})
 	t.Run("shmAbs", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)
@@ -533,23 +441,17 @@ func TestNewConfigEnv(t *testing.T) {
 		testEnv.SHMDir = "."
 
 		envYAML, err := yaml.Marshal(testEnv)
-		if err != nil {
-			t.Fatalf("could not marshal env.yaml: %v", err)
-		}
+		require.NoError(t, err)
 
 		_, err = NewConfigEnv(envPath, envYAML)
-		if !errors.Is(err, ErrNotAbsPath) {
-			t.Fatalf("expected: %v, got: %v", ErrNotAbsPath, err)
-		}
+		require.ErrorIs(t, err, ErrPathNotAbsolute)
 	})
 }
 
 func TestPrepareEnvironment(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
+		require.NoError(t, err)
 		defer os.RemoveAll(tempDir)
 
 		storageDir := filepath.Join(tempDir, "configs")
@@ -557,30 +459,23 @@ func TestPrepareEnvironment(t *testing.T) {
 			StorageDir: storageDir,
 		}
 
-		if err := env.PrepareEnvironment(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if !dirExist(env.RecordingsDir()) {
-			t.Fatal("recordingsDir wasn't created")
-		}
+		err = env.PrepareEnvironment()
+		require.NoError(t, err)
+		require.DirExists(t, env.RecordingsDir())
 	})
 	t.Run("storageMkdirErr", func(t *testing.T) {
 		env := ConfigEnv{
 			StorageDir: "/dev/null",
 		}
-
-		if err := env.PrepareEnvironment(); err == nil {
-			t.Fatal("expected: error, got: nil")
-		}
+		err := env.PrepareEnvironment()
+		require.Error(t, err)
 	})
 }
 
 func newTestGeneral(t *testing.T) (string, *ConfigGeneral, func()) {
 	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("could not create tempoary directory: %v", err)
-	}
+	require.NoError(t, err)
+
 	cancelFunc := func() {
 		os.RemoveAll(tempDir)
 	}
@@ -590,11 +485,11 @@ func newTestGeneral(t *testing.T) (string, *ConfigGeneral, func()) {
 	config := GeneralConfig{
 		DiskSpace: "1",
 	}
-	data, _ := json.MarshalIndent(config, "", "    ")
+	data, err := json.MarshalIndent(config, "", "    ")
+	require.NoError(t, err)
 
-	if err := os.WriteFile(configPath, data, 0o660); err != nil {
-		t.Fatalf("could not write config file: %v", err)
-	}
+	err = os.WriteFile(configPath, data, 0o660)
+	require.NoError(t, err)
 
 	general := ConfigGeneral{
 		Config: config,
@@ -605,76 +500,53 @@ func newTestGeneral(t *testing.T) (string, *ConfigGeneral, func()) {
 }
 
 func TestNewConfigGeneral(t *testing.T) {
-	t.Run("working", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		tempDir, testGeneral, cancel := newTestGeneral(t)
 		defer cancel()
 
 		general, _ := NewConfigGeneral(tempDir)
-
-		actual := fmt.Sprintf("%v", general)
-		expected := fmt.Sprintf("%v", testGeneral)
-
-		if actual != expected {
-			t.Fatalf("\nexpected: %v\n    got: %v", expected, actual)
-		}
+		require.Equal(t, general, testGeneral)
 	})
 	t.Run("genConfig", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
 		defer os.RemoveAll(tempDir)
-		if err != nil {
-			t.Fatalf("could not create tempoary directory: %v", err)
-		}
+		require.NoError(t, err)
+
 		configDir := tempDir
 		configFile := filepath.Join(configDir, "general.json")
 
-		if dirExist(configFile) {
-			t.Fatal("configFile should not already exist")
-		}
-
-		expected := "&{10000 default}"
+		require.NoFileExists(t, configFile, "configFile should not already exist")
 
 		config1, err := NewConfigGeneral(configDir)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		file, err := os.ReadFile(configFile)
-		if err != nil {
-			t.Fatalf("could not read configFile: %v", err)
-		}
+		require.NoError(t, err)
 
 		config2 := &GeneralConfig{}
-		if err := json.Unmarshal(file, config2); err != nil {
-			t.Fatalf("could not unmarshal config: %v", err)
-		}
+		err = json.Unmarshal(file, config2)
+		require.NoError(t, err)
 
-		actual1 := fmt.Sprintf("%v", &config1.Config)
-		actual2 := fmt.Sprintf("%v", config2)
+		expected := &GeneralConfig{DiskSpace: "10000", Theme: "default"}
 
-		if actual1 != expected {
-			t.Fatalf("expected: %v got: %v", expected, actual1)
-		}
-		if actual2 != expected {
-			t.Fatalf("expected: %v got: %v", expected, actual2)
-		}
+		require.Equal(t, &config1.Config, expected)
+		require.Equal(t, config2, expected)
 	})
 	t.Run("genConfigErr", func(t *testing.T) {
-		if _, err := NewConfigGeneral("/dev/null"); err == nil {
-			t.Fatalf("expected: error, got: nil")
-		}
+		_, err := NewConfigGeneral("/dev/null")
+		require.Error(t, err)
 	})
 	t.Run("unmarshalErr", func(t *testing.T) {
 		tempDir, _, cancel := newTestGeneral(t)
 		defer cancel()
 
 		configPath := filepath.Join(tempDir, "general.json")
-		if err := os.WriteFile(configPath, []byte{}, 0o660); err != nil {
-			t.Fatalf("could not write configPath: %v", err)
-		}
+		err := os.WriteFile(configPath, []byte{}, 0o660)
+		require.NoError(t, err)
 
-		if _, err := NewConfigGeneral(tempDir); err == nil {
-			t.Fatalf("expected: error, got: nil")
-		}
+		_, err = NewConfigGeneral(tempDir)
+		var e *json.SyntaxError
+		require.ErrorAs(t, err, &e)
 	})
 }
 
@@ -684,13 +556,7 @@ func TestGeneral(t *testing.T) {
 		defer cancel()
 
 		general, _ := NewConfigGeneral(tempDir)
-
-		actual := fmt.Sprintf("%v", general.Get())
-		expected := fmt.Sprintf("%v", testGeneral.Config)
-
-		if actual != expected {
-			t.Fatalf("expected: %v got: %v", expected, actual)
-		}
+		require.Equal(t, general.Get(), testGeneral.Config)
 	})
 	t.Run("set", func(t *testing.T) {
 		tempDir, _, cancel := newTestGeneral(t)
@@ -704,37 +570,24 @@ func TestGeneral(t *testing.T) {
 		general.Set(newConfig)
 
 		file, err := os.ReadFile(general.path)
-		if err != nil {
-			t.Fatalf("could not read config file: %v", err)
-		}
+		require.NoError(t, err)
 
 		var config GeneralConfig
-		if err := json.Unmarshal(file, &config); err != nil {
-			t.Fatalf("could not unmarshal config file: %v", err)
-		}
+		err = json.Unmarshal(file, &config)
+		require.NoError(t, err)
 
-		actual1 := fmt.Sprintf("%v", general.Get())
-		actual2 := fmt.Sprintf("%v", config)
-
-		expected := fmt.Sprintf("%v", newConfig)
-
-		if actual1 != expected {
-			t.Fatalf("expected: %v got: %v", expected, actual1)
-		}
-		if actual2 != expected {
-			t.Fatalf("expected: %v got: %v", expected, actual2)
-		}
+		require.Equal(t, general.Get(), newConfig)
+		require.Equal(t, config, newConfig)
 	})
 	t.Run("setWriteFileErr", func(t *testing.T) {
 		tempDir, _, cancel := newTestGeneral(t)
 		defer cancel()
 
-		general, _ := NewConfigGeneral(tempDir)
+		general, err := NewConfigGeneral(tempDir)
+		require.NoError(t, err)
 		os.RemoveAll(tempDir)
 
-		err := general.Set(GeneralConfig{})
-		if !errors.Is(err, os.ErrNotExist) {
-			t.Fatalf("expected: %v, got: %v", os.ErrNotExist, err)
-		}
+		err = general.Set(GeneralConfig{})
+		require.ErrorIs(t, err, os.ErrNotExist)
 	})
 }
