@@ -37,8 +37,8 @@ describe("newViewer", () => {
 		document.body.innerHTML = `<div id="content-grid"></div>`;
 		const element = $("#content-grid");
 		const viewer = newViewer(element, monitors, mockHls);
-		viewer.lowRes();
-		viewer.highRes();
+		viewer.setPreferLowRes(true);
+		viewer.setPreferLowRes(false);
 		viewer.reset();
 		return element;
 	};
@@ -103,11 +103,10 @@ describe("newViewer", () => {
 
 describe("resBtn", () => {
 	const mockContent = {
-		lowRes() {},
-		highRes() {},
+		setPreferLowRes() {},
 		reset() {},
 	};
-	test("working", () => {
+	test("ok", () => {
 		document.body.innerHTML = `<div></div>`;
 		const element = $("div");
 
@@ -122,15 +121,15 @@ describe("resBtn", () => {
 
 		$btn.click();
 		expect($btn.textContent).toEqual("SD");
-		expect(localStorage.getItem("highRes")).toEqual("false");
+		expect(localStorage.getItem("preferLowRes")).toEqual("true");
 
 		$btn.click();
 		expect($btn.textContent).toEqual("HD");
-		expect(localStorage.getItem("highRes")).toEqual("true");
+		expect(localStorage.getItem("preferLowRes")).toEqual("false");
 
 		$btn.click();
 		expect($btn.textContent).toEqual("SD");
-		expect(localStorage.getItem("highRes")).toEqual("false");
+		expect(localStorage.getItem("preferLowRes")).toEqual("true");
 	});
 	test("contentCalled", () => {
 		document.body.innerHTML = `<div></div>`;
@@ -139,23 +138,19 @@ describe("resBtn", () => {
 		const res = resBtn();
 		element.innerHTML = res.html;
 
-		let low, high, reset;
+		let preferLowCalled, resetCalled;
 		const content = {
-			lowRes() {
-				low = true;
-			},
-			highRes() {
-				high = true;
+			setPreferLowRes() {
+				preferLowCalled = true;
 			},
 			reset() {
-				reset = true;
+				resetCalled = true;
 			},
 		};
 
 		res.init(element, content);
 		$(".js-res").click();
-		expect(low).toEqual(true);
-		expect(high).toEqual(true);
-		expect(reset).toEqual(true);
+		expect(preferLowCalled).toEqual(true);
+		expect(resetCalled).toEqual(true);
 	});
 });

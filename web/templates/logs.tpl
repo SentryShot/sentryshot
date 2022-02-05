@@ -19,7 +19,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 {{ template "html" }}
 <head>
 	{{ template "meta" . }}
-	<script type="module" src="static/scripts/loaders/logs.mjs" defer></script>
+	<script type="module" defer>
+		import { init } from "./static/scripts/logs.mjs";
+		init();
+	</script>
 </head>
 <body>
 	{{ template "sidebar" . }}

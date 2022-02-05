@@ -15,102 +15,10 @@
 
 import { $ } from "./libs/common.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
+import { newFeed } from "./components/feed.mjs";
 
-let hlsConfig = {
-	enableWorker: true,
-	maxBufferLength: 1,
-	liveBackBufferLength: 0,
-	liveSyncDuration: 0,
-	liveMaxLatencyDuration: 5,
-	liveDurationInfinity: true,
-	highBufferWatchdogPeriod: 1,
-};
-
-const iconMutedPath = "static/icons/feather/volume-x.svg";
-const iconUnmutedPath = "static/icons/feather/volume.svg";
-
-function newVideo(id, options, Hls) {
-	let res = ".m3u8";
-	if (options.subInputEnabled && options.preferLowRes) {
-		res = "_sub.m3u8";
-	}
-	const source = "hls/" + id + "/" + id + res;
-
-	const html = () => {
-		let overlayHTML = "";
-		if (options.audioEnabled) {
-			overlayHTML = `
-				<input
-					class="player-overlay-checkbox"
-					id="${id}-player-checkbox"
-					type="checkbox"
-				/>
-				<label
-					class="player-overlay-selector"
-					for="${id}-player-checkbox"
-				></label>
-				<div class="player-overlay live-player-menu">
-					<button class="live-player-btn js-mute-btn">
-						<img class="icon" src="${iconMutedPath}"/>
-					</button>
-				</div>`;
-		}
-
-		return `
-			<div id="js-video-${id}" class="grid-item-container">
-				${overlayHTML}
-				<video
-					class="grid-item"
-					muted
-					disablepictureinpicture
-				></video>
-			</div>`;
-	};
-
-	let hls;
-
-	return {
-		html: html(),
-		init($parent) {
-			const element = $parent.querySelector(`#js-video-${id}`);
-			const $video = element.querySelector("video");
-
-			hls = new Hls(hlsConfig);
-			hls.attachMedia($video);
-			hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-				hls.loadSource(source);
-				$video.play();
-			});
-
-			if (options.audioEnabled) {
-				const $muteBtn = element.querySelector(".js-mute-btn");
-				const $img = $muteBtn.querySelector("img");
-
-				const $overlayCheckbox = element.querySelector("input");
-				$muteBtn.addEventListener("click", () => {
-					if ($video.muted) {
-						$video.muted = false;
-						$img.src = iconUnmutedPath;
-					} else {
-						$video.muted = true;
-						$img.src = iconMutedPath;
-					}
-					$overlayCheckbox.checked = false;
-				});
-				$video.muted = true;
-			}
-		},
-		destroy() {
-			hls.destroy();
-		},
-	};
-}
-
-function newViewer($parent, monitors, Hls) {
+function newViewer($parent, monitors, hls) {
 	let selectedMonitors = [];
-	let preferLowRes = false;
-	let videos = [];
-
 	const isMonitorSelected = (monitor) => {
 		if (selectedMonitors.length == 0) {
 			return true;
@@ -123,18 +31,21 @@ function newViewer($parent, monitors, Hls) {
 		return false;
 	};
 
+	let preferLowRes = false;
+	let feeds = [];
+
 	return {
-		lowRes() {
-			preferLowRes = true;
+		setMonitors(input) {
+			selectedMonitors = input;
 		},
-		highRes() {
-			preferLowRes = false;
+		setPreferLowRes(bool) {
+			preferLowRes = bool;
 		},
 		reset() {
-			for (const video of videos) {
-				video.destroy();
+			for (const feed of feeds) {
+				feed.destroy();
 			}
-			videos = [];
+			feeds = [];
 			for (const monitor of Object.values(monitors)) {
 				if (!isMonitorSelected(monitor)) {
 					continue;
@@ -142,48 +53,41 @@ function newViewer($parent, monitors, Hls) {
 				if (monitor["enable"] !== "true") {
 					continue;
 				}
-				const id = monitor["id"];
-				const options = {
-					audioEnabled: monitor["audioEnabled"] === "true",
-					subInputEnabled: monitor["subInputEnabled"] === "true",
-					preferLowRes: preferLowRes,
-				};
-
-				videos.push(newVideo(id, options, Hls));
+				feeds.push(newFeed(monitor, preferLowRes, hls));
 			}
+
 			let html = "";
-			for (const video of videos) {
-				html += video.html;
+			for (const feed of feeds) {
+				html += feed.html;
 			}
 			$parent.innerHTML = html;
 
-			for (const video of videos) {
-				video.init($parent);
+			for (const feed of feeds) {
+				feed.init($parent);
 			}
-		},
-		setMonitors(input) {
-			selectedMonitors = input;
 		},
 	};
 }
 
+const preferLowResByDefault = false;
+
 function resBtn() {
 	const getRes = () => {
-		const saved = localStorage.getItem("highRes");
+		const saved = localStorage.getItem("preferLowRes");
 		if (saved) {
 			return saved === "true";
 		}
-		return true;
+		return preferLowResByDefault;
 	};
 	let element, content;
-	const setRes = (high) => {
-		localStorage.setItem("highRes", high);
-		if (high) {
-			element.textContent = "HD";
-			content.highRes();
-		} else {
+	const setRes = (preferLow) => {
+		localStorage.setItem("preferLowRes", preferLow);
+		if (preferLow) {
 			element.textContent = "SD";
-			content.lowRes();
+			content.setPreferLowRes(true);
+		} else {
+			element.textContent = "HD";
+			content.setPreferLowRes(false);
 		}
 	};
 	return {
@@ -200,34 +104,24 @@ function resBtn() {
 	};
 }
 
-// Init.
-(async () => {
-	try {
-		/* eslint-disable no-undef */
-		if (Hls === undefined) {
-			return;
-		}
+function init() {
+	// Globals.
+	const groups = Groups; // eslint-disable-line no-undef
+	const monitors = Monitors; // eslint-disable-line no-undef
+	const hls = Hls; // eslint-disable-line no-undef
 
-		const $contentGrid = document.querySelector("#content-grid");
+	const $contentGrid = document.querySelector("#content-grid");
+	const viewer = newViewer($contentGrid, monitors, hls);
 
-		const groups = Groups; // eslint-disable-line no-undef
-		const monitors = Monitors; // eslint-disable-line no-undef
+	const $options = $("#options-menu");
+	const buttons = [
+		newOptionsBtn.gridSize(),
+		resBtn(),
+		newOptionsBtn.group(monitors, groups),
+	];
+	const optionsMenu = newOptionsMenu(buttons);
+	$options.innerHTML = optionsMenu.html;
+	optionsMenu.init($options, viewer);
+}
 
-		const viewer = newViewer($contentGrid, monitors, Hls);
-
-		/* eslint-enable no-undef */
-		const $options = $("#options-menu");
-		const buttons = [
-			newOptionsBtn.gridSize(),
-			resBtn(),
-			newOptionsBtn.group(monitors, groups),
-		];
-		const optionsMenu = newOptionsMenu(buttons);
-		$options.innerHTML = optionsMenu.html;
-		optionsMenu.init($options, viewer);
-	} catch (error) {
-		return error;
-	}
-})();
-
-export { newViewer, resBtn };
+export { init, newViewer, resBtn };

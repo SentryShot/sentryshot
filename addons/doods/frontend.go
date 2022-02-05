@@ -53,7 +53,10 @@ func modifySettings(tpl string) string {
 func modifySettingsjs(tpl string) string {
 	const target = "logLevel: fieldTemplate.select("
 
-	return strings.ReplaceAll(tpl, target, javascript()+target)
+	feedImport := `import { newFeed } from "./static/scripts/components/feed.mjs";`
+	tpl = strings.ReplaceAll(tpl, target, javascript()+target)
+
+	return feedImport + tpl
 }
 
 func javascript() string { //nolint:funlen
@@ -262,7 +265,7 @@ func javascript() string { //nolint:funlen
 
 		let fields = {};
 		let value = []
-		let $wrapper, $feed, $padding, $x, $y, $size;
+		let $wrapper, $padding, $x, $y, $size, $modal, $feed;
 
 		const modal = newModal("DOODS crop");
 
@@ -310,16 +313,14 @@ func javascript() string { //nolint:funlen
 			$("head").appendChild($style);
 		}
 
-		const renderModal = ($parent) => {
+		const renderModal = ($parent, feed) => {
 			const html = ` + "`" + `
 				<li id="doodsCrop-preview" class="form-field">
 					<label class="form-field-label" for="doodsCrop-preview" style="width: auto;">Preview</label>
 					<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
-						<video
-							class="js-feed doodsCrop-preview-feed"
-							muted
-							disablePictureInPicture
-						></video>
+						<div class="js-feed doodsCrop-preview-feed">
+							${feed.html}
+						</div>
 						<div class="js-preview-padding" style="background: white;"></div>
 						<svg
 							class="js-overlay doodsCrop-preview-overlay"
@@ -364,7 +365,7 @@ func javascript() string { //nolint:funlen
 					</div>
 				</li>` + "`" + `;
 
-			const $modal = modal.init($parent.querySelector("#js-doodsCrop"))
+			$modal = modal.init($parent.querySelector("#js-doodsCrop"))
 			$modal.innerHTML = html;
 
 			$feed = $modal.querySelector(".js-feed");
@@ -384,26 +385,6 @@ func javascript() string { //nolint:funlen
 				$overlay.innerHTML = updatePreview();
 			})
 			$overlay.innerHTML = updatePreview();
-		}
-
-		let feed;
-		const attachFeed = () => {
-			feed = new Hls({
-				enableWorker: true,
-				maxBufferLength: 1,
-				liveBackBufferLength: 0,
-				liveSyncDuration: 0,
-				liveMaxLatencyDuration: 5,
-				liveDurationInfinity: true,
-				highBufferWatchdogPeriod: 1,
-			});
-
-			feed.attachMedia($feed);
-			feed.on(Hls.Events.MEDIA_ATTACHED, () => {
-			    const id = fields.id.value()
-				feed.loadSource("hls/" + id + "/" + id + ".m3u8");
-				$feed.play();
-			});
 		}
 
 		const updatePadding = () => {
@@ -498,14 +479,24 @@ func javascript() string { //nolint:funlen
 			init($parent) {
 				injectCSS()
 
+				var feed;
 				$("#js-doodsCrop").querySelector(".settings-edit-btn").addEventListener("click", () => {
 					if (!rendered) {
+						const subInputEnabled = (fields.subInput.value() !== "") ? "true": ""
+						const monitor = {
+							"id": fields.id.value(),
+							"audioEnabled": "false",
+							"subInputEnabled": subInputEnabled,
+						}
+						feed = newFeed(monitor, true, Hls)
+
+						renderModal($parent, feed)
 						rendered = true;
-						renderModal($parent)
 					}
 					modal.open()
 
-					attachFeed()
+					feed.init($modal)
+
 					modal.onClose(() => {
 						feed.destroy()
 					})
@@ -567,11 +558,11 @@ func javascript() string { //nolint:funlen
 
 		let fields = {};
 		let value = {}
-		let $wrapper, $feed, $enable, $overlay, $points;
+		let $wrapper, $feed, $enable, $overlay, $points, $modal;
 
 		const modal = newModal("DOODS mask");
 
-		const renderModal = ($parent) => {
+		const renderModal = ($parent, feed) => {
 			const html = ` + "`" + `
 				<li class="js-enable doodsMask-enabled form-field">
 					<label class="form-field-label" for="doodsMask-enable">Enable</label>
@@ -585,11 +576,9 @@ func javascript() string { //nolint:funlen
 				<li id="doodsMask-preview" class="form-field">
 					<label class="form-field-label" for="doodsMask-preview">Preview</label>
 					<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
-						<video
-							class="js-feed doodsCrop-preview-feed"
-							muted
-							disablePictureInPicture
-						></video>
+						<div class="js-feed doodsCrop-preview-feed">
+							${feed.html}
+						</div>
 						<svg
 							class="js-overlay doodsMask-preview-overlay"
 							viewBox="0 0 100 100"
@@ -600,7 +589,7 @@ func javascript() string { //nolint:funlen
 				</li>
 				<li class="js-points form-field doodsMask-points-grid"></li>` + "`" + `;
 
-			const $modal = modal.init($parent.querySelector("#js-doodsMask"))
+			$modal = modal.init($parent.querySelector("#js-doodsMask"))
 			$modal.innerHTML = html;
 
 			$enable = $modal.querySelector(".js-enable .js-input")
@@ -615,26 +604,6 @@ func javascript() string { //nolint:funlen
 
 			renderValue();
 			renderPreview();
-		}
-
-		let feed;
-		const attachFeed = () => {
-			feed = new Hls({
-				enableWorker: true,
-				maxBufferLength: 1,
-				liveBackBufferLength: 0,
-				liveSyncDuration: 0,
-				liveMaxLatencyDuration: 5,
-				liveDurationInfinity: true,
-				highBufferWatchdogPeriod: 1,
-			});
-
-			feed.attachMedia($feed);
-			feed.on(Hls.Events.MEDIA_ATTACHED, () => {
-			    const id = fields.id.value()
-				feed.loadSource("hls/" + id + "/" + id + ".m3u8");
-				$feed.play();
-			});
 		}
 
 		const renderPreview = () => {
@@ -764,14 +733,24 @@ func javascript() string { //nolint:funlen
 			init($parent) {
 				injectCSS()
 
+				var feed
 				$("#js-doodsMask").querySelector(".settings-edit-btn").addEventListener("click", () => {
 					if (!rendered) {
+						const subInputEnabled = (fields.subInput.value() !== "") ? "true": ""
+						const monitor = {
+							"id": fields.id.value(),
+							"audioEnabled": "false",
+							"subInputEnabled": subInputEnabled,
+						}
+						feed = newFeed(monitor, true, Hls)
+
+						renderModal($parent, feed)
 						rendered = true;
-						renderModal($parent)
 					}
 					modal.open()
 
-					attachFeed()
+					feed.init($modal)
+
 					modal.onClose(() => {
 						feed.destroy()
 					})

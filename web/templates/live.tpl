@@ -20,7 +20,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 <head>
 	{{ template "meta" . }}
 	<script src="static/scripts/vendor/hls.light.min.js" defer></script>
-	<script type="module" src="static/scripts/live.mjs" defer></script>
+	<script type="module" defer>
+		import { init } from "./static/scripts/live.mjs";
+		init();
+	</script>
 </head>
 <body>
 	{{ template "sidebar" . }}
