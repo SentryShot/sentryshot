@@ -24,7 +24,7 @@ import (
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
-	"nvr/pkg/video/rtsp"
+	"nvr/pkg/video"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -115,13 +115,13 @@ func (c Config) Hwacell() string {
 
 // Manager for the monitors.
 type Manager struct {
-	Monitors   monitors
-	env        storage.ConfigEnv
-	log        *log.Logger
-	rtspServer *rtsp.Server
-	path       string
-	hooks      *Hooks
-	mu         sync.Mutex
+	Monitors    monitors
+	env         storage.ConfigEnv
+	log         *log.Logger
+	videoServer *video.Server
+	path        string
+	hooks       *Hooks
+	mu          sync.Mutex
 }
 
 // NewManager return new monitor manager.
@@ -129,7 +129,7 @@ func NewManager(
 	configPath string,
 	env storage.ConfigEnv,
 	log *log.Logger,
-	rtspServer *rtsp.Server,
+	videoServer *video.Server,
 	hooks *Hooks) (*Manager, error) {
 	if err := os.MkdirAll(configPath, 0o700); err != nil {
 		return nil, fmt.Errorf("could not create monitors directory: %w", err)
@@ -147,11 +147,11 @@ func NewManager(
 	}
 
 	manager := &Manager{
-		env:        env,
-		log:        log,
-		rtspServer: rtspServer,
-		path:       configPath,
-		hooks:      hooks,
+		env:         env,
+		log:         log,
+		videoServer: videoServer,
+		path:        configPath,
+		hooks:       hooks,
 	}
 
 	monitors := make(monitors)
@@ -296,10 +296,10 @@ func (m *Manager) MonitorConfigs() map[string]Config {
 
 func (m *Manager) newMonitor(config Config) *Monitor {
 	monitor := &Monitor{
-		Env:        m.env,
-		rtspServer: m.rtspServer,
-		Log:        m.log,
-		Config:     config,
+		Env:         m.env,
+		videoServer: m.videoServer,
+		Log:         m.log,
+		Config:      config,
 
 		eventsMu:  &sync.Mutex{},
 		eventChan: make(chan storage.Event),
@@ -324,10 +324,10 @@ type monitors map[string]*Monitor
 
 // Monitor service.
 type Monitor struct {
-	Env        storage.ConfigEnv
-	rtspServer *rtsp.Server
-	Log        *log.Logger
-	Config     Config
+	Env         storage.ConfigEnv
+	videoServer *video.Server
+	Log         *log.Logger
+	Config      Config
 
 	events    storage.Events
 	eventsMu  *sync.Mutex
@@ -531,9 +531,9 @@ func (i *InputProcess) start(ctx context.Context, m *Monitor) {
 func runInputProcess(ctx context.Context, i *InputProcess) error {
 	id := i.M.Config.ID()
 
-	pathConf := rtsp.PathConf{MonitorID: id, IsSub: i.IsSubInput()}
+	pathConf := video.PathConf{MonitorID: id, IsSub: i.IsSubInput()}
 	rtspAddress, rtspProtocol, cancel, err :=
-		i.M.rtspServer.NewPath(i.rtspPathName(), pathConf)
+		i.M.videoServer.NewPath(i.rtspPathName(), pathConf)
 	if err != nil {
 		return fmt.Errorf("could not add path to RTSP server: %w", err)
 	}

@@ -25,7 +25,7 @@ import (
 	"nvr/pkg/ffmpeg/ffmock"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
-	"nvr/pkg/video/rtsp"
+	"nvr/pkg/video"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -83,9 +83,9 @@ func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 	logger.Start(ctx)
 
 	wg := sync.WaitGroup{}
-	rtspServer := rtsp.NewServer(logger, &wg, 2021)
+	videoServer := video.NewServer(logger, &wg, 2021)
 
-	err := rtspServer.Start(ctx)
+	err := videoServer.Start(ctx)
 	require.NoError(t, err)
 
 	configDir, cancel2 := prepareDir(t)
@@ -100,7 +100,7 @@ func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 		configDir,
 		storage.ConfigEnv{},
 		logger,
-		rtspServer,
+		videoServer,
 		&Hooks{},
 	)
 	require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestNewManager(t *testing.T) {
 			"/dev/null/nil.json",
 			storage.ConfigEnv{},
 			&log.Logger{},
-			&rtsp.Server{},
+			&video.Server{},
 			&Hooks{},
 		)
 		require.Error(t, err)
@@ -167,7 +167,7 @@ func TestNewManager(t *testing.T) {
 			configDir,
 			storage.ConfigEnv{},
 			&log.Logger{},
-			&rtsp.Server{},
+			&video.Server{},
 			&Hooks{},
 		)
 		var e *json.SyntaxError
@@ -365,9 +365,9 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 	logger.Start(ctx)
 
 	wg := sync.WaitGroup{}
-	rtspServer := rtsp.NewServer(logger, &wg, 2021)
+	videoServer := video.NewServer(logger, &wg, 2021)
 
-	err = rtspServer.Start(ctx)
+	err = videoServer.Start(ctx)
 	require.NoError(t, err)
 
 	m := &Monitor{
@@ -392,9 +392,9 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 		waitForKeyframe:     mockWaitForKeyframe,
 		videoDuration:       mockVideoDuration,
 
-		WG:         &sync.WaitGroup{},
-		Log:        logger,
-		rtspServer: rtspServer,
+		WG:          &sync.WaitGroup{},
+		Log:         logger,
+		videoServer: videoServer,
 	}
 
 	cancelFunc := func() {
@@ -534,12 +534,12 @@ func TestRunInputProcess(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		path := i.M.Config.ID() + "_sub"
-		require.True(t, i.M.rtspServer.PathExist(path))
+		require.True(t, i.M.videoServer.PathExist(path))
 
 		cancel()
 		i.M.WG.Wait()
 
-		require.False(t, i.M.rtspServer.PathExist(path))
+		require.False(t, i.M.videoServer.PathExist(path))
 	})
 
 	t.Run("rtspPathErr", func(t *testing.T) {
@@ -549,7 +549,7 @@ func TestRunInputProcess(t *testing.T) {
 		i.M.Config["id"] = ""
 
 		err := runInputProcess(ctx, i)
-		require.ErrorIs(t, err, rtsp.ErrEmptyPathName)
+		require.ErrorIs(t, err, video.ErrEmptyPathName)
 	})
 }
 

@@ -26,7 +26,7 @@ import (
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
 	"nvr/pkg/system"
-	"nvr/pkg/video/rtsp"
+	"nvr/pkg/video"
 	"nvr/pkg/web"
 	"nvr/pkg/web/auth"
 	"os"
@@ -106,14 +106,14 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		return nil, fmt.Errorf("could not get general config: %w", err)
 	}
 
-	rtspServer := rtsp.NewServer(logger, wg, env.RTSPport)
+	videoServer := video.NewServer(logger, wg, env.RTSPport)
 
 	monitorConfigDir := filepath.Join(env.ConfigDir, "monitors")
 	monitorManager, err := monitor.NewManager(
 		monitorConfigDir,
 		*env,
 		logger,
-		rtspServer,
+		videoServer,
 		hooks.monitor(),
 	)
 	if err != nil {
@@ -219,7 +219,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		env:            *env,
 		monitorManager: monitorManager,
 		storage:        storageManager,
-		rtspServer:     rtspServer,
+		videoServer:    videoServer,
 		server:         server,
 	}, nil
 }
@@ -231,7 +231,7 @@ type App struct {
 	env            storage.ConfigEnv
 	monitorManager *monitor.Manager
 	storage        *storage.Manager
-	rtspServer     *rtsp.Server
+	videoServer    *video.Server
 	server         *http.Server
 }
 
@@ -257,7 +257,7 @@ func (a *App) run(ctx context.Context) error {
 		return fmt.Errorf("could not prepare environment: %w", err)
 	}
 
-	if err := a.rtspServer.Start(ctx); err != nil {
+	if err := a.videoServer.Start(ctx); err != nil {
 		return fmt.Errorf("could not start RTSP server: %w", err)
 	}
 
