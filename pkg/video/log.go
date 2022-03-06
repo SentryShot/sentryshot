@@ -4,10 +4,8 @@ import (
 	"nvr/pkg/log"
 )
 
-func sendLog(logger *log.Logger, conf PathConf, level log.Level, message string) {
-	var msg string
-
-	msg += "RTSP:"
+func sendLog(logger *log.Logger, conf PathConf, level log.Level, prefix, message string) {
+	msg := prefix
 
 	if conf.IsSub {
 		msg += " sub:"

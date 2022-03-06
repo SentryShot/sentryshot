@@ -450,6 +450,8 @@ func (i *instance) generateFFmpegArgs(c monitor.Config, maskPath string, grayMod
 }
 
 func (i instance) startFFmpeg(ctx context.Context) {
+	defer i.wg.Done()
+
 	// Wait for monitor to warm up.
 	select {
 	case <-ctx.Done():
@@ -459,7 +461,6 @@ func (i instance) startFFmpeg(ctx context.Context) {
 
 	for {
 		if ctx.Err() != nil {
-			i.wg.Done()
 			i.log.Info().Src("doods").Monitor(i.monitorID).Msg("process stopped")
 			return
 		}

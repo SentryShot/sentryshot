@@ -258,7 +258,7 @@ func (a *App) run(ctx context.Context) error {
 	}
 
 	if err := a.videoServer.Start(ctx); err != nil {
-		return fmt.Errorf("could not start RTSP server: %w", err)
+		return fmt.Errorf("could not start video server: %w", err)
 	}
 
 	// Start monitors
@@ -271,5 +271,6 @@ func (a *App) run(ctx context.Context) error {
 
 	go a.storage.PurgeLoop(ctx, 10*time.Minute)
 
+	a.log.Info().Src("app").Msgf("Serving app on port %v", a.env.Port)
 	return a.server.ListenAndServe()
 }

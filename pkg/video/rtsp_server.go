@@ -4,19 +4,17 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
-	"fmt"
 	"nvr/pkg/log"
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
 
 type rtspServer struct {
+	address     string
 	readTimeout time.Duration
-	rtspAddress string
 	pathManager *pathManager
 	logger      *log.Logger
 
@@ -30,7 +28,7 @@ type rtspServer struct {
 
 func newRTSPServer(
 	wg *sync.WaitGroup,
-	rtspAddress string,
+	address string,
 	readTimeout time.Duration,
 	writeTimeout time.Duration,
 	readBufferCount int,
@@ -39,9 +37,9 @@ func newRTSPServer(
 	pathManager *pathManager) *rtspServer {
 	s := &rtspServer{
 		wg:          wg,
-		logger:      logger,
+		address:     address,
 		readTimeout: readTimeout,
-		rtspAddress: rtspAddress,
+		logger:      logger,
 		pathManager: pathManager,
 		conns:       make(map[*gortsplib.ServerConn]*rtspConn),
 		sessions:    make(map[*gortsplib.ServerSession]*rtspSession),
@@ -53,7 +51,7 @@ func newRTSPServer(
 		WriteTimeout:    writeTimeout,
 		ReadBufferCount: readBufferCount,
 		ReadBufferSize:  readBufferSize,
-		RTSPaddress:     rtspAddress,
+		RTSPaddress:     address,
 	}
 
 	return s
@@ -67,13 +65,11 @@ func (s *rtspServer) start(ctx context.Context) error {
 		return err
 	}
 
-	var temp []string
-
-	temp = append(temp, fmt.Sprintf("%s (TCP)", s.rtspAddress))
-	s.logger.Info().Src("app").Msgf("rtsp: listener opened on " + strings.Join(temp, ", "))
+	s.logger.Info().
+		Src("app").
+		Msgf("RTSP: listener opened on %v", s.address)
 
 	s.wg.Add(1)
-
 	go s.run()
 
 	return nil
@@ -130,7 +126,7 @@ func (s *rtspServer) newSessionID() (string, error) {
 // OnConnOpen implements gortsplib.ServerHandlerOnConnOpen.
 func (s *rtspServer) OnConnOpen(ctx *gortsplib.ServerHandlerOnConnOpenCtx) {
 	c := newRTSPConn(
-		s.rtspAddress,
+		s.address,
 		s.readTimeout,
 		s.pathManager,
 		ctx.Conn,

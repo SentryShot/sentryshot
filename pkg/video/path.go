@@ -2,12 +2,12 @@ package video
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"nvr/pkg/log"
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/base"
+	"nvr/pkg/video/hls"
 	"regexp"
 	"sync"
 	"time"
@@ -15,6 +15,11 @@ import (
 
 // ErrPathNoOnePublishing No one is publishing to path.
 var ErrPathNoOnePublishing = errors.New("no one is publishing to path")
+
+type pathParent interface {
+	onPathSourceReady(*path)
+	onPathClose(*path)
+}
 
 type pathReaderState int
 
@@ -104,7 +109,7 @@ type path struct {
 	conf            *PathConf
 	name            string
 	wg              *sync.WaitGroup
-	parent          *pathManager
+	parent          pathParent
 	logger          *log.Logger
 
 	ctx               context.Context
@@ -169,7 +174,7 @@ func newPath(
 		readerPause:       make(chan pathReaderPauseReq),
 	}
 
-	pa.logf(log.LevelDebug, "opened")
+	// pa.logf(log.LevelDebug, "opened")
 
 	pa.wg.Add(1)
 	go pa.run()
@@ -182,9 +187,9 @@ func (pa *path) close() {
 }
 
 // Log is the main logging function.
-func (pa *path) logf(level log.Level, format string, args ...interface{}) {
-	sendLog(pa.logger, *pa.conf, level, fmt.Sprintf(format, args...))
-}
+/*func (pa *path) logf(level log.Level, format string, args ...interface{}) {
+	sendLog(pa.logger, *pa.conf, level, "PATH:", fmt.Sprintf(format, args...))
+}*/
 
 // ConfName returns the configuration name of this path.
 func (pa *path) ConfName() string {
@@ -210,7 +215,7 @@ var (
 func (pa *path) run() {
 	defer pa.wg.Done()
 
-	err := pa.runLoop()
+	_ = pa.runLoop()
 	pa.ctxCancel()
 
 	for _, req := range pa.describeRequests {
@@ -233,7 +238,7 @@ func (pa *path) run() {
 		pa.source.close()
 	}
 
-	pa.logf(log.LevelDebug, "closed (%v)", err)
+	// pa.logf(log.LevelDebug, "closed (%v)", err)
 
 	pa.parent.onPathClose(pa)
 }
@@ -300,6 +305,7 @@ func (pa *path) shouldClose() bool {
 func (pa *path) sourceSetReady(tracks gortsplib.Tracks) {
 	pa.sourceReady = true
 	pa.stream = newStream(tracks)
+	pa.parent.onPathSourceReady(pa)
 }
 
 func (pa *path) sourceSetNotReady() {
@@ -367,7 +373,7 @@ func (pa *path) handlePublisherAnnounce(req pathPublisherAnnounceReq) {
 			return
 		}
 
-		pa.logf(log.LevelInfo, "closing existing publisher")
+		// pa.logf(log.LevelInfo, "closing existing publisher")
 		pa.source.close()
 		pa.doPublisherRemove()
 	}
@@ -534,6 +540,18 @@ func (pa *path) onReaderPause(req pathReaderPauseReq) {
 	}
 }
 
+func (pa *path) hlsSegmentCount() int {
+	return pa.conf.HLSsegmentCount
+}
+
+func (pa *path) hlsSegmentDuration() time.Duration {
+	return pa.conf.HLSsegmentDuration
+}
+
+func (pa *path) hlsSegmentMaxSize() uint64 {
+	return pa.conf.HLSsegmentMaxSize
+}
+
 // Errors.
 var (
 	ErrEmptyName    = errors.New("name can not be empty")
@@ -567,10 +585,21 @@ func isValidPathName(name string) error {
 
 // PathConf is a path configuration.
 type PathConf struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	MonitorID string
 	IsSub     bool
 
 	DisablePublisherOverride bool
+
+	HLSsegmentCount    int
+	HLSsegmentDuration time.Duration
+	HLSsegmentMaxSize  uint64
+
+	onNewHLSsegment  chan hls.Segments
+	registerListener chan chan hls.Segments
+	listeners        map[chan hls.Segments]struct{}
 }
 
 // Errors.
@@ -580,6 +609,8 @@ var (
 	ErrInvalidURL     = errors.New("invalid URL")
 	ErrInvalidSource  = errors.New("invalid source")
 )
+
+var mb = uint64(1000000)
 
 // CheckAndFillMissing .
 func (pconf *PathConf) CheckAndFillMissing(name string) error {
@@ -595,12 +626,72 @@ func (pconf *PathConf) CheckAndFillMissing(name string) error {
 		return fmt.Errorf("%w: %s (%v)", ErrPathInvalidName, name, err)
 	}
 
+	if pconf.HLSsegmentCount == 0 {
+		pconf.HLSsegmentCount = 3
+	}
+
+	if pconf.HLSsegmentDuration == 0 {
+		pconf.HLSsegmentDuration = 1 * time.Second
+	}
+
+	if pconf.HLSsegmentMaxSize == 0 {
+		pconf.HLSsegmentMaxSize = 50 * mb
+	}
+
 	return nil
 }
 
-// Equal checks whether two PathConfs are equal.
-func (pconf *PathConf) Equal(other *PathConf) bool {
-	a, _ := json.Marshal(pconf)
-	b, _ := json.Marshal(other)
-	return string(a) == string(b)
+func (pconf *PathConf) start(ctx context.Context) {
+	pconf.ctx, pconf.cancel = context.WithCancel(ctx)
+	pconf.onNewHLSsegment = make(chan hls.Segments)
+	pconf.listeners = make(map[chan hls.Segments]struct{})
+	pconf.registerListener = make(chan chan hls.Segments)
+
+	go func() {
+		for {
+			select {
+			case <-pconf.ctx.Done():
+				return
+			case listener := <-pconf.registerListener:
+				pconf.listeners[listener] = struct{}{}
+			case segment := <-pconf.onNewHLSsegment:
+				for listener := range pconf.listeners {
+					listener <- segment
+					close(listener)
+					delete(pconf.listeners, listener)
+				}
+			}
+		}
+	}()
+}
+
+// WaitForNewHLSsegementFunc is used for mocking.
+type WaitForNewHLSsegementFunc func(context.Context, int) (time.Duration, error)
+
+// WaitForNewHLSsegment waits for a new HLS segment and
+// returns the combined duration of the last nSegments.
+// Used to calculate start time of the recordings.
+func (pconf *PathConf) WaitForNewHLSsegment(
+	ctx context.Context, nSegments int) (time.Duration, error) {
+	for {
+		listener := make(chan hls.Segments)
+		select {
+		case <-ctx.Done():
+			return 0, context.Canceled
+		case pconf.registerListener <- listener:
+			segments := <-listener
+			if len(segments) < nSegments {
+				// Wait for more segments.
+				continue
+			}
+
+			var totalDuration time.Duration
+			for i := nSegments; i != 0; i-- {
+				dIndex := len(segments) - i
+				segment := segments[dIndex]
+				totalDuration += segment.Duration()
+			}
+			return totalDuration, nil
+		}
+	}
 }

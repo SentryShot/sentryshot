@@ -342,6 +342,15 @@ func TestStartFFmpeg(t *testing.T) {
 		actual := <-feed
 		require.Equal(t, actual.Msg, "process crashed: mock")
 	})
+	t.Run("canceled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		i := instance{wg: &sync.WaitGroup{}}
+		i.wg.Add(1)
+		i.startFFmpeg(ctx)
+		i.wg.Wait()
+	})
 }
 
 func TestRunFFmpeg(t *testing.T) {

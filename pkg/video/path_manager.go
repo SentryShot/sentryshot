@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+type pathManagerHLSServer interface {
+	onPathSourceReady(pa *path)
+}
+
 type pathManager struct {
 	rtspAddress     string
 	readTimeout     time.Duration
@@ -18,9 +22,10 @@ type pathManager struct {
 	pathConfs       map[string]*PathConf
 	log             *log.Logger
 
-	ctx   context.Context
-	paths map[string]*path
-	wg    *sync.WaitGroup
+	ctx       context.Context
+	paths     map[string]*path
+	wg        *sync.WaitGroup
+	hlsServer pathManagerHLSServer
 
 	// in
 	onAddPath         chan addPathReq
@@ -82,7 +87,7 @@ func (pm *pathManager) run() { //nolint:funlen,gocognit
 				req.ret <- ErrPathExist
 				continue
 			}
-			newPathConfs[req.name] = &req.config
+			newPathConfs[req.name] = req.config
 
 			// add confs
 			for pathConfName, pathConf := range newPathConfs {
@@ -100,9 +105,11 @@ func (pm *pathManager) run() { //nolint:funlen,gocognit
 			req.ret <- nil
 
 		case name := <-pm.onRemovePath:
-			if _, exist := pm.pathConfs[name]; !exist {
+			pconf, exist := pm.pathConfs[name]
+			if !exist {
 				continue
 			}
+			pconf.cancel()
 
 			// remove confs
 			delete(pm.pathConfs, name)
@@ -125,6 +132,11 @@ func (pm *pathManager) run() { //nolint:funlen,gocognit
 			}
 			delete(pm.paths, pa.Name())
 			pa.close()
+
+		case pa := <-pm.pathSourceReady:
+			if pm.hlsServer != nil {
+				pm.hlsServer.onPathSourceReady(pa)
+			}
 
 		case req := <-pm.describe:
 			pathConfName, pathConf, err := pm.findPathConf(req.pathName)
@@ -214,16 +226,22 @@ func (pm *pathManager) findPathConf(name string) (string, *PathConf, error) {
 
 type addPathReq struct {
 	name   string
-	config PathConf
+	config *PathConf
 	ret    chan error
 }
 
 // AddPath add path to pathManager.
-func (pm *pathManager) AddPath(name string, newConf PathConf) error {
+func (pm *pathManager) AddPath(name string, newConf *PathConf) error {
 	err := newConf.CheckAndFillMissing(name)
 	if err != nil {
 		return err
 	}
+
+	newConf.start(pm.ctx)
+	go func() {
+		<-pm.ctx.Done()
+		close(newConf.onNewHLSsegment)
+	}()
 
 	ret := make(chan error)
 	defer close(ret)
@@ -268,6 +286,14 @@ func (pm *pathManager) pathExist(name string) bool {
 		return false
 	case pm.onPathExist <- req:
 		return <-ret
+	}
+}
+
+// onPathSourceReady is called by path.
+func (pm *pathManager) onPathSourceReady(pa *path) {
+	select {
+	case pm.pathSourceReady <- pa:
+	case <-pm.ctx.Done():
 	}
 }
 
@@ -328,4 +354,9 @@ func (pm *pathManager) onReaderSetupPlay(req pathReaderSetupPlayReq) pathReaderS
 	case <-pm.ctx.Done():
 		return pathReaderSetupPlayRes{err: ErrTerminated}
 	}
+}
+
+// onHLSServerSet is called by hlsServer before pathManager is started.
+func (pm *pathManager) onHLSServerSet(s pathManagerHLSServer) {
+	pm.hlsServer = s
 }
