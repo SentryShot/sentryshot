@@ -209,6 +209,7 @@ func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
 type ConfigEnv struct {
 	Port      int    `yaml:"port"`
 	RTSPport  int    `yaml:"rtspPort"`
+	HLSport   int    `yaml:"hlsPort"`
 	GoBin     string `yaml:"goBin"`
 	FFmpegBin string `yaml:"ffmpegBin"`
 
@@ -237,6 +238,9 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	}
 	if env.RTSPport == 0 {
 		env.RTSPport = 2021
+	}
+	if env.HLSport == 0 {
+		env.HLSport = 2022
 	}
 	if env.GoBin == "" {
 		env.GoBin = "/usr/bin/go"
@@ -278,11 +282,6 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	}
 
 	return &env, nil
-}
-
-// SHMhls returns path of temporary hls files.
-func (env ConfigEnv) SHMhls() string {
-	return filepath.Join(env.SHMDir, "hls")
 }
 
 // RecordingsDir return recordings directory.

@@ -22,7 +22,7 @@ func newTestServer(t *testing.T) (*Server, cancelFunc) {
 
 	go logger.LogToStdout(ctx)
 
-	p := NewServer(logger, &wg, 8554)
+	p := NewServer(logger, &wg, 8554, 8888)
 	if err := p.Start(ctx); err != nil {
 		require.NoError(t, err)
 	}
@@ -43,9 +43,10 @@ func TestNewPath(t *testing.T) {
 		MonitorID: "x",
 	}
 
-	address, protocol, cancel2, err := p.NewPath("mypath", c)
+	hlsAddress, rtspAddress, protocol, _, cancel2, err := p.NewPath("mypath", c)
 	require.NoError(t, err)
-	require.Equal(t, address, "rtsp://127.0.0.1:8554/mypath")
+	require.Equal(t, hlsAddress, "http://127.0.0.1:8888/hls/mypath/index.m3u8")
+	require.Equal(t, rtspAddress, "rtsp://127.0.0.1:8554/mypath")
 	require.Equal(t, protocol, "tcp")
 
 	require.True(t, p.PathExist("mypath"))

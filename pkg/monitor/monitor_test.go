@@ -83,7 +83,7 @@ func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 	logger.Start(ctx)
 
 	wg := sync.WaitGroup{}
-	videoServer := video.NewServer(logger, &wg, 2021)
+	videoServer := video.NewServer(logger, &wg, 2021, 2022)
 
 	err := videoServer.Start(ctx)
 	require.NoError(t, err)
@@ -126,20 +126,6 @@ func TestNewManager(t *testing.T) {
 
 		config := readConfig(t, filepath.Join(configDir, "1.json"))
 		require.Equal(t, config, manager.Monitors["1"].Config)
-	})
-	t.Run("resetHLS", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "")
-		require.NoError(t, err)
-
-		env := storage.ConfigEnv{SHMDir: tempDir}
-		testDir := filepath.Join(env.SHMhls(), "test")
-
-		err = os.MkdirAll(testDir, 0o744)
-		require.NoError(t, err)
-
-		_, err = NewManager(tempDir, env, nil, nil, nil)
-		require.NoError(t, err)
-		require.NoDirExists(t, testDir)
 	})
 	t.Run("mkDirErr", func(t *testing.T) {
 		_, err := NewManager("/dev/null/nil", storage.ConfigEnv{}, nil, nil, nil)
@@ -339,13 +325,16 @@ func TestStopAllMonitors(t *testing.T) {
 	require.False(t, m.Monitors["2"].running)
 }
 
-func mockWaitForKeyframe(context.Context, string, int) (time.Duration, error) {
+func mockWaitForNewHLSsegment(context.Context, int) (time.Duration, error) {
 	return 0, nil
 }
 
 func newMockInputProcess(m *Monitor, isSubInput bool) *InputProcess {
 	return &InputProcess{
 		isSubInput: isSubInput,
+		hlsAddress: "hls.m3u8",
+
+		waitForNewHLSsegment: mockWaitForNewHLSsegment,
 
 		M: m,
 
@@ -365,7 +354,7 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 	logger.Start(ctx)
 
 	wg := sync.WaitGroup{}
-	videoServer := video.NewServer(logger, &wg, 2021)
+	videoServer := video.NewServer(logger, &wg, 2021, 2022)
 
 	err = videoServer.Start(ctx)
 	require.NoError(t, err)
@@ -389,7 +378,6 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 		startRecording:      mockStartRecording,
 		runRecordingProcess: mockRunRecordingProcess,
 		NewProcess:          ffmock.NewProcess,
-		waitForKeyframe:     mockWaitForKeyframe,
 		videoDuration:       mockVideoDuration,
 
 		WG:          &sync.WaitGroup{},
@@ -433,16 +421,6 @@ func TestStartMonitor(t *testing.T) {
 
 		actual := <-feed
 		require.Equal(t, actual.Msg, "disabled")
-	})
-	t.Run("tmpDirErr", func(t *testing.T) {
-		m, _, cancel := newTestMonitor(t)
-		defer cancel()
-
-		m.running = false
-		m.Env.SHMDir = "/dev/null"
-
-		err := m.Start()
-		require.Error(t, err)
 	})
 }
 
@@ -775,7 +753,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		runRecordingProcess(ctx, m)
 	})
 	t.Run("waitForKeyframeErr", func(t *testing.T) {
-		mockWaitForKeyframeErr := func(context.Context, string, int) (time.Duration, error) {
+		mockWaitForNewHLSsegmentErr := func(context.Context, int) (time.Duration, error) {
 			return 0, errors.New("mock")
 		}
 
@@ -783,7 +761,7 @@ func TestRunRecordingProcess(t *testing.T) {
 		defer cancel()
 
 		m.NewProcess = ffmock.NewProcess
-		m.waitForKeyframe = mockWaitForKeyframeErr
+		m.mainInput.waitForNewHLSsegment = mockWaitForNewHLSsegmentErr
 
 		m.WG.Add(1)
 		err := runRecordingProcess(ctx, m)
@@ -848,8 +826,9 @@ func mockHooks() *Hooks {
 func TestGenInputArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		i := &InputProcess{
-			rtspProtocol: "5",
-			rtspAddress:  "6",
+			hlsAddress:   "5",
+			rtspProtocol: "6",
+			rtspAddress:  "7",
 			M: &Monitor{
 				Env: storage.ConfigEnv{},
 				Config: map[string]string{
@@ -857,23 +836,21 @@ func TestGenInputArgs(t *testing.T) {
 					"mainInput":    "2",
 					"audioEncoder": "none",
 					"videoEncoder": "4",
-					"id":           "id",
 				},
 			},
 		}
 		actual := i.generateArgs()
 		expected := "-threads 1 -loglevel 1 -i 2 -an -c:v 4 -preset veryfast" +
-			" -f tee -map 0:a -map 0:v [f=hls:hls_flags=delete_segments" +
-			":hls_list_size=2:hls_allow_cache=0]hls/id/id.m3u8" +
-			"|[f=rtsp:rtsp_transport=5]6"
+			" -f rtsp -rtsp_transport 6 7"
 
-		require.Equal(t, actual, expected)
+		require.Equal(t, expected, actual)
 	})
 	t.Run("maximal", func(t *testing.T) {
 		i := &InputProcess{
 			isSubInput:   true,
-			rtspProtocol: "6",
-			rtspAddress:  "7",
+			hlsAddress:   "6",
+			rtspProtocol: "7",
+			rtspAddress:  "8",
 			M: &Monitor{
 				Env: storage.ConfigEnv{},
 				Config: map[string]string{
@@ -882,17 +859,14 @@ func TestGenInputArgs(t *testing.T) {
 					"subInput":     "3",
 					"audioEncoder": "4",
 					"videoEncoder": "5",
-					"id":           "id",
 				},
 			},
 		}
 		args := i.generateArgs()
 		expected := "-threads 1 -loglevel 1 -hwaccel 2 -i 3 -c:a 4 -c:v 5" +
-			" -preset veryfast -f tee -map 0:a -map 0:v [f=hls" +
-			":hls_flags=delete_segments:hls_list_size=2:hls_allow_cache=0]" +
-			"hls/id/id_sub.m3u8|[f=rtsp:rtsp_transport=6]7"
+			" -preset veryfast -f rtsp -rtsp_transport 7 8"
 
-		require.Equal(t, args, expected)
+		require.Equal(t, expected, args)
 	})
 }
 
@@ -911,7 +885,7 @@ func TestGenRecorderArgs(t *testing.T) {
 		args, err := m.generateRecorderArgs("path")
 		require.NoError(t, err)
 
-		expected := "-y -threads 1 -loglevel 1 -live_start_index -2 -i hls/id/id.m3u8 -t 180 -c:v copy path.mp4"
+		expected := "-y -threads 1 -loglevel 1 -live_start_index -2 -i hls.m3u8 -t 180 -c:v copy path.mp4"
 		require.Equal(t, args, expected)
 	})
 	t.Run("videoLengthErr", func(t *testing.T) {

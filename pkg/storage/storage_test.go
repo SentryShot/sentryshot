@@ -294,6 +294,7 @@ func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 	env := &ConfigEnv{
 		Port:       2020,
 		RTSPport:   2021,
+		HLSport:    2022,
 		GoBin:      goBin,
 		FFmpegBin:  ffmpegBin,
 		StorageDir: filepath.Join(homeDir, "storage"),
@@ -324,6 +325,7 @@ func TestNewConfigEnv(t *testing.T) {
 		expected := ConfigEnv{
 			Port:       2020,
 			RTSPport:   2021,
+			HLSport:    2022,
 			GoBin:      filepath.Join(homeDir, "go"),
 			FFmpegBin:  filepath.Join(homeDir, "ffmpeg"),
 			StorageDir: filepath.Join(homeDir, "storage"),
@@ -348,19 +350,6 @@ func TestNewConfigEnv(t *testing.T) {
 	t.Run("unmarshal error", func(t *testing.T) {
 		_, err := NewConfigEnv("", []byte("&"))
 		require.Error(t, err)
-	})
-	t.Run("shmHls", func(t *testing.T) {
-		envPath, testEnv, cancel := newTestEnv(t)
-		defer cancel()
-
-		envYAML, err := yaml.Marshal(testEnv)
-		require.NoError(t, err)
-
-		env, err := NewConfigEnv(envPath, envYAML)
-		require.NoError(t, err)
-
-		expected := filepath.Join(env.SHMDir, "hls")
-		require.Equal(t, env.SHMhls(), expected)
 	})
 	t.Run("goBinExist", func(t *testing.T) {
 		envPath, testEnv, cancel := newTestEnv(t)

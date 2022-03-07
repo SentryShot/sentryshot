@@ -17,9 +17,10 @@ const (
 )
 
 // NewServer allocates a server.
-func NewServer(log *log.Logger, wg *sync.WaitGroup, rtspPort int) *Server {
+func NewServer(log *log.Logger, wg *sync.WaitGroup, rtspPort int, hlsPort int) *Server {
 	// Only allow local connections.
 	rtspAddress := "127.0.0.1:" + strconv.Itoa(rtspPort)
+	hlsAddress := "127.0.0.1:" + strconv.Itoa(hlsPort)
 
 	pathManager := newPathManager(
 		wg,
@@ -44,14 +45,15 @@ func NewServer(log *log.Logger, wg *sync.WaitGroup, rtspPort int) *Server {
 
 	hlsServer := newHLSServer(
 		wg,
-		":2022",
+		hlsAddress,
 		readBufferCount,
 		pathManager,
 		log,
 	)
 
 	return &Server{
-		address:     rtspAddress,
+		rtspAddress: rtspAddress,
+		hlsAddress:  hlsAddress,
 		pathManager: pathManager,
 		rtspServer:  rtspServer,
 		hlsServer:   hlsServer,
@@ -61,7 +63,8 @@ func NewServer(log *log.Logger, wg *sync.WaitGroup, rtspPort int) *Server {
 
 // Server is an instance of rtsp-simple-server.
 type Server struct {
-	address     string
+	rtspAddress string
+	hlsAddress  string
 	pathManager *pathManager
 	rtspServer  *rtspServer
 	hlsServer   *hlsServer
@@ -91,19 +94,26 @@ func (p *Server) Start(ctx context.Context) error {
 type CancelFunc func()
 
 // NewPath add path.
-func (p *Server) NewPath(name string, newConf PathConf) (string, string, CancelFunc, error) {
+func (p *Server) NewPath(
+	name string, newConf PathConf) (
+	string, string, string, WaitForNewHLSsegementFunc, CancelFunc, error) {
 	err := p.pathManager.AddPath(name, &newConf)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", "", nil, nil, err
 	}
 
-	address := "rtsp://" + p.address + "/" + name
-	protocol := "tcp"
+	hlsAddress := "http://" + p.hlsAddress + "/hls/" + name + "/index.m3u8"
+	rtspAddress := "rtsp://" + p.rtspAddress + "/" + name
+	rtspProtocol := "tcp"
 	cancelFunc := func() {
 		p.pathManager.RemovePath(name)
 	}
 
-	return address, protocol, cancelFunc, nil
+	return hlsAddress,
+		rtspAddress,
+		rtspProtocol,
+		newConf.WaitForNewHLSsegment,
+		cancelFunc, nil
 }
 
 // PathExist returns true if path exist.

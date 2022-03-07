@@ -57,7 +57,7 @@ func TestMuxerVideoAudio(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(10 * time.Millisecond)
 
 	// group with IDR
 	err = m.WriteH264(6*time.Second, [][]byte{

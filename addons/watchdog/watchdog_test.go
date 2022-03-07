@@ -23,10 +23,14 @@ func newTestWatchdog(t *testing.T) (context.Context, watchdog, log.Feed, func())
 		cancel()
 	}
 
+	watchFunc := func() {
+		time.Sleep(50 * time.Millisecond)
+	}
+
 	d := watchdog{
-		monitorID:   "id",
 		processName: "x",
 		interval:    10 * time.Millisecond,
+		watchFunc:   watchFunc,
 		onFreeze:    func() {},
 		log:         logger,
 	}
@@ -50,17 +54,6 @@ func TestWatchdog(t *testing.T) {
 		mu.Unlock()
 
 		actual := <-feed
-		require.Equal(t, actual.Msg, "x process: possible freeze detected, restarting")
-	})
-	t.Run("fileErr", func(t *testing.T) {
-		ctx, d, feed, cancel := newTestWatchdog(t)
-		defer cancel()
-
-		d.hlsPath = "nil"
-
-		go d.start(ctx)
-
-		actual := <-feed
-		require.Equal(t, actual.Msg, "x process: no such file or directory")
+		require.Equal(t, actual.Msg, "x process: possible freeze detected, restarting..")
 	})
 }

@@ -5,14 +5,10 @@ package watchdog
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"nvr"
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"time"
-
-	"github.com/fsnotify/fsnotify"
 )
 
 func init() {
@@ -20,13 +16,18 @@ func init() {
 	nvr.RegisterLogSource([]string{"watchdog"})
 }
 
-const defaultInterval = 10 * time.Second
+const defaultInterval = 15 * time.Second
 
 func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]string) {
+	// Function that must return before interval ends.
+	watchFunc := func() {
+		i.WaitForNewHLSsegment(ctx, 0) //nolint:errcheck
+	}
+
 	d := &watchdog{
 		monitorID:   i.M.Config.ID(),
 		processName: i.ProcessName(),
-		hlsPath:     i.HlsPath(),
+		watchFunc:   watchFunc,
 		interval:    defaultInterval,
 		onFreeze:    i.Cancel,
 
@@ -38,56 +39,42 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 type watchdog struct {
 	monitorID   string
 	processName string
-	hlsPath     string
+	watchFunc   func()
 	interval    time.Duration
 	onFreeze    func()
 
 	log *log.Logger
 }
 
-// ErrFreeze possible freeze detected.
-var ErrFreeze = errors.New("possible freeze detected")
-
 func (d *watchdog) start(ctx context.Context) {
-	watchFile := func() error {
-		watcher, err := fsnotify.NewWatcher()
-		if err != nil {
-			return err
-		}
-		defer watcher.Close()
+	watch := func() {
+		returned := make(chan struct{})
+		go func() {
+			d.watchFunc()
+			close(returned)
+		}()
 
-		err = watcher.Add(d.hlsPath)
-		if err != nil {
-			return err
-		}
-		for {
-			select {
-			case <-watcher.Events: // file updated, process not frozen.
-				return nil
-			case <-time.After(d.interval):
-				return fmt.Errorf("%w, restarting", ErrFreeze)
-			case err := <-watcher.Errors:
-				return err
-			case <-ctx.Done():
-				return nil
-			}
+		select {
+		case <-time.After(d.interval):
+			// Function didn't return in time.
+			d.log.Error().
+				Src("watchdog").
+				Monitor(d.monitorID).
+				Msgf("%v process: possible freeze detected, restarting..",
+					d.processName)
+
+			d.onFreeze()
+		case <-returned:
+		case <-ctx.Done():
 		}
 	}
+
 	for {
 		select {
 		case <-time.After(d.interval):
+			go watch()
 		case <-ctx.Done():
 			return
 		}
-		go func() {
-			if err := watchFile(); err != nil {
-				d.log.Error().
-					Src("watchdog").
-					Monitor(d.monitorID).
-					Msgf("%v process: %v", d.processName, err)
-
-				d.onFreeze()
-			}
-		}()
 	}
 }

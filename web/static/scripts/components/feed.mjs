@@ -16,11 +16,11 @@ function newFeed(monitor, preferLowRes, Hls) {
 	const audioEnabled = monitor["audioEnabled"] === "true";
 	const subInputEnabled = monitor["subInputEnabled"] === "true";
 
-	let res = ".m3u8";
+	let res = "";
 	if (subInputEnabled && preferLowRes) {
-		res = "_sub.m3u8";
+		res = "_sub";
 	}
-	const source = `hls/${id}/${id}${res}`;
+	const source = `hls/${id}${res}/index.m3u8`;
 
 	let hls;
 

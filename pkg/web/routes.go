@@ -84,20 +84,6 @@ func Storage(path string) http.Handler {
 	})
 }
 
-// HLS serves files from shmHLS.
-func HLS(env *storage.ConfigEnv) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
-			return
-		}
-		w.Header().Set("Cache-Control", "no-cache")
-
-		h := http.StripPrefix("/hls/", http.FileServer(http.Dir(env.SHMhls())))
-		h.ServeHTTP(w, r)
-	})
-}
-
 // TimeZone returns system timeZone.
 func TimeZone(timeZone string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

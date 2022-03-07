@@ -135,12 +135,6 @@ func NewManager(
 		return nil, fmt.Errorf("could not create monitors directory: %w", err)
 	}
 
-	// Reset HLS directory.
-	os.RemoveAll(env.SHMhls())
-	if err := os.MkdirAll(env.SHMhls(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return nil, fmt.Errorf("could not create hls directory: %v: %w", env.SHMhls(), err)
-	}
-
 	configFiles, err := readConfigs(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read configuration files: %w", err)
@@ -308,7 +302,6 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		startRecording:      startRecording,
 		runRecordingProcess: runRecordingProcess,
 		NewProcess:          ffmpeg.NewProcess,
-		waitForKeyframe:     ffmpeg.WaitForKeyframe,
 		videoDuration:       ffmpeg.New(m.env.FFmpegBin).VideoDuration,
 
 		WG: &sync.WaitGroup{},
@@ -343,7 +336,6 @@ type Monitor struct {
 	startRecording      startRecordingFunc
 	runRecordingProcess runRecordingProcessFunc
 	NewProcess          ffmpeg.NewProcessFunc
-	waitForKeyframe     ffmpeg.WaitForKeyframeFunc
 	videoDuration       ffmpeg.VideoDurationFunc
 
 	Mu     sync.Mutex
@@ -374,11 +366,6 @@ func (m *Monitor) Start() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
-
-	os.RemoveAll(m.tmpDir())
-	if err := os.MkdirAll(m.tmpDir(), 0o700); err != nil {
-		return fmt.Errorf("could not create temporary directory for HLS files: %v: %w", m.tmpDir(), err)
-	}
 
 	if m.alwaysRecord() {
 		infinte := time.Duration(1<<63 - 62135596801)
@@ -433,10 +420,13 @@ type runInputProcessFunc func(context.Context, *InputProcess) error
 // InputProcess monitor input process.
 type InputProcess struct {
 	isSubInput   bool
+	hlsAddress   string
 	rtspAddress  string
 	rtspProtocol string
 	size         string
-	cancel       func()
+
+	waitForNewHLSsegment video.WaitForNewHLSsegementFunc
+	cancel               func()
 
 	M *Monitor
 
@@ -446,27 +436,32 @@ type InputProcess struct {
 	watchdogInterval time.Duration
 }
 
-// IsSubInput getter.
+// IsSubInput if the input is the sub stream.
 func (i *InputProcess) IsSubInput() bool {
 	return i.isSubInput
 }
 
-// RTSPaddress getter.
+// HLSaddress internal HLS address.
+func (i *InputProcess) HLSaddress() string {
+	return i.hlsAddress
+}
+
+// RTSPaddress internal RTSP address.
 func (i *InputProcess) RTSPaddress() string {
 	return i.rtspAddress
 }
 
-// RTSPprotocol getter.
+// RTSPprotocol protocol used by RTSP address.
 func (i *InputProcess) RTSPprotocol() string {
 	return i.rtspProtocol
 }
 
-// Size getter.
+// Size of input "480x640".
 func (i *InputProcess) Size() string {
 	return i.size
 }
 
-// ProcessName .
+// ProcessName name of process "main" or "sub".
 func (i *InputProcess) ProcessName() string {
 	if i.isSubInput {
 		return "sub"
@@ -481,21 +476,20 @@ func (i *InputProcess) input() string {
 	return i.M.Config.MainInput()
 }
 
-// HlsPath path to hls manitfest file.
-func (i *InputProcess) HlsPath() string {
-	id := i.M.Config.ID()
-	if i.isSubInput {
-		return filepath.Join(i.M.tmpDir(), id+"_sub.m3u8")
-	}
-	return filepath.Join(i.M.tmpDir(), id+".m3u8")
-}
-
 func (i *InputProcess) rtspPathName() string {
 	id := i.M.Config.ID()
 	if i.isSubInput {
 		return id + "_sub"
 	}
 	return id
+}
+
+// WaitForNewHLSsegment waits for a new HLS segment and
+// returns the combined duration of the last nSegments.
+// Used to calculate start time of the recordings.
+func (i *InputProcess) WaitForNewHLSsegment(
+	ctx context.Context, nSegments int) (time.Duration, error) {
+	return i.waitForNewHLSsegment(ctx, nSegments)
 }
 
 // Cancel process context.
@@ -532,14 +526,18 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	id := i.M.Config.ID()
 
 	pathConf := video.PathConf{MonitorID: id, IsSub: i.IsSubInput()}
-	rtspAddress, rtspProtocol, cancel, err :=
+
+	hlsAddress, rtspAddress, rtspProtocol, waitForNewHLSsegment, cancel, err :=
 		i.M.videoServer.NewPath(i.rtspPathName(), pathConf)
 	if err != nil {
 		return fmt.Errorf("could not add path to RTSP server: %w", err)
 	}
 	defer cancel()
+
+	i.hlsAddress = hlsAddress
 	i.rtspAddress = rtspAddress
 	i.rtspProtocol = rtspProtocol
+	i.waitForNewHLSsegment = waitForNewHLSsegment
 
 	i.size, err = i.sizeFromStream(i.input())
 	if err != nil {
@@ -581,17 +579,11 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	return nil
 }
 
-//   '[0:v]fps=fps=3,scale=320:260[bg];
-//     [bg][1:v]overlay,pad=320:320:0:0,crop:300:300:10:10,hue=s=0'
-//   -f rawvideo -pix_fmt rgb24 -
-
 func (i *InputProcess) generateArgs() string {
 	// OUTPUT
 	// -threads 1 -loglevel error -hwaccel x -i rtsp://x
 	// -c:a aac -c:v libx264 -preset veryfast
-	// -f tee -map 0:a -map 0:v '[f=hls:hls_flags=delete_segments
-	// :hls_list_size=2:hls_allow_cache=0]tmpDir/hls/id/id.m3u8
-	// |[f=rtsp:rtsp_transport=tcp]rtsp://127.0.0.1:2021/test'
+	// -f rtsp -rtsp_transport tcp rtsp://127.0.0.1:2021/test
 
 	c := i.M.Config
 
@@ -609,10 +601,7 @@ func (i *InputProcess) generateArgs() string {
 		args += " -an" // Skip audio.
 	}
 	args += " -c:v " + c["videoEncoder"] + " -preset veryfast"
-
-	args += " -f tee -map 0:a -map 0:v [f=hls:hls_flags=delete_segments" +
-		":hls_list_size=2:hls_allow_cache=0]" + i.HlsPath() +
-		"|[f=rtsp:rtsp_transport=" + i.RTSPprotocol() + "]" + i.RTSPaddress()
+	args += " -f rtsp -rtsp_transport " + i.RTSPprotocol() + " " + i.RTSPaddress()
 
 	return args
 }
@@ -704,7 +693,8 @@ func startRecording(ctx context.Context, m *Monitor) {
 			m.Mu.Unlock()
 			return
 		}
-		if err := m.runRecordingProcess(ctx, m); err != nil {
+		err := m.runRecordingProcess(ctx, m)
+		if err != nil && !errors.Is(err, context.Canceled) {
 			m.Log.Error().
 				Src("recorder").
 				Monitor(m.Config.ID()).
@@ -719,7 +709,7 @@ func startRecording(ctx context.Context, m *Monitor) {
 type runRecordingProcessFunc func(context.Context, *Monitor) error
 
 func runRecordingProcess(ctx context.Context, m *Monitor) error {
-	segmentDuration, err := m.waitForKeyframe(ctx, m.mainInput.HlsPath(), 2)
+	segmentDuration, err := m.mainInput.waitForNewHLSsegment(ctx, 2)
 	if err != nil {
 		return fmt.Errorf("could not get keyframe duration: %w", err)
 	}
@@ -782,7 +772,7 @@ func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 
 	args := "-y -threads 1 -loglevel " + m.Config.LogLevel() +
 		" -live_start_index -2" + // HLS segment to start from.
-		" -i " + m.mainInput.HlsPath() + // Input.
+		" -i " + m.mainInput.HLSaddress() + // Input.
 		" -t " + videoLengthSec + // Max video length.
 		" -c:v copy " + filePath + ".mp4" // Output.
 
@@ -903,8 +893,4 @@ func (m *Manager) StopAll() {
 
 func (m *Monitor) alwaysRecord() bool {
 	return m.Config["alwaysRecord"] == "true"
-}
-
-func (m *Monitor) tmpDir() string {
-	return filepath.Join(m.Env.SHMhls(), m.Config.ID())
 }

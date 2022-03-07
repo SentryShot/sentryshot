@@ -19,7 +19,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -32,8 +31,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/fsnotify/fsnotify"
 )
 
 // LogFunc used to log stdout and stderr.
@@ -379,92 +376,6 @@ func ParseScaleString(scale string) string {
 	default:
 		return "1"
 	}
-}
-
-// WaitForKeyframeFunc is used for mocking.
-type WaitForKeyframeFunc func(context.Context, string, int) (time.Duration, error)
-
-// ErrKeyFrameTimeout .
-var ErrKeyFrameTimeout = errors.New("timeout")
-
-// WaitForKeyframe waits for ffmpeg to update the ".m3u8" manifest file with
-// a new segment, and returns the combined duration of the last nSegments.
-// Used to calculate start time of the recording.
-func WaitForKeyframe(ctx context.Context, hlsPath string, nSegments int) (time.Duration, error) {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return 0, err
-	}
-	defer watcher.Close()
-
-	err = watcher.Add(hlsPath)
-	if err != nil {
-		return 0, err
-	}
-	for {
-		select {
-		case <-watcher.Events:
-			return getSegmentDuration(hlsPath, nSegments)
-		case err := <-watcher.Errors:
-			return 0, err
-		case <-time.After(30 * time.Second):
-			return 0, ErrKeyFrameTimeout
-		case <-ctx.Done():
-			return 0, nil
-		}
-	}
-}
-
-// ErrInvalidFile invalid m3u8 file.
-var ErrInvalidFile = errors.New("")
-
-func getSegmentDuration(hlsPath string, nSegments int) (time.Duration, error) {
-	/* INPUT
-	   #EXTM3U
-	   #EXT-X-VERSION:3
-	   #EXT-X-ALLOW-CACHE:NO
-	   #EXT-X-TARGETDURATION:2
-	   #EXT-X-MEDIA-SEQUENCE:251
-	   #EXTINF:4.250000,
-	   10.ts
-	   #EXTINF:3.500000,
-	   11.ts
-	*/
-	// OUTPUT 3500
-
-	m3u8, err := os.ReadFile(hlsPath)
-	if err != nil {
-		return 0, err
-	}
-	durations := parseDurations(string(m3u8))
-	if len(durations) < nSegments {
-		return 0, fmt.Errorf("not enough detections: %v %w", string(m3u8), ErrInvalidFile)
-	}
-
-	var totalDuration int
-	for i := nSegments; i != 0; i-- {
-		dIndex := len(durations) - i
-		durationStr := strings.ReplaceAll(durations[dIndex], ".", "")
-		durationInt, err := strconv.Atoi(durationStr)
-		if err != nil {
-			return 0, fmt.Errorf("could not parse duration: %w", err)
-		}
-		totalDuration += durationInt
-	}
-
-	return time.Duration(totalDuration) * time.Millisecond, nil
-}
-
-func parseDurations(m3u8 string) []string {
-	lines := strings.Split(strings.TrimSpace(m3u8), "\n")
-	var durations []string
-	for _, line := range lines {
-		if len(line) == 17 && line[:8] == "#EXTINF:" {
-			durations = append(durations, line[8:13])
-		}
-	}
-	// OUTPUT [4.250 3.500]
-	return durations
 }
 
 // FeedRateToDuration calculates frame duration from feedrate (fps).

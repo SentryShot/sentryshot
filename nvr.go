@@ -106,7 +106,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		return nil, fmt.Errorf("could not get general config: %w", err)
 	}
 
-	videoServer := video.NewServer(logger, wg, env.RTSPport)
+	videoServer := video.NewServer(logger, wg, env.RTSPport, env.HLSport)
 
 	monitorConfigDir := filepath.Join(env.ConfigDir, "monitors")
 	monitorManager, err := monitor.NewManager(
@@ -182,7 +182,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 
 	mux.Handle("/static/", a.User(web.Static()))
 	mux.Handle("/storage/", a.User(web.Storage(env.StorageDir)))
-	mux.Handle("/hls/", a.User(web.HLS(env)))
+	mux.Handle("/hls/", a.User(videoServer.HandleHLS()))
 
 	mux.Handle("/api/system/timeZone", a.User(web.TimeZone(timeZone)))
 
