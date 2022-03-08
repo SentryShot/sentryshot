@@ -51,7 +51,7 @@ func init() {
 	nvr.RegisterAppRunHook(onAppRun)
 }
 
-func onEnv(env *storage.ConfigEnv) {
+func onEnv(env storage.ConfigEnv) {
 	configPath := env.ConfigDir + "/doods.json"
 	var err error
 	addon.doodsIP, err = readConfig(configPath)

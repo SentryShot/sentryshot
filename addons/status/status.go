@@ -36,7 +36,7 @@ func init() {
 	var addon struct {
 		log     *log.Logger
 		storage *storage.Manager
-		auth    *auth.Authenticator
+		auth    auth.Authenticator
 		sys     *system
 	}
 
@@ -48,7 +48,7 @@ func init() {
 		addon.storage = s
 	})
 
-	nvr.RegisterAuthHook(func(a *auth.Authenticator) {
+	nvr.RegisterAuthHook(func(a auth.Authenticator) {
 		addon.auth = a
 	})
 

@@ -38,7 +38,7 @@ func init() {
 	nvr.RegisterEnvHook(onEnvLoad)
 }
 
-func onEnvLoad(env *storage.ConfigEnv) {
+func onEnvLoad(env storage.ConfigEnv) {
 	ip, err := readConfig(env.ConfigDir + "/doods.json")
 	if err != nil {
 		log.Fatalf("doods: config: %v", err)

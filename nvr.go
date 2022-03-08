@@ -93,7 +93,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get environment config: %w", err)
 	}
-	hooks.env(env)
+	hooks.env(*env)
 
 	logDBpath := filepath.Join(env.StorageDir, "logs.db")
 	logger := log.NewLogger(wg, hooks.logSource)
@@ -126,8 +126,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		return nil, fmt.Errorf("could not create monitor manager: %w", err)
 	}
 
-	usersConfigPath := filepath.Join(env.ConfigDir, "users.json")
-	a, err := auth.NewBasicAuthenticator(usersConfigPath, logger)
+	a, err := auth.NewBasicAuthenticator(*env, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +177,6 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/settings.js", a.User(t.Render("settings.js")))
 	mux.Handle("/logs", a.Admin(t.Render("logs.tpl")))
 	mux.Handle("/debug", a.Admin(t.Render("debug.tpl")))
-	mux.Handle("/logout", web.Logout())
 
 	mux.Handle("/static/", a.User(web.Static()))
 	mux.Handle("/storage/", a.User(web.Storage(env.StorageDir)))
@@ -193,6 +191,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/api/user/set", a.Admin(a.CSRF(web.UserSet(a))))
 	mux.Handle("/api/user/delete", a.Admin(a.CSRF(web.UserDelete(a))))
 	mux.Handle("/api/user/myToken", a.Admin(a.MyToken()))
+	mux.Handle("/logout", a.Logout())
 
 	mux.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager.MonitorsInfo)))
 	mux.Handle("/api/monitor/configs", a.Admin(web.MonitorConfigs(monitorManager)))

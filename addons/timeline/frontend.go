@@ -28,12 +28,12 @@ import (
 
 func init() {
 	var addon struct {
-		a *auth.Authenticator
+		a auth.Authenticator
 		t *web.Templater
 	}
 	nvr.RegisterTplSubHook(modifySubTemplates)
 	nvr.RegisterTplHook(modifyTemplates)
-	nvr.RegisterAuthHook(func(a *auth.Authenticator) {
+	nvr.RegisterAuthHook(func(a auth.Authenticator) {
 		addon.a = a
 	})
 	nvr.RegisterTemplaterHook(func(t *web.Templater) {

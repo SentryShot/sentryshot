@@ -33,30 +33,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const redirect = `
-	<head><script>
-		window.location.href = window.location.href.replace("logout", "live")
-	</script></head>`
-
-// Logout prompts for login and redirects. Old login should be overwritten.
-func Logout() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Header.Get("Authorization") {
-		case "Basic Og==":
-		case "":
-		default:
-			w.Header().Set("WWW-Authenticate", `Basic realm=""`)
-			http.Error(w, "", http.StatusUnauthorized)
-			return
-		}
-
-		if _, err := io.WriteString(w, redirect); err != nil {
-			http.Error(w, "could not write string", http.StatusInternalServerError)
-			return
-		}
-	})
-}
-
 // Static serves files from `web/static`.
 func Static() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -151,7 +127,7 @@ func GeneralSet(general *storage.ConfigGeneral) http.Handler {
 }
 
 // Users returns a censored user list in json format.
-func Users(a *auth.Authenticator) http.Handler {
+func Users(a auth.Authenticator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -169,7 +145,7 @@ func Users(a *auth.Authenticator) http.Handler {
 }
 
 // UserSet handler to set user details.
-func UserSet(a *auth.Authenticator) http.Handler {
+func UserSet(a auth.Authenticator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -182,13 +158,13 @@ func UserSet(a *auth.Authenticator) http.Handler {
 			return
 		}
 
-		var user auth.Account
-		if err = json.Unmarshal(body, &user); err != nil {
+		var req auth.SetUserRequest
+		if err = json.Unmarshal(body, &req); err != nil {
 			http.Error(w, "unmarshal error: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		err = a.UserSet(user)
+		err = a.UserSet(req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -197,7 +173,7 @@ func UserSet(a *auth.Authenticator) http.Handler {
 }
 
 // UserDelete handler to delete user.
-func UserDelete(a *auth.Authenticator) http.Handler {
+func UserDelete(a auth.Authenticator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -507,7 +483,7 @@ func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //
 }
 
 // LogFeed opens a websocket with system logs.
-func LogFeed(l *log.Logger, a *auth.Authenticator) http.Handler { //nolint:funlen,gocognit
+func LogFeed(l *log.Logger, a auth.Authenticator) http.Handler { //nolint:funlen,gocognit
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -551,7 +527,6 @@ func LogFeed(l *log.Logger, a *auth.Authenticator) http.Handler { //nolint:funle
 		feed, cancel := l.Subscribe()
 		defer cancel()
 
-		authHeader := r.Header.Get("Authorization")
 		for {
 			log := <-feed
 
@@ -574,7 +549,7 @@ func LogFeed(l *log.Logger, a *auth.Authenticator) http.Handler { //nolint:funle
 			}
 
 			// Validate auth before each message.
-			auth := a.ValidateAuth(authHeader)
+			auth := a.ValidateRequest(r)
 			if !auth.IsValid || !auth.User.IsAdmin {
 				return
 			}

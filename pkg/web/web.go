@@ -47,7 +47,7 @@ type TemplateHooks struct {
 
 // Templater is used to render html from templates.
 type Templater struct {
-	auth              *auth.Authenticator
+	auth              auth.Authenticator
 	templates         templates
 	templateDataFuncs []TemplateDataFunc
 
@@ -55,7 +55,7 @@ type Templater struct {
 }
 
 // NewTemplater return template renderer.
-func NewTemplater(a *auth.Authenticator, hooks TemplateHooks) (*Templater, error) {
+func NewTemplater(a auth.Authenticator, hooks TemplateHooks) (*Templater, error) {
 	pageFiles := tpls.PageFiles
 	if err := hooks.Tpl(pageFiles); err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func (templater *Templater) Render(page string) http.Handler {
 
 		data["currentPage"] = strings.Title(strings.TrimSuffix(page, filepath.Ext(page)))
 
-		auth := templater.auth.ValidateAuth(r.Header.Get("Authorization"))
+		auth := templater.auth.ValidateRequest(r)
 		data["user"] = auth.User
 
 		if page == "debug.tpl" {

@@ -26,9 +26,9 @@ import (
 )
 
 type (
-	envHook       func(*storage.ConfigEnv)
+	envHook       func(storage.ConfigEnv)
 	logHook       func(*log.Logger)
-	authHook      func(*auth.Authenticator)
+	authHook      func(auth.Authenticator)
 	templaterHook func(*web.Templater)
 	storageHook   func(*storage.Manager)
 	muxHook       func(*http.ServeMux)
@@ -132,7 +132,7 @@ func RegisterLogSource(s []string) {
 	hooks.logSource = append(hooks.logSource, s...)
 }
 
-func (h *hookList) env(env *storage.ConfigEnv) {
+func (h *hookList) env(env storage.ConfigEnv) {
 	for _, hook := range h.onEnv {
 		hook(env)
 	}
@@ -144,7 +144,7 @@ func (h *hookList) log(log *log.Logger) {
 	}
 }
 
-func (h *hookList) auth(a *auth.Authenticator) {
+func (h *hookList) auth(a auth.Authenticator) {
 	for _, hook := range h.onAuth {
 		hook(a)
 	}

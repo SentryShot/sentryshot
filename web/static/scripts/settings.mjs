@@ -720,7 +720,7 @@ function newUser(token, fields) {
 			id: form.fields.id.value,
 			username: form.fields.username.value(),
 			isAdmin: form.fields.isAdmin.value() === "true",
-			rawPassword: form.fields.password.value(),
+			plainPassword: form.fields.password.value(),
 		};
 
 		const ok = await fetchPut("api/user/set", user, token, "could not save user");

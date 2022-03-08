@@ -16,125 +16,70 @@
 package auth
 
 import (
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/hex"
-	"encoding/json"
-	"errors"
-	"fmt"
-	stdLog "log"
 	"net/http"
 	"nvr/pkg/log"
-	"os"
-	"strings"
-	"sync"
-
-	"golang.org/x/crypto/bcrypt"
-)
-
-// errors.
-var (
-	ErrMissingID       = errors.New("missing ID")
-	ErrMissingUsername = errors.New("missing username")
-	ErrNoPassword      = errors.New("password is required for new users")
-	ErrUserNotExist    = errors.New("user does not exist")
 )
 
 // Account contains user information.
 type Account struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	Password    []byte `json:"password,omitempty"`    // Hashed password.
-	RawPassword string `json:"rawPassword,omitempty"` // Plaintext password only used when changing password
-	IsAdmin     bool   `json:"isAdmin"`
-	Token       string `json:"-"` // CSRF token.
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Password []byte `json:"password"` // Hashed password.
+	IsAdmin  bool   `json:"isAdmin"`
+	Token    string `json:"-"` // CSRF token.
 }
 
-// Response is returned by ValidateAuth.
-type Response struct {
+// AccountObfuscated Account without sensitive information.
+type AccountObfuscated struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	IsAdmin  bool   `json:"isAdmin"`
+}
+
+// ValidateRes ValidateRequest response.
+type ValidateRes struct {
 	IsValid bool
 	User    Account
 }
 
-// Authenticator authenticates http requests.
-type Authenticator struct {
-	path      string // Path to save file.
-	accounts  map[string]Account
-	authCache map[string]Response
-
-	hashCost int
-
-	log *log.Logger
-	mu  sync.Mutex
+// SetUserRequest set user details request.
+type SetUserRequest struct {
+	ID            string `json:"id"`
+	Username      string `json:"username"`
+	PlainPassword string `json:"plainPassword,omitempty"`
+	IsAdmin       bool   `json:"isAdmin"`
 }
 
-const defaultHashCost = 10
+// Authenticator is responsible for blocking all
+// unauthenticated requests and storing user information.
+type Authenticator interface {
+	// ValidateRequest validates raw http requests.
+	ValidateRequest(*http.Request) ValidateRes
 
-// NewBasicAuthenticator returns authenticator using basicAuth.
-func NewBasicAuthenticator(path string, logger *log.Logger) (*Authenticator, error) {
-	a := Authenticator{
-		path:      path,
-		accounts:  make(map[string]Account),
-		authCache: make(map[string]Response),
+	// UsersList returns a obfuscated user list.
+	UsersList() map[string]AccountObfuscated
+	// UserSet sets the information of a user.
+	UserSet(SetUserRequest) error
+	// UserDelete deletes a user by id.
+	UserDelete(string) error
 
-		hashCost: defaultHashCost,
-		log:      logger,
-	}
+	// Handler wrappers.
+	// User blocks unauthenticated requests.
+	User(http.Handler) http.Handler
+	// Admin only allows authenticated requests from users with admin privileges.
+	Admin(http.Handler) http.Handler
+	// CSRF blocks invalid Cross-site request forgery tokens.
+	// Each user has a unique token. The request needs to
+	// have a matching token in the "X-CSRF-TOKEN" header.
+	CSRF(http.Handler) http.Handler
 
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return &Authenticator{}, err
-	}
-
-	json.Unmarshal(file, &a.accounts) // nolint:errcheck
-
-	a.resetTokens()
-
-	return &a, nil
+	// Handlers.
+	MyToken() http.Handler
+	Logout() http.Handler
 }
 
-func (a *Authenticator) userByName(name string) (Account, bool) {
-	defer a.mu.Unlock()
-	a.mu.Lock()
-
-	users := a.accounts
-	for _, u := range users {
-		if u.Username == name {
-			return u, true
-		}
-	}
-	return Account{}, false
-}
-
-// ValidateAuth Should always take about the same amount of
-// time to run, even when username or password is invalid.
-func (a *Authenticator) ValidateAuth(auth string) Response {
-	defer a.mu.Unlock()
-	a.mu.Lock()
-	if _, cacheExist := a.authCache[auth]; cacheExist {
-		return a.authCache[auth]
-	}
-	a.mu.Unlock()
-
-	name, pass := parseBasicAuth(auth)
-	user, found := a.userByName(name)
-
-	r := Response{}
-	if !found || name != user.Username {
-		// Generate fake hash to prevent timing based attacks.
-		bcrypt.GenerateFromPassword([]byte(name), a.hashCost) //nolint:errcheck
-	} else if passwordsMatch(user.Password, pass) {
-		r = Response{IsValid: true, User: user}
-	}
-	a.mu.Lock()
-
-	a.authCache[auth] = r
-	return a.authCache[auth]
-}
-
-func (a *Authenticator) logFailedLogin(r *http.Request) {
-	username, _ := parseBasicAuth(r.Header.Get("Authorization"))
-
+// LogFailedLogin finds and logs the ip.
+func LogFailedLogin(log *log.Logger, r *http.Request, username string) {
 	ip := ""
 	realIP := r.Header.Get("X-Real-Ip")
 	if realIP != "" {
@@ -148,204 +93,6 @@ func (a *Authenticator) logFailedLogin(r *http.Request) {
 	if remoteAddr != "" && remoteAddr != forwarded {
 		ip += "addr:" + remoteAddr
 	}
-	a.log.Info().Src("auth").Msgf("failed login: username: %v %v\n", username, ip)
-}
 
-// Modified from net/http https://golang.org/src/net/http/request.go?s=30968:31034#L912
-func parseBasicAuth(auth string) (username, password string) {
-	const prefix = "Basic "
-	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
-		return
-	}
-	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
-	if err != nil {
-		return
-	}
-	cs := string(c)
-	s := strings.IndexByte(cs, ':')
-	if s < 0 {
-		return
-	}
-	return cs[:s], cs[s+1:]
-}
-
-func passwordsMatch(hash []byte, plaintext string) bool {
-	if err := bcrypt.CompareHashAndPassword(hash, []byte(plaintext)); err != nil {
-		return false
-	}
-	return true
-}
-
-func genToken() string {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		stdLog.Fatal("failed to generate random token")
-	}
-	return hex.EncodeToString(b)
-}
-
-func (a *Authenticator) resetTokens() {
-	a.mu.Lock()
-	for id, user := range a.accounts {
-		user.Token = genToken()
-		a.accounts[id] = user
-	}
-	a.mu.Unlock()
-}
-
-// UsersList returns a censored user list.
-func (a *Authenticator) UsersList() map[string]Account {
-	defer a.mu.Unlock()
-	a.mu.Lock()
-
-	u := make(map[string]Account)
-	for id, user := range a.accounts {
-		u[id] = Account{
-			ID:       user.ID,
-			Username: user.Username,
-			IsAdmin:  user.IsAdmin,
-		}
-	}
-	return u
-}
-
-// UserSet set user details.
-func (a *Authenticator) UserSet(newUser Account) error {
-	defer a.mu.Unlock()
-	a.mu.Lock()
-
-	if newUser.ID == "" {
-		return ErrMissingID
-	}
-
-	if newUser.Username == "" {
-		return ErrMissingUsername
-	}
-
-	_, exists := a.accounts[newUser.ID]
-	if !exists && newUser.RawPassword == "" {
-		return ErrNoPassword
-	}
-
-	user := a.accounts[newUser.ID]
-	a.mu.Unlock()
-
-	user.ID = newUser.ID
-	user.Username = newUser.Username
-	user.IsAdmin = newUser.IsAdmin
-	if newUser.RawPassword != "" {
-		hashedNewPassword, _ := bcrypt.GenerateFromPassword([]byte(newUser.RawPassword), a.hashCost)
-		user.Password = hashedNewPassword
-	}
-	user.Token = genToken()
-
-	a.mu.Lock()
-	a.accounts[user.ID] = user
-	a.authCache = make(map[string]Response)
-
-	if err := a.SaveUsersToFile(); err != nil {
-		return fmt.Errorf("could not save users to file: %w", err)
-	}
-
-	return nil
-}
-
-// UserDelete deletes user by id.
-func (a *Authenticator) UserDelete(id string) error {
-	defer a.mu.Unlock()
-	a.mu.Lock()
-	if _, exists := a.accounts[id]; !exists {
-		return ErrUserNotExist
-	}
-	delete(a.accounts, id)
-
-	a.authCache = make(map[string]Response)
-	if err := a.SaveUsersToFile(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// SaveUsersToFile saves json file.
-func (a *Authenticator) SaveUsersToFile() error {
-	users, _ := json.MarshalIndent(a.accounts, "", "  ")
-
-	err := os.WriteFile(a.path, users, 0o600)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// User blocks unauthorized requests and prompts for login.
-func (a *Authenticator) User(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		auth := a.ValidateAuth(r.Header.Get("Authorization"))
-		if !auth.IsValid {
-			if r.Header.Get("Authorization") != "" {
-				a.logFailedLogin(r)
-			}
-
-			w.Header().Set("WWW-Authenticate", `Basic realm=""`)
-			http.Error(w, "Unauthorized.", http.StatusUnauthorized)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// Admin blocks requests from non-admin users.
-func (a *Authenticator) Admin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		auth := a.ValidateAuth(r.Header.Get("Authorization"))
-
-		if !auth.IsValid || !auth.User.IsAdmin {
-			if r.Header.Get("Authorization") != "" {
-				a.logFailedLogin(r)
-			}
-
-			w.Header().Set("WWW-Authenticate", `Basic realm="NVR"`)
-			http.Error(w, "Unauthorized.", http.StatusUnauthorized)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// CSRF blocks invalid Cross-site request forgery tokens.
-// Each user has a unique token, http request needs to
-// have a matching token in the "X-CSRF-TOKEN" header.
-func (a *Authenticator) CSRF(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		auth := a.ValidateAuth(r.Header.Get("Authorization"))
-		token := r.Header.Get("X-CSRF-TOKEN")
-
-		if token != auth.User.Token {
-			http.Error(w, "Invalid CSRF-token.", http.StatusUnauthorized)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// MyToken return CSRF token for requesting user.
-func (a *Authenticator) MyToken() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		auth := a.ValidateAuth(r.Header.Get("Authorization"))
-		token := auth.User.Token
-		if token == "" {
-			http.Error(w, "token does not exist", http.StatusInternalServerError)
-			return
-		}
-		if _, err := w.Write([]byte(token)); err != nil {
-			http.Error(w, "could not write", http.StatusInternalServerError)
-			return
-		}
-	})
+	log.Info().Src("auth").Msgf("failed login: username: %v %v\n", username, ip)
 }
