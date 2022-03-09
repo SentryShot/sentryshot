@@ -18,6 +18,7 @@ package auth
 import (
 	"net/http"
 	"nvr/pkg/log"
+	"nvr/pkg/storage"
 )
 
 // Account contains user information.
@@ -49,6 +50,9 @@ type SetUserRequest struct {
 	PlainPassword string `json:"plainPassword,omitempty"`
 	IsAdmin       bool   `json:"isAdmin"`
 }
+
+// NewAuthenticatorFunc function to create authenticator.
+type NewAuthenticatorFunc func(storage.ConfigEnv, *log.Logger) (Authenticator, error)
 
 // Authenticator is responsible for blocking all
 // unauthenticated requests and storing user information.

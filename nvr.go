@@ -28,7 +28,6 @@ import (
 	"nvr/pkg/system"
 	"nvr/pkg/video"
 	"nvr/pkg/web"
-	"nvr/pkg/web/auth"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -84,6 +83,7 @@ func Run(envPath string) error {
 }
 
 func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) { //nolint:funlen
+	// Environment config.
 	envYAML, err := os.ReadFile(envPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read env.yaml: %w", err)
@@ -95,6 +95,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	}
 	hooks.env(*env)
 
+	// Logs.
 	logDBpath := filepath.Join(env.StorageDir, "logs.db")
 	logger := log.NewLogger(wg, hooks.logSource)
 	hooks.log(logger)
@@ -106,8 +107,10 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		return nil, fmt.Errorf("could not get general config: %w", err)
 	}
 
+	// Video server.
 	videoServer := video.NewServer(logger, wg, env.RTSPport, env.HLSport)
 
+	// Monitors.
 	monitorConfigDir := filepath.Join(env.ConfigDir, "monitors")
 	monitorManager, err := monitor.NewManager(
 		monitorConfigDir,
@@ -120,28 +123,37 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		return nil, fmt.Errorf("could not create monitor manager: %w", err)
 	}
 
+	// Monitor groups.
 	groupConfigDir := filepath.Join(env.ConfigDir, "groups")
 	groupManager, err := group.NewManager(groupConfigDir)
 	if err != nil {
 		return nil, fmt.Errorf("could not create monitor manager: %w", err)
 	}
 
-	a, err := auth.NewBasicAuthenticator(*env, logger)
+	// Authentication.
+	if hooks.newAuthenticator == nil {
+		return nil, fmt.Errorf( //nolint:goerr113,stylecheck
+			"No authentication addon enabled. Please enable one in 'config/env.yaml'")
+	}
+
+	a, err := hooks.newAuthenticator(*env, logger)
 	if err != nil {
 		return nil, err
 	}
 	hooks.auth(a)
 
+	// Storage.
 	storageManager := storage.NewManager(env.StorageDir, general, logger)
 	hooks.storage(storageManager)
-
 	crawler := storage.NewCrawler(storageManager.RecordingsDir())
 
+	// Time zone.
 	timeZone, err := system.TimeZone()
 	if err != nil {
 		return nil, err
 	}
 
+	// Templates.
 	t, err := web.NewTemplater(a, hooks.tplHooks())
 	if err != nil {
 		return nil, err
@@ -169,6 +181,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	)
 	t.RegisterTemplateDataFuncs(hooks.templateData...)
 
+	// Routes.
 	mux := http.NewServeMux()
 
 	mux.Handle("/live", a.User(t.Render("live.tpl")))
@@ -209,6 +222,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/api/log/sources", a.Admin(web.LogSources(logger)))
 	hooks.mux(mux)
 
+	// Main server.
 	address := ":" + strconv.Itoa(env.Port)
 	server := &http.Server{Addr: address, Handler: mux}
 
@@ -260,7 +274,7 @@ func (a *App) run(ctx context.Context) error {
 		return fmt.Errorf("could not start video server: %w", err)
 	}
 
-	// Start monitors
+	// Start monitors.
 	for _, monitor := range a.monitorManager.Monitors {
 		if err := monitor.Start(); err != nil {
 			a.monitorManager.StopAll()

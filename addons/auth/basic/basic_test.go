@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package auth
+package basic
 
 import (
 	"encoding/base64"
@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
+	"nvr/pkg/web/auth"
 	"os"
 	"testing"
 
@@ -34,7 +35,7 @@ var (
 	pass2 = []byte("$2a$04$A.F3L5bXO/5nF0e6dpmqM.VuOB66.vSt6MbvWvcxeoAqqnvchBMOq")
 )
 
-func newTestAuth(t *testing.T) (string, *BasicAuthenticator, func()) {
+func newTestAuth(t *testing.T) (string, *Authenticator, func()) {
 	tempDir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)
 
@@ -44,7 +45,7 @@ func newTestAuth(t *testing.T) (string, *BasicAuthenticator, func()) {
 
 	usersPath := tempDir + "/users.json"
 
-	users := map[string]Account{
+	users := map[string]auth.Account{
 		"1": {
 			ID:       "1",
 			Username: "admin",
@@ -64,10 +65,10 @@ func newTestAuth(t *testing.T) (string, *BasicAuthenticator, func()) {
 	err = os.WriteFile(usersPath, data, 0o600)
 	require.NoError(t, err)
 
-	auth := BasicAuthenticator{
+	auth := Authenticator{
 		path:      usersPath,
 		accounts:  users,
-		authCache: make(map[string]ValidateRes),
+		authCache: make(map[string]auth.ValidateRes),
 
 		hashCost: bcrypt.MinCost,
 		log:      &log.Logger{},
@@ -75,7 +76,7 @@ func newTestAuth(t *testing.T) (string, *BasicAuthenticator, func()) {
 	return tempDir, &auth, cancelFunc
 }
 
-func clearTokens(auth *BasicAuthenticator) {
+func clearTokens(auth *Authenticator) {
 	for key, account := range auth.accounts {
 		account.Token = ""
 		auth.accounts[key] = account
@@ -92,7 +93,7 @@ func TestNewBasicAuthenticator(t *testing.T) {
 		a, err := NewBasicAuthenticator(env, &log.Logger{})
 		require.NoError(t, err)
 
-		auth := a.(*BasicAuthenticator)
+		auth := a.(*Authenticator)
 
 		clearTokens(auth)
 
@@ -105,13 +106,13 @@ func TestNewBasicAuthenticator(t *testing.T) {
 }
 
 func TestBasicAuthenticator(t *testing.T) {
-	adminExpected := Account{
+	adminExpected := auth.Account{
 		ID:       "1",
 		Username: "admin",
 		Password: pass1,
 		IsAdmin:  true,
 	}
-	userExpected := Account{
+	userExpected := auth.Account{
 		ID:       "2",
 		Username: "user",
 		Password: pass2,
@@ -125,11 +126,11 @@ func TestBasicAuthenticator(t *testing.T) {
 		cases := []struct {
 			username    string
 			shouldExist bool
-			expected    Account
+			expected    auth.Account
 		}{
 			{"admin", true, adminExpected},
 			{"user", true, userExpected},
-			{"nil", false, Account{}},
+			{"nil", false, auth.Account{}},
 		}
 
 		for _, tc := range cases {
@@ -157,13 +158,13 @@ func TestBasicAuthenticator(t *testing.T) {
 			username string
 			password string
 			valid    bool
-			expected Account
+			expected auth.Account
 		}{
 			{"admin", "pass1", true, adminExpected},
 			{"user", "pass2", true, userExpected},
 			{"user", "pass2", true, userExpected}, // test cache
-			{"user", "wrongPass", false, Account{}},
-			{"nil", "", false, Account{}},
+			{"user", "wrongPass", false, auth.Account{}},
+			{"nil", "", false, auth.Account{}},
 		}
 
 		for _, tc := range cases {
@@ -192,7 +193,7 @@ func TestBasicAuthenticator(t *testing.T) {
 		defer cancel()
 
 		users := a.UsersList()
-		expected := map[string]AccountObfuscated{
+		expected := map[string]auth.AccountObfuscated{
 			"1": {
 				ID:       "1",
 				Username: "admin",
@@ -210,13 +211,41 @@ func TestBasicAuthenticator(t *testing.T) {
 
 	t.Run("userSet", func(t *testing.T) {
 		cases := []struct {
-			req SetUserRequest
+			req auth.SetUserRequest
 			err error
 		}{
-			{SetUserRequest{"1", "admin", "", true}, nil},
-			{SetUserRequest{"10", "noPass", "", false}, ErrPasswordMissing},
-			{SetUserRequest{"", "noID", "pass", false}, ErrIDMissing},
-			{SetUserRequest{"1", "", "noUsername", false}, ErrUsernameMissing},
+			{
+				auth.SetUserRequest{
+					ID:            "1",
+					Username:      "admin",
+					PlainPassword: "",
+					IsAdmin:       true,
+				}, nil,
+			},
+			{
+				auth.SetUserRequest{
+					ID:            "10",
+					Username:      "noPass",
+					PlainPassword: "",
+					IsAdmin:       false,
+				}, ErrPasswordMissing,
+			},
+			{
+				auth.SetUserRequest{
+					ID:            "",
+					Username:      "noID",
+					PlainPassword: "pass",
+					IsAdmin:       false,
+				}, ErrIDMissing,
+			},
+			{
+				auth.SetUserRequest{
+					ID:            "1",
+					Username:      "",
+					PlainPassword: "noUsername",
+					IsAdmin:       false,
+				}, ErrUsernameMissing,
+			},
 		}
 		for _, tc := range cases {
 			t.Run(tc.req.Username, func(t *testing.T) {
@@ -242,7 +271,7 @@ func TestBasicAuthenticator(t *testing.T) {
 
 			a.hashCost = 4
 
-			user := Account{
+			user := auth.Account{
 				ID:       "10",
 				Username: "a",
 				Password: []byte("b"),
@@ -250,7 +279,7 @@ func TestBasicAuthenticator(t *testing.T) {
 				Token:    "d",
 			}
 
-			req := SetUserRequest{
+			req := auth.SetUserRequest{
 				ID:            user.ID,
 				Username:      user.Username,
 				PlainPassword: "c",
@@ -263,14 +292,14 @@ func TestBasicAuthenticator(t *testing.T) {
 			file, err := fs.ReadFile(os.DirFS(tempDir), "users.json")
 			require.NoError(t, err)
 
-			var users map[string]Account
+			var users map[string]auth.Account
 			err = json.Unmarshal(file, &users)
 			require.NoError(t, err)
 
 			u := users["10"]
 			u.Password = nil
 
-			expected := Account{
+			expected := auth.Account{
 				ID:       "10",
 				Username: "a",
 				IsAdmin:  true,
@@ -283,7 +312,7 @@ func TestBasicAuthenticator(t *testing.T) {
 
 			a.path = ""
 
-			err := a.UserSet(SetUserRequest{ID: "1", Username: "a"})
+			err := a.UserSet(auth.SetUserRequest{ID: "1", Username: "a"})
 			require.Error(t, err)
 		})
 	})

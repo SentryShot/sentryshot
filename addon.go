@@ -17,6 +17,7 @@ package nvr
 
 import (
 	"context"
+	stdLog "log"
 	"net/http"
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
@@ -36,11 +37,12 @@ type (
 )
 
 type hookList struct {
-	onEnv               []envHook
+	newAuthenticator    auth.NewAuthenticatorFunc
 	onAuth              []authHook
+	onEnv               []envHook
+	onLog               []logHook
 	onTemplater         []templaterHook
 	onStorage           []storageHook
-	onLog               []logHook
 	onMux               []muxHook
 	onAppRun            []appRunHook
 	template            []web.TemplateHook
@@ -55,6 +57,19 @@ type hookList struct {
 
 var hooks = &hookList{}
 
+// SetAuthenticator is used to set the authenticator.
+func SetAuthenticator(a auth.NewAuthenticatorFunc) {
+	if hooks.newAuthenticator != nil {
+		stdLog.Fatalf("\n\nERROR: Only a single autentication addon is allowed.\n\n")
+	}
+	hooks.newAuthenticator = a
+}
+
+// RegisterAuthHook is used to grab the authenticator.
+func RegisterAuthHook(h authHook) {
+	hooks.onAuth = append(hooks.onAuth, h)
+}
+
 // RegisterEnvHook registers hook that's called when environment config is loaded.
 func RegisterEnvHook(h envHook) {
 	hooks.onEnv = append(hooks.onEnv, h)
@@ -63,11 +78,6 @@ func RegisterEnvHook(h envHook) {
 // RegisterLogHook is used to grab the logger.
 func RegisterLogHook(h logHook) {
 	hooks.onLog = append(hooks.onLog, h)
-}
-
-// RegisterAuthHook is used to grab the authenticator.
-func RegisterAuthHook(h authHook) {
-	hooks.onAuth = append(hooks.onAuth, h)
 }
 
 // RegisterTemplaterHook is used to grab the templater.

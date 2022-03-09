@@ -142,7 +142,7 @@ import (
 
 func main() {
 	if err := nvr.Run("d"); err != nil {
-		log.Fatal(err)
+		log.Fatalf("\n\nERROR: %v\n\n", err)
 	}
 	os.Exit(0)
 }
