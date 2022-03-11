@@ -18,6 +18,7 @@ package nvr
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -38,7 +39,20 @@ import (
 )
 
 // Run .
-func Run(envPath string) error {
+func Run() error {
+	envFlag := flag.String("env", "", "path to env.yaml")
+	flag.Parse()
+
+	if *envFlag == "" {
+		flag.Usage()
+		return nil
+	}
+
+	envPath, err := filepath.Abs(*envFlag)
+	if err != nil {
+		return fmt.Errorf("could not get absolute path of env.yaml: %w", err)
+	}
+
 	wg := &sync.WaitGroup{}
 	app, err := newApp(envPath, wg, hooks)
 	if err != nil {
@@ -138,7 +152,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 
 	a, err := hooks.newAuthenticator(*env, logger)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create authenticator: %w", err)
 	}
 	hooks.auth(a)
 

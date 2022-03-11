@@ -1,33 +1,33 @@
 # Installation
 
-- [Automatic installation](#automatic-installation)
-- [Manual installation](#manual-installation)
+- [Docker Compose Install](#docker-compose)
+- [Bare Metal Install](#bare-metal-installation)
 - [Webserver](#web-server)
 - [Before continuing](#before-continuing)
 
 <br>
 
-## Automatic installation
+## Docker Compose Install
 
 [//]: # (wget https://gitlab.com/osnvr/os-nvr_assets/-/raw/master/utils/installer.sh && sudo ./install.sh)
 
+[Docker Compose](https://gitlab.com/osnvr/os-nvr_docker)
+
 <br>
-[Docker image](https://gitlab.com/osnvr/os-nvr_docker)
 
+## Bare Metal Install
 
-## Manual Installation
-
-Install dependencies
+#### Install dependencies
 
 - [Golang](https://golang.org/doc/install) 1.16+
 - [ffmpeg](https://ffmpeg.org/download.html) 4.3+
 - `git sed which`
 
-Create an unprivileged user named `_nvr`
+#### Create an unprivileged user named `_nvr`
 
     sudo useradd -m -s /sbin/nologin _nvr
 
-Go to `_nvr` home and clone repository.
+#### Go to `_nvr` home and clone repository.
 
     cd /home/_nvr/
     sudo -u _nvr git clone --branch master https://gitlab.com/osnvr/os-nvr.git
@@ -35,11 +35,12 @@ Go to `_nvr` home and clone repository.
 
 
 
-Download Golang dependencies.
+#### Download Golang dependencies.
 	
 	sudo -u _nvr go mod download
 
-Run service creation script
+
+#### Run service creation script
 
 	sudo ./utils/services/systemd.sh \
 		--name nvr \
@@ -48,19 +49,30 @@ Run service creation script
 		--homeDir /home/_nvr/os-nvr
 
 
-Copy sample env.yaml
-
-    sudo -u _nvr cp ./configs/env.yaml.sample ./configs/env.yaml
-
-Copy sample user.
-
-    sudo -u _nvr cp ./configs/users.json.sample ./configs/users.json
-
-Restart service.
+#### Restart service to generate `env.yaml`
 
 	sudo systemctl restart nvr
 
-First start will take a few minutes.
+
+#### Enable the authentication addon in `env.yaml`
+
+	sudo nano /home/_nvr/os-nvr/configs/env.yaml
+
+```
+before:
+    #- nvr/addons/auth/none
+after:
+    - nvr/addons/auth/none
+```
+
+
+#### Restart service again.
+
+	sudo systemctl restart nvr
+
+The app should now be running on port `2020`
+
+Continue to the next section if you don't have a web server already.
 
 <br>
 
@@ -144,7 +156,6 @@ In this mode Caddy will sign the certificate locally. You do not require interne
 <br>
 
 ## Before continuing
-Default login: `admin:pass`
 
 If the installation was successful, then you should now be able to access the debug page. `https://127.0.0.1/debug`
 

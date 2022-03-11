@@ -54,16 +54,21 @@ type configEnv struct {
 }
 
 func start() error {
-	envFlag := flag.String("env", "/home/_nvr/os-nvr/configs/env.yaml", "path to env.yaml")
+	envFlag := flag.String("env", "", "path to env.yaml")
 	flag.Parse()
 
-	if !dirExist(*envFlag) {
-		return fmt.Errorf("--env %v: %w", *envFlag, os.ErrNotExist)
+	if *envFlag == "" {
+		flag.Usage()
+		return nil
 	}
 
 	envPath, err := filepath.Abs(*envFlag)
 	if err != nil {
 		return fmt.Errorf("could not get absolute path of env.yaml: %w", err)
+	}
+
+	if !dirExist(envPath) {
+		return genConfigFile(envPath)
 	}
 
 	envYAML, err := os.ReadFile(envPath)
@@ -76,16 +81,24 @@ func start() error {
 		return err
 	}
 
-	buildDir := env.HomeDir + "/start/build"
-	os.Mkdir(buildDir, 0o700) //nolint:errcheck
+	buildDir := filepath.Join(env.HomeDir, "start", "build")
+	err = os.Mkdir(buildDir, 0o700)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("could not create build directory: %w", err)
+	}
 
-	main := buildDir + "/main.go"
+	main := buildDir + "/nvr.go"
 
-	if err := genFile(main, env.Addons, envPath); err != nil {
+	if err := genBuildFile(main, env.Addons); err != nil {
 		return err
 	}
 
-	cmd := exec.Command(env.GoBin, "run", main)
+	return startMain(*env, main, envPath)
+}
+
+func startMain(env configEnv, main string, envPath string) error {
+	// go run ./start/build/nvr.go -env ./config/env.yaml
+	cmd := exec.Command(env.GoBin, "run", main, "-env", envPath)
 	cmd.Dir = env.HomeDir
 
 	// Give parrents file descriptors and environment to child process.
@@ -142,8 +155,8 @@ func parseEnv(envPath string, envYAML []byte) (*configEnv, error) {
 	return &env, nil
 }
 
-// genFile inserts addons into "main.go" template and writes to file.
-func genFile(path string, addons []string, envPath string) error {
+// genBuildFile inserts addons into "main.go" template and writes to file.
+func genBuildFile(path string, addons []string) error {
 	const file = `package main
 
 import (
@@ -155,7 +168,7 @@ import (
 )
 
 func main() {
-	if err := nvr.Run("{{.envPath}}"); err != nil {
+	if err := nvr.Run(); err != nil {
 		log.Fatalf("\n\nERROR: %v\n\n", err)
 	}
 	os.Exit(0)
@@ -165,8 +178,7 @@ func main() {
 	t := template.New("file")
 	t, _ = t.Parse(file)
 	data := template.FuncMap{
-		"addons":  addons,
-		"envPath": envPath,
+		"addons": addons,
 	}
 
 	var b bytes.Buffer
@@ -178,11 +190,139 @@ func main() {
 	return nil
 }
 
-func dirExist(path string) bool {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
+func fileExist(path string) bool {
+	if info, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) || info.IsDir() {
 			return false
 		}
 	}
 	return true
 }
+
+func dirExist(path string) bool {
+	if info, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) || !info.IsDir() {
+			return false
+		}
+	}
+	return true
+}
+
+func genConfigFile(envPath string) error {
+	fmt.Printf("\nGenerating `config/env.yaml` and exiting.\n\n")
+
+	t := template.New("file")
+	t, _ = t.Parse(configTemplate)
+
+	var b bytes.Buffer
+	data := configData(envPath)
+
+	err := t.Execute(&b, data)
+	if err != nil {
+		return fmt.Errorf("could not execute template: %w", err)
+	}
+
+	err = os.WriteFile(envPath, b.Bytes(), 0o600)
+	if err != nil {
+		return fmt.Errorf("could not write config file: %w", err)
+	}
+
+	return nil
+}
+
+func configData(envPath string) template.FuncMap {
+	ffmpegBin := "/usr/bin/ffmpeg"
+	if fileExist("/usr/local/bin/ffmpeg") {
+		ffmpegBin = "/usr/local/bin/ffmpeg"
+	}
+	if fileExist("/usr/bin/ffmpeg") {
+		ffmpegBin = "/usr/bin/ffmpeg"
+	}
+
+	goBin := "/usr/go/bin/go"
+	findGoBin(&goBin, "/usr/local")
+	findGoBin(&goBin, "/lib/local")
+	findGoBin(&goBin, "/usr")
+	findGoBin(&goBin, "/lib")
+
+	homeDir := filepath.Dir(filepath.Dir(envPath))
+
+	return template.FuncMap{
+		"goBin":     goBin,
+		"ffmpegBin": ffmpegBin,
+		"homeDir":   homeDir,
+	}
+}
+
+func findGoBin(goBin *string, path string) {
+	dirs, err := os.ReadDir(path)
+	if err != nil {
+		return
+	}
+
+	for _, dir := range dirs {
+		// Check if directory name starts with `go`.
+		if dir.Name()[:2] != "go" || !dir.IsDir() {
+			continue
+		}
+
+		binPath := filepath.Join(path, dir.Name(), "bin", "go")
+		if fileExist(binPath) {
+			*goBin = binPath
+		}
+	}
+}
+
+var configTemplate = `
+# Port app will be served on.
+port: 2020
+
+# Internal ports.
+rtspPort: 2021
+hlsPort: 2022
+
+# Path to golang binary.
+goBin: {{ .goBin }}
+
+# Path to ffmpeg binary.
+ffmpegBin: {{ .ffmpegBin }}
+
+# Project home.
+homeDir: {{ .homeDir }}
+
+# Directory where recordings will be stored.
+storageDir: {{ .homeDir }}/storage
+
+# Shared memory directory, used to store temporary files.
+shmDir: /dev/shm/nvr
+
+
+addons: # Uncomment to enable.
+
+  # Authentication. One must be enabled.
+  #
+  # Basic Auth.
+  #- nvr/addons/auth/basic
+  #
+  # No authentication.
+  #- nvr/addons/auth/none
+
+  # Object detection. https://github.com/snowzach/doods2
+  # Documentation is located at ../addons/doods2/README.md
+  #- nvr/addons/doods2
+
+  # Thumbnail downscaling.
+  # Downscale video thumbnails to improve loading times and data usage.
+  #- nvr/addons/thumbscale
+
+  # System status.
+  # Show system status in the web interface. CPU, RAM, disk usage.
+  #- nvr/addons/status
+
+  # Watchdog
+  # Detect and restart frozen processes.
+  #- nvr/addons/watchdog
+
+  # Timeline
+  # Works best with a Chromium based browser.
+  #- nvr/addons/timeline`

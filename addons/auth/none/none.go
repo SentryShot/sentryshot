@@ -71,6 +71,10 @@ func NewAuthenticator(env storage.ConfigEnv, logger *log.Logger) (auth.Authentic
 
 	file, err := os.ReadFile(path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			a.accounts = make(map[string]auth.Account)
+			return &a, nil
+		}
 		return nil, err
 	}
 

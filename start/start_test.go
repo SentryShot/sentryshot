@@ -114,7 +114,7 @@ func TestParseEnv(t *testing.T) {
 	})
 }
 
-func TestGenFile(t *testing.T) {
+func TestGenMainFile(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
 		require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestGenFile(t *testing.T) {
 		path := tempDir + "/main.go"
 		addons := []string{"a", "b", "c"}
 
-		err = genFile(path, addons, "d")
+		err = genBuildFile(path, addons)
 		require.NoError(t, err)
 
 		file, err := os.ReadFile(path)
@@ -141,7 +141,7 @@ import (
 )
 
 func main() {
-	if err := nvr.Run("d"); err != nil {
+	if err := nvr.Run(); err != nil {
 		log.Fatalf("\n\nERROR: %v\n\n", err)
 	}
 	os.Exit(0)
@@ -150,7 +150,7 @@ func main() {
 		require.Equal(t, actual, expected)
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
-		err := genFile("/dev/null/", nil, "")
+		err := genBuildFile("/dev/null/", nil)
 		require.Error(t, err)
 	})
 }
