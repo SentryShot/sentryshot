@@ -180,14 +180,27 @@ func New(bin string) *FFMPEG {
 }
 
 // SizeFromStreamFunc is used for mocking.
-type SizeFromStreamFunc func(string) (string, error)
+type SizeFromStreamFunc func(context.Context, string) (string, error)
 
 // SizeFromStream uses ffmpeg to grab stream size.
-func (f *FFMPEG) SizeFromStream(url string) (string, error) {
+func (f *FFMPEG) SizeFromStream(ctx context.Context, url string) (string, error) {
 	cmd := f.command("-i", url, "-f", "ffmetadata", "-")
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
+
+	// Timeout.
+	ctx2, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		select {
+		case <-ctx2.Done(): // Process exited.
+			return
+		case <-ctx.Done():
+		case <-time.After(10 * time.Second):
+		}
+		cmd.Process.Signal(os.Interrupt) //nolint:errcheck
+	}()
 
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("%s %w", stderr.String(), err)

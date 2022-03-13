@@ -539,7 +539,7 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	i.rtspProtocol = rtspProtocol
 	i.waitForNewHLSsegment = waitForNewHLSsegment
 
-	i.size, err = i.sizeFromStream(i.input())
+	i.size, err = i.sizeFromStream(ctx, i.input())
 	if err != nil {
 		return fmt.Errorf("could not get size of stream: %w", err)
 	}
@@ -665,11 +665,10 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 
 				cancel()
 			})
-			m.WG.Add(1)
-
 			m.recording = true
 			m.Mu.Unlock()
 
+			m.WG.Add(1)
 			go m.startRecording(ctx2, m)
 		}
 	}
@@ -689,7 +688,6 @@ func startRecording(ctx context.Context, m *Monitor) {
 				Msg("recording stopped")
 
 			m.WG.Done()
-
 			m.Mu.Unlock()
 			return
 		}

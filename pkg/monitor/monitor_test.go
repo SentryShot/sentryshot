@@ -806,11 +806,11 @@ func TestRunRecordingProcess(t *testing.T) {
 	})
 }
 
-func mockSizeFromStream(string) (string, error) {
+func mockSizeFromStream(context.Context, string) (string, error) {
 	return "123x456", nil
 }
 
-func mockSizeFromStreamErr(string) (string, error) {
+func mockSizeFromStreamErr(context.Context, string) (string, error) {
 	return "", errors.New("mock")
 }
 

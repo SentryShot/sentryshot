@@ -675,11 +675,18 @@ func (pconf *PathConf) WaitForNewHLSsegment(
 	ctx context.Context, nSegments int) (time.Duration, error) {
 	for {
 		listener := make(chan hls.Segments)
+		// Register listener.
 		select {
 		case <-ctx.Done():
 			return 0, context.Canceled
 		case pconf.registerListener <- listener:
-			segments := <-listener
+		}
+
+		// Listen for segments.
+		select {
+		case <-ctx.Done():
+			return 0, context.Canceled
+		case segments := <-listener:
 			if len(segments) < nSegments {
 				// Wait for more segments.
 				continue

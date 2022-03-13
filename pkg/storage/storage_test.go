@@ -516,7 +516,7 @@ func TestNewConfigGeneral(t *testing.T) {
 		err = json.Unmarshal(file, config2)
 		require.NoError(t, err)
 
-		expected := &GeneralConfig{DiskSpace: "10000", Theme: "default"}
+		expected := &GeneralConfig{DiskSpace: "5", Theme: "default"}
 
 		require.Equal(t, &config1.Config, expected)
 		require.Equal(t, config2, expected)

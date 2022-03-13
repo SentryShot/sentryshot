@@ -601,6 +601,7 @@ a:focus {
 	display: flex;
 	justify-content: center;
 	align-items: center;
+	width: 100%;
 	max-height: 100vh;
 
 	--player-timeline-width: 90%;

@@ -340,7 +340,7 @@ func NewConfigGeneral(path string) (*ConfigGeneral, error) {
 
 func generateGeneralConfig(path string) error {
 	config := GeneralConfig{
-		DiskSpace: "10000",
+		DiskSpace: "5",
 		Theme:     "default",
 	}
 	c, _ := json.MarshalIndent(config, "", "    ")

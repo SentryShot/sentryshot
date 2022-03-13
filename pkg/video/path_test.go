@@ -34,6 +34,7 @@ func TestPathConf(t *testing.T) {
 		pconf.onNewHLSsegment <- hls.Segments{}
 		wg.Wait()
 	})
+
 	t.Run("canceled", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -43,5 +44,24 @@ func TestPathConf(t *testing.T) {
 
 		_, err := pconf.WaitForNewHLSsegment(ctx, 0)
 		require.ErrorIs(t, err, context.Canceled)
+	})
+	t.Run("canceled2", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+
+		pconf := PathConf{}
+		pconf.start(ctx)
+
+		wg := sync.WaitGroup{}
+
+		wg.Add(1)
+		go func() {
+			pconf.WaitForNewHLSsegment(ctx, 0)
+			wg.Done()
+		}()
+
+		time.Sleep(10 * time.Millisecond)
+		cancel()
+
+		wg.Wait()
 	})
 }

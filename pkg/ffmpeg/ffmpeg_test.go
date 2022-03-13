@@ -174,20 +174,20 @@ func TestSizeFromStream(t *testing.T) {
 		f := New("")
 		f.command = fakeExecCommandSize
 
-		actual, err := f.SizeFromStream("")
+		actual, err := f.SizeFromStream(context.Background(), "")
 		require.NoError(t, err)
 		require.Equal(t, actual, "720x1280")
 	})
 	t.Run("runErr", func(t *testing.T) {
 		f := New("")
-		_, err := f.SizeFromStream("")
+		_, err := f.SizeFromStream(context.Background(), "")
 		require.Error(t, err)
 	})
 	t.Run("regexErr", func(t *testing.T) {
 		f := New("")
 		f.command = fakeExecCommandNoOutput
 
-		_, err := f.SizeFromStream("")
+		_, err := f.SizeFromStream(context.Background(), "")
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 }
