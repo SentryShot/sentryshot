@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -59,10 +60,14 @@ type DB struct {
 
 // Init initialize database.
 func (logDB *DB) Init(ctx context.Context) error {
+	err := os.MkdirAll(filepath.Dir(logDB.dbPath), 0o755)
+	if err != nil {
+		return fmt.Errorf("could not create directory for log database: %w", err)
+	}
+
 	dbOpts := &bolt.Options{
 		Timeout: 1 * time.Second,
 	}
-
 	db, err := bolt.Open(logDB.dbPath, 0o600, dbOpts)
 	if err != nil {
 		return fmt.Errorf("could not open database: %w: %v", err, logDB.dbPath)

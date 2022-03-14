@@ -242,6 +242,31 @@ func TestDB(t *testing.T) {
 			return nil
 		})
 	})
+	t.Run("mkdir", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "")
+		require.NoError(t, err)
+
+		newDir := filepath.Join(tempDir, "test")
+		require.NoDirExists(t, newDir)
+
+		dbPath := filepath.Join(newDir, "logs.db")
+		logDB := NewDB(dbPath, &sync.WaitGroup{})
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		err = logDB.Init(ctx)
+		require.NoError(t, err)
+
+		require.DirExists(t, newDir)
+	})
+	t.Run("mkdirError", func(t *testing.T) {
+		logDB := NewDB("/dev/null/nil", &sync.WaitGroup{})
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		err := logDB.Init(ctx)
+		require.Error(t, err)
+	})
 	t.Run("openDBerr", func(t *testing.T) {
 		logDB := &DB{
 			dbPath: "/dev/null",
