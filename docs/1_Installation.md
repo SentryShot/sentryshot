@@ -1,5 +1,6 @@
 # Installation
 
+- [Docker Bundle Install](#docker-bundle)
 - [Docker Compose Install](#docker-compose)
 - [Bare Metal Install](#bare-metal-installation)
 - [Webserver](#web-server)
@@ -7,9 +8,26 @@
 
 <br>
 
-## Docker Compose Install
+## Docker Bundle Install
+##### Note: This is the quick and dirty way to use Docker.
 
-[//]: # (wget https://gitlab.com/osnvr/os-nvr_assets/-/raw/master/utils/installer.sh && sudo ./install.sh)
+The Docker bundle can be installed using a single command.
+
+```
+docker run -it \
+	--env TZ=America/New_York \
+	--shm-size=500m \
+	-v /home/_nvr/os-nvr/configs \
+	-v /home/_nvr/os-nvr/storage \
+	-p 2000:2000 \
+	osnvr/os-nvr_bundle:latest
+```
+
+App will be served on `https://ip:2000``
+
+[Coral EdgeTPU](https://www.coral.ai/products/accelerator) is supported, if you own a device add `--device=/dev/bus/usb \`
+
+## Docker Compose Install
 
 [Docker Compose](https://gitlab.com/osnvr/os-nvr_docker)
 
@@ -78,7 +96,10 @@ Continue to the next section if you don't have a web server already.
 
 ## Web server
 
+This is included in the Docker bundle.
+
 A web server is required for TLS, Websockets and HTTP/2. We will use Caddy but any HTTP/2 supported web server will do. [Install Caddy](https://caddyserver.com/docs/install)
+
 
 Caddy is configured using a "[Caddyfile](https://caddyserver.com/docs/caddyfile)" default location is `/etc/caddy/Caddyfile`
 
