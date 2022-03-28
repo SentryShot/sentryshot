@@ -470,7 +470,7 @@ func newTestFFmpeg() (*ffmpegConfig, log.Feed, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	logger := log.NewMockLogger()
-	go logger.Start(ctx)
+	logger.Start(ctx)
 	feed, cancel2 := logger.Subscribe()
 
 	cancelFunc := func() {
@@ -607,7 +607,7 @@ func newTestClient() (*doodsClient, log.Feed, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	logger := log.NewMockLogger()
-	go logger.Start(ctx)
+	logger.Start(ctx)
 	feed, cancel2 := logger.Subscribe()
 
 	cancelFunc := func() {

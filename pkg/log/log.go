@@ -213,20 +213,6 @@ func (l *Logger) Sources() []string {
 // Start logger.
 func (l *Logger) Start(ctx context.Context) error {
 	l.ctx = ctx
-	drainFeed := func() <-chan struct{} {
-		done := make(chan struct{})
-		go func() {
-			for {
-				select {
-				case <-l.feed:
-				case <-time.After(2000 * time.Millisecond):
-					close(done)
-					return
-				}
-			}
-		}()
-		return done
-	}
 
 	l.wg.Add(1)
 	go func() {
@@ -234,13 +220,13 @@ func (l *Logger) Start(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				close(l.sub)
-				for ch := range subs {
-					close(ch)
+				// Only exit if everyone has unsubscribed.
+				if len(subs) == 0 {
+					l.wg.Done()
+					return
 				}
-				<-drainFeed()
-				l.wg.Done()
-				return
+				time.Sleep(50 * time.Millisecond)
+
 			case ch := <-l.sub:
 				subs[ch] = struct{}{}
 
@@ -258,15 +244,19 @@ func (l *Logger) Start(ctx context.Context) error {
 	return nil
 }
 
-type (
-	// CancelFunc cancels log feed subsciption.
-	CancelFunc func()
-)
+// CancelFunc cancels log feed subsciption.
+type CancelFunc func()
 
 // Subscribe returns a new chan with log feed and a CancelFunc.
 func (l *Logger) Subscribe() (<-chan Log, CancelFunc) {
 	feed := make(logFeed)
-	l.sub <- feed
+
+	select {
+	case <-l.ctx.Done():
+		close(feed)
+		return feed, func() {}
+	case l.sub <- feed:
+	}
 
 	cancel := func() {
 		l.unSubscribe(feed)

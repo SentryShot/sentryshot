@@ -89,7 +89,29 @@ func TestLogger(t *testing.T) {
 
 		require.Equal(t, actual, expected)
 	})
+	t.Run("canceled", func(t *testing.T) {
+		_, cancel, logger := newTestLogger(t)
+		cancel()
+		time.Sleep(10 * time.Millisecond)
 
+		feed, cancel2 := logger.Subscribe()
+		<-feed
+		_, ok := <-feed
+		require.False(t, ok)
+
+		cancel2()
+	})
+	t.Run("closeChannels", func(t *testing.T) {
+		_, cancel, logger := newTestLogger(t)
+
+		feed1, cancel2 := logger.Subscribe()
+
+		cancel()
+		cancel2()
+
+		_, ok := <-feed1
+		require.False(t, ok)
+	})
 	t.Run("unsubBeforePrint", func(t *testing.T) {
 		_, cancel, logger := newTestLogger(t)
 		defer cancel()

@@ -334,9 +334,6 @@ func newTestServer(t *testing.T) (*testServer, cancelFunc) {
 		cancel()
 		time.Sleep(10 * time.Millisecond)
 		server.Close()
-		close(closeChan)
-		close(sendPause)
-		close(sendUnpause)
 	}
 
 	ip := strings.TrimPrefix(server.URL, "http://")

@@ -243,7 +243,7 @@ func TestPurgeLoop(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		logger := log.NewMockLogger()
-		go logger.Start(ctx)
+		logger.Start(ctx)
 		feed, cancel2 := logger.Subscribe()
 
 		m := &Manager{

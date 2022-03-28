@@ -14,7 +14,7 @@ func newTestWatchdog(t *testing.T) (context.Context, watchdog, log.Feed, func())
 	ctx, cancel := context.WithCancel(context.Background())
 
 	logger := log.NewMockLogger()
-	go logger.Start(ctx)
+	logger.Start(ctx)
 
 	feed, cancel2 := logger.Subscribe()
 

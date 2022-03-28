@@ -66,7 +66,7 @@ func TestProcess(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
 			logger := log.NewMockLogger()
-			go logger.Start(ctx)
+			logger.Start(ctx)
 			feed, cancel2 := logger.Subscribe()
 
 			logFunc := func(msg string) {

@@ -221,7 +221,7 @@ func newClient(ctx context.Context, doodsIP string) *client {
 		url:     "ws://" + doodsIP + "/detect",
 		timeout: 1000 * time.Millisecond,
 
-		pendingRequests: make(map[string]retChan),
+		pendingRequests: make(map[string]responseChan),
 		requestChan:     make(chan clientRequest),
 		closedChan:      make(chan struct{}),
 	}
@@ -233,7 +233,7 @@ type client struct {
 	timeout time.Duration
 
 	conn            *websocket.Conn
-	pendingRequests map[string]retChan
+	pendingRequests map[string]responseChan
 	requestChan     chan clientRequest
 	responseChan    chan detectResponse
 	closedChan      chan struct{}
@@ -256,6 +256,7 @@ func (c *client) dial() error {
 func (c *client) reconnect() {
 	c.conn.Close()
 
+	// Clear pending requests.
 	for id, ret := range c.pendingRequests {
 		close(ret)
 		delete(c.pendingRequests, id)
@@ -289,7 +290,7 @@ func (c *client) start() {
 			for {
 				if err := c.conn.WriteJSON(r.request); err != nil {
 					if c.ctx.Err() != nil {
-						close(r.ret)
+						close(r.response)
 						break
 					}
 					if c.onError != nil {
@@ -299,7 +300,7 @@ func (c *client) start() {
 					c.reconnect()
 					continue
 				}
-				c.pendingRequests[r.request.ID] = r.ret
+				c.pendingRequests[r.request.ID] = r.response
 				break
 			}
 
@@ -315,8 +316,6 @@ func (c *client) start() {
 			c.reconnect()
 
 		case <-c.ctx.Done():
-			close(c.requestChan)
-			close(c.closedChan)
 			for _, ret := range c.pendingRequests {
 				close(ret)
 			}
@@ -336,7 +335,6 @@ func (c *client) startReader() {
 					c.onError(err)
 				}
 				if c.ctx.Err() != nil {
-					close(c.responseChan)
 					return
 				}
 				c.closedChan <- struct{}{}
@@ -352,21 +350,23 @@ type sendRequestFunc func(context.Context, detectRequest) (*detections, error)
 var errDoods = errors.New("doods error")
 
 func (c *client) sendRequest(ctx context.Context, request detectRequest) (*detections, error) {
-	if c.ctx.Err() != nil {
-		return nil, context.Canceled
+	res := make(responseChan)
+	req := clientRequest{
+		request:  request,
+		response: res,
 	}
 
-	ret := make(retChan)
-	c.requestChan <- clientRequest{
-		request: request,
-		ret:     ret,
+	select {
+	case <-c.ctx.Done():
+		return nil, context.Canceled
+	case c.requestChan <- req:
 	}
 
 	select {
 	case <-ctx.Done():
-		go func() { <-ret }()
+		go func() { <-res }()
 		return nil, context.Canceled
-	case response, ok := <-ret:
+	case response, ok := <-res:
 		if !ok {
 			return nil, context.Canceled
 		}
@@ -378,11 +378,11 @@ func (c *client) sendRequest(ctx context.Context, request detectRequest) (*detec
 }
 
 type clientRequest struct {
-	request detectRequest
-	ret     retChan
+	request  detectRequest
+	response responseChan
 }
 
-type retChan chan detectResponse
+type responseChan chan detectResponse
 
 func dirExist(path string) bool {
 	if _, err := os.Stat(path); err != nil {
