@@ -23,7 +23,7 @@ docker run -it \
 	osnvr/os-nvr_bundle:latest
 ```
 
-App will be served on `https://ip:2000``
+App will be served on `https://ip:2000`
 
 [Coral EdgeTPU](https://www.coral.ai/products/accelerator) is supported, if you own a device add `--device=/dev/bus/usb \`
 
