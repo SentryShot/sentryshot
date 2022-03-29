@@ -8,13 +8,34 @@ import (
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/gortsplib/pkg/headers"
 	"nvr/pkg/video/gortsplib/pkg/liberrors"
-	"nvr/pkg/video/gortsplib/pkg/multibuffer"
 	"nvr/pkg/video/gortsplib/pkg/ringbuffer"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pion/rtp/v2"
 )
+
+type rtpPacketMultiBuffer struct {
+	count   uint64
+	buffers []rtp.Packet
+	cur     uint64
+}
+
+func newRTPPacketMultiBuffer(count uint64) *rtpPacketMultiBuffer {
+	buffers := make([]rtp.Packet, count)
+	return &rtpPacketMultiBuffer{
+		count:   count,
+		buffers: buffers,
+	}
+}
+
+func (mb *rtpPacketMultiBuffer) next() *rtp.Packet {
+	ret := &mb.buffers[mb.cur%mb.count]
+	mb.cur++
+	return ret
+}
 
 func stringsReverseIndex(s, substr string) int {
 	for i := len(s) - 1 - len(substr); i >= 0; i-- {
@@ -97,10 +118,10 @@ type ServerSessionState int
 // standard states.
 const (
 	ServerSessionStateInitial ServerSessionState = iota
-	ServerSessionStatePreRead
-	ServerSessionStateRead
-	ServerSessionStatePrePublish
-	ServerSessionStatePublish
+	ServerSessionStatePrePlay
+	ServerSessionStatePlay
+	ServerSessionStatePreRecord
+	ServerSessionStateRecord
 )
 
 // String implements fmt.Stringer.
@@ -108,13 +129,13 @@ func (s ServerSessionState) String() string {
 	switch s {
 	case ServerSessionStateInitial:
 		return "initial"
-	case ServerSessionStatePreRead:
+	case ServerSessionStatePrePlay:
 		return "prePlay"
-	case ServerSessionStateRead:
+	case ServerSessionStatePlay:
 		return "play"
-	case ServerSessionStatePrePublish:
+	case ServerSessionStatePreRecord:
 		return "preRecord"
-	case ServerSessionStatePublish:
+	case ServerSessionStateRecord:
 		return "record"
 	}
 	return "unknown"
@@ -122,8 +143,7 @@ func (s ServerSessionState) String() string {
 
 // ServerSessionSetuppedTrack is a setupped track of a ServerSession.
 type ServerSessionSetuppedTrack struct {
-	tcpChannel  int
-	tcpRTPFrame *base.InterleavedFrame
+	tcpChannel int
 }
 
 // ServerSessionAnnouncedTrack is an announced track of a ServerSession.
@@ -141,7 +161,7 @@ type ServerSession struct {
 	ctxCancel          func()
 	conns              map[*ServerConn]struct{}
 	state              ServerSessionState
-	setuppedTracks     map[int]ServerSessionSetuppedTrack
+	setuppedTracks     map[int]*ServerSessionSetuppedTrack
 	tcpTracksByChannel map[int]int
 	IsTransportSetup   bool
 	setuppedBaseURL    *base.URL     // publish
@@ -201,7 +221,7 @@ func (ss *ServerSession) State() ServerSessionState {
 }
 
 // SetuppedTracks returns the setupped tracks.
-func (ss *ServerSession) SetuppedTracks() map[int]ServerSessionSetuppedTrack {
+func (ss *ServerSession) SetuppedTracks() map[int]*ServerSessionSetuppedTrack {
 	return ss.setuppedTracks
 }
 
@@ -234,10 +254,10 @@ func (ss *ServerSession) run() {
 		})
 	}
 
-	err := ss.runLoop()
+	err := ss.runInner()
 	ss.ctxCancel()
 
-	if ss.state == ServerSessionStateRead {
+	if ss.state == ServerSessionStatePlay {
 		ss.setuppedStream.readerSetInactive(ss)
 	}
 
@@ -278,7 +298,7 @@ func (ss *ServerSession) run() {
 	}
 }
 
-func (ss *ServerSession) runLoop() error { //nolint:funlen,gocognit
+func (ss *ServerSession) runInner() error { //nolint:funlen,gocognit
 	for {
 		select {
 		case req := <-ss.request:
@@ -290,53 +310,48 @@ func (ss *ServerSession) runLoop() error { //nolint:funlen,gocognit
 
 			res, err := ss.handleRequest(req.sc, req.req)
 
-			if res.StatusCode == base.StatusOK {
-				if res.Header == nil {
-					res.Header = make(base.Header)
+			var returnedSession *ServerSession
+			if err == nil || errors.Is(err, errSwitchReadFunc) {
+				// ANNOUNCE responses don't contain the session header.
+				if req.req.Method != base.Announce &&
+					req.req.Method != base.Teardown {
+					if res.Header == nil {
+						res.Header = make(base.Header)
+					}
+
+					res.Header["Session"] = headers.Session{
+						Session: ss.secretID,
+					}.Write()
 				}
-				res.Header["Session"] = headers.Session{
-					Session: ss.secretID,
-					Timeout: func() *uint {
-						v := uint(ss.s.sessionTimeout / time.Second)
-						return &v
-					}(),
-				}.Write()
+
+				// after a TEARDOWN, session must be unpaired with the connection.
+				if req.req.Method != base.Teardown {
+					returnedSession = ss
+				}
 			}
 
-			if errors.Is(err, liberrors.ServerSessionTeardownError{}) {
-				req.res <- sessionRequestRes{res: res, err: nil}
-				return err
-			}
+			savedMethod := req.req.Method
 
 			req.res <- sessionRequestRes{
 				res: res,
 				err: err,
-				ss:  ss,
+				ss:  returnedSession,
+			}
+
+			if (err == nil || errors.Is(err, errSwitchReadFunc)) && savedMethod == base.Teardown {
+				return liberrors.ServerSessionTeardownError{Author: req.sc.NetConn().RemoteAddr()}
 			}
 
 		case sc := <-ss.connRemove:
-			if _, ok := ss.conns[sc]; ok {
-				delete(ss.conns, sc)
+			delete(ss.conns, sc)
 
-				select {
-				case sc.sessionRemove <- ss:
-				case <-sc.ctx.Done():
-				}
-			}
-
-			// if session is not in state RECORD or PLAY, or transport is TCP
-			if (ss.state != ServerSessionStatePublish &&
-				ss.state != ServerSessionStateRead) ||
-				ss.IsTransportSetup {
-				// close if there are no associated connections
-				if len(ss.conns) == 0 {
-					return liberrors.ErrServerSessionNotInUse
-				}
+			if len(ss.conns) == 0 {
+				return liberrors.ErrServerSessionNotInUse
 			}
 
 		case <-ss.startWriter:
-			if !ss.writerRunning && (ss.state == ServerSessionStatePublish ||
-				ss.state == ServerSessionStateRead) &&
+			if !ss.writerRunning && (ss.state == ServerSessionStateRecord ||
+				ss.state == ServerSessionStatePlay) &&
 				ss.IsTransportSetup {
 				ss.writerRunning = true
 				ss.writerDone = make(chan struct{})
@@ -376,9 +391,15 @@ func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base
 		return ss.handlePause(sc, req)
 
 	case base.Teardown:
+		var err error
+		if ss.state == ServerSessionStatePlay || ss.state == ServerSessionStateRecord {
+			ss.tcpConn.readFunc = ss.tcpConn.readFuncStandard
+			err = errSwitchReadFunc
+		}
+
 		return &base.Response{
 			StatusCode: base.StatusOK,
-		}, liberrors.ServerSessionTeardownError{Author: sc.NetConn().RemoteAddr()}
+		}, err
 
 	case base.GetParameter:
 		if h, ok := sc.s.Handler.(ServerHandlerOnGetParameter); ok {
@@ -394,7 +415,7 @@ func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base
 			return h.OnGetParameter(&ServerHandlerOnGetParameterCtx{
 				Session: ss,
 				Conn:    sc,
-				Req:     req,
+				Request: req,
 				Path:    path,
 				Query:   query,
 			})
@@ -413,7 +434,7 @@ func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base
 
 	return &base.Response{
 		StatusCode: base.StatusBadRequest,
-	}, liberrors.ServerUnhandledRequestError{Req: req}
+	}, liberrors.ServerUnhandledRequestError{Request: req}
 }
 
 func (ss *ServerSession) handleOptions(sc *ServerConn) (*base.Response, error) {
@@ -489,17 +510,11 @@ func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*bas
 		}, liberrors.ErrServerContentTypeUnsupportedError{CT: ct}
 	}
 
-	tracks, err := ReadTracks(req.Body)
+	tracks, err := ReadTracks(req.Body, false)
 	if err != nil {
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
 		}, liberrors.ServerSDPinvalidError{Err: err}
-	}
-
-	if len(tracks) == 0 {
-		return &base.Response{
-			StatusCode: base.StatusBadRequest,
-		}, liberrors.ErrServerSDPnoTracksDefined
 	}
 
 	for _, track := range tracks {
@@ -529,7 +544,7 @@ func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*bas
 		Server:  ss.s,
 		Session: ss,
 		Conn:    sc,
-		Req:     req,
+		Request: req,
 		Path:    path,
 		Query:   query,
 		Tracks:  tracks,
@@ -539,7 +554,7 @@ func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*bas
 		return res, err
 	}
 
-	ss.state = ServerSessionStatePrePublish
+	ss.state = ServerSessionStatePreRecord
 	ss.setuppedPath = &path
 	ss.setuppedQuery = &query
 	ss.setuppedBaseURL = req.URL
@@ -557,9 +572,9 @@ func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*bas
 func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 	req *base.Request) (*base.Response, error) {
 	err := ss.checkState(map[ServerSessionState]struct{}{
-		ServerSessionStateInitial:    {},
-		ServerSessionStatePreRead:    {},
-		ServerSessionStatePrePublish: {},
+		ServerSessionStateInitial:   {},
+		ServerSessionStatePrePlay:   {},
+		ServerSessionStatePreRecord: {},
 	})
 	if err != nil {
 		return &base.Response{
@@ -615,7 +630,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 	}
 
 	switch ss.state {
-	case ServerSessionStateInitial, ServerSessionStatePreRead: // play
+	case ServerSessionStateInitial, ServerSessionStatePrePlay: // play
 		if inTH.Mode != nil && *inTH.Mode != headers.TransportModePlay {
 			return &base.Response{
 				StatusCode: base.StatusBadRequest,
@@ -635,7 +650,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 		Server:  ss.s,
 		Session: ss,
 		Conn:    sc,
-		Req:     req,
+		Request: req,
 		Path:    path,
 		Query:   query,
 		TrackID: trackID,
@@ -660,7 +675,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 	if ss.state == ServerSessionStateInitial {
 		stream.readerAdd(ss)
 
-		ss.state = ServerSessionStatePreRead
+		ss.state = ServerSessionStatePrePlay
 		ss.setuppedPath = &path
 		ss.setuppedQuery = &query
 		ss.setuppedStream = stream
@@ -668,7 +683,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 
 	th := headers.Transport{}
 
-	if ss.state == ServerSessionStatePreRead {
+	if ss.state == ServerSessionStatePrePlay {
 		ssrc := stream.ssrc(trackID)
 		if ssrc != 0 {
 			th.SSRC = &ssrc
@@ -681,13 +696,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 		res.Header = make(base.Header)
 	}
 
-	sst := ServerSessionSetuppedTrack{}
-
-	sst.tcpChannel = inTH.InterleavedIDs[0]
-
-	sst.tcpRTPFrame = &base.InterleavedFrame{
-		Channel: sst.tcpChannel,
-	}
+	sst := &ServerSessionSetuppedTrack{}
 
 	if ss.tcpTracksByChannel == nil {
 		ss.tcpTracksByChannel = make(map[int]int)
@@ -699,7 +708,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 	th.InterleavedIDs = inTH.InterleavedIDs
 
 	if ss.setuppedTracks == nil {
-		ss.setuppedTracks = make(map[int]ServerSessionSetuppedTrack)
+		ss.setuppedTracks = make(map[int]*ServerSessionSetuppedTrack)
 	}
 
 	ss.setuppedTracks[trackID] = sst
@@ -712,8 +721,8 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Response, error) { //nolint:funlen
 	// play can be sent twice, allow calling it even if we're already playing
 	err := ss.checkState(map[ServerSessionState]struct{}{
-		ServerSessionStatePreRead: {},
-		ServerSessionStateRead:    {},
+		ServerSessionStatePrePlay: {},
+		ServerSessionStatePlay:    {},
 	})
 	if err != nil {
 		return &base.Response{
@@ -733,44 +742,49 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 
 	path, query := base.PathSplitQuery(pathAndQuery)
 
-	if ss.State() == ServerSessionStatePreRead &&
+	if ss.State() == ServerSessionStatePrePlay &&
 		path != *ss.setuppedPath {
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
 		}, liberrors.ServerPathHasChangedError{Prev: *ss.setuppedPath, Cur: path}
 	}
 
+	// allocate writeBuffer before calling OnPlay().
+	// in this way it's possible to call ServerSession.WritePacket*()
+	// inside the callback.
+	if ss.state != ServerSessionStatePlay {
+		ss.writeBuffer = ringbuffer.New(uint64(ss.s.WriteBufferCount))
+	}
+
 	res, err := sc.s.Handler.(ServerHandlerOnPlay).OnPlay(&ServerHandlerOnPlayCtx{
 		Session: ss,
 		Conn:    sc,
-		Req:     req,
+		Request: req,
 		Path:    path,
 		Query:   query,
 	})
 
 	if res.StatusCode != base.StatusOK {
-		if ss.State() == ServerSessionStatePreRead {
+		if ss.State() == ServerSessionStatePrePlay {
 			ss.writeBuffer = nil
 		}
 		return res, err
 	}
 
-	if ss.state == ServerSessionStateRead {
+	if ss.state == ServerSessionStatePlay {
 		return res, err
 	}
 
-	ss.state = ServerSessionStateRead
+	ss.state = ServerSessionStatePlay
 
 	ss.tcpConn = sc
-	ss.tcpConn.tcpSession = ss
-	ss.tcpConn.tcpFrameEnabled = true
-	ss.tcpConn.tcpFrameTimeout = false
-	// decrease RAM consumption by allocating less buffers.
-	ss.tcpConn.tcpReadBuffer = multibuffer.New(8, uint64(sc.s.ReadBufferSize))
+	ss.tcpConn.readFunc = ss.tcpConn.readFuncTCP
+	err = errSwitchReadFunc
 
 	ss.writeBuffer = ringbuffer.New(uint64(ss.s.ReadBufferCount))
-	// run writer after sending the response
-	ss.tcpConn.tcpWriterRunning = false
+	// runWriter() is called by ServerConn after the response has been sent
+
+	ss.setuppedStream.readerSetActive(ss)
 
 	// add RTP-Info
 	var trackIDs []int
@@ -809,14 +823,12 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 		res.Header["RTP-Info"] = ri.Write()
 	}
 
-	ss.setuppedStream.readerSetActive(ss)
-
 	return res, err
 }
 
 func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.Response, error) {
 	err := ss.checkState(map[ServerSessionState]struct{}{
-		ServerSessionStatePrePublish: {},
+		ServerSessionStatePreRecord: {},
 	})
 	if err != nil {
 		return &base.Response{
@@ -848,41 +860,40 @@ func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.
 		}, liberrors.ServerPathHasChangedError{Prev: *ss.setuppedPath, Cur: path}
 	}
 
+	// allocate writeBuffer before calling OnRecord().
+	// in this way it's possible to call ServerSession.WritePacket*()
+	// inside the callback.
+	ss.writeBuffer = ringbuffer.New(uint64(8))
+
 	res, err := ss.s.Handler.(ServerHandlerOnRecord).OnRecord(&ServerHandlerOnRecordCtx{
 		Session: ss,
 		Conn:    sc,
-		Req:     req,
+		Request: req,
 		Path:    path,
 		Query:   query,
 	})
 
 	if res.StatusCode != base.StatusOK {
+		ss.writeBuffer = nil
 		return res, err
 	}
 
-	ss.state = ServerSessionStatePublish
+	ss.state = ServerSessionStateRecord
 
 	ss.tcpConn = sc
-	ss.tcpConn.tcpSession = ss
-	ss.tcpConn.tcpFrameEnabled = true
-	ss.tcpConn.tcpFrameTimeout = true
-	ss.tcpConn.tcpReadBuffer = multibuffer.New(uint64(sc.s.ReadBufferCount), uint64(sc.s.ReadBufferSize))
-	ss.tcpConn.tcpProcessFunc = sc.tcpProcessRecord
+	ss.tcpConn.readFunc = ss.tcpConn.readFuncTCP
+	err = errSwitchReadFunc
 
-	// decrease RAM consumption by allocating less buffers.
-	ss.writeBuffer = ringbuffer.New(uint64(8))
-	// run writer after sending the response
-	ss.tcpConn.tcpWriterRunning = false
-
+	// runWriter() is called by conn after sending the response
 	return res, err
 }
 
 func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.Response, error) { //nolint:funlen
 	err := ss.checkState(map[ServerSessionState]struct{}{
-		ServerSessionStatePreRead:    {},
-		ServerSessionStateRead:       {},
-		ServerSessionStatePrePublish: {},
-		ServerSessionStatePublish:    {},
+		ServerSessionStatePrePlay:   {},
+		ServerSessionStatePlay:      {},
+		ServerSessionStatePreRecord: {},
+		ServerSessionStateRecord:    {},
 	})
 	if err != nil {
 		return &base.Response{
@@ -905,7 +916,7 @@ func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.R
 	res, err := ss.s.Handler.(ServerHandlerOnPause).OnPause(&ServerHandlerOnPauseCtx{
 		Session: ss,
 		Conn:    sc,
-		Req:     req,
+		Request: req,
 		Path:    path,
 		Query:   query,
 	})
@@ -921,22 +932,22 @@ func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.R
 	}
 
 	switch ss.state {
-	case ServerSessionStateRead:
+	case ServerSessionStatePlay:
 		ss.setuppedStream.readerSetInactive(ss)
 
-		ss.state = ServerSessionStatePreRead
+		ss.state = ServerSessionStatePrePlay
 
-		ss.tcpConn.tcpSession = nil
-		ss.tcpConn.tcpFrameEnabled = false
-		ss.tcpConn.tcpReadBuffer = nil
+		ss.tcpConn.readFunc = ss.tcpConn.readFuncStandard
+		err = errSwitchReadFunc
+
 		ss.tcpConn = nil
 
-	case ServerSessionStatePublish:
-		ss.state = ServerSessionStatePrePublish
+	case ServerSessionStateRecord:
+		ss.state = ServerSessionStatePreRecord
 
-		ss.tcpConn.tcpSession = nil
-		ss.tcpConn.tcpFrameEnabled = false
-		ss.tcpConn.tcpReadBuffer = nil
+		ss.tcpConn.readFunc = ss.tcpConn.readFuncStandard
+		err = errSwitchReadFunc
+
 		err := ss.tcpConn.conn.SetReadDeadline(time.Time{})
 		if err != nil {
 			return nil, err
@@ -950,12 +961,16 @@ func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.R
 func (ss *ServerSession) runWriter() {
 	defer close(ss.writerDone)
 
-	var writeFunc func(int, []byte)
+	rtpFrames := make(map[int]*base.InterleavedFrame, len(ss.setuppedTracks))
+
+	for trackID, sst := range ss.setuppedTracks {
+		rtpFrames[trackID] = &base.InterleavedFrame{Channel: sst.tcpChannel}
+	}
 
 	var buf bytes.Buffer
 
-	writeFunc = func(trackID int, payload []byte) {
-		f := ss.setuppedTracks[trackID].tcpRTPFrame
+	writeFunc := func(trackID int, payload []byte) {
+		f := rtpFrames[trackID]
 		f.Payload = payload
 		f.Write(&buf)
 
@@ -974,14 +989,23 @@ func (ss *ServerSession) runWriter() {
 	}
 }
 
-// WritePacketRTP writes a RTP packet to the session.
-func (ss *ServerSession) WritePacketRTP(trackID int, payload []byte) {
+func (ss *ServerSession) writePacketRTP(trackID int, byts []byte) {
 	if _, ok := ss.setuppedTracks[trackID]; !ok {
 		return
 	}
 
 	ss.writeBuffer.Push(trackTypePayload{
 		trackID: trackID,
-		payload: payload,
+		payload: byts,
 	})
+}
+
+// WritePacketRTP writes a RTP packet to the session.
+func (ss *ServerSession) WritePacketRTP(trackID int, pkt *rtp.Packet) {
+	byts, err := pkt.Marshal()
+	if err != nil {
+		return
+	}
+
+	ss.writePacketRTP(trackID, byts)
 }

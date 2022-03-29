@@ -68,7 +68,7 @@ func (c *rtspConn) onDescribe(ctx *gortsplib.ServerHandlerOnDescribeCtx,
 ) (*base.Response, *gortsplib.ServerStream, error) {
 	res := c.pathManager.onDescribe(pathDescribeReq{
 		pathName: ctx.Path,
-		url:      ctx.Req.URL,
+		url:      ctx.Request.URL,
 	})
 
 	if res.err != nil {

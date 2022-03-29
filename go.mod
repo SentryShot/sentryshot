@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/icza/bitio v1.1.0
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/pion/rtp v1.6.1
+	github.com/pion/rtp/v2 v2.0.0-20220302185659-b3d10fc096b0
 	github.com/pion/sdp/v3 v3.0.2
 	github.com/shirou/gopsutil/v3 v3.21.4
 	github.com/stretchr/testify v1.7.0

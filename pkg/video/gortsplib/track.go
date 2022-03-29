@@ -2,7 +2,6 @@ package gortsplib
 
 import (
 	"errors"
-	"fmt"
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"strconv"
 	"strings"
@@ -14,77 +13,100 @@ import (
 type Track interface {
 	// ClockRate returns the track clock rate.
 	ClockRate() int
+
+	// GetControl returns the track control
+	GetControl() string
+
+	// SetControl sets the track control
+	SetControl(string)
+
+	// MediaDescription returns the track media description in SDP format.
+	MediaDescription() *psdp.MediaDescription
 	clone() Track
-	getControl() string
-	setControl(string)
 	url(*base.URL) (*base.URL, error)
-	mediaDescription() *psdp.MediaDescription
 }
 
 // Track errors.
 var (
-	ErrTrackContentBaseMissing = errors.New("no Content-Base header provided")
+	ErrTrackContentBaseMissing = errors.New("Content-Base header not provided")
 	ErrTrackNoFormats          = errors.New("no formats provided")
 	ErrTrackRTPmapInvalid      = errors.New("invalid rtpmap")
 	ErrTrackRTPmapMissing      = errors.New("attribute 'rtpmap' not found")
 	ErrTrackPayloadTypeInvalid = errors.New("invalid payload type")
 )
 
-func newTrackFromMediaDescription(md *psdp.MediaDescription) (Track, error) { //nolint:gocognit
-	if md.MediaName.Media == "video" { //nolint:nestif
-		if rtpmap, ok := md.Attribute("rtpmap"); ok {
-			rtpmap = strings.TrimSpace(rtpmap)
-
-			if vals := strings.Split(rtpmap, " "); len(vals) == 2 && vals[1] == "H264/90000" {
-				tmp, err := strconv.ParseInt(vals[0], 10, 64)
-				if err != nil {
-					return nil, fmt.Errorf("%w '%s'", ErrTrackPayloadTypeInvalid, vals[0])
-				}
-				payloadType := uint8(tmp)
-
-				return newTrackH264FromMediaDescription(payloadType, md), nil
+func newTrackFromMediaDescription(md *psdp.MediaDescription) (Track, error) {
+	control := func() string {
+		for _, attr := range md.Attributes {
+			if attr.Key == "control" {
+				return attr.Value
 			}
 		}
-	}
+		return ""
+	}()
 
-	if md.MediaName.Media == "audio" { //nolint:nestif
-		if rtpmap, ok := md.Attribute("rtpmap"); ok {
-			if vals := strings.Split(rtpmap, " "); len(vals) == 2 {
-				tmp, err := strconv.ParseInt(vals[0], 10, 64)
-				if err != nil {
-					return nil, fmt.Errorf("%w '%s'", ErrTrackPayloadTypeInvalid, vals[0])
-				}
-				payloadType := uint8(tmp)
+	rtpmapPart1, payloadType := func() (string, uint8) {
+		rtpmap, ok := md.Attribute("rtpmap")
+		if !ok {
+			return "", 0
+		}
+		rtpmap = strings.TrimSpace(rtpmap)
+		rtpmapParts := strings.Split(rtpmap, " ")
+		if len(rtpmapParts) != 2 {
+			return "", 0
+		}
 
-				if strings.HasPrefix(strings.ToLower(vals[1]), "mpeg4-generic/") {
-					return newTrackAACFromMediaDescription(payloadType, md)
-				}
+		tmp, err := strconv.ParseInt(rtpmapParts[0], 10, 64)
+		if err != nil {
+			return "", 0
+		}
+		payloadType := uint8(tmp)
 
-				if strings.HasPrefix(vals[1], "opus/") {
-					return newTrackOpusFromMediaDescription(payloadType, md)
-				}
-			}
+		return rtpmapParts[1], payloadType
+	}()
+
+	switch {
+	case md.MediaName.Media == "video":
+		if rtpmapPart1 == "H264/90000" {
+			return newTrackH264FromMediaDescription(control, payloadType, md), nil
+		}
+
+	case md.MediaName.Media == "audio":
+		switch {
+		case len(md.MediaName.Formats) == 1 && md.MediaName.Formats[0] == "0":
+			return newTrackPCMUFromMediaDescription(control, rtpmapPart1)
+
+		case strings.HasPrefix(strings.ToLower(rtpmapPart1), "mpeg4-generic/"):
+			return newTrackAACFromMediaDescription(control, payloadType, md)
+
+		case strings.HasPrefix(rtpmapPart1, "opus/"):
+			return newTrackOpusFromMediaDescription(control, payloadType, rtpmapPart1)
 		}
 	}
 
-	return newTrackGenericFromMediaDescription(md)
+	return newTrackGenericFromMediaDescription(control, md)
 }
 
-func trackFindControl(md *psdp.MediaDescription) string {
-	for _, attr := range md.Attributes {
-		if attr.Key == "control" {
-			return attr.Value
-		}
-	}
-	return ""
+type trackBase struct {
+	control string
 }
 
-func trackURL(t Track, contentBase *base.URL) (*base.URL, error) {
+// GetControl gets the track control.
+func (t *trackBase) GetControl() string {
+	return t.control
+}
+
+// SetControl sets the track control.
+func (t *trackBase) SetControl(c string) {
+	t.control = c
+}
+
+func (t *trackBase) url(contentBase *base.URL) (*base.URL, error) {
 	if contentBase == nil {
 		return nil, ErrTrackContentBaseMissing
 	}
 
-	control := t.getControl()
+	control := t.GetControl()
 
 	// no control attribute, use base URL
 	if control == "" {

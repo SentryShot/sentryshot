@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"nvr/pkg/video/gortsplib/pkg/base"
 	"strconv"
 	"strings"
+	"sync"
 
 	psdp "github.com/pion/sdp/v3"
 )
@@ -69,11 +69,13 @@ func trackH264GetSPSPPS(md *psdp.MediaDescription) ([]byte, []byte, error) {
 
 // TrackH264 is a H264 track.
 type TrackH264 struct {
-	control     string
+	trackBase
 	payloadType uint8
 	sps         []byte
 	pps         []byte
 	extradata   []byte
+
+	mu sync.RWMutex
 }
 
 // NewTrackH264 allocates a TrackH264.
@@ -86,12 +88,14 @@ func NewTrackH264(payloadType uint8, sps []byte, pps []byte, extradata []byte) (
 	}, nil
 }
 
-func newTrackH264FromMediaDescription(payloadType uint8,
+func newTrackH264FromMediaDescription(
+	control string,
+	payloadType uint8,
 	md *psdp.MediaDescription) *TrackH264 {
-	control := trackFindControl(md)
-
 	t := &TrackH264{
-		control:     control,
+		trackBase: trackBase{
+			control: control,
+		},
 		payloadType: payloadType,
 	}
 
@@ -111,7 +115,7 @@ func (t *TrackH264) ClockRate() int {
 
 func (t *TrackH264) clone() Track {
 	return &TrackH264{
-		control:     t.control,
+		trackBase:   t.trackBase,
 		payloadType: t.payloadType,
 		sps:         t.sps,
 		pps:         t.pps,
@@ -119,39 +123,41 @@ func (t *TrackH264) clone() Track {
 	}
 }
 
-func (t *TrackH264) getControl() string {
-	return t.control
-}
-
-func (t *TrackH264) setControl(c string) {
-	t.control = c
-}
-
-func (t *TrackH264) url(contentBase *base.URL) (*base.URL, error) {
-	return trackURL(t, contentBase)
-}
-
 // SPS returns the track SPS.
 func (t *TrackH264) SPS() []byte {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return t.sps
 }
 
 // PPS returns the track PPS.
 func (t *TrackH264) PPS() []byte {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return t.pps
+}
+
+// ExtraData returns the track extra data.
+func (t *TrackH264) ExtraData() []byte {
+	return t.extradata
 }
 
 // SetSPS sets the track SPS.
 func (t *TrackH264) SetSPS(v []byte) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	t.sps = v
 }
 
 // SetPPS sets the track PPS.
 func (t *TrackH264) SetPPS(v []byte) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	t.pps = v
 }
 
-func (t *TrackH264) mediaDescription() *psdp.MediaDescription {
+// MediaDescription returns the track media description in SDP format.
+func (t *TrackH264) MediaDescription() *psdp.MediaDescription {
 	typ := strconv.FormatInt(int64(t.payloadType), 10)
 
 	fmtp := typ + " packetization-mode=1"

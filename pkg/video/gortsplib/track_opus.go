@@ -3,7 +3,6 @@ package gortsplib
 import (
 	"errors"
 	"fmt"
-	"nvr/pkg/video/gortsplib/pkg/base"
 	"strconv"
 	"strings"
 
@@ -18,7 +17,7 @@ var (
 
 // TrackOpus is a Opus track.
 type TrackOpus struct {
-	control      string
+	trackBase
 	payloadType  uint8
 	sampleRate   int
 	channelCount int
@@ -33,18 +32,13 @@ func NewTrackOpus(payloadType uint8, sampleRate int, channelCount int) (*TrackOp
 	}, nil
 }
 
-func newTrackOpusFromMediaDescription(payloadType uint8,
-	md *psdp.MediaDescription) (*TrackOpus, error) {
-	control := trackFindControl(md)
-
-	v, ok := md.Attribute("rtpmap")
-	if !ok {
-		return nil, ErrOpusRTPmapMissing
-	}
-
-	tmp := strings.SplitN(v, "/", 3)
+func newTrackOpusFromMediaDescription(
+	control string,
+	payloadType uint8,
+	rtpmapPart1 string) (*TrackOpus, error) {
+	tmp := strings.SplitN(rtpmapPart1, "/", 3)
 	if len(tmp) != 3 {
-		return nil, fmt.Errorf("%w (%v)", ErrOpusRTPmapInvalid, v)
+		return nil, fmt.Errorf("%w (%v)", ErrOpusRTPmapInvalid, rtpmapPart1)
 	}
 
 	sampleRate, err := strconv.ParseInt(tmp[1], 10, 64)
@@ -58,7 +52,9 @@ func newTrackOpusFromMediaDescription(payloadType uint8,
 	}
 
 	return &TrackOpus{
-		control:      control,
+		trackBase: trackBase{
+			control: control,
+		},
 		payloadType:  payloadType,
 		sampleRate:   int(sampleRate),
 		channelCount: int(channelCount),
@@ -72,26 +68,20 @@ func (t *TrackOpus) ClockRate() int {
 
 func (t *TrackOpus) clone() Track {
 	return &TrackOpus{
-		control:      t.control,
+		trackBase:    t.trackBase,
 		payloadType:  t.payloadType,
 		sampleRate:   t.sampleRate,
 		channelCount: t.channelCount,
 	}
 }
 
-func (t *TrackOpus) getControl() string {
-	return t.control
+// ChannelCount returns the channel count.
+func (t *TrackOpus) ChannelCount() int {
+	return t.channelCount
 }
 
-func (t *TrackOpus) setControl(c string) {
-	t.control = c
-}
-
-func (t *TrackOpus) url(contentBase *base.URL) (*base.URL, error) {
-	return trackURL(t, contentBase)
-}
-
-func (t *TrackOpus) mediaDescription() *psdp.MediaDescription {
+// MediaDescription returns the track media description in SDP format.
+func (t *TrackOpus) MediaDescription() *psdp.MediaDescription {
 	typ := strconv.FormatInt(int64(t.payloadType), 10)
 
 	return &psdp.MediaDescription{

@@ -3,6 +3,8 @@ package video
 import (
 	"nvr/pkg/video/gortsplib"
 	"sync"
+
+	"github.com/pion/rtp/v2"
 )
 
 type streamNonRTSPReadersMap struct {
@@ -34,12 +36,12 @@ func (m *streamNonRTSPReadersMap) remove(r reader) {
 	delete(m.ma, r)
 }
 
-func (m *streamNonRTSPReadersMap) forwardPacketRTP(trackID int, payload []byte) {
+func (m *streamNonRTSPReadersMap) forwardPacketRTP(trackID int, pkt *rtp.Packet) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
 	for c := range m.ma {
-		c.onReaderPacketRTP(trackID, payload)
+		c.onReaderPacketRTP(trackID, pkt)
 	}
 }
 
@@ -81,10 +83,10 @@ func (s *stream) readerRemove(r reader) {
 	}
 }
 
-func (s *stream) onPacketRTP(trackID int, payload []byte) {
+func (s *stream) writePacketRTP(trackID int, pkt *rtp.Packet) {
 	// forward to RTSP readers
-	s.rtspStream.WritePacketRTP(trackID, payload)
+	s.rtspStream.WritePacketRTP(trackID, pkt)
 
 	// forward to non-RTSP readers
-	s.nonRTSPReaders.forwardPacketRTP(trackID, payload)
+	s.nonRTSPReaders.forwardPacketRTP(trackID, pkt)
 }

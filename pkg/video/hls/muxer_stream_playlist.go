@@ -79,8 +79,8 @@ func (p *muxerStreamPlaylist) reader() io.Reader {
 			ret := uint(0)
 
 			// EXTINF, when rounded to the nearest integer, must be <= EXT-X-TARGETDURATION
-			for _, f := range p.segments {
-				v2 := uint(math.Round(f.Duration().Seconds()))
+			for _, s := range p.segments {
+				v2 := uint(math.Round(s.Duration().Seconds()))
 				if v2 > ret {
 					ret = v2
 				}
@@ -91,10 +91,12 @@ func (p *muxerStreamPlaylist) reader() io.Reader {
 		cnt += "#EXT-X-TARGETDURATION:" + strconv.FormatUint(uint64(targetDuration), 10) + "\n"
 
 		cnt += "#EXT-X-MEDIA-SEQUENCE:" + strconv.FormatInt(int64(p.segmentDeleteCount), 10) + "\n"
+		cnt += "\n"
 
-		for _, f := range p.segments {
-			cnt += "#EXTINF:" + strconv.FormatFloat(f.Duration().Seconds(), 'f', -1, 64) + ",\n"
-			cnt += f.name + ".ts\n"
+		for _, s := range p.segments {
+			cnt += "#EXT-X-PROGRAM-DATE-TIME:" + s.startTime.Format("2006-01-02T15:04:05.999Z07:00") + "\n" +
+				"#EXTINF:" + strconv.FormatFloat(s.Duration().Seconds(), 'f', -1, 64) + ",\n" +
+				s.name + ".ts\n"
 		}
 
 		return []byte(cnt)

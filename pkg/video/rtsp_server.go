@@ -46,12 +46,13 @@ func newRTSPServer(
 	}
 
 	s.srv = &gortsplib.Server{
-		Handler:         s,
-		ReadTimeout:     readTimeout,
-		WriteTimeout:    writeTimeout,
-		ReadBufferCount: readBufferCount,
-		ReadBufferSize:  readBufferSize,
-		RTSPaddress:     address,
+		Handler:          s,
+		ReadTimeout:      readTimeout,
+		WriteTimeout:     writeTimeout,
+		ReadBufferCount:  readBufferCount,
+		ReadBufferSize:   readBufferSize,
+		WriteBufferCount: readBufferCount,
+		RTSPaddress:      address,
 	}
 
 	return s

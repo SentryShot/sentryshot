@@ -19,12 +19,12 @@ var ErrServerCSeqMissing = errors.New("CSeq is missing")
 
 // ServerUnhandledRequestError is an error that can be returned by a server.
 type ServerUnhandledRequestError struct {
-	Req *base.Request
+	Request *base.Request
 }
 
 // Error implements the error interface.
 func (e ServerUnhandledRequestError) Error() string {
-	return fmt.Sprintf("unhandled request: %v %v", e.Req.Method, e.Req.URL)
+	return fmt.Sprintf("unhandled request: %v %v", e.Request.Method, e.Request.URL)
 }
 
 // ServerInvalidStateError is an error that can be returned by a server.
@@ -64,10 +64,6 @@ type ServerSDPinvalidError struct {
 func (e ServerSDPinvalidError) Error() string {
 	return fmt.Sprintf("invalid SDP: %v", e.Err)
 }
-
-// ErrServerSDPnoTracksDefined no tracks defined in the SDP.
-var ErrServerSDPnoTracksDefined = errors.New(
-	"no tracks defined in the SDP")
 
 // ServerTransportHeaderInvalidError is an error that can be returned by a server.
 type ServerTransportHeaderInvalidError struct {

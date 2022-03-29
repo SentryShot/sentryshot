@@ -7,7 +7,7 @@ import (
 	"nvr/pkg/video/gortsplib/pkg/rtptimedec"
 	"time"
 
-	"github.com/pion/rtp"
+	"github.com/pion/rtp/v2"
 )
 
 // ErrMorePacketsNeeded is returned when more packets are needed.
@@ -15,16 +15,17 @@ var ErrMorePacketsNeeded = errors.New("need more packets")
 
 // Decoder is a RTP/AAC decoder.
 type Decoder struct {
+	// sample rate of input packets.
+	SampleRate int
+
 	timeDecoder          *rtptimedec.Decoder
 	isDecodingFragmented bool
 	fragmentedBuf        []byte
 }
 
-// NewDecoder allocates a Decoder.
-func NewDecoder(clockRate int) *Decoder {
-	return &Decoder{
-		timeDecoder: rtptimedec.New(clockRate),
-	}
+// Init initializes the decoder.
+func (d *Decoder) Init() {
+	d.timeDecoder = rtptimedec.New(d.SampleRate)
 }
 
 // Errors.
@@ -49,35 +50,36 @@ func (d *Decoder) Decode(pkt *rtp.Packet) ([][]byte, time.Duration, error) {
 		d.isDecodingFragmented = false
 		return nil, 0, fmt.Errorf("%w (%d)", ErrAUinvalidLength, auHeadersLen)
 	}
-	pkt.Payload = pkt.Payload[2:]
+	payload := pkt.Payload[2:]
 
 	if d.isDecodingFragmented {
-		return d.decodeFragmented(pkt, auHeadersLen)
+		return d.decodeFragmented(pkt, auHeadersLen, payload)
 	}
-	return d.decodeUnfragmented(pkt, auHeadersLen)
+	return d.decodeUnfragmented(pkt, auHeadersLen, payload)
 }
 
-func (d *Decoder) decodeFragmented(pkt *rtp.Packet, auHeadersLen uint16) ([][]byte, time.Duration, error) {
-	// we are decoding a fragmented AU
-
+func (d *Decoder) decodeFragmented(
+	pkt *rtp.Packet,
+	auHeadersLen uint16,
+	payload []byte) ([][]byte, time.Duration, error) {
 	if auHeadersLen != 16 {
 		return nil, 0, ErrFragMultipleAU
 	}
 
 	// AU-header
-	header := binary.BigEndian.Uint16(pkt.Payload)
+	header := binary.BigEndian.Uint16(payload)
 	dataLen := header >> 3
 	auIndex := header & 0x03
 	if auIndex != 0 {
 		return nil, 0, ErrAUindexNotZero
 	}
-	pkt.Payload = pkt.Payload[2:]
+	payload = payload[2:]
 
-	if len(pkt.Payload) < int(dataLen) {
+	if len(payload) < int(dataLen) {
 		return nil, 0, ErrShortPayload
 	}
 
-	d.fragmentedBuf = append(d.fragmentedBuf, pkt.Payload...)
+	d.fragmentedBuf = append(d.fragmentedBuf, payload...)
 
 	if !pkt.Header.Marker {
 		return nil, 0, ErrMorePacketsNeeded
@@ -87,7 +89,10 @@ func (d *Decoder) decodeFragmented(pkt *rtp.Packet, auHeadersLen uint16) ([][]by
 	return [][]byte{d.fragmentedBuf}, d.timeDecoder.Decode(pkt.Timestamp), nil
 }
 
-func (d *Decoder) decodeUnfragmented(pkt *rtp.Packet, auHeadersLen uint16) ([][]byte, time.Duration, error) {
+func (d *Decoder) decodeUnfragmented( //nolint:funlen
+	pkt *rtp.Packet,
+	auHeadersLen uint16,
+	payload []byte) ([][]byte, time.Duration, error) {
 	if pkt.Header.Marker {
 		// AU-headers
 		// AAC headers are 16 bits, where
@@ -96,11 +101,11 @@ func (d *Decoder) decodeUnfragmented(pkt *rtp.Packet, auHeadersLen uint16) ([][]
 		headerCount := auHeadersLen / 16
 		var dataLens []uint16
 		for i := 0; i < int(headerCount); i++ {
-			if len(pkt.Payload[i*2:]) < 2 {
+			if len(payload[i*2:]) < 2 {
 				return nil, 0, ErrShortPayload
 			}
 
-			header := binary.BigEndian.Uint16(pkt.Payload[i*2:])
+			header := binary.BigEndian.Uint16(payload[i*2:])
 			dataLen := header >> 3
 			auIndex := header & 0x03
 			if auIndex != 0 {
@@ -109,17 +114,17 @@ func (d *Decoder) decodeUnfragmented(pkt *rtp.Packet, auHeadersLen uint16) ([][]
 
 			dataLens = append(dataLens, dataLen)
 		}
-		pkt.Payload = pkt.Payload[headerCount*2:]
+		payload = payload[headerCount*2:]
 
 		// AUs
 		aus := make([][]byte, len(dataLens))
 		for i, dataLen := range dataLens {
-			if len(pkt.Payload) < int(dataLen) {
+			if len(payload) < int(dataLen) {
 				return nil, 0, ErrShortPayload
 			}
 
-			aus[i] = pkt.Payload[:dataLen]
-			pkt.Payload = pkt.Payload[dataLen:]
+			aus[i] = payload[:dataLen]
+			payload = payload[dataLen:]
 		}
 
 		return aus, d.timeDecoder.Decode(pkt.Timestamp), nil
@@ -130,19 +135,19 @@ func (d *Decoder) decodeUnfragmented(pkt *rtp.Packet, auHeadersLen uint16) ([][]
 	}
 
 	// AU-header
-	header := binary.BigEndian.Uint16(pkt.Payload)
+	header := binary.BigEndian.Uint16(payload)
 	dataLen := header >> 3
 	auIndex := header & 0x03
 	if auIndex != 0 {
 		return nil, 0, ErrAUindexNotZero
 	}
-	pkt.Payload = pkt.Payload[2:]
+	payload = payload[2:]
 
-	if len(pkt.Payload) < int(dataLen) {
+	if len(payload) < int(dataLen) {
 		return nil, 0, ErrShortPayload
 	}
 
-	d.fragmentedBuf = append(d.fragmentedBuf, pkt.Payload...)
+	d.fragmentedBuf = append(d.fragmentedBuf, payload...)
 
 	d.isDecodingFragmented = true
 	return nil, 0, ErrMorePacketsNeeded

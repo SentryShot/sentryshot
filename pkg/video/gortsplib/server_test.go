@@ -272,6 +272,7 @@ func TestServerErrorTCPTwoConnOneSession(t *testing.T) {
 	require.NoError(t, err)
 
 	stream := NewServerStream(Tracks{track})
+	defer stream.Close()
 
 	s := &Server{
 		Handler: &testServerHandler{
@@ -366,6 +367,7 @@ func TestServerErrorTCPOneConnTwoSessions(t *testing.T) {
 	require.NoError(t, err)
 
 	stream := NewServerStream(Tracks{track})
+	defer stream.Close()
 
 	s := &Server{
 		Handler: &testServerHandler{
@@ -455,7 +457,7 @@ func TestServerGetSetParameter(t *testing.T) {
 	s := &Server{
 		Handler: &testServerHandler{
 			onSetParameter: func(ctx *ServerHandlerOnSetParameterCtx) (*base.Response, error) {
-				params = ctx.Req.Body
+				params = ctx.Request.Body
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
@@ -555,7 +557,8 @@ func TestServerErrorInvalidSession(t *testing.T) {
 				Method: method,
 				URL:    mustParseURL("rtsp://localhost:8554/teststream"),
 				Header: base.Header{
-					"CSeq": base.HeaderValue{"1"},
+					"CSeq":    base.HeaderValue{"1"},
+					"Session": base.HeaderValue{"ABC"},
 				},
 			})
 			require.NoError(t, err)
@@ -622,6 +625,7 @@ func TestServerSessionAutoClose(t *testing.T) {
 	require.NoError(t, err)
 
 	stream := NewServerStream(Tracks{track})
+	defer stream.Close()
 
 	s := &Server{
 		Handler: &testServerHandler{
@@ -685,6 +689,7 @@ func TestServerErrorInvalidPath(t *testing.T) {
 			require.NoError(t, err)
 
 			stream := NewServerStream(Tracks{track})
+			defer stream.Close()
 
 			s := &Server{
 				Handler: &testServerHandler{
@@ -740,12 +745,6 @@ func TestServerErrorInvalidPath(t *testing.T) {
 				})
 				require.NoError(t, err)
 				require.Equal(t, base.StatusOK, res.StatusCode)
-
-				var sx headers.Session
-				err = sx.Read(res.Header["Session"])
-				require.NoError(t, err)
-
-				sxID = sx.Session
 			}
 
 			if method == base.Play || method == base.Record || method == base.Pause {

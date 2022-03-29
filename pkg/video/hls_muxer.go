@@ -17,7 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pion/rtp"
+	"github.com/pion/rtp/v2"
 )
 
 type hlsMuxerResponse struct {
@@ -35,7 +35,7 @@ type hlsMuxerRequest struct {
 
 type hlsMuxerTrackIDPayloadPair struct {
 	trackID int
-	buf     []byte
+	packet  *rtp.Packet
 }
 
 type hlsMuxerPathManager interface {
@@ -206,7 +206,8 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 
 			videoTrack = tt
 			videoTrackID = i
-			h264Decoder = rtph264.NewDecoder()
+			h264Decoder = &rtph264.Decoder{}
+			h264Decoder.Init()
 
 		case *gortsplib.TrackAAC:
 			if audioTrack != nil {
@@ -215,7 +216,8 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 
 			audioTrack = tt
 			audioTrackID = i
-			aacDecoder = rtpaac.NewDecoder(track.ClockRate())
+			aacDecoder = &rtpaac.Decoder{SampleRate: track.ClockRate()}
+			aacDecoder.Init()
 		}
 	}
 
@@ -283,13 +285,7 @@ func (m *hlsMuxer) decodePacket(
 	audioTrackID int,
 	aacDecoder *rtpaac.Decoder) error {
 	if videoTrack != nil && pair.trackID == videoTrackID { //nolint:nestif
-		var pkt rtp.Packet
-		err := pkt.Unmarshal(pair.buf)
-		if err != nil {
-			return fmt.Errorf("unable to decode RTP packet: %w", err)
-		}
-
-		nalus, pts, err := h264Decoder.DecodeUntilMarker(&pkt)
+		nalus, pts, err := h264Decoder.DecodeUntilMarker(pair.packet)
 		if err != nil {
 			if !errors.Is(err, rtph264.ErrMorePacketsNeeded) &&
 				!errors.Is(err, rtph264.ErrNonStartingPacketAndNoPrevious) {
@@ -303,13 +299,7 @@ func (m *hlsMuxer) decodePacket(
 			return fmt.Errorf("unable to write segment: %w", err)
 		}
 	} else if audioTrack != nil && pair.trackID == audioTrackID {
-		var pkt rtp.Packet
-		err := pkt.Unmarshal(pair.buf)
-		if err != nil {
-			return fmt.Errorf("unable to decode RTP packet: %w", err)
-		}
-
-		aus, pts, err := aacDecoder.Decode(&pkt)
+		aus, pts, err := aacDecoder.Decode(pair.packet)
 		if err != nil {
 			if !errors.Is(err, rtpaac.ErrMorePacketsNeeded) {
 				return fmt.Errorf("unable to decode audio track: %w", err)
@@ -380,6 +370,6 @@ func (m *hlsMuxer) onReaderAccepted() {
 }
 
 // onReaderPacketRTP implements reader.
-func (m *hlsMuxer) onReaderPacketRTP(trackID int, payload []byte) {
-	m.ringBuffer.Push(hlsMuxerTrackIDPayloadPair{trackID, payload})
+func (m *hlsMuxer) onReaderPacketRTP(trackID int, pkt *rtp.Packet) {
+	m.ringBuffer.Push(hlsMuxerTrackIDPayloadPair{trackID, pkt})
 }

@@ -72,12 +72,16 @@ type Server struct {
 	// that is reading frames.
 	// It also allows to buffer routed frames and mitigate network fluctuations
 	// that are particularly high when using UDP.
-	// It defaults to 512
+	// It defaults to 256
 	ReadBufferCount int
 	// read buffer size.
 	// This must be touched only when the server reports errors about buffer sizes.
 	// It defaults to 2048.
 	ReadBufferSize int
+	// write buffer count.
+	// It allows to queue packets before sending them.
+	// It defaults to 256.
+	WriteBufferCount int
 
 	//
 	// system functions
@@ -100,14 +104,11 @@ type Server struct {
 	sessions    map[string]*ServerSession
 	conns       map[*ServerConn]struct{}
 	closeError  error
-	streams     map[*ServerStream]struct{}
 
 	// in
 	connClose      chan *ServerConn
 	sessionRequest chan sessionRequestReq
 	sessionClose   chan *ServerSession
-	streamAdd      chan *ServerStream
-	streamRemove   chan *ServerStream
 }
 
 // ErrServerMissingRTSPaddress RTSPAddress not provided.
@@ -123,10 +124,13 @@ func (s *Server) Start() error {
 		s.WriteTimeout = 10 * time.Second
 	}
 	if s.ReadBufferCount == 0 {
-		s.ReadBufferCount = 512
+		s.ReadBufferCount = 256
 	}
 	if s.ReadBufferSize == 0 {
 		s.ReadBufferSize = 2048
+	}
+	if s.WriteBufferCount == 0 {
+		s.WriteBufferCount = 256
 	}
 
 	// system functions
@@ -182,12 +186,9 @@ func (s *Server) run() { //nolint:funlen,gocognit
 
 	s.sessions = make(map[string]*ServerSession)
 	s.conns = make(map[*ServerConn]struct{})
-	s.streams = make(map[*ServerStream]struct{})
 	s.connClose = make(chan *ServerConn)
 	s.sessionRequest = make(chan sessionRequestReq)
 	s.sessionClose = make(chan *ServerSession)
-	s.streamAdd = make(chan *ServerStream)
-	s.streamRemove = make(chan *ServerStream)
 
 	s.wg.Add(1)
 	connNew := make(chan net.Conn)
@@ -290,12 +291,6 @@ func (s *Server) run() { //nolint:funlen,gocognit
 				delete(s.sessions, ss.secretID)
 				ss.Close()
 
-			case st := <-s.streamAdd:
-				s.streams[st] = struct{}{}
-
-			case st := <-s.streamRemove:
-				delete(s.streams, st)
-
 			case <-s.ctx.Done():
 				return liberrors.ErrServerTerminated
 			}
@@ -305,10 +300,6 @@ func (s *Server) run() { //nolint:funlen,gocognit
 	s.ctxCancel()
 
 	s.tcpListener.Close()
-
-	for st := range s.streams {
-		st.Close()
-	}
 }
 
 // StartAndWait starts the server and waits until a fatal error.

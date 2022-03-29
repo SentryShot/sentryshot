@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"nvr/pkg/video/gortsplib/pkg/aac"
-	"nvr/pkg/video/gortsplib/pkg/base"
 	"strconv"
 	"strings"
 
@@ -22,7 +21,7 @@ var (
 
 // TrackAAC is an AAC track.
 type TrackAAC struct {
-	control           string
+	trackBase
 	payloadType       uint8
 	typ               int
 	sampleRate        int
@@ -54,9 +53,10 @@ func NewTrackAAC(payloadType uint8, typ int, sampleRate int,
 	}, nil
 }
 
-func newTrackAACFromMediaDescription(payloadType uint8, md *psdp.MediaDescription) (*TrackAAC, error) {
-	control := trackFindControl(md)
-
+func newTrackAACFromMediaDescription(
+	control string,
+	payloadType uint8,
+	md *psdp.MediaDescription) (*TrackAAC, error) {
 	v, ok := md.Attribute("fmtp")
 	if !ok {
 		return nil, ErrAACfmtpMissing
@@ -92,13 +92,12 @@ func newTrackAACFromMediaDescription(payloadType uint8, md *psdp.MediaDescriptio
 			}
 
 			// re-encode the conf to normalize it
-			enc, err = mpegConf.Encode()
-			if err != nil {
-				return nil, fmt.Errorf("%w (%v)", ErrACCconfigInvalid, tmp[1])
-			}
+			enc, _ = mpegConf.Encode()
 
 			return &TrackAAC{
-				control:           control,
+				trackBase: trackBase{
+					control: control,
+				},
 				payloadType:       payloadType,
 				typ:               int(mpegConf.Type),
 				sampleRate:        mpegConf.SampleRate,
@@ -134,7 +133,7 @@ func (t *TrackAAC) AOTSpecificConfig() []byte {
 
 func (t *TrackAAC) clone() Track {
 	return &TrackAAC{
-		control:           t.control,
+		trackBase:         t.trackBase,
 		payloadType:       t.payloadType,
 		typ:               t.typ,
 		sampleRate:        t.sampleRate,
@@ -144,19 +143,8 @@ func (t *TrackAAC) clone() Track {
 	}
 }
 
-func (t *TrackAAC) getControl() string {
-	return t.control
-}
-
-func (t *TrackAAC) setControl(c string) {
-	t.control = c
-}
-
-func (t *TrackAAC) url(contentBase *base.URL) (*base.URL, error) {
-	return trackURL(t, contentBase)
-}
-
-func (t *TrackAAC) mediaDescription() *psdp.MediaDescription {
+// MediaDescription returns the track media description in SDP format.
+func (t *TrackAAC) MediaDescription() *psdp.MediaDescription {
 	typ := strconv.FormatInt(int64(t.payloadType), 10)
 
 	return &psdp.MediaDescription{

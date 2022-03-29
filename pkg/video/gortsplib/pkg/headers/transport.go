@@ -39,6 +39,9 @@ type Transport struct {
 	// protocol of the stream
 	Protocol TransportProtocol
 
+	// (optional) Source IP
+	Source *net.IP
+
 	// (optional) destination IP
 	Destination *net.IP
 

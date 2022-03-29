@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pion/rtp"
+	"github.com/pion/rtp/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -87,6 +87,7 @@ func TestServerReadSetupPath(t *testing.T) {
 			require.NoError(t, err)
 
 			stream := NewServerStream(Tracks{track, track, track, track, track})
+			defer stream.Close()
 
 			s := &Server{
 				Handler: &testServerHandler{
@@ -142,6 +143,7 @@ func TestServerReadSetupErrors(t *testing.T) {
 			require.NoError(t, err)
 
 			stream := NewServerStream(Tracks{track})
+			defer stream.Close()
 
 			s := &Server{
 				Handler: &testServerHandler{
@@ -229,12 +231,21 @@ func TestServerReadSetupErrors(t *testing.T) {
 }
 
 func TestServerReadNonStandardFrameSize(t *testing.T) {
+	packet := rtp.Packet{
+		Header: rtp.Header{
+			Version:     2,
+			PayloadType: 97,
+			CSRC:        []uint32{},
+		},
+		Payload: bytes.Repeat([]byte{0x01, 0x02, 0x03, 0x04, 0x05}, 4096/5),
+	}
+	packetMarshaled, _ := packet.Marshal()
+
 	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
 	require.NoError(t, err)
 
 	stream := NewServerStream(Tracks{track})
-
-	payload := bytes.Repeat([]byte{0x01, 0x02, 0x03, 0x04, 0x05}, 4096/5)
+	defer stream.Close()
 
 	s := &Server{
 		Handler: &testServerHandler{
@@ -245,8 +256,8 @@ func TestServerReadNonStandardFrameSize(t *testing.T) {
 			},
 			onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
 				go func() {
-					time.Sleep(20 * time.Millisecond)
-					stream.WritePacketRTP(0, payload)
+					time.Sleep(10 * time.Millisecond)
+					stream.WritePacketRTP(0, &packet)
 				}()
 
 				return &base.Response{
@@ -305,7 +316,7 @@ func TestServerReadNonStandardFrameSize(t *testing.T) {
 	err = f.Read(br)
 	require.NoError(t, err)
 	require.Equal(t, 0, f.Channel)
-	require.Equal(t, payload, f.Payload)
+	require.Equal(t, packetMarshaled, f.Payload)
 }
 
 func TestServerReadTCPResponseBeforeFrames(t *testing.T) {
@@ -316,6 +327,7 @@ func TestServerReadTCPResponseBeforeFrames(t *testing.T) {
 	require.NoError(t, err)
 
 	stream := NewServerStream(Tracks{track})
+	defer stream.Close()
 
 	s := &Server{
 		RTSPaddress: "localhost:8554",
@@ -333,7 +345,7 @@ func TestServerReadTCPResponseBeforeFrames(t *testing.T) {
 				go func() {
 					defer close(writerDone)
 
-					stream.WritePacketRTP(0, []byte("\x00\x00\x00\x00"))
+					stream.WritePacketRTP(0, &testRTPPacket)
 
 					t := time.NewTicker(50 * time.Millisecond)
 					defer t.Stop()
@@ -341,7 +353,7 @@ func TestServerReadTCPResponseBeforeFrames(t *testing.T) {
 					for {
 						select {
 						case <-t.C:
-							stream.WritePacketRTP(0, []byte("\x00\x00\x00\x00"))
+							stream.WritePacketRTP(0, &testRTPPacket)
 						case <-writerTerminate:
 							return
 						}
@@ -414,6 +426,7 @@ func TestServerReadPlayPausePlay(t *testing.T) {
 	require.NoError(t, err)
 
 	stream := NewServerStream(Tracks{track})
+	defer stream.Close()
 
 	s := &Server{
 		Handler: &testServerHandler{
@@ -438,7 +451,7 @@ func TestServerReadPlayPausePlay(t *testing.T) {
 						for {
 							select {
 							case <-t.C:
-								stream.WritePacketRTP(0, []byte("\x00\x00\x00\x00"))
+								stream.WritePacketRTP(0, &testRTPPacket)
 							case <-writerTerminate:
 								return
 							}
@@ -532,6 +545,7 @@ func TestServerReadPlayPausePause(t *testing.T) {
 	require.NoError(t, err)
 
 	stream := NewServerStream(Tracks{track})
+	defer stream.Close()
 
 	s := &Server{
 		Handler: &testServerHandler{
@@ -554,7 +568,7 @@ func TestServerReadPlayPausePause(t *testing.T) {
 					for {
 						select {
 						case <-t.C:
-							stream.WritePacketRTP(0, []byte("\x00\x00\x00\x00"))
+							stream.WritePacketRTP(0, &testRTPPacket)
 						case <-writerTerminate:
 							return
 						}
@@ -656,6 +670,7 @@ func TestServerReadWithoutTeardown(t *testing.T) {
 	require.NoError(t, err)
 
 	stream := NewServerStream(Tracks{track})
+	defer stream.Close()
 
 	s := &Server{
 		Handler: &testServerHandler{
@@ -735,89 +750,6 @@ func TestServerReadWithoutTeardown(t *testing.T) {
 
 	<-sessionClosed
 	<-connClosed
-}
-
-func TestServerReadPartialTracks(t *testing.T) {
-	track1, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
-
-	track2, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
-
-	stream := NewServerStream(Tracks{track1, track2})
-
-	s := &Server{
-		Handler: &testServerHandler{
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, stream, nil
-			},
-			onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
-				go func() {
-					time.Sleep(20 * time.Millisecond)
-					stream.WritePacketRTP(0, []byte{0x01, 0x02, 0x03, 0x04})
-					stream.WritePacketRTP(1, []byte{0x05, 0x06, 0x07, 0x08})
-				}()
-
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, nil
-			},
-		},
-		RTSPaddress: "localhost:8554",
-	}
-
-	err = s.Start()
-	require.NoError(t, err)
-	defer s.Close()
-
-	conn, err := net.Dial("tcp", "localhost:8554")
-	require.NoError(t, err)
-	defer conn.Close()
-	br := bufio.NewReader(conn)
-
-	inTH := &headers.Transport{
-		Mode: func() *headers.TransportMode {
-			v := headers.TransportModePlay
-			return &v
-		}(),
-		Protocol:       headers.TransportProtocolTCP,
-		InterleavedIDs: &[2]int{4, 5},
-	}
-
-	res, err := writeReqReadRes(conn, br, base.Request{
-		Method: base.Setup,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=1"),
-		Header: base.Header{
-			"CSeq":      base.HeaderValue{"1"},
-			"Transport": inTH.Write(),
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-
-	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
-	require.NoError(t, err)
-
-	res, err = writeReqReadRes(conn, br, base.Request{
-		Method: base.Play,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream"),
-		Header: base.Header{
-			"CSeq":    base.HeaderValue{"2"},
-			"Session": base.HeaderValue{sx.Session},
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-
-	var f base.InterleavedFrame
-	f.Payload = make([]byte, 2048)
-	err = f.Read(br)
-	require.NoError(t, err)
-	require.Equal(t, 4, f.Channel)
-	require.Equal(t, []byte{0x05, 0x06, 0x07, 0x08}, f.Payload)
 }
 
 func TestServerReadAdditionalInfos(t *testing.T) {
@@ -906,6 +838,7 @@ func TestServerReadAdditionalInfos(t *testing.T) {
 	require.NoError(t, err)
 
 	stream := NewServerStream(Tracks{track, track})
+	defer stream.Close()
 
 	s := &Server{
 		Handler: &testServerHandler{
@@ -915,12 +848,6 @@ func TestServerReadAdditionalInfos(t *testing.T) {
 				}, stream, nil
 			},
 			onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
-				go func() {
-					time.Sleep(20 * time.Millisecond)
-					stream.WritePacketRTP(1, []byte{0x01, 0x02, 0x03, 0x04})
-					stream.WritePacketRTP(0, []byte{0x05, 0x06, 0x07, 0x08})
-				}()
-
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
@@ -933,7 +860,7 @@ func TestServerReadAdditionalInfos(t *testing.T) {
 	require.NoError(t, err)
 	defer s.Close()
 
-	buf, err := (&rtp.Packet{
+	stream.WritePacketRTP(0, &rtp.Packet{
 		Header: rtp.Header{
 			Version:        0x80,
 			PayloadType:    96,
@@ -942,9 +869,7 @@ func TestServerReadAdditionalInfos(t *testing.T) {
 			SSRC:           96342362,
 		},
 		Payload: []byte{0x01, 0x02, 0x03, 0x04},
-	}).Marshal()
-	require.NoError(t, err)
-	stream.WritePacketRTP(0, buf)
+	})
 
 	rtpInfo, ssrcs := getInfos()
 	require.Equal(t, &headers.RTPinfo{
@@ -969,7 +894,7 @@ func TestServerReadAdditionalInfos(t *testing.T) {
 		nil,
 	}, ssrcs)
 
-	buf, err = (&rtp.Packet{
+	stream.WritePacketRTP(1, &rtp.Packet{
 		Header: rtp.Header{
 			Version:        0x80,
 			PayloadType:    96,
@@ -978,9 +903,7 @@ func TestServerReadAdditionalInfos(t *testing.T) {
 			SSRC:           536474323,
 		},
 		Payload: []byte{0x01, 0x02, 0x03, 0x04},
-	}).Marshal()
-	require.NoError(t, err)
-	stream.WritePacketRTP(1, buf)
+	})
 
 	rtpInfo, ssrcs = getInfos()
 	require.Equal(t, &headers.RTPinfo{

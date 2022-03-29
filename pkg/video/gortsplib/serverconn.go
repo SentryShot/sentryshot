@@ -30,17 +30,12 @@ type ServerConn struct {
 	s    *Server
 	conn net.Conn
 
-	ctx              context.Context
-	ctxCancel        func()
-	remoteAddr       *net.TCPAddr
-	br               *bufio.Reader
-	sessions         map[string]*ServerSession
-	tcpFrameEnabled  bool
-	tcpSession       *ServerSession
-	tcpFrameTimeout  bool
-	tcpReadBuffer    *multibuffer.MultiBuffer
-	tcpProcessFunc   func(int, []byte)
-	tcpWriterRunning bool
+	ctx        context.Context
+	ctxCancel  func()
+	remoteAddr *net.TCPAddr
+	br         *bufio.Reader
+	session    *ServerSession
+	readFunc   func(readRequest chan readReq) error
 
 	// in
 	sessionRemove chan *ServerSession
@@ -51,13 +46,8 @@ type ServerConn struct {
 
 func newServerConn(
 	s *Server,
-	nconn net.Conn) *ServerConn {
+	conn net.Conn) *ServerConn {
 	ctx, ctxCancel := context.WithCancel(s.ctx)
-
-	conn := func() net.Conn {
-		return nconn
-	}()
-
 	sc := &ServerConn{
 		s:             s,
 		conn:          conn,
@@ -67,6 +57,8 @@ func newServerConn(
 		sessionRemove: make(chan *ServerSession),
 		done:          make(chan struct{}),
 	}
+
+	sc.readFunc = sc.readFuncStandard
 
 	s.wg.Add(1)
 	go sc.run()
@@ -93,7 +85,7 @@ func (sc *ServerConn) zone() string {
 	return sc.remoteAddr.Zone
 }
 
-func (sc *ServerConn) run() { //nolint:funlen
+func (sc *ServerConn) run() {
 	defer sc.s.wg.Done()
 	defer close(sc.done)
 
@@ -104,13 +96,11 @@ func (sc *ServerConn) run() { //nolint:funlen
 	}
 
 	sc.br = bufio.NewReaderSize(sc.conn, serverReadBufferSize)
-	sc.sessions = make(map[string]*ServerSession)
 
 	readRequest := make(chan readReq)
 	readErr := make(chan error)
 	readDone := make(chan struct{})
-
-	go sc.runLoop(readDone, readRequest, readErr)
+	go sc.runReader(readRequest, readErr, readDone)
 
 	err := func() error {
 		for {
@@ -122,13 +112,8 @@ func (sc *ServerConn) run() { //nolint:funlen
 				return err
 
 			case ss := <-sc.sessionRemove:
-				if _, ok := sc.sessions[ss.secretID]; ok {
-					delete(sc.sessions, ss.secretID)
-
-					select {
-					case ss.connRemove <- sc:
-					case <-ss.ctx.Done():
-					}
+				if sc.session == ss {
+					sc.session = nil
 				}
 
 			case <-sc.ctx.Done():
@@ -142,10 +127,10 @@ func (sc *ServerConn) run() { //nolint:funlen
 	sc.conn.Close()
 	<-readDone
 
-	for _, ss := range sc.sessions {
+	if sc.session != nil {
 		select {
-		case ss.connRemove <- sc:
-		case <-ss.ctx.Done():
+		case sc.session.connRemove <- sc:
+		case <-sc.session.ctx.Done():
 		}
 	}
 
@@ -162,90 +147,134 @@ func (sc *ServerConn) run() { //nolint:funlen
 	}
 }
 
-func (sc *ServerConn) runLoop( //nolint:funlen,gocognit
-	readDone chan struct{},
-	readRequest chan readReq,
-	readErr chan error) {
+var errSwitchReadFunc = errors.New("switch read function")
+
+func (sc *ServerConn) runReader(readRequest chan readReq, readErr chan error, readDone chan struct{}) {
 	defer close(readDone)
-	err := func() error {
-		var req base.Request
-		var frame base.InterleavedFrame
 
-		for {
-			if sc.tcpFrameEnabled { //nolint:nestif
-				if sc.tcpFrameTimeout {
-					err := sc.conn.SetReadDeadline(time.Now().Add(sc.s.ReadTimeout))
-					if err != nil {
-						return err
-					}
-				}
+	for {
+		err := sc.readFunc(readRequest)
 
-				frame.Payload = sc.tcpReadBuffer.Next()
-				what, err := base.ReadInterleavedFrameOrRequest(&frame, &req, sc.br)
-				if err != nil {
-					return err
-				}
-
-				switch what.(type) {
-				case *base.InterleavedFrame:
-					channel := frame.Channel
-
-					// forward frame only if it has been set up
-					if trackID, ok := sc.tcpSession.tcpTracksByChannel[channel]; ok {
-						sc.tcpProcessFunc(trackID, frame.Payload)
-					}
-
-				case *base.Request:
-					cres := make(chan error)
-					select {
-					case readRequest <- readReq{req: &req, res: cres}:
-						err := <-cres
-						if err != nil {
-							return err
-						}
-
-					case <-sc.ctx.Done():
-						return liberrors.ErrServerTerminated
-					}
-				}
-			} else {
-				err := req.Read(sc.br)
-				if err != nil {
-					return err
-				}
-
-				cres := make(chan error)
-				select {
-				case readRequest <- readReq{req: &req, res: cres}:
-					err = <-cres
-					if err != nil {
-						return err
-					}
-
-				case <-sc.ctx.Done():
-					return liberrors.ErrServerTerminated
-				}
-			}
+		if errors.Is(err, errSwitchReadFunc) {
+			continue
 		}
-	}()
+
+		select {
+		case readErr <- err:
+		case <-sc.ctx.Done():
+		}
+		break
+	}
+}
+
+func (sc *ServerConn) readFuncStandard(readRequest chan readReq) error {
+	// reset deadline
+	sc.conn.SetReadDeadline(time.Time{}) //nolint:errcheck
+
+	var req base.Request
+
+	for {
+		err := req.Read(sc.br)
+		if err != nil {
+			return err
+		}
+
+		cres := make(chan error)
+		select {
+		case readRequest <- readReq{req: &req, res: cres}:
+			err = <-cres
+			if err != nil {
+				return err
+			}
+
+		case <-sc.ctx.Done():
+			return liberrors.ErrServerTerminated
+		}
+	}
+}
+
+func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:funlen
+	// reset deadline
+	sc.conn.SetReadDeadline(time.Time{}) // nolint:errcheck
 
 	select {
-	case readErr <- err:
-	case <-sc.ctx.Done():
+	case sc.session.startWriter <- struct{}{}:
+	case <-sc.session.ctx.Done():
+	}
+
+	var tcpReadBuffer *multibuffer.MultiBuffer
+	var processFunc func(int, []byte)
+
+	if sc.session.state == ServerSessionStatePlay {
+		// when playing, tcpReadBuffer is only used to receive RTCP receiver reports,
+		// that are much smaller than RTP packets and are sent at a fixed interval.
+		// decrease RAM consumption by allocating less buffers.
+		tcpReadBuffer = multibuffer.New(8, uint64(sc.s.ReadBufferSize))
+	} else {
+		tcpReadBuffer = multibuffer.New(uint64(sc.s.ReadBufferCount), uint64(sc.s.ReadBufferSize))
+		tcpRTPPacketBuffer := newRTPPacketMultiBuffer(uint64(sc.s.ReadBufferCount))
+
+		processFunc = func(trackID int, payload []byte) {
+			pkt := tcpRTPPacketBuffer.next()
+			err := pkt.Unmarshal(payload)
+			if err != nil {
+				return
+			}
+
+			// remove padding
+			pkt.Header.Padding = false
+			pkt.PaddingSize = 0
+
+			if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
+				h.OnPacketRTP(&ServerHandlerOnPacketRTPCtx{
+					Session: sc.session,
+					TrackID: trackID,
+					Packet:  pkt,
+				})
+			}
+		}
+	}
+
+	var req base.Request
+	var frame base.InterleavedFrame
+
+	for {
+		if sc.session.state == ServerSessionStateRecord {
+			sc.conn.SetReadDeadline(time.Now().Add(sc.s.ReadTimeout)) //nolint:errcheck
+		}
+
+		frame.Payload = tcpReadBuffer.Next()
+		what, err := base.ReadInterleavedFrameOrRequest(&frame, &req, sc.br)
+		if err != nil {
+			return err
+		}
+
+		switch what.(type) {
+		case *base.InterleavedFrame:
+			channel := frame.Channel
+
+			// forward frame only if it has been set up
+			if trackID, ok := sc.session.tcpTracksByChannel[channel]; ok {
+				processFunc(trackID, frame.Payload)
+			}
+
+		case *base.Request:
+			cres := make(chan error)
+			select {
+			case readRequest <- readReq{req: &req, res: cres}:
+				err := <-cres
+				if err != nil {
+					return err
+				}
+
+			case <-sc.ctx.Done():
+				return liberrors.ErrServerTerminated
+			}
+		}
 	}
 }
 
-func (sc *ServerConn) tcpProcessRecord(trackID int, payload []byte) {
-	if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
-		h.OnPacketRTP(&ServerHandlerOnPacketRTPCtx{
-			Session: sc.tcpSession,
-			TrackID: trackID,
-			Payload: payload,
-		})
-	}
-}
-
-func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) { //nolint:funlen,gocognit
+func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) { //nolint:funlen,gocognit,gocyclo
 	if cseq, ok := req.Header["CSeq"]; !ok || len(cseq) != 1 {
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
@@ -255,18 +284,44 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 
 	sxID := getSessionID(req.Header)
 
-	// the connection can't communicate with another session
-	// if it's receiving or sending TCP frames.
-	if sc.tcpSession != nil &&
-		sxID != sc.tcpSession.secretID {
-		return &base.Response{
-			StatusCode: base.StatusBadRequest,
-		}, liberrors.ErrServerLinkedToOtherSession
-	}
-
 	switch req.Method {
 	case base.Options:
-		return sc.handleOptions(sxID, req)
+		if sxID != "" {
+			return sc.handleRequestInSession(sxID, req, false)
+		}
+
+		// handle request here
+		var methods []string
+		if _, ok := sc.s.Handler.(ServerHandlerOnDescribe); ok {
+			methods = append(methods, string(base.Describe))
+		}
+		if _, ok := sc.s.Handler.(ServerHandlerOnAnnounce); ok {
+			methods = append(methods, string(base.Announce))
+		}
+		if _, ok := sc.s.Handler.(ServerHandlerOnSetup); ok {
+			methods = append(methods, string(base.Setup))
+		}
+		if _, ok := sc.s.Handler.(ServerHandlerOnPlay); ok {
+			methods = append(methods, string(base.Play))
+		}
+		if _, ok := sc.s.Handler.(ServerHandlerOnRecord); ok {
+			methods = append(methods, string(base.Record))
+		}
+		if _, ok := sc.s.Handler.(ServerHandlerOnPause); ok {
+			methods = append(methods, string(base.Pause))
+		}
+		methods = append(methods, string(base.GetParameter))
+		if _, ok := sc.s.Handler.(ServerHandlerOnSetParameter); ok {
+			methods = append(methods, string(base.SetParameter))
+		}
+		methods = append(methods, string(base.Teardown))
+
+		return &base.Response{
+			StatusCode: base.StatusOK,
+			Header: base.Header{
+				"Public": base.HeaderValue{strings.Join(methods, ", ")},
+			},
+		}, nil
 
 	case base.Describe:
 		if h, ok := sc.s.Handler.(ServerHandlerOnDescribe); ok { //nolint:nestif
@@ -280,10 +335,10 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 			path, query := base.PathSplitQuery(pathAndQuery)
 
 			res, stream, err := h.OnDescribe(&ServerHandlerOnDescribeCtx{
-				Conn:  sc,
-				Req:   req,
-				Path:  path,
-				Query: query,
+				Conn:    sc,
+				Request: req,
+				Path:    path,
+				Query:   query,
 			})
 
 			if res.StatusCode == base.StatusOK {
@@ -313,25 +368,32 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 		}
 
 	case base.Play:
-		if _, ok := sc.s.Handler.(ServerHandlerOnPlay); ok {
-			return sc.handleRequestInSession(sxID, req, false)
+		if sxID != "" {
+			if _, ok := sc.s.Handler.(ServerHandlerOnPlay); ok {
+				return sc.handleRequestInSession(sxID, req, false)
+			}
 		}
 
 	case base.Record:
-		if _, ok := sc.s.Handler.(ServerHandlerOnRecord); ok {
-			return sc.handleRequestInSession(sxID, req, false)
+		if sxID != "" {
+			if _, ok := sc.s.Handler.(ServerHandlerOnRecord); ok {
+				return sc.handleRequestInSession(sxID, req, false)
+			}
 		}
 
 	case base.Pause:
-		if _, ok := sc.s.Handler.(ServerHandlerOnPause); ok {
-			return sc.handleRequestInSession(sxID, req, false)
+		if sxID != "" {
+			if _, ok := sc.s.Handler.(ServerHandlerOnPause); ok {
+				return sc.handleRequestInSession(sxID, req, false)
+			}
 		}
 
 	case base.Teardown:
-		return sc.handleRequestInSession(sxID, req, false)
+		if sxID != "" {
+			return sc.handleRequestInSession(sxID, req, false)
+		}
 
 	case base.GetParameter:
-		// handle request in session
 		if sxID != "" {
 			return sc.handleRequestInSession(sxID, req, false)
 		}
@@ -348,10 +410,10 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 			path, query := base.PathSplitQuery(pathAndQuery)
 
 			return h.OnGetParameter(&ServerHandlerOnGetParameterCtx{
-				Conn:  sc,
-				Req:   req,
-				Path:  path,
-				Query: query,
+				Conn:    sc,
+				Request: req,
+				Path:    path,
+				Query:   query,
 			})
 		}
 
@@ -367,57 +429,17 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 			path, query := base.PathSplitQuery(pathAndQuery)
 
 			return h.OnSetParameter(&ServerHandlerOnSetParameterCtx{
-				Conn:  sc,
-				Req:   req,
-				Path:  path,
-				Query: query,
+				Conn:    sc,
+				Request: req,
+				Path:    path,
+				Query:   query,
 			})
 		}
 	}
 
 	return &base.Response{
 		StatusCode: base.StatusBadRequest,
-	}, liberrors.ServerUnhandledRequestError{Req: req}
-}
-
-func (sc *ServerConn) handleOptions(sxID string, req *base.Request) (*base.Response, error) {
-	// handle request in session
-	if sxID != "" {
-		return sc.handleRequestInSession(sxID, req, false)
-	}
-
-	// handle request here
-	var methods []string
-	if _, ok := sc.s.Handler.(ServerHandlerOnDescribe); ok {
-		methods = append(methods, string(base.Describe))
-	}
-	if _, ok := sc.s.Handler.(ServerHandlerOnAnnounce); ok {
-		methods = append(methods, string(base.Announce))
-	}
-	if _, ok := sc.s.Handler.(ServerHandlerOnSetup); ok {
-		methods = append(methods, string(base.Setup))
-	}
-	if _, ok := sc.s.Handler.(ServerHandlerOnPlay); ok {
-		methods = append(methods, string(base.Play))
-	}
-	if _, ok := sc.s.Handler.(ServerHandlerOnRecord); ok {
-		methods = append(methods, string(base.Record))
-	}
-	if _, ok := sc.s.Handler.(ServerHandlerOnPause); ok {
-		methods = append(methods, string(base.Pause))
-	}
-	methods = append(methods, string(base.GetParameter))
-	if _, ok := sc.s.Handler.(ServerHandlerOnSetParameter); ok {
-		methods = append(methods, string(base.SetParameter))
-	}
-	methods = append(methods, string(base.Teardown))
-
-	return &base.Response{
-		StatusCode: base.StatusOK,
-		Header: base.Header{
-			"Public": base.HeaderValue{strings.Join(methods, ", ")},
-		},
-	}, nil
+	}, liberrors.ServerUnhandledRequestError{Request: req}
 }
 
 func (sc *ServerConn) handleRequestOuter(req *base.Request) error {
@@ -446,55 +468,51 @@ func (sc *ServerConn) handleRequestOuter(req *base.Request) error {
 	var buf bytes.Buffer
 	res.Write(&buf)
 
-	err2 := sc.conn.SetWriteDeadline(time.Now().Add(sc.s.WriteTimeout))
-	if err2 != nil {
-		return err2
-	}
-
-	_, err2 = sc.conn.Write(buf.Bytes())
-	if err2 != nil {
-		return err2
-	}
-
-	// start writer after sending the response
-	if sc.tcpFrameEnabled && !sc.tcpWriterRunning {
-		sc.tcpWriterRunning = true
-		select {
-		case sc.tcpSession.startWriter <- struct{}{}:
-		case <-sc.tcpSession.ctx.Done():
-		}
-	}
+	sc.conn.SetWriteDeadline(time.Now().Add(sc.s.WriteTimeout)) //nolint:errcheck
+	sc.conn.Write(buf.Bytes())                                  //nolint:errcheck
 
 	return err
 }
 
-func (sc *ServerConn) handleRequestInSession(
+func (sc *ServerConn) handleRequestInSession( //nolint:funlen
 	sxID string,
 	req *base.Request,
 	create bool,
 ) (*base.Response, error) {
-	// if the session is already linked to this conn, communicate directly with it
-	if sxID != "" {
-		if ss, ok := sc.sessions[sxID]; ok {
-			cres := make(chan sessionRequestRes)
-			sreq := sessionRequestReq{
-				sc:     sc,
-				req:    req,
-				id:     sxID,
-				create: create,
-				res:    cres,
-			}
-
-			select {
-			case ss.request <- sreq:
-				res := <-cres
-				return res.res, res.err
-
-			case <-ss.ctx.Done():
+	// handle directly in Session
+	if sc.session != nil {
+		// session ID is optional in SETUP and ANNOUNCE requests, since
+		// client may not have received the session ID yet due to multiple reasons:
+		// * requests can be retries after code 301
+		// * SETUP requests comes after ANNOUNCE response, that don't contain the session ID
+		if sxID != "" {
+			// the connection can't communicate with two sessions at once.
+			if sxID != sc.session.secretID {
 				return &base.Response{
 					StatusCode: base.StatusBadRequest,
-				}, liberrors.ErrServerTerminated
+				}, liberrors.ErrServerLinkedToOtherSession
 			}
+		}
+
+		cres := make(chan sessionRequestRes)
+		sreq := sessionRequestReq{
+			sc:     sc,
+			req:    req,
+			id:     sxID,
+			create: create,
+			res:    cres,
+		}
+
+		select {
+		case sc.session.request <- sreq:
+			res := <-cres
+			sc.session = res.ss
+			return res.res, res.err
+
+		case <-sc.session.ctx.Done():
+			return &base.Response{
+				StatusCode: base.StatusBadRequest,
+			}, liberrors.ErrServerTerminated
 		}
 	}
 
@@ -511,9 +529,7 @@ func (sc *ServerConn) handleRequestInSession(
 	select {
 	case sc.s.sessionRequest <- sreq:
 		res := <-cres
-		if res.ss != nil {
-			sc.sessions[res.ss.secretID] = res.ss
-		}
+		sc.session = res.ss
 
 		return res.res, res.err
 

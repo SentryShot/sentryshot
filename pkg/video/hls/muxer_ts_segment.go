@@ -10,12 +10,16 @@ import (
 	"time"
 )
 
+// pcrOffset an offset between PCR and PTS/DTS is needed to avoid PCR > PTS.
+const pcrOffset = 500 * time.Millisecond
+
 // MuxerTSSegment hls segment.
 type MuxerTSSegment struct {
 	hlsSegmentMaxSize uint64
 	videoTrack        *gortsplib.TrackH264
-	writer            *muxerTSWriter
+	writeData         func(*mpegts.MuxerData) (int, error)
 
+	startTime      time.Time
 	name           string
 	buf            bytes.Buffer
 	startPTS       *time.Duration
@@ -25,23 +29,23 @@ type MuxerTSSegment struct {
 }
 
 func newMuxerTSSegment(
+	now time.Time,
 	hlsSegmentMaxSize uint64,
 	videoTrack *gortsplib.TrackH264,
-	writer *muxerTSWriter,
+	writeData func(*mpegts.MuxerData) (int, error),
 ) *MuxerTSSegment {
 	t := &MuxerTSSegment{
 		hlsSegmentMaxSize: hlsSegmentMaxSize,
 		videoTrack:        videoTrack,
-		writer:            writer,
-		name:              strconv.FormatInt(time.Now().Unix(), 10),
+		writeData:         writeData,
+		startTime:         now,
+		name:              strconv.FormatInt(now.Unix(), 10),
 	}
 
 	// WriteTable() is called automatically when WriteData() is called with
 	// - PID == PCRPID
 	// - AdaptationField != nil
 	// - RandomAccessIndicator = true
-
-	writer.currentSegment = t
 
 	return t
 }
@@ -67,7 +71,7 @@ func (t *MuxerTSSegment) reader() io.Reader {
 }
 
 func (t *MuxerTSSegment) writeH264(
-	startPCR time.Time,
+	pcr time.Duration,
 	dts time.Duration,
 	pts time.Duration,
 	idrPresent bool,
@@ -87,7 +91,7 @@ func (t *MuxerTSSegment) writeH264(
 			af = &mpegts.PacketAdaptationField{}
 		}
 		af.HasPCR = true
-		af.PCR = &mpegts.ClockReference{Base: int64(time.Since(startPCR).Seconds() * 90000)}
+		af.PCR = &mpegts.ClockReference{Base: int64(pcr.Seconds() * 90000)}
 		t.pcrSendCounter = 3
 	}
 	t.pcrSendCounter--
@@ -98,14 +102,14 @@ func (t *MuxerTSSegment) writeH264(
 
 	if dts == pts {
 		oh.PTSDTSIndicator = mpegts.PTSDTSIndicatorOnlyPTS
-		oh.PTS = &mpegts.ClockReference{Base: int64(pts.Seconds() * 90000)}
+		oh.PTS = &mpegts.ClockReference{Base: int64((pts + pcrOffset).Seconds() * 90000)}
 	} else {
 		oh.PTSDTSIndicator = mpegts.PTSDTSIndicatorBothPresent
-		oh.DTS = &mpegts.ClockReference{Base: int64(dts.Seconds() * 90000)}
-		oh.PTS = &mpegts.ClockReference{Base: int64(pts.Seconds() * 90000)}
+		oh.DTS = &mpegts.ClockReference{Base: int64((dts + pcrOffset).Seconds() * 90000)}
+		oh.PTS = &mpegts.ClockReference{Base: int64((pts + pcrOffset).Seconds() * 90000)}
 	}
 
-	_, err := t.writer.WriteData(&mpegts.MuxerData{
+	_, err := t.writeData(&mpegts.MuxerData{
 		PID:             256,
 		AdaptationField: af,
 		PES: &mpegts.PESData{
@@ -123,12 +127,14 @@ func (t *MuxerTSSegment) writeH264(
 	if t.startPTS == nil {
 		t.startPTS = &pts
 	}
-	t.endPTS = pts // save endPTS in case next write fails
+	if pts > t.endPTS {
+		t.endPTS = pts
+	}
 	return nil
 }
 
 func (t *MuxerTSSegment) writeAAC(
-	startPCR time.Time,
+	pcr time.Duration,
 	pts time.Duration,
 	enc []byte,
 	ausLen int) error {
@@ -140,12 +146,12 @@ func (t *MuxerTSSegment) writeAAC(
 		// send PCR once in a while
 		if t.pcrSendCounter == 0 {
 			af.HasPCR = true
-			af.PCR = &mpegts.ClockReference{Base: int64(time.Since(startPCR).Seconds() * 90000)}
+			af.PCR = &mpegts.ClockReference{Base: int64(pcr.Seconds() * 90000)}
 			t.pcrSendCounter = 3
 		}
 	}
 
-	_, err := t.writer.WriteData(&mpegts.MuxerData{
+	_, err := t.writeData(&mpegts.MuxerData{
 		PID:             257,
 		AdaptationField: af,
 		PES: &mpegts.PESData{
@@ -153,7 +159,7 @@ func (t *MuxerTSSegment) writeAAC(
 				OptionalHeader: &mpegts.PESOptionalHeader{
 					MarkerBits:      2,
 					PTSDTSIndicator: mpegts.PTSDTSIndicatorOnlyPTS,
-					PTS:             &mpegts.ClockReference{Base: int64(pts.Seconds() * 90000)},
+					PTS:             &mpegts.ClockReference{Base: int64((pts + pcrOffset).Seconds() * 90000)},
 				},
 				PacketLength: uint16(len(enc) + 8),
 				StreamID:     192, // audio
@@ -172,6 +178,10 @@ func (t *MuxerTSSegment) writeAAC(
 	if t.startPTS == nil {
 		t.startPTS = &pts
 	}
-	t.endPTS = pts // save endPTS in case next write fails
+
+	if pts > t.endPTS {
+		t.endPTS = pts
+	}
+
 	return nil
 }

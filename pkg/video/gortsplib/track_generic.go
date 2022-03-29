@@ -3,7 +3,6 @@ package gortsplib
 import (
 	"errors"
 	"fmt"
-	"nvr/pkg/video/gortsplib/pkg/base"
 	"strconv"
 	"strings"
 
@@ -13,18 +12,29 @@ import (
 // Generic track errors.
 var (
 	ErrGenericNoFormats     = errors.New("no formats provided")
-	ErrGenericRTPmapInvalid = errors.New("invalid rtpmap")
 	ErrGenericRTPmapMissing = errors.New("attribute 'rtpmap' not found")
+	ErrGenericRTPmapInvalid = errors.New("invalid rtpmap")
 )
 
-func trackGenericGetClockRate(md *psdp.MediaDescription) (int, error) {
-	if len(md.MediaName.Formats) < 1 {
+// IsClockRateError returns true if error
+// originated from trackGenericGetClockRate().
+func IsClockRateError(err error) bool {
+	if errors.Is(err, ErrGenericNoFormats) ||
+		errors.Is(err, ErrGenericRTPmapMissing) ||
+		errors.Is(err, ErrGenericRTPmapInvalid) {
+		return true
+	}
+	return false
+}
+
+func trackGenericGetClockRate(formats []string, rtpmap string) (int, error) {
+	if len(formats) < 1 {
 		return 0, ErrGenericNoFormats
 	}
 
 	// get clock rate from payload type
 	// https://en.wikipedia.org/wiki/RTP_payload_formats
-	switch md.MediaName.Formats[0] {
+	switch formats[0] {
 	case "0", "1", "2", "3", "4", "5", "7", "8", "9", "12", "13", "15", "18":
 		return 8000, nil
 
@@ -47,32 +57,30 @@ func trackGenericGetClockRate(md *psdp.MediaDescription) (int, error) {
 	// get clock rate from rtpmap
 	// https://tools.ietf.org/html/rfc4566
 	// a=rtpmap:<payload type> <encoding name>/<clock rate> [/<encoding parameters>]
-	for _, a := range md.Attributes {
-		if a.Key == "rtpmap" {
-			tmp := strings.Split(a.Value, " ")
-			if len(tmp) < 2 {
-				return 0, fmt.Errorf("%w (%v)", ErrGenericRTPmapInvalid, a.Value)
-			}
-
-			tmp = strings.Split(tmp[1], "/")
-			if len(tmp) != 2 && len(tmp) != 3 {
-				return 0, fmt.Errorf("%w (%v)", ErrGenericRTPmapInvalid, a.Value)
-			}
-
-			v, err := strconv.ParseInt(tmp[1], 10, 64)
-			if err != nil {
-				return 0, err
-			}
-			return int(v), nil
-		}
+	if rtpmap == "" {
+		return 0, ErrGenericRTPmapMissing
 	}
 
-	return 0, ErrGenericRTPmapMissing
+	tmp := strings.Split(rtpmap, " ")
+	if len(tmp) < 2 {
+		return 0, fmt.Errorf("%w (%v)", ErrGenericRTPmapInvalid, rtpmap)
+	}
+
+	tmp = strings.Split(tmp[1], "/")
+	if len(tmp) != 2 && len(tmp) != 3 {
+		return 0, fmt.Errorf("%w (%v)", ErrGenericRTPmapInvalid, rtpmap)
+	}
+
+	v, err := strconv.ParseInt(tmp[1], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return int(v), nil
 }
 
 // TrackGeneric is a generic track.
 type TrackGeneric struct {
-	control   string
+	trackBase
 	clockRate int
 	media     string
 	formats   []string
@@ -80,14 +88,25 @@ type TrackGeneric struct {
 	fmtp      string
 }
 
-func newTrackGenericFromMediaDescription(md *psdp.MediaDescription) (*TrackGeneric, error) {
-	control := trackFindControl(md)
-
-	clockRate, err := trackGenericGetClockRate(md)
+// NewTrackGeneric allocates a generic track.
+func NewTrackGeneric(media string, formats []string, rtpmap string, fmtp string) (*TrackGeneric, error) {
+	clockRate, err := trackGenericGetClockRate(formats, rtpmap)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get clock rate: %w", err)
 	}
 
+	return &TrackGeneric{
+		clockRate: clockRate,
+		media:     media,
+		formats:   formats,
+		rtpmap:    rtpmap,
+		fmtp:      fmtp,
+	}, nil
+}
+
+func newTrackGenericFromMediaDescription(
+	control string,
+	md *psdp.MediaDescription) (*TrackGeneric, error) {
 	rtpmap := func() string {
 		for _, attr := range md.Attributes {
 			if attr.Key == "rtpmap" {
@@ -96,6 +115,11 @@ func newTrackGenericFromMediaDescription(md *psdp.MediaDescription) (*TrackGener
 		}
 		return ""
 	}()
+
+	clockRate, err := trackGenericGetClockRate(md.MediaName.Formats, rtpmap)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get clock rate: %w", err)
+	}
 
 	fmtp := func() string {
 		for _, attr := range md.Attributes {
@@ -107,7 +131,9 @@ func newTrackGenericFromMediaDescription(md *psdp.MediaDescription) (*TrackGener
 	}()
 
 	return &TrackGeneric{
-		control:   control,
+		trackBase: trackBase{
+			control: control,
+		},
 		clockRate: clockRate,
 		media:     md.MediaName.Media,
 		formats:   md.MediaName.Formats,
@@ -123,7 +149,7 @@ func (t *TrackGeneric) ClockRate() int {
 
 func (t *TrackGeneric) clone() Track {
 	return &TrackGeneric{
-		control:   t.control,
+		trackBase: t.trackBase,
 		clockRate: t.clockRate,
 		media:     t.media,
 		formats:   t.formats,
@@ -132,19 +158,8 @@ func (t *TrackGeneric) clone() Track {
 	}
 }
 
-func (t *TrackGeneric) getControl() string {
-	return t.control
-}
-
-func (t *TrackGeneric) setControl(c string) {
-	t.control = c
-}
-
-func (t *TrackGeneric) url(contentBase *base.URL) (*base.URL, error) {
-	return trackURL(t, contentBase)
-}
-
-func (t *TrackGeneric) mediaDescription() *psdp.MediaDescription {
+// MediaDescription returns the track media description in SDP format.
+func (t *TrackGeneric) MediaDescription() *psdp.MediaDescription {
 	return &psdp.MediaDescription{
 		MediaName: psdp.MediaName{
 			Media:   t.media,

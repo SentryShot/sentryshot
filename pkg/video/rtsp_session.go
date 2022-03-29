@@ -8,6 +8,8 @@ import (
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"sync"
+
+	"github.com/pion/rtp/v2"
 )
 
 type rtspSession struct {
@@ -69,16 +71,16 @@ func (s *rtspSession) logf(level log.Level, conf PathConf, format string, args .
 // onClose is called by rtspServer.
 func (s *rtspSession) onClose(conf PathConf, err error) {
 	switch s.ss.State() {
-	case gortsplib.ServerSessionStatePreRead, gortsplib.ServerSessionStateRead:
+	case gortsplib.ServerSessionStatePrePlay, gortsplib.ServerSessionStatePlay:
 		s.path.onReaderRemove(pathReaderRemoveReq{author: s})
 		s.path = nil
 
-	case gortsplib.ServerSessionStatePrePublish, gortsplib.ServerSessionStatePublish:
+	case gortsplib.ServerSessionStatePreRecord, gortsplib.ServerSessionStateRecord:
 		s.path.onPublisherRemove(pathPublisherRemoveReq{author: s})
 		s.path = nil
 	}
 
-	s.logf(log.LevelDebug, conf, "closed (%v)", err)
+	s.logf(log.LevelDebug, conf, "destroyed (%v)", err)
 }
 
 // Errors .
@@ -105,7 +107,7 @@ func (s *rtspSession) onAnnounce(ctx *gortsplib.ServerHandlerOnAnnounceCtx) (*ba
 	s.announcedTracks = ctx.Tracks
 
 	s.stateMutex.Lock()
-	s.state = gortsplib.ServerSessionStatePrePublish
+	s.state = gortsplib.ServerSessionStatePreRecord
 	s.stateMutex.Unlock()
 
 	return &base.Response{
@@ -123,7 +125,7 @@ func (s *rtspSession) onSetup(ctx *gortsplib.ServerHandlerOnSetupCtx,
 
 	// record
 	if state != gortsplib.ServerSessionStateInitial &&
-		state != gortsplib.ServerSessionStatePreRead {
+		state != gortsplib.ServerSessionStatePrePlay {
 		return &base.Response{
 			StatusCode: base.StatusOK,
 		}, nil, nil
@@ -160,7 +162,7 @@ func (s *rtspSession) onSetup(ctx *gortsplib.ServerHandlerOnSetupCtx,
 	s.setuppedTracks[ctx.TrackID] = res.stream.tracks()[ctx.TrackID]
 
 	s.stateMutex.Lock()
-	s.state = gortsplib.ServerSessionStatePreRead
+	s.state = gortsplib.ServerSessionStatePrePlay
 	s.stateMutex.Unlock()
 
 	return &base.Response{
@@ -172,11 +174,11 @@ func (s *rtspSession) onSetup(ctx *gortsplib.ServerHandlerOnSetupCtx,
 func (s *rtspSession) onPlay() (*base.Response, error) {
 	h := make(base.Header)
 
-	if s.ss.State() == gortsplib.ServerSessionStatePreRead {
+	if s.ss.State() == gortsplib.ServerSessionStatePrePlay {
 		s.path.onReaderPlay(pathReaderPlayReq{author: s})
 
 		s.stateMutex.Lock()
-		s.state = gortsplib.ServerSessionStateRead
+		s.state = gortsplib.ServerSessionStatePlay
 		s.stateMutex.Unlock()
 	}
 
@@ -201,7 +203,7 @@ func (s *rtspSession) onRecord() (*base.Response, error) {
 	s.stream = res.stream
 
 	s.stateMutex.Lock()
-	s.state = gortsplib.ServerSessionStatePublish
+	s.state = gortsplib.ServerSessionStateRecord
 	s.stateMutex.Unlock()
 
 	return &base.Response{
@@ -212,18 +214,18 @@ func (s *rtspSession) onRecord() (*base.Response, error) {
 // onPause is called by rtspServer.
 func (s *rtspSession) onPause() (*base.Response, error) {
 	switch s.ss.State() { //nolint:exhaustive
-	case gortsplib.ServerSessionStateRead:
+	case gortsplib.ServerSessionStatePlay:
 		s.path.onReaderPause(pathReaderPauseReq{author: s})
 
 		s.stateMutex.Lock()
-		s.state = gortsplib.ServerSessionStatePreRead
+		s.state = gortsplib.ServerSessionStatePrePlay
 		s.stateMutex.Unlock()
 
-	case gortsplib.ServerSessionStatePublish:
+	case gortsplib.ServerSessionStateRecord:
 		s.path.onPublisherPause(pathPublisherPauseReq{author: s})
 
 		s.stateMutex.Lock()
-		s.state = gortsplib.ServerSessionStatePrePublish
+		s.state = gortsplib.ServerSessionStatePreRecord
 		s.stateMutex.Unlock()
 	}
 
@@ -251,7 +253,7 @@ func (s *rtspSession) onReaderAccepted() {
 }
 
 // onReaderPacketRTP implements reader.
-func (s *rtspSession) onReaderPacketRTP(trackID int, payload []byte) {
+func (s *rtspSession) onReaderPacketRTP(trackID int, pkt *rtp.Packet) {
 	// packets are routed to the session by gortsplib.ServerStream.
 }
 
@@ -267,9 +269,9 @@ func (s *rtspSession) onPublisherAccepted(tracksLen int) {
 
 // onPacketRTP is called by rtspServer.
 func (s *rtspSession) onPacketRTP(ctx *gortsplib.ServerHandlerOnPacketRTPCtx) {
-	if s.ss.State() != gortsplib.ServerSessionStatePublish {
+	if s.ss.State() != gortsplib.ServerSessionStateRecord {
 		return
 	}
 
-	s.stream.onPacketRTP(ctx.TrackID, ctx.Payload)
+	s.stream.writePacketRTP(ctx.TrackID, ctx.Packet)
 }

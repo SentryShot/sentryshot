@@ -4,25 +4,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
-	"net"
-	"nvr/pkg/video/gortsplib/pkg/h264"
 	"nvr/pkg/video/gortsplib/pkg/rtptimedec"
 	"time"
 
-	"github.com/pion/rtp"
+	"github.com/pion/rtp/v2"
 )
-
-// PacketConnReader creates a io.Reader around a net.PacketConn.
-type PacketConnReader struct {
-	net.PacketConn
-}
-
-// Read implements io.Reader.
-func (r PacketConnReader) Read(p []byte) (int, error) {
-	n, _, err := r.PacketConn.ReadFrom(p)
-	return n, err
-}
 
 // Decoder is a RTP/H264 decoder.
 type Decoder struct {
@@ -35,11 +21,9 @@ type Decoder struct {
 	naluBuffer [][]byte
 }
 
-// NewDecoder allocates a Decoder.
-func NewDecoder() *Decoder {
-	return &Decoder{
-		timeDecoder: rtptimedec.New(90000),
-	}
+// Init initializes the decoder.
+func (d *Decoder) Init() {
+	d.timeDecoder = rtptimedec.New(90000)
 }
 
 // ErrNonStartingPacketAndNoPrevious is returned when we decoded a non-starting
@@ -71,7 +55,6 @@ func (d *Decoder) Decode(pkt *rtp.Packet) ([][]byte, time.Duration, error) {
 }
 
 func (d *Decoder) decodeFragmented(pkt *rtp.Packet) ([][]byte, time.Duration, error) {
-	// we are decoding a fragmented NALU
 	if len(pkt.Payload) < 2 {
 		d.isDecodingFragmented = false
 		return nil, 0, ErrFUinvalidSize
@@ -112,27 +95,27 @@ func (d *Decoder) decodeUnfragmented(pkt *rtp.Packet) ([][]byte, time.Duration, 
 	switch typ {
 	case naluTypeSTAPA:
 		var nalus [][]byte
-		pkt.Payload = pkt.Payload[1:]
+		payload := pkt.Payload[1:]
 
-		for len(pkt.Payload) > 0 {
-			if len(pkt.Payload) < 2 {
+		for len(payload) > 0 {
+			if len(payload) < 2 {
 				return nil, 0, ErrSTAPinvalid
 			}
 
-			size := binary.BigEndian.Uint16(pkt.Payload)
-			pkt.Payload = pkt.Payload[2:]
+			size := binary.BigEndian.Uint16(payload)
+			payload = payload[2:]
 
 			// avoid final padding
 			if size == 0 {
 				break
 			}
 
-			if int(size) > len(pkt.Payload) {
+			if int(size) > len(payload) {
 				return nil, 0, ErrSTAPinvalid
 			}
 
-			nalus = append(nalus, pkt.Payload[:size])
-			pkt.Payload = pkt.Payload[size:]
+			nalus = append(nalus, payload[:size])
+			payload = payload[size:]
 		}
 
 		if len(nalus) == 0 {
@@ -191,49 +174,4 @@ func (d *Decoder) DecodeUntilMarker(pkt *rtp.Packet) ([][]byte, time.Duration, e
 	d.naluBuffer = d.naluBuffer[:0]
 
 	return ret, pts, nil
-}
-
-// ReadSPSPPS reads RTP/H264 packets from a reader until SPS and PPS are
-// found, and returns them.
-func (d *Decoder) ReadSPSPPS(r io.Reader) ([]byte, []byte, error) {
-	var sps []byte
-	var pps []byte
-
-	buf := make([]byte, 2048)
-	for {
-		n, err := r.Read(buf)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		var pkt rtp.Packet
-		err = pkt.Unmarshal(buf[:n])
-		if err != nil {
-			return nil, nil, err
-		}
-
-		nalus, _, err := d.Decode(&pkt)
-		if err != nil {
-			if errors.Is(err, ErrMorePacketsNeeded) {
-				continue
-			}
-			return nil, nil, err
-		}
-
-		for _, nalu := range nalus {
-			switch naluType(nalu[0] & 0x1F) {
-			case naluType(h264.NALUTypeSPS):
-				sps = append([]byte(nil), nalu...)
-				if sps != nil && pps != nil {
-					return sps, pps, nil
-				}
-
-			case naluType(h264.NALUTypePPS):
-				pps = append([]byte(nil), nalu...)
-				if sps != nil && pps != nil {
-					return sps, pps, nil
-				}
-			}
-		}
-	}
 }

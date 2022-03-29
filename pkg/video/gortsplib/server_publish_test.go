@@ -9,9 +9,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pion/rtp/v2"
 	psdp "github.com/pion/sdp/v3"
 	"github.com/stretchr/testify/require"
 )
+
+var testRTPPacket = rtp.Packet{
+	Header: rtp.Header{
+		Version:     2,
+		PayloadType: 97,
+		CSRC:        []uint32{},
+	},
+	Payload: []byte{0x01, 0x02, 0x03, 0x04},
+}
+
+var testRTPPacketMarshaled = func() []byte {
+	byts, _ := testRTPPacket.Marshal()
+	return byts
+}()
 
 func mustParseURL(s string) *base.URL {
 	u, err := base.ParseURL(s)
@@ -32,7 +47,7 @@ func invalidURLAnnounceReq(t *testing.T, control string) base.Request {
 		Body: func() []byte {
 			track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
 			require.NoError(t, err)
-			track.setControl(control)
+			track.SetControl(control)
 
 			sout := &psdp.SessionDescription{
 				SessionName: psdp.SessionName("Stream"),
@@ -46,7 +61,7 @@ func invalidURLAnnounceReq(t *testing.T, control string) base.Request {
 					{Timing: psdp.Timing{}}, //nolint:govet
 				},
 				MediaDescriptions: []*psdp.MediaDescription{
-					track.mediaDescription(),
+					track.MediaDescription(),
 				},
 			}
 
@@ -97,36 +112,6 @@ func TestServerPublishErrorAnnounce(t *testing.T) {
 				Body: []byte{0x01, 0x02, 0x03, 0x04},
 			},
 			"invalid SDP: invalid line: (\x01\x02\x03\x04)",
-		},
-		{
-			"no tracks",
-			base.Request{
-				Method: base.Announce,
-				URL:    mustParseURL("rtsp://localhost:8554/teststream"),
-				Header: base.Header{
-					"CSeq":         base.HeaderValue{"1"},
-					"Content-Type": base.HeaderValue{"application/sdp"},
-				},
-				Body: func() []byte {
-					sout := &psdp.SessionDescription{
-						SessionName: psdp.SessionName("Stream"),
-						Origin: psdp.Origin{
-							Username:       "-",
-							NetworkType:    "IN",
-							AddressType:    "IP4",
-							UnicastAddress: "127.0.0.1",
-						},
-						TimeDescriptions: []psdp.TimeDescription{
-							{Timing: psdp.Timing{}}, //nolint:govet
-						},
-						MediaDescriptions: []*psdp.MediaDescription{},
-					}
-
-					byts, _ := sout.Marshal()
-					return byts
-				}(),
-			},
-			"no tracks defined in the SDP",
 		},
 		{
 			"invalid URL 1",
@@ -235,7 +220,8 @@ func TestServerPublishSetupPath(t *testing.T) {
 				Handler: &testServerHandler{
 					onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
 						// make sure that track URLs are not overridden by NewServerStream()
-						NewServerStream(ctx.Tracks)
+						stream := NewServerStream(ctx.Tracks)
+						defer stream.Close()
 
 						return &base.Response{
 							StatusCode: base.StatusOK,
@@ -263,7 +249,7 @@ func TestServerPublishSetupPath(t *testing.T) {
 
 			track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
 			require.NoError(t, err)
-			track.setControl(ca.control)
+			track.SetControl(ca.control)
 
 			sout := &psdp.SessionDescription{
 				SessionName: psdp.SessionName("Stream"),
@@ -277,7 +263,7 @@ func TestServerPublishSetupPath(t *testing.T) {
 					{Timing: psdp.Timing{}}, //nolint:govet
 				},
 				MediaDescriptions: []*psdp.MediaDescription{
-					track.mediaDescription(),
+					track.MediaDescription(),
 				},
 			}
 
@@ -304,17 +290,12 @@ func TestServerPublishSetupPath(t *testing.T) {
 				InterleavedIDs: &[2]int{0, 1},
 			}
 
-			var sx headers.Session
-			err = sx.Read(res.Header["Session"])
-			require.NoError(t, err)
-
 			res, err = writeReqReadRes(conn, br, base.Request{
 				Method: base.Setup,
 				URL:    mustParseURL(ca.url),
 				Header: base.Header{
 					"CSeq":      base.HeaderValue{"2"},
 					"Transport": th.Write(),
-					"Session":   base.HeaderValue{sx.Session},
 				},
 			})
 			require.NoError(t, err)
@@ -381,17 +362,12 @@ func TestServerPublishErrorSetupDifferentPaths(t *testing.T) {
 		InterleavedIDs: &[2]int{0, 1},
 	}
 
-	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
-	require.NoError(t, err)
-
 	res, err = writeReqReadRes(conn, br, base.Request{
 		Method: base.Setup,
 		URL:    mustParseURL("rtsp://localhost:8554/test2stream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
 			"Transport": th.Write(),
-			"Session":   base.HeaderValue{sx.Session},
 		},
 	})
 	require.NoError(t, err)
@@ -459,21 +435,20 @@ func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
 		InterleavedIDs: &[2]int{0, 1},
 	}
 
-	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
-	require.NoError(t, err)
-
 	res, err = writeReqReadRes(conn, br, base.Request{
 		Method: base.Setup,
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
 			"Transport": th.Write(),
-			"Session":   base.HeaderValue{sx.Session},
 		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
+
+	var sx headers.Session
+	err = sx.Read(res.Header["Session"])
+	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{
 		Method: base.Setup,
@@ -557,21 +532,20 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 		InterleavedIDs: &[2]int{0, 1},
 	}
 
-	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
-	require.NoError(t, err)
-
 	res, err = writeReqReadRes(conn, br, base.Request{
 		Method: base.Setup,
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
 			"Transport": th.Write(),
-			"Session":   base.HeaderValue{sx.Session},
 		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
+
+	var sx headers.Session
+	err = sx.Read(res.Header["Session"])
+	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{
 		Method: base.Record,
@@ -589,7 +563,15 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 }
 
 func TestServerPublishNonStandardFrameSize(t *testing.T) {
-	payload := bytes.Repeat([]byte{0x01, 0x02, 0x03, 0x04, 0x05}, 4096/5)
+	packet := rtp.Packet{
+		Header: rtp.Header{
+			Version:     2,
+			PayloadType: 97,
+			CSRC:        []uint32{},
+		},
+		Payload: bytes.Repeat([]byte{0x01, 0x02, 0x03, 0x04, 0x05}, 4096/5),
+	}
+	packetMarshaled, _ := packet.Marshal()
 	frameReceived := make(chan struct{})
 
 	s := &Server{
@@ -613,7 +595,7 @@ func TestServerPublishNonStandardFrameSize(t *testing.T) {
 			},
 			onPacketRTP: func(ctx *ServerHandlerOnPacketRTPCtx) {
 				require.Equal(t, 0, ctx.TrackID)
-				require.Equal(t, payload, ctx.Payload)
+				require.Equal(t, &packet, ctx.Packet)
 				close(frameReceived)
 			},
 		},
@@ -656,21 +638,20 @@ func TestServerPublishNonStandardFrameSize(t *testing.T) {
 		InterleavedIDs: &[2]int{0, 1},
 	}
 
-	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
-	require.NoError(t, err)
-
 	res, err = writeReqReadRes(conn, br, base.Request{
 		Method: base.Setup,
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
 			"Transport": inTH.Write(),
-			"Session":   base.HeaderValue{sx.Session},
 		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
+
+	var sx headers.Session
+	err = sx.Read(res.Header["Session"])
+	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{
 		Method: base.Record,
@@ -685,7 +666,7 @@ func TestServerPublishNonStandardFrameSize(t *testing.T) {
 
 	base.InterleavedFrame{
 		Channel: 0,
-		Payload: payload,
+		Payload: packetMarshaled,
 	}.Write(&bb)
 	_, err = conn.Write(bb.Bytes())
 	require.NoError(t, err)
@@ -745,10 +726,6 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
-
-	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
-	require.NoError(t, err)
 
 	base.InterleavedFrame{
 		Channel: 0,
@@ -827,17 +804,12 @@ func TestServerPublishTimeout(t *testing.T) {
 	inTH.Protocol = headers.TransportProtocolTCP
 	inTH.InterleavedIDs = &[2]int{0, 1}
 
-	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
-	require.NoError(t, err)
-
 	res, err = writeReqReadRes(conn, br, base.Request{
 		Method: base.Setup,
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
 			"Transport": inTH.Write(),
-			"Session":   base.HeaderValue{sx.Session},
 		},
 	})
 	require.NoError(t, err)
@@ -845,6 +817,10 @@ func TestServerPublishTimeout(t *testing.T) {
 
 	var th headers.Transport
 	err = th.Read(res.Header["Transport"])
+	require.NoError(t, err)
+
+	var sx headers.Session
+	err = sx.Read(res.Header["Session"])
 	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{
@@ -931,17 +907,12 @@ func TestServerPublishWithoutTeardown(t *testing.T) {
 	inTH.Protocol = headers.TransportProtocolTCP
 	inTH.InterleavedIDs = &[2]int{0, 1}
 
-	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
-	require.NoError(t, err)
-
 	res, err = writeReqReadRes(conn, br, base.Request{
 		Method: base.Setup,
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
 			"Transport": inTH.Write(),
-			"Session":   base.HeaderValue{sx.Session},
 		},
 	})
 	require.NoError(t, err)
@@ -949,6 +920,10 @@ func TestServerPublishWithoutTeardown(t *testing.T) {
 
 	var th headers.Transport
 	err = th.Read(res.Header["Transport"])
+	require.NoError(t, err)
+
+	var sx headers.Session
+	err = sx.Read(res.Header["Session"])
 	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{

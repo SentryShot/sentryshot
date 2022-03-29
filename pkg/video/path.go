@@ -174,7 +174,7 @@ func newPath(
 		readerPause:       make(chan pathReaderPauseReq),
 	}
 
-	// pa.logf(log.LevelDebug, "opened")
+	// pa.logf(log.LevelDebug, "created")
 
 	pa.wg.Add(1)
 	go pa.run()
@@ -238,7 +238,7 @@ func (pa *path) run() {
 		pa.source.close()
 	}
 
-	// pa.logf(log.LevelDebug, "closed (%v)", err)
+	// pa.logf(log.LevelDebug, "destroyed (%v)", err)
 
 	pa.parent.onPathClose(pa)
 }
