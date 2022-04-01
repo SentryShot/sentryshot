@@ -31,7 +31,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"syscall"
 	"text/template"
 
 	"gopkg.in/yaml.v2"
@@ -101,7 +100,7 @@ func startMain(env configEnv, main string, envPath string) error {
 	cmd := exec.Command(env.GoBin, "run", main, "-env", envPath)
 	cmd.Dir = env.HomeDir
 
-	// Give parrents file descriptors and environment to child process.
+	// Give parent file descriptors and environment to child process.
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -114,10 +113,10 @@ func startMain(env configEnv, main string, envPath string) error {
 
 	// Redirect interrupt to child process.
 	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(stop)
 	go func() {
-		<-stop
-		cmd.Process.Signal(os.Interrupt) // nolint:errcheck
+		s := <-stop
+		cmd.Process.Signal(s) // nolint:errcheck
 	}()
 
 	return cmd.Wait()
