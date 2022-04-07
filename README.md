@@ -22,6 +22,7 @@ Use [Issues]() for bug reports, feature requests and support.
 
 - [Installation](./docs/1_Installation.md)
 - [Configuration](./docs/2_Configuration.md)
+- [Development](./docs/3_Development.md)
 - [Object Detection](./addons/doods2/README.md)
 - [Timeline viewer](./addons/timeline/README.md)
 
