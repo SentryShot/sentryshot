@@ -1,8 +1,8 @@
 # Installation
 
-- [Docker Bundle Install](#docker-bundle)
-- [Docker Compose Install](#docker-compose)
-- [Bare Metal Install](#bare-metal-installation)
+- [Docker Bundle Install](#docker-bundle-install)
+- [Docker Compose Install](#docker-compose-install)
+- [Bare Metal Install](#bare-metal-install)
 - [Webserver](#web-server)
 - [Before continuing](#before-continuing)
 
@@ -90,6 +90,8 @@ after:
 
 The app should now be running on port `2020`
 
+	curl 127.0.0.1:2020/live
+
 Continue to the next section if you don't have a web server already.
 
 <br>
@@ -98,10 +100,12 @@ Continue to the next section if you don't have a web server already.
 
 This is included in the Docker bundle.
 
-A web server is required for TLS, Websockets and HTTP/2. We will use Caddy but any HTTP/2 supported web server will do. [Install Caddy](https://caddyserver.com/docs/install)
+A web server is required for TLS, Websockets and HTTP/2. We will use Caddy but any HTTP/2 supported web server will do. [Install Caddy](https://caddyserver.com/docs/install#debian-ubuntu-raspbian).
 
 
 Caddy is configured using a "[Caddyfile](https://caddyserver.com/docs/caddyfile)" default location is `/etc/caddy/Caddyfile`
+
+	sudo systemctl restart caddy
 
 ### Enabling TLS
 
@@ -114,14 +118,13 @@ The web server requires internet access, so you will need to forward port `80` a
 # Caddyfile
 my.domain.com {
 	redir / /live
-	route / {
-		reverse_proxy localhost:2020
-		#reverse_proxy nvr:2020 # Docker
-    }
+	route /* {
+		reverse_proxy 127.0.0.1:2020
+	}
 
-    encode gzip
+	encode gzip
 
-    header / {
+	header / {
 		# Default security headers.
 		# Enable HTTP Strict Transport Security (HSTS) to force clients to always
 		# connect via HTTPS (do not use if only testing)
@@ -142,24 +145,30 @@ Replace `my.domain.com` with your domain. Caddy will set up and manage the certi
 
 #### Self-Signed Example
 
-In this mode Caddy will sign the certificate locally. You do not require internet access, but you will get an "Unknown Issuer" warning when you access the site.
+In this mode Caddy will sign the certificate locally. You do not require internet access, but you will get a "Unknown Issuer" warning when you access the site.
+
+You can change `443` to another port if you're using it already.
 
 ```
 # Caddyfile
+
+{
+	https_port 443
+}
+
 :443 {
 	tls internal {
 		on_demand
 	}
 
 	redir / /live
-	route / {
-		reverse_proxy localhost:2020
-		#reverse_proxy nvr:2020 # Docker
-    }
+	route /* {
+		reverse_proxy 127.0.0.1:2020
+	}
 
-    encode gzip
+	encode gzip
 
-    header / {
+	header / {
 		# Default security headers.
 		# Enable HTTP Strict Transport Security (HSTS) to force clients to always
 		# connect via HTTPS (do not use if only testing)
@@ -173,6 +182,12 @@ In this mode Caddy will sign the certificate locally. You do not require interne
 	}
 }
 ```
+
+
+Allow Caddy to create self-signed certificates.
+
+	sudo HOME=/var/lib/caddy caddy trust
+
 
 <br>
 
