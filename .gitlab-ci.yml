@@ -22,13 +22,13 @@ run:
             npm install
 
             # Get changed files.
-            git remote add upstream https://gitlab.com/osnvr/os-nvr.git || echo "add remote error"
-            git fetch upstream dev || echo "fetch error"
+            git remote add upstream https://gitlab.com/osnvr/os-nvr.git
+            git fetch upstream dev
             git diff --name-only upstream/dev "$CI_COMMIT_SHA"
-            files_changed="$(git diff --name-only upstream/dev $CI_COMMIT_SHA)" || echo "git error"
+            files_changed="$(git diff --name-only upstream/dev $CI_COMMIT_SHA)"
 
             if [ "$files_changed" == "" ]; then
-                files_changed="$(git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA)" || echo "git error2"
+                files_changed="$(git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA)" || echo "git error"
             fi
 
             ./utils/ci.sh "$files_changed"
