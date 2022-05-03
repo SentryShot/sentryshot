@@ -10,8 +10,8 @@ describe("toAndFromUTC", () => {
 			expect(actual).toEqual(expected);
 
 			const utc = toUTC(localTime, timeZone);
-			expect(utc.getUTCDate()).toEqual(2);
-			expect(utc.getUTCHours()).toEqual(0);
+			expect(utc.getUTCDate()).toBe(2);
+			expect(utc.getUTCHours()).toBe(0);
 		};
 
 		run("DAY:2 HOUR:9", "Asia/Tokyo");
@@ -28,8 +28,8 @@ describe("toAndFromUTC", () => {
 			expect(actual).toEqual(expected);
 
 			const utc = toUTC(localTime, timeZone);
-			expect(utc.getUTCDate()).toEqual(2);
-			expect(utc.getUTCHours()).toEqual(0);
+			expect(utc.getUTCDate()).toBe(2);
+			expect(utc.getUTCHours()).toBe(0);
 		};
 		run("DAY:2 HOUR:9", "Asia/Tokyo");
 		run("DAY:2 HOUR:8", "Asia/Shanghai");
@@ -67,7 +67,7 @@ describe("toAndFromUTC", () => {
 
 		const date = new Date("2001-01-02T03:04:05.006+00:00");
 		fromUTC(date, "nil");
-		expect(alerted).toEqual(true);
+		expect(alerted).toBe(true);
 	});
 	test("toUTCerror", () => {
 		let alerted = false;
@@ -77,7 +77,7 @@ describe("toAndFromUTC", () => {
 
 		const date = new Date("2001-01-02T03:04:05.006+00:00");
 		toUTC(date, "nil");
-		expect(alerted).toEqual(true);
+		expect(alerted).toBe(true);
 	});
 });
 

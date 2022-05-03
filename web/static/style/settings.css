@@ -39,8 +39,8 @@
 	display: flex;
 	align-items: center;
 	padding: 0.2rem 1rem 0.2rem 0.4rem;
-	border-width: 0.01rem;
 	border-color: var(--color2-hover);
+	border-width: 0.01rem;
 	border-bottom-style: solid;
 }
 
@@ -84,8 +84,8 @@
 .settings-category {
 	z-index: 0;
 	display: flex;
-	flex-shrink: 0;
 	flex-direction: column;
+	flex-shrink: 0;
 	width: 100%;
 	height: 100%;
 	overflow-y: auto;
@@ -158,10 +158,7 @@
 
 .settings-add-btn {
 	flex-shrink: 0;
-	margin-top: 0.2rem;
-	margin-right: auto;
-	margin-bottom: 0.2rem;
-	margin-left: 0.3rem;
+	margin: 0.2rem auto 0.2rem 0.3rem;
 	padding: 0.1rem;
 	background: var(--color-green);
 	border-radius: 0.1rem;
@@ -250,9 +247,9 @@
 	align-items: center;
 	width: 100%;
 	padding: 0.1rem 0.2rem;
-	border-width: 0.01rem;
-	border-style: solid;
 	border-color: var(--color1);
+	border-style: solid;
+	border-width: 0.01rem;
 }
 
 .monitor-selector-label {
@@ -267,13 +264,16 @@
 		width: var(--size-minus-topbar);
 		height: 100%;
 	}
+
 	.settings-category-nav {
 		flex-shrink: 0;
 	}
+
 	.settings-sub-category {
 		height: 100%;
 		overflow-y: auto;
 	}
+
 	.form {
 		overflow-y: initial;
 	}
@@ -285,6 +285,7 @@
 		width: auto;
 		padding-top: 2rem;
 	}
+
 	.settings-navbar-closed {
 		transform: none;
 	}
@@ -302,6 +303,7 @@
 		transform: none;
 		transition: transform 0ms;
 	}
+
 	.settings-category-selected {
 		display: flex;
 	}
@@ -337,12 +339,15 @@
 		display: flex;
 		align-items: center;
 	}
+
 	.monitor-selector {
 		grid-auto-columns: min-content;
 	}
+
 	.monitor-selector-item {
 		width: auto;
 	}
+
 	.monitor-selector-label {
 		padding-right: 0.3rem;
 	}

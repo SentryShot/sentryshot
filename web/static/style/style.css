@@ -24,6 +24,7 @@ html {
 	line-height: 1.15;
 	-webkit-text-size-adjust: 100%;
 }
+
 h1 {
 	margin: 0.67em 0;
 	font-weight: normal;
@@ -35,28 +36,34 @@ hr {
 	height: 0;
 	overflow: visible;
 }
+
 pre {
 	font-size: 1em;
 	font-family: monospace;
 }
+
 abbr[title] {
 	text-decoration: underline;
 	text-decoration: underline dotted;
 	border-bottom: none;
 }
+
 b,
 strong {
 	font-weight: bolder;
 }
+
 code,
 kbd,
 samp {
 	font-size: 1em;
 	font-family: monospace;
 }
+
 small {
 	font-size: 80%;
 }
+
 sub,
 sup {
 	position: relative;
@@ -64,12 +71,15 @@ sup {
 	line-height: 0;
 	vertical-align: baseline;
 }
+
 sub {
 	bottom: -0.25em;
 }
+
 sup {
 	top: -0.5em;
 }
+
 button,
 input,
 optgroup,
@@ -80,25 +90,30 @@ textarea {
 	font-family: inherit;
 	line-height: 1.15;
 }
+
 button,
 input {
 	overflow: visible;
 }
+
 button,
 select {
 	text-transform: none;
 }
+
 button,
 [type="button"],
 [type="reset"],
 [type="submit"] {
 	-webkit-appearance: button;
 }
+
 button {
 	padding: 0;
 	border: 0;
 	outline: none;
 }
+
 button::-moz-focus-inner,
 [type="button"]::-moz-focus-inner,
 [type="reset"]::-moz-focus-inner,
@@ -106,15 +121,18 @@ button::-moz-focus-inner,
 	padding: 0;
 	border-style: none;
 }
+
 button:-moz-focusring,
 [type="button"]:-moz-focusring,
 [type="reset"]:-moz-focusring,
 [type="submit"]:-moz-focusring {
 	outline: 1px dotted ButtonText;
 }
+
 fieldset {
 	padding: 0.35em 0.75em 0.625em;
 }
+
 legend {
 	display: table;
 	box-sizing: border-box;
@@ -123,27 +141,34 @@ legend {
 	color: inherit;
 	white-space: normal;
 }
+
 textarea {
 	overflow: auto;
 }
+
 [type="number"]::-webkit-inner-spin-button,
 [type="number"]::-webkit-outer-spin-button {
 	height: auto;
 }
+
 [type="search"] {
 	outline-offset: -2px;
 	-webkit-appearance: textfield;
 }
+
 [type="search"]::-webkit-search-decoration {
 	-webkit-appearance: none;
 }
+
 ::-webkit-file-upload-button {
 	font: inherit;
 	-webkit-appearance: button;
 }
+
 details {
 	display: block;
 }
+
 summary {
 	display: list-item;
 }
@@ -158,13 +183,16 @@ progress[value] {
 	-moz-appearance: none;
 	appearance: none;
 }
+
 progress[value]::-webkit-progress-bar {
 	background-color: #eee;
-	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25) inset;
+	box-shadow: 0 2px 5px rgb(0 0 0 / 25%) inset;
 }
+
 progress[value]::-webkit-progress-value {
 	background: var(--color3);
 }
+
 progress[value]::-moz-progress-bar {
 	background: var(--color3);
 }
@@ -226,8 +254,8 @@ a:focus {
 .topbar-btn {
 	display: flex;
 	flex-shrink: 0;
-	justify-content: center;
 	align-items: center;
+	justify-content: center;
 	width: var(--topbar-height);
 	height: var(--topbar-height);
 }
@@ -274,8 +302,8 @@ a:focus {
 
 .options-menu-btn {
 	display: flex;
-	justify-content: center;
 	align-items: center;
+	justify-content: center;
 	width: var(--options-menu-btn-width);
 	height: var(--options-menu-btn-width);
 	color: var(--color-text);
@@ -319,6 +347,7 @@ a:focus {
 .date-picker {
 	padding: 0.2rem;
 }
+
 .date-picker-month {
 	display: flex;
 	align-items: center;
@@ -353,9 +382,9 @@ a:focus {
 	padding: 0.05rem;
 	color: var(--color-text);
 	background: var(--color3);
-	border-width: 0.05rem;
-	border-style: solid;
 	border-color: var(--color2);
+	border-style: solid;
+	border-width: 0.05rem;
 	border-radius: 0.15rem;
 }
 
@@ -434,6 +463,7 @@ a:focus {
 	background: var(--color3);
 	border-radius: 0.15rem;
 }
+
 .date-picker-bottom-btn:hover {
 	background: var(--color3-hover);
 }
@@ -441,6 +471,7 @@ a:focus {
 .date-picker-apply {
 	background: var(--color-green);
 }
+
 .date-picker-apply:hover {
 	background: var(--color-green-hover);
 }
@@ -452,21 +483,20 @@ a:focus {
 	color: var(--color-text);
 	text-align: center;
 }
+
 .select-one-label {
 	padding: 0.1rem;
 	font-size: 0.8rem;
 }
+
 .select-one-item {
 	display: block ruby;
-	padding-top: 0.1rem;
-	padding-right: 0.2rem;
-	padding-bottom: 0.1rem;
-	padding-left: 0.2rem;
+	padding: 0.1rem 0.2rem;
 	font-size: 0.7rem;
 	background: var(--color3);
-	border-top-width: 0.01rem;
-	border-top-style: solid;
+	border-top: solid;
 	border-top-color: var(--color2);
+	border-top-width: 0.01rem;
 }
 
 .select-one-item:hover {
@@ -557,8 +587,8 @@ a:focus {
 	padding: var(--icon-padding);
 	padding-left: 0.3rem;
 	text-decoration: none;
-	border-width: 0.01rem;
 	border-color: var(--color1-hover);
+	border-width: 0.01rem;
 	border-bottom-style: solid;
 }
 
@@ -599,8 +629,8 @@ a:focus {
 .grid-item-container {
 	position: relative;
 	display: flex;
-	justify-content: center;
 	align-items: center;
+	justify-content: center;
 	width: 100%;
 	max-height: 100vh;
 
@@ -621,7 +651,7 @@ a:focus {
 	width: 100%;
 	height: 100%;
 	overflow-y: auto;
-	background-color: rgba(0, 0, 0, 0.4);
+	background-color: rgb(0 0 0 / 40%);
 }
 
 .modal-open {
@@ -673,6 +703,7 @@ a:focus {
 .color3 {
 	background: var(--color3);
 }
+
 .color3:hover {
 	background: var(--color3-hover);
 }
@@ -680,6 +711,7 @@ a:focus {
 .color2 {
 	background: var(--color2);
 }
+
 .color2:hover {
 	background: var(--color2-hover);
 }
@@ -750,6 +782,7 @@ a:focus {
 .save-btn {
 	background: var(--color-green);
 }
+
 .save-btn:hover {
 	background: var(--color-green-hover);
 }
@@ -758,19 +791,21 @@ a:focus {
 	margin-left: auto;
 	background: var(--color-red);
 }
+
 .delete-btn:hover {
 	background: var(--color-red-hover);
 }
 
 .checkbox {
 	display: flex;
-	justify-content: center;
 	align-items: center;
+	justify-content: center;
 	width: 0.8rem;
 	height: 0.8rem;
 	background: var(--color2);
 	border-radius: 0.2rem;
 }
+
 .checkbox-checkbox {
 	z-index: 1;
 	width: 100%;
@@ -779,6 +814,7 @@ a:focus {
 	-moz-appearance: none;
 	-webkit-appearance: none;
 }
+
 .checkbox-box {
 	position: absolute;
 	width: 0.65rem;
@@ -786,15 +822,18 @@ a:focus {
 	background: var(--color1);
 	border-radius: 0.14rem;
 }
+
 .checkbox-check {
 	position: absolute;
 	width: 0.8rem;
 	visibility: hidden;
 	filter: invert();
 }
+
 .checkbox-checkbox:checked ~ .checkbox-box {
 	background: var(--color2);
 }
+
 .checkbox-checkbox:checked ~ .checkbox-check {
 	visibility: visible;
 }
@@ -802,12 +841,13 @@ a:focus {
 /* Logout */
 #logout {
 	display: flex;
-	justify-content: center;
 	align-items: center;
+	justify-content: center;
 	width: var(--sidebar-width);
 	margin-top: auto;
 	margin-bottom: 0.4rem;
 }
+
 #logout button {
 	margin-top: 0.1rem;
 	padding-right: 0.1rem;
@@ -815,9 +855,9 @@ a:focus {
 	color: var(--color-text);
 	font-size: 0.6rem;
 	background: var(--color2);
-	border-width: 0.05rem;
-	border-style: solid;
 	border-color: var(--colorbg);
+	border-style: solid;
+	border-width: 0.05rem;
 	border-radius: 0.2rem;
 }
 
@@ -838,6 +878,7 @@ a:focus {
 	height: 100%;
 	opacity: 0.5;
 }
+
 .player-overlay {
 	position: absolute;
 	z-index: 2;
@@ -870,10 +911,7 @@ a:focus {
 }
 
 .player-menu-text {
-	padding-top: 0.05em;
-	padding-right: 0.4em;
-	padding-bottom: 0.05em;
-	padding-left: 0.2em;
+	padding: 0.05em 0.4em 0.05em 0.2em;
 	color: var(--color-text);
 	font-size: 40%;
 	background: var(--colorbg);
@@ -890,6 +928,7 @@ a:focus {
 	transition: visibility 0s;
 	transition: opacity 0s;
 }
+
 .player-overlay-checkbox:hover ~ .player-overlay {
 	visibility: visible;
 	opacity: 1;
@@ -916,7 +955,7 @@ a:focus {
 	height: 0.6rem;
 	padding-top: 0.1rem;
 	padding-bottom: 0.1rem;
-	background: rgba(0, 0, 0, 0);
+	background: rgb(0 0 0 / 0%);
 	opacity: 0.8;
 	user-select: none;
 }
@@ -931,7 +970,7 @@ a:focus {
 	right: 0.28rem;
 	bottom: 0.8rem;
 	font-size: 0;
-	background-color: rgba(0, 0, 0, 0);
+	background-color: rgb(0 0 0 / 0%);
 	border-radius: 0.1rem;
 	opacity: 0.8;
 }
@@ -945,8 +984,7 @@ a:focus {
 	right: 0.2rem;
 	bottom: 1.7rem;
 	display: none;
-	grid-column-gap: 0.2rem;
-	grid-row-gap: 0.2rem;
+	grid-gap: 0.2rem;
 	padding: 0.1rem;
 	font-size: 0;
 	background: var(--colorbg);
@@ -959,7 +997,7 @@ a:focus {
 }
 
 .player-options-btn {
-	background-color: rgba(0, 0, 0, 0);
+	background-color: rgb(0 0 0 / 0%);
 }
 
 .player-options-btn img {

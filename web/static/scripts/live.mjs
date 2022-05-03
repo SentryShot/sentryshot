@@ -20,7 +20,7 @@ import { newFeed } from "./components/feed.mjs";
 function newViewer($parent, monitors, hls) {
 	let selectedMonitors = [];
 	const isMonitorSelected = (monitor) => {
-		if (selectedMonitors.length == 0) {
+		if (selectedMonitors.length === 0) {
 			return true;
 		}
 		for (const id of selectedMonitors) {

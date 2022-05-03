@@ -89,15 +89,15 @@ describe("newViewer", () => {
 		const $img = $muteBtn.querySelector("img");
 
 		expect($video.muted).toBe(true);
-		expect($img.src).toEqual("http://localhost/static/icons/feather/volume-x.svg");
+		expect($img.src).toBe("http://localhost/static/icons/feather/volume-x.svg");
 
 		$muteBtn.click();
 		expect($video.muted).toBe(false);
-		expect($img.src).toEqual("http://localhost/static/icons/feather/volume.svg");
+		expect($img.src).toBe("http://localhost/static/icons/feather/volume.svg");
 
 		$muteBtn.click();
 		expect($video.muted).toBe(true);
-		expect($img.src).toEqual("http://localhost/static/icons/feather/volume-x.svg");
+		expect($img.src).toBe("http://localhost/static/icons/feather/volume-x.svg");
 	});
 });
 
@@ -114,22 +114,22 @@ describe("resBtn", () => {
 		element.innerHTML = res.html;
 
 		const $btn = $(".js-res");
-		expect($btn.textContent).toEqual("X");
+		expect($btn.textContent).toBe("X");
 
 		res.init(element, mockContent);
-		expect($btn.textContent).toEqual("HD");
+		expect($btn.textContent).toBe("HD");
 
 		$btn.click();
-		expect($btn.textContent).toEqual("SD");
-		expect(localStorage.getItem("preferLowRes")).toEqual("true");
+		expect($btn.textContent).toBe("SD");
+		expect(localStorage.getItem("preferLowRes")).toBe("true");
 
 		$btn.click();
-		expect($btn.textContent).toEqual("HD");
-		expect(localStorage.getItem("preferLowRes")).toEqual("false");
+		expect($btn.textContent).toBe("HD");
+		expect(localStorage.getItem("preferLowRes")).toBe("false");
 
 		$btn.click();
-		expect($btn.textContent).toEqual("SD");
-		expect(localStorage.getItem("preferLowRes")).toEqual("true");
+		expect($btn.textContent).toBe("SD");
+		expect(localStorage.getItem("preferLowRes")).toBe("true");
 	});
 	test("contentCalled", () => {
 		document.body.innerHTML = `<div></div>`;
@@ -150,7 +150,7 @@ describe("resBtn", () => {
 
 		res.init(element, content);
 		$(".js-res").click();
-		expect(preferLowCalled).toEqual(true);
-		expect(resetCalled).toEqual(true);
+		expect(preferLowCalled).toBe(true);
+		expect(resetCalled).toBe(true);
 	});
 });

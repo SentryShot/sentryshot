@@ -95,7 +95,7 @@ const newOptionsBtn = {
 		};
 	},
 	group(monitors, groups) {
-		if (Object.keys(groups).length == 0) {
+		if (Object.keys(groups).length === 0) {
 			return;
 		}
 		const groupPicker = newGroupPicker(monitors, groups);

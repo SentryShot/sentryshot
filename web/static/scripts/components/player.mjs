@@ -51,7 +51,7 @@ function newPlayer(data) {
 		const multiplier = res / 100;
 
 		// Array of booleans representing events.
-		let timeline = new Array(res).fill(false);
+		let timeline = Array.from({ length: res }).fill(false);
 
 		for (const e of d.events) {
 			const time = Date.parse(e.time);

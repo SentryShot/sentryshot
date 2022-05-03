@@ -21,11 +21,13 @@ async function testFetchError(fetch) {
 		alerted = true;
 	};
 
-	window.fetch = {
-		status: 400,
-		text() {
-			return "";
-		},
+	window.fetch = async () => {
+		return {
+			status: 400,
+			text() {
+				return "";
+			},
+		};
 	};
 
 	await fetch();

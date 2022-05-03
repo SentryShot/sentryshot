@@ -101,10 +101,11 @@ describe("newViewer", () => {
 			) {
 				ok = true;
 			}
+			return mockFetch();
 		};
 
 		await viewer.setDate(new Date("2000-01-02T03:04:05.000000"));
 
-		expect(ok).toEqual(true);
+		expect(ok).toBe(true);
 	});
 });

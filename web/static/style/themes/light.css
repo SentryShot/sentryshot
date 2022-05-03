@@ -1,17 +1,17 @@
 /* Placeholder. */
 :root {
-	--color-text: hsl(215, 15%, 25%);
-	--colorbg: hsl(215, 40%, 120%);
-	--color1: hsl(215, 40%, 75%);
-	--color1-hover: hsl(215, 40%, 85%);
-	--color2: hsl(215, 40%, 85%);
-	--color2-hover: hsl(215, 40%, 95%);
-	--color3: hsl(215, 40%, 95%);
-	--color3-hover: hsl(215, 40%, 85%);
+	--color-text: hsl(215deg 15% 25%);
+	--colorbg: hsl(215deg 40% 120%);
+	--color1: hsl(215deg 40% 75%);
+	--color1-hover: hsl(215deg 40% 85%);
+	--color2: hsl(215deg 40% 85%);
+	--color2-hover: hsl(215deg 40% 95%);
+	--color3: hsl(215deg 40% 95%);
+	--color3-hover: hsl(215deg 40% 85%);
 	--color-icons: invert(25%);
-	--color-green: hsl(120, 55%, 65%);
-	--color-green-hover: hsl(120, 55%, 55%);
-	--color-orange: hsl(40, 100%, 70%);
-	--color-red: hsl(0, 70%, 55%);
-	--color-red-hover: hsl(0, 70%, 45%);
+	--color-green: hsl(120deg 55% 65%);
+	--color-green-hover: hsl(120deg 55% 55%);
+	--color-orange: hsl(40deg 100% 70%);
+	--color-red: hsl(0deg 70% 55%);
+	--color-red-hover: hsl(0deg 70% 45%);
 }

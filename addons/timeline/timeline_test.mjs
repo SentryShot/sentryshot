@@ -63,12 +63,12 @@ test("selectMonitor", () => {
 	expect(actual).toEqual(expected);
 
 	$(".js-monitor").click();
-	expect(selectMonitor.isOpen()).toEqual(true);
+	expect(selectMonitor.isOpen()).toBe(true);
 
-	expect(resetCalled).toEqual(false);
+	expect(resetCalled).toBe(false);
 	$(".monitor-selector-item[data='a']").click();
-	expect(selectMonitor.isOpen()).toEqual(false);
-	expect(resetCalled).toEqual(true);
+	expect(selectMonitor.isOpen()).toBe(false);
+	expect(resetCalled).toBe(true);
 	expect(setMonitors).toEqual(["a"]);
-	expect(localStorage.getItem("timeline-monitor")).toEqual("a");
+	expect(localStorage.getItem("timeline-monitor")).toBe("a");
 });

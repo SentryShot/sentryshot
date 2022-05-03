@@ -16,5 +16,5 @@
 // Waiting for import mock support github.com/facebook/jest/issues/10025
 
 test("temp", () => {
-	expect(true).toEqual(true);
+	expect(true).toBe(true);
 });

@@ -163,7 +163,7 @@ describe("newPlayer", () => {
 		$(".player-play-btn").click();
 		$(".player-play-btn").click();
 
-		expect(nclicks).toEqual(1);
+		expect(nclicks).toBe(1);
 	});
 });
 

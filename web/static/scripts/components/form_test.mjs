@@ -49,13 +49,13 @@ describe("newForm", () => {
 		const form = newForm(mockField);
 
 		form.init();
-		expect(init).toEqual(true);
+		expect(init).toBe(true);
 
 		form.reset();
-		expect(reset).toEqual(true);
+		expect(reset).toBe(true);
 
 		form.validate();
-		expect(validate).toEqual(true);
+		expect(validate).toBe(true);
 	});
 	const newTestForm = () => {
 		return newForm({
@@ -96,7 +96,7 @@ describe("newForm", () => {
 			});
 			$(".js-save-btn").click();
 
-			expect(clicked).toEqual(true);
+			expect(clicked).toBe(true);
 		});
 	});
 	describe("deleteBtn", () => {
@@ -131,7 +131,7 @@ describe("newForm", () => {
 			});
 			$(".js-delete-btn").click();
 
-			expect(clicked).toEqual(true);
+			expect(clicked).toBe(true);
 		});
 	});
 	test("saveAndDeleteBtn", () => {
@@ -195,24 +195,24 @@ describe("inputRules", () => {
 
 describe("fieldTemplate", () => {
 	const testNotEmpty = (field) => {
-		expect(field.validate("")).not.toEqual("");
+		expect(field.validate("")).not.toBe("");
 	};
 	const testNoSpace = (field) => {
-		expect(field.validate(" ")).not.toEqual("");
+		expect(field.validate(" ")).not.toBe("");
 	};
 	const testReset = (field) => {
 		field.set("1");
-		expect(field.value()).toEqual("1");
+		expect(field.value()).toBe("1");
 
 		field.set("");
-		expect(field.value()).toEqual("");
+		expect(field.value()).toBe("");
 	};
 	const testOnChange = () => {
 		const [$input, $error] = $getInputAndError($("#js-uid1"));
 		const e = new Event("change");
 		$input.dispatchEvent(e);
 
-		expect($error.innerHTML).not.toEqual("");
+		expect($error.innerHTML).not.toBe("");
 	};
 
 	test("text", () => {
@@ -240,7 +240,7 @@ describe("fieldTemplate", () => {
 		document.body.innerHTML = field.html;
 		field.init();
 
-		expect(field.validate("x")).toEqual("");
+		expect(field.validate("x")).toBe("");
 		testNotEmpty(field);
 		testNoSpace(field);
 		testReset(field);
@@ -274,7 +274,7 @@ describe("fieldTemplate", () => {
 		document.body.innerHTML = field.html;
 		field.init();
 
-		expect(field.validate("x")).toEqual("");
+		expect(field.validate("x")).toBe("");
 
 		testNotEmpty(field);
 		testNoSpace(field);
@@ -304,11 +304,11 @@ describe("fieldTemplate", () => {
 		document.body.innerHTML = field.html;
 		field.init();
 
-		expect(field.value()).toEqual("true");
+		expect(field.value()).toBe("true");
 		field.set("false");
-		expect(field.value()).toEqual("false");
+		expect(field.value()).toBe("false");
 		field.set("");
-		expect(field.value()).toEqual("true");
+		expect(field.value()).toBe("true");
 	});
 
 	test("select", () => {
@@ -333,11 +333,11 @@ describe("fieldTemplate", () => {
 		document.body.innerHTML = field.html;
 		field.init();
 
-		expect(field.value()).toEqual("a");
+		expect(field.value()).toBe("a");
 		field.set("b");
-		expect(field.value()).toEqual("b");
+		expect(field.value()).toBe("b");
 		field.set("");
-		expect(field.value()).toEqual("a");
+		expect(field.value()).toBe("a");
 	});
 
 	test("selectCustom", () => {
@@ -367,20 +367,20 @@ describe("fieldTemplate", () => {
 		field.init();
 
 		testNotEmpty(field);
-		expect(field.validate("x")).toEqual("");
+		expect(field.validate("x")).toBe("");
 
-		expect(field.value()).toEqual("a");
+		expect(field.value()).toBe("a");
 		field.set("b");
-		expect(field.value()).toEqual("b");
+		expect(field.value()).toBe("b");
 		field.set("");
-		expect(field.value()).toEqual("a");
+		expect(field.value()).toBe("a");
 
 		window.prompt = () => {
 			return "custom";
 		};
 		$("button").click();
 
-		expect(field.value()).toEqual("custom");
+		expect(field.value()).toBe("custom");
 
 		const $input = $("#uid1");
 		const $error = $(".js-error");
@@ -388,7 +388,7 @@ describe("fieldTemplate", () => {
 		const change = new Event("change");
 		$input.dispatchEvent(change);
 
-		expect($error.innerHTML).toEqual("");
+		expect($error.innerHTML).toBe("");
 	});
 });
 
@@ -441,36 +441,36 @@ describe("passwordField", () => {
 			$newInput.dispatchEvent(change);
 			$repeatInput.dispatchEvent(change);
 
-			expect($newError.textContent).toEqual("");
-			expect($repeatError.textContent).toEqual("");
+			expect($newError.textContent).toBe("");
+			expect($repeatError.textContent).toBe("");
 		});
 		test("repeatPassword", () => {
 			$newInput.value = "A";
 			$newInput.dispatchEvent(change);
-			expect($newError.textContent).toEqual("warning: weak password");
-			expect($repeatError.textContent).toEqual("repeat password");
-			expect(field.validate()).toEqual("repeat password");
+			expect($newError.textContent).toBe("warning: weak password");
+			expect($repeatError.textContent).toBe("repeat password");
+			expect(field.validate()).toBe("repeat password");
 		});
 		test("reset", () => {
 			field.reset();
-			expect($newError.textContent).toEqual("");
-			expect($repeatError.textContent).toEqual("");
+			expect($newError.textContent).toBe("");
+			expect($repeatError.textContent).toBe("");
 		});
 		test("strength", () => {
 			$newInput.value = "AAAAA1";
 			$newInput.dispatchEvent(change);
-			expect($newError.textContent).toEqual("strength: medium");
+			expect($newError.textContent).toBe("strength: medium");
 		});
 		test("mismatch", () => {
 			$repeatInput.value = "x";
 			$repeatInput.dispatchEvent(change);
-			expect($repeatError.textContent).toEqual("Passwords do not match");
-			expect(field.validate()).toEqual("Passwords do not match");
-			expect(field.value()).toEqual("x");
+			expect($repeatError.textContent).toBe("Passwords do not match");
+			expect(field.validate()).toBe("Passwords do not match");
+			expect(field.value()).toBe("x");
 		});
 		test("validate", () => {
 			field.set("AAAAAa1@");
-			expect(field.validate()).toEqual("");
+			expect(field.validate()).toBe("");
 		});
 	});
 });

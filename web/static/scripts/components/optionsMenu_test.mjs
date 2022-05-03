@@ -62,14 +62,14 @@ describe("optionsGridSize", () => {
 		const $plus = element.querySelector(".js-plus");
 		const $minus = element.querySelector(".js-minus");
 
-		expect(getGridSize()).toEqual(0);
+		expect(getGridSize()).toBe(0);
 		$minus.click();
-		expect(getGridSize()).toEqual(1);
-		expect(localStorage.getItem("gridsize")).toEqual("1");
+		expect(getGridSize()).toBe(1);
+		expect(localStorage.getItem("gridsize")).toBe("1");
 
 		localStorage.setItem("gridsize", 5);
 		$plus.click();
-		expect(localStorage.getItem("gridsize")).toEqual("4");
+		expect(localStorage.getItem("gridsize")).toBe("4");
 	});
 });
 
@@ -93,12 +93,12 @@ describe("optionsDate", () => {
 		const $prevMonth = $(".js-prev-month");
 		const $nextMonth = $(".js-next-month");
 
-		expect($month.textContent).toEqual("2001 February");
+		expect($month.textContent).toBe("2001 February");
 		$prevMonth.click();
 		$prevMonth.click();
-		expect($month.textContent).toEqual("2000 December");
+		expect($month.textContent).toBe("2000 December");
 		$nextMonth.click();
-		expect($month.textContent).toEqual("2001 January");
+		expect($month.textContent).toBe("2001 January");
 	});
 	test("dayBtn", () => {
 		setup();
@@ -162,13 +162,13 @@ describe("optionsDate", () => {
 		const $nextHour = $(".js-next-hour");
 		const $prevHour = $(".js-prev-hour");
 
-		expect($hour.value).toEqual("01");
+		expect($hour.value).toBe("01");
 		$prevHour.click();
 		$prevHour.click();
-		expect($hour.value).toEqual("23");
+		expect($hour.value).toBe("23");
 		$nextHour.click();
 		$nextHour.click();
-		expect($hour.value).toEqual("01");
+		expect($hour.value).toBe("01");
 	});
 	test("minuteBtn", () => {
 		setup();
@@ -176,14 +176,14 @@ describe("optionsDate", () => {
 		const $nextMinute = $(".js-next-minute");
 		const $prevMinute = $(".js-prev-minute");
 
-		expect($minute.value).toEqual("02");
+		expect($minute.value).toBe("02");
 		$prevMinute.click();
 		$prevMinute.click();
 		$prevMinute.click();
-		expect($minute.value).toEqual("59");
+		expect($minute.value).toBe("59");
 		$nextMinute.click();
 		$nextMinute.click();
-		expect($minute.value).toEqual("01");
+		expect($minute.value).toBe("01");
 	});
 	test("applyAndReset", () => {
 		let month;
@@ -197,19 +197,19 @@ describe("optionsDate", () => {
 
 		$(".js-next-month").click();
 		$(".js-apply").click();
-		expect(month).toEqual(3);
+		expect(month).toBe(3);
 
 		$(".js-reset").click();
-		expect(month).toEqual(1);
+		expect(month).toBe(1);
 	});
 	test("popup", () => {
 		setup();
 		const $popup = $(".options-popup");
-		expect($popup.classList.contains("options-popup-open")).toEqual(false);
+		expect($popup.classList.contains("options-popup-open")).toBe(false);
 		$(".js-date").click();
-		expect($popup.classList.contains("options-popup-open")).toEqual(true);
+		expect($popup.classList.contains("options-popup-open")).toBe(true);
 		$(".js-date").click();
-		expect($popup.classList.contains("options-popup-open")).toEqual(false);
+		expect($popup.classList.contains("options-popup-open")).toBe(false);
 	});
 });
 
@@ -253,9 +253,9 @@ describe("optionsGroup", () => {
 		expect(actual).toEqual(expected);
 
 		const $group1 = $(".select-one-item[data='group1']");
-		expect($group1.classList.contains("select-one-item-selected")).toEqual(false);
+		expect($group1.classList.contains("select-one-item-selected")).toBe(false);
 		$group1.click();
-		expect($group1.classList.contains("select-one-item-selected")).toEqual(true);
+		expect($group1.classList.contains("select-one-item-selected")).toBe(true);
 	});
 	test("content", () => {
 		const [group, element] = setup();
@@ -273,17 +273,17 @@ describe("optionsGroup", () => {
 		const $group1 = $(".select-one-item[data='group1']");
 		$group1.click();
 
-		expect(setMonitorsCalled).toEqual(true);
-		expect(resetCalled).toEqual(true);
+		expect(setMonitorsCalled).toBe(true);
+		expect(resetCalled).toBe(true);
 	});
 	test("popup", () => {
 		setup();
 		const $popup = $(".options-popup");
-		expect($popup.classList.contains("options-popup-open")).toEqual(false);
+		expect($popup.classList.contains("options-popup-open")).toBe(false);
 		$(".js-group").click();
-		expect($popup.classList.contains("options-popup-open")).toEqual(true);
+		expect($popup.classList.contains("options-popup-open")).toBe(true);
 		$(".js-group").click();
-		expect($popup.classList.contains("options-popup-open")).toEqual(false);
+		expect($popup.classList.contains("options-popup-open")).toBe(false);
 	});
 	test("noGroups", () => {
 		const group = newOptionsBtn.group({}, {});
@@ -349,7 +349,7 @@ describe("newOptionsMenu", () => {
 		element.innerHTML = options.html;
 		options.init(element, content);
 
-		expect(initCalled).toEqual(true);
-		expect(resetCalled).toEqual(true);
+		expect(initCalled).toBe(true);
+		expect(resetCalled).toBe(true);
 	});
 });

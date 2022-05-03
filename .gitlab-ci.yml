@@ -1,11 +1,12 @@
 default:
-    image: osnvr/os-nvr_ci
+    image:
+        osnvr/os-nvr_ci:v0.8.2
 
-    #cache: &global_cache
-    #    key: ${CI_COMMIT_REF_SLUG}
-    #    paths:
-    #        - node_modules/
-    #        - .cache/
+        #cache: &global_cache
+        #    key: ${CI_COMMIT_REF_SLUG}
+        #    paths:
+        #        - node_modules/
+        #        - .cache/
 
 run:
     artifacts:

@@ -43,13 +43,13 @@ modified ".js$" || modified ".mjs" || modified ".css" && {
 }
 
 modified ".js$" || modified ".mjs" && {
-	./utils/lint-js.sh || error "lint js failed"
+	./utils/lint-js-fix.sh || error "lint js failed"
 	printf "test js\\n"
 	./utils/test-js.sh || error "test js failed"
 }
 
 modified ".css" && {
-	./utils/lint-css.sh || error "lint css failed"
+	./utils/lint-css-fix.sh || error "lint css failed"
 }
 
 printf "spell check\\n"

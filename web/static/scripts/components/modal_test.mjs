@@ -41,10 +41,10 @@ test("newModal", () => {
 	let actual = $(".modal").innerHTML.replace(/\s/g, "");
 	expect(actual).toEqual(expected);
 
-	expect(modal.isOpen()).toEqual(true);
-	expect(onCloseCalled).toEqual(false);
+	expect(modal.isOpen()).toBe(true);
+	expect(onCloseCalled).toBe(false);
 
 	$(".modal-close-btn").click();
-	expect(modal.isOpen()).toEqual(false);
-	expect(onCloseCalled).toEqual(true);
+	expect(modal.isOpen()).toBe(false);
+	expect(onCloseCalled).toBe(true);
 });
