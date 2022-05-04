@@ -96,7 +96,8 @@ type CancelFunc func()
 // NewPath add path.
 func (p *Server) NewPath(
 	name string, newConf PathConf) (
-	string, string, string, WaitForNewHLSsegementFunc, CancelFunc, error) {
+	string, string, string, WaitForNewHLSsegementFunc, CancelFunc, error,
+) {
 	err := p.pathManager.AddPath(name, &newConf)
 	if err != nil {
 		return "", "", "", nil, nil, err

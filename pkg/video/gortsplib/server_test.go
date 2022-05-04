@@ -5,16 +5,18 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"testing"
+
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/gortsplib/pkg/headers"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func writeReqReadRes(conn net.Conn,
 	br *bufio.Reader,
-	req base.Request) (*base.Response, error) {
+	req base.Request,
+) (*base.Response, error) {
 	var bb bytes.Buffer
 	req.Write(&bb)
 	_, err := conn.Write(bb.Bytes())

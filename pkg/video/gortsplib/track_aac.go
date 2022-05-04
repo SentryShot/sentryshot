@@ -32,7 +32,8 @@ type TrackAAC struct {
 
 // NewTrackAAC allocates a TrackAAC.
 func NewTrackAAC(payloadType uint8, typ int, sampleRate int,
-	channelCount int, aotSpecificConfig []byte) (*TrackAAC, error) {
+	channelCount int, aotSpecificConfig []byte,
+) (*TrackAAC, error) {
 	mpegConf, err := aac.MPEG4AudioConfig{
 		Type:              aac.MPEG4AudioType(typ),
 		SampleRate:        sampleRate,
@@ -56,7 +57,8 @@ func NewTrackAAC(payloadType uint8, typ int, sampleRate int,
 func newTrackAACFromMediaDescription(
 	control string,
 	payloadType uint8,
-	md *psdp.MediaDescription) (*TrackAAC, error) {
+	md *psdp.MediaDescription,
+) (*TrackAAC, error) {
 	v, ok := md.Attribute("fmtp")
 	if !ok {
 		return nil, ErrAACfmtpMissing

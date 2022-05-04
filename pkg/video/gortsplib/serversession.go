@@ -570,7 +570,8 @@ func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*bas
 }
 
 func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
-	req *base.Request) (*base.Response, error) {
+	req *base.Request,
+) (*base.Response, error) {
 	err := ss.checkState(map[ServerSessionState]struct{}{
 		ServerSessionStateInitial:   {},
 		ServerSessionStatePrePlay:   {},
@@ -646,7 +647,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 		}
 	}
 
-	res, stream, err := ss.s.Handler.(ServerHandlerOnSetup).OnSetup(&ServerHandlerOnSetupCtx{
+	res, stream, err := ss.s.Handler.(ServerHandlerOnSetup).OnSetup(&ServerHandlerOnSetupCtx{ //nolint:forcetypeassert
 		Server:  ss.s,
 		Session: ss,
 		Conn:    sc,

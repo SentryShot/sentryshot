@@ -391,7 +391,8 @@ func writePESData(
 	h *PESHeader,
 	payloadLeft []byte,
 	isPayloadStart bool,
-	bytesAvailable int) (totalBytesWritten, payloadBytesWritten int, err error) {
+	bytesAvailable int,
+) (totalBytesWritten, payloadBytesWritten int, err error) {
 	if isPayloadStart {
 		var n int
 		n, err = writePESHeader(w, h, len(payloadLeft))

@@ -39,7 +39,6 @@ func NewRGB24(r image.Rectangle) *RGB24 {
 
 // RGB24 is an in-memory image whose At method returns RGB values.
 type RGB24 struct {
-
 	// Pix holds the image's pixels, in R, G, B order. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*4].
 	Pix []uint8

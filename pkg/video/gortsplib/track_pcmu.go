@@ -22,7 +22,8 @@ var ErrPCMUmultipleChannles = errors.New("PCMU tracks must have only one channel
 
 func newTrackPCMUFromMediaDescription(
 	control string,
-	rtpmapPart1 string) (*TrackPCMU, error) {
+	rtpmapPart1 string,
+) (*TrackPCMU, error) {
 	tmp := strings.Split(rtpmapPart1, "/")
 	if len(tmp) >= 3 && tmp[2] != "1" {
 		return nil, ErrPCMUmultipleChannles

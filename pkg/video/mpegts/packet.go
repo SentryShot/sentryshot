@@ -465,7 +465,8 @@ func writePacketAdaptationField(w *bitio.Writer, af *PacketAdaptationField) (int
 }
 
 func calcPacketAdaptationFieldExtensionLength(
-	afe *PacketAdaptationExtensionField) (length uint8) {
+	afe *PacketAdaptationExtensionField,
+) (length uint8) {
 	length++
 	if afe.HasLegalTimeWindow {
 		length += 2
@@ -480,7 +481,8 @@ func calcPacketAdaptationFieldExtensionLength(
 }
 
 func writePacketAdaptationFieldExtension(
-	w *bitio.Writer, afe *PacketAdaptationExtensionField) (int, error) {
+	w *bitio.Writer, afe *PacketAdaptationExtensionField,
+) (int, error) {
 	var bytesWritten int
 
 	length := calcPacketAdaptationFieldExtensionLength(afe)

@@ -2,10 +2,11 @@ package video
 
 import (
 	"context"
-	"nvr/pkg/video/hls"
 	"sync"
 	"testing"
 	"time"
+
+	"nvr/pkg/video/hls"
 
 	"github.com/stretchr/testify/require"
 )

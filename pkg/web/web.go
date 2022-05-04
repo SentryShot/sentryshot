@@ -22,10 +22,11 @@ import (
 	"io"
 	"net/http"
 	"nvr/pkg/web/auth"
-	tpls "nvr/web/templates"
 	"path/filepath"
 	"strings"
 	"time"
+
+	tpls "nvr/web/templates"
 )
 
 type (

@@ -20,12 +20,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"nvr/pkg/log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
+
+	"nvr/pkg/log"
 
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"

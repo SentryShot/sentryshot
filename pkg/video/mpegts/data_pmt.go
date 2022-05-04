@@ -82,7 +82,8 @@ type PMTElementaryStream struct {
 func parsePMTSection(
 	r *bitio.CountReader,
 	offsetSectionsEnd int64,
-	tableIDExtension uint16) (*PMTData, error) {
+	tableIDExtension uint16,
+) (*PMTData, error) {
 	d := &PMTData{ProgramNumber: tableIDExtension}
 
 	_ = r.TryReadBits(3) // Reserved.

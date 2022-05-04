@@ -243,7 +243,8 @@ func parsePSISectionHeader(r *bitio.CountReader) (
 	h *PSISectionHeader,
 	offsetSectionsEnd,
 	offsetEnd int64,
-	err error) {
+	err error,
+) {
 	h = &PSISectionHeader{}
 
 	tableID := r.TryReadByte()
@@ -352,7 +353,8 @@ func (t PSITableID) isUnknown() bool {
 func parsePSISectionSyntax(
 	r *bitio.CountReader,
 	h *PSISectionHeader,
-	offsetSectionsEnd int64) (*PSISectionSyntax, error) {
+	offsetSectionsEnd int64,
+) (*PSISectionSyntax, error) {
 	s := &PSISectionSyntax{}
 	var err error
 
@@ -392,7 +394,8 @@ func parsePSISectionSyntaxData(
 	r *bitio.CountReader,
 	h *PSISectionHeader,
 	sh *PSISectionSyntaxHeader,
-	offsetSectionsEnd int64) (*PSISectionSyntaxData, error) {
+	offsetSectionsEnd int64,
+) (*PSISectionSyntaxData, error) {
 	d := &PSISectionSyntaxData{}
 	var err error
 

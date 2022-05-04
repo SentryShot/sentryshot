@@ -36,7 +36,8 @@ type EITDataEvent struct {
 func parseEITSection(
 	r *bitio.CountReader,
 	offsetSectionsEnd int64,
-	tableIDExtension uint16) (*EITData, error) {
+	tableIDExtension uint16,
+) (*EITData, error) {
 	d := &EITData{ServiceID: tableIDExtension}
 
 	d.TransportStreamID = uint16(r.TryReadBits(16))

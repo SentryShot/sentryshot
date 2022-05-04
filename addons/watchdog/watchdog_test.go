@@ -2,10 +2,11 @@ package watchdog
 
 import (
 	"context"
-	"nvr/pkg/log"
 	"sync"
 	"testing"
 	"time"
+
+	"nvr/pkg/log"
 
 	"github.com/stretchr/testify/require"
 )

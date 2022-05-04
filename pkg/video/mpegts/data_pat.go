@@ -27,7 +27,8 @@ type PATProgram struct {
 func parsePATSection(
 	r *bitio.CountReader,
 	offsetSectionsEnd int64,
-	tableIDExtension uint16) (*PATData, error) {
+	tableIDExtension uint16,
+) (*PATData, error) {
 	d := &PATData{TransportStreamID: tableIDExtension}
 
 	for r.BitsCount < offsetSectionsEnd {

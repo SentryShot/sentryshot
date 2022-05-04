@@ -38,7 +38,8 @@ type muxerStreamPlaylist struct {
 }
 
 func newMuxerStreamPlaylist(
-	hlsSegmentCount int, onNewSegment chan<- Segments) *muxerStreamPlaylist {
+	hlsSegmentCount int, onNewSegment chan<- Segments,
+) *muxerStreamPlaylist {
 	p := &muxerStreamPlaylist{
 		hlsSegmentCount: hlsSegmentCount,
 		segmentByName:   make(map[string]*MuxerTSSegment),

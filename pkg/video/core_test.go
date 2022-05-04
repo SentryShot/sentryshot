@@ -2,9 +2,10 @@ package video
 
 import (
 	"context"
-	"nvr/pkg/log"
 	"sync"
 	"testing"
+
+	"nvr/pkg/log"
 
 	"github.com/stretchr/testify/require"
 )

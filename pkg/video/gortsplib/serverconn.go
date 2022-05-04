@@ -46,9 +46,10 @@ type ServerConn struct {
 
 func newServerConn(
 	s *Server,
-	conn net.Conn) *ServerConn {
+	conn net.Conn,
+) *ServerConn {
 	ctx, ctxCancel := context.WithCancel(s.ctx)
-	sc := &ServerConn{
+	sc := &ServerConn{ //nolint:forcetypeassert
 		s:             s,
 		conn:          conn,
 		ctx:           ctx,

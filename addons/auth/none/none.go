@@ -42,8 +42,7 @@ func init() {
 	nvr.RegisterTplSubHook(func(pageFiles map[string]string) error {
 		re := regexp.MustCompile(`<div id="logout">(\n.*){6}`)
 
-		pageFiles["sidebar.tpl"] =
-			re.ReplaceAllString(pageFiles["sidebar.tpl"], "")
+		pageFiles["sidebar.tpl"] = re.ReplaceAllString(pageFiles["sidebar.tpl"], "")
 
 		return nil
 	})

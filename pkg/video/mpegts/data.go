@@ -52,7 +52,8 @@ type MuxerData struct {
 func parseData(
 	pkts []*Packet,
 	prs PacketsParser,
-	pm *programMap) ([]*DemuxerData, error) {
+	pm *programMap,
+) ([]*DemuxerData, error) {
 	// Use custom parser first
 	var ds []*DemuxerData
 	if prs != nil {
@@ -70,7 +71,6 @@ func parseData(
 	for _, p := range pkts {
 		payloadLength += int64(len(p.Payload) * 8)
 	}
-
 	payload := make([]byte, payloadLength/8)
 	var n int
 	for _, pkt := range pkts {

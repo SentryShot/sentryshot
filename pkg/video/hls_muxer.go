@@ -78,7 +78,8 @@ func newHLSMuxer(
 	pathName string,
 	pathManager hlsMuxerPathManager,
 	parent hlsMuxerParent,
-	logger *log.Logger) *hlsMuxer {
+	logger *log.Logger,
+) *hlsMuxer {
 	ctx, ctxCancel := context.WithCancel(parentCtx)
 
 	now := time.Now().Unix()
@@ -283,7 +284,8 @@ func (m *hlsMuxer) decodePacket(
 	h264Decoder *rtph264.Decoder,
 	audioTrack *gortsplib.TrackAAC,
 	audioTrackID int,
-	aacDecoder *rtpaac.Decoder) error {
+	aacDecoder *rtpaac.Decoder,
+) error {
 	if videoTrack != nil && pair.trackID == videoTrackID { //nolint:nestif
 		nalus, pts, err := h264Decoder.DecodeUntilMarker(pair.packet)
 		if err != nil {

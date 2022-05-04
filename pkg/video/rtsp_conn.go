@@ -21,7 +21,8 @@ func newRTSPConn(
 	readTimeout time.Duration,
 	pathManager *pathManager,
 	conn *gortsplib.ServerConn,
-	logger *log.Logger) *rtspConn {
+	logger *log.Logger,
+) *rtspConn {
 	c := &rtspConn{
 		rtspAddress: rtspAddress,
 		readTimeout: readTimeout,

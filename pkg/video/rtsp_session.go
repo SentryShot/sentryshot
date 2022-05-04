@@ -32,7 +32,8 @@ func newRTSPSession(
 	ss *gortsplib.ServerSession,
 	sc *gortsplib.ServerConn,
 	pathManager *pathManager,
-	logger *log.Logger) *rtspSession {
+	logger *log.Logger,
+) *rtspSession {
 	s := &rtspSession{
 		id:          id,
 		ss:          ss,

@@ -38,7 +38,6 @@ type LogFunc func(string)
 
 // Process interface only used for testing.
 type Process interface {
-
 	// Set timeout for process to exit after being stopped.
 	Timeout(time.Duration) Process
 

@@ -130,7 +130,8 @@ func NewManager(
 	env storage.ConfigEnv,
 	log *log.Logger,
 	videoServer *video.Server,
-	hooks *Hooks) (*Manager, error) {
+	hooks *Hooks,
+) (*Manager, error) {
 	if err := os.MkdirAll(configPath, 0o700); err != nil {
 		return nil, fmt.Errorf("could not create monitors directory: %w", err)
 	}
@@ -488,7 +489,8 @@ func (i *InputProcess) rtspPathName() string {
 // returns the combined duration of the last nSegments.
 // Used to calculate start time of the recordings.
 func (i *InputProcess) WaitForNewHLSsegment(
-	ctx context.Context, nSegments int) (time.Duration, error) {
+	ctx context.Context, nSegments int,
+) (time.Duration, error) {
 	return i.waitForNewHLSsegment(ctx, nSegments)
 }
 
@@ -527,8 +529,7 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 
 	pathConf := video.PathConf{MonitorID: id, IsSub: i.IsSubInput()}
 
-	hlsAddress, rtspAddress, rtspProtocol, waitForNewHLSsegment, cancel, err :=
-		i.M.videoServer.NewPath(i.rtspPathName(), pathConf)
+	hlsAddress, rtspAddress, rtspProtocol, waitForNewHLSsegment, cancel, err := i.M.videoServer.NewPath(i.rtspPathName(), pathConf) //nolint:lll
 	if err != nil {
 		return fmt.Errorf("could not add path to RTSP server: %w", err)
 	}

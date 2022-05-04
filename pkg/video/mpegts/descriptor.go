@@ -431,7 +431,8 @@ type DescriptorExtensionSupplementaryAudio struct {
 }
 
 func newDescriptorExtensionSupplementaryAudio(
-	r *bitio.CountReader, offsetEnd int64) (*DescriptorExtensionSupplementaryAudio, error) {
+	r *bitio.CountReader, offsetEnd int64,
+) (*DescriptorExtensionSupplementaryAudio, error) {
 	d := &DescriptorExtensionSupplementaryAudio{}
 
 	d.MixType = r.TryReadBool()
@@ -465,7 +466,8 @@ type DescriptorISO639LanguageAndAudioType struct {
 // newDescriptorISO639LanguageAndAudioType In some actual cases,
 // the length is 3 and the language is described in only 2 bytes.
 func newDescriptorISO639LanguageAndAudioType(
-	r *bitio.CountReader, offsetEnd int64) (*DescriptorISO639LanguageAndAudioType, error) {
+	r *bitio.CountReader, offsetEnd int64,
+) (*DescriptorISO639LanguageAndAudioType, error) {
 	offset := uint8(offsetEnd - r.BitsCount/8)
 	language := make([]byte, offset-1)
 	TryReadFull(r, language)
@@ -887,7 +889,8 @@ func parseDescriptors(r *bitio.CountReader) ([]*Descriptor, error) {
 func parseDescriptor( //nolint:funlen,gocognit,gocyclo
 	d *Descriptor,
 	r *bitio.CountReader,
-	offsetDescriptorEnd int64) error {
+	offsetDescriptorEnd int64,
+) error {
 	var err error
 
 	switch d.Tag {

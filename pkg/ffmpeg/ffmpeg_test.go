@@ -19,13 +19,14 @@ import (
 	"context"
 	"fmt"
 	"image"
-	"nvr/pkg/log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"nvr/pkg/log"
 
 	"github.com/stretchr/testify/require"
 )

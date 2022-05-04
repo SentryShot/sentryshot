@@ -16,9 +16,10 @@
 package thumbscale
 
 import (
-	"nvr/pkg/monitor"
 	"sync"
 	"testing"
+
+	"nvr/pkg/monitor"
 
 	"github.com/stretchr/testify/require"
 )

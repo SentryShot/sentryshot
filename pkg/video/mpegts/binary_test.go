@@ -75,7 +75,6 @@ func (t *testLimitedWriter) WriteByte(c byte) error {
 
 func BenchmarkBitsWriter_Write(b *testing.B) {
 	benchmarks := []func(*bitio.Writer){
-
 		func(w *bitio.Writer) { WriteBinary(w, "000000") },
 		func(w *bitio.Writer) { w.WriteBool(false) },
 		func(w *bitio.Writer) { w.WriteBool(true) },

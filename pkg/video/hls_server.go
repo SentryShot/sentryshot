@@ -35,7 +35,8 @@ func newHLSServer(
 	address string,
 	readBufferCount int,
 	pathManager *pathManager,
-	logger *log.Logger) *hlsServer {
+	logger *log.Logger,
+) *hlsServer {
 	s := &hlsServer{
 		address:         address,
 		readBufferCount: readBufferCount,

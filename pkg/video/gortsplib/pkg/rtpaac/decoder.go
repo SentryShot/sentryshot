@@ -61,7 +61,8 @@ func (d *Decoder) Decode(pkt *rtp.Packet) ([][]byte, time.Duration, error) {
 func (d *Decoder) decodeFragmented(
 	pkt *rtp.Packet,
 	auHeadersLen uint16,
-	payload []byte) ([][]byte, time.Duration, error) {
+	payload []byte,
+) ([][]byte, time.Duration, error) {
 	if auHeadersLen != 16 {
 		return nil, 0, ErrFragMultipleAU
 	}
@@ -92,7 +93,8 @@ func (d *Decoder) decodeFragmented(
 func (d *Decoder) decodeUnfragmented( //nolint:funlen
 	pkt *rtp.Packet,
 	auHeadersLen uint16,
-	payload []byte) ([][]byte, time.Duration, error) {
+	payload []byte,
+) ([][]byte, time.Duration, error) {
 	if pkt.Header.Marker {
 		// AU-headers
 		// AAC headers are 16 bits, where

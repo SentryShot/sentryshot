@@ -20,11 +20,12 @@ import (
 	"encoding/json"
 	"io/fs"
 	"net/http"
+	"os"
+	"testing"
+
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"nvr/pkg/web/auth"
-	"os"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"

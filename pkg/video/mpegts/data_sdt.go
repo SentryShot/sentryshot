@@ -47,7 +47,8 @@ type SDTDataService struct {
 func parseSDTSection(
 	r *bitio.CountReader,
 	offsetSectionsEnd int64,
-	tableIDExtension uint16) (*SDTData, error) {
+	tableIDExtension uint16,
+) (*SDTData, error) {
 	d := &SDTData{TransportStreamID: tableIDExtension}
 
 	d.OriginalNetworkID = uint16(r.TryReadBits(16))

@@ -1,8 +1,9 @@
 package gortsplib
 
 import (
-	"nvr/pkg/video/gortsplib/pkg/base"
 	"testing"
+
+	"nvr/pkg/video/gortsplib/pkg/base"
 
 	psdp "github.com/pion/sdp/v3"
 	"github.com/stretchr/testify/require"

@@ -145,7 +145,8 @@ func newPath(
 	name string,
 	wg *sync.WaitGroup,
 	parent *pathManager,
-	logger *log.Logger) *path {
+	logger *log.Logger,
+) *path {
 	ctx, ctxCancel := context.WithCancel(parentCtx)
 
 	pa := &path{
@@ -672,7 +673,8 @@ type WaitForNewHLSsegementFunc func(context.Context, int) (time.Duration, error)
 // returns the combined duration of the last nSegments.
 // Used to calculate start time of the recordings.
 func (pconf *PathConf) WaitForNewHLSsegment(
-	ctx context.Context, nSegments int) (time.Duration, error) {
+	ctx context.Context, nSegments int,
+) (time.Duration, error) {
 	for {
 		listener := make(chan hls.Segments)
 		// Register listener.

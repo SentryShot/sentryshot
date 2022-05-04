@@ -23,17 +23,18 @@ import (
 	"fmt"
 	"image/png"
 	"io"
-	"nvr/pkg/ffmpeg"
-	"nvr/pkg/ffmpeg/ffmock"
-	"nvr/pkg/log"
-	"nvr/pkg/monitor"
-	"nvr/pkg/storage"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"nvr/pkg/ffmpeg"
+	"nvr/pkg/ffmpeg/ffmock"
+	"nvr/pkg/log"
+	"nvr/pkg/monitor"
+	"nvr/pkg/storage"
 
 	"github.com/stretchr/testify/require"
 )

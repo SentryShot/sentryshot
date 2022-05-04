@@ -25,7 +25,7 @@ modified ".go" && {
 	printf "format go\\n"
 	./utils/format-go.sh || error "format go failed"
 	printf "lint go\\n"
-	./utils/lint-go.sh || error "lint go failed"
+	./utils/lint-go-fix.sh || error "lint go failed"
 	printf "test go\\n"
 	./utils/test-go.sh || error "test go failed"
 }

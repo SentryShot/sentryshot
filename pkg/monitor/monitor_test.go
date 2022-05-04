@@ -21,11 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"nvr/pkg/ffmpeg"
-	"nvr/pkg/ffmpeg/ffmock"
-	"nvr/pkg/log"
-	"nvr/pkg/storage"
-	"nvr/pkg/video"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -33,6 +28,12 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"nvr/pkg/ffmpeg"
+	"nvr/pkg/ffmpeg/ffmock"
+	"nvr/pkg/log"
+	"nvr/pkg/storage"
+	"nvr/pkg/video"
 
 	"github.com/stretchr/testify/require"
 )

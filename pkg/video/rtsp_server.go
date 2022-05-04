@@ -34,7 +34,8 @@ func newRTSPServer(
 	readBufferCount int,
 	readBufferSize int,
 	logger *log.Logger,
-	pathManager *pathManager) *rtspServer {
+	pathManager *pathManager,
+) *rtspServer {
 	s := &rtspServer{
 		wg:          wg,
 		address:     address,

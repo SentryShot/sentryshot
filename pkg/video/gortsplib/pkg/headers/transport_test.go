@@ -1,8 +1,9 @@
 package headers
 
 import (
-	"nvr/pkg/video/gortsplib/pkg/base"
 	"testing"
+
+	"nvr/pkg/video/gortsplib/pkg/base"
 
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +14,6 @@ var casesTransport = []struct {
 	vout base.HeaderValue
 	h    Transport
 }{
-
 	{
 		"tcp play request / response",
 		base.HeaderValue{`RTP/AVP/TCP;interleaved=0-1`},

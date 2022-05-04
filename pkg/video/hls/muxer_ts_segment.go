@@ -75,9 +75,9 @@ func (t *MuxerTSSegment) writeH264(
 	dts time.Duration,
 	pts time.Duration,
 	idrPresent bool,
-	enc []byte) error {
+	enc []byte,
+) error {
 	var af *mpegts.PacketAdaptationField
-
 	if idrPresent {
 		if af == nil {
 			af = &mpegts.PacketAdaptationField{}
@@ -137,7 +137,8 @@ func (t *MuxerTSSegment) writeAAC(
 	pcr time.Duration,
 	pts time.Duration,
 	enc []byte,
-	ausLen int) error {
+	ausLen int,
+) error {
 	af := &mpegts.PacketAdaptationField{
 		RandomAccessIndicator: true,
 	}

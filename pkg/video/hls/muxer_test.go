@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"io/ioutil"
-	"nvr/pkg/video/gortsplib"
-	"nvr/pkg/video/mpegts"
 	"regexp"
 	"testing"
 	"time"
+
+	"nvr/pkg/video/gortsplib"
+	"nvr/pkg/video/mpegts"
 
 	"github.com/stretchr/testify/require"
 )

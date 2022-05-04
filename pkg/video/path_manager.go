@@ -45,7 +45,8 @@ func newPathManager(
 	writeTimeout time.Duration,
 	readBufferCount int,
 	readBufferSize int,
-	log *log.Logger) *pathManager {
+	log *log.Logger,
+) *pathManager {
 	pm := &pathManager{
 		wg:                wg,
 		log:               log,
@@ -188,7 +189,8 @@ func (pm *pathManager) run() { //nolint:funlen,gocognit
 func (pm *pathManager) createPath(
 	pathConfName string,
 	pathConf *PathConf,
-	name string) {
+	name string,
+) {
 	pm.paths[name] = newPath(
 		pm.ctx,
 		pm.rtspAddress,
