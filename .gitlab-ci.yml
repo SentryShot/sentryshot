@@ -11,7 +11,9 @@ default:
 run:
     artifacts:
         reports:
-            cobertura: ./coverage/*.xml
+            coverage_report:
+                coverage_format: cobertura
+                path: ./coverage/*.xml
             junit: ./coverage/report/*.xml
     script:
         - |

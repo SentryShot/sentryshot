@@ -176,7 +176,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 
 	t.RegisterTemplateDataFuncs(
 		func(data template.FuncMap, _ string) {
-			data["theme"] = general.Get().Theme
+			data["theme"] = general.Get()["theme"]
 		},
 		func(data template.FuncMap, _ string) {
 			data["tz"] = timeZone

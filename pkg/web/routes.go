@@ -107,13 +107,13 @@ func GeneralSet(general *storage.ConfigGeneral) http.Handler {
 			return
 		}
 
-		var config storage.GeneralConfig
+		var config map[string]string
 		if err = json.Unmarshal(body, &config); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if config.DiskSpace == "" {
+		if config["diskSpace"] == "" {
 			http.Error(w, "DiskSpace missing", http.StatusBadRequest)
 			return
 		}

@@ -112,7 +112,7 @@ func diskUsage(path string) int64 {
 func (s *Manager) Usage() (DiskUsage, error) {
 	used := s.usage(s.path)
 
-	diskSpace := s.general.Get().DiskSpace
+	diskSpace := s.general.Get()["diskSpace"]
 	if diskSpace == "0" || diskSpace == "" {
 		return DiskUsage{
 			Used:      int(used),
@@ -297,15 +297,9 @@ func (env ConfigEnv) PrepareEnvironment() error {
 	return nil
 }
 
-// GeneralConfig stores general config values.
-type GeneralConfig struct {
-	DiskSpace string `json:"diskSpace"`
-	Theme     string `json:"theme"`
-}
-
 // ConfigGeneral stores config and path.
 type ConfigGeneral struct {
-	Config GeneralConfig
+	Config map[string]string
 
 	path string
 	mu   sync.Mutex
@@ -313,18 +307,18 @@ type ConfigGeneral struct {
 
 // NewConfigGeneral return new environment configuration.
 func NewConfigGeneral(path string) (*ConfigGeneral, error) {
-	var general ConfigGeneral
-	general.Config.Theme = "default"
+	general := ConfigGeneral{
+		Config: map[string]string{},
+		path:   path + "/general.json",
+	}
 
-	configPath := path + "/general.json"
-
-	if !dirExist(configPath) {
-		if err := generateGeneralConfig(configPath); err != nil {
+	if !dirExist(general.path) {
+		if err := generateGeneralConfig(general.path); err != nil {
 			return &ConfigGeneral{}, fmt.Errorf("generate general.yaml: %w", err)
 		}
 	}
 
-	file, err := os.ReadFile(configPath)
+	file, err := os.ReadFile(general.path)
 	if err != nil {
 		return &ConfigGeneral{}, err
 	}
@@ -334,14 +328,13 @@ func NewConfigGeneral(path string) (*ConfigGeneral, error) {
 		return &ConfigGeneral{}, err
 	}
 
-	general.path = configPath
 	return &general, nil
 }
 
 func generateGeneralConfig(path string) error {
-	config := GeneralConfig{
-		DiskSpace: "5",
-		Theme:     "default",
+	config := map[string]string{
+		"diskSpace": "5",
+		"theme":     "default",
 	}
 	c, _ := json.MarshalIndent(config, "", "    ")
 
@@ -349,14 +342,14 @@ func generateGeneralConfig(path string) error {
 }
 
 // Get returns general config.
-func (general *ConfigGeneral) Get() GeneralConfig {
+func (general *ConfigGeneral) Get() map[string]string {
 	defer general.mu.Unlock()
 	general.mu.Lock()
 	return general.Config
 }
 
 // Set sets config value and saves file.
-func (general *ConfigGeneral) Set(newConfig GeneralConfig) error {
+func (general *ConfigGeneral) Set(newConfig map[string]string) error {
 	general.mu.Lock()
 
 	config, _ := json.MarshalIndent(newConfig, "", "    ")

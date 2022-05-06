@@ -58,8 +58,8 @@ func TestUsage(t *testing.T) {
 			s := Manager{
 				path: "testdata",
 				general: &ConfigGeneral{
-					Config: GeneralConfig{
-						DiskSpace: tc.space,
+					Config: map[string]string{
+						"diskSpace": tc.space,
 					},
 				},
 				usage: func(_ string) int64 {
@@ -78,9 +78,7 @@ func TestUsage(t *testing.T) {
 		s := Manager{
 			path: "testdata",
 			general: &ConfigGeneral{
-				Config: GeneralConfig{
-					DiskSpace: "",
-				},
+				Config: map[string]string{},
 			},
 			usage: func(_ string) int64 {
 				return int64(1000)
@@ -95,8 +93,8 @@ func TestUsage(t *testing.T) {
 	t.Run("diskSpace error", func(t *testing.T) {
 		s := Manager{
 			general: &ConfigGeneral{
-				Config: GeneralConfig{
-					DiskSpace: "nil",
+				Config: map[string]string{
+					"diskSpace": "nil",
 				},
 			},
 			usage: func(_ string) int64 {
@@ -109,14 +107,14 @@ func TestUsage(t *testing.T) {
 }
 
 var diskSpace1 = &ConfigGeneral{
-	Config: GeneralConfig{
-		DiskSpace: "1",
+	Config: map[string]string{
+		"diskSpace": "1",
 	},
 }
 
 var diskSpaceErr = &ConfigGeneral{
-	Config: GeneralConfig{
-		DiskSpace: "nil",
+	Config: map[string]string{
+		"diskSpace": "nil",
 	},
 }
 
@@ -206,8 +204,8 @@ func TestPurge(t *testing.T) {
 		m := &Manager{
 			path: tempDir,
 			general: &ConfigGeneral{
-				Config: GeneralConfig{
-					DiskSpace: "1",
+				Config: map[string]string{
+					"diskSpace": "1",
 				},
 			},
 			usage:     highUsage,
@@ -472,8 +470,8 @@ func newTestGeneral(t *testing.T) (string, *ConfigGeneral, func()) {
 
 	configPath := filepath.Join(tempDir, "general.json")
 
-	config := GeneralConfig{
-		DiskSpace: "1",
+	config := map[string]string{
+		"diskSpace": "1",
 	}
 	data, err := json.MarshalIndent(config, "", "    ")
 	require.NoError(t, err)
@@ -513,13 +511,13 @@ func TestNewConfigGeneral(t *testing.T) {
 		file, err := os.ReadFile(configFile)
 		require.NoError(t, err)
 
-		config2 := &GeneralConfig{}
-		err = json.Unmarshal(file, config2)
+		config2 := map[string]string{}
+		err = json.Unmarshal(file, &config2)
 		require.NoError(t, err)
 
-		expected := &GeneralConfig{DiskSpace: "5", Theme: "default"}
+		expected := map[string]string{"diskSpace": "5", "theme": "default"}
 
-		require.Equal(t, &config1.Config, expected)
+		require.Equal(t, config1.Config, expected)
 		require.Equal(t, config2, expected)
 	})
 	t.Run("genConfigErr", func(t *testing.T) {
@@ -554,15 +552,15 @@ func TestGeneral(t *testing.T) {
 
 		general, _ := NewConfigGeneral(tempDir)
 
-		newConfig := GeneralConfig{
-			DiskSpace: "1",
+		newConfig := map[string]string{
+			"diskSpace": "1",
 		}
 		general.Set(newConfig)
 
 		file, err := os.ReadFile(general.path)
 		require.NoError(t, err)
 
-		var config GeneralConfig
+		var config map[string]string
 		err = json.Unmarshal(file, &config)
 		require.NoError(t, err)
 
@@ -577,7 +575,7 @@ func TestGeneral(t *testing.T) {
 		require.NoError(t, err)
 		os.RemoveAll(tempDir)
 
-		err = general.Set(GeneralConfig{})
+		err = general.Set(map[string]string{})
 		require.ErrorIs(t, err, os.ErrNotExist)
 	})
 }
