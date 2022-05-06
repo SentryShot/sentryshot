@@ -105,15 +105,15 @@ func newSystem(disk diskFunc, log *log.Logger) *system {
 func (s *system) update(ctx context.Context) error {
 	cpuUsage, err := s.cpu(ctx, s.duration, false)
 	if err != nil {
-		return fmt.Errorf("could not get cpu usage %w", err)
+		return fmt.Errorf("get cpu usage %w", err)
 	}
 	ramUsage, err := s.ram()
 	if err != nil {
-		return fmt.Errorf("could not get ram usage %w", err)
+		return fmt.Errorf("get ram usage %w", err)
 	}
 	diskUsage, err := s.disk()
 	if err != nil {
-		return fmt.Errorf("could not get disk usage %w", err)
+		return fmt.Errorf("get disk usage %w", err)
 	}
 
 	s.mu.Lock()

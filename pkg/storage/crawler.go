@@ -264,7 +264,7 @@ var ErrUnexpectedDir = errors.New("unexpected directory")
 func (d *dir) findAllThumbnails() ([]dir, error) {
 	monitorDirs, err := fs.ReadDir(os.DirFS(d.path), ".")
 	if err != nil {
-		return nil, fmt.Errorf("could not read day directory: %v %w", d.path, err)
+		return nil, fmt.Errorf("read day directory: %v %w", d.path, err)
 	}
 
 	var thumbnails []dir
@@ -275,7 +275,7 @@ func (d *dir) findAllThumbnails() ([]dir, error) {
 		path := filepath.Join(d.path, m.Name())
 		files, err := fs.ReadDir(os.DirFS(path), ".")
 		if err != nil {
-			return nil, fmt.Errorf("could not read monitor directory: %v: %w", path, err)
+			return nil, fmt.Errorf("read monitor directory: %v: %w", path, err)
 		}
 		for _, file := range files {
 			if file.IsDir() {
@@ -306,7 +306,7 @@ func (d *dir) monitorSelected(monitor string) bool {
 	return false
 }
 
-// childByName Returns next or previus child.
+// childByName Returns next or previous child.
 func (d *dir) childByName(name string) (*dir, error) {
 	children, err := d.children()
 	if err != nil {
@@ -391,7 +391,8 @@ func (d *dir) findFileDeep() (*dir, error) {
 // ErrNoSibling could not find sibling.
 var ErrNoSibling = errors.New("could not find sibling")
 
-// sibling Returns next or previus sibling. Will climb.
+// sibling Returns next or previous sibling.
+// Will climb to parent directories.
 func (d *dir) sibling() (*dir, error) {
 	if d.depth == 0 {
 		return nil, nil
@@ -411,7 +412,7 @@ func (d *dir) sibling() (*dir, error) {
 				}
 				return d.parent.sibling()
 			}
-			// Previus
+			// Previous
 			if i > 0 {
 				return siblings[i-1].findFileDeep()
 			}

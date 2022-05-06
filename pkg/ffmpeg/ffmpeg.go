@@ -206,7 +206,7 @@ func (f *FFMPEG) SizeFromStream(ctx context.Context, url string) (string, error)
 	}
 
 	re := regexp.MustCompile(`\b\d+x\d+\b`)
-	// Input "Stream #0:0: Video: h264 (Main), yuv420p(progressive), 720x1280 fps, 30.00"
+	// Input  "Stream #0:0: Video: h264 (Main), yuv420p(progressive), 720x1280 fps, 30.00"
 	// Output "720x1280"
 
 	output := re.FindString(stderr.String())
@@ -232,7 +232,7 @@ func (f *FFMPEG) VideoDuration(path string) (time.Duration, error) {
 		return 0, fmt.Errorf("%s %w", stderr.String(), err)
 	}
 
-	// Input "Duration: 01:02:59.99, start: 0.000000, bitrate: 614 kb/s"
+	// Input  "Duration: 01:02:59.99, start: 0.000000, bitrate: 614 kb/s"
 	// Output "1h2m59s99ms"
 	re := regexp.MustCompile(`\bDuration: (\d\d):(\d\d):(\d\d).(\d\d)`)
 	m := re.FindStringSubmatch(stderr.String())
@@ -394,7 +394,7 @@ func ParseScaleString(scale string) string {
 func FeedRateToDuration(feedrate string) (time.Duration, error) {
 	feedRateFloat, err := strconv.ParseFloat(feedrate, 64)
 	if err != nil {
-		return 0, fmt.Errorf("could not parse feedrate: %w", err)
+		return 0, fmt.Errorf("parse feedrate: %w", err)
 	}
 
 	frameDurationFloat := 1 / feedRateFloat

@@ -227,7 +227,7 @@ func (a *Authenticator) UserSet(req auth.SetUserRequest) error {
 	a.authCache = make(map[string]auth.ValidateRes)
 
 	if err := a.SaveUsersToFile(); err != nil {
-		return fmt.Errorf("could not save users to file: %w", err)
+		return fmt.Errorf("save users to file: %w", err)
 	}
 
 	return nil

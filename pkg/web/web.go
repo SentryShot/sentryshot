@@ -72,13 +72,13 @@ func NewTemplater(a auth.Authenticator, hooks TemplateHooks) (*Templater, error)
 		t := template.New(fileName)
 		t, err := t.Parse(page)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse page: %w", err)
+			return nil, fmt.Errorf("parse page: %w", err)
 		}
 
 		for _, include := range includeFiles {
 			t, err = t.Parse(include)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse include: %w", err)
+				return nil, fmt.Errorf("parse include: %w", err)
 			}
 		}
 		templates[fileName] = t

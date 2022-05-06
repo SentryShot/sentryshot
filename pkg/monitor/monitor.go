@@ -133,12 +133,12 @@ func NewManager(
 	hooks *Hooks,
 ) (*Manager, error) {
 	if err := os.MkdirAll(configPath, 0o700); err != nil {
-		return nil, fmt.Errorf("could not create monitors directory: %w", err)
+		return nil, fmt.Errorf("create monitors directory: %w", err)
 	}
 
 	configFiles, err := readConfigs(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read configuration files: %w", err)
+		return nil, fmt.Errorf("read configuration files: %w", err)
 	}
 
 	manager := &Manager{
@@ -153,7 +153,7 @@ func NewManager(
 	for _, file := range configFiles {
 		var config Config
 		if err := json.Unmarshal(file, &config); err != nil {
-			return nil, fmt.Errorf("could not unmarshal config: %w: %v", err, file)
+			return nil, fmt.Errorf("unmarshal config: %w: %v", err, file)
 		}
 		monitors[config["id"]] = manager.newMonitor(config)
 	}
@@ -174,7 +174,7 @@ func readConfigs(path string) ([][]byte, error) {
 		}
 		file, err := fs.ReadFile(fileSystem, path)
 		if err != nil {
-			return fmt.Errorf("could not read file: %v %w", path, err)
+			return fmt.Errorf("read file: %v %w", path, err)
 		}
 		files = append(files, file)
 		return nil
@@ -531,7 +531,7 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 
 	hlsAddress, rtspAddress, rtspProtocol, waitForNewHLSsegment, cancel, err := i.M.videoServer.NewPath(i.rtspPathName(), pathConf) //nolint:lll
 	if err != nil {
-		return fmt.Errorf("could not add path to RTSP server: %w", err)
+		return fmt.Errorf("add path to RTSP server: %w", err)
 	}
 	defer cancel()
 
@@ -542,7 +542,7 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 
 	i.size, err = i.sizeFromStream(ctx, i.input())
 	if err != nil {
-		return fmt.Errorf("could not get size of stream: %w", err)
+		return fmt.Errorf("get size of stream: %w", err)
 	}
 
 	processCTX, cancel2 := context.WithCancel(ctx)
@@ -710,12 +710,12 @@ type runRecordingProcessFunc func(context.Context, *Monitor) error
 func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	segmentDuration, err := m.mainInput.waitForNewHLSsegment(ctx, 2)
 	if err != nil {
-		return fmt.Errorf("could not get keyframe duration: %w", err)
+		return fmt.Errorf("get keyframe duration: %w", err)
 	}
 
 	timestampOffsetInt, err := strconv.Atoi(m.Config["timestampOffset"])
 	if err != nil {
-		return fmt.Errorf("could not parse timestamp offset %w", err)
+		return fmt.Errorf("parse timestamp offset %w", err)
 	}
 
 	offset := segmentDuration + time.Duration(timestampOffsetInt)*time.Millisecond
@@ -727,7 +727,7 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 	filePath := filepath.Join(fileDir, startTime.Format("2006-01-02_15-04-05_")+id)
 
 	if err := os.MkdirAll(fileDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("could not make directory for video: %w", err)
+		return fmt.Errorf("make directory for video: %w", err)
 	}
 
 	args, err := m.generateRecorderArgs(filePath)
@@ -765,7 +765,7 @@ func runRecordingProcess(ctx context.Context, m *Monitor) error {
 func (m *Monitor) generateRecorderArgs(filePath string) (string, error) {
 	videoLength, err := strconv.ParseFloat(m.Config.videoLength(), 64)
 	if err != nil {
-		return "", fmt.Errorf("could not parse video length: %w", err)
+		return "", fmt.Errorf("parse video length: %w", err)
 	}
 	videoLengthSec := strconv.Itoa((int(videoLength * 60)))
 
@@ -823,13 +823,13 @@ func (m *Monitor) saveRec(filePath string, startTime time.Time) error {
 	defer cancel()
 	if err := process.Start(ctx); err != nil {
 		abort()
-		return fmt.Errorf("could not generate thumbnail, args: %v error: %w", args, err)
+		return fmt.Errorf("generate thumbnail, args: %v error: %w", args, err)
 	}
 
 	duration, err := m.videoDuration(videoPath)
 	if err != nil {
 		abort()
-		return fmt.Errorf("could not get video duration of: %v: %w", videoPath, err)
+		return fmt.Errorf("get video duration of: %v: %w", videoPath, err)
 	}
 
 	endTime := startTime.Add(duration)
@@ -845,7 +845,7 @@ func (m *Monitor) saveRec(filePath string, startTime time.Time) error {
 	}
 	json, _ := json.MarshalIndent(data, "", "    ")
 	if err := os.WriteFile(dataPath, json, 0o600); err != nil {
-		return fmt.Errorf("could not write event file: %w", err)
+		return fmt.Errorf("write events file: %w", err)
 	}
 
 	go m.hooks.RecSaved(m, filePath, data)

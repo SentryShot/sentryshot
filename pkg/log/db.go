@@ -62,7 +62,7 @@ type DB struct {
 func (logDB *DB) Init(ctx context.Context) error {
 	err := os.MkdirAll(filepath.Dir(logDB.dbPath), 0o755)
 	if err != nil {
-		return fmt.Errorf("could not create directory for log database: %w", err)
+		return fmt.Errorf("create directory for log database: %w", err)
 	}
 
 	dbOpts := &bolt.Options{
@@ -70,7 +70,7 @@ func (logDB *DB) Init(ctx context.Context) error {
 	}
 	db, err := bolt.Open(logDB.dbPath, 0o600, dbOpts)
 	if err != nil {
-		return fmt.Errorf("could not open database: %w: %v", err, logDB.dbPath)
+		return fmt.Errorf("open database: %w: %v", err, logDB.dbPath)
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
@@ -79,7 +79,7 @@ func (logDB *DB) Init(ctx context.Context) error {
 	})
 	if err != nil {
 		db.Close()
-		return fmt.Errorf("could not create bucket: %v, %w", dbAPIversion, err)
+		return fmt.Errorf("create bucket: %v, %w", dbAPIversion, err)
 	}
 
 	logDB.db = db
@@ -124,7 +124,7 @@ func (logDB *DB) saveLog(log Log) error {
 
 		if b.Stats().KeyN >= logDB.maxKeys {
 			if err := deleteFirstKey(b); err != nil {
-				return fmt.Errorf("could not delete first key: %w", err)
+				return fmt.Errorf("delete first key: %w", err)
 			}
 		}
 		return b.Put(key, value)
@@ -156,7 +156,7 @@ func (logDB *DB) Query(q Query) (*[]Log, error) {
 		var log Log
 		filterLog := func(rawLog []byte) error {
 			if err := json.Unmarshal(rawLog, &log); err != nil {
-				return fmt.Errorf("could not unmarshal log: %w", err)
+				return fmt.Errorf("unmarshal log: %w", err)
 			}
 
 			if !levelInLevels(log.Level, q.Levels) {

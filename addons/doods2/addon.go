@@ -95,18 +95,18 @@ type Config struct {
 func readConfig(configPath string) (string, error) {
 	if !dirExist(configPath) {
 		if err := genConfig(configPath); err != nil {
-			return "", fmt.Errorf("could not generate config: %w", err)
+			return "", fmt.Errorf("generate config: %w", err)
 		}
 	}
 
 	file, err := os.ReadFile(configPath)
 	if err != nil {
-		return "", fmt.Errorf("could not read config: %w", err)
+		return "", fmt.Errorf("read config: %w", err)
 	}
 
 	var config Config
 	if err := json.Unmarshal(file, &config); err != nil {
-		return "", fmt.Errorf("could not unmarshal config: %w", err)
+		return "", fmt.Errorf("unmarshal config: %w", err)
 	}
 
 	return config.IP, nil
@@ -140,23 +140,23 @@ func (f *fetcher) fetchDetectors() (detectors, error) {
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, f.url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not create request: %w", err)
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("could not send request: %w", err)
+		return nil, fmt.Errorf("send request: %w", err)
 	}
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("could not read body: %w", err)
+		return nil, fmt.Errorf("read body: %w", err)
 	}
 
 	var d getDetectorsResponce
 	if err := json.Unmarshal(body, &d); err != nil {
-		return nil, fmt.Errorf("could not unmarshal response: %v %w", body, err)
+		return nil, fmt.Errorf("unmarshal response: %v %w", body, err)
 	}
 
 	return d.Detectors, nil
@@ -248,7 +248,7 @@ func (c *client) dial() error {
 	var err error
 	c.conn, _, err = websocket.DefaultDialer.DialContext(ctx2, c.url, nil) //nolint: bodyclose
 	if err != nil {
-		return fmt.Errorf("could not connect: %v %w", c.url, err)
+		return fmt.Errorf("connect: %v %w", c.url, err)
 	}
 	return nil
 }

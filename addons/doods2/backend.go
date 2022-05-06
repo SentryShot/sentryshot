@@ -69,12 +69,12 @@ func start(ctx context.Context, input *monitor.InputProcess) error {
 	detectorName := input.M.Config["doodsDetectorName"]
 	detector, err := detectorByName(detectorName)
 	if err != nil {
-		return fmt.Errorf("could not get detector: %w", err)
+		return fmt.Errorf("get detector: %w", err)
 	}
 
 	config, err := parseConfig(input.M.Config)
 	if err != nil {
-		return fmt.Errorf("could not parse config: %w", err)
+		return fmt.Errorf("parse config: %w", err)
 	}
 
 	i := newInstance(addon.sendRequest, input, *config)
@@ -89,19 +89,19 @@ func start(ctx context.Context, input *monitor.InputProcess) error {
 		outputHeight,
 		detectorName)
 	if err != nil {
-		return fmt.Errorf("could not parse inputs: %w", err)
+		return fmt.Errorf("parse inputs: %w", err)
 	}
 
 	outputs, reverseValues, err := calculateOutputs(inputs)
 	if err != nil {
-		return fmt.Errorf("could not calculate ffmpeg outputs: %w", err)
+		return fmt.Errorf("calculate ffmpeg outputs: %w", err)
 	}
 	i.outputs = *outputs
 	i.reverseValues = *reverseValues
 
 	maskPath, err := i.generateMask(input.M.Config["doodsMask"])
 	if err != nil {
-		return fmt.Errorf("could not generate mask: %w", err)
+		return fmt.Errorf("generate mask: %w", err)
 	}
 
 	i.ffArgs = i.generateFFmpegArgs(input.M.Config, maskPath, inputs.grayMode)
@@ -123,7 +123,7 @@ type config struct {
 func parseConfig(conf monitor.Config) (*config, error) {
 	var t thresholds
 	if err := json.Unmarshal([]byte(conf["doodsThresholds"]), &t); err != nil {
-		return nil, fmt.Errorf("could not unmarshal thresholds: %w", err)
+		return nil, fmt.Errorf("unmarshal thresholds: %w", err)
 	}
 	for key, thresh := range t {
 		if thresh == -1 {
@@ -139,13 +139,13 @@ func parseConfig(conf monitor.Config) (*config, error) {
 
 	recDurationFloat, err := strconv.ParseFloat(conf["doodsDuration"], 64)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse doodsDuration: %w", err)
+		return nil, fmt.Errorf("parse doodsDuration: %w", err)
 	}
 	recDuration := time.Duration(recDurationFloat * float64(time.Second))
 
 	timestampOffset, err := strconv.Atoi(conf["timestampOffset"])
 	if err != nil {
-		return nil, fmt.Errorf("could not parse timestamp offset %w", err)
+		return nil, fmt.Errorf("parse timestamp offset %w", err)
 	}
 
 	return &config{
@@ -235,16 +235,16 @@ func parseInputs(
 	split := strings.Split(size, "x")
 	inputWidth, err := strconv.ParseFloat(split[0], 64)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse input width: %w %v", err, split)
+		return nil, fmt.Errorf("parse input width: %w %v", err, split)
 	}
 	inputHeight, err := strconv.ParseFloat(split[1], 64)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse input height: %w %v", err, split)
+		return nil, fmt.Errorf("parse input height: %w %v", err, split)
 	}
 
 	var crop [3]float64
 	if err := json.Unmarshal([]byte(rawCrop), &crop); err != nil {
-		return nil, fmt.Errorf("could not Unmarshal crop values: %w", err)
+		return nil, fmt.Errorf("unmarshal crop values: %w", err)
 	}
 
 	grayMode := false
@@ -364,7 +364,7 @@ type mask struct {
 func (i *instance) generateMask(rawMask string) (string, error) {
 	var m mask
 	if err := json.Unmarshal([]byte(rawMask), &m); err != nil {
-		return "", fmt.Errorf("could not unmarshal doodsMask: %w", err)
+		return "", fmt.Errorf("unmarshal doodsMask: %w", err)
 	}
 
 	if !m.Enable {
@@ -380,7 +380,7 @@ func (i *instance) generateMask(rawMask string) (string, error) {
 	mask := ffmpeg.CreateMask(w, h, polygon)
 
 	if err := ffmpeg.SaveImage(path, mask); err != nil {
-		return "", fmt.Errorf("could not save mask: %w", err)
+		return "", fmt.Errorf("save mask: %w", err)
 	}
 
 	return path, nil

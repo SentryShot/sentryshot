@@ -157,7 +157,7 @@ func (s *Manager) purge() error {
 	for depth := 1; depth <= dayDepth; depth++ {
 		list, err := fs.ReadDir(os.DirFS(path), ".")
 		if err != nil {
-			return fmt.Errorf("could not read directory %v: %w", path, err)
+			return fmt.Errorf("read directory %v: %w", path, err)
 		}
 
 		isDirEmpty := len(list) == 0
@@ -167,7 +167,7 @@ func (s *Manager) purge() error {
 			}
 
 			if err := s.removeAll(path); err != nil {
-				return fmt.Errorf("could not remove directory: %w", err)
+				return fmt.Errorf("remove empty directory: %w", err)
 			}
 
 			path = s.RecordingsDir()
@@ -181,7 +181,7 @@ func (s *Manager) purge() error {
 
 	// Delete all files from that day
 	if err := s.removeAll(path); err != nil {
-		return fmt.Errorf("could not remove directory: %w", err)
+		return fmt.Errorf("remove directory: %w", err)
 	}
 	return nil
 }
@@ -199,7 +199,7 @@ func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
 			return
 		case <-time.After(duration):
 			if err := s.purge(); err != nil {
-				s.log.Error().Msgf("failed to purge storage: %v", err)
+				s.log.Error().Msgf("could not purge storage: %v", err)
 			}
 		}
 	}
@@ -228,7 +228,7 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	var env ConfigEnv
 
 	if err := yaml.Unmarshal(envYAML, &env); err != nil {
-		return nil, fmt.Errorf("could not unmarshal env.yaml: %w", err)
+		return nil, fmt.Errorf("unmarshal env.yaml: %w", err)
 	}
 
 	env.ConfigDir = filepath.Dir(envPath)
@@ -292,7 +292,7 @@ func (env ConfigEnv) RecordingsDir() string {
 // PrepareEnvironment prepares directories.
 func (env ConfigEnv) PrepareEnvironment() error {
 	if err := os.MkdirAll(env.RecordingsDir(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("could not create recordings directory: %v: %w", env.StorageDir, err)
+		return fmt.Errorf("create recordings directory: %v: %w", env.StorageDir, err)
 	}
 	return nil
 }
@@ -320,7 +320,7 @@ func NewConfigGeneral(path string) (*ConfigGeneral, error) {
 
 	if !dirExist(configPath) {
 		if err := generateGeneralConfig(configPath); err != nil {
-			return &ConfigGeneral{}, fmt.Errorf("could not generate environment config: %w", err)
+			return &ConfigGeneral{}, fmt.Errorf("generate general.yaml: %w", err)
 		}
 	}
 

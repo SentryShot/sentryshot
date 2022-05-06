@@ -33,12 +33,12 @@ type Manager struct {
 // NewManager return new group manager.
 func NewManager(configPath string) (*Manager, error) {
 	if err := os.MkdirAll(configPath, 0o700); err != nil {
-		return nil, fmt.Errorf("could not create groups directory: %w", err)
+		return nil, fmt.Errorf("create groups directory: %w", err)
 	}
 
 	configFiles, err := readConfigs(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read configuration files: %w", err)
+		return nil, fmt.Errorf("read configuration files: %w", err)
 	}
 
 	manager := &Manager{path: configPath}
@@ -47,7 +47,7 @@ func NewManager(configPath string) (*Manager, error) {
 	for _, file := range configFiles {
 		var config Config
 		if err := json.Unmarshal(file, &config); err != nil {
-			return nil, fmt.Errorf("could not unmarshal config: %w: %v", err, file)
+			return nil, fmt.Errorf("unmarshal config: %w: %v", err, file)
 		}
 		groups[config["id"]] = manager.newGroup(config)
 	}
@@ -69,7 +69,7 @@ func readConfigs(path string) ([][]byte, error) {
 		}
 		file, err := fs.ReadFile(fileSystem, path)
 		if err != nil {
-			return fmt.Errorf("could not read file: %v %w", path, err)
+			return fmt.Errorf("read file: %v %w", path, err)
 		}
 		files = append(files, file)
 		return nil
