@@ -14,7 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /* eslint-disable no-unused-vars */
-import { $, $$ } from "./static/scripts/libs/common.mjs";
+import { $, $$, uniqueID } from "./static/scripts/libs/common.mjs";
 import { newModal } from "./static/scripts/components/modal.mjs";
 import {
 	newForm,

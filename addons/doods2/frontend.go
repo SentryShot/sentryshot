@@ -88,8 +88,8 @@ func javascript() string { //nolint:funlen
 			}
 		}
 
-		const newThreshold = (label, value) => {
-			const id = "settings-monitor-doods-label-"+label.replace(/\s/g, "")
+		const newField = (label, val) => {
+			const id = uniqueID()
 			return {
 				html: ` + "`" + `
 					<li class="doods-label-wrapper">
@@ -98,32 +98,74 @@ func javascript() string { //nolint:funlen
 							id="${id}"
 							class="doods-threshold"
 							type="number"
-							value="${value}"
+							value="${val}"
 						/>
 					</li>
 				` + "`" + `,
 				value() {
 					return $("#"+id).value
 				},
+				label() {
+					return label
+				},
+				validate(input) {
+					if (0 > input) {
+						return "min value: 0";
+					} else if (input > 100) {
+						return "max value: 100";
+					} else {
+						return "";
+					}
+				},
 			}
 		}
 
-		const render = (detectorName) => {
-			thresholds = {};
+		let value, modal, fields, $modalContent, validateErr;
+		let isRendered = false;
+		const render = (element) => {
+			if (isRendered) {
+				return
+			}
+			modal = newModal("DOODS thresholds");
+			element.insertAdjacentHTML("beforeend", modal.html)
+			$modalContent = modal.init(element)
 
+			modal.onClose(() => {
+				// Get value.
+				value = {};
+				for (const field of fields) {
+					value[field.label()] = Number(field.value())
+				}
+
+				// Validate fields.
+				validateErr = ""
+				for (const field of fields) {
+					const err = field.validate(field.value())
+					if (err != "") {
+						validateErr =  ` + "`" + `"DOODS thresholds": "${field.label()}": ${err}` + "`" + `
+						break
+					}
+				}
+			})
+			isRendered = true
+		}
+
+		let element;
+		const defaultThresh = 50;
+
+		const setValue = (detectorName) => {
 			// Get labels from detector.
 			let labelNames = detectorByName(detectorName).labels;
+
 			var labels = {}
 			for (const name of labelNames) {
-				labels[name] = defaultThresh
+				labels[name] = defaultThresh;
 			}
 
 			// Fill in saved values.
-			if (input) {
-				for (const name of Object.keys(input)) {
-					if (labels[name] !== undefined) {
-						labels[name] = input[name]
-					}
+			for (const name of Object.keys(value)) {
+				if (labels[name]) {
+					labels[name] = value[name]
 				}
 			}
 
@@ -134,35 +176,29 @@ func javascript() string { //nolint:funlen
 			}
 			labelKeys.sort()
 
-			// Create threshold.
+			fields = [];
+
+			// Create fields
 			for (const name of labelKeys) {
-				thresholds[name] = newThreshold(name, labels[name]);
+				fields.push(newField(name, labels[name]));
 			}
 
-			// Render thresholds.
+			// Render fields.
 			let html = "";
-			for (const thresh of Object.values(thresholds)) {
-				html += thresh.html
+			for (const field of fields) {
+				html += field.html
 			}
-			$content.innerHTML = html;
-
-			modal.open()
+			$modalContent.innerHTML = html;
 		}
 
-		let input, fields;
-
-		const modal = newModal("DOODS thresholds");
-		let $content;
-
+		let monitorFields;
 		let currentDetector = "";
-
-		let thresholds;
-		const defaultThresh = 50;
+		const id = uniqueID()
 
 		return {
 			html: ` + "`" + `
 				<li
-					id="js-doodsThresholds"
+					id="${id}"
 					class="form-field"
 					style="display:flex; padding-bottom:0.25rem;"
 				>
@@ -172,28 +208,24 @@ func javascript() string { //nolint:funlen
 							<img src="static/icons/feather/edit-3.svg"/>
 						</button>
 					</div>
-					` + "` + modal.html + `" + `
 				</li> ` + "`" + `,
 			value() {
-				if (Object.entries(thresholds).length === 0) {
-					return JSON.stringify(input);
-				}
-
-				let data = {};
-				for (const key of Object.keys(thresholds)) {
-					data[key] = Number(thresholds[key].value())
-				}
-				return JSON.stringify(data);
+				return JSON.stringify(value);
 			},
-			set(i, _, f) {
-				if (i) {
-					input = JSON.parse(i);
+			set(input, _, f) {
+				if (input) {
+					value = JSON.parse(input);
+				} else {
+					value = {}
 				}
-				fields = f;
-				thresholds = {};
+				validateErr = ""
+				monitorFields = f;
+			},
+			validate() {
+				return validateErr
 			},
 			init($parent) {
-				$content = modal.init($parent.querySelector("#js-doodsThresholds"))
+				const element = $parent.querySelector("#"+id)
 
 				// CSS.
 				let $style = document.createElement("style");
@@ -225,28 +257,17 @@ func javascript() string { //nolint:funlen
 				$("head").appendChild($style);
 
 
-				$("#js-doodsThresholds").querySelector(".settings-edit-btn")
-				.addEventListener("click", () => {
+				element.querySelector(".settings-edit-btn").
+					addEventListener("click", () => {
 
-					const detectorName = fields.doodsDetectorName.value()
+					const detectorName = monitorFields.doodsDetectorName.value()
 					if (detectorName === "") {
 						alert("please select a detector")
 						return
 					}
 
-					const firstRender = (currentDetector === "")
-
-					if (firstRender) {
-						currentDetector = detectorName
-						render(detectorName)
-						return
-					}
-
-					if (currentDetector !== detectorName) {
-						render(detectorName)
-						return
-					}
-
+					render(element)
+					setValue(detectorName)
 					modal.open()
 				});
 			},
@@ -264,7 +285,7 @@ func javascript() string { //nolint:funlen
 
 		let fields = {};
 		let value = []
-		let $wrapper, $padding, $x, $y, $size, $modal, $feed;
+		let $wrapper, $padding, $x, $y, $size, $modalContent, $feed;
 
 		const modal = newModal("DOODS crop");
 
@@ -312,7 +333,7 @@ func javascript() string { //nolint:funlen
 			$("head").appendChild($style);
 		}
 
-		const renderModal = ($parent, feed) => {
+		const renderModal = (element, feed) => {
 			const html = ` + "`" + `
 				<li id="doodsCrop-preview" class="form-field">
 					<label class="form-field-label" for="doodsCrop-preview" style="width: auto;">Preview</label>
@@ -364,23 +385,23 @@ func javascript() string { //nolint:funlen
 					</div>
 				</li>` + "`" + `;
 
-			$modal = modal.init($parent.querySelector("#js-doodsCrop"))
-			$modal.innerHTML = html;
+			$modalContent = modal.init(element)
+			$modalContent.innerHTML = html;
 
-			$feed = $modal.querySelector(".js-feed");
-			$wrapper = $modal.querySelector(".js-preview-wrapper");
-			$padding = $modal.querySelector(".js-preview-padding");
-			$x = $modal.querySelector(".js-x");
-			$y = $modal.querySelector(".js-y");
-			$size = $modal.querySelector(".js-size");
+			$feed = $modalContent.querySelector(".js-feed");
+			$wrapper = $modalContent.querySelector(".js-preview-wrapper");
+			$padding = $modalContent.querySelector(".js-preview-padding");
+			$x = $modalContent.querySelector(".js-x");
+			$y = $modalContent.querySelector(".js-y");
+			$size = $modalContent.querySelector(".js-size");
 
 			set(value);
 
 			// Update padding if $feed size changes.
 			new ResizeObserver(updatePadding).observe($feed)
 
-			const $overlay = $modal.querySelector(".js-overlay")
-			$modal.querySelector(".js-options").addEventListener("change", () => {
+			const $overlay = $modalContent.querySelector(".js-overlay")
+			$modalContent.querySelector(".js-options").addEventListener("change", () => {
 				$overlay.innerHTML = updatePreview();
 			})
 			$overlay.innerHTML = updatePreview();
@@ -437,11 +458,12 @@ func javascript() string { //nolint:funlen
 		}
 
 		let rendered = false;
+		const id = uniqueID()
 
 		return {
 			html: ` + "`" + `
 				<li
-					id="js-doodsCrop"
+					id="${id}"
 					class="form-field"
 					style="display:flex; padding-bottom:0.25rem;"
 				>
@@ -479,7 +501,8 @@ func javascript() string { //nolint:funlen
 				injectCSS()
 
 				var feed;
-				$("#js-doodsCrop").querySelector(".settings-edit-btn").addEventListener("click", () => {
+				const element = $parent.querySelector("#"+id)
+				element.querySelector(".settings-edit-btn").addEventListener("click", () => {
 					if (!rendered) {
 						const subInputEnabled = (fields.subInput.value() !== "") ? "true": ""
 						const monitor = {
@@ -489,12 +512,12 @@ func javascript() string { //nolint:funlen
 						}
 						feed = newFeed(monitor, true, Hls)
 
-						renderModal($parent, feed)
+						renderModal(element, feed)
 						rendered = true;
 					}
 					modal.open()
 
-					feed.init($modal)
+					feed.init($modalContent)
 
 					modal.onClose(() => {
 						feed.destroy()
@@ -557,11 +580,11 @@ func javascript() string { //nolint:funlen
 
 		let fields = {};
 		let value = {}
-		let $wrapper, $feed, $enable, $overlay, $points, $modal;
+		let $wrapper, $feed, $enable, $overlay, $points, $modalContent;
 
 		const modal = newModal("DOODS mask");
 
-		const renderModal = ($parent, feed) => {
+		const renderModal = (element, feed) => {
 			const html = ` + "`" + `
 				<li class="js-enable doodsMask-enabled form-field">
 					<label class="form-field-label" for="doodsMask-enable">Enable</label>
@@ -588,18 +611,18 @@ func javascript() string { //nolint:funlen
 				</li>
 				<li class="js-points form-field doodsMask-points-grid"></li>` + "`" + `;
 
-			$modal = modal.init($parent.querySelector("#js-doodsMask"))
-			$modal.innerHTML = html;
+			$modalContent = modal.init(element)
+			$modalContent.innerHTML = html;
 
-			$enable = $modal.querySelector(".js-enable .js-input")
+			$enable = $modalContent.querySelector(".js-enable .js-input")
 			$enable.addEventListener("change", () => {
 				value.enable = ($enable.value == "true");
 			})
 
-			$feed = $modal.querySelector(".js-feed");
-			$wrapper = $modal.querySelector(".js-preview-wrapper");
-			$overlay = $modal.querySelector(".js-overlay")
-			$points = $modal.querySelector(".js-points");
+			$feed = $modalContent.querySelector(".js-feed");
+			$wrapper = $modalContent.querySelector(".js-preview-wrapper");
+			$overlay = $modalContent.querySelector(".js-overlay")
+			$points = $modalContent.querySelector(".js-points");
 
 			renderValue();
 			renderPreview();
@@ -698,11 +721,12 @@ func javascript() string { //nolint:funlen
 		}
 
 		let rendered = false;
+		const id = uniqueID()
 
 		return {
 			html: ` + "`" + `
 				<li
-					id="js-doodsMask"
+					id="${id}"
 					class="form-field"
 					style="display:flex; padding-bottom:0.25rem;"
 				>
@@ -733,7 +757,8 @@ func javascript() string { //nolint:funlen
 				injectCSS()
 
 				var feed
-				$("#js-doodsMask").querySelector(".settings-edit-btn").addEventListener("click", () => {
+				const element = $parent.querySelector("#"+id)
+				element.querySelector(".settings-edit-btn").addEventListener("click", () => {
 					if (!rendered) {
 						const subInputEnabled = (fields.subInput.value() !== "") ? "true": ""
 						const monitor = {
@@ -743,12 +768,12 @@ func javascript() string { //nolint:funlen
 						}
 						feed = newFeed(monitor, true, Hls)
 
-						renderModal($parent, feed)
+						renderModal(element, feed)
 						rendered = true;
 					}
 					modal.open()
 
-					feed.init($modal)
+					feed.init($modalContent)
 
 					modal.onClose(() => {
 						feed.destroy()

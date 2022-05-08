@@ -13,13 +13,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, fetchGet, sortByName } from "./static/scripts/libs/common.mjs";
+import { $, fetchGet, sortByName, uniqueID } from "./static/scripts/libs/common.mjs";
 import { fromUTC2 } from "./static/scripts/libs/time.mjs";
 import { newModal } from "./static/scripts/components/modal.mjs";
 import { newOptionsMenu } from "./static/scripts/components/optionsMenu.mjs";
 
 function newSelectMonitorButton(monitors) {
-	const modal = newModal("Monitor");
 	const alias = "timeline-monitor";
 
 	var IDs = [];
@@ -37,50 +36,62 @@ function newSelectMonitorButton(monitors) {
 		return `<div class="monitor-selector">${html}</div>`;
 	};
 
-	return {
-		html: `
-			<button class="options-menu-btn js-monitor">
-				<img class="icon" src="static/icons/feather/video.svg">
-			</button>
-			${modal.html}`,
-		init($parent, content) {
-			$parent.querySelector(`.js-monitor`).addEventListener("click", () => {
-				modal.open();
-			});
+	let modal;
+	let isRendered = false;
+	const render = ($parent, content) => {
+		if (isRendered) {
+			return;
+		}
+		modal = newModal("Monitor");
+		$parent.insertAdjacentHTML("beforeend", modal.html);
+		const $modalContent = modal.init($parent);
+		$modalContent.innerHTML = renderMonitors();
+		const $selector = $modalContent.querySelector(".monitor-selector");
 
-			const $modalContent = modal.init($parent);
-			$modalContent.innerHTML = renderMonitors();
+		const saved = localStorage.getItem(alias);
+		if (IDs.includes(saved)) {
+			content.setMonitors([saved]);
+			$selector
+				.querySelector(`.monitor-selector-item[data="${saved}"]`)
+				.classList.add("monitor-selector-item-selected");
+		}
 
-			const $selector = $modalContent.querySelector(".monitor-selector");
-
-			const saved = localStorage.getItem(alias);
-			if (IDs.includes(saved)) {
-				content.setMonitors([saved]);
-				$selector
-					.querySelector(`.monitor-selector-item[data="${saved}"]`)
-					.classList.add("monitor-selector-item-selected");
+		$selector.addEventListener("click", (event) => {
+			if (!event.target.classList.contains("monitor-selector-item")) {
+				return;
 			}
 
-			$selector.addEventListener("click", (event) => {
-				if (!event.target.classList.contains("monitor-selector-item")) {
-					return;
-				}
+			// Clear selection.
+			const fields = $selector.querySelectorAll(".monitor-selector-item");
+			for (const field of fields) {
+				field.classList.remove("monitor-selector-item-selected");
+			}
 
-				// Clear selection.
-				const fields = $selector.querySelectorAll(".monitor-selector-item");
-				for (const field of fields) {
-					field.classList.remove("monitor-selector-item-selected");
-				}
+			event.target.classList.add("monitor-selector-item-selected");
 
-				event.target.classList.add("monitor-selector-item-selected");
+			const selected = event.target.attributes["data"].value;
+			localStorage.setItem(alias, selected);
 
-				const selected = event.target.attributes["data"].value;
-				localStorage.setItem(alias, selected);
+			content.setMonitors([selected]);
+			content.reset();
 
-				content.setMonitors([selected]);
-				content.reset();
+			modal.close();
+		});
 
-				modal.close();
+		isRendered = true;
+	};
+
+	const id = uniqueID();
+
+	return {
+		html: `
+			<button id="${id}" class="options-menu-btn">
+				<img class="icon" src="static/icons/feather/video.svg">
+			</button>`,
+		init($parent, content) {
+			$parent.querySelector("#" + id).addEventListener("click", () => {
+				render($parent, content);
+				modal.open();
 			});
 		},
 		// Testing.

@@ -792,26 +792,20 @@ function randomString(length) {
 }
 
 function newSelectMonitor(id) {
-	const modal = newModal("Monitors");
-	let fields = {};
-	let loaded = false;
-	let initial = [];
-	let $content;
-
 	const newField = (id, name) => {
 		let $checkbox;
 		return {
 			html: `
-				<div class="monitor-selector-item item-${id}">
+				<div class="monitor-selector-item">
 					<span class="monitor-selector-label">${name}</span>
 					<div class="checkbox">
-					 	<input class="checkbox-checkbox" type="checkbox"/>
+					 	<input class="checkbox-checkbox item-${id}" type="checkbox"/>
 						<div class="checkbox-box"></div>
 						<img class="checkbox-check" src="static/icons/feather/check.svg"/>
 					</div>
 				</div>`,
 			init($parent) {
-				$checkbox = $parent.querySelector(`.item-${id} .checkbox-checkbox`);
+				$checkbox = $parent.querySelector(`.item-${id}`);
 			},
 			set(input) {
 				$checkbox.checked = input;
@@ -822,7 +816,15 @@ function newSelectMonitor(id) {
 		};
 	};
 
-	const loadMonitors = async (element) => {
+	const modal = newModal("Monitors");
+
+	let value;
+	let fields = {};
+	let isRendered = false;
+	const render = async (element) => {
+		if (isRendered) {
+			return;
+		}
 		const monitorsList = await fetchGet(
 			"api/monitor/list",
 			"could not fetch monitor list"
@@ -837,7 +839,9 @@ function newSelectMonitor(id) {
 			html += field.html;
 			fields[id] = field;
 		}
-		$content.innerHTML = `
+
+		const $modalContent = modal.init(element);
+		$modalContent.innerHTML = `
 			<div class="monitor-selector">
 				${html}
 			</div>`;
@@ -845,13 +849,18 @@ function newSelectMonitor(id) {
 		for (const field of Object.values(fields)) {
 			field.init(element);
 		}
-	};
 
-	const updateFields = (input) => {
-		for (const [id, field] of Object.entries(fields)) {
-			const state = input.includes(id);
-			field.set(state);
-		}
+		modal.onClose(() => {
+			// Get value.
+			value = [];
+			for (const [id, field] of Object.entries(fields)) {
+				if (field.value()) {
+					value.push(id);
+				}
+			}
+		});
+
+		isRendered = true;
 	};
 
 	return {
@@ -865,47 +874,29 @@ function newSelectMonitor(id) {
 			</li> `,
 		init($parent) {
 			const element = $parent.querySelector(`#${id}`);
-			modal.init(element);
-
-			$content = element.querySelector(".modal-content");
 
 			element
 				.querySelector(".settings-edit-btn")
 				.addEventListener("click", async () => {
+					await render(element);
 					modal.open();
-					if (!loaded) {
-						await loadMonitors(element);
-						loaded = true;
-						updateFields(initial);
+
+					// Set value.
+					for (const [id, field] of Object.entries(fields)) {
+						const state = value.includes(id);
+						field.set(state);
 					}
 				});
 		},
 		set(input) {
-			// Reset.
 			if (!input) {
-				$content.innerHTML = "";
-				loaded = false;
+				value = [];
 				return;
 			}
-
-			const monitors = JSON.parse(input);
-			if (!initial || !loaded) {
-				initial = monitors;
-				return;
-			}
-			updateFields(monitors);
+			value = JSON.parse(input);
 		},
 		value() {
-			if (!loaded) {
-				return JSON.stringify(initial);
-			}
-			let selectedMonitors = [];
-			for (const [id, field] of Object.entries(fields)) {
-				if (field.value()) {
-					selectedMonitors.push(id);
-				}
-			}
-			return JSON.stringify(selectedMonitors);
+			return JSON.stringify(value);
 		},
 	};
 }

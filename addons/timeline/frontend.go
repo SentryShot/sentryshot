@@ -42,7 +42,6 @@ func init() {
 	nvr.RegisterMuxHook(func(mux *http.ServeMux) {
 		mux.Handle("/timeline", addon.a.User(addon.t.Render("timeline.tpl")))
 		mux.Handle("/timeline.mjs", addon.a.User(serveTimelineMjs()))
-		mux.Handle("/timeline_loader.mjs", addon.a.User(serveTimelineLoaderMjs()))
 	})
 }
 
@@ -122,22 +121,6 @@ func serveTimelineMjs() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("content-type", "text/javascript")
 		if _, err := w.Write(timelineMjsFile); err != nil {
-			http.Error(w, "could not write: "+err.Error(), http.StatusInternalServerError)
-		}
-	})
-}
-
-const timelineLoaderMjsFile = `
-	import { newTimelineViewer } from "./timeline.mjs";
-	(async () => {
-		const timelineViewer = await newTimelineViewer();
-		timelineViewer.init();
-	})();`
-
-func serveTimelineLoaderMjs() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("content-type", "text/javascript")
-		if _, err := w.Write([]byte(timelineLoaderMjsFile)); err != nil {
 			http.Error(w, "could not write: "+err.Error(), http.StatusInternalServerError)
 		}
 	})

@@ -16,7 +16,7 @@
 import { $, uniqueID } from "../libs/common.mjs";
 
 /*
- * A form field can have the following functions.
+ * A form field can have the following methods.
  *
  * HTML   html for the field to be rendered.
  *
@@ -159,15 +159,23 @@ function newDeleteBtn() {
 
 function newField(inputRules, options, values) {
 	let element, $input, $error;
+	const { errorField, min, max } = options;
+	const { label, placeholder, initial } = values;
 
 	const validate = (input) => {
-		if (inputRules.len === 0) {
+		if (!errorField) {
 			return "";
 		}
 		for (const rule of inputRules) {
 			if (rule[0].test(input)) {
-				return `${values.label} ${rule[1]}`;
+				return rule[1];
 			}
+		}
+		if (min && input < min) {
+			return `min value: ${min}`;
+		}
+		if (max && Number(input) > max) {
+			return `max value: ${max}`;
 		}
 		return "";
 	};
@@ -179,12 +187,12 @@ function newField(inputRules, options, values) {
 	const id = uniqueID();
 
 	return {
-		html: newHTMLfield(options, id, values.label, values.placeholder),
+		html: newHTMLfield(options, id, label, placeholder),
 		init() {
 			element = $(`#js-${id}`);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
-				if (options.errorField) {
+				if (errorField) {
 					$error.innerHTML = validate(value());
 				}
 			});
@@ -194,12 +202,18 @@ function newField(inputRules, options, values) {
 		},
 		set(input) {
 			if (input == "") {
-				$input.value = values.initial ? values.initial : "";
+				$input.value = initial ? initial : "";
 			} else {
 				$input.value = input;
 			}
 		},
-		validate: validate,
+		validate(input) {
+			const err = validate(input);
+			if (err != "") {
+				return `"${label}": ${err}`;
+			}
+			return "";
+		},
 		element() {
 			return element;
 		},

@@ -528,7 +528,12 @@ func LogFeed(l *log.Logger, a auth.Authenticator) http.Handler { //nolint:funlen
 		defer cancel()
 
 		for {
-			log := <-feed
+			var log log.Log
+			select {
+			case log = <-feed:
+			case <-l.Ctx.Done():
+				return
+			}
 
 			levelMatching := false
 			for _, level := range q.Levels {

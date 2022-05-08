@@ -19,7 +19,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 {{ template "html" }}
 <head>
 	{{ template "meta" . }}
-	<script type="module" src="timeline_loader.mjs" defer></script>
+	<script type="module" defer>
+		import { newTimelineViewer } from "./timeline.mjs";
+		(async () => {
+			const timelineViewer = await newTimelineViewer();
+			timelineViewer.init();
+		})();
+	</script>
 </head>
 <body>
 	{{ template "sidebar" . }}

@@ -17,7 +17,7 @@ import { $ } from "../libs/common.mjs";
 import { newModal } from "./modal.mjs";
 
 test("newModal", () => {
-	const modal = newModal("test");
+	const modal = newModal("test", "a");
 
 	document.body.innerHTML = modal.html;
 	modal.init(document.body);
@@ -35,7 +35,7 @@ test("newModal", () => {
 				<img class="modal-close-icon" src="static/icons/feather/x.svg">
 			</button>
 		</header>
-		<div class="modal-content"></div>
+		<div class="modal-content">a</div>
 		`.replace(/\s/g, "");
 
 	let actual = $(".modal").innerHTML.replace(/\s/g, "");

@@ -48,6 +48,7 @@ test("selectMonitor", () => {
 	localStorage.setItem("timeline-monitor", "b");
 	selectMonitor.init(element, content);
 
+	$("button").click();
 	expect(setMonitors).toEqual(["b"]);
 
 	const expected = `
@@ -62,7 +63,7 @@ test("selectMonitor", () => {
 	let actual = $(".modal-content").innerHTML.replace(/\s/g, "");
 	expect(actual).toEqual(expected);
 
-	$(".js-monitor").click();
+	$("button").click();
 	expect(selectMonitor.isOpen()).toBe(true);
 
 	expect(resetCalled).toBe(false);

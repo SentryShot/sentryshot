@@ -16,6 +16,7 @@
 import { $, uidReset } from "../libs/common.mjs";
 import {
 	newForm,
+	newField,
 	inputRules,
 	fieldTemplate,
 	newPasswordField,
@@ -158,6 +159,52 @@ describe("newForm", () => {
 
 		let actual = form.html().replace(/\s/g, "");
 		expect(actual).toEqual(expected);
+	});
+});
+
+describe("newField", () => {
+	const newTestField = () => {
+		return newField(
+			[inputRules.notEmpty, inputRules.noSpaces],
+			{
+				errorField: true,
+				input: "number",
+				min: "2",
+				max: "4",
+				step: "0.5",
+			},
+			{
+				label: "a",
+				placeholder: "b",
+				initial: "c",
+			}
+		);
+	};
+	test("rendering", () => {
+		const expected = `
+		<li id="js-uid1" class="form-field-error">
+			<label for="uid1" class="form-field-label">a</label>
+			<input
+				id="uid1"
+				class="settings-input-text js-input"
+				type="number"
+				placeholder="b"
+				min="2"
+				max="4"
+				step="0.5"
+			/>
+			<span class="settings-error js-error"></span>
+		</li>`.replace(/\s/g, "");
+
+		uidReset();
+		const actual = newTestField().html.replace(/\s/g, "");
+		expect(actual).toBe(expected);
+	});
+	test("validate", () => {
+		const field = newTestField();
+		expect(field.validate("1")).toBe(`"a": min value: 2`);
+		expect(field.validate("3")).toBe("");
+		expect(field.validate("5")).toBe(`"a": max value: 4`);
 	});
 });
 

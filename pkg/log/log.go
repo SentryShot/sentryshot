@@ -154,7 +154,7 @@ func (e *Event) Msg(msg string) {
 		Monitor: e.monitor,
 	}
 	select {
-	case <-e.logger.ctx.Done():
+	case <-e.logger.Ctx.Done():
 	case e.logger.feed <- log:
 	}
 }
@@ -201,7 +201,7 @@ type Logger struct {
 	unsub chan logFeed // unsubscribe requests.
 
 	wg      *sync.WaitGroup
-	ctx     context.Context
+	Ctx     context.Context
 	sources []string
 }
 
@@ -212,7 +212,7 @@ func (l *Logger) Sources() []string {
 
 // Start logger.
 func (l *Logger) Start(ctx context.Context) error {
-	l.ctx = ctx
+	l.Ctx = ctx
 
 	l.wg.Add(1)
 	go func() {
@@ -252,7 +252,7 @@ func (l *Logger) Subscribe() (<-chan Log, CancelFunc) {
 	feed := make(logFeed)
 
 	select {
-	case <-l.ctx.Done():
+	case <-l.Ctx.Done():
 		close(feed)
 		return feed, func() {}
 	case l.sub <- feed:

@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-function newModal(label) {
+function newModal(label, content = "") {
 	var $wrapper, onClose;
 	return {
 		html: `
@@ -25,7 +25,7 @@ function newModal(label) {
 							<img class="modal-close-icon" src="static/icons/feather/x.svg"></img>
 						</button>
 					</header>
-					<div class="modal-content"></div>
+					<div class="modal-content">${content}</div>
 				</div>
 			</div>`,
 		open() {

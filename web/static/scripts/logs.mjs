@@ -100,10 +100,9 @@ function newLogger(formatLog) {
 		}
 	};
 
-	const init = () => {
+	const init = async () => {
 		startLogFeed();
-		loadSavedLogs();
-		loadSavedLogs();
+		await loadSavedLogs();
 		lazyLoadSavedLogs();
 	};
 
@@ -212,6 +211,7 @@ function newMultiSelect(label, values, initial) {
 
 	let fields = {};
 
+	values.sort();
 	for (const val of values) {
 		fields[val] = newField(uniqueID(), val);
 	}
