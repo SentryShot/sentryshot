@@ -40,6 +40,9 @@ type StartHook func(context.Context, *Monitor)
 // StartInputHook is called when input process start.
 type StartInputHook func(context.Context, *InputProcess, *[]string)
 
+// EventHook is called on every event.
+type EventHook func(*Monitor, *storage.Event)
+
 // RecSaveHook is called when recording is saved.
 type RecSaveHook func(*Monitor, *string)
 
@@ -50,6 +53,7 @@ type RecSavedHook func(*Monitor, string, storage.RecordingData)
 type Hooks struct {
 	Start      StartHook
 	StartInput StartInputHook
+	Event      EventHook
 	RecSave    RecSaveHook
 	RecSaved   RecSavedHook
 }
@@ -639,6 +643,7 @@ func (m *Monitor) startRecorder(ctx context.Context) {
 			m.WG.Done()
 			return
 		case event := <-m.eventChan: // Wait for event.
+			m.hooks.Event(m, &event)
 			m.eventsMu.Lock()
 			m.events = append(m.events, event)
 			m.eventsMu.Unlock()

@@ -819,6 +819,7 @@ func mockHooks() *Hooks {
 	return &Hooks{
 		Start:      func(context.Context, *Monitor) {},
 		StartInput: func(context.Context, *InputProcess, *[]string) {},
+		Event:      func(*Monitor, *storage.Event) {},
 		RecSave:    func(*Monitor, *string) {},
 		RecSaved:   func(*Monitor, string, storage.RecordingData) {},
 	}

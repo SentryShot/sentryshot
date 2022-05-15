@@ -50,6 +50,7 @@ type hookList struct {
 	templateData        []web.TemplateDataFunc
 	monitorStart        []monitor.StartHook
 	monitorInputProcess []monitor.StartInputHook
+	monitorEvent        []monitor.EventHook
 	monitorRecSave      []monitor.RecSaveHook
 	monitorRecSaved     []monitor.RecSavedHook
 	logSource           []string
@@ -125,6 +126,11 @@ func RegisterMonitorStartHook(h monitor.StartHook) {
 // called when the monitor input process starts.
 func RegisterMonitorInputProcessHook(h monitor.StartInputHook) {
 	hooks.monitorInputProcess = append(hooks.monitorInputProcess, h)
+}
+
+// RegisterMonitorEventHook registers hook that's called on every event.
+func RegisterMonitorEventHook(h monitor.EventHook) {
+	hooks.monitorEvent = append(hooks.monitorEvent, h)
 }
 
 // RegisterMonitorRecSaveHook registers hook that's called when monitor saves recording.
@@ -222,6 +228,11 @@ func (h *hookList) monitor() *monitor.Hooks {
 			hook(ctx, i, args)
 		}
 	}
+	eventHook := func(m *monitor.Monitor, event *storage.Event) {
+		for _, hook := range h.monitorEvent {
+			hook(m, event)
+		}
+	}
 	recSaveHook := func(m *monitor.Monitor, args *string) {
 		for _, hook := range h.monitorRecSave {
 			hook(m, args)
@@ -236,6 +247,7 @@ func (h *hookList) monitor() *monitor.Hooks {
 	return &monitor.Hooks{
 		Start:      startHook,
 		StartInput: startInputHook,
+		Event:      eventHook,
 		RecSave:    recSaveHook,
 		RecSaved:   recSavedHook,
 	}
