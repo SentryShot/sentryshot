@@ -318,10 +318,15 @@ addons: # Uncomment to enable.
   # Show system status in the web interface. CPU, RAM, disk usage.
   #- nvr/addons/status
 
-  # Watchdog
+  # Watchdog.
   # Detect and restart frozen processes.
   #- nvr/addons/watchdog
 
-  # Timeline
+  # Timeline.
   # Works best with a Chromium based browser.
-  #- nvr/addons/timeline`
+  #- nvr/addons/timeline
+
+  # Input options.
+  # Adds monitor config field for special FFmpeg input options.
+  # This isn't needed for the vast majority of cameras.
+  #- nvr/addons/inputopts`

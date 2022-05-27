@@ -807,11 +807,11 @@ func TestRunRecordingProcess(t *testing.T) {
 	})
 }
 
-func mockSizeFromStream(context.Context, string) (string, error) {
+func mockSizeFromStream(context.Context, string, string) (string, error) {
 	return "123x456", nil
 }
 
-func mockSizeFromStreamErr(context.Context, string) (string, error) {
+func mockSizeFromStreamErr(context.Context, string, string) (string, error) {
 	return "", errors.New("mock")
 }
 
@@ -850,23 +850,24 @@ func TestGenInputArgs(t *testing.T) {
 	t.Run("maximal", func(t *testing.T) {
 		i := &InputProcess{
 			isSubInput:   true,
-			hlsAddress:   "6",
-			rtspProtocol: "7",
-			rtspAddress:  "8",
+			hlsAddress:   "7",
+			rtspProtocol: "8",
+			rtspAddress:  "9",
 			M: &Monitor{
 				Env: storage.ConfigEnv{},
 				Config: map[string]string{
 					"logLevel":     "1",
 					"hwaccel":      "2",
-					"subInput":     "3",
-					"audioEncoder": "4",
-					"videoEncoder": "5",
+					"inputOptions": "3",
+					"subInput":     "4",
+					"audioEncoder": "5",
+					"videoEncoder": "6",
 				},
 			},
 		}
 		args := i.generateArgs()
-		expected := "-threads 1 -loglevel 1 -hwaccel 2 -i 3 -c:a 4 -c:v 5" +
-			" -preset veryfast -f rtsp -rtsp_transport 7 8"
+		expected := "-threads 1 -loglevel 1 -hwaccel 2 3 -i 4 -c:a 5 -c:v 6" +
+			" -preset veryfast -f rtsp -rtsp_transport 8 9"
 
 		require.Equal(t, expected, args)
 	})

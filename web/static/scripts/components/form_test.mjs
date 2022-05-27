@@ -19,6 +19,7 @@ import {
 	newField,
 	inputRules,
 	fieldTemplate,
+	newSelectCustomField,
 	newPasswordField,
 	$getInputAndError,
 } from "./form.mjs";
@@ -436,6 +437,52 @@ describe("fieldTemplate", () => {
 		$input.dispatchEvent(change);
 
 		expect($error.innerHTML).toBe("");
+	});
+});
+
+describe("selectCustomField", () => {
+	test("noRules", () => {
+		uidReset();
+		const field = newSelectCustomField([], ["a", "b", "c"], {
+			label: "d",
+			initial: "e",
+		});
+
+		const expected = `
+		<li id="js-uid1" class="form-field">
+			<label for="uid1" class="form-field-label">d</label>
+			<div class="form-field-select-container">
+				<select id="uid1" class="form-field-select js-input">
+					<option>a</option>
+					<option>b</option>
+					<option>c</option>
+				</select>
+				<button class="settings-edit-btncolor3">
+					<img src="static/icons/feather/edit-3.svg"/>
+				</button>
+				</div>
+		</li>`.replace(/\s/g, "");
+
+		const actual = field.html.replace(/\s/g, "");
+		expect(actual).toEqual(expected);
+
+		document.body.innerHTML = field.html;
+		field.init();
+
+		expect(field.validate("x")).toBe("");
+
+		expect(field.value()).toBe("a");
+		field.set("b");
+		expect(field.value()).toBe("b");
+		field.set("");
+		expect(field.value()).toBe("");
+
+		window.prompt = () => {
+			return "custom";
+		};
+		$("button").click();
+
+		expect(field.value()).toBe("custom");
 	});
 });
 

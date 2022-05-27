@@ -354,7 +354,9 @@ function newSelectCustomField(inputRules, options, values) {
 	const set = (input) => {
 		if (input === "") {
 			$input.value = values.initial;
-			$error.innerHTML = "";
+			if (inputRules > 0) {
+				$error.innerHTML = "";
+			}
 			return;
 		}
 
@@ -371,16 +373,14 @@ function newSelectCustomField(inputRules, options, values) {
 		$input.value = input;
 	};
 
-	if (inputRules.len !== 0) {
-		validate = (input) => {
-			for (const rule of inputRules) {
-				if (rule[0].test(input)) {
-					return `${values.label} ${rule[1]}`;
-				}
+	validate = (input) => {
+		for (const rule of inputRules) {
+			if (rule[0].test(input)) {
+				return `${values.label} ${rule[1]}`;
 			}
-			return "";
-		};
-	}
+		}
+		return "";
+	};
 
 	return {
 		html: (() => {
@@ -388,7 +388,7 @@ function newSelectCustomField(inputRules, options, values) {
 				{
 					select: options,
 					custom: true,
-					errorField: true,
+					errorField: inputRules.length > 0,
 				},
 				id,
 				values.label,
@@ -399,7 +399,9 @@ function newSelectCustomField(inputRules, options, values) {
 			const element = $(`#js-${id}`);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
-				$error.innerHTML = validate(value());
+				if (inputRules > 0) {
+					$error.innerHTML = validate(value());
+				}
 			});
 			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
 				const input = prompt("Custom value");

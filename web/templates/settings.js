@@ -21,6 +21,7 @@ import {
 	newField,
 	inputRules,
 	fieldTemplate,
+	newSelectCustomField,
 	newPasswordField,
 } from "./static/scripts/components/form.mjs";
 

@@ -544,7 +544,7 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	i.rtspProtocol = rtspProtocol
 	i.waitForNewHLSsegment = waitForNewHLSsegment
 
-	i.size, err = i.sizeFromStream(ctx, i.input())
+	i.size, err = i.sizeFromStream(ctx, i.M.Config["inputOptions"], i.input())
 	if err != nil {
 		return fmt.Errorf("get size of stream: %w", err)
 	}
@@ -597,6 +597,9 @@ func (i *InputProcess) generateArgs() string {
 	args += "-threads 1 -loglevel " + c.LogLevel()
 	if c.Hwacell() != "" {
 		args += " -hwaccel " + c.Hwacell()
+	}
+	if i.M.Config["inputOptions"] != "" {
+		args += " " + i.M.Config["inputOptions"]
 	}
 	args += " -i " + i.input()
 
