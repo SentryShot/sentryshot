@@ -41,19 +41,20 @@ func init() {
 	nvr.SetAuthenticator(NewBasicAuthenticator)
 }
 
-// DefaultHashCost bcrypt hash cost.
-const DefaultHashCost = 10
-
 // Authenticator implements auth.Authenticator.
 type Authenticator struct {
 	path      string // Path to save user information.
 	accounts  map[string]auth.Account
-	authCache map[string]auth.ValidateRes
+	authCache map[string]auth.ValidateResponse
 
 	hashCost int
 
 	log *log.Logger
-	mu  sync.Mutex
+
+	// hashLock limits concurrent hashing operations
+	// to mitigate denial of service attacks.
+	hashLock sync.Mutex
+	mu       sync.Mutex
 }
 
 // NewBasicAuthenticator creates basic authenticator.
@@ -62,20 +63,20 @@ func NewBasicAuthenticator(env storage.ConfigEnv, logger *log.Logger) (auth.Auth
 	a := Authenticator{
 		path:      path,
 		accounts:  make(map[string]auth.Account),
-		authCache: make(map[string]auth.ValidateRes),
+		authCache: make(map[string]auth.ValidateResponse),
 
-		hashCost: DefaultHashCost,
+		hashCost: auth.DefaultBcryptHashCost,
 		log:      logger,
 	}
 
 	file, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read accounts file: %w", err)
 	}
 
 	err = json.Unmarshal(file, &a.accounts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshal accounts: %w", err)
 	}
 
 	a.resetTokens()
@@ -85,36 +86,45 @@ func NewBasicAuthenticator(env storage.ConfigEnv, logger *log.Logger) (auth.Auth
 
 // ValidateRequest Should always take the same amount of
 // time to run, even when username or password is invalid.
-func (a *Authenticator) ValidateRequest(r *http.Request) auth.ValidateRes {
+func (a *Authenticator) ValidateRequest(r *http.Request) auth.ValidateResponse {
 	req := r.Header.Get("Authorization")
-	defer a.mu.Unlock()
+
 	a.mu.Lock()
-	if _, cacheExist := a.authCache[req]; cacheExist {
-		return a.authCache[req]
+	if _, reqExistInCache := a.authCache[req]; reqExistInCache {
+		res := a.authCache[req]
+		a.mu.Unlock()
+		return res
 	}
-	a.mu.Unlock()
 
 	name, pass := parseBasicAuth(req)
-	user, found := a.userByName(name)
+	user, found := a.userByNameUnsafe(name)
+	a.mu.Unlock()
 
-	res := auth.ValidateRes{}
-
+	a.hashLock.Lock()
+	defer a.hashLock.Unlock()
 	if !found || name != user.Username {
 		// Generate fake hash to prevent timing based attacks.
 		bcrypt.GenerateFromPassword([]byte(name), a.hashCost) //nolint:errcheck
-	} else if passwordsMatch(user.Password, pass) {
-		res = auth.ValidateRes{IsValid: true, User: user}
+		return auth.ValidateResponse{}
 	}
-	a.mu.Lock()
-
-	a.authCache[req] = res
-	return a.authCache[req]
+	if passwordsMatch(user.Password, pass) {
+		a.mu.Lock()
+		res := auth.ValidateResponse{IsValid: true, User: user}
+		a.authCache[req] = res // Only cache valid requests.
+		a.mu.Unlock()
+		return res
+	}
+	return auth.ValidateResponse{}
 }
 
-func (a *Authenticator) userByName(name string) (auth.Account, bool) {
-	defer a.mu.Unlock()
-	a.mu.Lock()
+func passwordsMatch(hash []byte, plaintext string) bool {
+	if err := bcrypt.CompareHashAndPassword(hash, []byte(plaintext)); err != nil {
+		return false
+	}
+	return true
+}
 
+func (a *Authenticator) userByNameUnsafe(name string) (auth.Account, bool) {
 	users := a.accounts
 	for _, u := range users {
 		if u.Username == name {
@@ -143,13 +153,6 @@ func parseBasicAuth(str string) (username, password string) {
 	return cs[:s], cs[s+1:]
 }
 
-func passwordsMatch(hash []byte, plaintext string) bool {
-	if err := bcrypt.CompareHashAndPassword(hash, []byte(plaintext)); err != nil {
-		return false
-	}
-	return true
-}
-
 func genToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -166,6 +169,11 @@ func (a *Authenticator) resetTokens() {
 		a.accounts[id] = user
 	}
 	a.mu.Unlock()
+}
+
+// AuthDisabled False.
+func (a *Authenticator) AuthDisabled() bool {
+	return false
 }
 
 // UsersList returns a obfuscated user list.
@@ -194,8 +202,8 @@ var (
 
 // UserSet set user details.
 func (a *Authenticator) UserSet(req auth.SetUserRequest) error {
-	defer a.mu.Unlock()
 	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	if req.ID == "" {
 		return ErrIDMissing
@@ -217,16 +225,21 @@ func (a *Authenticator) UserSet(req auth.SetUserRequest) error {
 	user.Username = req.Username
 	user.IsAdmin = req.IsAdmin
 	if req.PlainPassword != "" {
-		hashedNewPassword, _ := bcrypt.GenerateFromPassword([]byte(req.PlainPassword), a.hashCost)
+		hashedNewPassword, err := bcrypt.GenerateFromPassword([]byte(req.PlainPassword), a.hashCost)
+		if err != nil {
+			return fmt.Errorf("hash password: %w", err)
+		}
 		user.Password = hashedNewPassword
 	}
 	user.Token = genToken()
 
 	a.mu.Lock()
 	a.accounts[user.ID] = user
-	a.authCache = make(map[string]auth.ValidateRes)
 
-	if err := a.SaveUsersToFile(); err != nil {
+	// Reset cache.
+	a.authCache = make(map[string]auth.ValidateResponse)
+
+	if err := a.saveToFile(); err != nil {
 		return fmt.Errorf("save users to file: %w", err)
 	}
 
@@ -243,20 +256,22 @@ func (a *Authenticator) UserDelete(id string) error {
 	delete(a.accounts, id)
 
 	// Reset cache.
-	a.authCache = make(map[string]auth.ValidateRes)
+	a.authCache = make(map[string]auth.ValidateResponse)
 
-	if err := a.SaveUsersToFile(); err != nil {
+	if err := a.saveToFile(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// SaveUsersToFile saves json file.
-func (a *Authenticator) SaveUsersToFile() error {
-	users, _ := json.MarshalIndent(a.accounts, "", "  ")
+func (a *Authenticator) saveToFile() error {
+	users, err := json.MarshalIndent(a.accounts, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal accounts: %w", err)
+	}
 
-	err := os.WriteFile(a.path, users, 0o600)
+	err = os.WriteFile(a.path, users, 0o600)
 	if err != nil {
 		return err
 	}

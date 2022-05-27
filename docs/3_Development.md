@@ -31,8 +31,8 @@
 │   │   └── monitor.go
 │   ├── storage
 │   │   ├── crawler.go   # Finds recordings.
-│   │   ├── recording.go # Recording definitions.
-│   │   └── storage.go
+│   │   ├── storage.go
+│   │   └── types.go
 │   ├── system/
 │   ├── video/ # Internal Video server.
 │   └── web

@@ -69,7 +69,7 @@ func newTestAuth(t *testing.T) (string, *Authenticator, func()) {
 	auth := Authenticator{
 		path:      usersPath,
 		accounts:  users,
-		authCache: make(map[string]auth.ValidateRes),
+		authCache: make(map[string]auth.ValidateResponse),
 
 		hashCost: bcrypt.MinCost,
 		log:      &log.Logger{},
@@ -100,7 +100,7 @@ func TestNewBasicAuthenticator(t *testing.T) {
 
 		require.Equal(t, auth.accounts, testAuth.accounts)
 	})
-	t.Run("readFile error", func(t *testing.T) {
+	t.Run("readFileErr", func(t *testing.T) {
 		_, err := NewBasicAuthenticator(storage.ConfigEnv{}, &log.Logger{})
 		require.ErrorIs(t, err, os.ErrNotExist)
 	})
@@ -136,7 +136,7 @@ func TestBasicAuthenticator(t *testing.T) {
 
 		for _, tc := range cases {
 			t.Run(tc.username, func(t *testing.T) {
-				account, exists := a.userByName(tc.username)
+				account, exists := a.userByNameUnsafe(tc.username)
 				require.Equal(t, exists, tc.shouldExist)
 
 				account.Token = ""
@@ -152,8 +152,6 @@ func TestBasicAuthenticator(t *testing.T) {
 	t.Run("validateRequest", func(t *testing.T) {
 		_, a, cancel := newTestAuth(t)
 		defer cancel()
-
-		a.hashCost = 4
 
 		cases := []struct {
 			username string
@@ -253,13 +251,11 @@ func TestBasicAuthenticator(t *testing.T) {
 				_, a, cancel := newTestAuth(t)
 				defer cancel()
 
-				a.hashCost = 4
-
 				err := a.UserSet(tc.req)
 				require.ErrorIs(t, err, tc.err)
 
 				if tc.req.ID != "" && err == nil {
-					u, _ := a.userByName(tc.req.Username)
+					u, _ := a.userByNameUnsafe(tc.req.Username)
 					require.Equal(t, u.ID, tc.req.ID, "IDs does not match")
 					require.Equal(t, u.Username, tc.req.Username, "Username does not match")
 					require.Equal(t, u.IsAdmin, tc.req.IsAdmin, "IsAdmin does not match")
@@ -269,8 +265,6 @@ func TestBasicAuthenticator(t *testing.T) {
 		t.Run("saveToFile", func(t *testing.T) {
 			tempDir, a, cancel := newTestAuth(t)
 			defer cancel()
-
-			a.hashCost = 4
 
 			user := auth.Account{
 				ID:       "10",
@@ -330,7 +324,7 @@ func TestBasicAuthenticator(t *testing.T) {
 			err := a.UserDelete("2")
 			require.NoError(t, err)
 
-			_, exist := a.userByName("")
+			_, exist := a.userByNameUnsafe("")
 			require.False(t, exist, "user was not deleted")
 		})
 		t.Run("save error", func(t *testing.T) {
@@ -338,5 +332,22 @@ func TestBasicAuthenticator(t *testing.T) {
 			err := a.UserDelete("1")
 			require.Error(t, err)
 		})
+	})
+
+	// Ensure cached requests aren't blocked when hackLock is active.
+	t.Run("hashLock", func(t *testing.T) {
+		_, a, cancel := newTestAuth(t)
+		defer cancel()
+
+		auth := base64.StdEncoding.EncodeToString([]byte("admin:pass1"))
+		req := authHeader("Basic " + auth)
+
+		response := a.ValidateRequest(req)
+		require.True(t, response.IsValid)
+
+		a.hashLock.Lock()
+
+		response2 := a.ValidateRequest(req)
+		require.True(t, response2.IsValid)
 	})
 }

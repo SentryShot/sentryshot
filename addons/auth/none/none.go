@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package disable
+package none
 
 import (
 	"encoding/json"
@@ -48,7 +48,7 @@ func init() {
 	})
 }
 
-// Authenticator implements Authenticator.
+// Authenticator implements auth.Authenticator.
 type Authenticator struct {
 	path     string // Path to save user information.
 	accounts map[string]auth.Account
@@ -86,8 +86,8 @@ func NewAuthenticator(env storage.ConfigEnv, logger *log.Logger) (auth.Authentic
 }
 
 // ValidateRequest allows all requests.
-func (a *Authenticator) ValidateRequest(r *http.Request) auth.ValidateRes {
-	return auth.ValidateRes{
+func (a *Authenticator) ValidateRequest(r *http.Request) auth.ValidateResponse {
+	return auth.ValidateResponse{
 		IsValid: true,
 		User: auth.Account{
 			ID:       "none",
@@ -95,6 +95,11 @@ func (a *Authenticator) ValidateRequest(r *http.Request) auth.ValidateRes {
 			IsAdmin:  true,
 		},
 	}
+}
+
+// AuthDisabled True.
+func (a *Authenticator) AuthDisabled() bool {
+	return true
 }
 
 // UsersList returns a obfuscated user list.

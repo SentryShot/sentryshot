@@ -37,8 +37,8 @@ type AccountObfuscated struct {
 	IsAdmin  bool   `json:"isAdmin"`
 }
 
-// ValidateRes ValidateRequest response.
-type ValidateRes struct {
+// ValidateResponse ValidateRequest response.
+type ValidateResponse struct {
 	IsValid bool
 	User    Account
 }
@@ -58,8 +58,10 @@ type NewAuthenticatorFunc func(storage.ConfigEnv, *log.Logger) (Authenticator, e
 // unauthenticated requests and storing user information.
 type Authenticator interface {
 	// ValidateRequest validates raw http requests.
-	ValidateRequest(*http.Request) ValidateRes
+	ValidateRequest(*http.Request) ValidateResponse
 
+	// AuthDisabled if all requests should be allowed.
+	AuthDisabled() bool
 	// UsersList returns a obfuscated user list.
 	UsersList() map[string]AccountObfuscated
 	// UserSet sets the information of a user.
@@ -100,3 +102,6 @@ func LogFailedLogin(log *log.Logger, r *http.Request, username string) {
 
 	log.Info().Src("auth").Msgf("failed login: username: %v %v\n", username, ip)
 }
+
+// DefaultBcryptHashCost bcrypt hash cost.
+const DefaultBcryptHashCost = 10
