@@ -14,7 +14,7 @@ import (
 // TransportProtocol is a transport protocol.
 type TransportProtocol int
 
-// standard transport protocols.
+// Transport protocols.
 const (
 	TransportProtocolUDP TransportProtocol = iota
 	TransportProtocolTCP
@@ -183,17 +183,8 @@ func (h *Transport) Read(v base.HeaderValue) error { //nolint:funlen,gocognit
 			h.ServerPorts = ports
 
 		case "ssrc":
-			// replace initial spaces
-			var b strings.Builder
-			b.Grow(len(v))
-			i := 0
-			for ; i < len(v) && v[i] == ' '; i++ {
-				b.WriteByte('0')
-			}
-			b.WriteString(v[i:])
-			v = b.String()
+			v = strings.TrimLeft(v, " ")
 
-			// add initial zeros
 			if (len(v) % 2) != 0 {
 				v = "0" + v
 			}

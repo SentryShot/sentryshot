@@ -26,13 +26,8 @@ func NewMuxer(
 	videoTrack *gortsplib.TrackH264,
 	audioTrack *gortsplib.TrackAAC,
 ) (*Muxer, error) {
-	if videoTrack != nil {
-		if videoTrack.SPS() == nil || videoTrack.PPS() == nil {
-			return nil, ErrTrackInvalid
-		}
-	}
-
 	primaryPlaylist := newMuxerPrimaryPlaylist(videoTrack, audioTrack)
+
 	streamPlaylist := newMuxerStreamPlaylist(hlsSegmentCount, onNewSegement)
 
 	tsGenerator, err := newMuxerTSGenerator(

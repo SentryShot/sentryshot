@@ -104,7 +104,6 @@ type path struct {
 	readTimeout     time.Duration
 	writeTimeout    time.Duration
 	readBufferCount int
-	readBufferSize  int
 	confName        string
 	conf            *PathConf
 	name            string
@@ -139,7 +138,6 @@ func newPath(
 	readTimeout time.Duration,
 	writeTimeout time.Duration,
 	readBufferCount int,
-	readBufferSize int,
 	confName string,
 	conf *PathConf,
 	name string,
@@ -154,7 +152,6 @@ func newPath(
 		readTimeout:       readTimeout,
 		writeTimeout:      writeTimeout,
 		readBufferCount:   readBufferCount,
-		readBufferSize:    readBufferSize,
 		confName:          confName,
 		conf:              conf,
 		name:              name,

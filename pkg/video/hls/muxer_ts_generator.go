@@ -11,16 +11,6 @@ import (
 
 const segmentMinAUCount = 100
 
-func idrPresent(nalus [][]byte) bool {
-	for _, nalu := range nalus {
-		typ := h264.NALUType(nalu[0] & 0x1F)
-		if typ == h264.NALUTypeIDR {
-			return true
-		}
-	}
-	return false
-}
-
 type writerFunc func(p []byte) (int, error)
 
 func (f writerFunc) Write(p []byte) (int, error) {
@@ -98,9 +88,9 @@ func newMuxerTSGenerator(
 	return m, nil
 }
 
-func (m *muxerTSGenerator) writeH264(pts time.Duration, nalus [][]byte) error { //nolint:funlen
+func (m *muxerTSGenerator) writeH264(pts time.Duration, nalus [][]byte) error {
 	now := time.Now()
-	idrPresent := idrPresent(nalus)
+	idrPresent := h264.IDRPresent(nalus)
 
 	if m.currentSegment == nil {
 		// skip groups silently until we find one with a IDR
@@ -132,26 +122,9 @@ func (m *muxerTSGenerator) writeH264(pts time.Duration, nalus [][]byte) error { 
 	dts := m.videoDTSEst.Feed(pts)
 
 	// prepend an AUD. This is required by video.js and iOS
-	filteredNALUs := [][]byte{
-		{byte(h264.NALUTypeAccessUnitDelimiter), 240},
-	}
+	nalus = append([][]byte{{byte(h264.NALUTypeAccessUnitDelimiter), 240}}, nalus...)
 
-	for _, nalu := range nalus {
-		typ := h264.NALUType(nalu[0] & 0x1F)
-		switch typ {
-		case h264.NALUTypeSPS, h264.NALUTypePPS, h264.NALUTypeAccessUnitDelimiter:
-			// remove existing SPS, PPS, AUD
-			continue
-
-		case h264.NALUTypeIDR:
-			// add SPS and PPS before every IDR
-			filteredNALUs = append(filteredNALUs, m.videoTrack.SPS(), m.videoTrack.PPS())
-		}
-
-		filteredNALUs = append(filteredNALUs, nalu)
-	}
-
-	enc, err := h264.EncodeAnnexB(filteredNALUs)
+	enc, err := h264.AnnexBEncode(nalus)
 	if err != nil {
 		if m.currentSegment.buf.Len() > 0 {
 			m.streamPlaylist.pushSegment(m.currentSegment)
@@ -160,8 +133,8 @@ func (m *muxerTSGenerator) writeH264(pts time.Duration, nalus [][]byte) error { 
 		return err
 	}
 
-	err = m.currentSegment.writeH264(now.Sub(m.startPCR), dts, pts,
-		idrPresent, enc)
+	err = m.currentSegment.writeH264(now.Sub(m.startPCR), dts,
+		pts, idrPresent, enc)
 	if err != nil {
 		if m.currentSegment.buf.Len() > 0 {
 			m.streamPlaylist.pushSegment(m.currentSegment)

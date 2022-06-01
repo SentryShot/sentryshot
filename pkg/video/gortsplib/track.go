@@ -72,15 +72,8 @@ func newTrackFromMediaDescription(md *psdp.MediaDescription) (Track, error) {
 		}
 
 	case md.MediaName.Media == "audio":
-		switch {
-		case len(md.MediaName.Formats) == 1 && md.MediaName.Formats[0] == "0":
-			return newTrackPCMUFromMediaDescription(control, rtpmapPart1)
-
-		case strings.HasPrefix(strings.ToLower(rtpmapPart1), "mpeg4-generic/"):
+		if strings.HasPrefix(strings.ToLower(rtpmapPart1), "mpeg4-generic/") {
 			return newTrackAACFromMediaDescription(control, payloadType, md)
-
-		case strings.HasPrefix(rtpmapPart1, "opus/"):
-			return newTrackOpusFromMediaDescription(control, payloadType, rtpmapPart1)
 		}
 	}
 

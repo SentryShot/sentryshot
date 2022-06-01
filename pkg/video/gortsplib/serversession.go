@@ -1,20 +1,21 @@
 package gortsplib
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"nvr/pkg/video/gortsplib/pkg/base"
+	"nvr/pkg/video/gortsplib/pkg/h264"
 	"nvr/pkg/video/gortsplib/pkg/headers"
 	"nvr/pkg/video/gortsplib/pkg/liberrors"
 	"nvr/pkg/video/gortsplib/pkg/ringbuffer"
+	"nvr/pkg/video/gortsplib/pkg/rtph264"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/pion/rtp/v2"
+	"github.com/pion/rtp"
 )
 
 type rtpPacketMultiBuffer struct {
@@ -60,7 +61,7 @@ var (
 func setupGetTrackIDPathQuery(
 	url *base.URL,
 	thMode *headers.TransportMode,
-	announcedTracks []ServerSessionAnnouncedTrack,
+	announcedTracks []*ServerSessionAnnouncedTrack,
 	setuppedPath *string,
 	setuppedQuery *string,
 	setuppedBaseURL *base.URL,
@@ -115,7 +116,7 @@ func setupGetTrackIDPathQuery(
 // ServerSessionState is a state of a ServerSession.
 type ServerSessionState int
 
-// standard states.
+// States.
 const (
 	ServerSessionStateInitial ServerSessionState = iota
 	ServerSessionStatePrePlay
@@ -148,7 +149,9 @@ type ServerSessionSetuppedTrack struct {
 
 // ServerSessionAnnouncedTrack is an announced track of a ServerSession.
 type ServerSessionAnnouncedTrack struct {
-	track Track
+	track       Track
+	h264Decoder *rtph264.Decoder
+	h264Encoder *rtph264.Encoder
 }
 
 // ServerSession is a server-side RTSP session.
@@ -170,7 +173,7 @@ type ServerSession struct {
 	setuppedQuery      *string
 	lastRequestTime    time.Time
 	tcpConn            *ServerConn
-	announcedTracks    []ServerSessionAnnouncedTrack // publish
+	announcedTracks    []*ServerSessionAnnouncedTrack // publish
 	writerRunning      bool
 	writeBuffer        *ringbuffer.RingBuffer
 
@@ -226,7 +229,7 @@ func (ss *ServerSession) SetuppedTracks() map[int]*ServerSessionSetuppedTrack {
 }
 
 // AnnouncedTracks returns the announced tracks.
-func (ss *ServerSession) AnnouncedTracks() []ServerSessionAnnouncedTrack {
+func (ss *ServerSession) AnnouncedTracks() []*ServerSessionAnnouncedTrack {
 	return ss.announcedTracks
 }
 
@@ -268,7 +271,6 @@ func (ss *ServerSession) run() {
 	if ss.writerRunning {
 		ss.writeBuffer.Close()
 		<-ss.writerDone
-		ss.writerRunning = false
 	}
 
 	for sc := range ss.conns {
@@ -559,9 +561,9 @@ func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*bas
 	ss.setuppedQuery = &query
 	ss.setuppedBaseURL = req.URL
 
-	ss.announcedTracks = make([]ServerSessionAnnouncedTrack, len(tracks))
+	ss.announcedTracks = make([]*ServerSessionAnnouncedTrack, len(tracks))
 	for trackID, track := range tracks {
-		ss.announcedTracks[trackID] = ServerSessionAnnouncedTrack{
+		ss.announcedTracks[trackID] = &ServerSessionAnnouncedTrack{
 			track: track,
 		}
 	}
@@ -787,18 +789,21 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 
 	ss.setuppedStream.readerSetActive(ss)
 
-	// add RTP-Info
 	var trackIDs []int
 	for trackID := range ss.setuppedTracks {
 		trackIDs = append(trackIDs, trackID)
 	}
+
 	sort.Slice(trackIDs, func(a, b int) bool {
 		return trackIDs[a] < trackIDs[b]
 	})
+
 	var ri headers.RTPinfo
+	now := time.Now()
+
 	for _, trackID := range trackIDs {
-		ts := ss.setuppedStream.timestamp(trackID)
-		if ts == 0 {
+		seqNum, ts, ok := ss.setuppedStream.rtpInfo(trackID, now)
+		if !ok {
 			continue
 		}
 
@@ -809,11 +814,9 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 			Path:   "/" + *ss.setuppedPath + "/trackID=" + strconv.FormatInt(int64(trackID), 10),
 		}
 
-		lsn := ss.setuppedStream.lastSequenceNumber(trackID)
-
 		ri = append(ri, &headers.RTPInfoEntry{
 			URL:            u.String(),
-			SequenceNumber: &lsn,
+			SequenceNumber: &seqNum,
 			Timestamp:      &ts,
 		})
 	}
@@ -827,7 +830,7 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 	return res, err
 }
 
-func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.Response, error) {
+func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.Response, error) { //nolint:funlen
 	err := ss.checkState(map[ServerSessionState]struct{}{
 		ServerSessionStatePreRecord: {},
 	})
@@ -880,6 +883,13 @@ func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.
 	}
 
 	ss.state = ServerSessionStateRecord
+
+	for _, at := range ss.announcedTracks {
+		if _, ok := at.track.(*TrackH264); ok {
+			at.h264Decoder = &rtph264.Decoder{}
+			at.h264Decoder.Init()
+		}
+	}
 
 	ss.tcpConn = sc
 	ss.tcpConn.readFunc = ss.tcpConn.readFuncTCP
@@ -944,8 +954,6 @@ func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.R
 		ss.tcpConn = nil
 
 	case ServerSessionStateRecord:
-		ss.state = ServerSessionStatePreRecord
-
 		ss.tcpConn.readFunc = ss.tcpConn.readFuncStandard
 		err = errSwitchReadFunc
 
@@ -954,6 +962,13 @@ func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.R
 			return nil, err
 		}
 		ss.tcpConn = nil
+
+		for _, at := range ss.announcedTracks {
+			at.h264Decoder = nil
+			at.h264Encoder = nil
+		}
+
+		ss.state = ServerSessionStatePreRecord
 	}
 
 	return res, err
@@ -968,15 +983,15 @@ func (ss *ServerSession) runWriter() {
 		rtpFrames[trackID] = &base.InterleavedFrame{Channel: sst.tcpChannel}
 	}
 
-	var buf bytes.Buffer
+	buf := make([]byte, maxPacketSize+4)
 
 	writeFunc := func(trackID int, payload []byte) {
 		f := rtpFrames[trackID]
 		f.Payload = payload
-		f.Write(&buf)
+		n, _ := f.WriteTo(buf)
 
 		ss.tcpConn.conn.SetWriteDeadline(time.Now().Add(ss.s.WriteTimeout)) //nolint:errcheck
-		ss.tcpConn.conn.Write(buf.Bytes())                                  //nolint:errcheck
+		ss.tcpConn.conn.Write(buf[:n])                                      //nolint:errcheck
 	}
 
 	for {
@@ -987,6 +1002,26 @@ func (ss *ServerSession) runWriter() {
 		data := tmp.(trackTypePayload) //nolint:forcetypeassert
 
 		writeFunc(data.trackID, data.payload)
+	}
+}
+
+func (ss *ServerSession) processPacketRTP(at *ServerSessionAnnouncedTrack, ctx *ServerHandlerOnPacketRTPCtx) {
+	// remove padding
+	ctx.Packet.Header.Padding = false
+	ctx.Packet.PaddingSize = 0
+
+	// decode
+	if at.h264Decoder != nil {
+		nalus, pts, err := at.h264Decoder.DecodeUntilMarker(ctx.Packet)
+		if err == nil {
+			ctx.PTSEqualsDTS = h264.IDRPresent(nalus)
+			ctx.H264NALUs = nalus
+			ctx.H264PTS = pts
+		} else {
+			ctx.PTSEqualsDTS = false
+		}
+	} else {
+		ctx.PTSEqualsDTS = false
 	}
 }
 

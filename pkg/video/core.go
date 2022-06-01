@@ -12,7 +12,6 @@ import (
 const (
 	readTimeout     = 10 * time.Second
 	writeTimeout    = 10 * time.Second
-	readBufferSize  = 2048
 	readBufferCount = 2048
 )
 
@@ -28,7 +27,6 @@ func NewServer(log *log.Logger, wg *sync.WaitGroup, rtspPort int, hlsPort int) *
 		readTimeout,
 		writeTimeout,
 		readBufferCount,
-		readBufferSize,
 		log,
 	)
 
@@ -38,7 +36,6 @@ func NewServer(log *log.Logger, wg *sync.WaitGroup, rtspPort int, hlsPort int) *
 		readTimeout,
 		writeTimeout,
 		readBufferCount,
-		readBufferSize,
 		log,
 		pathManager,
 	)

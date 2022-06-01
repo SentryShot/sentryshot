@@ -8,8 +8,6 @@ import (
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"sync"
-
-	"github.com/pion/rtp/v2"
 )
 
 type rtspSession struct {
@@ -22,9 +20,8 @@ type rtspSession struct {
 	path            *path
 	state           gortsplib.ServerSessionState
 	stateMutex      sync.Mutex
-	setuppedTracks  map[int]gortsplib.Track // read
-	announcedTracks gortsplib.Tracks        // publish
-	stream          *stream                 // publish
+	announcedTracks gortsplib.Tracks // publish
+	stream          *stream          // publish
 }
 
 func newRTSPSession(
@@ -157,11 +154,6 @@ func (s *rtspSession) onSetup(ctx *gortsplib.ServerHandlerOnSetupCtx,
 		}, nil, fmt.Errorf("%w (%d)", ErrTrackNotExist, ctx.TrackID)
 	}
 
-	if s.setuppedTracks == nil {
-		s.setuppedTracks = make(map[int]gortsplib.Track)
-	}
-	s.setuppedTracks[ctx.TrackID] = res.stream.tracks()[ctx.TrackID]
-
 	s.stateMutex.Lock()
 	s.state = gortsplib.ServerSessionStatePrePlay
 	s.stateMutex.Unlock()
@@ -253,8 +245,8 @@ func (s *rtspSession) onReaderAccepted() {
 	)
 }
 
-// onReaderPacketRTP implements reader.
-func (s *rtspSession) onReaderPacketRTP(trackID int, pkt *rtp.Packet) {
+// onReaderData implements reader.
+func (s *rtspSession) onReaderData(*data) {
 	// packets are routed to the session by gortsplib.ServerStream.
 }
 
@@ -270,9 +262,19 @@ func (s *rtspSession) onPublisherAccepted(tracksLen int) {
 
 // onPacketRTP is called by rtspServer.
 func (s *rtspSession) onPacketRTP(ctx *gortsplib.ServerHandlerOnPacketRTPCtx) {
-	if s.ss.State() != gortsplib.ServerSessionStateRecord {
-		return
+	if ctx.H264NALUs != nil {
+		s.stream.writeData(&data{
+			trackID:      ctx.TrackID,
+			rtp:          ctx.Packet,
+			ptsEqualsDTS: ctx.PTSEqualsDTS,
+			h264NALUs:    append([][]byte(nil), ctx.H264NALUs...),
+			h264PTS:      ctx.H264PTS,
+		})
+	} else {
+		s.stream.writeData(&data{
+			trackID:      ctx.TrackID,
+			rtp:          ctx.Packet,
+			ptsEqualsDTS: ctx.PTSEqualsDTS,
+		})
 	}
-
-	s.stream.writePacketRTP(ctx.TrackID, ctx.Packet)
 }

@@ -2,8 +2,9 @@ package gortsplib
 
 import (
 	"nvr/pkg/video/gortsplib/pkg/base"
+	"time"
 
-	"github.com/pion/rtp/v2"
+	"github.com/pion/rtp"
 )
 
 // ServerHandler is the interface implemented by all the server handlers.
@@ -182,9 +183,12 @@ type ServerHandlerOnSetParameter interface {
 
 // ServerHandlerOnPacketRTPCtx is the context of a RTP packet.
 type ServerHandlerOnPacketRTPCtx struct {
-	Session *ServerSession
-	TrackID int
-	Packet  *rtp.Packet
+	Session      *ServerSession
+	TrackID      int
+	Packet       *rtp.Packet
+	PTSEqualsDTS bool
+	H264NALUs    [][]byte
+	H264PTS      time.Duration
 }
 
 // ServerHandlerOnPacketRTP can be implemented by a ServerHandler.

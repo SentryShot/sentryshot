@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pion/rtp/v2"
+	"github.com/pion/rtp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -601,7 +601,7 @@ func TestDecodeErrors(t *testing.T) {
 					Payload: []byte{0x01, 0x00},
 				},
 			},
-			"expected FU-A packet, got another type",
+			"expected FU-A packet, got NonIDR packet",
 		},
 		{
 			"FU-A with two starting packets",

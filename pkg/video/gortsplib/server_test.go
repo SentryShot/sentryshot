@@ -2,7 +2,6 @@ package gortsplib
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"net"
 	"testing"
@@ -17,9 +16,8 @@ func writeReqReadRes(conn net.Conn,
 	br *bufio.Reader,
 	req base.Request,
 ) (*base.Response, error) {
-	var bb bytes.Buffer
-	req.Write(&bb)
-	_, err := conn.Write(bb.Bytes())
+	byts, _ := req.Write()
+	_, err := conn.Write(byts)
 	if err != nil {
 		return nil, err
 	}
@@ -30,9 +28,8 @@ func writeReqReadRes(conn net.Conn,
 }
 
 func readResIgnoreFrames(br *bufio.Reader) (*base.Response, error) {
-	buf := make([]byte, 2048)
 	var res base.Response
-	err := res.ReadIgnoreFrames(br, buf)
+	err := res.ReadIgnoreFrames(2048, br)
 	return &res, err
 }
 
@@ -597,9 +594,8 @@ func TestServerSessionClose(t *testing.T) {
 	conn, err := net.Dial("tcp", "localhost:8554")
 	require.NoError(t, err)
 	defer conn.Close()
-	var bb bytes.Buffer
 
-	base.Request{
+	byts, _ := base.Request{
 		Method: base.Setup,
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
@@ -613,8 +609,8 @@ func TestServerSessionClose(t *testing.T) {
 				InterleavedIDs: &[2]int{0, 1},
 			}.Write(),
 		},
-	}.Write(&bb)
-	_, err = conn.Write(bb.Bytes())
+	}.Write()
+	_, err = conn.Write(byts)
 	require.NoError(t, err)
 
 	<-sessionClosed

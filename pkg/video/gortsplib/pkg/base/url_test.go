@@ -1,6 +1,7 @@
 package base
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,6 +13,31 @@ func mustParseURL(s string) *URL {
 		panic(err)
 	}
 	return u
+}
+
+func TestURLParse(t *testing.T) {
+	for _, ca := range []struct {
+		name string
+		enc  string
+		u    *URL
+	}{
+		{
+			"ipv6 stateless",
+			`rtsp://user:pa%23ss@[fe80::a8f4:3219:f33e:a072%wl0]:8554/prox%23ied`,
+			&URL{
+				Scheme: "rtsp",
+				Host:   "[fe80::a8f4:3219:f33e:a072%wl0]:8554",
+				Path:   "/prox#ied",
+				User:   url.UserPassword("user", "pa#ss"),
+			},
+		},
+	} {
+		t.Run(ca.name, func(t *testing.T) {
+			u, err := ParseURL(ca.enc)
+			require.NoError(t, err)
+			require.Equal(t, ca.u, u)
+		})
+	}
 }
 
 func TestURLParseErrors(t *testing.T) {

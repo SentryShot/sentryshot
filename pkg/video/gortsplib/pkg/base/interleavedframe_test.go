@@ -29,8 +29,7 @@ func TestInterleavedFrameRead(t *testing.T) {
 
 	for _, ca := range casesInterleavedFrame {
 		t.Run(ca.name, func(t *testing.T) {
-			f.Payload = make([]byte, 1024)
-			err := f.Read(bufio.NewReader(bytes.NewBuffer(ca.enc)))
+			err := f.Read(1024, bufio.NewReader(bytes.NewBuffer(ca.enc)))
 			require.NoError(t, err)
 			require.Equal(t, ca.dec, f)
 		})
@@ -56,7 +55,7 @@ func TestInterleavedFrameReadErrors(t *testing.T) {
 		{
 			"payload size too big",
 			[]byte{0x24, 0x00, 0x00, 0x08},
-			"payload size greater than maximum allowed (8 vs 5)",
+			"payload size (8) greater than maximum allowed (5)",
 		},
 		{
 			"payload invalid",
@@ -67,7 +66,7 @@ func TestInterleavedFrameReadErrors(t *testing.T) {
 		t.Run(ca.name, func(t *testing.T) {
 			var f InterleavedFrame
 			f.Payload = make([]byte, 5)
-			err := f.Read(bufio.NewReader(bytes.NewBuffer(ca.byts)))
+			err := f.Read(5, bufio.NewReader(bytes.NewBuffer(ca.byts)))
 			require.EqualError(t, err, ca.err)
 		})
 	}
@@ -76,9 +75,9 @@ func TestInterleavedFrameReadErrors(t *testing.T) {
 func TestInterleavedFrameWrite(t *testing.T) {
 	for _, ca := range casesInterleavedFrame {
 		t.Run(ca.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			ca.dec.Write(&buf)
-			require.Equal(t, ca.enc, buf.Bytes())
+			buf, err := ca.dec.Write()
+			require.NoError(t, err)
+			require.Equal(t, ca.enc, buf)
 		})
 	}
 }
@@ -91,15 +90,14 @@ func TestReadInterleavedFrameOrRequest(t *testing.T) {
 	byts = append(byts, []byte{0x24, 0x6, 0x0, 0x4, 0x1, 0x2, 0x3, 0x4}...)
 
 	var f InterleavedFrame
-	f.Payload = make([]byte, 10)
 	var req Request
 	br := bufio.NewReader(bytes.NewBuffer(byts))
 
-	out, err := ReadInterleavedFrameOrRequest(&f, &req, br)
+	out, err := ReadInterleavedFrameOrRequest(&f, 10, &req, br)
 	require.NoError(t, err)
 	require.Equal(t, &req, out)
 
-	out, err = ReadInterleavedFrameOrRequest(&f, &req, br)
+	out, err = ReadInterleavedFrameOrRequest(&f, 10, &req, br)
 	require.NoError(t, err)
 	require.Equal(t, &f, out)
 }
@@ -132,7 +130,7 @@ func TestReadInterleavedFrameOrRequestErrors(t *testing.T) {
 			var req Request
 			br := bufio.NewReader(bytes.NewBuffer(ca.byts))
 
-			_, err := ReadInterleavedFrameOrRequest(&f, &req, br)
+			_, err := ReadInterleavedFrameOrRequest(&f, 10, &req, br)
 			require.EqualError(t, err, ca.err)
 		})
 	}
@@ -150,11 +148,11 @@ func TestReadInterleavedFrameOrResponse(t *testing.T) {
 	var res Response
 	br := bufio.NewReader(bytes.NewBuffer(byts))
 
-	out, err := ReadInterleavedFrameOrResponse(&f, &res, br)
+	out, err := ReadInterleavedFrameOrResponse(&f, 10, &res, br)
 	require.NoError(t, err)
 	require.Equal(t, &res, out)
 
-	out, err = ReadInterleavedFrameOrResponse(&f, &res, br)
+	out, err = ReadInterleavedFrameOrResponse(&f, 10, &res, br)
 	require.NoError(t, err)
 	require.Equal(t, &f, out)
 }
@@ -183,11 +181,10 @@ func TestReadInterleavedFrameOrResponseErrors(t *testing.T) {
 	} {
 		t.Run(ca.name, func(t *testing.T) {
 			var f InterleavedFrame
-			f.Payload = make([]byte, 10)
 			var res Response
 			br := bufio.NewReader(bytes.NewBuffer(ca.byts))
 
-			_, err := ReadInterleavedFrameOrResponse(&f, &res, br)
+			_, err := ReadInterleavedFrameOrResponse(&f, 10, &res, br)
 			require.EqualError(t, err, ca.err)
 		})
 	}

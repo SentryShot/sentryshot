@@ -2,13 +2,12 @@ package gortsplib
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"net"
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/gortsplib/pkg/liberrors"
-	"nvr/pkg/video/gortsplib/pkg/multibuffer"
+	"nvr/pkg/video/gortsplib/pkg/rtph264"
 	"strings"
 	"time"
 )
@@ -96,7 +95,7 @@ func (sc *ServerConn) run() {
 		})
 	}
 
-	sc.br = bufio.NewReaderSize(sc.conn, serverReadBufferSize)
+	sc.br = bufio.NewReaderSize(sc.conn, tcpReadBufferSize)
 
 	readRequest := make(chan readReq)
 	readErr := make(chan error)
@@ -194,7 +193,7 @@ func (sc *ServerConn) readFuncStandard(readRequest chan readReq) error {
 	}
 }
 
-func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:funlen
+func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:funlen,gocognit
 	// reset deadline
 	sc.conn.SetReadDeadline(time.Time{}) // nolint:errcheck
 
@@ -203,36 +202,88 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 	case <-sc.session.ctx.Done():
 	}
 
-	var tcpReadBuffer *multibuffer.MultiBuffer
-	var processFunc func(int, []byte)
+	var processFunc func(int, []byte) error
 
-	if sc.session.state == ServerSessionStatePlay {
-		// when playing, tcpReadBuffer is only used to receive RTCP receiver reports,
-		// that are much smaller than RTP packets and are sent at a fixed interval.
-		// decrease RAM consumption by allocating less buffers.
-		tcpReadBuffer = multibuffer.New(8, uint64(sc.s.ReadBufferSize))
+	if sc.session.state == ServerSessionStatePlay { //nolint:nestif
+		processFunc = func(trackID int, payload []byte) error {
+			return nil
+		}
 	} else {
-		tcpReadBuffer = multibuffer.New(uint64(sc.s.ReadBufferCount), uint64(sc.s.ReadBufferSize))
 		tcpRTPPacketBuffer := newRTPPacketMultiBuffer(uint64(sc.s.ReadBufferCount))
 
-		processFunc = func(trackID int, payload []byte) {
+		processFunc = func(trackID int, payload []byte) error {
 			pkt := tcpRTPPacketBuffer.next()
 			err := pkt.Unmarshal(payload)
 			if err != nil {
-				return
+				return err
 			}
 
-			// remove padding
-			pkt.Header.Padding = false
-			pkt.PaddingSize = 0
-
-			if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
-				h.OnPacketRTP(&ServerHandlerOnPacketRTPCtx{
-					Session: sc.session,
-					TrackID: trackID,
-					Packet:  pkt,
-				})
+			ctx := ServerHandlerOnPacketRTPCtx{
+				Session: sc.session,
+				TrackID: trackID,
+				Packet:  pkt,
 			}
+
+			at := sc.session.announcedTracks[trackID]
+			sc.session.processPacketRTP(at, &ctx)
+
+			if at.h264Decoder != nil {
+				if at.h264Encoder == nil && len(payload) > maxPacketSize {
+					v1 := pkt.SSRC
+					v2 := pkt.SequenceNumber
+					v3 := pkt.Timestamp
+					at.h264Encoder = &rtph264.Encoder{
+						PayloadType:           pkt.PayloadType,
+						SSRC:                  &v1,
+						InitialSequenceNumber: &v2,
+						InitialTimestamp:      &v3,
+					}
+					at.h264Encoder.Init()
+				}
+
+				if at.h264Encoder != nil {
+					if ctx.H264NALUs != nil {
+						packets, err := at.h264Encoder.Encode(ctx.H264NALUs, ctx.H264PTS)
+						if err != nil {
+							return err
+						}
+
+						for i, pkt := range packets {
+							if i != len(packets)-1 {
+								if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
+									h.OnPacketRTP(&ServerHandlerOnPacketRTPCtx{
+										Session:      sc.session,
+										TrackID:      trackID,
+										Packet:       pkt,
+										PTSEqualsDTS: false,
+									})
+								}
+							} else {
+								ctx.Packet = pkt
+								if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
+									h.OnPacketRTP(&ctx)
+								}
+							}
+						}
+					}
+				} else {
+					if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
+						h.OnPacketRTP(&ctx)
+					}
+				}
+			} else {
+				if len(payload) > maxPacketSize {
+					return base.PayloadToBigError{
+						PayloadLen:     len(payload),
+						MaxPayloadSize: maxPacketSize,
+					}
+				}
+
+				if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
+					h.OnPacketRTP(&ctx)
+				}
+			}
+			return nil
 		}
 	}
 
@@ -244,8 +295,7 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 			sc.conn.SetReadDeadline(time.Now().Add(sc.s.ReadTimeout)) //nolint:errcheck
 		}
 
-		frame.Payload = tcpReadBuffer.Next()
-		what, err := base.ReadInterleavedFrameOrRequest(&frame, &req, sc.br)
+		what, err := base.ReadInterleavedFrameOrRequest(&frame, tcpMaxFramePayloadSize, &req, sc.br)
 		if err != nil {
 			return err
 		}
@@ -256,7 +306,10 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 
 			// forward frame only if it has been set up
 			if trackID, ok := sc.session.tcpTracksByChannel[channel]; ok {
-				processFunc(trackID, frame.Payload)
+				err := processFunc(trackID, frame.Payload)
+				if err != nil {
+					return err
+				}
 			}
 
 		case *base.Request:
@@ -466,11 +519,10 @@ func (sc *ServerConn) handleRequestOuter(req *base.Request) error {
 		h.OnResponse(sc, res)
 	}
 
-	var buf bytes.Buffer
-	res.Write(&buf)
+	byts, _ := res.Write()
 
 	sc.conn.SetWriteDeadline(time.Now().Add(sc.s.WriteTimeout)) //nolint:errcheck
-	sc.conn.Write(buf.Bytes())                                  //nolint:errcheck
+	sc.conn.Write(byts)                                         //nolint:errcheck
 
 	return err
 }

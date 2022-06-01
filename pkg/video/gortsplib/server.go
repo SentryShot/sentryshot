@@ -13,10 +13,6 @@ import (
 	"time"
 )
 
-const (
-	serverReadBufferSize = 4096
-)
-
 func newSessionSecretID(sessions map[string]*ServerSession) (string, error) {
 	for {
 		b := make([]byte, 4)
@@ -74,10 +70,6 @@ type Server struct {
 	// that are particularly high when using UDP.
 	// It defaults to 256
 	ReadBufferCount int
-	// read buffer size.
-	// This must be touched only when the server reports errors about buffer sizes.
-	// It defaults to 2048.
-	ReadBufferSize int
 	// write buffer count.
 	// It allows to queue packets before sending them.
 	// It defaults to 256.
@@ -125,9 +117,6 @@ func (s *Server) Start() error {
 	}
 	if s.ReadBufferCount == 0 {
 		s.ReadBufferCount = 256
-	}
-	if s.ReadBufferSize == 0 {
-		s.ReadBufferSize = 2048
 	}
 	if s.WriteBufferCount == 0 {
 		s.WriteBufferCount = 256

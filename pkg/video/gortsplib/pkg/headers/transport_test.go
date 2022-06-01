@@ -23,6 +23,19 @@ var casesTransport = []struct {
 			InterleavedIDs: &[2]int{0, 1},
 		},
 	},
+	{
+		"dahua rtsp server ssrc with initial spaces",
+		base.HeaderValue{`RTP/AVP/TCP;interleaved=0-1;ssrc=     D93FF`},
+		base.HeaderValue{`RTP/AVP/TCP;interleaved=0-1;ssrc=000D93FF`},
+		Transport{
+			Protocol:       TransportProtocolTCP,
+			InterleavedIDs: &[2]int{0, 1},
+			SSRC: func() *uint32 {
+				v := uint32(0xD93FF)
+				return &v
+			}(),
+		},
+	},
 }
 
 func TestTransportRead(t *testing.T) {

@@ -222,9 +222,9 @@ func TestRequestReadErrors(t *testing.T) {
 func TestRequestWrite(t *testing.T) {
 	for _, ca := range casesRequest {
 		t.Run(ca.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			ca.req.Write(&buf)
-			require.Equal(t, ca.byts, buf.Bytes())
+			buf, err := ca.req.Write()
+			require.NoError(t, err)
+			require.Equal(t, ca.byts, buf)
 		})
 	}
 }
@@ -238,9 +238,8 @@ func TestRequestReadIgnoreFrames(t *testing.T) {
 		"\r\n")...)
 
 	rb := bufio.NewReader(bytes.NewBuffer(byts))
-	buf := make([]byte, 10)
 	var req Request
-	err := req.ReadIgnoreFrames(rb, buf)
+	err := req.ReadIgnoreFrames(10, rb)
 	require.NoError(t, err)
 }
 
@@ -248,9 +247,8 @@ func TestRequestReadIgnoreFramesErrors(t *testing.T) {
 	byts := []byte{0x25}
 
 	rb := bufio.NewReader(bytes.NewBuffer(byts))
-	buf := make([]byte, 10)
 	var req Request
-	err := req.ReadIgnoreFrames(rb, buf)
+	err := req.ReadIgnoreFrames(10, rb)
 	require.EqualError(t, err, "EOF")
 }
 

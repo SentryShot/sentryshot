@@ -18,7 +18,7 @@ func TestMuxerVideoAudio(t *testing.T) {
 	videoTrack, err := gortsplib.NewTrackH264(96, []byte{0x07, 0x01, 0x02, 0x03}, []byte{0x08}, nil)
 	require.NoError(t, err)
 
-	audioTrack, err := gortsplib.NewTrackAAC(97, 2, 44100, 2, nil)
+	audioTrack, err := gortsplib.NewTrackAAC(97, 2, 44100, 2, nil, 13, 3, 3)
 	require.NoError(t, err)
 
 	m, err := NewMuxer(3, 1*time.Second, 50*1024*1024, nil, videoTrack, audioTrack)
@@ -34,10 +34,9 @@ func TestMuxerVideoAudio(t *testing.T) {
 
 	// group with IDR
 	err = m.WriteH264(2*time.Second, [][]byte{
-		{5}, // IDR
-		{9}, // AUD
-		{8}, // PPS
 		{7}, // SPS
+		{8}, // PPS
+		{5}, // IDR
 	})
 	require.NoError(t, err)
 
@@ -66,6 +65,8 @@ func TestMuxerVideoAudio(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "#EXTM3U\n"+
+		"#EXT-X-VERSION:3\n"+
+		"\n"+
 		"#EXT-X-STREAM-INF:BANDWIDTH=200000,CODECS=\"avc1.010203,mp4a.40.2\"\n"+
 		"stream.m3u8\n", string(byts))
 
@@ -77,6 +78,7 @@ func TestMuxerVideoAudio(t *testing.T) {
 		`#EXT-X-ALLOW-CACHE:NO\n` +
 		`#EXT-X-TARGETDURATION:4\n` +
 		`#EXT-X-MEDIA-SEQUENCE:0\n` +
+		`#EXT-X-INDEPENDENT-SEGMENTS\n` +
 		`\n` +
 		`#EXT-X-PROGRAM-DATE-TIME:(.*?)\n` +
 		`#EXTINF:4,\n` +
@@ -125,8 +127,8 @@ func TestMuxerVideoAudio(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &mpegts.Packet{
 		AdaptationField: &mpegts.PacketAdaptationField{
-			Length:                145,
-			StuffingLength:        138,
+			Length:                148,
+			StuffingLength:        141,
 			HasPCR:                true,
 			PCR:                   &mpegts.ClockReference{},
 			RandomAccessIndicator: true,
@@ -141,7 +143,7 @@ func TestMuxerVideoAudio(t *testing.T) {
 			0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x80, 0x80,
 			0x05, 0x21, 0x00, 0x03, 0x5f, 0x91,
 			0, 0, 0, 1, 9, 240, // AUD
-			0, 0, 0, 1, 7, 1, 2, 3, // SPS
+			0, 0, 0, 1, 7, // SPS
 			0, 0, 0, 1, 8, // PPS
 			0, 0, 0, 1, 5, // IDR
 		}, bytes.Repeat([]byte{0xff}, 0)...),
@@ -199,6 +201,8 @@ func TestMuxerVideoOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "#EXTM3U\n"+
+		"#EXT-X-VERSION:3\n"+
+		"\n"+
 		"#EXT-X-STREAM-INF:BANDWIDTH=200000,CODECS=\"avc1.010203\"\n"+
 		"stream.m3u8\n", string(byts))
 
@@ -210,6 +214,7 @@ func TestMuxerVideoOnly(t *testing.T) {
 		`#EXT-X-ALLOW-CACHE:NO\n` +
 		`#EXT-X-TARGETDURATION:4\n` +
 		`#EXT-X-MEDIA-SEQUENCE:0\n` +
+		`#EXT-X-INDEPENDENT-SEGMENTS\n` +
 		`\n` +
 		`#EXT-X-PROGRAM-DATE-TIME:(.*?)\n` +
 		`#EXTINF:4,\n` +
@@ -254,7 +259,7 @@ func TestMuxerVideoOnly(t *testing.T) {
 }
 
 func TestMuxerAudioOnly(t *testing.T) {
-	audioTrack, err := gortsplib.NewTrackAAC(97, 2, 44100, 2, nil)
+	audioTrack, err := gortsplib.NewTrackAAC(97, 2, 44100, 2, nil, 13, 3, 3)
 	require.NoError(t, err)
 
 	m, err := NewMuxer(3, 1*time.Second, 50*1024*1024, nil, nil, audioTrack)
@@ -284,6 +289,8 @@ func TestMuxerAudioOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "#EXTM3U\n"+
+		"#EXT-X-VERSION:3\n"+
+		"\n"+
 		"#EXT-X-STREAM-INF:BANDWIDTH=200000,CODECS=\"mp4a.40.2\"\n"+
 		"stream.m3u8\n", string(byts))
 
@@ -295,6 +302,7 @@ func TestMuxerAudioOnly(t *testing.T) {
 		`#EXT-X-ALLOW-CACHE:NO\n` +
 		`#EXT-X-TARGETDURATION:1\n` +
 		`#EXT-X-MEDIA-SEQUENCE:0\n` +
+		`#EXT-X-INDEPENDENT-SEGMENTS\n` +
 		`\n` +
 		`#EXT-X-PROGRAM-DATE-TIME:(.*?)\n` +
 		`#EXTINF:1,\n` +

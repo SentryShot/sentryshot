@@ -3,7 +3,6 @@ package base
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -19,7 +18,7 @@ const (
 // Method is the method of a RTSP request.
 type Method string
 
-// Standard methods.
+// Methods.
 const (
 	Announce     Method = "ANNOUNCE"
 	Describe     Method = "DESCRIBE"
@@ -110,15 +109,11 @@ func (req *Request) Read(rb *bufio.Reader) error {
 
 // ReadIgnoreFrames reads a request and ignores any interleaved frame sent
 // before the request.
-func (req *Request) ReadIgnoreFrames(rb *bufio.Reader, buf []byte) error {
-	buflen := len(buf)
-	f := InterleavedFrame{
-		Payload: buf,
-	}
+func (req *Request) ReadIgnoreFrames(maxPayloadSize int, rb *bufio.Reader) error {
+	var f InterleavedFrame
 
 	for {
-		f.Payload = f.Payload[:buflen]
-		recv, err := ReadInterleavedFrameOrRequest(&f, req, rb)
+		recv, err := ReadInterleavedFrameOrRequest(&f, maxPayloadSize, req, rb)
 		if err != nil {
 			return err
 		}
@@ -129,25 +124,51 @@ func (req *Request) ReadIgnoreFrames(rb *bufio.Reader, buf []byte) error {
 	}
 }
 
-// Write writes a request.
-func (req Request) Write(bb *bytes.Buffer) {
-	bb.Reset()
+// WriteSize returns the size of a Request.
+func (req Request) WriteSize() int {
+	n := 0
 
 	urStr := req.URL.CloneWithoutCredentials().String()
-	bb.Write([]byte(string(req.Method) + " " + urStr + " " + rtspProtocol10 + "\r\n"))
+	n += len([]byte(string(req.Method) + " " + urStr + " " + rtspProtocol10 + "\r\n"))
 
 	if len(req.Body) != 0 {
 		req.Header["Content-Length"] = HeaderValue{strconv.FormatInt(int64(len(req.Body)), 10)}
 	}
 
-	req.Header.write(bb)
+	n += req.Header.writeSize()
 
-	body(req.Body).write(bb)
+	n += body(req.Body).writeSize()
+
+	return n
+}
+
+// WriteTo writes a Request.
+func (req Request) WriteTo(buf []byte) (int, error) {
+	pos := 0
+
+	urStr := req.URL.CloneWithoutCredentials().String()
+	pos += copy(buf[pos:], []byte(string(req.Method)+" "+urStr+" "+rtspProtocol10+"\r\n"))
+
+	if len(req.Body) != 0 {
+		req.Header["Content-Length"] = HeaderValue{strconv.FormatInt(int64(len(req.Body)), 10)}
+	}
+
+	pos += req.Header.writeTo(buf[pos:])
+
+	pos += body(req.Body).writeTo(buf[pos:])
+
+	return pos, nil
+}
+
+// Write writes a Request.
+func (req Request) Write() ([]byte, error) {
+	buf := make([]byte, req.WriteSize())
+	_, err := req.WriteTo(buf)
+	return buf, err
 }
 
 // String implements fmt.Stringer.
 func (req Request) String() string {
-	var buf bytes.Buffer
-	req.Write(&buf)
-	return buf.String()
+	buf, _ := req.Write()
+	return string(buf)
 }

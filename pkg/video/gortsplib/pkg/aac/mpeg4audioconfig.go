@@ -72,8 +72,11 @@ func (c *MPEG4AudioConfig) Decode(byts []byte) error { //nolint:funlen
 	case channelConfig == 0:
 		return ErrConfigDecodeChannelUnsupported
 
-	case channelConfig >= 1 && channelConfig <= 7:
-		c.ChannelCount = channelCounts[channelConfig-1]
+	case channelConfig >= 1 && channelConfig <= 6:
+		c.ChannelCount = int(channelConfig)
+
+	case channelConfig == 7:
+		c.ChannelCount = 8
 
 	default:
 		return fmt.Errorf("%w (%d)", ErrConfigDecodeChannelInvalid, channelConfig)
@@ -94,50 +97,51 @@ func (c *MPEG4AudioConfig) Decode(byts []byte) error { //nolint:funlen
 	return nil
 }
 
+func (c MPEG4AudioConfig) encodeSize() int {
+	n := 5 + 4 + len(c.AOTSpecificConfig)*8
+	_, ok := reverseSampleRates[c.SampleRate]
+	if !ok {
+		n += 28
+	} else {
+		n += 4
+	}
+
+	ret := n / 8
+	if n%8 != 0 {
+		ret++
+	}
+	return ret
+}
+
 // ErrConfigEncodeChannelCountInvalid .
 var ErrConfigEncodeChannelCountInvalid = errors.New("invalid channel count")
 
 // Encode encodes an MPEG4AudioConfig.
 func (c MPEG4AudioConfig) Encode() ([]byte, error) {
-	var buf bytes.Buffer
-	w := bitio.NewWriter(&buf)
+	buf := make([]byte, c.encodeSize())
+	w := bitio.NewWriter(bytes.NewBuffer(buf[:0]))
 
 	if err := w.WriteBits(uint64(c.Type), 5); err != nil {
 		return nil, err
 	}
 
-	sampleRateIndex := func() int {
-		for i, s := range sampleRates {
-			if s == c.SampleRate {
-				return i
-			}
-		}
-		return -1
-	}()
-
-	if sampleRateIndex != -1 {
-		if err := w.WriteBits(uint64(sampleRateIndex), 4); err != nil {
-			return nil, err
-		}
+	sampleRateIndex, ok := reverseSampleRates[c.SampleRate]
+	if !ok {
+		w.WriteBits(uint64(15), 4)            //nolint:errcheck
+		w.WriteBits(uint64(c.SampleRate), 24) //nolint:errcheck
 	} else {
-		if err := w.WriteBits(uint64(15), 4); err != nil {
-			return nil, err
-		}
-		if err := w.WriteBits(uint64(c.SampleRate), 24); err != nil {
-			return nil, err
-		}
+		w.WriteBits(uint64(sampleRateIndex), 4) //nolint:errcheck
 	}
 
-	channelConfig := func() int {
-		for i, co := range channelCounts {
-			if co == c.ChannelCount {
-				return i + 1
-			}
-		}
-		return -1
-	}()
+	var channelConfig int
+	switch {
+	case c.ChannelCount >= 1 && c.ChannelCount <= 6:
+		channelConfig = c.ChannelCount
 
-	if channelConfig == -1 {
+	case c.ChannelCount == 8:
+		channelConfig = 7
+
+	default:
 		return nil, fmt.Errorf("%w (%d)",
 			ErrConfigEncodeChannelCountInvalid, c.ChannelCount)
 	}
@@ -154,5 +158,5 @@ func (c MPEG4AudioConfig) Encode() ([]byte, error) {
 
 	w.Close()
 
-	return buf.Bytes(), nil
+	return buf, nil
 }

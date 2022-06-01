@@ -16,33 +16,6 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 		track Track
 	}{
 		{
-			"pcma",
-			&psdp.MediaDescription{
-				MediaName: psdp.MediaName{
-					Media:   "audio",
-					Protos:  []string{"RTP", "AVP"},
-					Formats: []string{"8"},
-				},
-			},
-			&TrackGeneric{
-				clockRate: 8000,
-				media:     "audio",
-				formats:   []string{"8"},
-			},
-		},
-		{
-			"pcmu",
-			&psdp.MediaDescription{
-				MediaName: psdp.MediaName{
-					Media:   "audio",
-					Port:    psdp.RangedPort{Value: 49170},
-					Protos:  []string{"RTP", "AVP"},
-					Formats: []string{"0"},
-				},
-			},
-			&TrackPCMU{},
-		},
-		{
 			"aac",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
@@ -55,18 +28,27 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 						Key:   "rtpmap",
 						Value: "96 mpeg4-generic/48000/2",
 					},
+
 					{
 						Key:   "fmtp",
-						Value: "96 profile-level-id=1; mode=AAC-hbr; sizelength=13; indexlength=3; indexdeltalength=3; config=1190",
+						Value: "96 profile-level-id=1; mode=AAC-hbr; sizelength=13; indexlength=3; indexdeltalength=3; config=11900810",
+					},
+					{
+						Key:   "control",
+						Value: "",
 					},
 				},
 			},
 			&TrackAAC{
-				payloadType:  96,
-				typ:          2,
-				sampleRate:   48000,
-				channelCount: 2,
-				mpegConf:     []byte{0x11, 0x90},
+				payloadType:       96,
+				typ:               2,
+				sampleRate:        48000,
+				channelCount:      2,
+				aotSpecificConfig: []byte{0x01, 0x02},
+				mpegConf:          []byte{0x11, 0x90, 0x08, 0x10},
+				sizeLength:        13,
+				indexLength:       3,
+				indexDeltaLength:  3,
 			},
 		},
 		{
@@ -89,11 +71,14 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 				},
 			},
 			&TrackAAC{
-				payloadType:  96,
-				typ:          2,
-				sampleRate:   48000,
-				channelCount: 2,
-				mpegConf:     []byte{0x11, 0x90},
+				payloadType:      96,
+				typ:              2,
+				sampleRate:       48000,
+				channelCount:     2,
+				mpegConf:         []byte{0x11, 0x90},
+				sizeLength:       13,
+				indexLength:      3,
+				indexDeltaLength: 3,
 			},
 		},
 		{
@@ -116,15 +101,18 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 				},
 			},
 			&TrackAAC{
-				payloadType:  96,
-				typ:          2,
-				sampleRate:   48000,
-				channelCount: 2,
-				mpegConf:     []byte{0x11, 0x90},
+				payloadType:      96,
+				typ:              2,
+				sampleRate:       48000,
+				channelCount:     2,
+				mpegConf:         []byte{0x11, 0x90},
+				sizeLength:       13,
+				indexLength:      3,
+				indexDeltaLength: 3,
 			},
 		},
 		{
-			"opus",
+			"aac without indexLength",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -134,18 +122,27 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 				Attributes: []psdp.Attribute{
 					{
 						Key:   "rtpmap",
-						Value: "96 opus/48000/2",
+						Value: "96 mpeg4-generic/48000/2",
 					},
 					{
 						Key:   "fmtp",
-						Value: "96 sprop-stereo=1",
+						Value: "96 streamtype=3;profile-level-id=14;mode=AAC-hbr;config=1190;sizeLength=13",
+					},
+					{
+						Key:   "control",
+						Value: "",
 					},
 				},
 			},
-			&TrackOpus{
-				payloadType:  96,
-				sampleRate:   48000,
-				channelCount: 2,
+			&TrackAAC{
+				payloadType:      96,
+				typ:              2,
+				sampleRate:       48000,
+				channelCount:     2,
+				mpegConf:         []byte{0x11, 0x90},
+				sizeLength:       13,
+				indexLength:      0,
+				indexDeltaLength: 0,
 			},
 		},
 		{
@@ -340,7 +337,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 		err  string
 	}{
 		{
-			"generic no formats",
+			"no formats",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -351,7 +348,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"unable to get clock rate: no formats provided",
 		},
 		{
-			"generic no rtpmap",
+			"no rtpmap",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "video",
@@ -362,7 +359,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"unable to get clock rate: attribute 'rtpmap' not found",
 		},
 		{
-			"generic invalid clockrate 1",
+			"invalid clockrate 1",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "video",
@@ -379,7 +376,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"unable to get clock rate: invalid rtpmap (96)",
 		},
 		{
-			"generic invalid clockrate 2",
+			"invalid clockrate 2",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "video",
@@ -396,7 +393,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"unable to get clock rate: invalid rtpmap (96 mpeg4-generic)",
 		},
 		{
-			"generic invalid clockrate 3",
+			"invalid clockrate 3",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "video",
@@ -536,7 +533,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"invalid AAC config (aa)",
 		},
 		{
-			"opus invalid 1",
+			"aac missing sizelength",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -546,45 +543,15 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 				Attributes: []psdp.Attribute{
 					{
 						Key:   "rtpmap",
-						Value: "96 opus/48000",
+						Value: "96 mpeg4-generic/48000/2",
 					},
-				},
-			},
-			"invalid rtpmap (opus/48000)",
-		},
-		{
-			"opus invalid 2",
-			&psdp.MediaDescription{
-				MediaName: psdp.MediaName{
-					Media:   "audio",
-					Protos:  []string{"RTP", "AVP"},
-					Formats: []string{"96"},
-				},
-				Attributes: []psdp.Attribute{
 					{
-						Key:   "rtpmap",
-						Value: "96 opus/aa/2",
+						Key:   "fmtp",
+						Value: "96 profile-level-id=1; config=1190",
 					},
 				},
 			},
-			"strconv.ParseInt: parsing \"aa\": invalid syntax",
-		},
-		{
-			"opus invalid 3",
-			&psdp.MediaDescription{
-				MediaName: psdp.MediaName{
-					Media:   "audio",
-					Protos:  []string{"RTP", "AVP"},
-					Formats: []string{"96"},
-				},
-				Attributes: []psdp.Attribute{
-					{
-						Key:   "rtpmap",
-						Value: "96 opus/48000/aa",
-					},
-				},
-			},
-			"strconv.ParseInt: parsing \"aa\": invalid syntax",
+			"sizelength is missing (96 profile-level-id=1; config=1190)",
 		},
 	} {
 		t.Run(ca.name, func(t *testing.T) {

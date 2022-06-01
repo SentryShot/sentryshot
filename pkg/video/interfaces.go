@@ -1,12 +1,24 @@
 package video
 
-import "github.com/pion/rtp/v2"
+import (
+	"time"
+
+	"github.com/pion/rtp"
+)
+
+type data struct {
+	trackID      int
+	rtp          *rtp.Packet
+	ptsEqualsDTS bool
+	h264NALUs    [][]byte
+	h264PTS      time.Duration
+}
 
 // reader is an entity that can read a stream.
 type reader interface {
 	close()
 	onReaderAccepted()
-	onReaderPacketRTP(int, *rtp.Packet)
+	onReaderData(*data)
 }
 
 type closer interface {

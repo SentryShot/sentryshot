@@ -37,6 +37,15 @@ func indexOf(element string, data []string) int {
 	return -1
 }
 
+func anyOf(element string, data ...string) bool {
+	for _, v := range data {
+		if element == v {
+			return true
+		}
+	}
+	return false
+}
+
 func parsePort(value string) (int, error) {
 	port, err := strconv.Atoi(value)
 	if err != nil {
@@ -67,31 +76,19 @@ func (s *SessionDescription) unmarshalOrigin(value string) error { //nolint:funl
 		value = "- 0 " + value[3:]
 	}
 
-	// special case for sone onvif2 cameras
-	if value[len(value)-1] == ' ' {
-		value += "127.0.0.1"
-	}
-
 	// find spaces from end to beginning, to support multiple spaces
 	// in the first field
 	fields := func() []string {
-		var ret []string
-		for len(value) > 0 {
-			i := len(value) - 1
-			for {
-				if i < 0 || len(ret) == 5 {
-					ret = append([]string{value}, ret...)
-					return ret
-				}
-				if value[i] == ' ' {
-					ret = append([]string{value[i+1:]}, ret...)
-					value = value[:i]
-					break
-				}
-				i--
-			}
+		values := strings.Split(strings.TrimSpace(value), " ")
+
+		// special case for some onvif2 cameras
+		if strings.Compare(values[len(values)-1], "IP4") == 0 {
+			values = append(values, "127.0.0.1")
 		}
-		return ret
+		return append(
+			[]string{strings.Join(values[0:len(values)-5], " ")},
+			values[len(values)-5:]...,
+		)
 	}()
 
 	if len(fields) != 6 {
@@ -100,9 +97,12 @@ func (s *SessionDescription) unmarshalOrigin(value string) error { //nolint:funl
 
 	var sessionID uint64
 	var err error
-	if strings.HasPrefix(fields[1], "0x") {
-		sessionID, err = strconv.ParseUint(fields[1][len("0x"):], 16, 64)
-	} else {
+	switch {
+	case strings.HasPrefix(fields[1], "0x") || strings.HasPrefix(fields[1], "0X"):
+		sessionID, err = strconv.ParseUint(fields[1][2:], 16, 64)
+	case strings.ContainsAny(fields[1], "abcdefABCDEF"):
+		sessionID, err = strconv.ParseUint(fields[1], 16, 64)
+	default:
 		sessionID, err = strconv.ParseUint(fields[1], 10, 64)
 	}
 	if err != nil {
@@ -216,9 +216,11 @@ func unmarshalBandwidth(value string) (*psdp.Bandwidth, error) {
 	experimental := strings.HasPrefix(parts[0], "X-")
 	if experimental {
 		parts[0] = strings.TrimPrefix(parts[0], "X-")
-	} else if i := indexOf(parts[0], []string{"CT", "AS", "RR", "RS"}); i == -1 {
+	} else if !anyOf(parts[0], "CT", "AS", "TIAS", "RS", "RR") {
 		// Set according to currently registered with IANA
 		// https://tools.ietf.org/html/rfc4566#section-5.8
+		// https://tools.ietf.org/html/rfc3890#section-6.2
+		// https://tools.ietf.org/html/rfc3556#section-2
 		return nil, fmt.Errorf("%w `%v`", ErrInvalidValue, parts[0])
 	}
 

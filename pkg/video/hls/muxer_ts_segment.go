@@ -150,6 +150,7 @@ func (t *MuxerTSSegment) writeAAC(
 			af.PCR = &mpegts.ClockReference{Base: int64(pcr.Seconds() * 90000)}
 			t.pcrSendCounter = 3
 		}
+		t.pcrSendCounter--
 	}
 
 	_, err := t.writeData(&mpegts.MuxerData{

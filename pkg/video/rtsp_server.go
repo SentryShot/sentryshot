@@ -32,7 +32,6 @@ func newRTSPServer(
 	readTimeout time.Duration,
 	writeTimeout time.Duration,
 	readBufferCount int,
-	readBufferSize int,
 	logger *log.Logger,
 	pathManager *pathManager,
 ) *rtspServer {
@@ -51,7 +50,6 @@ func newRTSPServer(
 		ReadTimeout:      readTimeout,
 		WriteTimeout:     writeTimeout,
 		ReadBufferCount:  readBufferCount,
-		ReadBufferSize:   readBufferSize,
 		WriteBufferCount: readBufferCount,
 		RTSPaddress:      address,
 	}

@@ -18,7 +18,6 @@ type pathManager struct {
 	readTimeout     time.Duration
 	writeTimeout    time.Duration
 	readBufferCount int
-	readBufferSize  int
 	pathConfs       map[string]*PathConf
 	log             *log.Logger
 
@@ -44,7 +43,6 @@ func newPathManager(
 	readTimeout time.Duration,
 	writeTimeout time.Duration,
 	readBufferCount int,
-	readBufferSize int,
 	log *log.Logger,
 ) *pathManager {
 	pm := &pathManager{
@@ -54,7 +52,6 @@ func newPathManager(
 		readTimeout:       readTimeout,
 		writeTimeout:      writeTimeout,
 		readBufferCount:   readBufferCount,
-		readBufferSize:    readBufferSize,
 		pathConfs:         make(map[string]*PathConf),
 		paths:             make(map[string]*path),
 		onAddPath:         make(chan addPathReq),
@@ -197,7 +194,6 @@ func (pm *pathManager) createPath(
 		pm.readTimeout,
 		pm.writeTimeout,
 		pm.readBufferCount,
-		pm.readBufferSize,
 		pathConfName,
 		pathConf,
 		name,

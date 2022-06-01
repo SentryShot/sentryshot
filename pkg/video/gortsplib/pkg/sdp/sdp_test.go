@@ -15,7 +15,7 @@ var cases = []struct {
 	enc  []byte
 	desc SessionDescription
 }{
-	// standard-compliant SDPs
+	// Compliant SDPs
 	{
 		"base",
 		[]byte("v=0\r\n" +
@@ -269,7 +269,7 @@ var cases = []struct {
 			},
 		},
 	},
-	// non standard-compliant SDPs
+	// Non compliant SDPs
 	{
 		"unordered global attributes",
 		[]byte("v=0\r\n" +
@@ -1376,6 +1376,262 @@ var cases = []struct {
 						{
 							Key:   "fmtp",
 							Value: "99 sampling=mono; width=320; height=240; depth=16",
+						},
+					},
+				},
+			},
+		},
+	},
+	{
+		"FLIR IOI TRK-101 with trailing space in origin field",
+		[]byte("v=0\r\n" +
+			"o=- 1 1 IN IP4 127.0.0.1 \r\n" +
+			"s=RTP session\r\n" +
+			"e=NONE\r\n" +
+			"t=0 0\r\n" +
+			"m=video 0 RTP/AVP 96\r\n" +
+			"a=rtpmap:96 MP4V-ES/1000\r\n" +
+			"a=fmtp:96 profile-level-id=245; config=000001B0F5000001B509000001000000012000845D4C28582120A31F\r\n" +
+			"a=framerate:25\r\n" +
+			"a=x-dimensions:352,288\r\n" +
+			"a=x-algoTarget:P\r\n" +
+			"a=control:video\r\n"),
+		[]byte("v=0\r\n" +
+			"o=- 1 1 IN IP4 127.0.0.1\r\n" +
+			"s=RTP session\r\n" +
+			"e=NONE\r\n" +
+			"t=0 0\r\n" +
+			"m=video 0 RTP/AVP 96\r\n" +
+			"a=rtpmap:96 MP4V-ES/1000\r\n" +
+			"a=fmtp:96 profile-level-id=245; config=000001B0F5000001B509000001000000012000845D4C28582120A31F\r\n" +
+			"a=framerate:25\r\n" +
+			"a=x-dimensions:352,288\r\n" +
+			"a=x-algoTarget:P\r\n" +
+			"a=control:video\r\n"),
+		SessionDescription{
+			Origin: psdp.Origin{
+				Username:       "-",
+				SessionID:      1,
+				SessionVersion: 1,
+				NetworkType:    "IN",
+				AddressType:    "IP4",
+				UnicastAddress: "127.0.0.1",
+			},
+			SessionName: "RTP session",
+			TimeDescriptions: []psdp.TimeDescription{
+				{psdp.Timing{0, 0}, nil},
+			},
+			EmailAddress: func() *psdp.EmailAddress {
+				e := psdp.EmailAddress("NONE")
+				return &e
+			}(),
+			MediaDescriptions: []*psdp.MediaDescription{
+				{
+					MediaName: psdp.MediaName{
+						Media:   "video",
+						Protos:  []string{"RTP", "AVP"},
+						Formats: []string{"96"},
+					},
+					Attributes: []psdp.Attribute{
+						{
+							Key:   "rtpmap",
+							Value: "96 MP4V-ES/1000",
+						},
+						{
+							Key:   "fmtp",
+							Value: "96 profile-level-id=245; config=000001B0F5000001B509000001000000012000845D4C28582120A31F",
+						},
+						{
+							Key:   "framerate",
+							Value: "25",
+						},
+						{
+							Key:   "x-dimensions",
+							Value: "352,288",
+						},
+						{
+							Key:   "x-algoTarget",
+							Value: "P",
+						},
+						{
+							Key:   "control",
+							Value: "video",
+						},
+					},
+				},
+			},
+		},
+	},
+	{
+		"hex session id for 0XAC4EC96E",
+		[]byte("v=0\r\n" +
+			"o=jdoe 0XAC4EC96E 2890842807 IN IP4 10.47.16.5\r\n" +
+			"s=SDP Seminar\r\n" +
+			"i=A Seminar on the session description protocol\r\n" +
+			"t=3034423619 3042462419\r\n"),
+		[]byte("v=0\r\n" +
+			"o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5\r\n" +
+			"s=SDP Seminar\r\n" +
+			"i=A Seminar on the session description protocol\r\n" +
+			"t=3034423619 3042462419\r\n"),
+		SessionDescription{
+			Origin: psdp.Origin{
+				Username:       "jdoe",
+				SessionID:      2890844526,
+				SessionVersion: 2890842807,
+				NetworkType:    "IN",
+				AddressType:    "IP4",
+				UnicastAddress: "10.47.16.5",
+			},
+			SessionName: "SDP Seminar",
+			SessionInformation: func() *psdp.Information {
+				v := psdp.Information("A Seminar on the session description protocol")
+				return &v
+			}(),
+			TimeDescriptions: []psdp.TimeDescription{
+				{psdp.Timing{3034423619, 3042462419}, nil},
+			},
+		},
+	},
+	{
+		"hex session id for 103bdb6f",
+		[]byte("v=0\r\n" +
+			"o=jdoe 103bdb6f 2890842807 IN IP4 10.47.16.5\r\n" +
+			"s=SDP Seminar\r\n" +
+			"i=A Seminar on the session description protocol\r\n" +
+			"t=3034423619 3042462419\r\n"),
+		[]byte("v=0\r\n" +
+			"o=jdoe 272358255 2890842807 IN IP4 10.47.16.5\r\n" +
+			"s=SDP Seminar\r\n" +
+			"i=A Seminar on the session description protocol\r\n" +
+			"t=3034423619 3042462419\r\n"),
+		SessionDescription{
+			Origin: psdp.Origin{
+				Username:       "jdoe",
+				SessionID:      272358255,
+				SessionVersion: 2890842807,
+				NetworkType:    "IN",
+				AddressType:    "IP4",
+				UnicastAddress: "10.47.16.5",
+			},
+			SessionName: "SDP Seminar",
+			SessionInformation: func() *psdp.Information {
+				v := psdp.Information("A Seminar on the session description protocol")
+				return &v
+			}(),
+			TimeDescriptions: []psdp.TimeDescription{
+				{psdp.Timing{3034423619, 3042462419}, nil},
+			},
+		},
+	},
+	{
+		"tias",
+		[]byte("v=0\r\n" +
+			"o=- 1681692777 1681692777 IN IP4 127.0.0.1\r\n" +
+			"s=Video Stream\r\n" +
+			"c=IN IP4 127.0.0.1\r\n" +
+			"t=0 0\r\n" +
+			"a=control:*\r\n" +
+			"m=video 0 RTP/AVP 96\r\n" +
+			"b=TIAS:10000\r\n" +
+			"a=maxprate:2.0000\r\n" +
+			"a=control:trackid=1\r\n" +
+			"a=rtpmap:96 H264/90000\r\n" +
+			"a=mimetype:string;\"video/H264\"\r\n" +
+			"a=framesize:96 384-832\r\n" +
+			"a=Width:integer;384\r\n" +
+			"a=Height:integer;832\r\n" +
+			"a=fmtp:96 packetization-mode=1;profile-level-id=64001f;sprop-parameter-sets=J2QAH6xWwYBp+kA=,KO48sA==\r\n"),
+		[]byte("v=0\r\n" +
+			"o=- 1681692777 1681692777 IN IP4 127.0.0.1\r\n" +
+			"s=Video Stream\r\n" +
+			"c=IN IP4 127.0.0.1\r\n" +
+			"t=0 0\r\n" +
+			"a=control:*\r\n" +
+			"m=video 0 RTP/AVP 96\r\n" +
+			"b=TIAS:10000\r\n" +
+			"a=maxprate:2.0000\r\n" +
+			"a=control:trackid=1\r\n" +
+			"a=rtpmap:96 H264/90000\r\n" +
+			"a=mimetype:string;\"video/H264\"\r\n" +
+			"a=framesize:96 384-832\r\n" +
+			"a=Width:integer;384\r\n" +
+			"a=Height:integer;832\r\n" +
+			"a=fmtp:96 packetization-mode=1;profile-level-id=64001f;sprop-parameter-sets=J2QAH6xWwYBp+kA=,KO48sA==\r\n"),
+		SessionDescription{
+			Origin: psdp.Origin{
+				Username:       "-",
+				SessionID:      1681692777,
+				SessionVersion: 1681692777,
+				NetworkType:    "IN",
+				AddressType:    "IP4",
+				UnicastAddress: "127.0.0.1",
+			},
+			SessionName: "Video Stream",
+			ConnectionInformation: &psdp.ConnectionInformation{
+				NetworkType: "IN",
+				AddressType: "IP4",
+				Address: &psdp.Address{
+					Address: "127.0.0.1",
+				},
+			},
+			TimeDescriptions: []psdp.TimeDescription{
+				{},
+			},
+			Attributes: []psdp.Attribute{
+				{
+					Key:   "control",
+					Value: "*",
+				},
+			},
+			MediaDescriptions: []*psdp.MediaDescription{
+				{
+					MediaName: psdp.MediaName{
+						Media: "video",
+						Port: psdp.RangedPort{
+							Value: 0,
+						},
+						Protos:  []string{"RTP", "AVP"},
+						Formats: []string{"96"},
+					},
+					Bandwidth: []psdp.Bandwidth{
+						{
+							Type:      "TIAS",
+							Bandwidth: 10000,
+						},
+					},
+					Attributes: []psdp.Attribute{
+						{
+							Key:   "maxprate",
+							Value: "2.0000",
+						},
+						{
+							Key:   "control",
+							Value: "trackid=1",
+						},
+						{
+							Key:   "rtpmap",
+							Value: "96 H264/90000",
+						},
+						{
+							Key:   "mimetype",
+							Value: "string;\"video/H264\"",
+						},
+						{
+							Key:   "framesize",
+							Value: "96 384-832",
+						},
+						{
+							Key:   "Width",
+							Value: "integer;384",
+						},
+						{
+							Key:   "Height",
+							Value: "integer;832",
+						},
+						{
+							Key:   "fmtp",
+							Value: "96 packetization-mode=1;profile-level-id=64001f;sprop-parameter-sets=J2QAH6xWwYBp+kA=,KO48sA==",
 						},
 					},
 				},

@@ -179,9 +179,9 @@ func TestResponseReadErrors(t *testing.T) {
 func TestResponseWrite(t *testing.T) {
 	for _, c := range casesResponse {
 		t.Run(c.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			c.res.Write(&buf)
-			require.Equal(t, c.byts, buf.Bytes())
+			buf, err := c.res.Write()
+			require.NoError(t, err)
+			require.Equal(t, c.byts, buf)
 		})
 	}
 }
@@ -208,9 +208,9 @@ func TestResponseWriteAutoFillStatus(t *testing.T) {
 		"\r\n",
 	)
 
-	var buf bytes.Buffer
-	res.Write(&buf)
-	require.Equal(t, byts, buf.Bytes())
+	buf, err := res.Write()
+	require.NoError(t, err)
+	require.Equal(t, byts, buf)
 }
 
 func TestResponseReadIgnoreFrames(t *testing.T) {
@@ -221,9 +221,8 @@ func TestResponseReadIgnoreFrames(t *testing.T) {
 		"\r\n")...)
 
 	rb := bufio.NewReader(bytes.NewBuffer(byts))
-	buf := make([]byte, 10)
 	var res Response
-	err := res.ReadIgnoreFrames(rb, buf)
+	err := res.ReadIgnoreFrames(10, rb)
 	require.NoError(t, err)
 }
 
@@ -231,9 +230,8 @@ func TestResponseReadIgnoreFramesErrors(t *testing.T) {
 	byts := []byte{0x25}
 
 	rb := bufio.NewReader(bytes.NewBuffer(byts))
-	buf := make([]byte, 10)
 	var res Response
-	err := res.ReadIgnoreFrames(rb, buf)
+	err := res.ReadIgnoreFrames(10, rb)
 	require.ErrorIs(t, err, io.EOF)
 }
 

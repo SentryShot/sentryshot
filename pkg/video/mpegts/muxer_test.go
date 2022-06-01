@@ -53,21 +53,28 @@ func TestMuxer_generatePAT(t *testing.T) {
 	assert.Equal(t, MpegTSPacketSize, muxer.patBytes.Len())
 	assert.Equal(t, patExpectedBytes(0, 0), muxer.patBytes.Bytes())
 
-	// to check version number increment
+	// Version number shouldn't change
 	err = muxer.generatePAT()
 	assert.NoError(t, err)
 	assert.Equal(t, MpegTSPacketSize, muxer.patBytes.Len())
-	assert.Equal(t, patExpectedBytes(1, 1), muxer.patBytes.Bytes())
+	assert.Equal(t, patExpectedBytes(0, 1), muxer.patBytes.Bytes())
+
+	// Version number should change
+	muxer.pmUpdated = true
+	err = muxer.generatePAT()
+	assert.NoError(t, err)
+	assert.Equal(t, MpegTSPacketSize, muxer.patBytes.Len())
+	assert.Equal(t, patExpectedBytes(1, 2), muxer.patBytes.Bytes())
 }
 
-func pmtExpectedBytesVideoOnly(versionNumber uint8) []byte {
+func pmtExpectedBytesVideoOnly(versionNumber, cc uint8) []byte {
 	buf := bytes.Buffer{}
 	w := bitio.NewWriter(&buf)
 	w.WriteByte(uint8(syncByte))
 	WriteBinary(w, "010") // no transport error, payload start, no priority
 	w.WriteBits(uint64(pmtStartPID), 13)
 	WriteBinary(w, "0001") // no scrambling, no AF, payload present
-	WriteBinary(w, "0000") // CC
+	w.WriteBits(uint64(cc), 4)
 
 	w.WriteBits(uint64(PSITableIDPMT), 16) // Table ID
 	WriteBinary(w, "1011")                 // Syntax section indicator, private bit, reserved
@@ -162,7 +169,13 @@ func TestMuxer_generatePMT(t *testing.T) {
 	err = muxer.generatePMT()
 	assert.NoError(t, err)
 	assert.Equal(t, MpegTSPacketSize, muxer.pmtBytes.Len())
-	assert.Equal(t, pmtExpectedBytesVideoOnly(0), muxer.pmtBytes.Bytes())
+	assert.Equal(t, pmtExpectedBytesVideoOnly(0, 0), muxer.pmtBytes.Bytes())
+
+	// Version number shouldn't change
+	err = muxer.generatePMT()
+	assert.NoError(t, err)
+	assert.Equal(t, MpegTSPacketSize, muxer.pmtBytes.Len())
+	assert.Equal(t, pmtExpectedBytesVideoOnly(0, 1), muxer.pmtBytes.Bytes())
 
 	err = muxer.AddElementaryStream(PMTElementaryStream{
 		ElementaryPID: 0x0234,
@@ -170,10 +183,11 @@ func TestMuxer_generatePMT(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
+	// Version number should change
 	err = muxer.generatePMT()
 	assert.NoError(t, err)
 	assert.Equal(t, MpegTSPacketSize, muxer.pmtBytes.Len())
-	assert.Equal(t, pmtExpectedBytesVideoAndAudio(1, 1), muxer.pmtBytes.Bytes())
+	assert.Equal(t, pmtExpectedBytesVideoAndAudio(1, 2), muxer.pmtBytes.Bytes())
 }
 
 func TestMuxer_WriteTables(t *testing.T) {
@@ -191,7 +205,7 @@ func TestMuxer_WriteTables(t *testing.T) {
 	assert.Equal(t, 2*MpegTSPacketSize, n)
 	assert.Equal(t, n, buf.Len())
 
-	expectedBytes := append(patExpectedBytes(0, 0), pmtExpectedBytesVideoOnly(0)...)
+	expectedBytes := append(patExpectedBytes(0, 0), pmtExpectedBytesVideoOnly(0, 0)...)
 	assert.Equal(t, expectedBytes, buf.Bytes())
 }
 

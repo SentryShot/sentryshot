@@ -2,7 +2,6 @@ package base
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -43,10 +42,16 @@ func (b *body) read(header Header, rb *bufio.Reader) error {
 	return nil
 }
 
-func (b body) write(bb *bytes.Buffer) {
-	if len(b) == 0 {
-		return
-	}
+func (b body) writeSize() int {
+	return len(b)
+}
 
-	bb.Write(b)
+func (b body) writeTo(buf []byte) int {
+	return copy(buf, b)
+}
+
+func (b body) write() []byte { //nolint:unused
+	buf := make([]byte, b.writeSize())
+	b.writeTo(buf)
+	return buf
 }

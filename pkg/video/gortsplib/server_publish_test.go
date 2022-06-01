@@ -10,7 +10,7 @@ import (
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/gortsplib/pkg/headers"
 
-	"github.com/pion/rtp/v2"
+	"github.com/pion/rtp"
 	psdp "github.com/pion/sdp/v3"
 	"github.com/stretchr/testify/require"
 )
@@ -563,21 +563,79 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 	require.EqualError(t, err, "not all announced tracks have been setup")
 }
 
-func TestServerPublishNonStandardFrameSize(t *testing.T) {
-	packet := rtp.Packet{
+var oversizedPacketRTPIn = rtp.Packet{
+	Header: rtp.Header{
+		Version:        2,
+		PayloadType:    96,
+		Marker:         true,
+		SequenceNumber: 34572,
+	},
+	Payload: bytes.Repeat([]byte{0x01, 0x02, 0x03, 0x04, 0x05}, 4096/5),
+}
+
+var oversizedPacketsRTPOut = []rtp.Packet{
+	{
 		Header: rtp.Header{
-			Version:     2,
-			PayloadType: 97,
-			CSRC:        []uint32{},
+			Version:        2,
+			PayloadType:    96,
+			Marker:         false,
+			SequenceNumber: 34572,
 		},
-		Payload: bytes.Repeat([]byte{0x01, 0x02, 0x03, 0x04, 0x05}, 4096/5),
+		Payload: mergeBytes(
+			[]byte{0x1c, 0x81, 0x02, 0x03, 0x04, 0x05},
+			bytes.Repeat([]byte{0x01, 0x02, 0x03, 0x04, 0x05}, 290),
+			[]byte{0x01, 0x02, 0x03, 0x04},
+		),
+	},
+	{
+		Header: rtp.Header{
+			Version:        2,
+			PayloadType:    96,
+			Marker:         false,
+			SequenceNumber: 34573,
+		},
+		Payload: mergeBytes(
+			[]byte{0x1c, 0x01, 0x05},
+			bytes.Repeat([]byte{0x01, 0x02, 0x03, 0x04, 0x05}, 291),
+			[]byte{0x01, 0x02},
+		),
+	},
+	{
+		Header: rtp.Header{
+			Version:        2,
+			PayloadType:    96,
+			Marker:         true,
+			SequenceNumber: 34574,
+		},
+		Payload: mergeBytes(
+			[]byte{0x1c, 0x41, 0x03, 0x04, 0x05},
+			bytes.Repeat([]byte{0x01, 0x02, 0x03, 0x04, 0x05}, 235),
+		),
+	},
+}
+
+func mergeBytes(vals ...[]byte) []byte {
+	size := 0
+	for _, v := range vals {
+		size += len(v)
 	}
-	packetMarshaled, _ := packet.Marshal()
-	frameReceived := make(chan struct{})
+	res := make([]byte, size)
+
+	pos := 0
+	for _, v := range vals {
+		n := copy(res[pos:], v)
+		pos += n
+	}
+
+	return res
+}
+
+func TestServerPublishOversizedPacket(t *testing.T) {
+	oversizedPacketsRTPOut := append([]rtp.Packet(nil), oversizedPacketsRTPOut...)
+	packetRecv := make(chan struct{})
 
 	s := &Server{
-		RTSPaddress:    "localhost:8554",
-		ReadBufferSize: 4500,
+		RTSPaddress: "localhost:8554",
 		Handler: &testServerHandler{
 			onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
 				return &base.Response{
@@ -596,8 +654,12 @@ func TestServerPublishNonStandardFrameSize(t *testing.T) {
 			},
 			onPacketRTP: func(ctx *ServerHandlerOnPacketRTPCtx) {
 				require.Equal(t, 0, ctx.TrackID)
-				require.Equal(t, &packet, ctx.Packet)
-				close(frameReceived)
+				cmp := oversizedPacketsRTPOut[0]
+				oversizedPacketsRTPOut = oversizedPacketsRTPOut[1:]
+				require.Equal(t, &cmp, ctx.Packet)
+				if len(oversizedPacketsRTPOut) == 0 {
+					close(packetRecv)
+				}
 			},
 		},
 	}
@@ -610,7 +672,6 @@ func TestServerPublishNonStandardFrameSize(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 	br := bufio.NewReader(conn)
-	var bb bytes.Buffer
 
 	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
 	require.NoError(t, err)
@@ -665,14 +726,15 @@ func TestServerPublishNonStandardFrameSize(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
 
-	base.InterleavedFrame{
+	byts, _ := oversizedPacketRTPIn.Marshal()
+	byts, _ = base.InterleavedFrame{
 		Channel: 0,
-		Payload: packetMarshaled,
-	}.Write(&bb)
-	_, err = conn.Write(bb.Bytes())
+		Payload: byts,
+	}.Write()
+	_, err = conn.Write(byts)
 	require.NoError(t, err)
 
-	<-frameReceived
+	<-packetRecv
 }
 
 func TestServerPublishErrorInvalidProtocol(t *testing.T) {
@@ -708,7 +770,6 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 	br := bufio.NewReader(conn)
-	var bb bytes.Buffer
 
 	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
 	require.NoError(t, err)
@@ -728,11 +789,11 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
 
-	base.InterleavedFrame{
+	byts, _ := base.InterleavedFrame{
 		Channel: 0,
 		Payload: []byte{0x01, 0x02, 0x03, 0x04},
-	}.Write(&bb)
-	_, err = conn.Write(bb.Bytes())
+	}.Write()
+	_, err = conn.Write(byts)
 	require.NoError(t, err)
 }
 
