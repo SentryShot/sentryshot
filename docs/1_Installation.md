@@ -63,7 +63,6 @@ App will be served on `https://ip:2000`
 	sudo ./utils/services/systemd.sh \
 		--name nvr \
 		--goBin /usr/bin/go \
-		--env /home/_nvr/os-nvr/configs/env.yaml \
 		--homeDir /home/_nvr/os-nvr
 
 

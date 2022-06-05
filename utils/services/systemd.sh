@@ -7,31 +7,27 @@ error() {
 }
 
 usage="create systemd service
-example: sudo $(basename "$0") \\
+example: $(basename "$0") \\
     --name nvr \\
     --goBin \$(which go) \\
-    --env '/home/_nvr/os-nvr/configs/env.yaml' \\
     --homeDir '/home/_nvr/os-nvr'
 
         --name
             service name.
         --goBin
-            path to golang binary.
-        --env
-            path to env.yaml.
+            path to Golang binary.
         --homeDir
             project home.
         -h, --help
             Show this help text.
 "
-#--cmd=/usr/bin/go run /home/_nvr/nvr/start/start.go
 
 # Go to script location.
 cd "$(dirname "$(readlink -f "$0")")" || error "could not go to script location"
 
 # Root check.
 if [ "$(id -u)" != 0 ]; then
-	printf "Please run as root\\n"
+	printf "Please run as root.\\n"
 	exit 1
 fi
 
@@ -44,7 +40,6 @@ fi
 # Parse arguments
 name=""
 go_bin=""
-env=""
 home_dir=""
 for arg in "$@"; do
 	case $arg in
@@ -66,16 +61,6 @@ for arg in "$@"; do
 		go_bin="${arg#*=}"
 		shift
 		;;
-	--env)
-		env="$2"
-		shift
-		shift
-		;;
-	--env=*)
-		env="${arg#*=}"
-		shift
-		;;
-
 	--homeDir)
 		home_dir="$2"
 		shift
@@ -94,19 +79,15 @@ for arg in "$@"; do
 done
 
 if [ "$name" = "" ]; then
-	printf "Error: --name not specified\\n"
+	printf "Please specify --name\\n"
 	exit 1
 fi
 if [ "$go_bin" = "" ]; then
-	printf "Error: --goBin not specified\\n"
-	exit 1
-fi
-if [ "$env" = "" ]; then
-	printf "Error: --env not specified\\n"
+	printf "Please specify --goBin\\n"
 	exit 1
 fi
 if [ "$home_dir" = "" ]; then
-	printf "Error: --homeDir not specified\\n"
+	printf "Please specify --homeDir\\n"
 	exit 1
 fi
 
@@ -137,7 +118,7 @@ fi
 # Copy template to service_dir
 cp ./templates/systemd.service "$service_file"
 
-start_cmd="$go_bin run $home_dir/start/start.go --env $env"
+start_cmd="$home_dir/start/start.sh --goBin $go_bin"
 
 # Fill in command and working directory.
 sed -i "s:\$cmd:$start_cmd:" "$service_file"
