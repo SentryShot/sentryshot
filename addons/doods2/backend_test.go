@@ -113,29 +113,21 @@ func TestParseConfig(t *testing.T) {
 
 func TestParseInputs(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		inputs, err := parseInputs("1x2", "[3,4,5]", 6, 7, "gray_x")
+		inputs, err := parseInputs(1, 2, "[3,4,5]", 6, 7, "gray_x")
 		require.NoError(t, err)
 
 		actual := fmt.Sprintf("%v", inputs)
 		require.Equal(t, actual, "&{1 2 3 4 5 6 7 true}")
 	})
 	t.Run("gray", func(t *testing.T) {
-		inputs, err := parseInputs("1x2", "[3,4,5]", 6, 7, "gray-x")
+		inputs, err := parseInputs(1, 2, "[3,4,5]", 6, 7, "gray-x")
 		require.NoError(t, err)
 
 		actual := fmt.Sprintf("%v", inputs)
 		require.Equal(t, actual, "&{1 2 3 4 5 6 7 false}")
 	})
-	t.Run("widthErr", func(t *testing.T) {
-		_, err := parseInputs("nilx1", "", 0, 0, "")
-		require.ErrorIs(t, err, strconv.ErrSyntax)
-	})
-	t.Run("heightErr", func(t *testing.T) {
-		_, err := parseInputs("1xnil", "", 0, 0, "")
-		require.ErrorIs(t, err, strconv.ErrSyntax)
-	})
 	t.Run("cropErr", func(t *testing.T) {
-		_, err := parseInputs("1x1", `[1,2,"x"]`, 0, 0, "")
+		_, err := parseInputs(1, 1, `[1,2,"x"]`, 0, 0, "")
 		var e *json.UnmarshalTypeError
 		require.ErrorAs(t, err, &e)
 	})

@@ -32,7 +32,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -83,7 +82,8 @@ func start(ctx context.Context, input *monitor.InputProcess) error {
 	outputHeight := int(detector.Height)
 
 	inputs, err := parseInputs(
-		input.Size(),
+		input.Width(),
+		input.Height(),
 		input.M.Config["doodsCrop"],
 		outputWidth,
 		outputHeight,
@@ -226,22 +226,13 @@ type inputs struct {
 }
 
 func parseInputs(
-	size string,
+	inputWidth int,
+	inputHeight int,
 	rawCrop string,
 	outputWidth int,
 	outputHeight int,
 	detectorName string,
 ) (*inputs, error) {
-	split := strings.Split(size, "x")
-	inputWidth, err := strconv.ParseFloat(split[0], 64)
-	if err != nil {
-		return nil, fmt.Errorf("parse input width: %w %v", err, split)
-	}
-	inputHeight, err := strconv.ParseFloat(split[1], 64)
-	if err != nil {
-		return nil, fmt.Errorf("parse input height: %w %v", err, split)
-	}
-
 	var crop [3]float64
 	if err := json.Unmarshal([]byte(rawCrop), &crop); err != nil {
 		return nil, fmt.Errorf("unmarshal crop values: %w", err)
@@ -253,8 +244,8 @@ func parseInputs(
 	}
 
 	return &inputs{
-		inputWidth:   inputWidth,
-		inputHeight:  inputHeight,
+		inputWidth:   float64(inputWidth),
+		inputHeight:  float64(inputHeight),
 		cropX:        crop[0],
 		cropY:        crop[1],
 		cropSize:     crop[2],
@@ -434,17 +425,16 @@ func (i *instance) generateFFmpegArgs(c monitor.Config, maskPath string, grayMod
 	}
 
 	if maskPath == "" {
-		args = append(args, "-filter")
-		args = append(args, "fps=fps="+fps+
-			",scale="+scaledWidth+":"+scaledHeight+filter)
+		args = append(args,
+			"-filter", "fps=fps="+fps+",scale="+scaledWidth+":"+scaledHeight+filter)
 	} else {
-		args = append(args, "-i", maskPath, "-filter_complex")
-		args = append(args, "[0:v]fps=fps="+fps+
-			",scale="+scaledWidth+":"+scaledHeight+"[bg];[bg][1:v]overlay"+filter)
+		args = append(args,
+			"-i", maskPath, "-filter_complex",
+			"[0:v]fps=fps="+fps+",scale="+scaledWidth+":"+scaledHeight+"[bg];[bg][1:v]overlay"+filter)
 	}
 
-	args = append(args, "-f", "rawvideo")
-	args = append(args, "-pix_fmt", "rgb24", "-")
+	args = append(args,
+		"-f", "rawvideo", "-pix_fmt", "rgb24", "-")
 
 	return args
 }

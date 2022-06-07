@@ -428,7 +428,10 @@ type InputProcess struct {
 	hlsAddress   string
 	rtspAddress  string
 	rtspProtocol string
-	size         string
+
+	// Stream size.
+	width  int
+	height int
 
 	waitForNewHLSsegment video.WaitForNewHLSsegementFunc
 	cancel               func()
@@ -461,9 +464,14 @@ func (i *InputProcess) RTSPprotocol() string {
 	return i.rtspProtocol
 }
 
-// Size of input "480x640".
-func (i *InputProcess) Size() string {
-	return i.size
+// Width stream width.
+func (i *InputProcess) Width() int {
+	return i.width
+}
+
+// Height stream height.
+func (i *InputProcess) Height() int {
+	return i.height
 }
 
 // ProcessName name of process "main" or "sub".
@@ -544,7 +552,8 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	i.rtspProtocol = rtspProtocol
 	i.waitForNewHLSsegment = waitForNewHLSsegment
 
-	i.size, err = i.sizeFromStream(ctx, i.M.Config["inputOptions"], i.input())
+	inputOpts := i.M.Config["inputOptions"]
+	i.width, i.height, err = i.sizeFromStream(ctx, inputOpts, i.input())
 	if err != nil {
 		return fmt.Errorf("get size of stream: %w", err)
 	}

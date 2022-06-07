@@ -150,7 +150,7 @@ func TestShellProcessSize(t *testing.T) {
 		return
 	}
 	fmt.Fprint(os.Stderr, `
-		Stream #0:0: Video: h264 (Main), yuv420p(progressive), 720x1280 fps, 30.00
+		Stream #0:0: Video: h264 (Main), yuv420p(progressive), 1280x720 fps, 30.00
 	`)
 }
 
@@ -175,20 +175,38 @@ func TestSizeFromStream(t *testing.T) {
 		f := New("")
 		f.command = fakeExecCommandSize
 
-		actual, err := f.SizeFromStream(context.Background(), "", "")
+		w, h, err := f.SizeFromStream(context.Background(), "", "")
 		require.NoError(t, err)
-		require.Equal(t, actual, "720x1280")
+		require.Equal(t, w, 1280)
+		require.Equal(t, h, 720)
 	})
 	t.Run("runErr", func(t *testing.T) {
 		f := New("")
-		_, err := f.SizeFromStream(context.Background(), "", "")
+		_, _, err := f.SizeFromStream(context.Background(), "", "")
 		require.Error(t, err)
 	})
 	t.Run("regexErr", func(t *testing.T) {
 		f := New("")
 		f.command = fakeExecCommandNoOutput
 
-		_, err := f.SizeFromStream(context.Background(), "", "")
+		_, _, err := f.SizeFromStream(context.Background(), "", "")
+		require.ErrorIs(t, err, strconv.ErrSyntax)
+	})
+}
+
+func TestParseSize(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		w, h, err := ParseSize("640x480")
+		require.NoError(t, err)
+		require.Equal(t, w, 640)
+		require.Equal(t, h, 480)
+	})
+	t.Run("parseWidthErr", func(t *testing.T) {
+		_, _, err := ParseSize("nilx1")
+		require.ErrorIs(t, err, strconv.ErrSyntax)
+	})
+	t.Run("parseHeightErr", func(t *testing.T) {
+		_, _, err := ParseSize("1xnil")
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 }
@@ -258,7 +276,7 @@ func TestPolygonToAbs(t *testing.T) {
 		Point{25, 30},
 	}
 	actual := fmt.Sprintf("%v", polygon.ToAbs(400, 200))
-	require.Equal(t, actual, "[[20 20] [60 40] [100 60]]")
+	require.Equal(t, "[[20 20] [60 40] [100 60]]", actual)
 }
 
 func TestCreateMask(t *testing.T) {

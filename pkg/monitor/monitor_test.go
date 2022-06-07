@@ -484,7 +484,8 @@ func TestRunInputProcess(t *testing.T) {
 
 		err := runInputProcess(ctx, i)
 		require.NoError(t, err)
-		require.Equal(t, i.size, "123x456")
+		require.Equal(t, i.width, 123)
+		require.Equal(t, i.height, 456)
 	})
 	t.Run("sizeFromStreamErr", func(t *testing.T) {
 		i, ctx, cancel := newTestInputProcess(t)
@@ -807,12 +808,12 @@ func TestRunRecordingProcess(t *testing.T) {
 	})
 }
 
-func mockSizeFromStream(context.Context, string, string) (string, error) {
-	return "123x456", nil
+func mockSizeFromStream(context.Context, string, string) (int, int, error) {
+	return 123, 456, nil
 }
 
-func mockSizeFromStreamErr(context.Context, string, string) (string, error) {
-	return "", errors.New("mock")
+func mockSizeFromStreamErr(context.Context, string, string) (int, int, error) {
+	return 0, 0, errors.New("mock")
 }
 
 func mockHooks() *Hooks {

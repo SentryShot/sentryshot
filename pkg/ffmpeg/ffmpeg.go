@@ -179,10 +179,10 @@ func New(bin string) *FFMPEG {
 }
 
 // SizeFromStreamFunc is used for mocking.
-type SizeFromStreamFunc func(context.Context, string, string) (string, error)
+type SizeFromStreamFunc func(context.Context, string, string) (int, int, error)
 
 // SizeFromStream uses ffmpeg to grab stream size.
-func (f *FFMPEG) SizeFromStream(ctx context.Context, inputOpts, url string) (string, error) {
+func (f *FFMPEG) SizeFromStream(ctx context.Context, inputOpts, url string) (int, int, error) {
 	args := inputOpts + " -i " + url + " -f ffmetadata -"
 	cmd := f.command(ParseArgs(args)...)
 
@@ -203,20 +203,38 @@ func (f *FFMPEG) SizeFromStream(ctx context.Context, inputOpts, url string) (str
 	}()
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("%s %w", stderr.String(), err)
+		return 0, 0, fmt.Errorf("%s %w", stderr.String(), err)
 	}
 
 	re := regexp.MustCompile(`\b\d+x\d+\b`)
-	// Input  "Stream #0:0: Video: h264 (Main), yuv420p(progressive), 720x1280 fps, 30.00"
-	// Output "720x1280"
+	// Input  "Stream #0:0: Video: h264 (Main), yuv420p(progressive), 1280x720 fps, 30.00"
+	// Output "1280x720"
 
 	output := re.FindString(stderr.String())
 	if output != "" {
-		return output, nil
+		w, h, err := ParseSize(output)
+		if err != nil {
+			return 0, 0, fmt.Errorf("parse size: %w", err)
+		}
+		return w, h, nil
 	}
 
-	return "", fmt.Errorf("no regex match %s: %w",
+	return 0, 0, fmt.Errorf("no regex match %s: %w",
 		stderr.String(), strconv.ErrSyntax)
+}
+
+// ParseSize parses size string "640x480".
+func ParseSize(size string) (int, int, error) {
+	split := strings.Split(size, "x")
+	width, err := strconv.Atoi(split[0])
+	if err != nil {
+		return 0, 0, fmt.Errorf("parse width: %w %v", err, split)
+	}
+	height, err := strconv.Atoi(split[1])
+	if err != nil {
+		return 0, 0, fmt.Errorf("parse height: %w %v", err, split)
+	}
+	return width, height, nil
 }
 
 // VideoDurationFunc is used for mocking.
