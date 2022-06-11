@@ -28,7 +28,8 @@
 │   │   ├── db.go  # Log storage.
 │   │   └── log.go # Logging.
 │   ├── monitor
-│   │   └── monitor.go
+│   │   ├── monitor.go
+│   │   └── recorder.go
 │   ├── storage
 │   │   ├── crawler.go   # Finds recordings.
 │   │   ├── storage.go
