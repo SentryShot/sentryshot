@@ -226,7 +226,7 @@ function newMultiSelect(label, values, initial) {
 			field.set(false);
 		}
 		for (const val of initial) {
-			fields[val].set(true);
+			fields[val].set(false);
 		}
 	};
 

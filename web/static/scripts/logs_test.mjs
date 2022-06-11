@@ -106,19 +106,15 @@ describe("MultiSelect", () => {
 
 		expect(actual).toEqual(expected);
 	});
-	test("initial", () => {
-		const [, field] = setup();
-		expect(field.value()).toEqual(["a", "b"]);
-	});
 	test("set", () => {
 		const [element, field] = setup();
-		expect(field.value()).toEqual(["a", "b"]);
+		expect(field.value()).toEqual([]);
 
-		element.querySelector(".item-uid1 input").checked = false;
-		expect(field.value()).toEqual(["b"]);
+		element.querySelector(".item-uid1 input").checked = true;
+		expect(field.value()).toEqual(["a"]);
 
 		field.set("");
-		expect(field.value()).toEqual(["a", "b"]);
+		expect(field.value()).toEqual([]);
 	});
 });
 

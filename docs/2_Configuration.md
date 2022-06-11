@@ -80,7 +80,7 @@ To view available h264 encoders.
 ##### Options
 copy: Pass feed directly from the input. Does not transcode. Requires h264 input.
 
-libx264: Transcode input to h264. Will use allot of CPU, usually not recommended.
+libx264*: Transcode input to h264. Usually not recommended. A slower preset will provide better compression at the cost of processing power.
 
 custom: Any value, for example`h264_nvenc` in the case of hardware acceleration.
 

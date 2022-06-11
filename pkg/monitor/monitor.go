@@ -595,8 +595,7 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 
 func (i *InputProcess) generateArgs() string {
 	// OUTPUT
-	// -threads 1 -loglevel error -hwaccel x -i rtsp://x
-	// -c:a aac -c:v libx264 -preset veryfast
+	// -threads 1 -loglevel error -hwaccel x -i rtsp://x -c:a aac -c:v libx264
 	// -f rtsp -rtsp_transport tcp rtsp://127.0.0.1:2021/test
 
 	c := i.M.Config
@@ -617,7 +616,8 @@ func (i *InputProcess) generateArgs() string {
 	} else {
 		args += " -an" // Skip audio.
 	}
-	args += " -c:v " + c["videoEncoder"] + " -preset veryfast"
+
+	args += " -c:v " + c["videoEncoder"]
 	args += " -f rtsp -rtsp_transport " + i.RTSPprotocol() + " " + i.RTSPaddress()
 
 	return args

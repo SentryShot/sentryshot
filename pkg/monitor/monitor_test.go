@@ -829,22 +829,20 @@ func mockHooks() *Hooks {
 func TestGenInputArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		i := &InputProcess{
-			hlsAddress:   "5",
-			rtspProtocol: "6",
-			rtspAddress:  "7",
+			rtspProtocol: "4",
+			rtspAddress:  "5",
 			M: &Monitor{
 				Env: storage.ConfigEnv{},
 				Config: map[string]string{
 					"logLevel":     "1",
 					"mainInput":    "2",
 					"audioEncoder": "none",
-					"videoEncoder": "4",
+					"videoEncoder": "3",
 				},
 			},
 		}
 		actual := i.generateArgs()
-		expected := "-threads 1 -loglevel 1 -i 2 -an -c:v 4 -preset veryfast" +
-			" -f rtsp -rtsp_transport 6 7"
+		expected := "-threads 1 -loglevel 1 -i 2 -an -c:v 3 -f rtsp -rtsp_transport 4 5"
 
 		require.Equal(t, expected, actual)
 	})
@@ -867,8 +865,7 @@ func TestGenInputArgs(t *testing.T) {
 			},
 		}
 		args := i.generateArgs()
-		expected := "-threads 1 -loglevel 1 -hwaccel 2 3 -i 4 -c:a 5 -c:v 6" +
-			" -preset veryfast -f rtsp -rtsp_transport 8 9"
+		expected := "-threads 1 -loglevel 1 -hwaccel 2 3 -i 4 -c:a 5 -c:v 6 -f rtsp -rtsp_transport 8 9"
 
 		require.Equal(t, expected, args)
 	})

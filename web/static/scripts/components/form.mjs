@@ -336,7 +336,7 @@ const fieldTemplate = {
 		);
 	},
 	selectCustom(label, options, initial) {
-		return newSelectCustomField([inputRules.notEmpty, inputRules.noSpaces], options, {
+		return newSelectCustomField([inputRules.notEmpty], options, {
 			label: label,
 			initial: initial,
 		});

@@ -199,7 +199,7 @@ func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
 			return
 		case <-time.After(duration):
 			if err := s.purge(); err != nil {
-				s.log.Error().Msgf("could not purge storage: %v", err)
+				s.log.Error().Src("app").Msgf("could not purge storage: %v", err)
 			}
 		}
 	}

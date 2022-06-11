@@ -90,10 +90,14 @@ if (isAdmin === "true") {
 				label: "Hardware acceleration",
 			}
 		),
-
 		videoEncoder: fieldTemplate.selectCustom(
 			"Video encoder",
-			["copy", "libx264"],
+			[
+				"copy",
+				"libx264 -preset veryfast",
+				"libx264 -preset medium",
+				"libx264 -preset veryslow",
+			],
 			"copy"
 		),
 		audioEncoder: fieldTemplate.selectCustom(
