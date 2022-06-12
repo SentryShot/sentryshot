@@ -146,6 +146,11 @@ func TestQuery(t *testing.T) {
 				expected: &[]Log{msg1, msg2, msg3},
 			},
 			{
+				name:     "none",
+				input:    Query{},
+				expected: &[]Log{msg1, msg2, msg3},
+			},
+			{
 				name: "limit",
 				input: Query{
 					Levels:  []Level{LevelError, LevelWarning, LevelInfo, LevelDebug},
@@ -188,7 +193,7 @@ func TestQuery(t *testing.T) {
 				logs, err := logDB.Query(tc.input)
 				require.NoError(t, err)
 
-				require.Equal(t, logs, tc.expected)
+				require.Equal(t, tc.expected, logs)
 			})
 		}
 	})

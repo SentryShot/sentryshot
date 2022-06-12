@@ -159,13 +159,13 @@ func (logDB *DB) Query(q Query) (*[]Log, error) {
 				return fmt.Errorf("unmarshal log: %w", err)
 			}
 
-			if !levelInLevels(log.Level, q.Levels) {
+			if !LevelInLevels(log.Level, q.Levels) {
 				return nil
 			}
-			if !stringInStrings(log.Src, q.Sources) {
+			if !StringInStrings(log.Src, q.Sources) {
 				return nil
 			}
-			if !stringInStrings(log.Monitor, q.Monitors) {
+			if !StringInStrings(log.Monitor, q.Monitors) {
 				return nil
 			}
 
@@ -205,8 +205,9 @@ func (logDB *DB) Query(q Query) (*[]Log, error) {
 	return &logs, nil
 }
 
-func levelInLevels(level Level, levels []Level) bool {
-	if levels == nil {
+// LevelInLevels returns true if level is in levels or if levels is empty.
+func LevelInLevels(level Level, levels []Level) bool {
+	if len(levels) == 0 {
 		return true
 	}
 	for _, l := range levels {
@@ -217,8 +218,9 @@ func levelInLevels(level Level, levels []Level) bool {
 	return false
 }
 
-func stringInStrings(source string, sources []string) bool {
-	if sources == nil {
+// StringInStrings returns true if source is in source or if sources is empty.
+func StringInStrings(source string, sources []string) bool {
+	if len(sources) == 0 {
 		return true
 	}
 	for _, src := range sources {

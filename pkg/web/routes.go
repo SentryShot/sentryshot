@@ -483,7 +483,7 @@ func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //
 }
 
 // LogFeed opens a websocket with system logs.
-func LogFeed(l *log.Logger, a auth.Authenticator) http.Handler { //nolint:funlen,gocognit
+func LogFeed(logger *log.Logger, a auth.Authenticator) http.Handler { //nolint:funlen,gocognit
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -524,32 +524,21 @@ func LogFeed(l *log.Logger, a auth.Authenticator) http.Handler { //nolint:funlen
 		}
 		defer c.Close()
 
-		feed, cancel := l.Subscribe()
+		feed, cancel := logger.Subscribe()
 		defer cancel()
 
 		for {
-			var log log.Log
+			var l log.Log
 			select {
-			case log = <-feed:
-			case <-l.Ctx.Done():
+			case l = <-feed:
+			case <-logger.Ctx.Done():
 				return
 			}
 
-			levelMatching := false
-			for _, level := range q.Levels {
-				if level == log.Level {
-					levelMatching = true
-					break
-				}
+			if !log.LevelInLevels(l.Level, q.Levels) {
+				continue
 			}
-			sourceMatching := false
-			for _, src := range q.Sources {
-				if src == log.Src {
-					sourceMatching = true
-					break
-				}
-			}
-			if !levelMatching || !sourceMatching {
+			if !log.StringInStrings(l.Src, q.Sources) {
 				continue
 			}
 
@@ -559,7 +548,7 @@ func LogFeed(l *log.Logger, a auth.Authenticator) http.Handler { //nolint:funlen
 				return
 			}
 
-			raw, err := json.Marshal(log)
+			raw, err := json.Marshal(l)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
