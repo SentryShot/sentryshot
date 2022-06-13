@@ -344,9 +344,6 @@ func newMockInputProcess(m *Monitor, isSubInput bool) *InputProcess {
 }
 
 func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
-	tempDir, err := os.MkdirTemp("", "")
-	require.NoError(t, err)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := log.NewMockLogger()
 	logger.Start(ctx)
@@ -354,9 +351,11 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 	wg := sync.WaitGroup{}
 	videoServer := video.NewServer(logger, &wg, 2021, 2022)
 
-	err = videoServer.Start(ctx)
+	err := videoServer.Start(ctx)
 	require.NoError(t, err)
 
+	tempDir := t.TempDir()
+	wg2 := sync.WaitGroup{}
 	m := &Monitor{
 		Env: storage.ConfigEnv{
 			SHMDir:     tempDir,
@@ -368,26 +367,26 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 			"videoLength":     "0.0003", // 18ms
 			"timestampOffset": "0",
 		},
-		eventsMu:  &sync.Mutex{},
+		eventsMu: sync.Mutex{},
+
 		eventChan: make(chan storage.Event),
 		running:   true,
 
-		hooks:               mockHooks(),
-		startRecording:      mockStartRecording,
-		runRecordingProcess: mockRunRecordingProcess,
-		NewProcess:          ffmock.NewProcess,
-		videoDuration:       mockVideoDuration,
+		hooks:         mockHooks(),
+		NewProcess:    ffmock.NewProcess,
+		videoDuration: mockVideoDuration,
 
-		WG:          &sync.WaitGroup{},
+		WG:          &wg2,
 		Log:         logger,
 		videoServer: videoServer,
 	}
 
 	cancelFunc := func() {
 		cancel()
-		close(m.eventChan)
-		os.RemoveAll(tempDir)
 		wg.Wait()
+		wg2.Wait()
+		os.RemoveAll(tempDir)
+		close(m.eventChan)
 	}
 
 	m.mainInput = newMockInputProcess(m, false)
@@ -538,8 +537,8 @@ func mockSizeFromStreamErr(context.Context, string, string) (int, int, error) {
 	return 0, 0, errors.New("mock")
 }
 
-func mockHooks() *Hooks {
-	return &Hooks{
+func mockHooks() Hooks {
+	return Hooks{
 		Start:      func(context.Context, *Monitor) {},
 		StartInput: func(context.Context, *InputProcess, *[]string) {},
 		Event:      func(*Monitor, *storage.Event) {},
@@ -599,5 +598,41 @@ func TestSendEvent(t *testing.T) {
 
 		err := m.SendEvent(storage.Event{})
 		require.ErrorIs(t, err, context.Canceled)
+	})
+	t.Run("missingTimeErr", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor(t)
+		defer cancel()
+
+		m.WG.Add(1)
+		go m.startRecorder(ctx)
+
+		actual := m.SendEvent(storage.Event{RecDuration: 1}).Error()
+		expected := `invalid event: {
+ Time: 0001-01-01 00:00:00 +0000 UTC
+ Detections: []
+ Duration: 0s
+ RecDuration: 1ns
+}
+'Time': ` + storage.ErrValueMissing.Error()
+
+		require.Equal(t, actual, expected)
+	})
+	t.Run("missingRecDurationErr", func(t *testing.T) {
+		m, ctx, cancel := newTestMonitor(t)
+		defer cancel()
+
+		m.WG.Add(1)
+		go m.startRecorder(ctx)
+
+		actual := m.SendEvent(storage.Event{Time: (time.Unix(1, 0).UTC())}).Error()
+		expected := `invalid event: {
+ Time: 1970-01-01 00:00:01 +0000 UTC
+ Detections: []
+ Duration: 0s
+ RecDuration: 0s
+}
+'RecDuration': ` + storage.ErrValueMissing.Error()
+
+		require.Equal(t, actual, expected)
 	})
 }

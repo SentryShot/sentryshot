@@ -122,7 +122,7 @@ type Manager struct {
 	log         *log.Logger
 	videoServer *video.Server
 	path        string
-	hooks       *Hooks
+	hooks       Hooks
 	mu          sync.Mutex
 }
 
@@ -148,7 +148,7 @@ func NewManager(
 		log:         log,
 		videoServer: videoServer,
 		path:        configPath,
-		hooks:       hooks,
+		hooks:       *hooks,
 	}
 
 	monitors := make(monitors)
@@ -298,11 +298,10 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		Log:         m.log,
 		Config:      config,
 
-		eventsMu:  &sync.Mutex{},
+		eventsMu:  sync.Mutex{},
 		eventChan: make(chan storage.Event),
 
 		hooks:               m.hooks,
-		startRecording:      startRecording,
 		runRecordingProcess: runRecordingProcess,
 		NewProcess:          ffmpeg.NewProcess,
 		videoDuration:       ffmpeg.New(m.env.FFmpegBin).VideoDuration,
@@ -326,17 +325,15 @@ type Monitor struct {
 	Config      Config
 
 	events    storage.Events
-	eventsMu  *sync.Mutex
+	eventsMu  sync.Mutex
 	eventChan chan storage.Event
 
-	running   bool
-	recording bool
+	running bool
 
 	mainInput *InputProcess
 	subInput  *InputProcess
 
-	hooks               *Hooks
-	startRecording      startRecordingFunc
+	hooks               Hooks
 	runRecordingProcess runRecordingProcessFunc
 	NewProcess          ffmpeg.NewProcessFunc
 	videoDuration       ffmpeg.VideoDurationFunc
@@ -528,7 +525,10 @@ func (i *InputProcess) start(ctx context.Context, m *Monitor) {
 				Monitor(i.M.Config.ID()).
 				Msgf("%v process: crashed: %v", i.ProcessName(), err)
 
-			time.Sleep(1 * time.Second)
+			select {
+			case <-ctx.Done():
+			case <-time.After(1 * time.Second):
+			}
 			continue
 		}
 	}

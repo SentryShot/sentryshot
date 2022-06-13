@@ -14,82 +14,96 @@ import (
 	"time"
 )
 
-func (m *Monitor) startRecorder(ctx context.Context) {
-	var triggerTimeout *time.Timer
-	var timeout time.Time
+func (m *Monitor) startRecorder(ctx context.Context) { //nolint:funlen
+	m.Mu.Lock()
+	id := m.Config.ID()
+	m.Mu.Unlock()
 
+	var recCtx context.Context
+	recCancel := func() {}
+	isRecording := false
+	triggerTimer := &time.Timer{}
+	onRecExit := make(chan error)
+
+	startRecording := func() {
+		onRecExit <- m.runRecordingProcess(recCtx, m)
+	}
+
+	recStopped := func() {
+		triggerTimer.Stop()
+		isRecording = false
+		m.Log.Info().Src("recorder").Monitor(id).Msg("recording stopped")
+	}
+
+	var timerEnd time.Time
 	for {
 		select {
 		case <-ctx.Done():
-			if triggerTimeout != nil {
-				triggerTimeout.Stop()
+			recCancel()
+			if isRecording {
+				// Recording was active and is now canceled. Clean up.
+				<-onRecExit
+				recStopped()
 			}
 			m.WG.Done()
 			return
-		case event := <-m.eventChan: // Wait for event.
+
+		case event := <-m.eventChan: // Incomming events.
 			m.hooks.Event(m, &event)
 			m.eventsMu.Lock()
 			m.events = append(m.events, event)
 			m.eventsMu.Unlock()
 
 			end := event.Time.Add(event.RecDuration)
-			if end.After(timeout) {
-				timeout = end
+			if end.After(timerEnd) {
+				timerEnd = end
 			}
 
-			m.Mu.Lock()
-			if m.recording {
-				triggerTimeout.Reset(time.Until(timeout))
-				m.Mu.Unlock()
+			if isRecording {
+				// Update timer.
+				triggerTimer.Stop()
+				triggerTimer = time.NewTimer(time.Until(timerEnd))
 				continue
 			}
 
-			ctx2, cancel := context.WithCancel(ctx)
+			// Start new recording.
+			triggerTimer = time.NewTimer(time.Until(timerEnd))
+			recCtx, recCancel = context.WithCancel(ctx)
+			isRecording = true
+			go startRecording()
 
-			// Stops recording when timeout is reached.
-			triggerTimeout = time.AfterFunc(time.Until(timeout), func() {
-				m.Log.Info().
-					Src("recorder").
-					Monitor(m.Config.ID()).
-					Msg("trigger reached end, stopping recording")
-
-				cancel()
-			})
-			m.recording = true
-			m.Mu.Unlock()
-
-			m.WG.Add(1)
-			go m.startRecording(ctx2, m)
-		}
-	}
-}
-
-type startRecordingFunc func(context.Context, *Monitor)
-
-func startRecording(ctx context.Context, m *Monitor) {
-	for {
-		if ctx.Err() != nil {
-			m.Mu.Lock()
-
-			m.recording = false
+		case <-triggerTimer.C:
 			m.Log.Info().
 				Src("recorder").
-				Monitor(m.Config.ID()).
-				Msg("recording stopped")
+				Monitor(id).
+				Msg("trigger reached end, stopping recording")
 
-			m.WG.Done()
-			m.Mu.Unlock()
-			return
-		}
-		err := m.runRecordingProcess(ctx, m)
-		if err != nil && !errors.Is(err, context.Canceled) {
-			m.Log.Error().
-				Src("recorder").
-				Monitor(m.Config.ID()).
-				Msgf("recording process: %v", err)
+			recCancel()
 
-			time.Sleep(1 * time.Second)
-			continue
+		case err := <-onRecExit:
+			if recCtx.Err() != nil {
+				// Recording process was canceled and exited.
+				recStopped()
+				continue
+			}
+
+			if err != nil && !errors.Is(err, context.Canceled) {
+				// Recording process crached. Wait a second and start it again.
+				m.Log.Error().Src("recorder").Monitor(id).Msgf("recording process: %v", err)
+				go func() {
+					select {
+					case <-ctx.Done():
+						onRecExit <- nil
+					case <-time.After(1 * time.Second):
+						go startRecording()
+					}
+				}()
+				continue
+			}
+
+			// Recording process reached videoLength and exited normally.
+			// The trigger is still active so start it again.
+			go startRecording()
 		}
 	}
 }
@@ -178,7 +192,7 @@ func (m *Monitor) saveRecording(filePath string, startTime time.Time) {
 	}
 }
 
-func (m *Monitor) saveRec(filePath string, startTime time.Time) error {
+func (m *Monitor) saveRec(filePath string, startTime time.Time) error { //nolint:funlen
 	videoPath := filePath + ".mp4"
 	thumbPath := filePath + ".jpeg"
 	dataPath := filePath + ".json"
@@ -188,7 +202,11 @@ func (m *Monitor) saveRec(filePath string, startTime time.Time) error {
 		os.Remove(thumbPath)
 	}
 
-	m.Log.Info().Src("recorder").Monitor(m.Config.ID()).Msgf("saving recording: %v", videoPath)
+	m.Mu.Lock()
+	id := m.Config.ID()
+	m.Mu.Unlock()
+
+	m.Log.Info().Src("recorder").Monitor(id).Msgf("saving recording: %v", videoPath)
 
 	args := "-n -threads 1 -loglevel " + m.Config.LogLevel() +
 		" -i " + videoPath + // Input.
@@ -201,7 +219,7 @@ func (m *Monitor) saveRec(filePath string, startTime time.Time) error {
 	logFunc := func(msg string) {
 		m.Log.FFmpegLevel(m.Config.LogLevel()).
 			Src("recorder").
-			Monitor(m.Config.ID()).
+			Monitor(id).
 			Msgf("thumbnail process: %v", msg)
 	}
 	process := m.NewProcess(cmd).
