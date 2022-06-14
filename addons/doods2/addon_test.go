@@ -263,11 +263,6 @@ func TestClient(t *testing.T) {
 		_, err = client.sendRequest(ctx2, detectRequest{})
 		require.ErrorIs(t, err, context.Canceled)
 	})
-	t.Run("connectErr", func(t *testing.T) {
-		client := newClient(context.Background(), "nil")
-		err := client.dial()
-		require.Error(t, err)
-	})
 }
 
 type cancelFunc func()

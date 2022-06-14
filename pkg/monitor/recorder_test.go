@@ -353,7 +353,7 @@ func TestSaveRecording(t *testing.T) {
 		}
 
 		start := time.Time{}.Add(1 * time.Minute)
-		tempdir := m.Env.SHMDir
+		tempdir := m.Env.TempDir
 		filePath := tempdir + "file"
 
 		err := m.saveRec(filePath, start)

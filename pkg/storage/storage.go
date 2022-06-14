@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	stdLog "log"
 	"nvr/pkg/log"
 	"os"
 	"path/filepath"
@@ -214,7 +215,7 @@ type ConfigEnv struct {
 	FFmpegBin string `yaml:"ffmpegBin"`
 
 	StorageDir string `yaml:"storageDir"`
-	SHMDir     string `yaml:"shmDir"`
+	TempDir    string
 
 	HomeDir   string `yaml:"homeDir"`
 	ConfigDir string
@@ -232,6 +233,7 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	}
 
 	env.ConfigDir = filepath.Dir(envPath)
+	env.TempDir = filepath.Join(os.TempDir(), "nvr")
 
 	if env.Port == 0 {
 		env.Port = 2020
@@ -254,9 +256,6 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	if env.StorageDir == "" {
 		env.StorageDir = filepath.Join(env.HomeDir, "storage")
 	}
-	if env.SHMDir == "" {
-		env.SHMDir = "/dev/shm/nvr"
-	}
 
 	if !dirExist(env.GoBin) {
 		return nil, fmt.Errorf("goBin '%v': %w", env.GoBin, os.ErrNotExist)
@@ -277,9 +276,6 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	if !filepath.IsAbs(env.StorageDir) {
 		return nil, fmt.Errorf("StorageDir '%v': %w", env.StorageDir, ErrPathNotAbsolute)
 	}
-	if !filepath.IsAbs(env.SHMDir) {
-		return nil, fmt.Errorf("shmDir '%v': %w", env.SHMDir, ErrPathNotAbsolute)
-	}
 
 	return &env, nil
 }
@@ -291,9 +287,25 @@ func (env ConfigEnv) RecordingsDir() string {
 
 // PrepareEnvironment prepares directories.
 func (env ConfigEnv) PrepareEnvironment() error {
-	if err := os.MkdirAll(env.RecordingsDir(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+	err := os.MkdirAll(env.RecordingsDir(), 0o700)
+	if err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("create recordings directory: %v: %w", env.StorageDir, err)
 	}
+
+	// Make sure env.TempDir isn't set to "/".
+	if len(env.TempDir) <= 4 {
+		stdLog.Fatalf("tempDir sanity check: %v", env.TempDir)
+	}
+	err = os.RemoveAll(env.TempDir)
+	if err != nil {
+		return fmt.Errorf("clear tempDir: %v: %w", env.TempDir, err)
+	}
+
+	err = os.MkdirAll(env.TempDir, 0o700)
+	if err != nil {
+		return fmt.Errorf("create tempDir: %v: %w", env.StorageDir, err)
+	}
+
 	return nil
 }
 

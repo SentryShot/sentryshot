@@ -292,9 +292,6 @@ homeDir: {{ .homeDir }}
 # Directory where recordings will be stored.
 storageDir: {{ .homeDir }}/storage
 
-# Shared memory directory, used to store temporary files.
-shmDir: /dev/shm/nvr
-
 
 addons: # Uncomment to enable.
 

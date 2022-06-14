@@ -297,7 +297,7 @@ func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 		GoBin:      goBin,
 		FFmpegBin:  ffmpegBin,
 		StorageDir: filepath.Join(homeDir, "storage"),
-		SHMDir:     filepath.Join(homeDir, "shm"),
+		TempDir:    filepath.Join(homeDir, "nvr"),
 		HomeDir:    homeDir,
 		ConfigDir:  configDir,
 	}
@@ -328,7 +328,7 @@ func TestNewConfigEnv(t *testing.T) {
 			GoBin:      filepath.Join(homeDir, "go"),
 			FFmpegBin:  filepath.Join(homeDir, "ffmpeg"),
 			StorageDir: filepath.Join(homeDir, "storage"),
-			SHMDir:     "/dev/shm/nvr",
+			TempDir:    env.TempDir,
 			HomeDir:    homeDir,
 			ConfigDir:  filepath.Join(homeDir, "configs"),
 		}
@@ -344,6 +344,7 @@ func TestNewConfigEnv(t *testing.T) {
 		env, err := NewConfigEnv(envPath, envYAML)
 		require.NoError(t, err)
 
+		env.TempDir = testEnv.TempDir
 		require.Equal(t, env, testEnv)
 	})
 	t.Run("unmarshal error", func(t *testing.T) {
@@ -422,18 +423,6 @@ func TestNewConfigEnv(t *testing.T) {
 		_, err = NewConfigEnv(envPath, envYAML)
 		require.ErrorIs(t, err, ErrPathNotAbsolute)
 	})
-	t.Run("shmAbs", func(t *testing.T) {
-		envPath, testEnv, cancel := newTestEnv(t)
-		defer cancel()
-
-		testEnv.SHMDir = "."
-
-		envYAML, err := yaml.Marshal(testEnv)
-		require.NoError(t, err)
-
-		_, err = NewConfigEnv(envPath, envYAML)
-		require.ErrorIs(t, err, ErrPathNotAbsolute)
-	})
 }
 
 func TestPrepareEnvironment(t *testing.T) {
@@ -442,21 +431,23 @@ func TestPrepareEnvironment(t *testing.T) {
 		require.NoError(t, err)
 		defer os.RemoveAll(tempDir)
 
-		storageDir := filepath.Join(tempDir, "configs")
 		env := &ConfigEnv{
-			StorageDir: storageDir,
+			StorageDir: filepath.Join(tempDir, "configs"),
+			TempDir:    filepath.Join(tempDir, "temp"),
 		}
+
+		// Create test file.
+		err = os.Mkdir(env.TempDir, 0o700)
+		require.NoError(t, err)
+		testFile := filepath.Join(env.TempDir, "test")
+		file, err := os.Create(testFile)
+		require.NoError(t, err)
+		file.Close()
 
 		err = env.PrepareEnvironment()
 		require.NoError(t, err)
 		require.DirExists(t, env.RecordingsDir())
-	})
-	t.Run("storageMkdirErr", func(t *testing.T) {
-		env := ConfigEnv{
-			StorageDir: "/dev/null",
-		}
-		err := env.PrepareEnvironment()
-		require.Error(t, err)
+		require.NoFileExists(t, testFile)
 	})
 }
 

@@ -358,7 +358,7 @@ func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
 	wg2 := sync.WaitGroup{}
 	m := &Monitor{
 		Env: storage.ConfigEnv{
-			SHMDir:     tempDir,
+			TempDir:    tempDir,
 			StorageDir: tempDir + "/storage",
 		},
 		Config: map[string]string{

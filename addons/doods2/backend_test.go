@@ -217,12 +217,9 @@ func TestGenerateMask(t *testing.T) {
 		require.NoError(t, err)
 		defer os.RemoveAll(tempDir)
 
-		err = os.Mkdir(filepath.Join(tempDir, "doods"), 0o700)
-		require.NoError(t, err, "could not create doods directory")
-
 		a := &instance{
 			env: storage.ConfigEnv{
-				SHMDir: tempDir,
+				TempDir: filepath.Join(tempDir, "newdir"),
 			},
 			outputs: outputs{
 				scaledWidth:  1,
@@ -247,7 +244,7 @@ func TestGenerateMask(t *testing.T) {
 	t.Run("saveErr", func(t *testing.T) {
 		a := &instance{
 			env: storage.ConfigEnv{
-				SHMDir: "/dev/null",
+				TempDir: "/dev/null",
 			},
 			outputs: outputs{},
 		}

@@ -29,6 +29,7 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -365,16 +366,22 @@ func (i *instance) generateMask(rawMask string) (string, error) {
 	w := i.outputs.scaledWidth
 	h := i.outputs.scaledHeight
 
-	path := filepath.Join(i.env.SHMDir, "doods", i.monitorID+"_mask.png")
+	tempDir := filepath.Join(i.env.TempDir, "doods")
+	err := os.MkdirAll(tempDir, 0o700)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return "", fmt.Errorf("make temporary directory: %v: %w", tempDir, err)
+	}
+
+	maskPath := filepath.Join(tempDir, i.monitorID+"_mask.png")
 
 	polygon := m.Area.ToAbs(w, h)
 	mask := ffmpeg.CreateMask(w, h, polygon)
 
-	if err := ffmpeg.SaveImage(path, mask); err != nil {
+	if err := ffmpeg.SaveImage(maskPath, mask); err != nil {
 		return "", fmt.Errorf("save mask: %w", err)
 	}
 
-	return path, nil
+	return maskPath, nil
 }
 
 func (i *instance) generateFFmpegArgs(c monitor.Config, maskPath string, grayMode bool) []string {
