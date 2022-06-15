@@ -18,7 +18,7 @@ All requests require basic auth, POST, PUT and DELETE requests need to have a ma
 
 ## System
 
-### GET /api/system/timeZone
+### GET /api/system/time-zone
 
 ##### Auth: user
 
@@ -70,7 +70,7 @@ Delete a user by id.
 
 <br>
 
-### GET /api/user/myToken
+### GET /api/user/my-token
 
 ##### Auth: admin
 

@@ -209,7 +209,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/storage/", a.User(web.Storage(env.StorageDir)))
 	mux.Handle("/hls/", a.User(videoServer.HandleHLS()))
 
-	mux.Handle("/api/system/timeZone", a.User(web.TimeZone(timeZone)))
+	mux.Handle("/api/system/time-zone", a.User(web.TimeZone(timeZone)))
 
 	mux.Handle("/api/general", a.Admin(web.General(general)))
 	mux.Handle("/api/general/set", a.Admin(a.CSRF(web.GeneralSet(general))))
@@ -217,7 +217,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/api/users", a.Admin(web.Users(a)))
 	mux.Handle("/api/user/set", a.Admin(a.CSRF(web.UserSet(a))))
 	mux.Handle("/api/user/delete", a.Admin(a.CSRF(web.UserDelete(a))))
-	mux.Handle("/api/user/myToken", a.Admin(a.MyToken()))
+	mux.Handle("/api/user/my-token", a.Admin(a.MyToken()))
 	mux.Handle("/logout", a.Logout())
 
 	mux.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager.MonitorsInfo)))

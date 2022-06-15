@@ -272,6 +272,7 @@ a:focus {
 }
 
 #topbar-options-btn img {
+	aspect-ratio: 1;
 	height: 0.9rem;
 }
 
@@ -316,6 +317,7 @@ a:focus {
 }
 
 .options-menu-btn img {
+	aspect-ratio: 1;
 	height: 0.8rem;
 	margin: 0.2rem;
 	font-size: 0;
@@ -361,6 +363,7 @@ a:focus {
 }
 
 .date-picker-month-btn img {
+	aspect-ratio: 1;
 	height: 1rem;
 }
 
@@ -945,6 +948,7 @@ a:focus {
 }
 
 .player-play-btn img {
+	aspect-ratio: 1;
 	height: 0.8rem;
 	filter: invert(90%);
 }
@@ -977,6 +981,7 @@ a:focus {
 }
 
 .player-options-open-btn img {
+	aspect-ratio: 1;
 	width: 0.8rem;
 }
 
@@ -1002,6 +1007,7 @@ a:focus {
 }
 
 .player-options-btn img {
+	aspect-ratio: 1;
 	width: 0.8rem;
 	filter: var(--color-icons);
 }

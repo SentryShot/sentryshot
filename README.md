@@ -14,7 +14,7 @@ Frontend is written completely from scratch to give the best performance on mobi
 `OS-NVR` is a temporary name. [#2](https://gitlab.com/osnvr/os-nvr/-/issues/2)
 
 
-Use [Issues](https://gitlab.com/osnvr/os-nvr/-/issues) for bug reports, feature requests and support.
+Use [Issues](https://gitlab.com/osnvr/os-nvr/-/issues) for bug reports, feature requests and support. [Matrix chat](https://matrix.to/#/#os_nvr:matrix.org)
 
 ##### Note: iPhone support is currently limited.
 

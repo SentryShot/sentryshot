@@ -45,6 +45,7 @@
 }
 
 .settings-nav-item img {
+	aspect-ratio: 1;
 	height: 0.7rem;
 	margin-right: 0.3rem;
 	font-size: 0.8rem;
@@ -150,8 +151,8 @@
 }
 
 .settings-menu-back-btn img {
+	aspect-ratio: 1;
 	width: 1.1rem;
-	height: 1.1rem;
 	padding: var(--icon-padding);
 	filter: var(--color-icons);
 }
