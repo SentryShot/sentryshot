@@ -16,9 +16,13 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
+
+	stdLog "log"
 )
 
 // Account contains user information.
@@ -101,6 +105,15 @@ func LogFailedLogin(log *log.Logger, r *http.Request, username string) {
 	}
 
 	log.Info().Src("auth").Msgf("failed login: username: %v %v\n", username, ip)
+}
+
+// GenToken generates a CSRF-token.
+func GenToken() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		stdLog.Fatal("failed to generate random token")
+	}
+	return hex.EncodeToString(b)
 }
 
 // DefaultBcryptHashCost bcrypt hash cost.

@@ -16,14 +16,11 @@
 package basic
 
 import (
-	"crypto/rand"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	stdLog "log"
 	"net/http"
 	"nvr"
 	"nvr/pkg/log"
@@ -153,19 +150,11 @@ func parseBasicAuth(str string) (username, password string) {
 	return cs[:s], cs[s+1:]
 }
 
-func genToken() string {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		stdLog.Fatal("failed to generate random token")
-	}
-	return hex.EncodeToString(b)
-}
-
 // resetTokens creates new random token for each user.
 func (a *Authenticator) resetTokens() {
 	a.mu.Lock()
 	for id, user := range a.accounts {
-		user.Token = genToken()
+		user.Token = auth.GenToken()
 		a.accounts[id] = user
 	}
 	a.mu.Unlock()
@@ -231,7 +220,7 @@ func (a *Authenticator) UserSet(req auth.SetUserRequest) error {
 		}
 		user.Password = hashedNewPassword
 	}
-	user.Token = genToken()
+	user.Token = auth.GenToken()
 
 	a.mu.Lock()
 	a.accounts[user.ID] = user

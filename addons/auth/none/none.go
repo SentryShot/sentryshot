@@ -32,9 +32,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// DefaultHashCost bcrypt hash cost.
-const DefaultHashCost = 10
-
 func init() {
 	nvr.SetAuthenticator(NewAuthenticator)
 
@@ -54,7 +51,8 @@ type Authenticator struct {
 	accounts map[string]auth.Account
 	hashCost int
 
-	mu sync.Mutex
+	token string
+	mu    sync.Mutex
 }
 
 // NewAuthenticator creates a authenticator similar to
@@ -64,8 +62,9 @@ func NewAuthenticator(env storage.ConfigEnv, logger *log.Logger) (auth.Authentic
 	a := Authenticator{
 		path:     path,
 		accounts: make(map[string]auth.Account),
+		hashCost: auth.DefaultBcryptHashCost,
 
-		hashCost: DefaultHashCost,
+		token: auth.GenToken(),
 	}
 
 	file, err := os.ReadFile(path)
@@ -93,6 +92,7 @@ func (a *Authenticator) ValidateRequest(r *http.Request) auth.ValidateResponse {
 			ID:       "none",
 			Username: "noAuth",
 			IsAdmin:  true,
+			Token:    a.token,
 		},
 	}
 }
@@ -195,17 +195,24 @@ func (a *Authenticator) Admin(next http.Handler) http.Handler {
 	})
 }
 
-// CSRF doesn't check anything.
+// CSRF blocks invalid Cross-site request forgery tokens.
+// The request needs to have the token in the "X-CSRF-TOKEN" header.
 func (a *Authenticator) CSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := r.Header.Get("X-CSRF-TOKEN")
+		if token != a.token {
+			http.Error(w, "Invalid CSRF-token.", http.StatusUnauthorized)
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
 
-// MyToken returns unused token.
+// MyToken returns the CSRF-token.
 func (a *Authenticator) MyToken() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := w.Write([]byte("disable")); err != nil {
+		if _, err := w.Write([]byte(a.token)); err != nil {
 			http.Error(w, "could not write", http.StatusInternalServerError)
 			return
 		}
