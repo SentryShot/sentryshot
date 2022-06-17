@@ -35,5 +35,12 @@ Use [Issues](https://gitlab.com/osnvr/os-nvr/-/issues) for bug reports, feature 
 - [Frigate](https://github.com/blakeblackshear/frigate)
 - [Motion](https://github.com/Motion-Project/motion)[Eye](https://github.com/ccrisan/motioneye/)[OS](https://github.com/ccrisan/motioneyeos)
 
+## Related projects
+
+- [TF-CCTV](https://gitlab.com/Curid/TF-CCTV)
+- [OpenIPC](https://openipc.org)
+- [PineCube](https://www.pine64.org/cube)
+
+
 ## License
 All code is licensed under [GPLv2 or Later](LICENSE)

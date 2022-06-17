@@ -2,6 +2,7 @@
 
 - [Program Map](#program-map)
 - [The addon system](#the-addon-system)
+- [The video server](../pkg/video/README.md)
 
 <br>
 
