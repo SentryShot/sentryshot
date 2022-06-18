@@ -8,7 +8,7 @@
 
 OS-NVR is a mobile-friendly extensible CCTV system.
 
-Frontend is written completely from scratch to give the best performance on mobile/low-end devices. Backend is written in Go using FFmpeg for video processing.
+The front-end is written completely from scratch to give the best performance on mobile/low-end devices. The back-end is written in Go using FFmpeg for video processing.
 
 
 `OS-NVR` is a temporary name. [#2](https://gitlab.com/osnvr/os-nvr/-/issues/2)
