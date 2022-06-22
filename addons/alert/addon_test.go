@@ -34,15 +34,13 @@ func rawConf(t *testing.T, config Config) string {
 }
 
 func TestProcessEvent(t *testing.T) {
-	cases := []struct {
-		name      string
+	cases := map[string]struct {
 		config    string
 		event     *storage.Event
 		passEvent bool
 		err       bool
 	}{
-		{
-			"ok",
+		"ok": {
 			rawConf(t, Config{
 				Enable:    "true",
 				Threshold: "50",
@@ -57,29 +55,25 @@ func TestProcessEvent(t *testing.T) {
 			true,
 			false,
 		},
-		{
-			"nilConfig",
+		"nilConfig": {
 			"",
 			&storage.Event{},
 			false,
 			false,
 		},
-		{
-			"emptyConfig",
+		"emptyConfig": {
 			"{}",
 			&storage.Event{},
 			false,
 			false,
 		},
-		{
-			"unmarshalErr",
+		"unmarshalErr": {
 			"{",
 			&storage.Event{},
 			false,
 			true,
 		},
-		{
-			"disable",
+		"disable": {
 			rawConf(t, Config{
 				Enable:    "false",
 				Threshold: "0",
@@ -89,8 +83,7 @@ func TestProcessEvent(t *testing.T) {
 			false,
 			false,
 		},
-		{
-			"parseCooldownErr",
+		"parseCooldownErr": {
 			rawConf(t, Config{
 				Enable:    "true",
 				Threshold: "0",
@@ -100,8 +93,7 @@ func TestProcessEvent(t *testing.T) {
 			false,
 			true,
 		},
-		{
-			"parseThresholdErr",
+		"parseThresholdErr": {
 			rawConf(t, Config{
 				Enable:    "true",
 				Threshold: "x",
@@ -111,8 +103,7 @@ func TestProcessEvent(t *testing.T) {
 			false,
 			true,
 		},
-		{
-			"threshold",
+		"threshold": {
 			rawConf(t, Config{
 				Enable:    "true",
 				Threshold: "100",
@@ -127,8 +118,8 @@ func TestProcessEvent(t *testing.T) {
 			false,
 		},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
 			var outEvent *storage.Event
 			onEvent := func(_ *monitor.Monitor, event *storage.Event, _ []byte) {
 				outEvent = event

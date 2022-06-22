@@ -280,13 +280,11 @@ func TestPolygonToAbs(t *testing.T) {
 }
 
 func TestCreateMask(t *testing.T) {
-	cases := []struct {
-		name     string
+	cases := map[string]struct {
 		input    Polygon
 		expected string
 	}{
-		{
-			"triangle",
+		"triangle": {
 			Polygon{
 				{3, 1},
 				{6, 6},
@@ -301,8 +299,7 @@ func TestCreateMask(t *testing.T) {
 			_XXXXX_
 			_______`,
 		},
-		{
-			"octagon",
+		"octagon": {
 			Polygon{
 				{2, 0},
 				{5, 0},
@@ -321,8 +318,7 @@ func TestCreateMask(t *testing.T) {
 			_XXXXX_
 			__XXX__`,
 		},
-		{
-			"inverted", // Lines cross over themselves at the bottom.
+		"inverted": {
 			Polygon{
 				{7, 0},
 				{7, 7},
@@ -338,12 +334,12 @@ func TestCreateMask(t *testing.T) {
 			XXXXXXX
 			XXXXXXX
 			X_____X
-			XXX_XXX`,
+			XXX_XXX`, // Lines cross over themselves at the bottom.
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
 			mask := CreateMask(7, 7, tc.input)
 
 			actual := imageToText(mask)
@@ -354,13 +350,11 @@ func TestCreateMask(t *testing.T) {
 }
 
 func TestCreateInvertedMask(t *testing.T) {
-	cases := []struct {
-		name     string
+	cases := map[string]struct {
 		input    Polygon
 		expected string
 	}{
-		{
-			"triangle",
+		"triangle": {
 			Polygon{
 				{3, 1},
 				{6, 6},
@@ -375,8 +369,7 @@ func TestCreateInvertedMask(t *testing.T) {
 			X_____X
 			XXXXXXX`,
 		},
-		{
-			"octagon",
+		"octagon": {
 			Polygon{
 				{2, 0},
 				{5, 0},
@@ -395,8 +388,7 @@ func TestCreateInvertedMask(t *testing.T) {
 			X_____X
 			XX___XX`,
 		},
-		{
-			"inverted", // Lines cross over themselves at the bottom.
+		"inverted": {
 			Polygon{
 				{7, 0},
 				{7, 7},
@@ -412,12 +404,12 @@ func TestCreateInvertedMask(t *testing.T) {
 			_______
 			_______
 			_XXXXX_
-			___X___`,
+			___X___`, // Lines cross over themselves at the bottom.
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
 			mask := CreateInvertedMask(7, 7, tc.input)
 
 			actual := imageToText(mask)
@@ -466,17 +458,16 @@ func TestSaveImage(t *testing.T) {
 }
 
 func TestParseArgs(t *testing.T) {
-	cases := []struct {
-		name     string
+	cases := map[string]struct {
 		input    string
 		expected []string
 	}{
-		{"1", "1 2 3 4", []string{"1", "2", "3", "4"}},
-		//{"2", "1 '2 3' 4", []string{"1", "2 3", "4"}}, Not implemented.
+		"simple": {"1 2 3 4", []string{"1", "2", "3", "4"}},
+		//"x":{ "1 '2 3' 4", []string{"1", "2 3", "4"}}, Not implemented.
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
 			actual := ParseArgs(tc.input)
 			require.Equal(t, actual, tc.expected)
 		})
@@ -500,17 +491,16 @@ func TestParseScaleString(t *testing.T) {
 }
 
 func TestFeedRateToDuration(t *testing.T) {
-	cases := []struct {
-		name     string
+	cases := map[string]struct {
 		input    string
 		expected string
 	}{
-		{"one", "1", "1s"},
-		{"two", "2", "500ms"},
-		{"half", "0.5", "2s"},
+		"one":  {"1", "1s"},
+		"two":  {"2", "500ms"},
+		"half": {"0.5", "2s"},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
 			output, err := FeedRateToDuration(tc.input)
 			require.NoError(t, err)
 

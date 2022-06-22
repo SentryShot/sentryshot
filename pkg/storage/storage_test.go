@@ -38,23 +38,22 @@ func TestDiskUsage(t *testing.T) {
 
 func TestUsage(t *testing.T) {
 	const mb int64 = 1000000
-	cases := []struct {
-		name     string
+	cases := map[string]struct {
 		used     float64 // Byte
 		space    string  // GB
 		expected string
 	}{
-		{"formatMB", 10 * megabyte, "0.1", "{10000000 10 0 10MB}"},
-		{"formatGB2", 2 * gigabyte, "10", "{2000000000 20 10 2.00GB}"},
-		{"formatGB1", 20 * gigabyte, "100", "{20000000000 20 100 20.0GB}"},
-		{"formatGB0", 200 * gigabyte, "1000", "{200000000000 20 1000 200GB}"},
-		{"formatTB2", 2 * terabyte, "10000", "{2000000000000 20 10000 2.00TB}"},
-		{"formatTB1", 20 * terabyte, "100000", "{20000000000000 20 100000 20.0TB}"},
-		{"formatDefault", 200 * terabyte, "1000000", "{200000000000000 20 1000000 200TB}"},
+		"formatMB":      {10 * megabyte, "0.1", "{10000000 10 0 10MB}"},
+		"formatGB2":     {2 * gigabyte, "10", "{2000000000 20 10 2.00GB}"},
+		"formatGB1":     {20 * gigabyte, "100", "{20000000000 20 100 20.0GB}"},
+		"formatGB0":     {200 * gigabyte, "1000", "{200000000000 20 1000 200GB}"},
+		"formatTB2":     {2 * terabyte, "10000", "{2000000000000 20 10000 2.00TB}"},
+		"formatTB1":     {20 * terabyte, "100000", "{20000000000000 20 100000 20.0TB}"},
+		"formatDefault": {200 * terabyte, "1000000", "{200000000000000 20 1000000 200TB}"},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
 			s := Manager{
 				path: "testdata",
 				general: &ConfigGeneral{
@@ -124,13 +123,11 @@ var highUsage = func(_ string) int64 {
 
 func TestPurge(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		cases := []struct {
-			name      string
+		cases := map[string]struct {
 			input     *Manager
 			expectErr bool
 		}{
-			{
-				"usage error",
+			"usage error": {
 				&Manager{
 					general: diskSpaceErr,
 					usage: func(string) int64 {
@@ -139,8 +136,7 @@ func TestPurge(t *testing.T) {
 				},
 				true,
 			},
-			{
-				"below 99%",
+			"below 99%": {
 				&Manager{
 					general: diskSpace1,
 					usage: func(string) int64 {
@@ -149,16 +145,14 @@ func TestPurge(t *testing.T) {
 				},
 				false,
 			},
-			{
-				"readDir error",
+			"readDir error": {
 				&Manager{
 					general: diskSpace1,
 					usage:   highUsage,
 				},
 				true,
 			},
-			{
-				"ok",
+			"ok": {
 				&Manager{
 					path:    "testdata",
 					general: diskSpace1,
@@ -169,8 +163,7 @@ func TestPurge(t *testing.T) {
 				},
 				false,
 			},
-			{
-				"removeAll error",
+			"removeAllErr": {
 				&Manager{
 					path:    "testdata",
 					general: diskSpace1,
@@ -183,8 +176,8 @@ func TestPurge(t *testing.T) {
 			},
 		}
 
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
+		for name, tc := range cases {
+			t.Run(name, func(t *testing.T) {
 				err := tc.input.purge()
 				gotError := err != nil
 				require.Equal(t, tc.expectErr, gotError)

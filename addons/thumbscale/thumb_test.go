@@ -25,21 +25,23 @@ import (
 )
 
 func TestOnRecSave(t *testing.T) {
-	cases := []struct{ input, output string }{
-		{"", " -frames"},
-		{"full", " -frames"},
-		{"half", " -vf scale='iw/2:ih/2' -frames"},
+	cases := map[string]struct{ input, output string }{
+		"empty": {"", " -frames"},
+		"full":  {"full", " -frames"},
+		"half":  {"half", " -vf scale='iw/2:ih/2' -frames"},
 	}
-	for _, tc := range cases {
-		m := &monitor.Monitor{
-			Mu: sync.Mutex{},
-			Config: map[string]string{
-				"thumbScale": tc.input,
-			},
-		}
-		args := " -frames"
-		onRecSave(m, &args)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			m := &monitor.Monitor{
+				Mu: sync.Mutex{},
+				Config: map[string]string{
+					"thumbScale": tc.input,
+				},
+			}
+			args := " -frames"
+			onRecSave(m, &args)
 
-		require.Equal(t, tc.output, args)
+			require.Equal(t, tc.output, args)
+		})
 	}
 }

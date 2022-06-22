@@ -74,20 +74,20 @@ func TestRecordingByQuery(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
 		c := NewCrawler("./testdata/recordings")
 
-		cases := []struct{ name, time, expected string }{
-			{"noFiles", "0000-01-01", ""},
-			{"EOF", "1999-01-01", ""},
-			{"latest", "9999-01-01", "2099-01-01_1_m1"},
-			{"prev", "2000-01-01_2_m1", "2000-01-01_1_m1"},
-			{"prevDay", "2000-01-02_1_m1", "2000-01-01_2_m1"},
-			{"prevMonth", "2000-02-01_1_m1", "2000-01-02_1_m1"},
-			{"prevYear", "2001-01-01_1_m1", "2000-02-01_1_m1"},
-			{"emptyPrevDay", "2002-12-01", "2002-01-01_1_m1"},
-			{"sameDay", "2004-01-01_2", "2004-01-01_1_m1"},
+		cases := map[string]struct{ time, expected string }{
+			"noFiles":      {"0000-01-01", ""},
+			"EOF":          {"1999-01-01", ""},
+			"latest":       {"9999-01-01", "2099-01-01_1_m1"},
+			"prev":         {"2000-01-01_2_m1", "2000-01-01_1_m1"},
+			"prevDay":      {"2000-01-02_1_m1", "2000-01-01_2_m1"},
+			"prevMonth":    {"2000-02-01_1_m1", "2000-01-02_1_m1"},
+			"prevYear":     {"2001-01-01_1_m1", "2000-02-01_1_m1"},
+			"emptyPrevDay": {"2002-12-01", "2002-01-01_1_m1"},
+			"sameDay":      {"2004-01-01_2", "2004-01-01_1_m1"},
 		}
 
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
+		for name, tc := range cases {
+			t.Run(name, func(t *testing.T) {
 				query := &CrawlerQuery{
 					Time:  tc.time,
 					Limit: 1,
@@ -104,17 +104,17 @@ func TestRecordingByQuery(t *testing.T) {
 	t.Run("reverse", func(t *testing.T) {
 		c := NewCrawler("./testdata/recordings")
 
-		cases := []struct{ name, time, expected string }{
-			{"latest", "1111-01-01", "2000-01-01_1_m1"},
-			{"next", "2000-01-01_1_m1", "2000-01-01_2_m1"},
-			{"nextDay", "2000-01-01_2_m1", "2000-01-02_1_m1"},
-			{"nextMonth", "2000-01-02_1_m1", "2000-02-01_1_m1"},
-			{"nextYear", "2000-02-01_1_m1", "2001-02-01_1_m1"},
-			{"emptyNextDay", "2001-12-01", "2002-01-01_1_m1"},
+		cases := map[string]struct{ time, expected string }{
+			"latest":       {"1111-01-01", "2000-01-01_1_m1"},
+			"next":         {"2000-01-01_1_m1", "2000-01-01_2_m1"},
+			"nextDay":      {"2000-01-01_2_m1", "2000-01-02_1_m1"},
+			"nextMonth":    {"2000-01-02_1_m1", "2000-02-01_1_m1"},
+			"nextYear":     {"2000-02-01_1_m1", "2001-02-01_1_m1"},
+			"emptyNextDay": {"2001-12-01", "2002-01-01_1_m1"},
 		}
 
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
+		for name, tc := range cases {
+			t.Run(name, func(t *testing.T) {
 				query := &CrawlerQuery{
 					Time:    tc.time,
 					Limit:   1,

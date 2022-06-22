@@ -74,38 +74,26 @@ func TestParseConfig(t *testing.T) {
 		require.Equal(t, actual, "map[a:1 b:2]")
 	})
 
-	cases := []struct {
-		name   string
-		config monitor.Config
-	}{
-		{
-			"durationErr",
-			monitor.Config{
-				"doodsThresholds": "{}",
-				"doodsFeedRate":   "nil",
-			},
+	cases := map[string]monitor.Config{
+		"durationErr": {
+			"doodsThresholds": "{}",
+			"doodsFeedRate":   "nil",
 		},
-		{
-			"recDurationErr",
-			monitor.Config{
-				"doodsThresholds": "{}",
-				"doodsDuration":   "nil",
-				"doodsFeedRate":   "1",
-			},
+		"recDurationErr": {
+			"doodsThresholds": "{}",
+			"doodsDuration":   "nil",
+			"doodsFeedRate":   "1",
 		},
-		{
-			"timestampOffsetErr",
-			monitor.Config{
-				"size":            "1x1",
-				"doodsThresholds": "{}",
-				"doodsDuration":   "1",
-				"doodsFeedRate":   "1",
-			},
+		"timestampOffsetErr": {
+			"size":            "1x1",
+			"doodsThresholds": "{}",
+			"doodsDuration":   "1",
+			"doodsFeedRate":   "1",
 		},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := parseConfig(tc.config)
+	for name, conf := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := parseConfig(conf)
 			require.ErrorIs(t, err, strconv.ErrSyntax)
 		})
 	}

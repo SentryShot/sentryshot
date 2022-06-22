@@ -58,22 +58,21 @@ func mockDiskErr() (storage.DiskUsage, error) {
 }
 
 func TestUpdate(t *testing.T) {
-	cases := []struct {
-		name          string
+	cases := map[string]struct {
 		cpu           cpuFunc
 		ram           ramFunc
 		disk          diskFunc
 		expectedError bool
 		expectedValue string
 	}{
-		{"cpuErr", mockCPUErr, mockRAM, mockDisk, true, "{0 0 0 }"},
-		{"ramErr", mockCPU, mockRAMerr, mockDisk, true, "{0 0 0 }"},
-		{"diskErr", mockCPU, mockRAM, mockDiskErr, true, "{0 0 0 }"},
-		{"ok", mockCPU, mockRAM, mockDisk, false, "{11 22 33 44}"},
+		"cpuErr":  {mockCPUErr, mockRAM, mockDisk, true, "{0 0 0 }"},
+		"ramErr":  {mockCPU, mockRAMerr, mockDisk, true, "{0 0 0 }"},
+		"diskErr": {mockCPU, mockRAM, mockDiskErr, true, "{0 0 0 }"},
+		"ok":      {mockCPU, mockRAM, mockDisk, false, "{11 22 33 44}"},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
 			s := system{
 				cpu:  tc.cpu,
 				ram:  tc.ram,

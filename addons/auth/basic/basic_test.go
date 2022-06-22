@@ -153,17 +153,17 @@ func TestBasicAuthenticator(t *testing.T) {
 		_, a, cancel := newTestAuth(t)
 		defer cancel()
 
-		cases := []struct {
+		cases := map[string]struct {
 			username string
 			password string
 			valid    bool
 			expected auth.Account
 		}{
-			{"admin", "pass1", true, adminExpected},
-			{"user", "pass2", true, userExpected},
-			{"user", "pass2", true, userExpected}, // test cache
-			{"user", "wrongPass", false, auth.Account{}},
-			{"nil", "", false, auth.Account{}},
+			"okAdmin":   {"admin", "pass1", true, adminExpected},
+			"okUser":    {"user", "pass2", true, userExpected},
+			"cache":     {"user", "pass2", true, userExpected},
+			"wrongPass": {"user", "wrongPass", false, auth.Account{}},
+			"nil":       {"nil", "", false, auth.Account{}},
 		}
 
 		for _, tc := range cases {
@@ -209,11 +209,11 @@ func TestBasicAuthenticator(t *testing.T) {
 	})
 
 	t.Run("userSet", func(t *testing.T) {
-		cases := []struct {
+		cases := map[string]struct {
 			req auth.SetUserRequest
 			err error
 		}{
-			{
+			"ok": {
 				auth.SetUserRequest{
 					ID:            "1",
 					Username:      "admin",
@@ -221,27 +221,27 @@ func TestBasicAuthenticator(t *testing.T) {
 					IsAdmin:       true,
 				}, nil,
 			},
-			{
+			"missingPassword": {
 				auth.SetUserRequest{
 					ID:            "10",
-					Username:      "noPass",
+					Username:      "admin",
 					PlainPassword: "",
 					IsAdmin:       false,
 				}, ErrPasswordMissing,
 			},
-			{
+			"missingID": {
 				auth.SetUserRequest{
 					ID:            "",
-					Username:      "noID",
+					Username:      "admin",
 					PlainPassword: "pass",
 					IsAdmin:       false,
 				}, ErrIDMissing,
 			},
-			{
+			"missingUsername": {
 				auth.SetUserRequest{
 					ID:            "1",
 					Username:      "",
-					PlainPassword: "noUsername",
+					PlainPassword: "pass",
 					IsAdmin:       false,
 				}, ErrUsernameMissing,
 			},
