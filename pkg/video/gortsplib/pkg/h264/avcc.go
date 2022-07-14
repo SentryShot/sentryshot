@@ -20,8 +20,8 @@ func (e AVCCnaluSizeTooBigError) Error() string {
 	return fmt.Sprintf("NALU size (%d) is too big (maximum is %d)", e.NALUSize, MaxNALUSize)
 }
 
-// AVCCDecode decodes NALUs from the AVCC stream format.
-func AVCCDecode(buf []byte) ([][]byte, error) {
+// AVCCUnmarshal decodes NALUs from the AVCC stream format.
+func AVCCUnmarshal(buf []byte) ([][]byte, error) {
 	bl := len(buf)
 	pos := 0
 	var ret [][]byte
@@ -53,7 +53,7 @@ func AVCCDecode(buf []byte) ([][]byte, error) {
 	return ret, nil
 }
 
-func avccEncodeSize(nalus [][]byte) int {
+func avccMarshalSize(nalus [][]byte) int {
 	n := 0
 	for _, nalu := range nalus {
 		n += 4 + len(nalu)
@@ -61,9 +61,9 @@ func avccEncodeSize(nalus [][]byte) int {
 	return n
 }
 
-// AVCCEncode encodes NALUs into the AVCC stream format.
-func AVCCEncode(nalus [][]byte) ([]byte, error) {
-	buf := make([]byte, avccEncodeSize(nalus))
+// AVCCMarshal encodes NALUs into the AVCC stream format.
+func AVCCMarshal(nalus [][]byte) ([]byte, error) {
+	buf := make([]byte, avccMarshalSize(nalus))
 	pos := 0
 
 	for _, nalu := range nalus {

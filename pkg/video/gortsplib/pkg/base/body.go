@@ -15,6 +15,10 @@ var (
 		"Content-Length exceeds %d", rtspMaxContentLength)
 )
 
+const (
+	rtspMaxContentLength = 128 * 1024
+)
+
 type body []byte
 
 func (b *body) read(header Header, rb *bufio.Reader) error {
@@ -42,16 +46,16 @@ func (b *body) read(header Header, rb *bufio.Reader) error {
 	return nil
 }
 
-func (b body) writeSize() int {
+func (b body) marshalSize() int {
 	return len(b)
 }
 
-func (b body) writeTo(buf []byte) int {
+func (b body) marshalTo(buf []byte) int {
 	return copy(buf, b)
 }
 
-func (b body) write() []byte { //nolint:unused
-	buf := make([]byte, b.writeSize())
-	b.writeTo(buf)
+func (b body) marshal() []byte { //nolint:unused
+	buf := make([]byte, b.marshalSize())
+	b.marshalTo(buf)
 	return buf
 }

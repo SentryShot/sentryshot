@@ -35,7 +35,8 @@ func TestTracksReadErrors(t *testing.T) {
 		},
 	} {
 		t.Run(ca.name, func(t *testing.T) {
-			_, err := ReadTracks(ca.sdp, false)
+			var tracks Tracks
+			_, err := tracks.Unmarshal(ca.sdp, false)
 			require.EqualError(t, err, ca.err)
 		})
 	}

@@ -36,20 +36,34 @@ var casesTransport = []struct {
 			}(),
 		},
 	},
+	{
+		"empty source",
+		base.HeaderValue{`RTP/AVP/UDP;unicast;source=;client_port=32560-32561;server_port=3046-3047;ssrc=45dcb578`},
+		base.HeaderValue{`RTP/AVP/TCP;client_port=32560-32561;server_port=3046-3047;ssrc=45DCB578`},
+		Transport{
+			Protocol: TransportProtocolUDP,
+			SSRC: func() *uint32 {
+				v := uint32(0x45dcb578)
+				return &v
+			}(),
+			ClientPorts: &[2]int{32560, 32561},
+			ServerPorts: &[2]int{3046, 3047},
+		},
+	},
 }
 
-func TestTransportRead(t *testing.T) {
+func TestTransportUnmarshal(t *testing.T) {
 	for _, ca := range casesTransport {
 		t.Run(ca.name, func(t *testing.T) {
 			var h Transport
-			err := h.Read(ca.vin)
+			err := h.Unmarshal(ca.vin)
 			require.NoError(t, err)
 			require.Equal(t, ca.h, h)
 		})
 	}
 }
 
-func TestTransportReadErrors(t *testing.T) {
+func TestTransportUnmarshalErrors(t *testing.T) {
 	for _, ca := range []struct {
 		name string
 		hv   base.HeaderValue
@@ -138,16 +152,16 @@ func TestTransportReadErrors(t *testing.T) {
 	} {
 		t.Run(ca.name, func(t *testing.T) {
 			var h Transport
-			err := h.Read(ca.hv)
+			err := h.Unmarshal(ca.hv)
 			require.EqualError(t, err, ca.err)
 		})
 	}
 }
 
-func TestTransportWrite(t *testing.T) {
+func TestTransportMarshal(t *testing.T) {
 	for _, ca := range casesTransport {
 		t.Run(ca.name, func(t *testing.T) {
-			req := ca.h.Write()
+			req := ca.h.Marshal()
 			require.Equal(t, ca.vout, req)
 		})
 	}

@@ -118,7 +118,6 @@ func (d *Decoder) decodeFragmented(pkt *rtp.Packet) ([][]byte, time.Duration, er
 
 	d.fragmentedParts = d.fragmentedParts[:0]
 	d.fragmentedMode = false
-	d.firstPacketReceived = true
 	return [][]byte{ret}, d.timeDecoder.Decode(pkt.Timestamp), nil
 }
 
@@ -199,6 +198,16 @@ func (d *Decoder) decodeUnfragmented(pkt *rtp.Packet) ([][]byte, time.Duration, 
 	return [][]byte{pkt.Payload}, d.timeDecoder.Decode(pkt.Timestamp), nil
 }
 
+// MaxNALUsError .
+type MaxNALUsError struct {
+	count int
+}
+
+func (e MaxNALUsError) Error() string {
+	return fmt.Sprintf("number of NALUs contained inside a single group (%d)"+
+		" is too big (maximum is %d)", e.count, h264.MaxNALUsPerGroup)
+}
+
 // DecodeUntilMarker decodes NALUs from a RTP/H264 packet and puts them in a buffer.
 // When a packet has the marker flag (meaning that all the NALUs with the same PTS have
 // been received), the buffer is returned.
@@ -206,6 +215,10 @@ func (d *Decoder) DecodeUntilMarker(pkt *rtp.Packet) ([][]byte, time.Duration, e
 	nalus, pts, err := d.Decode(pkt)
 	if err != nil {
 		return nil, 0, err
+	}
+
+	if (len(d.naluBuffer) + len(nalus)) >= h264.MaxNALUsPerGroup {
+		return nil, 0, MaxNALUsError{count: len(d.naluBuffer) + len(nalus)}
 	}
 
 	d.naluBuffer = append(d.naluBuffer, nalus...)

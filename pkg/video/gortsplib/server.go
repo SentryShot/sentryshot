@@ -46,23 +46,17 @@ type sessionRequestReq struct {
 // Server is a RTSP server.
 type Server struct {
 	//
-	// handler
+	// RTSP parameters (all optional except RTSPAddress)
 	//
-	// an handler to handle server events.
-	Handler ServerHandler
-
-	//
-	// RTSP parameters
-	//
+	// the RTSP address of the server, to accept connections and send and receive
+	// packets with the TCP transport.
+	RTSPAddress string
 	// timeout of read operations.
 	// It defaults to 10 seconds
 	ReadTimeout time.Duration
 	// timeout of write operations.
 	// It defaults to 10 seconds
 	WriteTimeout time.Duration
-	// the RTSP address of the server, to accept connections and send and receive
-	// packets with the TCP transport.
-	RTSPaddress string
 	// read buffer count.
 	// If greater than 1, allows to pass buffers to routines different than the one
 	// that is reading frames.
@@ -76,7 +70,13 @@ type Server struct {
 	WriteBufferCount int
 
 	//
-	// system functions
+	// handler (optional)
+	//
+	// an handler to handle server events.
+	Handler ServerHandler
+
+	//
+	// system functions (all optional)
 	//
 	// function used to initialize the TCP listener.
 	// It defaults to net.Listen.
@@ -103,8 +103,11 @@ type Server struct {
 	sessionClose   chan *ServerSession
 }
 
-// ErrServerMissingRTSPaddress RTSPAddress not provided.
-var ErrServerMissingRTSPaddress = errors.New("RTSPAddress not provided")
+// Errors.
+var (
+	ErrServerMissingRTSPaddress = errors.New("RTSPAddress not provided")
+	ErrWriteBufferSize          = errors.New("WriteBufferCount must be a power of two")
+)
 
 // Start starts the server.
 func (s *Server) Start() error {
@@ -121,6 +124,9 @@ func (s *Server) Start() error {
 	if s.WriteBufferCount == 0 {
 		s.WriteBufferCount = 256
 	}
+	if (s.WriteBufferCount & (s.WriteBufferCount - 1)) != 0 {
+		return ErrWriteBufferSize
+	}
 
 	// system functions
 	if s.Listen == nil {
@@ -135,12 +141,12 @@ func (s *Server) Start() error {
 		s.checkStreamPeriod = 1 * time.Second
 	}
 
-	if s.RTSPaddress == "" {
+	if s.RTSPAddress == "" {
 		return ErrServerMissingRTSPaddress
 	}
 
 	var err error
-	s.tcpListener, err = s.Listen("tcp", s.RTSPaddress)
+	s.tcpListener, err = s.Listen("tcp", s.RTSPAddress)
 	if err != nil {
 		return err
 	}

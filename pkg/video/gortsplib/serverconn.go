@@ -7,7 +7,7 @@ import (
 	"net"
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/gortsplib/pkg/liberrors"
-	"nvr/pkg/video/gortsplib/pkg/rtph264"
+	"nvr/pkg/video/gortsplib/pkg/url"
 	"strings"
 	"time"
 )
@@ -204,7 +204,7 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 
 	var processFunc func(int, []byte) error
 
-	if sc.session.state == ServerSessionStatePlay { //nolint:nestif
+	if sc.session.state == ServerSessionStatePlay {
 		processFunc = func(trackID int, payload []byte) error {
 			return nil
 		}
@@ -218,69 +218,20 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 				return err
 			}
 
-			ctx := ServerHandlerOnPacketRTPCtx{
-				Session: sc.session,
-				TrackID: trackID,
-				Packet:  pkt,
+			out, err := sc.session.announcedTracks[trackID].cleaner.Process(pkt)
+			if err != nil {
+				return err
 			}
-
-			at := sc.session.announcedTracks[trackID]
-			sc.session.processPacketRTP(at, &ctx)
-
-			if at.h264Decoder != nil {
-				if at.h264Encoder == nil && len(payload) > maxPacketSize {
-					v1 := pkt.SSRC
-					v2 := pkt.SequenceNumber
-					v3 := pkt.Timestamp
-					at.h264Encoder = &rtph264.Encoder{
-						PayloadType:           pkt.PayloadType,
-						SSRC:                  &v1,
-						InitialSequenceNumber: &v2,
-						InitialTimestamp:      &v3,
-					}
-					at.h264Encoder.Init()
-				}
-
-				if at.h264Encoder != nil {
-					if ctx.H264NALUs != nil {
-						packets, err := at.h264Encoder.Encode(ctx.H264NALUs, ctx.H264PTS)
-						if err != nil {
-							return err
-						}
-
-						for i, pkt := range packets {
-							if i != len(packets)-1 {
-								if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
-									h.OnPacketRTP(&ServerHandlerOnPacketRTPCtx{
-										Session:      sc.session,
-										TrackID:      trackID,
-										Packet:       pkt,
-										PTSEqualsDTS: false,
-									})
-								}
-							} else {
-								ctx.Packet = pkt
-								if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
-									h.OnPacketRTP(&ctx)
-								}
-							}
-						}
-					}
-				} else {
-					if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
-						h.OnPacketRTP(&ctx)
-					}
-				}
-			} else {
-				if len(payload) > maxPacketSize {
-					return base.PayloadToBigError{
-						PayloadLen:     len(payload),
-						MaxPayloadSize: maxPacketSize,
-					}
-				}
-
-				if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
-					h.OnPacketRTP(&ctx)
+			if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
+				for _, entry := range out {
+					h.OnPacketRTP(&ServerHandlerOnPacketRTPCtx{
+						Session:      sc.session,
+						TrackID:      trackID,
+						Packet:       entry.Packet,
+						PTSEqualsDTS: entry.PTSEqualsDTS,
+						H264NALUs:    entry.H264NALUs,
+						H264PTS:      entry.H264PTS,
+					})
 				}
 			}
 			return nil
@@ -386,7 +337,7 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 				}, liberrors.ErrServerInvalidPath
 			}
 
-			path, query := base.PathSplitQuery(pathAndQuery)
+			path, query := url.PathSplitQuery(pathAndQuery)
 
 			res, stream, err := h.OnDescribe(&ServerHandlerOnDescribeCtx{
 				Conn:    sc,
@@ -404,7 +355,7 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 				res.Header["Content-Type"] = base.HeaderValue{"application/sdp"}
 
 				if stream != nil {
-					res.Body = stream.Tracks().Write()
+					res.Body = stream.Tracks().Marshal()
 				}
 			}
 
@@ -461,7 +412,7 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 				}, liberrors.ErrServerInvalidPath
 			}
 
-			path, query := base.PathSplitQuery(pathAndQuery)
+			path, query := url.PathSplitQuery(pathAndQuery)
 
 			return h.OnGetParameter(&ServerHandlerOnGetParameterCtx{
 				Conn:    sc,
@@ -480,7 +431,7 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 				}, liberrors.ErrServerInvalidPath
 			}
 
-			path, query := base.PathSplitQuery(pathAndQuery)
+			path, query := url.PathSplitQuery(pathAndQuery)
 
 			return h.OnSetParameter(&ServerHandlerOnSetParameterCtx{
 				Conn:    sc,
@@ -519,7 +470,7 @@ func (sc *ServerConn) handleRequestOuter(req *base.Request) error {
 		h.OnResponse(sc, res)
 	}
 
-	byts, _ := res.Write()
+	byts, _ := res.Marshal()
 
 	sc.conn.SetWriteDeadline(time.Now().Add(sc.s.WriteTimeout)) //nolint:errcheck
 	sc.conn.Write(byts)                                         //nolint:errcheck

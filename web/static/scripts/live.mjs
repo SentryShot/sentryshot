@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import Hls from "./vendor/hls.mjs";
 import { $ } from "./libs/common.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
 import { newFeed } from "./components/feed.mjs";
@@ -108,10 +109,9 @@ function init() {
 	// Globals.
 	const groups = Groups; // eslint-disable-line no-undef
 	const monitors = Monitors; // eslint-disable-line no-undef
-	const hls = Hls; // eslint-disable-line no-undef
 
 	const $contentGrid = document.querySelector("#content-grid");
-	const viewer = newViewer($contentGrid, monitors, hls);
+	const viewer = newViewer($contentGrid, monitors, Hls);
 
 	const $options = $("#options-menu");
 	const buttons = [

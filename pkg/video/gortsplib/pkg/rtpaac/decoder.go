@@ -1,15 +1,14 @@
 package rtpaac
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"nvr/pkg/video/gortsplib/pkg/aac"
+	"nvr/pkg/video/gortsplib/pkg/bits"
 	"nvr/pkg/video/gortsplib/pkg/rtptimedec"
 	"time"
 
-	"github.com/icza/bitio"
 	"github.com/pion/rtp"
 )
 
@@ -102,7 +101,8 @@ func (d *Decoder) Decode(pkt *rtp.Packet) ([][]byte, time.Duration, error) {
 
 		au := payload[:dataLens[0]]
 
-		pkts, err := aac.DecodeADTS(au)
+		var pkts aac.ADTSPackets
+		err := pkts.Unmarshal(au)
 		if err != nil {
 			return nil, 0, fmt.Errorf("unable to decode ADTS: %w", err)
 		}
@@ -181,7 +181,8 @@ func (d *Decoder) decodeUnfragmented( //nolint:gocognit
 		if !d.firstPacketParsed {
 			if len(aus) == 1 && len(aus[0]) >= 2 {
 				if aus[0][0] == 0xFF && (aus[0][1]&0xF0) == 0xF0 {
-					pkts, err := aac.DecodeADTS(aus[0])
+					var pkts aac.ADTSPackets
+					err := pkts.Unmarshal(aus[0])
 					if err == nil && len(pkts) == 1 {
 						d.adtsMode = true
 						aus[0] = pkts[0].AU
@@ -209,8 +210,7 @@ func (d *Decoder) decodeUnfragmented( //nolint:gocognit
 	return nil, 0, ErrMorePacketsNeeded
 }
 
-func (d *Decoder) readAUHeaders(payload []byte, headersLen int) ([]uint64, error) {
-	br := bitio.NewReader(bytes.NewReader(payload))
+func (d *Decoder) readAUHeaders(buf []byte, headersLen int) ([]uint64, error) {
 	firstRead := false
 
 	count := 0
@@ -227,9 +227,11 @@ func (d *Decoder) readAUHeaders(payload []byte, headersLen int) ([]uint64, error
 
 	dataLens := make([]uint64, count)
 
+	pos := 0
 	i := 0
+
 	for headersLen > 0 {
-		dataLen, err := br.ReadBits(uint8(d.SizeLength))
+		dataLen, err := bits.ReadBits(buf, &pos, d.SizeLength)
 		if err != nil {
 			return nil, err
 		}
@@ -238,7 +240,7 @@ func (d *Decoder) readAUHeaders(payload []byte, headersLen int) ([]uint64, error
 		if !firstRead { //nolint:nestif
 			firstRead = true
 			if d.IndexLength > 0 {
-				auIndex, err := br.ReadBits(uint8(d.IndexLength))
+				auIndex, err := bits.ReadBits(buf, &pos, d.IndexLength)
 				if err != nil {
 					return nil, err
 				}
@@ -249,7 +251,7 @@ func (d *Decoder) readAUHeaders(payload []byte, headersLen int) ([]uint64, error
 				}
 			}
 		} else if d.IndexDeltaLength > 0 {
-			auIndexDelta, err := br.ReadBits(uint8(d.IndexDeltaLength))
+			auIndexDelta, err := bits.ReadBits(buf, &pos, d.IndexDeltaLength)
 			if err != nil {
 				return nil, err
 			}

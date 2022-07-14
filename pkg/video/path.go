@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"nvr/pkg/log"
 	"nvr/pkg/video/gortsplib"
-	"nvr/pkg/video/gortsplib/pkg/base"
+	"nvr/pkg/video/gortsplib/pkg/url"
 	"nvr/pkg/video/hls"
 	"regexp"
 	"sync"
@@ -46,7 +46,7 @@ type pathDescribeRes struct {
 
 type pathDescribeReq struct {
 	pathName string
-	url      *base.URL
+	url      *url.URL
 	res      chan pathDescribeRes
 }
 
@@ -546,6 +546,10 @@ func (pa *path) hlsSegmentDuration() time.Duration {
 	return pa.conf.HLSsegmentDuration
 }
 
+func (pa *path) hlsPartDuration() time.Duration {
+	return pa.conf.HLSpartDuration
+}
+
 func (pa *path) hlsSegmentMaxSize() uint64 {
 	return pa.conf.HLSsegmentMaxSize
 }
@@ -593,11 +597,12 @@ type PathConf struct {
 
 	HLSsegmentCount    int
 	HLSsegmentDuration time.Duration
+	HLSpartDuration    time.Duration
 	HLSsegmentMaxSize  uint64
 
-	onNewHLSsegment  chan hls.Segments
-	registerListener chan chan hls.Segments
-	listeners        map[chan hls.Segments]struct{}
+	onNewHLSsegment  chan []hls.SegmentOrGap
+	registerListener chan chan []hls.SegmentOrGap
+	listeners        map[chan []hls.SegmentOrGap]struct{}
 }
 
 // Errors.
@@ -608,7 +613,15 @@ var (
 	ErrInvalidSource  = errors.New("invalid source")
 )
 
+const (
+	defaultHLSsegmentCount    = 3
+	defaultHLSsegmentDuration = 1000 * time.Millisecond
+	defaultHLSpartDuration    = 300 * time.Millisecond
+)
+
 var mb = uint64(1000000)
+
+var defaultHLSsegmentMaxSize = 50 * mb
 
 // CheckAndFillMissing .
 func (pconf *PathConf) CheckAndFillMissing(name string) error {
@@ -625,15 +638,16 @@ func (pconf *PathConf) CheckAndFillMissing(name string) error {
 	}
 
 	if pconf.HLSsegmentCount == 0 {
-		pconf.HLSsegmentCount = 3
+		pconf.HLSsegmentCount = defaultHLSsegmentCount
 	}
-
 	if pconf.HLSsegmentDuration == 0 {
-		pconf.HLSsegmentDuration = 1 * time.Second
+		pconf.HLSsegmentDuration = defaultHLSsegmentDuration
 	}
-
+	if pconf.HLSpartDuration == 0 {
+		pconf.HLSpartDuration = defaultHLSpartDuration
+	}
 	if pconf.HLSsegmentMaxSize == 0 {
-		pconf.HLSsegmentMaxSize = 50 * mb
+		pconf.HLSsegmentMaxSize = defaultHLSsegmentMaxSize
 	}
 
 	return nil
@@ -641,9 +655,9 @@ func (pconf *PathConf) CheckAndFillMissing(name string) error {
 
 func (pconf *PathConf) start(ctx context.Context) {
 	pconf.ctx, pconf.cancel = context.WithCancel(ctx)
-	pconf.onNewHLSsegment = make(chan hls.Segments)
-	pconf.listeners = make(map[chan hls.Segments]struct{})
-	pconf.registerListener = make(chan chan hls.Segments)
+	pconf.onNewHLSsegment = make(chan []hls.SegmentOrGap)
+	pconf.listeners = make(map[chan []hls.SegmentOrGap]struct{})
+	pconf.registerListener = make(chan chan []hls.SegmentOrGap)
 
 	go func() {
 		for {
@@ -673,7 +687,7 @@ func (pconf *PathConf) WaitForNewHLSsegment(
 	ctx context.Context, nSegments int,
 ) (time.Duration, error) {
 	for {
-		listener := make(chan hls.Segments)
+		listener := make(chan []hls.SegmentOrGap)
 		// Register listener.
 		select {
 		case <-ctx.Done():
@@ -695,7 +709,12 @@ func (pconf *PathConf) WaitForNewHLSsegment(
 			for i := nSegments; i != 0; i-- {
 				dIndex := len(segments) - i
 				segment := segments[dIndex]
-				totalDuration += segment.Duration()
+
+				seg, ok := segment.(*hls.Segment)
+				if !ok {
+					continue
+				}
+				totalDuration += seg.Duration()
 			}
 			return totalDuration, nil
 		}

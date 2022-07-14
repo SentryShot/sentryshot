@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"nvr/pkg/video/gortsplib/pkg/base"
-	"nvr/pkg/video/gortsplib/pkg/h264"
 	"nvr/pkg/video/gortsplib/pkg/headers"
 	"nvr/pkg/video/gortsplib/pkg/liberrors"
 	"nvr/pkg/video/gortsplib/pkg/ringbuffer"
-	"nvr/pkg/video/gortsplib/pkg/rtph264"
+	"nvr/pkg/video/gortsplib/pkg/rtpcleaner"
+	"nvr/pkg/video/gortsplib/pkg/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -59,22 +59,22 @@ var (
 )
 
 func setupGetTrackIDPathQuery(
-	url *base.URL,
+	u *url.URL,
 	thMode *headers.TransportMode,
 	announcedTracks []*ServerSessionAnnouncedTrack,
 	setuppedPath *string,
 	setuppedQuery *string,
-	setuppedBaseURL *base.URL,
+	setuppedBaseURL *url.URL,
 ) (int, string, string, error) {
-	pathAndQuery, ok := url.RTSPPathAndQuery()
+	pathAndQuery, ok := u.RTSPPathAndQuery()
 	if !ok {
 		return 0, "", "", liberrors.ErrServerInvalidPath
 	}
 
 	if thMode != nil && *thMode != headers.TransportModePlay {
 		for trackID, track := range announcedTracks {
-			u, _ := track.track.url(setuppedBaseURL)
-			if u.String() == url.String() {
+			u2, _ := track.track.url(setuppedBaseURL)
+			if u2.String() == u.String() {
 				return trackID, *setuppedPath, *setuppedQuery, nil
 			}
 		}
@@ -91,7 +91,7 @@ func setupGetTrackIDPathQuery(
 		}
 		pathAndQuery = pathAndQuery[:len(pathAndQuery)-1]
 
-		path, query := base.PathSplitQuery(pathAndQuery)
+		path, query := url.PathSplitQuery(pathAndQuery)
 
 		// we assume it's track 0
 		return 0, path, query, nil
@@ -104,7 +104,7 @@ func setupGetTrackIDPathQuery(
 	trackID := int(tmp)
 	pathAndQuery = pathAndQuery[:i]
 
-	path, query := base.PathSplitQuery(pathAndQuery)
+	path, query := url.PathSplitQuery(pathAndQuery)
 
 	if setuppedPath != nil && (path != *setuppedPath || query != *setuppedQuery) {
 		return 0, "", "", ErrTrackPathError
@@ -149,9 +149,8 @@ type ServerSessionSetuppedTrack struct {
 
 // ServerSessionAnnouncedTrack is an announced track of a ServerSession.
 type ServerSessionAnnouncedTrack struct {
-	track       Track
-	h264Decoder *rtph264.Decoder
-	h264Encoder *rtph264.Encoder
+	track   Track
+	cleaner *rtpcleaner.Cleaner
 }
 
 // ServerSession is a server-side RTSP session.
@@ -167,7 +166,7 @@ type ServerSession struct {
 	setuppedTracks     map[int]*ServerSessionSetuppedTrack
 	tcpTracksByChannel map[int]int
 	IsTransportSetup   bool
-	setuppedBaseURL    *base.URL     // publish
+	setuppedBaseURL    *url.URL      // publish
 	setuppedStream     *ServerStream // read
 	setuppedPath       *string
 	setuppedQuery      *string
@@ -312,7 +311,8 @@ func (ss *ServerSession) runInner() error { //nolint:funlen,gocognit
 
 			res, err := ss.handleRequest(req.sc, req.req)
 
-			var returnedSession *ServerSession
+			returnedSession := ss
+
 			if err == nil || errors.Is(err, errSwitchReadFunc) {
 				// ANNOUNCE responses don't contain the session header.
 				if req.req.Method != base.Announce &&
@@ -323,12 +323,12 @@ func (ss *ServerSession) runInner() error { //nolint:funlen,gocognit
 
 					res.Header["Session"] = headers.Session{
 						Session: ss.secretID,
-					}.Write()
+					}.Marshal()
 				}
 
 				// after a TEARDOWN, session must be unpaired with the connection.
-				if req.req.Method != base.Teardown {
-					returnedSession = ss
+				if req.req.Method == base.Teardown {
+					returnedSession = nil
 				}
 			}
 
@@ -412,7 +412,7 @@ func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base
 				}, liberrors.ErrServerInvalidPath
 			}
 
-			path, query := base.PathSplitQuery(pathAndQuery)
+			path, query := url.PathSplitQuery(pathAndQuery)
 
 			return h.OnGetParameter(&ServerHandlerOnGetParameterCtx{
 				Session: ss,
@@ -497,7 +497,7 @@ func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*bas
 		}, liberrors.ErrServerInvalidPath
 	}
 
-	path, query := base.PathSplitQuery(pathAndQuery)
+	path, query := url.PathSplitQuery(pathAndQuery)
 
 	ct, ok := req.Header["Content-Type"]
 	if !ok || len(ct) != 1 {
@@ -512,7 +512,8 @@ func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*bas
 		}, liberrors.ErrServerContentTypeUnsupportedError{CT: ct}
 	}
 
-	tracks, err := ReadTracks(req.Body, false)
+	var tracks Tracks
+	_, err = tracks.Unmarshal(req.Body, false)
 	if err != nil {
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
@@ -586,7 +587,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 	}
 
 	var inTH headers.Transport
-	err = inTH.Read(req.Header["Transport"])
+	err = inTH.Unmarshal(req.Header["Transport"])
 	if err != nil {
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
@@ -676,7 +677,11 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 	}
 
 	if ss.state == ServerSessionStateInitial {
-		stream.readerAdd(ss)
+		if err := stream.readerAdd(ss); err != nil {
+			return &base.Response{
+				StatusCode: base.StatusBadRequest,
+			}, err
+		}
 
 		ss.state = ServerSessionStatePrePlay
 		ss.setuppedPath = &path
@@ -716,7 +721,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 
 	ss.setuppedTracks[trackID] = sst
 
-	res.Header["Transport"] = th.Write()
+	res.Header["Transport"] = th.Marshal()
 
 	return res, err
 }
@@ -743,7 +748,7 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 	// path can end with a slash due to Content-Base, remove it
 	pathAndQuery = strings.TrimSuffix(pathAndQuery, "/")
 
-	path, query := base.PathSplitQuery(pathAndQuery)
+	path, query := url.PathSplitQuery(pathAndQuery)
 
 	if ss.State() == ServerSessionStatePrePlay &&
 		path != *ss.setuppedPath {
@@ -756,7 +761,7 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 	// in this way it's possible to call ServerSession.WritePacket*()
 	// inside the callback.
 	if ss.state != ServerSessionStatePlay {
-		ss.writeBuffer = ringbuffer.New(uint64(ss.s.WriteBufferCount))
+		ss.writeBuffer, _ = ringbuffer.New(uint64(ss.s.WriteBufferCount))
 	}
 
 	res, err := sc.s.Handler.(ServerHandlerOnPlay).OnPlay(&ServerHandlerOnPlayCtx{
@@ -784,7 +789,7 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 	ss.tcpConn.readFunc = ss.tcpConn.readFuncTCP
 	err = errSwitchReadFunc
 
-	ss.writeBuffer = ringbuffer.New(uint64(ss.s.ReadBufferCount))
+	ss.writeBuffer, _ = ringbuffer.New(uint64(ss.s.ReadBufferCount))
 	// runWriter() is called by ServerConn after the response has been sent
 
 	ss.setuppedStream.readerSetActive(ss)
@@ -807,7 +812,7 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 			continue
 		}
 
-		u := &base.URL{
+		u := &url.URL{
 			Scheme: req.URL.Scheme,
 			User:   req.URL.User,
 			Host:   req.URL.Host,
@@ -824,7 +829,7 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 		if res.Header == nil {
 			res.Header = make(base.Header)
 		}
-		res.Header["RTP-Info"] = ri.Write()
+		res.Header["RTP-Info"] = ri.Marshal()
 	}
 
 	return res, err
@@ -856,7 +861,7 @@ func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.
 	// path can end with a slash due to Content-Base, remove it
 	pathAndQuery = strings.TrimSuffix(pathAndQuery, "/")
 
-	path, query := base.PathSplitQuery(pathAndQuery)
+	path, query := url.PathSplitQuery(pathAndQuery)
 
 	if path != *ss.setuppedPath {
 		return &base.Response{
@@ -867,7 +872,7 @@ func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.
 	// allocate writeBuffer before calling OnRecord().
 	// in this way it's possible to call ServerSession.WritePacket*()
 	// inside the callback.
-	ss.writeBuffer = ringbuffer.New(uint64(8))
+	ss.writeBuffer, _ = ringbuffer.New(uint64(8))
 
 	res, err := ss.s.Handler.(ServerHandlerOnRecord).OnRecord(&ServerHandlerOnRecordCtx{
 		Session: ss,
@@ -885,10 +890,8 @@ func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.
 	ss.state = ServerSessionStateRecord
 
 	for _, at := range ss.announcedTracks {
-		if _, ok := at.track.(*TrackH264); ok {
-			at.h264Decoder = &rtph264.Decoder{}
-			at.h264Decoder.Init()
-		}
+		_, isH264 := at.track.(*TrackH264)
+		at.cleaner = rtpcleaner.New(isH264)
 	}
 
 	ss.tcpConn = sc
@@ -922,7 +925,7 @@ func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.R
 	// path can end with a slash due to Content-Base, remove it
 	pathAndQuery = strings.TrimSuffix(pathAndQuery, "/")
 
-	path, query := base.PathSplitQuery(pathAndQuery)
+	path, query := url.PathSplitQuery(pathAndQuery)
 
 	res, err := ss.s.Handler.(ServerHandlerOnPause).OnPause(&ServerHandlerOnPauseCtx{
 		Session: ss,
@@ -964,8 +967,7 @@ func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.R
 		ss.tcpConn = nil
 
 		for _, at := range ss.announcedTracks {
-			at.h264Decoder = nil
-			at.h264Encoder = nil
+			at.cleaner = nil
 		}
 
 		ss.state = ServerSessionStatePreRecord
@@ -988,7 +990,7 @@ func (ss *ServerSession) runWriter() {
 	writeFunc := func(trackID int, payload []byte) {
 		f := rtpFrames[trackID]
 		f.Payload = payload
-		n, _ := f.WriteTo(buf)
+		n, _ := f.MarshalTo(buf)
 
 		ss.tcpConn.conn.SetWriteDeadline(time.Now().Add(ss.s.WriteTimeout)) //nolint:errcheck
 		ss.tcpConn.conn.Write(buf[:n])                                      //nolint:errcheck
@@ -1002,26 +1004,6 @@ func (ss *ServerSession) runWriter() {
 		data := tmp.(trackTypePayload) //nolint:forcetypeassert
 
 		writeFunc(data.trackID, data.payload)
-	}
-}
-
-func (ss *ServerSession) processPacketRTP(at *ServerSessionAnnouncedTrack, ctx *ServerHandlerOnPacketRTPCtx) {
-	// remove padding
-	ctx.Packet.Header.Padding = false
-	ctx.Packet.PaddingSize = 0
-
-	// decode
-	if at.h264Decoder != nil {
-		nalus, pts, err := at.h264Decoder.DecodeUntilMarker(ctx.Packet)
-		if err == nil {
-			ctx.PTSEqualsDTS = h264.IDRPresent(nalus)
-			ctx.H264NALUs = nalus
-			ctx.H264PTS = pts
-		} else {
-			ctx.PTSEqualsDTS = false
-		}
-	} else {
-		ctx.PTSEqualsDTS = false
 	}
 }
 

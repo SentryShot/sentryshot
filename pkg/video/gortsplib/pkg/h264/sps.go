@@ -1,68 +1,11 @@
 package h264
 
 import (
-	"bytes"
 	"errors"
-
-	"github.com/icza/bitio"
+	"nvr/pkg/video/gortsplib/pkg/bits"
 )
 
-func readGolombUnsigned(br *bitio.Reader) (uint32, error) {
-	leadingZeroBits := uint32(0)
-
-	for {
-		b, err := br.ReadBits(1)
-		if err != nil {
-			return 0, err
-		}
-
-		if b != 0 {
-			break
-		}
-
-		leadingZeroBits++
-	}
-
-	codeNum := uint32(0)
-
-	for n := leadingZeroBits; n > 0; n-- {
-		b, err := br.ReadBits(1)
-		if err != nil {
-			return 0, err
-		}
-
-		codeNum |= uint32(b) << (n - 1)
-	}
-
-	codeNum = (1 << leadingZeroBits) - 1 + codeNum
-
-	return codeNum, nil
-}
-
-func readGolombSigned(br *bitio.Reader) (int32, error) {
-	v, err := readGolombUnsigned(br)
-	if err != nil {
-		return 0, err
-	}
-	vi := int32(v)
-
-	if (vi & 0x01) != 0 {
-		return (vi + 1) / 2, nil
-	}
-
-	return -vi / 2, nil
-}
-
-func readFlag(br *bitio.Reader) (bool, error) {
-	tmp, err := br.ReadBits(1)
-	if err != nil {
-		return false, err
-	}
-
-	return (tmp == 1), nil
-}
-
-func readScalingList(br *bitio.Reader, size int) ([]int32, bool, error) {
+func readScalingList(buf []byte, pos *int, size int) ([]int32, bool, error) {
 	lastScale := int32(8)
 	nextScale := int32(8)
 	scalingList := make([]int32, size)
@@ -70,7 +13,7 @@ func readScalingList(br *bitio.Reader, size int) ([]int32, bool, error) {
 
 	for j := 0; j < size; j++ {
 		if nextScale != 0 {
-			deltaScale, err := readGolombSigned(br)
+			deltaScale, err := bits.ReadGolombSigned(buf, pos)
 			if err != nil {
 				return nil, false, err
 			}
@@ -105,68 +48,146 @@ type SpsHrd struct {
 	TimeOffsetLength                   uint8
 }
 
-func (h *SpsHrd) unmarshal(br *bitio.Reader) error { //nolint:funlen
+func (h *SpsHrd) unmarshal(buf []byte, pos *int) error { //nolint:funlen
 	var err error
-	h.CpbCntMinus1, err = readGolombUnsigned(br)
+	h.CpbCntMinus1, err = bits.ReadGolombUnsigned(buf, pos)
 	if err != nil {
 		return err
 	}
 
-	tmp, err := br.ReadBits(4)
+	tmp, err := bits.ReadBits(buf, pos, 4)
 	if err != nil {
 		return err
 	}
 	h.BitRateScale = uint8(tmp)
 
-	tmp, err = br.ReadBits(4)
+	tmp, err = bits.ReadBits(buf, pos, 4)
 	if err != nil {
 		return err
 	}
 	h.CpbSizeScale = uint8(tmp)
 
 	for i := uint32(0); i <= h.CpbCntMinus1; i++ {
-		v, err := readGolombUnsigned(br)
+		v, err := bits.ReadGolombUnsigned(buf, pos)
 		if err != nil {
 			return err
 		}
 		h.BitRateValueMinus1 = append(h.BitRateValueMinus1, v)
 
-		v, err = readGolombUnsigned(br)
+		v, err = bits.ReadGolombUnsigned(buf, pos)
 		if err != nil {
 			return err
 		}
 		h.CpbSizeValueMinus1 = append(h.CpbSizeValueMinus1, v)
 
-		vb, err := readFlag(br)
+		vb, err := bits.ReadFlag(buf, pos)
 		if err != nil {
 			return err
 		}
 		h.CbrFlag = append(h.CbrFlag, vb)
 	}
 
-	tmp, err = br.ReadBits(5)
+	tmp, err = bits.ReadBits(buf, pos, 5)
 	if err != nil {
 		return err
 	}
 	h.InitialCpbRemovalDelayLengthMinus1 = uint8(tmp)
 
-	tmp, err = br.ReadBits(5)
+	tmp, err = bits.ReadBits(buf, pos, 5)
 	if err != nil {
 		return err
 	}
 	h.CpbRemovalDelayLengthMinus1 = uint8(tmp)
 
-	tmp, err = br.ReadBits(5)
+	tmp, err = bits.ReadBits(buf, pos, 5)
 	if err != nil {
 		return err
 	}
 	h.DpbOutputDelayLengthMinus1 = uint8(tmp)
 
-	tmp, err = br.ReadBits(5)
+	tmp, err = bits.ReadBits(buf, pos, 5)
 	if err != nil {
 		return err
 	}
 	h.TimeOffsetLength = uint8(tmp)
+
+	return nil
+}
+
+// SpsTimingInfo is a timing info.
+type SpsTimingInfo struct {
+	NumUnitsInTick     uint32
+	TimeScale          uint32
+	FixedFrameRateFlag bool
+}
+
+func (t *SpsTimingInfo) unmarshal(buf []byte, pos *int) error {
+	var err error
+	t.NumUnitsInTick, err = bits.ReadUint32(buf, pos)
+	if err != nil {
+		return err
+	}
+
+	t.TimeScale, err = bits.ReadUint32(buf, pos)
+	if err != nil {
+		return err
+	}
+
+	t.FixedFrameRateFlag, err = bits.ReadFlag(buf, pos)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SpsBitstreamRestriction are bitstream restriction infos.
+type SpsBitstreamRestriction struct {
+	MotionVectorsOverPicBoundariesFlag bool
+	MaxBytesPerPicDenom                uint32
+	MaxBitsPerMbDenom                  uint32
+	Log2MaxMvLengthHorizontal          uint32
+	Log2MaxMvLengthVertical            uint32
+	MaxNumReorderFrames                uint32
+	MaxDecFrameBuffering               uint32
+}
+
+func (r *SpsBitstreamRestriction) unmarshal(buf []byte, pos *int) error {
+	var err error
+	r.MotionVectorsOverPicBoundariesFlag, err = bits.ReadFlag(buf, pos)
+	if err != nil {
+		return err
+	}
+
+	r.MaxBytesPerPicDenom, err = bits.ReadGolombUnsigned(buf, pos)
+	if err != nil {
+		return err
+	}
+
+	r.MaxBitsPerMbDenom, err = bits.ReadGolombUnsigned(buf, pos)
+	if err != nil {
+		return err
+	}
+
+	r.Log2MaxMvLengthHorizontal, err = bits.ReadGolombUnsigned(buf, pos)
+	if err != nil {
+		return err
+	}
+
+	r.Log2MaxMvLengthVertical, err = bits.ReadGolombUnsigned(buf, pos)
+	if err != nil {
+		return err
+	}
+
+	r.MaxNumReorderFrames, err = bits.ReadGolombUnsigned(buf, pos)
+	if err != nil {
+		return err
+	}
+
+	r.MaxDecFrameBuffering, err = bits.ReadGolombUnsigned(buf, pos)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -197,12 +218,8 @@ type SpsVui struct {
 	ChromaSampleLocTypeTopField    uint32
 	ChromaSampleLocTypeBottomField uint32
 
-	TimingInfoPresentFlag bool
-
-	// TimingInfoPresentFlag == true
-	NumUnitsInTick     uint32
-	TimeScale          uint32
-	FixedFrameRateFlag bool
+	// timingInfoPresentFlag == true
+	TimingInfo *SpsTimingInfo
 
 	// nalHrdParametersPresentFlag == true
 	NalHRD *SpsHrd
@@ -210,132 +227,127 @@ type SpsVui struct {
 	// vclHrdParametersPresentFlag == true
 	VclHRD *SpsHrd
 
-	LowDelayHrdFlag          bool
-	PicStructPresentFlag     bool
-	BitstreamRestrictionFlag bool
+	LowDelayHrdFlag      bool
+	PicStructPresentFlag bool
 
 	// BitstreamRestrictionFlag == true
-	MotionVectorsOverPicBoundariesFlag bool
-	MaxBytesPerPicDenom                uint32
-	MaxBitsPerMbDenom                  uint32
-	Log2MaxMvLengthHorizontal          uint32
-	Log2MaxMvLengthVertical            uint32
-	MaxNumReorderFrames                uint32
-	MaxDecFrameBuffering               uint32
+	BitstreamRestriction *SpsBitstreamRestriction
 }
 
-func (v *SpsVui) unmarshal(br *bitio.Reader) error { //nolint:funlen,gocognit
+func (v *SpsVui) unmarshal(buf []byte, pos *int) error { //nolint:funlen,gocognit
 	var err error
-	v.AspectRatioInfoPresentFlag, err = readFlag(br)
+	v.AspectRatioInfoPresentFlag, err = bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
 	if v.AspectRatioInfoPresentFlag {
-		err = v.unmarshalAspectRatioInfo(br)
+		err = v.unmarshalAspectRatioInfo(buf, pos)
 		if err != nil {
 			return err
 		}
 	}
 
-	v.OverscanInfoPresentFlag, err = readFlag(br)
+	v.OverscanInfoPresentFlag, err = bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
 	if v.OverscanInfoPresentFlag {
-		v.OverscanAppropriateFlag, err = readFlag(br)
+		v.OverscanAppropriateFlag, err = bits.ReadFlag(buf, pos)
 		if err != nil {
 			return err
 		}
 	}
 
-	v.VideoSignalTypePresentFlag, err = readFlag(br)
+	v.VideoSignalTypePresentFlag, err = bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
 	if v.VideoSignalTypePresentFlag {
-		err = v.unmarshalVideoSignalType(br)
+		err = v.unmarshalVideoSignalType(buf, pos)
 		if err != nil {
 			return err
 		}
 	}
 
-	v.ChromaLocInfoPresentFlag, err = readFlag(br)
+	v.ChromaLocInfoPresentFlag, err = bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
 	if v.ChromaLocInfoPresentFlag {
-		v.ChromaSampleLocTypeTopField, err = readGolombUnsigned(br)
+		v.ChromaSampleLocTypeTopField, err = bits.ReadGolombUnsigned(buf, pos)
 		if err != nil {
 			return err
 		}
 
-		v.ChromaSampleLocTypeBottomField, err = readGolombUnsigned(br)
+		v.ChromaSampleLocTypeBottomField, err = bits.ReadGolombUnsigned(buf, pos)
 		if err != nil {
 			return err
 		}
 	}
 
-	v.TimingInfoPresentFlag, err = readFlag(br)
+	timingInfoPresentFlag, err := bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
-	if v.TimingInfoPresentFlag {
-		err = v.unmarshalTimingInfo(br)
+	if timingInfoPresentFlag {
+		v.TimingInfo = &SpsTimingInfo{}
+		err := v.TimingInfo.unmarshal(buf, pos)
 		if err != nil {
 			return err
 		}
 	}
 
-	nalHrdParametersPresentFlag, err := readFlag(br)
+	nalHrdParametersPresentFlag, err := bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
 	if nalHrdParametersPresentFlag {
 		v.NalHRD = &SpsHrd{}
-		err := v.NalHRD.unmarshal(br)
+		err := v.NalHRD.unmarshal(buf, pos)
 		if err != nil {
 			return err
 		}
 	}
 
-	vclHrdParametersPresentFlag, err := readFlag(br)
+	vclHrdParametersPresentFlag, err := bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
 	if vclHrdParametersPresentFlag {
 		v.VclHRD = &SpsHrd{}
-		err := v.VclHRD.unmarshal(br)
+		err := v.VclHRD.unmarshal(buf, pos)
 		if err != nil {
 			return err
 		}
 	}
 
 	if nalHrdParametersPresentFlag || vclHrdParametersPresentFlag {
-		v.LowDelayHrdFlag, err = readFlag(br)
+		v.LowDelayHrdFlag, err = bits.ReadFlag(buf, pos)
 		if err != nil {
 			return err
 		}
 	}
 
-	v.PicStructPresentFlag, err = readFlag(br)
+	v.PicStructPresentFlag, err = bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
-	v.BitstreamRestrictionFlag, err = readFlag(br)
+	bitstreamRestrictionFlag, err := bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
-	if v.BitstreamRestrictionFlag {
-		err = v.unmarshalBitstreamRestriction(br)
+	if bitstreamRestrictionFlag {
+		v.BitstreamRestriction = &SpsBitstreamRestriction{}
+		err := v.BitstreamRestriction.unmarshal(buf, pos)
 		if err != nil {
 			return err
 		}
@@ -344,154 +356,90 @@ func (v *SpsVui) unmarshal(br *bitio.Reader) error { //nolint:funlen,gocognit
 	return nil
 }
 
-func (v *SpsVui) unmarshalAspectRatioInfo(br *bitio.Reader) error {
-	tmp, err := br.ReadBits(8)
+func (v *SpsVui) unmarshalAspectRatioInfo(buf []byte, pos *int) error {
+	var err error
+	v.AspectRatioIdc, err = bits.ReadUint8(buf, pos)
 	if err != nil {
 		return err
 	}
-	v.AspectRatioIdc = uint8(tmp)
 
 	if v.AspectRatioIdc == 255 { // Extended_SAR
-		tmp, err := br.ReadBits(16)
+		v.SarWidth, err = bits.ReadUint16(buf, pos)
 		if err != nil {
 			return err
 		}
-		v.SarWidth = uint16(tmp)
 
-		tmp, err = br.ReadBits(16)
+		v.SarHeight, err = bits.ReadUint16(buf, pos)
 		if err != nil {
 			return err
 		}
-		v.SarHeight = uint16(tmp)
 	}
 	return nil
 }
 
-func (v *SpsVui) unmarshalVideoSignalType(br *bitio.Reader) error {
-	tmp, err := br.ReadBits(3)
+func (v *SpsVui) unmarshalVideoSignalType(buf []byte, pos *int) error {
+	tmp, err := bits.ReadBits(buf, pos, 3)
 	if err != nil {
 		return err
 	}
 	v.VideoFormat = uint8(tmp)
 
-	v.VideoFullRangeFlag, err = readFlag(br)
+	v.VideoFullRangeFlag, err = bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
-	v.ColourDescriptionPresentFlag, err = readFlag(br)
+	v.ColourDescriptionPresentFlag, err = bits.ReadFlag(buf, pos)
 	if err != nil {
 		return err
 	}
 
 	if v.ColourDescriptionPresentFlag {
-		tmp, err := br.ReadBits(8)
+		v.ColourPrimaries, err = bits.ReadUint8(buf, pos)
 		if err != nil {
 			return err
 		}
-		v.ColourPrimaries = uint8(tmp)
 
-		tmp, err = br.ReadBits(8)
+		v.TransferCharacteristics, err = bits.ReadUint8(buf, pos)
 		if err != nil {
 			return err
 		}
-		v.TransferCharacteristics = uint8(tmp)
 
-		tmp, err = br.ReadBits(8)
+		v.MatrixCoefficients, err = bits.ReadUint8(buf, pos)
 		if err != nil {
 			return err
 		}
-		v.MatrixCoefficients = uint8(tmp)
 	}
 
 	return nil
 }
 
-func (v *SpsVui) unmarshalTimingInfo(br *bitio.Reader) error {
-	tmp, err := br.ReadBits(32)
-	if err != nil {
-		return err
-	}
-	v.NumUnitsInTick = uint32(tmp)
-
-	tmp, err = br.ReadBits(32)
-	if err != nil {
-		return err
-	}
-	v.TimeScale = uint32(tmp)
-
-	v.FixedFrameRateFlag, err = readFlag(br)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *SpsVui) unmarshalBitstreamRestriction(br *bitio.Reader) error {
-	var err error
-	v.MotionVectorsOverPicBoundariesFlag, err = readFlag(br)
-	if err != nil {
-		return err
-	}
-
-	v.MaxBytesPerPicDenom, err = readGolombUnsigned(br)
-	if err != nil {
-		return err
-	}
-
-	v.MaxBitsPerMbDenom, err = readGolombUnsigned(br)
-	if err != nil {
-		return err
-	}
-
-	v.Log2MaxMvLengthHorizontal, err = readGolombUnsigned(br)
-	if err != nil {
-		return err
-	}
-
-	v.Log2MaxMvLengthVertical, err = readGolombUnsigned(br)
-	if err != nil {
-		return err
-	}
-
-	v.MaxNumReorderFrames, err = readGolombUnsigned(br)
-	if err != nil {
-		return err
-	}
-
-	v.MaxDecFrameBuffering, err = readGolombUnsigned(br)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// SpsFramecropping is the frame cropping part of a SPS.
-type SpsFramecropping struct {
+// SpsFrameCropping is the frame cropping part of a SPS.
+type SpsFrameCropping struct {
 	LeftOffset   uint32
 	RightOffset  uint32
 	TopOffset    uint32
 	BottomOffset uint32
 }
 
-func (c *SpsFramecropping) unmarshal(br *bitio.Reader) error {
+func (c *SpsFrameCropping) unmarshal(buf []byte, pos *int) error {
 	var err error
-	c.LeftOffset, err = readGolombUnsigned(br)
+	c.LeftOffset, err = bits.ReadGolombUnsigned(buf, pos)
 	if err != nil {
 		return err
 	}
 
-	c.RightOffset, err = readGolombUnsigned(br)
+	c.RightOffset, err = bits.ReadGolombUnsigned(buf, pos)
 	if err != nil {
 		return err
 	}
 
-	c.TopOffset, err = readGolombUnsigned(br)
+	c.TopOffset, err = bits.ReadGolombUnsigned(buf, pos)
 	if err != nil {
 		return err
 	}
 
-	c.BottomOffset, err = readGolombUnsigned(br)
+	c.BottomOffset, err = bits.ReadGolombUnsigned(buf, pos)
 	if err != nil {
 		return err
 	}
@@ -548,7 +496,7 @@ type SPS struct {
 	Direct8x8InferenceFlag bool
 
 	// frameCroppingFlag == true
-	FrameCropping *SpsFramecropping
+	FrameCropping *SpsFrameCropping
 
 	// vuiParameterPresentFlag == true
 	VUI *SpsVui
@@ -597,62 +545,62 @@ func (s *SPS) Unmarshal(buf []byte) error { //nolint:funlen
 	s.ConstraintSet5Flag = (buf[2] >> 2 & 0x01) == 1
 	s.LevelIdc = buf[3]
 
-	r := bytes.NewReader(buf[4:])
-	br := bitio.NewReader(r)
+	buf = buf[4:]
+	pos := 0
 
 	var err error
-	s.ID, err = readGolombUnsigned(br)
+	s.ID, err = bits.ReadGolombUnsigned(buf, &pos)
 	if err != nil {
 		return err
 	}
 
-	err = s.unmarshalProfileIdc(br)
+	err = s.unmarshalProfileIdc(buf, &pos)
 	if err != nil {
 		return err
 	}
 
-	s.Log2MaxFrameNumMinus4, err = readGolombUnsigned(br)
+	s.Log2MaxFrameNumMinus4, err = bits.ReadGolombUnsigned(buf, &pos)
 	if err != nil {
 		return err
 	}
 
-	s.PicOrderCntType, err = readGolombUnsigned(br)
+	s.PicOrderCntType, err = bits.ReadGolombUnsigned(buf, &pos)
 	if err != nil {
 		return err
 	}
 
-	err = s.unmarshalPicOrderCnt(br)
+	err = s.unmarshalPicOrderCnt(buf, &pos)
 	if err != nil {
 		return err
 	}
 
-	s.MaxNumRefFrames, err = readGolombUnsigned(br)
+	s.MaxNumRefFrames, err = bits.ReadGolombUnsigned(buf, &pos)
 	if err != nil {
 		return err
 	}
 
-	s.GapsInFrameNumValueAllowedFlag, err = readFlag(br)
+	s.GapsInFrameNumValueAllowedFlag, err = bits.ReadFlag(buf, &pos)
 	if err != nil {
 		return err
 	}
 
-	s.PicWidthInMbsMinus1, err = readGolombUnsigned(br)
+	s.PicWidthInMbsMinus1, err = bits.ReadGolombUnsigned(buf, &pos)
 	if err != nil {
 		return err
 	}
 
-	s.PicHeightInMbsMinus1, err = readGolombUnsigned(br)
+	s.PicHeightInMbsMinus1, err = bits.ReadGolombUnsigned(buf, &pos)
 	if err != nil {
 		return err
 	}
 
-	s.FrameMbsOnlyFlag, err = readFlag(br)
+	s.FrameMbsOnlyFlag, err = bits.ReadFlag(buf, &pos)
 	if err != nil {
 		return err
 	}
 
 	if !s.FrameMbsOnlyFlag {
-		s.MbAdaptiveFrameFieldFlag, err = readFlag(br)
+		s.MbAdaptiveFrameFieldFlag, err = bits.ReadFlag(buf, &pos)
 		if err != nil {
 			return err
 		}
@@ -660,19 +608,19 @@ func (s *SPS) Unmarshal(buf []byte) error { //nolint:funlen
 		s.MbAdaptiveFrameFieldFlag = false
 	}
 
-	s.Direct8x8InferenceFlag, err = readFlag(br)
+	s.Direct8x8InferenceFlag, err = bits.ReadFlag(buf, &pos)
 	if err != nil {
 		return err
 	}
 
-	frameCroppingFlag, err := readFlag(br)
+	frameCroppingFlag, err := bits.ReadFlag(buf, &pos)
 	if err != nil {
 		return err
 	}
 
 	if frameCroppingFlag {
-		s.FrameCropping = &SpsFramecropping{}
-		err := s.FrameCropping.unmarshal(br)
+		s.FrameCropping = &SpsFrameCropping{}
+		err := s.FrameCropping.unmarshal(buf, &pos)
 		if err != nil {
 			return err
 		}
@@ -680,14 +628,14 @@ func (s *SPS) Unmarshal(buf []byte) error { //nolint:funlen
 		s.FrameCropping = nil
 	}
 
-	vuiParameterPresentFlag, err := readFlag(br)
+	vuiParameterPresentFlag, err := bits.ReadFlag(buf, &pos)
 	if err != nil {
 		return err
 	}
 
 	if vuiParameterPresentFlag {
 		s.VUI = &SpsVui{}
-		err := s.VUI.unmarshal(br)
+		err := s.VUI.unmarshal(buf, &pos)
 		if err != nil {
 			return err
 		}
@@ -698,17 +646,17 @@ func (s *SPS) Unmarshal(buf []byte) error { //nolint:funlen
 	return nil
 }
 
-func (s *SPS) unmarshalProfileIdc(br *bitio.Reader) error {
+func (s *SPS) unmarshalProfileIdc(buf []byte, pos *int) error {
 	var err error
 	switch s.ProfileIdc {
 	case 100, 110, 122, 244, 44, 83, 86, 118, 128, 138, 139, 134, 135:
-		s.ChromeFormatIdc, err = readGolombUnsigned(br)
+		s.ChromeFormatIdc, err = bits.ReadGolombUnsigned(buf, pos)
 		if err != nil {
 			return err
 		}
 
 		if s.ChromeFormatIdc == 3 {
-			s.SeparateColourPlaneFlag, err = readFlag(br)
+			s.SeparateColourPlaneFlag, err = bits.ReadFlag(buf, pos)
 			if err != nil {
 				return err
 			}
@@ -716,28 +664,28 @@ func (s *SPS) unmarshalProfileIdc(br *bitio.Reader) error {
 			s.SeparateColourPlaneFlag = false
 		}
 
-		s.BitDepthLumaMinus8, err = readGolombUnsigned(br)
+		s.BitDepthLumaMinus8, err = bits.ReadGolombUnsigned(buf, pos)
 		if err != nil {
 			return err
 		}
 
-		s.BitDepthChromaMinus8, err = readGolombUnsigned(br)
+		s.BitDepthChromaMinus8, err = bits.ReadGolombUnsigned(buf, pos)
 		if err != nil {
 			return err
 		}
 
-		s.QpprimeYZeroTransformBypassFlag, err = readFlag(br)
+		s.QpprimeYZeroTransformBypassFlag, err = bits.ReadFlag(buf, pos)
 		if err != nil {
 			return err
 		}
 
-		seqScalingMatrixPresentFlag, err := readFlag(br)
+		seqScalingMatrixPresentFlag, err := bits.ReadFlag(buf, pos)
 		if err != nil {
 			return err
 		}
 
 		if seqScalingMatrixPresentFlag {
-			err = s.unmarshalSeqScalingMatrix(br)
+			err = s.unmarshalSeqScalingMatrix(buf, pos)
 			if err != nil {
 				return err
 			}
@@ -753,7 +701,7 @@ func (s *SPS) unmarshalProfileIdc(br *bitio.Reader) error {
 	return nil
 }
 
-func (s *SPS) unmarshalSeqScalingMatrix(br *bitio.Reader) error {
+func (s *SPS) unmarshalSeqScalingMatrix(buf []byte, pos *int) error {
 	var lim int
 	if s.ChromeFormatIdc != 3 {
 		lim = 8
@@ -762,14 +710,14 @@ func (s *SPS) unmarshalSeqScalingMatrix(br *bitio.Reader) error {
 	}
 
 	for i := 0; i < lim; i++ {
-		seqScalingListPresentFlag, err := readFlag(br)
+		seqScalingListPresentFlag, err := bits.ReadFlag(buf, pos)
 		if err != nil {
 			return err
 		}
 
 		if seqScalingListPresentFlag { //nolint:nestif
 			if i < 6 {
-				scalingList, useDefaultScalingMatrixFlag, err := readScalingList(br, 16)
+				scalingList, useDefaultScalingMatrixFlag, err := readScalingList(buf, pos, 16)
 				if err != nil {
 					return err
 				}
@@ -777,7 +725,7 @@ func (s *SPS) unmarshalSeqScalingMatrix(br *bitio.Reader) error {
 				s.UseDefaultScalingMatrix4x4Flag = append(s.UseDefaultScalingMatrix4x4Flag,
 					useDefaultScalingMatrixFlag)
 			} else {
-				scalingList, useDefaultScalingMatrixFlag, err := readScalingList(br, 64)
+				scalingList, useDefaultScalingMatrixFlag, err := readScalingList(buf, pos, 64)
 				if err != nil {
 					return err
 				}
@@ -790,11 +738,11 @@ func (s *SPS) unmarshalSeqScalingMatrix(br *bitio.Reader) error {
 	return nil
 }
 
-func (s *SPS) unmarshalPicOrderCnt(br *bitio.Reader) error {
+func (s *SPS) unmarshalPicOrderCnt(buf []byte, pos *int) error {
 	var err error
 	switch s.PicOrderCntType {
 	case 0:
-		s.Log2MaxPicOrderCntLsbMinus4, err = readGolombUnsigned(br)
+		s.Log2MaxPicOrderCntLsbMinus4, err = bits.ReadGolombUnsigned(buf, pos)
 		if err != nil {
 			return err
 		}
@@ -802,29 +750,29 @@ func (s *SPS) unmarshalPicOrderCnt(br *bitio.Reader) error {
 	case 1:
 		s.Log2MaxPicOrderCntLsbMinus4 = 0
 
-		s.DeltaPicOrderAlwaysZeroFlag, err = readFlag(br)
+		s.DeltaPicOrderAlwaysZeroFlag, err = bits.ReadFlag(buf, pos)
 		if err != nil {
 			return err
 		}
 
-		s.OffsetForNonRefPic, err = readGolombSigned(br)
+		s.OffsetForNonRefPic, err = bits.ReadGolombSigned(buf, pos)
 		if err != nil {
 			return err
 		}
 
-		s.OffsetForTopToBottomField, err = readGolombSigned(br)
+		s.OffsetForTopToBottomField, err = bits.ReadGolombSigned(buf, pos)
 		if err != nil {
 			return err
 		}
 
-		numRefFramesInPicOrderCntCycle, err := readGolombUnsigned(br)
+		numRefFramesInPicOrderCntCycle, err := bits.ReadGolombUnsigned(buf, pos)
 		if err != nil {
 			return err
 		}
 
 		s.OffsetForRefFrames = nil
 		for i := uint32(0); i < numRefFramesInPicOrderCntCycle; i++ {
-			v, err := readGolombSigned(br)
+			v, err := bits.ReadGolombSigned(buf, pos)
 			if err != nil {
 				return err
 			}
@@ -865,15 +813,11 @@ func (s SPS) Height() int {
 	return int((2 - f) * (s.PicHeightInMbsMinus1 + 1) * 16)
 }
 
-// FPS returns the frame per second of the video.
+// FPS returns the frames per second of the video.
 func (s SPS) FPS() float64 {
-	if s.VUI == nil {
+	if s.VUI == nil || s.VUI.TimingInfo == nil {
 		return 0
 	}
 
-	if !s.VUI.TimingInfoPresentFlag {
-		return 0
-	}
-
-	return float64(s.VUI.TimeScale) / (2 * float64(s.VUI.NumUnitsInTick))
+	return float64(s.VUI.TimingInfo.TimeScale) / (2 * float64(s.VUI.TimingInfo.NumUnitsInTick))
 }

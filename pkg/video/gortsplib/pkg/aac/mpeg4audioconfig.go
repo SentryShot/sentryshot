@@ -1,12 +1,9 @@
 package aac
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
-
-	"github.com/icza/bitio"
+	"nvr/pkg/video/gortsplib/pkg/bits"
 )
 
 // Errors.
@@ -15,23 +12,28 @@ var (
 	ErrConfigDecodeSampleRateInvalid  = errors.New("invalid sample rate index")
 	ErrConfigDecodeChannelUnsupported = errors.New("not yet supported")
 	ErrConfigDecodeChannelInvalid     = errors.New("invalid channel configuration")
+	ErrConfigDecodeUnsupported        = errors.New("unsupported")
 )
 
 // MPEG4AudioConfig is a MPEG-4 Audio configuration.
 type MPEG4AudioConfig struct {
-	Type              MPEG4AudioType
-	SampleRate        int
-	ChannelCount      int
-	AOTSpecificConfig []byte
+	Type         MPEG4AudioType
+	SampleRate   int
+	ChannelCount int
+
+	// AAC-LC specific
+	FrameLengthFlag    bool
+	DependsOnCoreCoder bool
+	CoreCoderDelay     uint16
 }
 
-// Decode decodes an MPEG4AudioConfig.
-func (c *MPEG4AudioConfig) Decode(byts []byte) error { //nolint:funlen
-	// ref: https://wiki.multimedia.cx/index.php/MPEG-4_Audio
+// Unmarshal decodes an MPEG4AudioConfig.
+func (c *MPEG4AudioConfig) Unmarshal(buf []byte) error { //nolint:funlen
+	// ref: ISO 14496-3
 
-	r := bitio.NewReader(bytes.NewBuffer(byts))
+	pos := 0
 
-	tmp, err := r.ReadBits(5)
+	tmp, err := bits.ReadBits(buf, &pos, 5)
 	if err != nil {
 		return err
 	}
@@ -43,7 +45,7 @@ func (c *MPEG4AudioConfig) Decode(byts []byte) error { //nolint:funlen
 		return fmt.Errorf("%w: %d", ErrConfigDecodeTypeUnsupported, c.Type)
 	}
 
-	sampleRateIndex, err := r.ReadBits(4)
+	sampleRateIndex, err := bits.ReadBits(buf, &pos, 4)
 	if err != nil {
 		return err
 	}
@@ -53,7 +55,7 @@ func (c *MPEG4AudioConfig) Decode(byts []byte) error { //nolint:funlen
 		c.SampleRate = sampleRates[sampleRateIndex]
 
 	case sampleRateIndex == 15:
-		tmp, err := r.ReadBits(24)
+		tmp, err := bits.ReadBits(buf, &pos, 24)
 		if err != nil {
 			return err
 		}
@@ -63,7 +65,7 @@ func (c *MPEG4AudioConfig) Decode(byts []byte) error { //nolint:funlen
 		return fmt.Errorf("%w (%d)", ErrConfigDecodeSampleRateInvalid, sampleRateIndex)
 	}
 
-	channelConfig, err := r.ReadBits(4)
+	channelConfig, err := bits.ReadBits(buf, &pos, 4)
 	if err != nil {
 		return err
 	}
@@ -82,23 +84,40 @@ func (c *MPEG4AudioConfig) Decode(byts []byte) error { //nolint:funlen
 		return fmt.Errorf("%w (%d)", ErrConfigDecodeChannelInvalid, channelConfig)
 	}
 
-	for {
-		byt, err := r.ReadBits(8)
+	tmp, err = bits.ReadBits(buf, &pos, 1)
+	if err != nil {
+		return err
+	}
+	c.FrameLengthFlag = (tmp == 1)
+
+	c.DependsOnCoreCoder, err = bits.ReadFlag(buf, &pos)
+	if err != nil {
+		return err
+	}
+
+	if c.DependsOnCoreCoder {
+		tmp, err := bits.ReadBits(buf, &pos, 14)
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
 			return err
 		}
+		c.CoreCoderDelay = uint16(tmp)
+	}
 
-		c.AOTSpecificConfig = append(c.AOTSpecificConfig, uint8(byt))
+	extensionFlag, err := bits.ReadFlag(buf, &pos)
+	if err != nil {
+		return err
+	}
+
+	if extensionFlag {
+		return ErrConfigDecodeUnsupported
 	}
 
 	return nil
 }
 
-func (c MPEG4AudioConfig) encodeSize() int {
-	n := 5 + 4 + len(c.AOTSpecificConfig)*8
+func (c MPEG4AudioConfig) marshalSize() int {
+	n := 5 + 4 + 3
+
 	_, ok := reverseSampleRates[c.SampleRate]
 	if !ok {
 		n += 28
@@ -106,31 +125,34 @@ func (c MPEG4AudioConfig) encodeSize() int {
 		n += 4
 	}
 
+	if c.DependsOnCoreCoder {
+		n += 14
+	}
+
 	ret := n / 8
-	if n%8 != 0 {
+	if (n % 8) != 0 {
 		ret++
 	}
+
 	return ret
 }
 
 // ErrConfigEncodeChannelCountInvalid .
 var ErrConfigEncodeChannelCountInvalid = errors.New("invalid channel count")
 
-// Encode encodes an MPEG4AudioConfig.
-func (c MPEG4AudioConfig) Encode() ([]byte, error) {
-	buf := make([]byte, c.encodeSize())
-	w := bitio.NewWriter(bytes.NewBuffer(buf[:0]))
+// Marshal encodes an MPEG4AudioConfig.
+func (c MPEG4AudioConfig) Marshal() ([]byte, error) {
+	buf := make([]byte, c.marshalSize())
+	pos := 0
 
-	if err := w.WriteBits(uint64(c.Type), 5); err != nil {
-		return nil, err
-	}
+	bits.WriteBits(buf, &pos, uint64(c.Type), 5)
 
 	sampleRateIndex, ok := reverseSampleRates[c.SampleRate]
 	if !ok {
-		w.WriteBits(uint64(15), 4)            //nolint:errcheck
-		w.WriteBits(uint64(c.SampleRate), 24) //nolint:errcheck
+		bits.WriteBits(buf, &pos, uint64(15), 4)
+		bits.WriteBits(buf, &pos, uint64(c.SampleRate), 24)
 	} else {
-		w.WriteBits(uint64(sampleRateIndex), 4) //nolint:errcheck
+		bits.WriteBits(buf, &pos, uint64(sampleRateIndex), 4)
 	}
 
 	var channelConfig int
@@ -146,17 +168,23 @@ func (c MPEG4AudioConfig) Encode() ([]byte, error) {
 			ErrConfigEncodeChannelCountInvalid, c.ChannelCount)
 	}
 
-	if err := w.WriteBits(uint64(channelConfig), 4); err != nil {
-		return nil, err
+	bits.WriteBits(buf, &pos, uint64(channelConfig), 4)
+
+	if c.FrameLengthFlag {
+		bits.WriteBits(buf, &pos, 1, 1)
+	} else {
+		bits.WriteBits(buf, &pos, 0, 1)
 	}
 
-	for _, b := range c.AOTSpecificConfig {
-		if err := w.WriteBits(uint64(b), 8); err != nil {
-			return nil, err
-		}
+	if c.DependsOnCoreCoder {
+		bits.WriteBits(buf, &pos, 1, 1)
+	} else {
+		bits.WriteBits(buf, &pos, 0, 1)
 	}
 
-	w.Close()
+	if c.DependsOnCoreCoder {
+		bits.WriteBits(buf, &pos, uint64(c.CoreCoderDelay), 14)
+	}
 
 	return buf, nil
 }

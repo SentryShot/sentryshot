@@ -173,18 +173,18 @@ var casesRTPinfo = []struct {
 	},
 }
 
-func TestRTPinfoRead(t *testing.T) {
+func TestRTPinfoUnmarshal(t *testing.T) {
 	for _, ca := range casesRTPinfo {
 		t.Run(ca.name, func(t *testing.T) {
 			var h RTPinfo
-			err := h.Read(ca.vin)
+			err := h.Unmarshal(ca.vin)
 			require.NoError(t, err)
 			require.Equal(t, ca.h, h)
 		})
 	}
 }
 
-func TestRTPinfoReadErrors(t *testing.T) {
+func TestRTPInfoUnmarshalErrors(t *testing.T) {
 	for _, ca := range []struct {
 		name string
 		hv   base.HeaderValue
@@ -223,16 +223,16 @@ func TestRTPinfoReadErrors(t *testing.T) {
 	} {
 		t.Run(ca.name, func(t *testing.T) {
 			var h RTPinfo
-			err := h.Read(ca.hv)
+			err := h.Unmarshal(ca.hv)
 			require.EqualError(t, err, ca.err)
 		})
 	}
 }
 
-func TestRTPinfoWrite(t *testing.T) {
+func TestRTPInfoMarshal(t *testing.T) {
 	for _, ca := range casesRTPinfo {
 		t.Run(ca.name, func(t *testing.T) {
-			req := ca.h.Write()
+			req := ca.h.Marshal()
 			require.Equal(t, ca.vout, req)
 		})
 	}

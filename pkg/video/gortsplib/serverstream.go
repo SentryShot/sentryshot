@@ -1,6 +1,7 @@
 package gortsplib
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -103,15 +104,24 @@ func (st *ServerStream) rtpInfo(trackID int, now time.Time) (uint16, uint32, boo
 	return seq, ts, true
 }
 
-func (st *ServerStream) readerAdd(ss *ServerSession) {
+// ErrClosedStream stream is closed.
+var ErrClosedStream = errors.New("stream is closed")
+
+func (st *ServerStream) readerAdd(ss *ServerSession) error {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
+
+	if st.readers == nil {
+		return ErrClosedStream
+	}
 
 	if st.s == nil {
 		st.s = ss.s
 	}
 
 	st.readers[ss] = struct{}{}
+
+	return nil
 }
 
 func (st *ServerStream) readerRemove(ss *ServerSession) {

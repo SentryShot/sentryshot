@@ -2,7 +2,7 @@ package gortsplib
 
 import (
 	"errors"
-	"nvr/pkg/video/gortsplib/pkg/base"
+	"nvr/pkg/video/gortsplib/pkg/url"
 	"strconv"
 	"strings"
 
@@ -14,16 +14,16 @@ type Track interface {
 	// ClockRate returns the track clock rate.
 	ClockRate() int
 
-	// GetControl returns the track control
+	// GetControl returns the track control attribute.
 	GetControl() string
 
-	// SetControl sets the track control
+	// SetControl sets the track control attribute.
 	SetControl(string)
 
 	// MediaDescription returns the track media description in SDP format.
 	MediaDescription() *psdp.MediaDescription
 	clone() Track
-	url(*base.URL) (*base.URL, error)
+	url(*url.URL) (*url.URL, error)
 }
 
 // Track errors.
@@ -65,15 +65,17 @@ func newTrackFromMediaDescription(md *psdp.MediaDescription) (Track, error) {
 		return rtpmapParts[1], payloadType
 	}()
 
-	switch {
-	case md.MediaName.Media == "video":
-		if rtpmapPart1 == "H264/90000" {
-			return newTrackH264FromMediaDescription(control, payloadType, md), nil
-		}
+	if len(md.MediaName.Formats) == 1 {
+		switch {
+		case md.MediaName.Media == "video":
+			if rtpmapPart1 == "H264/90000" {
+				return newTrackH264FromMediaDescription(control, payloadType, md)
+			}
 
-	case md.MediaName.Media == "audio":
-		if strings.HasPrefix(strings.ToLower(rtpmapPart1), "mpeg4-generic/") {
-			return newTrackAACFromMediaDescription(control, payloadType, md)
+		case md.MediaName.Media == "audio":
+			if strings.HasPrefix(strings.ToLower(rtpmapPart1), "mpeg4-generic/") {
+				return newTrackAACFromMediaDescription(control, payloadType, md)
+			}
 		}
 	}
 
@@ -84,17 +86,17 @@ type trackBase struct {
 	control string
 }
 
-// GetControl gets the track control.
+// GetControl gets the track control attribute.
 func (t *trackBase) GetControl() string {
 	return t.control
 }
 
-// SetControl sets the track control.
+// SetControl sets the track control attribute.
 func (t *trackBase) SetControl(c string) {
 	t.control = c
 }
 
-func (t *trackBase) url(contentBase *base.URL) (*base.URL, error) {
+func (t *trackBase) url(contentBase *url.URL) (*url.URL, error) {
 	if contentBase == nil {
 		return nil, ErrTrackContentBaseMissing
 	}
@@ -108,7 +110,7 @@ func (t *trackBase) url(contentBase *base.URL) (*base.URL, error) {
 
 	// control attribute contains an absolute path
 	if strings.HasPrefix(control, "rtsp://") {
-		ur, err := base.ParseURL(control)
+		ur, err := url.Parse(control)
 		if err != nil {
 			return nil, err
 		}
@@ -128,6 +130,6 @@ func (t *trackBase) url(contentBase *base.URL) (*base.URL, error) {
 		strURL += "/"
 	}
 
-	ur, _ := base.ParseURL(strURL + control)
+	ur, _ := url.Parse(strURL + control)
 	return ur, nil
 }

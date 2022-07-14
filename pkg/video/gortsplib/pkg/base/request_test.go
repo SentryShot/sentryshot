@@ -6,8 +6,18 @@ import (
 	"io"
 	"testing"
 
+	"nvr/pkg/video/gortsplib/pkg/url"
+
 	"github.com/stretchr/testify/require"
 )
+
+func mustParseURL(s string) *url.URL {
+	u, err := url.Parse(s)
+	if err != nil {
+		panic(err)
+	}
+	return u
+}
 
 var casesRequest = []struct {
 	name string
@@ -219,10 +229,10 @@ func TestRequestReadErrors(t *testing.T) {
 	}
 }
 
-func TestRequestWrite(t *testing.T) {
+func TestRequestMarshal(t *testing.T) {
 	for _, ca := range casesRequest {
 		t.Run(ca.name, func(t *testing.T) {
-			buf, err := ca.req.Write()
+			buf, err := ca.req.Marshal()
 			require.NoError(t, err)
 			require.Equal(t, ca.byts, buf)
 		})

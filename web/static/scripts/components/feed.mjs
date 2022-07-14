@@ -1,11 +1,6 @@
 const hlsConfig = {
-	enableWorker: true,
-	maxBufferLength: 1,
-	liveBackBufferLength: 0,
-	liveSyncDuration: 0,
-	liveMaxLatencyDuration: 5,
-	liveDurationInfinity: true,
-	highBufferWatchdogPeriod: 1,
+	maxDelaySec: 2,
+	maxRecoveryAttempts: -1,
 };
 
 const iconMutedPath = "static/icons/feather/volume-x.svg";
@@ -20,7 +15,9 @@ function newFeed(monitor, preferLowRes, Hls) {
 	if (subInputEnabled && preferLowRes) {
 		res = "_sub";
 	}
-	const source = `hls/${id}${res}/index.m3u8`;
+
+	const stream = `hls/${id}${res}/stream.m3u8`;
+	const index = `hls/${id}${res}/index.m3u8`;
 
 	let hls;
 
@@ -30,12 +27,22 @@ function newFeed(monitor, preferLowRes, Hls) {
 			const element = $parent.querySelector(`#js-video-${id}`);
 			const $video = element.querySelector("video");
 
-			hls = new Hls(hlsConfig);
-			hls.attachMedia($video);
-			hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-				hls.loadSource(source);
-				$video.play();
-			});
+			if (Hls.isSupported()) {
+				hls = new Hls(hlsConfig);
+				hls.onError = (error) => {
+					console.log(error);
+				};
+				hls.init($video, index);
+			} else if ($video.canPlayType("application/vnd.apple.mpegurl")) {
+				// since it's not possible to detect timeout errors in iOS,
+				// wait for the playlist to be available before starting the stream
+				// eslint-disable-next-line promise/always-return,promise/catch-or-return
+				fetch(stream).then(() => {
+					$video.controls = true;
+					$video.src = index;
+					$video.play();
+				});
+			}
 
 			if (audioEnabled) {
 				const $muteBtn = element.querySelector(".js-mute-btn");
@@ -84,7 +91,7 @@ function feedHTML(id, audioEnabled) {
 	return `
 		<div id="js-video-${id}" class="grid-item-container">
 			${overlayHTML}
-			<video class="grid-item" muted disablepictureinpicture></video>
+			<video class="grid-item" muted disablepictureinpicture playsinline></video>
 		</div>`;
 }
 

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"nvr/pkg/log"
+	"nvr/pkg/video/hls"
 	gopath "path"
 	"strings"
 	"sync"
@@ -26,7 +27,7 @@ type hlsServer struct {
 
 	// in
 	pathSourceReady chan *path
-	request         chan hlsMuxerRequest
+	request         chan *hlsMuxerRequest
 	muxerClose      chan *hlsMuxer
 }
 
@@ -45,7 +46,7 @@ func newHLSServer(
 		wg:              wg,
 		muxers:          make(map[string]*hlsMuxer),
 		pathSourceReady: make(chan *path),
-		request:         make(chan hlsMuxerRequest),
+		request:         make(chan *hlsMuxerRequest),
 		muxerClose:      make(chan *hlsMuxer),
 	}
 	s.pathManager.onHLSServerSet(s)
@@ -111,11 +112,10 @@ outer:
 	for {
 		select {
 		case pa := <-s.pathSourceReady:
-			s.findOrCreateMuxer(pa.Name())
+			s.findOrCreateMuxer(pa.Name(), nil)
 
 		case req := <-s.request:
-			r := s.findOrCreateMuxer(req.path)
-			r.onRequest(req)
+			s.findOrCreateMuxer(req.path, req)
 
 		case c := <-s.muxerClose:
 			if c2, ok := s.muxers[c.pathName]; !ok || c2 != c {
@@ -152,7 +152,7 @@ func (s *hlsServer) HandleRequest() http.HandlerFunc { //nolint:funlen
 			return
 		}
 
-		// remove leading prefix "/hls/"
+		// Remove leading prefix "/hls/"
 		if len(r.URL.Path) <= 5 {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -160,7 +160,9 @@ func (s *hlsServer) HandleRequest() http.HandlerFunc { //nolint:funlen
 		pa := r.URL.Path[5:]
 
 		dir, fname := func() (string, string) {
-			if strings.HasSuffix(pa, ".ts") || strings.HasSuffix(pa, ".m3u8") {
+			if strings.HasSuffix(pa, ".ts") ||
+				strings.HasSuffix(pa, ".m3u8") ||
+				strings.HasSuffix(pa, ".mp4") {
 				return gopath.Dir(pa), gopath.Base(pa)
 			}
 			return pa, ""
@@ -174,8 +176,8 @@ func (s *hlsServer) HandleRequest() http.HandlerFunc { //nolint:funlen
 
 		dir = strings.TrimSuffix(dir, "/")
 
-		cres := make(chan hlsMuxerResponse)
-		hreq := hlsMuxerRequest{
+		cres := make(chan func() *hls.MuxerFileResponse)
+		hreq := &hlsMuxerRequest{
 			path: dir,
 			file: fname,
 			req:  r,
@@ -185,34 +187,39 @@ func (s *hlsServer) HandleRequest() http.HandlerFunc { //nolint:funlen
 		select {
 		case <-s.ctx.Done():
 		case s.request <- hreq:
-			res := <-cres
-			for k, v := range res.header {
+			cb := <-cres
+
+			res := cb()
+
+			for k, v := range res.Header {
 				w.Header().Set(k, v)
 			}
-			w.WriteHeader(res.status)
+			w.WriteHeader(res.Status)
 
-			if res.body != nil {
-				io.Copy(w, res.body) //nolint:errcheck
+			if res.Body != nil {
+				io.Copy(w, res.Body) //nolint:errcheck
 			}
 		}
 	}
 }
 
-func (s *hlsServer) findOrCreateMuxer(pathName string) *hlsMuxer {
+func (s *hlsServer) findOrCreateMuxer(pathName string, req *hlsMuxerRequest) {
 	r, ok := s.muxers[pathName]
 	if !ok {
 		r = newHLSMuxer(
 			s.ctx,
 			pathName,
 			s.readBufferCount,
+			req,
 			s.wg,
 			pathName,
 			s.pathManager,
 			s,
 			s.logger)
 		s.muxers[pathName] = r
+	} else if req != nil {
+		r.onRequest(req)
 	}
-	return r
 }
 
 // onMuxerClose is called by hlsMuxer.

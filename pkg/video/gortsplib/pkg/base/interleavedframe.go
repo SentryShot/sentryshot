@@ -80,11 +80,8 @@ type InterleavedFrame struct {
 	Payload []byte
 }
 
-// Errors.
-var (
-	ErrInvalidMagicByte = errors.New("invalid magic byte")
-	ErrPayloadToBig     = errors.New("payload size greater than maximum allowed")
-)
+// ErrInvalidMagicByte invalid magic byte.
+var ErrInvalidMagicByte = errors.New("invalid magic byte")
 
 // PayloadToBigError .
 type PayloadToBigError struct {
@@ -97,7 +94,7 @@ func (e PayloadToBigError) Error() string {
 		e.PayloadLen, e.MaxPayloadSize)
 }
 
-// Read reads an interleaved frame.
+// Read decodes an interleaved frame.
 func (f *InterleavedFrame) Read(maxPayloadSize int, br *bufio.Reader) error {
 	var header [4]byte
 	_, err := io.ReadFull(br, header[:])
@@ -124,13 +121,13 @@ func (f *InterleavedFrame) Read(maxPayloadSize int, br *bufio.Reader) error {
 	return nil
 }
 
-// WriteSize returns the size of an InterleavedFrame.
-func (f InterleavedFrame) WriteSize() int {
+// MarshalSize returns the size of an InterleavedFrame.
+func (f InterleavedFrame) MarshalSize() int {
 	return 4 + len(f.Payload)
 }
 
-// WriteTo writes an InterleavedFrame.
-func (f InterleavedFrame) WriteTo(buf []byte) (int, error) {
+// MarshalTo writes an InterleavedFrame.
+func (f InterleavedFrame) MarshalTo(buf []byte) (int, error) {
 	pos := 0
 
 	pos += copy(buf[pos:], []byte{0x24, byte(f.Channel)})
@@ -143,9 +140,9 @@ func (f InterleavedFrame) WriteTo(buf []byte) (int, error) {
 	return pos, nil
 }
 
-// Write writes an InterleavedFrame.
-func (f InterleavedFrame) Write() ([]byte, error) {
-	buf := make([]byte, f.WriteSize())
-	_, err := f.WriteTo(buf)
+// Marshal writes an InterleavedFrame.
+func (f InterleavedFrame) Marshal() ([]byte, error) {
+	buf := make([]byte, f.MarshalSize())
+	_, err := f.MarshalTo(buf)
 	return buf, err
 }

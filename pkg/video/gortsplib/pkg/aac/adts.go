@@ -39,53 +39,49 @@ func (e ADTSdecodeAUsizeToBigError) Error() string {
 
 // ADTSPacket is an ADTS packet.
 type ADTSPacket struct {
-	Type         int
+	Type         MPEG4AudioType
 	SampleRate   int
 	ChannelCount int
 	AU           []byte
 }
 
-// DecodeADTS decodes an ADTS stream into ADTS packets.
-func DecodeADTS(buf []byte) ([]*ADTSPacket, error) { //nolint:funlen
+// ADTSPackets is a group od ADTS packets.
+type ADTSPackets []*ADTSPacket
+
+// Unmarshal decodes an ADTS stream into ADTS packets.
+func (ps *ADTSPackets) Unmarshal(buf []byte) error { //nolint:funlen
 	// refs: https://wiki.multimedia.cx/index.php/ADTS
 
-	var ret []*ADTSPacket
 	bl := len(buf)
 	pos := 0
 
 	for {
 		if (bl - pos) < 8 {
-			return nil, ErrADTSdecodeLengthInvalid
+			return ErrADTSdecodeLengthInvalid
 		}
 
 		syncWord := (uint16(buf[pos]) << 4) | (uint16(buf[pos+1]) >> 4)
 		if syncWord != 0xfff {
-			return nil, ErrADTSdecodeSyncwordInvalid
+			return ErrADTSdecodeSyncwordInvalid
 		}
 
 		protectionAbsent := buf[pos+1] & 0x01
 		if protectionAbsent != 1 {
-			return nil, ErrADTSdecodeCRCunsupported
+			return ErrADTSdecodeCRCunsupported
 		}
 
 		pkt := &ADTSPacket{}
 
-		pkt.Type = int((buf[pos+2] >> 6) + 1)
-
-		switch MPEG4AudioType(pkt.Type) {
-		case MPEG4AudioTypeAACLC:
-		default:
-			return nil, fmt.Errorf("%w: %d", ErrADTSdecodeTypeUnsupported, pkt.Type)
+		pkt.Type = MPEG4AudioType((buf[pos+2] >> 6) + 1)
+		if pkt.Type != MPEG4AudioTypeAACLC {
+			return fmt.Errorf("%w: %d", ErrADTSdecodeTypeUnsupported, pkt.Type)
 		}
 
 		sampleRateIndex := (buf[pos+2] >> 2) & 0x0F
-
-		switch {
-		case sampleRateIndex <= 12:
+		if sampleRateIndex <= 12 {
 			pkt.SampleRate = sampleRates[sampleRateIndex]
-
-		default:
-			return nil, fmt.Errorf("%w: %d", ErrADTSdecodeSampleRateInvalid, sampleRateIndex)
+		} else {
+			return fmt.Errorf("%w: %d", ErrADTSdecodeSampleRateInvalid, sampleRateIndex)
 		}
 
 		channelConfig := ((buf[pos+2] & 0x01) << 2) | ((buf[pos+3] >> 6) & 0x03)
@@ -97,41 +93,41 @@ func DecodeADTS(buf []byte) ([]*ADTSPacket, error) { //nolint:funlen
 			pkt.ChannelCount = 8
 
 		default:
-			return nil, fmt.Errorf("%w: %d", ErrADTSdecodeChannelInvalid, channelConfig)
+			return fmt.Errorf("%w: %d", ErrADTSdecodeChannelInvalid, channelConfig)
 		}
 
 		frameLen := int(((uint16(buf[pos+3])&0x03)<<11)|
 			(uint16(buf[pos+4])<<3)|
 			((uint16(buf[pos+5])>>5)&0x07)) - 7
 		if frameLen > MaxAccessUnitSize {
-			return nil, ADTSdecodeAUsizeToBigError{AUsize: frameLen}
+			return ADTSdecodeAUsizeToBigError{AUsize: frameLen}
 		}
 
 		frameCount := buf[pos+6] & 0x03
 		if frameCount != 0 {
-			return nil, ErrADTSdecodeMultipleFramesUnsupported
+			return ErrADTSdecodeMultipleFramesUnsupported
 		}
 
 		if len(buf[pos+7:]) < frameLen {
-			return nil, ErrADTSdecodeFrameLengthInvalid
+			return ErrADTSdecodeFrameLengthInvalid
 		}
 
 		pkt.AU = buf[pos+7 : pos+7+frameLen]
 		pos += 7 + frameLen
 
-		ret = append(ret, pkt)
+		*ps = append(*ps, pkt)
 
 		if (bl - pos) == 0 {
 			break
 		}
 	}
 
-	return ret, nil
+	return nil
 }
 
-func encodeADTSSize(pkts []*ADTSPacket) int {
+func (ps ADTSPackets) marshalSize() int {
 	n := 0
-	for _, pkt := range pkts {
+	for _, pkt := range ps {
 		n += 7 + len(pkt.AU)
 	}
 	return n
@@ -143,12 +139,12 @@ var (
 	ErrADTSencodeChannelCountInvalid = errors.New("invalid channel count")
 )
 
-// EncodeADTS encodes ADTS packets into an ADTS stream.
-func EncodeADTS(pkts []*ADTSPacket) ([]byte, error) {
-	buf := make([]byte, encodeADTSSize(pkts))
+// Marshal encodes ADTS packets into an ADTS stream.
+func (ps ADTSPackets) Marshal() ([]byte, error) {
+	buf := make([]byte, ps.marshalSize())
 	pos := 0
 
-	for _, pkt := range pkts {
+	for _, pkt := range ps {
 		sampleRateIndex, ok := reverseSampleRates[pkt.SampleRate]
 		if !ok {
 			return nil, fmt.Errorf("%w: %d",
@@ -174,7 +170,7 @@ func EncodeADTS(pkts []*ADTSPacket) ([]byte, error) {
 
 		buf[pos+0] = 0xFF
 		buf[pos+1] = 0xF1
-		buf[pos+2] = uint8(((pkt.Type - 1) << 6) | (sampleRateIndex << 2) | ((channelConfig >> 2) & 0x01))
+		buf[pos+2] = uint8((int(pkt.Type-1) << 6) | (sampleRateIndex << 2) | ((channelConfig >> 2) & 0x01))
 		buf[pos+3] = uint8((channelConfig&0x03)<<6 | (frameLen>>11)&0x03)
 		buf[pos+4] = uint8((frameLen >> 3) & 0xFF)
 		buf[pos+5] = uint8((frameLen&0x07)<<5 | ((fullness >> 6) & 0x1F))

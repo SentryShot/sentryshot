@@ -15,15 +15,18 @@ var ErrNoValidTracks = errors.New("no valid tracks found")
 // Tracks is a list of tracks.
 type Tracks []Track
 
-// ReadTracks decodes tracks from the SDP format.
-func ReadTracks(byts []byte, skipGenericTracksWithoutClockRate bool) (Tracks, error) {
+// Unmarshal decodes tracks from the SDP format. It returns the decoded SDP.
+func (ts *Tracks) Unmarshal(
+	byts []byte,
+	skipGenericTracksWithoutClockRate bool,
+) (*sdp.SessionDescription, error) {
 	var sd sdp.SessionDescription
 	err := sd.Unmarshal(byts)
 	if err != nil {
 		return nil, err
 	}
 
-	var tracks Tracks
+	*ts = nil
 
 	for i, md := range sd.MediaDescriptions {
 		t, err := newTrackFromMediaDescription(md)
@@ -34,14 +37,14 @@ func ReadTracks(byts []byte, skipGenericTracksWithoutClockRate bool) (Tracks, er
 			return nil, fmt.Errorf("unable to parse track %d: %w", i+1, err)
 		}
 
-		tracks = append(tracks, t)
+		*ts = append(*ts, t)
 	}
 
-	if len(tracks) == 0 {
+	if *ts == nil {
 		return nil, ErrNoValidTracks
 	}
 
-	return tracks, nil
+	return &sd, nil
 }
 
 func (ts Tracks) clone() Tracks {
@@ -58,8 +61,8 @@ func (ts Tracks) setControls() {
 	}
 }
 
-// Write encodes tracks in the SDP format.
-func (ts Tracks) Write() []byte {
+// Marshal encodes tracks in the SDP format.
+func (ts Tracks) Marshal() []byte {
 	address := "0.0.0.0"
 
 	sout := &sdp.SessionDescription{

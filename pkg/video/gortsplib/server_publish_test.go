@@ -9,6 +9,7 @@ import (
 
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/gortsplib/pkg/headers"
+	"nvr/pkg/video/gortsplib/pkg/url"
 
 	"github.com/pion/rtp"
 	psdp "github.com/pion/sdp/v3"
@@ -29,8 +30,8 @@ var testRTPPacketMarshaled = func() []byte {
 	return byts
 }()
 
-func mustParseURL(s string) *base.URL {
-	u, err := base.ParseURL(s)
+func mustParseURL(s string) *url.URL {
+	u, err := url.Parse(s)
 	if err != nil {
 		panic(err)
 	}
@@ -46,8 +47,11 @@ func invalidURLAnnounceReq(t *testing.T, control string) base.Request {
 			"Content-Type": base.HeaderValue{"application/sdp"},
 		},
 		Body: func() []byte {
-			track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-			require.NoError(t, err)
+			track := &TrackH264{
+				PayloadType: 96,
+				SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+				PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+			}
 			track.SetControl(control)
 
 			sout := &psdp.SessionDescription{
@@ -145,7 +149,7 @@ func TestServerPublishErrorAnnounce(t *testing.T) {
 						}, nil
 					},
 				},
-				RTSPaddress: "localhost:8554",
+				RTSPAddress: "localhost:8554",
 			}
 
 			err := s.Start()
@@ -236,7 +240,7 @@ func TestServerPublishSetupPath(t *testing.T) {
 						}, nil, nil
 					},
 				},
-				RTSPaddress: "localhost:8554",
+				RTSPAddress: "localhost:8554",
 			}
 
 			err := s.Start()
@@ -248,8 +252,11 @@ func TestServerPublishSetupPath(t *testing.T) {
 			defer conn.Close()
 			br := bufio.NewReader(conn)
 
-			track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-			require.NoError(t, err)
+			track := &TrackH264{
+				PayloadType: 96,
+				SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+				PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+			}
 			track.SetControl(ca.control)
 
 			sout := &psdp.SessionDescription{
@@ -296,7 +303,7 @@ func TestServerPublishSetupPath(t *testing.T) {
 				URL:    mustParseURL(ca.url),
 				Header: base.Header{
 					"CSeq":      base.HeaderValue{"2"},
-					"Transport": th.Write(),
+					"Transport": th.Marshal(),
 				},
 			})
 			require.NoError(t, err)
@@ -324,7 +331,7 @@ func TestServerPublishErrorSetupDifferentPaths(t *testing.T) {
 				}, nil, nil
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -336,8 +343,11 @@ func TestServerPublishErrorSetupDifferentPaths(t *testing.T) {
 	defer conn.Close()
 	br := bufio.NewReader(conn)
 
-	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+	track := &TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}
 
 	tracks := Tracks{track}
 	tracks.setControls()
@@ -349,7 +359,7 @@ func TestServerPublishErrorSetupDifferentPaths(t *testing.T) {
 			"CSeq":         base.HeaderValue{"1"},
 			"Content-Type": base.HeaderValue{"application/sdp"},
 		},
-		Body: tracks.Write(),
+		Body: tracks.Marshal(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
@@ -368,7 +378,7 @@ func TestServerPublishErrorSetupDifferentPaths(t *testing.T) {
 		URL:    mustParseURL("rtsp://localhost:8554/test2stream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
-			"Transport": th.Write(),
+			"Transport": th.Marshal(),
 		},
 	})
 	require.NoError(t, err)
@@ -397,7 +407,7 @@ func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
 				}, nil, nil
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -409,8 +419,11 @@ func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
 	defer conn.Close()
 	br := bufio.NewReader(conn)
 
-	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+	track := &TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}
 
 	tracks := Tracks{track}
 	tracks.setControls()
@@ -422,7 +435,7 @@ func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
 			"CSeq":         base.HeaderValue{"1"},
 			"Content-Type": base.HeaderValue{"application/sdp"},
 		},
-		Body: tracks.Write(),
+		Body: tracks.Marshal(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
@@ -441,14 +454,14 @@ func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
-			"Transport": th.Write(),
+			"Transport": th.Marshal(),
 		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
 
 	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
+	err = sx.Unmarshal(res.Header["Session"])
 	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{
@@ -456,7 +469,7 @@ func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"3"},
-			"Transport": th.Write(),
+			"Transport": th.Marshal(),
 			"Session":   base.HeaderValue{sx.Session},
 		},
 	})
@@ -491,7 +504,7 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 				}, nil
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -503,11 +516,17 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 	defer conn.Close()
 	br := bufio.NewReader(conn)
 
-	track1, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+	track1 := &TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}
 
-	track2, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+	track2 := &TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}
 
 	tracks := Tracks{track1, track2}
 	tracks.setControls()
@@ -519,7 +538,7 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 			"CSeq":         base.HeaderValue{"1"},
 			"Content-Type": base.HeaderValue{"application/sdp"},
 		},
-		Body: tracks.Write(),
+		Body: tracks.Marshal(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
@@ -538,14 +557,14 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
-			"Transport": th.Write(),
+			"Transport": th.Marshal(),
 		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
 
 	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
+	err = sx.Unmarshal(res.Header["Session"])
 	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{
@@ -635,7 +654,7 @@ func TestServerPublishOversizedPacket(t *testing.T) {
 	packetRecv := make(chan struct{})
 
 	s := &Server{
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 		Handler: &testServerHandler{
 			onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
 				return &base.Response{
@@ -673,8 +692,11 @@ func TestServerPublishOversizedPacket(t *testing.T) {
 	defer conn.Close()
 	br := bufio.NewReader(conn)
 
-	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+	track := &TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}
 
 	tracks := Tracks{track}
 	tracks.setControls()
@@ -686,7 +708,7 @@ func TestServerPublishOversizedPacket(t *testing.T) {
 			"CSeq":         base.HeaderValue{"1"},
 			"Content-Type": base.HeaderValue{"application/sdp"},
 		},
-		Body: tracks.Write(),
+		Body: tracks.Marshal(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
@@ -705,14 +727,14 @@ func TestServerPublishOversizedPacket(t *testing.T) {
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
-			"Transport": inTH.Write(),
+			"Transport": inTH.Marshal(),
 		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
 
 	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
+	err = sx.Unmarshal(res.Header["Session"])
 	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{
@@ -730,7 +752,7 @@ func TestServerPublishOversizedPacket(t *testing.T) {
 	byts, _ = base.InterleavedFrame{
 		Channel: 0,
 		Payload: byts,
-	}.Write()
+	}.Marshal()
 	_, err = conn.Write(byts)
 	require.NoError(t, err)
 
@@ -759,7 +781,7 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 				t.Error("should not happen")
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -771,8 +793,11 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 	defer conn.Close()
 	br := bufio.NewReader(conn)
 
-	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+	track := &TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}
 
 	tracks := Tracks{track}
 	tracks.setControls()
@@ -784,7 +809,7 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 			"CSeq":         base.HeaderValue{"1"},
 			"Content-Type": base.HeaderValue{"application/sdp"},
 		},
-		Body: tracks.Write(),
+		Body: tracks.Marshal(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
@@ -792,7 +817,7 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 	byts, _ := base.InterleavedFrame{
 		Channel: 0,
 		Payload: []byte{0x01, 0x02, 0x03, 0x04},
-	}.Write()
+	}.Marshal()
 	_, err = conn.Write(byts)
 	require.NoError(t, err)
 }
@@ -826,7 +851,7 @@ func TestServerPublishTimeout(t *testing.T) {
 			},
 		},
 		ReadTimeout: 2 * time.Millisecond,
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -838,8 +863,11 @@ func TestServerPublishTimeout(t *testing.T) {
 	defer conn.Close()
 	br := bufio.NewReader(conn)
 
-	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+	track := &TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}
 
 	tracks := Tracks{track}
 	tracks.setControls()
@@ -851,7 +879,7 @@ func TestServerPublishTimeout(t *testing.T) {
 			"CSeq":         base.HeaderValue{"1"},
 			"Content-Type": base.HeaderValue{"application/sdp"},
 		},
-		Body: tracks.Write(),
+		Body: tracks.Marshal(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
@@ -871,18 +899,18 @@ func TestServerPublishTimeout(t *testing.T) {
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
-			"Transport": inTH.Write(),
+			"Transport": inTH.Marshal(),
 		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
 
 	var th headers.Transport
-	err = th.Read(res.Header["Transport"])
+	err = th.Unmarshal(res.Header["Transport"])
 	require.NoError(t, err)
 
 	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
+	err = sx.Unmarshal(res.Header["Session"])
 	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{
@@ -930,7 +958,7 @@ func TestServerPublishWithoutTeardown(t *testing.T) {
 			},
 		},
 		ReadTimeout: 20 * time.Millisecond,
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -941,8 +969,11 @@ func TestServerPublishWithoutTeardown(t *testing.T) {
 	require.NoError(t, err)
 	br := bufio.NewReader(conn)
 
-	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+	track := &TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}
 
 	tracks := Tracks{track}
 	tracks.setControls()
@@ -954,7 +985,7 @@ func TestServerPublishWithoutTeardown(t *testing.T) {
 			"CSeq":         base.HeaderValue{"1"},
 			"Content-Type": base.HeaderValue{"application/sdp"},
 		},
-		Body: tracks.Write(),
+		Body: tracks.Marshal(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
@@ -974,18 +1005,18 @@ func TestServerPublishWithoutTeardown(t *testing.T) {
 		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq":      base.HeaderValue{"2"},
-			"Transport": inTH.Write(),
+			"Transport": inTH.Marshal(),
 		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
 
 	var th headers.Transport
-	err = th.Read(res.Header["Transport"])
+	err = th.Unmarshal(res.Header["Transport"])
 	require.NoError(t, err)
 
 	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
+	err = sx.Unmarshal(res.Header["Session"])
 	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{

@@ -17,6 +17,7 @@ package motion
 
 import (
 	"fmt"
+	"log"
 	"nvr"
 	"os"
 	"strings"
@@ -24,15 +25,10 @@ import (
 
 func init() {
 	nvr.RegisterTplHook(modifyTemplates)
+	log.Fatalln("the motion addon is depricated")
 }
 
 func modifyTemplates(pageFiles map[string]string) error {
-	tpl, exists := pageFiles["settings.tpl"]
-	if !exists {
-		return fmt.Errorf("motion: settings.tpl %w", os.ErrNotExist)
-	}
-	pageFiles["settings.tpl"] = modifySettings(tpl)
-
 	js, exists := pageFiles["settings.js"]
 	if !exists {
 		return fmt.Errorf("motion: settings.js %w", os.ErrNotExist)
@@ -41,13 +37,6 @@ func modifyTemplates(pageFiles map[string]string) error {
 	pageFiles["settings.js"] = modifySettingsjs(js)
 	// fmt.Println(pageFiles["settings.js"])
 	return nil
-}
-
-func modifySettings(tpl string) string {
-	return strings.ReplaceAll(tpl,
-		`<script type="module" src="./settings.js" defer></script>`,
-		`<script type="module" src="./settings.js" defer></script>
-			<script src="static/scripts/vendor/hls.light.min.js" defer></script>`)
 }
 
 func modifySettingsjs(tpl string) string {

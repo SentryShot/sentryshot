@@ -21,15 +21,42 @@ var (
 	ErrH264spropMissing = errors.New("sprop-parameter-sets is missing")
 )
 
-func trackH264GetSPSPPS(md *psdp.MediaDescription) ([]byte, []byte, error) {
+// TrackH264 is a H264 track.
+type TrackH264 struct {
+	PayloadType uint8
+	SPS         []byte
+	PPS         []byte
+
+	trackBase
+	mu sync.RWMutex
+}
+
+func newTrackH264FromMediaDescription(
+	control string,
+	payloadType uint8,
+	md *psdp.MediaDescription,
+) (*TrackH264, error) { //nolint:unparam
+	t := &TrackH264{
+		PayloadType: payloadType,
+		trackBase: trackBase{
+			control: control,
+		},
+	}
+
+	t.fillParamsFromMediaDescription(md) //nolint:errcheck
+
+	return t, nil
+}
+
+func (t *TrackH264) fillParamsFromMediaDescription(md *psdp.MediaDescription) error {
 	v, ok := md.Attribute("fmtp")
 	if !ok {
-		return nil, nil, ErrH264fmtpMissing
+		return ErrH264fmtpMissing
 	}
 
 	tmp := strings.SplitN(v, " ", 2)
 	if len(tmp) != 2 {
-		return nil, nil, fmt.Errorf("%w (%v)", ErrH264fmtpInvalid, v)
+		return fmt.Errorf("%w (%v)", ErrH264fmtpInvalid, v)
 	}
 
 	for _, kv := range strings.Split(tmp[1], ";") {
@@ -41,72 +68,34 @@ func trackH264GetSPSPPS(md *psdp.MediaDescription) ([]byte, []byte, error) {
 
 		tmp := strings.SplitN(kv, "=", 2)
 		if len(tmp) != 2 {
-			return nil, nil, fmt.Errorf("%w (%v)", ErrH264fmtpInvalid, v)
+			return fmt.Errorf("%w (%v)", ErrH264fmtpInvalid, v)
 		}
 
-		if tmp[0] == "sprop-parameter-sets" {
-			tmp := strings.SplitN(tmp[1], ",", 3)
-			if len(tmp) < 2 {
-				return nil, nil, fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
-			}
-
-			sps, err := base64.StdEncoding.DecodeString(tmp[0])
-			if err != nil {
-				return nil, nil, fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
-			}
-
-			pps, err := base64.StdEncoding.DecodeString(tmp[1])
-			if err != nil {
-				return nil, nil, fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
-			}
-
-			return sps, pps, nil
+		if tmp[0] != "sprop-parameter-sets" {
+			continue
 		}
+
+		tmp = strings.SplitN(tmp[1], ",", 3)
+		if len(tmp) < 2 {
+			return fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
+		}
+
+		sps, err := base64.StdEncoding.DecodeString(tmp[0])
+		if err != nil {
+			return fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
+		}
+
+		pps, err := base64.StdEncoding.DecodeString(tmp[1])
+		if err != nil {
+			return fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
+		}
+
+		t.SPS = sps
+		t.PPS = pps
+		return nil
 	}
 
-	return nil, nil, fmt.Errorf("%w (%v)", ErrH264spropMissing, v)
-}
-
-// TrackH264 is a H264 track.
-type TrackH264 struct {
-	trackBase
-	payloadType uint8
-	sps         []byte
-	pps         []byte
-	extradata   []byte
-
-	mu sync.RWMutex
-}
-
-// NewTrackH264 allocates a TrackH264.
-func NewTrackH264(payloadType uint8, sps []byte, pps []byte, extradata []byte) (*TrackH264, error) {
-	return &TrackH264{
-		payloadType: payloadType,
-		sps:         sps,
-		pps:         pps,
-		extradata:   extradata,
-	}, nil
-}
-
-func newTrackH264FromMediaDescription(
-	control string,
-	payloadType uint8,
-	md *psdp.MediaDescription,
-) *TrackH264 {
-	t := &TrackH264{
-		trackBase: trackBase{
-			control: control,
-		},
-		payloadType: payloadType,
-	}
-
-	sps, pps, err := trackH264GetSPSPPS(md)
-	if err == nil {
-		t.sps = sps
-		t.pps = pps
-	}
-
-	return t
+	return fmt.Errorf("%w (%v)", ErrH264spropMissing, v)
 }
 
 // ClockRate returns the track clock rate.
@@ -116,67 +105,58 @@ func (t *TrackH264) ClockRate() int {
 
 func (t *TrackH264) clone() Track {
 	return &TrackH264{
+		PayloadType: t.PayloadType,
+		SPS:         t.SPS,
+		PPS:         t.PPS,
 		trackBase:   t.trackBase,
-		payloadType: t.payloadType,
-		sps:         t.sps,
-		pps:         t.pps,
-		extradata:   t.extradata,
 	}
 }
 
-// SPS returns the track SPS.
-func (t *TrackH264) SPS() []byte {
+// SafeSPS returns the track SafeSPS.
+func (t *TrackH264) SafeSPS() []byte {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	return t.sps
+	return t.SPS
 }
 
-// PPS returns the track PPS.
-func (t *TrackH264) PPS() []byte {
+// SafePPS returns the track SafePPS.
+func (t *TrackH264) SafePPS() []byte {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	return t.pps
+	return t.PPS
 }
 
-// ExtraData returns the track extra data.
-func (t *TrackH264) ExtraData() []byte {
-	return t.extradata
-}
-
-// SetSPS sets the track SPS.
-func (t *TrackH264) SetSPS(v []byte) {
+// SafeSetSPS sets the track SPS.
+func (t *TrackH264) SafeSetSPS(v []byte) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	t.sps = v
+	t.SPS = v
 }
 
-// SetPPS sets the track PPS.
-func (t *TrackH264) SetPPS(v []byte) {
+// SafeSetPPS sets the track PPS.
+func (t *TrackH264) SafeSetPPS(v []byte) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	t.pps = v
+	t.PPS = v
 }
 
 // MediaDescription returns the track media description in SDP format.
 func (t *TrackH264) MediaDescription() *psdp.MediaDescription {
-	typ := strconv.FormatInt(int64(t.payloadType), 10)
+	typ := strconv.FormatInt(int64(t.PayloadType), 10)
 
 	fmtp := typ + " packetization-mode=1"
 
 	var tmp []string
-	if t.sps != nil {
-		tmp = append(tmp, base64.StdEncoding.EncodeToString(t.sps))
+	if t.SPS != nil {
+		tmp = append(tmp, base64.StdEncoding.EncodeToString(t.SPS))
 	}
-	if t.pps != nil {
-		tmp = append(tmp, base64.StdEncoding.EncodeToString(t.pps))
-	}
-	if t.extradata != nil {
-		tmp = append(tmp, base64.StdEncoding.EncodeToString(t.extradata))
+	if t.PPS != nil {
+		tmp = append(tmp, base64.StdEncoding.EncodeToString(t.PPS))
 	}
 	fmtp += "; sprop-parameter-sets=" + strings.Join(tmp, ",")
 
-	if len(t.sps) >= 4 {
-		fmtp += "; profile-level-id=" + strings.ToUpper(hex.EncodeToString(t.sps[1:4]))
+	if len(t.SPS) >= 4 {
+		fmtp += "; profile-level-id=" + strings.ToUpper(hex.EncodeToString(t.SPS[1:4]))
 	}
 
 	return &psdp.MediaDescription{

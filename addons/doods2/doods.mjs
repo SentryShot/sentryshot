@@ -1,3 +1,4 @@
+import Hls from "./static/scripts/vendor/hls.mjs";
 import { $, uniqueID } from "./static/scripts/libs/common.mjs";
 import { newFeed } from "./static/scripts/components/feed.mjs";
 import { newModal } from "./static/scripts/components/modal.mjs";
@@ -115,8 +116,6 @@ $style.innerHTML = `
 
 $("head").append($style);
 
-// eslint-disable-next-line no-undef
-const HLS = Hls;
 const Detectors = JSON.parse(`$detectorsJSON`);
 
 function doodsThresholds() {
@@ -279,7 +278,7 @@ function thresholds(detectors) {
 }
 
 function doodsCrop() {
-	return crop(HLS, Detectors);
+	return crop(Hls, Detectors);
 }
 
 function crop(hls, detectors) {
@@ -489,7 +488,7 @@ function crop(hls, detectors) {
 }
 
 function doodsMask() {
-	return mask(HLS);
+	return mask(Hls);
 }
 
 function mask(hls) {

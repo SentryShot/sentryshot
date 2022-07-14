@@ -16,7 +16,7 @@ func writeReqReadRes(conn net.Conn,
 	br *bufio.Reader,
 	req base.Request,
 ) (*base.Response, error) {
-	byts, _ := req.Write()
+	byts, _ := req.Marshal()
 	_, err := conn.Write(byts)
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (sh *testServerHandler) OnGetParameter(ctx *ServerHandlerOnGetParameterCtx)
 func TestServerClose(t *testing.T) {
 	s := &Server{
 		Handler:     &testServerHandler{},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -160,7 +160,7 @@ func TestServerConnClose(t *testing.T) {
 				close(connClosed)
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -176,7 +176,7 @@ func TestServerConnClose(t *testing.T) {
 
 func TestServerCSeq(t *testing.T) {
 	s := &Server{
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 	err := s.Start()
 	require.NoError(t, err)
@@ -210,7 +210,7 @@ func TestServerErrorCSeqMissing(t *testing.T) {
 				close(connClosed)
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 	err := s.Start()
 	require.NoError(t, err)
@@ -242,7 +242,7 @@ func TestServerErrorInvalidMethod(t *testing.T) {
 				close(connClosed)
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 	err := s.Start()
 	require.NoError(t, err)
@@ -267,8 +267,11 @@ func TestServerErrorInvalidMethod(t *testing.T) {
 }
 
 func TestServerErrorTCPTwoConnOneSession(t *testing.T) {
-	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+	track := &TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}
 
 	stream := NewServerStream(Tracks{track})
 	defer stream.Close()
@@ -291,10 +294,10 @@ func TestServerErrorTCPTwoConnOneSession(t *testing.T) {
 				}, nil
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
-	err = s.Start()
+	err := s.Start()
 	require.NoError(t, err)
 	defer s.Close()
 
@@ -315,14 +318,14 @@ func TestServerErrorTCPTwoConnOneSession(t *testing.T) {
 					return &v
 				}(),
 				InterleavedIDs: &[2]int{0, 1},
-			}.Write(),
+			}.Marshal(),
 		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
 
 	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
+	err = sx.Unmarshal(res.Header["Session"])
 	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn1, br1, base.Request{
@@ -353,7 +356,7 @@ func TestServerErrorTCPTwoConnOneSession(t *testing.T) {
 					return &v
 				}(),
 				InterleavedIDs: &[2]int{0, 1},
-			}.Write(),
+			}.Marshal(),
 			"Session": base.HeaderValue{sx.Session},
 		},
 	})
@@ -362,8 +365,11 @@ func TestServerErrorTCPTwoConnOneSession(t *testing.T) {
 }
 
 func TestServerErrorTCPOneConnTwoSessions(t *testing.T) {
-	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+	track := &TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}
 
 	stream := NewServerStream(Tracks{track})
 	defer stream.Close()
@@ -386,10 +392,10 @@ func TestServerErrorTCPOneConnTwoSessions(t *testing.T) {
 				}, nil
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
-	err = s.Start()
+	err := s.Start()
 	require.NoError(t, err)
 	defer s.Close()
 
@@ -410,14 +416,14 @@ func TestServerErrorTCPOneConnTwoSessions(t *testing.T) {
 					return &v
 				}(),
 				InterleavedIDs: &[2]int{0, 1},
-			}.Write(),
+			}.Marshal(),
 		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, base.StatusOK, res.StatusCode)
 
 	var sx headers.Session
-	err = sx.Read(res.Header["Session"])
+	err = sx.Unmarshal(res.Header["Session"])
 	require.NoError(t, err)
 
 	res, err = writeReqReadRes(conn, br, base.Request{
@@ -443,7 +449,7 @@ func TestServerErrorTCPOneConnTwoSessions(t *testing.T) {
 					return &v
 				}(),
 				InterleavedIDs: &[2]int{0, 1},
-			}.Write(),
+			}.Marshal(),
 		},
 	})
 	require.NoError(t, err)
@@ -468,7 +474,7 @@ func TestServerGetSetParameter(t *testing.T) {
 				}, nil
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -540,7 +546,7 @@ func TestServerErrorInvalidSession(t *testing.T) {
 						}, nil
 					},
 				},
-				RTSPaddress: "localhost:8554",
+				RTSPAddress: "localhost:8554",
 			}
 
 			err := s.Start()
@@ -584,7 +590,7 @@ func TestServerSessionClose(t *testing.T) {
 				}, nil, nil
 			},
 		},
-		RTSPaddress: "localhost:8554",
+		RTSPAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -607,9 +613,9 @@ func TestServerSessionClose(t *testing.T) {
 					return &v
 				}(),
 				InterleavedIDs: &[2]int{0, 1},
-			}.Write(),
+			}.Marshal(),
 		},
-	}.Write()
+	}.Marshal()
 	_, err = conn.Write(byts)
 	require.NoError(t, err)
 
@@ -617,57 +623,71 @@ func TestServerSessionClose(t *testing.T) {
 }
 
 func TestServerSessionAutoClose(t *testing.T) {
-	sessionClosed := make(chan struct{})
+	for _, ca := range []string{
+		"200", "400",
+	} {
+		t.Run(ca, func(t *testing.T) {
+			sessionClosed := make(chan struct{})
 
-	track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-	require.NoError(t, err)
+			track := &TrackH264{
+				PayloadType: 96,
+				SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+				PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+			}
 
-	stream := NewServerStream(Tracks{track})
-	defer stream.Close()
+			stream := NewServerStream(Tracks{track})
+			defer stream.Close()
 
-	s := &Server{
-		Handler: &testServerHandler{
-			onSessionClose: func(ctx *ServerHandlerOnSessionCloseCtx) {
-				close(sessionClosed)
-			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, stream, nil
-			},
-		},
-		RTSPaddress: "localhost:8554",
+			s := &Server{
+				Handler: &testServerHandler{
+					onSessionClose: func(ctx *ServerHandlerOnSessionCloseCtx) {
+						close(sessionClosed)
+					},
+					onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+						if ca == "200" {
+							return &base.Response{
+								StatusCode: base.StatusOK,
+							}, stream, nil
+						}
+
+						return &base.Response{
+							StatusCode: base.StatusBadRequest,
+						}, nil, fmt.Errorf("error")
+					},
+				},
+				RTSPAddress: "localhost:8554",
+			}
+
+			err := s.Start()
+			require.NoError(t, err)
+			defer s.Close()
+
+			conn, err := net.Dial("tcp", "localhost:8554")
+			require.NoError(t, err)
+			br := bufio.NewReader(conn)
+
+			_, err = writeReqReadRes(conn, br, base.Request{
+				Method: base.Setup,
+				URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
+				Header: base.Header{
+					"CSeq": base.HeaderValue{"1"},
+					"Transport": headers.Transport{
+						Protocol: headers.TransportProtocolTCP,
+						Mode: func() *headers.TransportMode {
+							v := headers.TransportModePlay
+							return &v
+						}(),
+						InterleavedIDs: &[2]int{0, 1},
+					}.Marshal(),
+				},
+			})
+			require.NoError(t, err)
+
+			conn.Close()
+
+			<-sessionClosed
+		})
 	}
-
-	err = s.Start()
-	require.NoError(t, err)
-	defer s.Close()
-
-	conn, err := net.Dial("tcp", "localhost:8554")
-	require.NoError(t, err)
-	br := bufio.NewReader(conn)
-
-	res, err := writeReqReadRes(conn, br, base.Request{
-		Method: base.Setup,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
-		Header: base.Header{
-			"CSeq": base.HeaderValue{"1"},
-			"Transport": headers.Transport{
-				Protocol: headers.TransportProtocolTCP,
-				Mode: func() *headers.TransportMode {
-					v := headers.TransportModePlay
-					return &v
-				}(),
-				InterleavedIDs: &[2]int{0, 1},
-			}.Write(),
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-
-	conn.Close()
-
-	<-sessionClosed
 }
 
 func TestServerErrorInvalidPath(t *testing.T) {
@@ -683,8 +703,11 @@ func TestServerErrorInvalidPath(t *testing.T) {
 		t.Run(string(method), func(t *testing.T) {
 			connClosed := make(chan struct{})
 
-			track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-			require.NoError(t, err)
+			track := &TrackH264{
+				PayloadType: 96,
+				SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+				PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+			}
 
 			stream := NewServerStream(Tracks{track})
 			defer stream.Close()
@@ -711,10 +734,10 @@ func TestServerErrorInvalidPath(t *testing.T) {
 						}, nil
 					},
 				},
-				RTSPaddress: "localhost:8554",
+				RTSPAddress: "localhost:8554",
 			}
 
-			err = s.Start()
+			err := s.Start()
 			require.NoError(t, err)
 			defer s.Close()
 
@@ -726,8 +749,11 @@ func TestServerErrorInvalidPath(t *testing.T) {
 			sxID := ""
 
 			if method == base.Record {
-				track, err := NewTrackH264(96, []byte{0x01, 0x02, 0x03, 0x04}, []byte{0x01, 0x02, 0x03, 0x04}, nil)
-				require.NoError(t, err)
+				track := &TrackH264{
+					PayloadType: 96,
+					SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+					PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+				}
 
 				tracks := Tracks{track}
 				tracks.setControls()
@@ -739,7 +765,7 @@ func TestServerErrorInvalidPath(t *testing.T) {
 						"CSeq":         base.HeaderValue{"1"},
 						"Content-Type": base.HeaderValue{"application/sdp"},
 					},
-					Body: tracks.Write(),
+					Body: tracks.Marshal(),
 				})
 				require.NoError(t, err)
 				require.Equal(t, base.StatusOK, res.StatusCode)
@@ -763,14 +789,14 @@ func TestServerErrorInvalidPath(t *testing.T) {
 								return &v
 							}(),
 							InterleavedIDs: &[2]int{0, 1},
-						}.Write(),
+						}.Marshal(),
 					},
 				})
 				require.NoError(t, err)
 				require.Equal(t, base.StatusOK, res.StatusCode)
 
 				var sx headers.Session
-				err = sx.Read(res.Header["Session"])
+				err = sx.Unmarshal(res.Header["Session"])
 				require.NoError(t, err)
 
 				sxID = sx.Session

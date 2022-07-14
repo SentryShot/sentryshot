@@ -18,9 +18,11 @@ import { newViewer, resBtn } from "./live.mjs";
 
 class mockHls {
 	constructor() {}
-	attachMedia() {}
-	on() {}
+	init() {}
 	destroy() {}
+	static isSupported() {
+		return true;
+	}
 }
 mockHls.Events = {
 	MEDIA_ATTACHED() {},
@@ -49,6 +51,7 @@ describe("newViewer", () => {
 					class="grid-item"
 					muted=""
 					disablepictureinpicture=""
+					playsinline=""
 				></video>
 			</div>
 			<div id="js-video-3" class="grid-item-container">
@@ -73,6 +76,7 @@ describe("newViewer", () => {
 					class="grid-item"
 					muted=""
 					disablepictureinpicture=""
+					playsinline=""
 				></video>
 			</div>`.replace(/\s/g, "");
 

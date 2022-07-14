@@ -6,10 +6,6 @@ import (
 	"fmt"
 )
 
-const (
-	rtspMaxContentLength = 128 * 1024
-)
-
 // ErrByteNotNewLine byte is not '\n'.
 var ErrByteNotNewLine = errors.New(`byte is not '\n'`)
 

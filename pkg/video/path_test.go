@@ -32,7 +32,7 @@ func TestPathConf(t *testing.T) {
 		}()
 
 		time.Sleep(10 * time.Millisecond)
-		pconf.onNewHLSsegment <- hls.Segments{}
+		pconf.onNewHLSsegment <- []hls.SegmentOrGap{}
 		wg.Wait()
 	})
 

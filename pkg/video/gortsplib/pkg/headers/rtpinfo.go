@@ -25,8 +25,8 @@ var (
 // RTPinfo is a RTP-Info header.
 type RTPinfo []*RTPInfoEntry
 
-// Read decodes a RTP-Info header.
-func (h *RTPinfo) Read(v base.HeaderValue) error {
+// Unmarshal decodes a RTP-Info header.
+func (h *RTPinfo) Unmarshal(v base.HeaderValue) error {
 	if len(v) == 0 {
 		return ErrRTPinfoValueMissing
 	}
@@ -82,8 +82,8 @@ func (h *RTPinfo) Read(v base.HeaderValue) error {
 	return nil
 }
 
-// Write encodes a RTP-Info header.
-func (h RTPinfo) Write() base.HeaderValue {
+// Marshal encodes a RTP-Info header.
+func (h RTPinfo) Marshal() base.HeaderValue {
 	rets := make([]string, len(h))
 
 	for i, e := range h {

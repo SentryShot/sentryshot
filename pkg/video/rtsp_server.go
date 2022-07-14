@@ -51,7 +51,7 @@ func newRTSPServer(
 		WriteTimeout:     writeTimeout,
 		ReadBufferCount:  readBufferCount,
 		WriteBufferCount: readBufferCount,
-		RTSPaddress:      address,
+		RTSPAddress:      address,
 	}
 
 	return s

@@ -111,10 +111,10 @@
 		}
 	},
 	"browserslist": [
-		"Chrome 54",
+		"Chrome 66",
 		"Edge 79",
 		"Firefox 60",
-		"Opera 41",
-		"Safari 10.1"
+		"Opera 53",
+		"Safari 12.1"
 	]
 }

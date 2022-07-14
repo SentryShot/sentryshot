@@ -19,7 +19,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 {{ template "html" }}
 <head>
 	{{ template "meta" . }}
-	<script src="static/scripts/vendor/hls.light.min.js" defer></script>
 	<script type="module" defer>
 		import { init } from "./static/scripts/live.mjs";
 		init();

@@ -108,8 +108,8 @@ var (
 	ErrTransportProtocolNotFound   = errors.New("protocol not found")
 )
 
-// Read decodes a Transport header.
-func (h *Transport) Read(v base.HeaderValue) error { //nolint:funlen,gocognit
+// Unmarshal decodes a Transport header.
+func (h *Transport) Unmarshal(v base.HeaderValue) error { //nolint:funlen,gocognit
 	if len(v) == 0 {
 		return ErrTransportValueMissing
 	}
@@ -140,11 +140,13 @@ func (h *Transport) Read(v base.HeaderValue) error { //nolint:funlen,gocognit
 			protocolFound = true
 
 		case "destination":
-			ip := net.ParseIP(v)
-			if ip == nil {
-				return fmt.Errorf("%w (%v)", ErrTransportInvalidDestination, v)
+			if v != "" {
+				ip := net.ParseIP(v)
+				if ip == nil {
+					return fmt.Errorf("%w (%v)", ErrTransportInvalidDestination, v)
+				}
+				h.Destination = &ip
 			}
-			h.Destination = &ip
 
 		case "interleaved":
 			ports, err := parsePorts(v)
@@ -236,8 +238,8 @@ func (h *Transport) Read(v base.HeaderValue) error { //nolint:funlen,gocognit
 	return nil
 }
 
-// Write encodes a Transport header.
-func (h Transport) Write() base.HeaderValue {
+// Marshal encodes a Transport header.
+func (h Transport) Marshal() base.HeaderValue {
 	var rets []string
 
 	rets = append(rets, "RTP/AVP/TCP")
