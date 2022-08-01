@@ -211,7 +211,7 @@ class Hls {
     this.aborter.abort();
   }
   static isSupported() {
-    return !!MediaSource;
+    return "MediaSource" in window;
   }
   async waitForError() {
     return new Promise((resolve) => this.onError = resolve);

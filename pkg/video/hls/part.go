@@ -3,25 +3,60 @@ package hls
 import (
 	"bytes"
 	"io"
+	"log"
 	"math"
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/aac"
-	"nvr/pkg/video/hls/mp4"
+	"nvr/pkg/video/mp4"
 	"strconv"
 	"time"
-
-	gomp4 "github.com/abema/go-mp4"
 )
 
-func durationGoToMp4(v time.Duration, timescale time.Duration) int64 {
-	return int64(math.Round(float64(v*timescale) / float64(time.Second)))
+type myMdat struct {
+	videoSamples []*videoSample
+	audioSamples []*audioSample
 }
 
-func mp4PartGenerateVideoTraf( //nolint:funlen
-	w *mp4.Writer,
+func (*myMdat) Type() mp4.BoxType {
+	return [4]byte{'m', 'd', 'a', 't'}
+}
+
+func (b *myMdat) Size() int {
+	var total int
+	for _, e := range b.videoSamples {
+		total += len(e.avcc)
+	}
+	for _, e := range b.audioSamples {
+		total += len(e.au)
+	}
+	return total
+}
+
+func (b *myMdat) Marshal(buf []byte, pos *int) {
+	for _, e := range b.videoSamples {
+		mp4.Write(buf, pos, e.avcc)
+	}
+	for _, e := range b.audioSamples {
+		mp4.Write(buf, pos, e.au)
+	}
+}
+
+const _3000Days = 3000 * (time.Hour * 24)
+
+// this function will overflow if the input is greater than 3000 days.
+func durationGoToMp4(v time.Duration, timescale time.Duration) int64 {
+	if v > _3000Days {
+		log.Fatal("You win!")
+	}
+	v /= 1000
+	return int64(math.Round(float64(v*timescale) / float64(time.Millisecond)))
+}
+
+func generateVideoTraf( //nolint:funlen
 	trackID int,
 	videoSamples []*videoSample,
-) (*gomp4.Trun, int, error) {
+	dataOffset int32,
+) mp4.Boxes {
 	/*
 		traf
 		- tfhd
@@ -29,84 +64,69 @@ func mp4PartGenerateVideoTraf( //nolint:funlen
 		- trun
 	*/
 
-	_, err := w.WriteBoxStart(&gomp4.Traf{}) // <traf>
-	if err != nil {
-		return nil, 0, err
-	}
-
-	flags := 0
-
-	_, err = w.WriteBox(&gomp4.Tfhd{ // <tfhd/>
-		FullBox: gomp4.FullBox{
-			Flags: [3]byte{2, byte(flags >> 8), byte(flags)},
+	tfhd := &mp4.Tfhd{
+		FullBox: mp4.FullBox{
+			Flags: [3]byte{2, 0, 0},
 		},
 		TrackID: uint32(trackID),
-	})
-	if err != nil {
-		return nil, 0, err
 	}
 
-	_, err = w.WriteBox(&gomp4.Tfdt{ // <tfdt/>
-		FullBox: gomp4.FullBox{
+	tfdt := &mp4.Tfdt{
+		FullBox: mp4.FullBox{
 			Version: 1,
 		},
 		// sum of decode durations of all earlier samples
-		BaseMediaDecodeTimeV1: uint64(durationGoToMp4(videoSamples[0].dts, videoTimescale)),
-	})
-	if err != nil {
-		return nil, 0, err
+		BaseMediaDecodeTimeV1: uint64(
+			durationGoToMp4(videoSamples[0].dts, videoTimescale)),
 	}
 
-	flags = 0
-	flags |= 0x01  // data offset present
-	flags |= 0x100 // sample duration present
-	flags |= 0x200 // sample size present
-	flags |= 0x400 // sample flags present
-	flags |= 0x800 // sample composition time offset present or v1
-
-	trun := &gomp4.Trun{ // <trun/>
-		FullBox: gomp4.FullBox{
+	flags := 0
+	flags |= 0x01      // data offset present
+	flags |= 0x100     // sample duration present
+	flags |= 0x200     // sample size present
+	flags |= 0x400     // sample flags present
+	flags |= 0x800     // sample composition time offset present or v1
+	trun := &mp4.Trun{ // <trun/>
+		FullBox: mp4.FullBox{
 			Version: 1,
 			Flags:   [3]byte{0, byte(flags >> 8), byte(flags)},
 		},
 		SampleCount: uint32(len(videoSamples)),
+		DataOffset:  dataOffset,
 	}
 
-	for _, e := range videoSamples {
+	trun.Entries = make([]mp4.TrunEntry, len(videoSamples))
+	for i, e := range videoSamples {
 		off := e.pts - e.dts
 
 		flags := uint32(0)
 		if !e.idrPresent {
 			flags |= 1 << 16 // sample_is_non_sync_sample
 		}
-
-		trun.Entries = append(trun.Entries, gomp4.TrunEntry{
+		trun.Entries[i] = mp4.TrunEntry{
 			SampleDuration:                uint32(durationGoToMp4(e.duration(), videoTimescale)),
 			SampleSize:                    uint32(len(e.avcc)),
 			SampleFlags:                   flags,
 			SampleCompositionTimeOffsetV1: int32(durationGoToMp4(off, videoTimescale)),
-		})
+		}
 	}
 
-	trunOffset, err := w.WriteBox(trun)
-	if err != nil {
-		return nil, 0, err
+	return mp4.Boxes{
+		Box: &mp4.Traf{},
+		Children: []mp4.Boxes{
+			{Box: tfhd},
+			{Box: tfdt},
+			{Box: trun},
+		},
 	}
-
-	err = w.WriteBoxEnd() // </traf>
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return trun, trunOffset, nil
 }
 
-func mp4PartGenerateAudioTraf( //nolint:funlen
-	w *mp4.Writer,
+func generateAudioTraf(
 	trackID int,
 	audioTrack *gortsplib.TrackAAC,
 	audioSamples []*audioSample,
-) (*gomp4.Trun, int, error) {
+	dataOffset int32,
+) mp4.Boxes {
 	/*
 		traf
 		- tfhd
@@ -114,184 +134,141 @@ func mp4PartGenerateAudioTraf( //nolint:funlen
 		- trun
 	*/
 
-	if len(audioSamples) == 0 {
-		return nil, 0, nil
+	tfhd := &mp4.Tfhd{
+		FullBox: mp4.FullBox{
+			Flags: [3]byte{2, 0, 0},
+		},
+		TrackID: uint32(trackID),
 	}
 
-	_, err := w.WriteBoxStart(&gomp4.Traf{}) // <traf>
-	if err != nil {
-		return nil, 0, err
+	tfdt := &mp4.Tfdt{ // <tfdt/>
+		FullBox: mp4.FullBox{
+			Version: 1,
+		},
+		BaseMediaDecodeTimeV1: uint64(
+			durationGoToMp4(audioSamples[0].pts,
+				time.Duration(audioTrack.ClockRate()))),
 	}
 
 	flags := 0
-
-	_, err = w.WriteBox(&gomp4.Tfhd{ // <tfhd/>
-		FullBox: gomp4.FullBox{
-			Flags: [3]byte{2, byte(flags >> 8), byte(flags)},
-		},
-		TrackID: uint32(trackID),
-	})
-	if err != nil {
-		return nil, 0, err
-	}
-
-	_, err = w.WriteBox(&gomp4.Tfdt{ // <tfdt/>
-		FullBox: gomp4.FullBox{
-			Version: 1,
-		},
-		// sum of decode durations of all earlier samples
-		BaseMediaDecodeTimeV1: uint64(durationGoToMp4(audioSamples[0].pts, time.Duration(audioTrack.ClockRate()))),
-	})
-	if err != nil {
-		return nil, 0, err
-	}
-
-	flags = 0
 	flags |= 0x01  // data offset present
 	flags |= 0x100 // sample duration present
 	flags |= 0x200 // sample size present
 
-	trun := &gomp4.Trun{ // <trun/>
-		FullBox: gomp4.FullBox{
+	trun := &mp4.Trun{ // <trun/>
+		FullBox: mp4.FullBox{
 			Version: 0,
 			Flags:   [3]byte{0, byte(flags >> 8), byte(flags)},
 		},
 		SampleCount: uint32(len(audioSamples)),
+		DataOffset:  dataOffset,
+		Entries:     nil,
 	}
 
-	for _, e := range audioSamples {
-		trun.Entries = append(trun.Entries, gomp4.TrunEntry{
+	trun.Entries = make([]mp4.TrunEntry, len(audioSamples))
+	for i, e := range audioSamples {
+		trun.Entries[i] = mp4.TrunEntry{
 			SampleDuration: uint32(durationGoToMp4(e.duration(), time.Duration(audioTrack.ClockRate()))),
 			SampleSize:     uint32(len(e.au)),
-		})
+		}
 	}
 
-	trunOffset, err := w.WriteBox(trun)
-	if err != nil {
-		return nil, 0, err
+	return mp4.Boxes{
+		Box: &mp4.Traf{},
+		Children: []mp4.Boxes{
+			{Box: tfhd},
+			{Box: tfdt},
+			{Box: trun},
+		},
 	}
-
-	err = w.WriteBoxEnd() // </traf>
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return trun, trunOffset, nil
 }
 
-func mp4PartGenerate( //nolint:funlen,gocognit
+func generatePart( //nolint:funlen
 	videoTrack *gortsplib.TrackH264,
 	audioTrack *gortsplib.TrackAAC,
 	videoSamples []*videoSample,
 	audioSamples []*audioSample,
-) ([]byte, error) {
+) []byte {
 	/*
 		moof
 		- mfhd
 		- traf (video)
+		  - tfhd
+		  - tfdt
+		  - trun
 		- traf (audio)
+		  - tfhd
+		  - tfdt
+		  - trun
 		mdat
 	*/
 
-	w := mp4.NewWriter()
-
-	moofOffset, err := w.WriteBoxStart(&gomp4.Moof{}) // <moof>
-	if err != nil {
-		return nil, err
+	moof := mp4.Boxes{
+		Box: &mp4.Moof{},
+		Children: []mp4.Boxes{
+			{Box: &mp4.Mfhd{
+				SequenceNumber: 0,
+			}},
+		},
 	}
 
-	_, err = w.WriteBox(&gomp4.Mfhd{ // <mfhd/>
-		SequenceNumber: 0,
-	})
-	if err != nil {
-		return nil, err
+	mfhdOffset := 24
+	audioOffset := mfhdOffset
+	if videoTrack != nil {
+		videoTrunSize := len(videoSamples)*16 + 20
+		audioOffset = mfhdOffset + videoTrunSize + 44
+	}
+
+	mdatOffset := audioOffset
+	if audioTrack != nil && len(audioSamples) != 0 {
+		audioTrunOffset := audioOffset + 44
+		audioTrunSize := len(audioSamples)*8 + 20
+		mdatOffset = audioTrunOffset + audioTrunSize
 	}
 
 	trackID := 1
-
-	var videoTrun *gomp4.Trun
-	var videoTrunOffset int
 	if videoTrack != nil {
-		var err error
-		videoTrun, videoTrunOffset, err = mp4PartGenerateVideoTraf(
-			w, trackID, videoSamples)
-		if err != nil {
-			return nil, err
-		}
-
+		videoDataOffset := int32(mdatOffset + 8)
+		traf := generateVideoTraf(trackID, videoSamples, videoDataOffset)
+		moof.Children = append(moof.Children, traf)
 		trackID++
 	}
 
-	var audioTrun *gomp4.Trun
-	var audioTrunOffset int
-	if audioTrack != nil {
-		var err error
-		audioTrun, audioTrunOffset, err = mp4PartGenerateAudioTraf(w, trackID, audioTrack, audioSamples)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	err = w.WriteBoxEnd() // </moof>
-	if err != nil {
-		return nil, err
-	}
-
-	mdat := &gomp4.Mdat{} // <mdat/>
-
 	dataSize := 0
 	videoDataSize := 0
-
 	if videoTrack != nil {
 		for _, e := range videoSamples {
 			dataSize += len(e.avcc)
 		}
 		videoDataSize = dataSize
 	}
-
 	if audioTrack != nil {
 		for _, e := range audioSamples {
 			dataSize += len(e.au)
 		}
 	}
 
-	mdat.Data = make([]byte, dataSize)
-	pos := 0
-
-	if videoTrack != nil {
-		for _, e := range videoSamples {
-			pos += copy(mdat.Data[pos:], e.avcc)
-		}
+	if audioTrack != nil && len(audioSamples) != 0 {
+		audioDataOffset := int32(mdatOffset + 8 + videoDataSize)
+		traf := generateAudioTraf(trackID, audioTrack, audioSamples, audioDataOffset)
+		moof.Children = append(moof.Children, traf)
 	}
 
-	if audioTrack != nil {
-		for _, e := range audioSamples {
-			pos += copy(mdat.Data[pos:], e.au)
-		}
+	mdat := &mp4.Boxes{
+		Box: &myMdat{
+			videoSamples: videoSamples,
+			audioSamples: audioSamples,
+		},
 	}
 
-	mdatOffset, err := w.WriteBox(mdat)
-	if err != nil {
-		return nil, err
-	}
+	size := moof.Size() + mdat.Size()
+	buf := make([]byte, size)
+	var pos int
 
-	if videoTrack != nil {
-		videoTrun.DataOffset = int32(mdatOffset - moofOffset + 8)
-		err = w.RewriteBox(videoTrunOffset, videoTrun)
-		if err != nil {
-			return nil, err
-		}
-	}
+	moof.Marshal(buf, &pos)
+	mdat.Marshal(buf, &pos)
 
-	if audioTrack != nil && audioTrun != nil {
-		audioTrun.DataOffset = int32(videoDataSize + mdatOffset - moofOffset + 8)
-		err = w.RewriteBox(audioTrunOffset, audioTrun)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return w.Bytes(), nil
+	return buf
 }
 
 func partName(id uint64) string {
@@ -352,25 +329,19 @@ func (p *muxerPart) duration() time.Duration {
 		time.Duration(aac.SamplesPerAccessUnit) / time.Duration(p.audioTrack.ClockRate())
 }
 
-func (p *muxerPart) finalize() error {
+func (p *muxerPart) finalize() {
 	if len(p.videoSamples) > 0 || len(p.audioSamples) > 0 {
-		var err error
-		p.renderedContent, err = mp4PartGenerate(
+		p.renderedContent = generatePart(
 			p.videoTrack,
 			p.audioTrack,
 			p.videoSamples,
 			p.audioSamples)
-		if err != nil {
-			return err
-		}
 
 		p.renderedDuration = p.duration()
 	}
 
 	p.videoSamples = nil
 	p.audioSamples = nil
-
-	return nil
 }
 
 func (p *muxerPart) writeH264(sample *videoSample) {

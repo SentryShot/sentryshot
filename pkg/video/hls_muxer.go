@@ -219,12 +219,17 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 		return ErrNoTracks
 	}
 
+	muxerLogFunc := func(msg string) {
+		sendLog(m.logger, *m.path.conf, log.LevelDebug, "HLS:", msg)
+	}
+
 	m.muxer = hls.NewMuxer(
 		m.path.hlsSegmentCount(),
 		m.path.hlsSegmentDuration(),
 		m.path.hlsPartDuration(),
 		m.path.hlsSegmentMaxSize(),
 		m.path.conf.onNewHLSsegment,
+		muxerLogFunc,
 		videoTrack,
 		audioTrack,
 	)

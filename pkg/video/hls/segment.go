@@ -102,11 +102,8 @@ func (s *Segment) getRenderedDuration() time.Duration {
 	return s.renderedDuration
 }
 
-func (s *Segment) finalize(nextVideoSample *videoSample) error {
-	err := s.currentPart.finalize()
-	if err != nil {
-		return err
-	}
+func (s *Segment) finalize(nextVideoSample *videoSample) {
+	s.currentPart.finalize()
 
 	if s.currentPart.renderedContent != nil {
 		s.onPartFinalized(s.currentPart)
@@ -123,8 +120,6 @@ func (s *Segment) finalize(nextVideoSample *videoSample) error {
 			s.renderedDuration += pa.renderedDuration
 		}
 	}
-
-	return nil
 }
 
 // ErrMaximumSegmentSize reached maximum segment size.
@@ -143,10 +138,7 @@ func (s *Segment) writeH264(sample *videoSample, adjustedPartDuration time.Durat
 
 	// switch part
 	if s.currentPart.duration() >= adjustedPartDuration {
-		err := s.currentPart.finalize()
-		if err != nil {
-			return err
-		}
+		s.currentPart.finalize()
 
 		s.parts = append(s.parts, s.currentPart)
 		s.onPartFinalized(s.currentPart)
@@ -175,10 +167,7 @@ func (s *Segment) writeAAC(sample *audioSample, adjustedPartDuration time.Durati
 	// switch part
 	if s.videoTrack == nil &&
 		s.currentPart.duration() >= adjustedPartDuration {
-		err := s.currentPart.finalize()
-		if err != nil {
-			return err
-		}
+		s.currentPart.finalize()
 
 		s.parts = append(s.parts, s.currentPart)
 		s.onPartFinalized(s.currentPart)

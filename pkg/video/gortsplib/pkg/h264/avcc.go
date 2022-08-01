@@ -62,16 +62,14 @@ func avccMarshalSize(nalus [][]byte) int {
 }
 
 // AVCCMarshal encodes NALUs into the AVCC stream format.
-func AVCCMarshal(nalus [][]byte) ([]byte, error) {
+func AVCCMarshal(nalus [][]byte) []byte {
 	buf := make([]byte, avccMarshalSize(nalus))
 	pos := 0
-
 	for _, nalu := range nalus {
 		binary.BigEndian.PutUint32(buf[pos:], uint32(len(nalu)))
 		pos += 4
 
 		pos += copy(buf[pos:], nalu)
 	}
-
-	return buf, nil
+	return buf
 }

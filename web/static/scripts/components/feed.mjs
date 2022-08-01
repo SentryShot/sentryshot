@@ -27,21 +27,27 @@ function newFeed(monitor, preferLowRes, Hls) {
 			const element = $parent.querySelector(`#js-video-${id}`);
 			const $video = element.querySelector("video");
 
-			if (Hls.isSupported()) {
-				hls = new Hls(hlsConfig);
-				hls.onError = (error) => {
-					console.log(error);
-				};
-				hls.init($video, index);
-			} else if ($video.canPlayType("application/vnd.apple.mpegurl")) {
-				// since it's not possible to detect timeout errors in iOS,
-				// wait for the playlist to be available before starting the stream
-				// eslint-disable-next-line promise/always-return,promise/catch-or-return
-				fetch(stream).then(() => {
-					$video.controls = true;
-					$video.src = index;
-					$video.play();
-				});
+			try {
+				if (Hls.isSupported()) {
+					hls = new Hls(hlsConfig);
+					hls.onError = (error) => {
+						console.log(error);
+					};
+					hls.init($video, index);
+				} else if ($video.canPlayType("application/vnd.apple.mpegurl")) {
+					// since it's not possible to detect timeout errors in iOS,
+					// wait for the playlist to be available before starting the stream
+					// eslint-disable-next-line promise/always-return,promise/catch-or-return
+					fetch(stream).then(() => {
+						$video.controls = true;
+						$video.src = index;
+						$video.play();
+					});
+				} else {
+					alert("unsupported browser");
+				}
+			} catch (error) {
+				alert(`error: ${error}`);
 			}
 
 			if (audioEnabled) {

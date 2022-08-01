@@ -52,8 +52,7 @@ func TestAVCCUnmarshal(t *testing.T) {
 func TestAVCCMarshal(t *testing.T) {
 	for _, ca := range casesAVCC {
 		t.Run(ca.name, func(t *testing.T) {
-			enc, err := AVCCMarshal(ca.dec)
-			require.NoError(t, err)
+			enc := AVCCMarshal(ca.dec)
 			require.Equal(t, ca.enc, enc)
 		})
 	}

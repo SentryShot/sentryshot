@@ -136,10 +136,7 @@ func (m *segmenter) writeH264(pts time.Duration, nalus [][]byte) error {
 		return nil
 	}
 
-	avcc, err := h264.AVCCMarshal(nalus)
-	if err != nil {
-		return err
-	}
+	avcc := h264.AVCCMarshal(nalus)
 
 	return m.writeH264Entry(&videoSample{
 		pts:        pts,
@@ -223,10 +220,7 @@ func (m *segmenter) writeH264Entry(sample *videoSample) error { //nolint:funlen
 
 	if (sample.next.dts-m.currentSegment.startDTS) >= m.segmentDuration ||
 		spsChanged {
-		err := m.currentSegment.finalize(sample.next)
-		if err != nil {
-			return err
-		}
+		m.currentSegment.finalize(sample.next)
 		m.onSegmentFinalized(m.currentSegment)
 
 		m.firstSegmentFinalized = true
@@ -315,10 +309,7 @@ func (m *segmenter) writeAACEntry(sample *audioSample) error { //nolint:funlen
 	// switch segment
 	if m.videoTrack == nil &&
 		(sample.next.pts-m.currentSegment.startDTS) >= m.segmentDuration {
-		err := m.currentSegment.finalize(nil)
-		if err != nil {
-			return err
-		}
+		m.currentSegment.finalize(nil)
 		m.onSegmentFinalized(m.currentSegment)
 
 		m.firstSegmentFinalized = true

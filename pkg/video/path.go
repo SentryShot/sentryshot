@@ -615,7 +615,7 @@ var (
 
 const (
 	defaultHLSsegmentCount    = 3
-	defaultHLSsegmentDuration = 1000 * time.Millisecond
+	defaultHLSsegmentDuration = 900 * time.Millisecond
 	defaultHLSpartDuration    = 300 * time.Millisecond
 )
 

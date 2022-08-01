@@ -3,6 +3,7 @@ package hls
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"nvr/pkg/video/gortsplib"
@@ -22,6 +23,7 @@ type Muxer struct {
 	primaryPlaylist *primaryPlaylist
 	playlist        *playlist
 	segmenter       *segmenter
+	logFunc         func(string)
 	videoTrack      *gortsplib.TrackH264
 	audioTrack      *gortsplib.TrackAAC
 
@@ -41,6 +43,7 @@ func NewMuxer(
 	partDuration time.Duration,
 	segmentMaxSize uint64,
 	onNewSegment chan<- []SegmentOrGap,
+	logFunc func(string),
 	videoTrack *gortsplib.TrackH264,
 	audioTrack *gortsplib.TrackAAC,
 ) *Muxer {
@@ -52,6 +55,7 @@ func NewMuxer(
 			audioTrack,
 			onNewSegment,
 		),
+		logFunc:    logFunc,
 		videoTrack: videoTrack,
 		audioTrack: audioTrack,
 	}
@@ -103,8 +107,9 @@ func (m *Muxer) File(name string, msn string, part string, skip string) *MuxerFi
 
 		if m.initContent == nil ||
 			(m.videoTrack != nil && (!bytes.Equal(m.videoLastSPS, sps) || !bytes.Equal(m.videoLastPPS, pps))) {
-			initContent, err := mp4InitGenerate(m.videoTrack, m.audioTrack)
+			initContent, err := generateInit(m.videoTrack, m.audioTrack)
 			if err != nil {
+				m.logFunc(fmt.Sprintf("generate init: %v", err))
 				return &MuxerFileResponse{Status: http.StatusInternalServerError}
 			}
 
