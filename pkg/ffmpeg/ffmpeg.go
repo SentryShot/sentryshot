@@ -409,15 +409,8 @@ func ParseScaleString(scale string) string {
 	}
 }
 
-// FeedRateToDuration calculates frame duration from feedrate (fps).
-func FeedRateToDuration(feedrate string) (time.Duration, error) {
-	feedRateFloat, err := strconv.ParseFloat(feedrate, 64)
-	if err != nil {
-		return 0, fmt.Errorf("parse feedrate: %w", err)
-	}
-
-	frameDurationFloat := 1 / feedRateFloat
-	frameDuration := strconv.FormatFloat(frameDurationFloat, 'f', -1, 64)
-
-	return time.ParseDuration(frameDuration + "s")
+// FeedRateToDuration calculates frame duration from feed rate (fps).
+func FeedRateToDuration(feedRate float64) time.Duration {
+	frameDuration := 1 / feedRate
+	return time.Duration(frameDuration * float64(time.Second))
 }

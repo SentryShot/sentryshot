@@ -110,8 +110,8 @@ func (c Config) LogLevel() string {
 	return c["logLevel"]
 }
 
-// Hwacell getter.
-func (c Config) Hwacell() string {
+// Hwaccel getter.
+func (c Config) Hwaccel() string {
 	return c["hwaccel"]
 }
 
@@ -601,8 +601,8 @@ func (i *InputProcess) generateArgs() string {
 	var args string
 
 	args += "-threads 1 -loglevel " + c.LogLevel()
-	if c.Hwacell() != "" {
-		args += " -hwaccel " + c.Hwacell()
+	if c.Hwaccel() != "" {
+		args += " -hwaccel " + c.Hwaccel()
 	}
 	if i.M.Config["inputOptions"] != "" {
 		args += " " + i.M.Config["inputOptions"]

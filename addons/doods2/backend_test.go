@@ -18,7 +18,6 @@ package doods
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"image/png"
@@ -33,93 +32,10 @@ import (
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/ffmpeg/ffmock"
 	"nvr/pkg/log"
-	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
 
 	"github.com/stretchr/testify/require"
 )
-
-func TestParseConfig(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		c := monitor.Config{
-			"timestampOffset": "6",
-			"doodsThresholds": `{"4":5}`,
-			"doodsDuration":   "0.000000003",
-			"doodsFrameScale": "half",
-			"doodsFeedRate":   "500000000",
-		}
-		config, err := parseConfig(c)
-		require.NoError(t, err)
-
-		actual := fmt.Sprintf("%v", config)
-		require.Equal(t, actual, "&{2 3 map[4:5] 6000000 }")
-	})
-	t.Run("threshErr", func(t *testing.T) {
-		c := monitor.Config{"doodsThresholds": "nil"}
-		_, err := parseConfig(c)
-		var e *json.SyntaxError
-		require.ErrorAs(t, err, &e)
-	})
-	t.Run("cleanThresh", func(t *testing.T) {
-		c := monitor.Config{
-			"timestampOffset": "0",
-			"doodsDuration":   "1",
-			"doodsThresholds": `{"a":1,"b":2,"c":-1}`,
-			"doodsFeedRate":   "1",
-		}
-		config, err := parseConfig(c)
-		require.NoError(t, err)
-
-		actual := fmt.Sprintf("%v", config.thresholds)
-		require.Equal(t, actual, "map[a:1 b:2]")
-	})
-
-	cases := map[string]monitor.Config{
-		"durationErr": {
-			"doodsThresholds": "{}",
-			"doodsFeedRate":   "nil",
-		},
-		"recDurationErr": {
-			"doodsThresholds": "{}",
-			"doodsDuration":   "nil",
-			"doodsFeedRate":   "1",
-		},
-		"timestampOffsetErr": {
-			"size":            "1x1",
-			"doodsThresholds": "{}",
-			"doodsDuration":   "1",
-			"doodsFeedRate":   "1",
-		},
-	}
-	for name, conf := range cases {
-		t.Run(name, func(t *testing.T) {
-			_, err := parseConfig(conf)
-			require.ErrorIs(t, err, strconv.ErrSyntax)
-		})
-	}
-}
-
-func TestParseInputs(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		inputs, err := parseInputs(1, 2, "[3,4,5]", 6, 7, "gray_x")
-		require.NoError(t, err)
-
-		actual := fmt.Sprintf("%v", inputs)
-		require.Equal(t, actual, "&{1 2 3 4 5 6 7 true}")
-	})
-	t.Run("gray", func(t *testing.T) {
-		inputs, err := parseInputs(1, 2, "[3,4,5]", 6, 7, "gray-x")
-		require.NoError(t, err)
-
-		actual := fmt.Sprintf("%v", inputs)
-		require.Equal(t, actual, "&{1 2 3 4 5 6 7 false}")
-	})
-	t.Run("cropErr", func(t *testing.T) {
-		_, err := parseInputs(1, 1, `[1,2,"x"]`, 0, 0, "")
-		var e *json.UnmarshalTypeError
-		require.ErrorAs(t, err, &e)
-	})
-}
 
 func TestCaclulateOutputs(t *testing.T) {
 	t.Run("frameSizes", func(t *testing.T) {
@@ -147,15 +63,18 @@ func TestCaclulateOutputs(t *testing.T) {
 
 		for i, tc := range cases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
-				outputs, reverse, err := calculateOutputs(&inputs{
-					inputWidth:   tc.inputWidth,
-					inputHeight:  tc.inputHeight,
-					cropX:        tc.cropX,
-					cropY:        tc.cropY,
-					cropSize:     tc.cropSize,
-					outputWidth:  tc.outputWidth,
-					outputHeight: tc.outputHeight,
-				})
+				outputs, reverse, err := calculateOutputs(
+					config{
+						cropX:    tc.cropX,
+						cropY:    tc.cropY,
+						cropSize: tc.cropSize,
+					},
+					inputs{
+						inputWidth:   tc.inputWidth,
+						inputHeight:  tc.inputHeight,
+						outputWidth:  tc.outputWidth,
+						outputHeight: tc.outputHeight,
+					})
 				require.NoError(t, err)
 
 				actual := fmt.Sprintf("%vx%v %vx%v %v:%v %v:%v %v:%v",
@@ -170,31 +89,38 @@ func TestCaclulateOutputs(t *testing.T) {
 		}
 	})
 	t.Run("widthErr", func(t *testing.T) {
-		_, _, err := calculateOutputs(&inputs{
-			inputWidth:   1,
-			inputHeight:  2,
-			outputWidth:  2,
-			outputHeight: 1,
-		})
+		_, _, err := calculateOutputs(
+			config{},
+			inputs{
+				inputWidth:   1,
+				inputHeight:  2,
+				outputWidth:  2,
+				outputHeight: 1,
+			})
 		require.ErrorIs(t, err, ErrInvalidConfig)
 	})
 	t.Run("heightErr", func(t *testing.T) {
-		_, _, err := calculateOutputs(&inputs{
-			inputWidth:   2,
-			inputHeight:  1,
-			outputWidth:  1,
-			outputHeight: 2,
-		})
+		_, _, err := calculateOutputs(
+			config{},
+			inputs{
+				inputWidth:   2,
+				inputHeight:  1,
+				outputWidth:  1,
+				outputHeight: 2,
+			})
 		require.ErrorIs(t, err, ErrInvalidConfig)
 	})
 	t.Run("scaledWidthErr", func(t *testing.T) {
-		_, _, err := calculateOutputs(&inputs{
-			inputWidth:   100,
-			inputHeight:  100,
-			outputWidth:  80,
-			outputHeight: 80,
-			cropSize:     70,
-		})
+		_, _, err := calculateOutputs(
+			config{
+				cropSize: 70,
+			},
+			inputs{
+				inputWidth:   100,
+				inputHeight:  100,
+				outputWidth:  80,
+				outputHeight: 80,
+			})
 		require.ErrorIs(t, err, ErrInvalidConfig)
 	})
 }
@@ -214,18 +140,12 @@ func TestGenerateMask(t *testing.T) {
 				scaledHeight: 1,
 			},
 		}
-		_, err = a.generateMask(`{"enable":true}`)
+		_, err = a.generateMask(mask{Enable: true})
 		require.NoError(t, err)
-	})
-	t.Run("unmarshalErr", func(t *testing.T) {
-		a := &instance{}
-		_, err := a.generateMask("")
-		var e *json.SyntaxError
-		require.ErrorAs(t, err, &e)
 	})
 	t.Run("disabled", func(t *testing.T) {
 		a := &instance{}
-		path, err := a.generateMask(`{"enable":false}`)
+		path, err := a.generateMask(mask{Enable: false})
 		require.NoError(t, err)
 		require.Empty(t, path)
 	})
@@ -236,7 +156,7 @@ func TestGenerateMask(t *testing.T) {
 			},
 			outputs: outputs{},
 		}
-		_, err := a.generateMask(`{"enable":true}`)
+		_, err := a.generateMask(mask{Enable: true})
 		var e *os.PathError
 		require.ErrorAs(t, err, &e)
 	})
@@ -244,25 +164,21 @@ func TestGenerateMask(t *testing.T) {
 
 func TestGenerateArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
-		a := instance{
-			rtspProtocol: "2",
-			rtspAddress:  "3",
-			outputs: outputs{
-				scaledWidth:  5,
-				scaledHeight: 6,
-				paddedWidth:  6,
-				paddedHeight: 7,
-				width:        9,
-				height:       10,
-				cropX:        "11",
-				cropY:        "12",
-			},
+		c := config{
+			ffmpegLogLevel: "1",
+			feedRate:       4,
 		}
-		config := monitor.Config{
-			"logLevel":      "1",
-			"doodsFeedRate": "4",
+		outputs := outputs{
+			scaledWidth:  5,
+			scaledHeight: 6,
+			paddedWidth:  6,
+			paddedHeight: 7,
+			width:        9,
+			height:       10,
+			cropX:        "11",
+			cropY:        "12",
 		}
-		args := a.generateFFmpegArgs(config, "", false)
+		args := generateFFmpegArgs(outputs, c, "2", "3", "")
 
 		actual := fmt.Sprintf("%v", args)
 		expected := "[-y -threads 1 -loglevel 1 -rtsp_transport 2 -i 3" +
@@ -271,34 +187,66 @@ func TestGenerateArgs(t *testing.T) {
 		require.Equal(t, actual, expected)
 	})
 	t.Run("maximal", func(t *testing.T) {
-		a := instance{
-			rtspProtocol: "3",
-			rtspAddress:  "4",
-			outputs: outputs{
-				scaledWidth:  7,
-				scaledHeight: 8,
-				paddedWidth:  8,
-				paddedHeight: 9,
-				width:        11,
-				height:       12,
-				cropX:        "13",
-				cropY:        "14",
-			},
+		c := config{
+			grayMode:       true,
+			ffmpegLogLevel: "1",
+			hwaccel:        "2",
+			feedRate:       6,
 		}
-		config := monitor.Config{
-			"logLevel":      "1",
-			"doodsFeedRate": "6",
-			"hwaccel":       "2",
+		outputs := outputs{
+			scaledWidth:  7,
+			scaledHeight: 8,
+			paddedWidth:  8,
+			paddedHeight: 9,
+			width:        11,
+			height:       12,
+			cropX:        "13",
+			cropY:        "14",
 		}
-		args := a.generateFFmpegArgs(config, "5", true)
+		args := generateFFmpegArgs(outputs, c, "3", "4", "5")
 
 		actual := fmt.Sprintf("%v", args)
 		expected := "[-y -threads 1 -loglevel 1 -hwaccel 2 -rtsp_transport 3" +
 			" -i 4 -i 5 -filter_complex [0:v]fps=fps=6,scale=7:8[bg];" +
 			"[bg][1:v]overlay,pad=9:10:0:0,crop=11:12:13:14,hue=s=0" +
 			" -f rawvideo -pix_fmt rgb24 -]"
-		require.Equal(t, actual, expected)
+		require.Equal(t, expected, actual)
 	})
+}
+
+func newTestInstance(logs chan string) instance {
+	return instance{
+		env: storage.ConfigEnv{},
+		c: config{
+			feedRate:    2,
+			recDuration: 3,
+		},
+		outputs: outputs{
+			width:     2,
+			height:    2,
+			frameSize: 2 * 2 * 3,
+		},
+		reverseValues: reverseValues{
+			paddingXmultiplier: 1.1,
+			paddingYmultiplier: 0.9,
+			uncropXfunc:        func(i float32) float32 { return i },
+			uncropYfunc:        func(i float32) float32 { return i },
+		},
+		logf: func(level log.Level, format string, a ...interface{}) {
+			if logs != nil {
+				logs <- fmt.Sprintf(format, a...)
+			}
+		},
+		wg: &sync.WaitGroup{},
+		encoder: png.Encoder{
+			CompressionLevel: png.NoCompression,
+		},
+		newProcess:    ffmock.NewProcess,
+		runFFmpeg:     mockRunFFmpeg,
+		startInstance: mockStartInstance,
+		runInstance:   mockRunInstance,
+		watchdogTimer: time.NewTimer(0),
+	}
 }
 
 func mockRunFFmpeg(context.Context, instance) error    { return nil }
@@ -306,9 +254,8 @@ func mockRunFFmpegErr(context.Context, instance) error { return errors.New("mock
 
 func TestStartFFmpeg(t *testing.T) {
 	t.Run("crashed", func(t *testing.T) {
-		i, feed, cancel := newTestInstance()
-		defer cancel()
-
+		logs := make(chan string)
+		i := newTestInstance(logs)
 		i.runFFmpeg = mockRunFFmpegErr
 
 		ctx, cancel2 := context.WithCancel(context.Background())
@@ -317,14 +264,16 @@ func TestStartFFmpeg(t *testing.T) {
 		i.wg.Add(1)
 		go i.startFFmpeg(ctx)
 
-		actual := <-feed
-		require.Equal(t, actual.Msg, "process crashed: mock")
+		require.Equal(t, "process crashed: mock", <-logs)
 	})
 	t.Run("canceled", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		i := instance{wg: &sync.WaitGroup{}}
+		i := instance{
+			wg:   &sync.WaitGroup{},
+			logf: func(log.Level, string, ...interface{}) {},
+		}
 		i.wg.Add(1)
 		i.startFFmpeg(ctx)
 		i.wg.Wait()
@@ -333,8 +282,7 @@ func TestStartFFmpeg(t *testing.T) {
 
 func TestRunFFmpeg(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		i, _, cancel := newTestInstance()
-		defer cancel()
+		i := newTestInstance(nil)
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
@@ -343,9 +291,7 @@ func TestRunFFmpeg(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("crashed", func(t *testing.T) {
-		i, _, cancel := newTestInstance()
-		defer cancel()
-
+		i := newTestInstance(nil)
 		i.newProcess = ffmock.NewProcessErr
 
 		ctx, cancel2 := context.WithCancel(context.Background())
@@ -360,9 +306,7 @@ func TestRunFFmpeg(t *testing.T) {
 			go close(startReaderCalled)
 		}
 
-		i, _, cancel := newTestInstance()
-		defer cancel()
-
+		i := newTestInstance(nil)
 		i.startInstance = mockStartReader
 
 		ctx, cancel2 := context.WithCancel(context.Background())
@@ -388,51 +332,6 @@ var framePNG = "[137 80 78 71 13 10 26 10 0 0 0 13 73 72 68 82 0 0 0 2 0 0 0 2 1
 
 func mockStartInstance(context.Context, instance, io.Reader) {}
 
-func newTestInstance() (instance, log.Feed, func()) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	logger := log.NewMockLogger()
-	logger.Start(ctx)
-	feed, cancel2 := logger.Subscribe()
-
-	cancelFunc := func() {
-		cancel2()
-		cancel()
-	}
-
-	i := instance{
-		env: storage.ConfigEnv{},
-		c: config{
-			eventDuration: 2,
-			recDuration:   3,
-		},
-		outputs: outputs{
-			width:     2,
-			height:    2,
-			frameSize: 2 * 2 * 3,
-		},
-		reverseValues: reverseValues{
-			paddingXmultiplier: 1.1,
-			paddingYmultiplier: 0.9,
-			uncropXfunc:        func(i float32) float32 { return i },
-			uncropYfunc:        func(i float32) float32 { return i },
-		},
-
-		log: logger,
-		wg:  &sync.WaitGroup{},
-		encoder: png.Encoder{
-			CompressionLevel: png.NoCompression,
-		},
-		newProcess:    ffmock.NewProcess,
-		runFFmpeg:     mockRunFFmpeg,
-		startInstance: mockStartInstance,
-		runInstance:   mockRunInstance,
-		watchdogTimer: time.NewTimer(0),
-	}
-
-	return i, feed, cancelFunc
-}
-
 func mockRunInstance(context.Context, instance, io.Reader) error {
 	return nil
 }
@@ -443,8 +342,8 @@ func mockRunInstanceErr(context.Context, instance, io.Reader) error {
 
 func TestStartInstance(t *testing.T) {
 	t.Run("canceled", func(t *testing.T) {
-		i, feed, cancel := newTestInstance()
-		defer cancel()
+		logs := make(chan string)
+		i := newTestInstance(logs)
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		cancel2()
@@ -452,29 +351,26 @@ func TestStartInstance(t *testing.T) {
 		i.wg.Add(1)
 		go startInstance(ctx, i, imgFeed())
 
-		actual := <-feed
-		require.Equal(t, actual.Msg, "instance stopped")
+		require.Equal(t, "instance stopped", <-logs)
 	})
 	t.Run("crashed", func(t *testing.T) {
-		i, feed, cancel := newTestInstance()
-		defer cancel()
+		logs := make(chan string)
+		i := newTestInstance(logs)
 
 		i.runInstance = mockRunInstanceErr
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
+		i.wg.Add(1)
 		go startInstance(ctx, i, imgFeed())
 
-		actual := <-feed
-		require.Equal(t, actual.Msg, "instance crashed: mock")
+		require.Equal(t, "instance crashed: mock", <-logs)
 	})
 }
 
 func TestRunInstance(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		mu := sync.Mutex{}
-
 		var firstRequest string
 		var secondRequest string
 		mockSendRequest := func(_ context.Context, request detectRequest) (*detections, error) {
@@ -482,7 +378,6 @@ func TestRunInstance(t *testing.T) {
 				firstRequest = fmt.Sprint(*request.Data)
 			} else {
 				secondRequest = fmt.Sprint(*request.Data)
-				mu.Unlock()
 			}
 			return &detections{Detection{Label: "1"}}, nil
 		}
@@ -493,20 +388,14 @@ func TestRunInstance(t *testing.T) {
 			return nil
 		}
 
-		i, _, cancel := newTestInstance()
-		defer cancel()
-
-		i.sendRequest = mockSendRequest
-		i.sendEvent = mockSendEvent
-
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
-		go runInstance(ctx, i, imgFeed())
-		mu.Lock()
+		i := newTestInstance(nil)
+		i.sendRequest = mockSendRequest
+		i.sendEvent = mockSendEvent
 
-		defer mu.Unlock()
-		mu.Lock()
+		runInstance(ctx, i, imgFeed())
 
 		require.Equal(t, firstRequest, secondRequest)
 		require.Equal(t, firstRequest, framePNG)
@@ -519,17 +408,16 @@ func TestRunInstance(t *testing.T) {
 				Label:  "1",
 				Region: &storage.Region{Rect: &ffmpeg.Rect{}},
 			}},
-			Duration:    2,
+			Duration:    500000000,
 			RecDuration: 3,
 		}
-		require.Equal(t, actual, expected)
+		require.Equal(t, expected, actual)
 	})
 	t.Run("canceled", func(t *testing.T) {
-		i, _, cancel := newTestInstance()
-		defer cancel()
+		i := newTestInstance(nil)
 
-		ctx, cancel2 := context.WithCancel(context.Background())
-		cancel2()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
 
 		err := runInstance(ctx, i, imgFeed())
 		require.ErrorIs(t, err, context.Canceled)
@@ -539,9 +427,7 @@ func TestRunInstance(t *testing.T) {
 			return nil, errors.New("mock")
 		}
 
-		i, _, cancel := newTestInstance()
-		defer cancel()
-
+		i := newTestInstance(nil)
 		i.sendRequest = mockSendRequestErr
 
 		ctx, cancel2 := context.WithCancel(context.Background())

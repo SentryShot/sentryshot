@@ -491,25 +491,19 @@ func TestParseScaleString(t *testing.T) {
 }
 
 func TestFeedRateToDuration(t *testing.T) {
-	cases := map[string]struct {
-		input    string
-		expected string
+	cases := []struct {
+		input    float64
+		expected time.Duration
 	}{
-		"one":  {"1", "1s"},
-		"two":  {"2", "500ms"},
-		"half": {"0.5", "2s"},
+		{1, 1 * time.Second},
+		{2, 500 * time.Millisecond},
+		{0.5, 2 * time.Second},
 	}
-	for name, tc := range cases {
+	for _, tc := range cases {
+		name := strconv.FormatFloat(tc.input, 'f', -1, 64)
 		t.Run(name, func(t *testing.T) {
-			output, err := FeedRateToDuration(tc.input)
-			require.NoError(t, err)
-
-			actual := fmt.Sprintf("%v", output)
-			require.Equal(t, actual, tc.expected)
+			actual := FeedRateToDuration(tc.input)
+			require.Equal(t, tc.expected, actual)
 		})
 	}
-	t.Run("parseFloatErr", func(t *testing.T) {
-		_, err := FeedRateToDuration("nil")
-		require.Error(t, err)
-	})
 }

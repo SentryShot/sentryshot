@@ -58,6 +58,16 @@ type Log struct {
 	Monitor string          // Source monitor id.
 }
 
+// Level starts a new message with provided level.
+// You must call Msg on the returned event in order to send the event.
+func (l *Logger) Level(level Level) *Event {
+	return &Event{
+		level:  level,
+		time:   UnixMillisecond(time.Now().UnixNano() / 1000),
+		logger: l,
+	}
+}
+
 // GetTime as time.Time.
 func (l Log) GetTime() time.Time {
 	return time.Unix(0, int64(l.Time*1000))
@@ -106,24 +116,27 @@ func (l *Logger) Debug() *Event {
 // FFmpegLevel start a new message with converted ffmpeg log level.
 // You must call Msg on the returned event in order to send the event.
 func (l *Logger) FFmpegLevel(logLevel string) *Event {
-	var level Level
-
-	switch logLevel {
-	case "quiet":
-	case "fatal", "error":
-		level = LevelError
-	case "warning":
-		level = LevelWarning
-	case "info":
-		level = LevelInfo
-	case "debug":
-		level = LevelDebug
-	}
 	return &Event{
-		level:  level,
+		level:  FFmpegLevel(logLevel),
 		time:   UnixMillisecond(time.Now().UnixNano() / 1000),
 		logger: l,
 	}
+}
+
+// FFmpegLevel converts ffmpeg log level to Level.
+func FFmpegLevel(logLevel string) Level {
+	switch logLevel {
+	case "quiet":
+	case "fatal", "error":
+		return LevelError
+	case "warning":
+		return LevelWarning
+	case "info":
+		return LevelInfo
+	case "debug":
+		return LevelDebug
+	}
+	return LevelDebug
 }
 
 // Src sets event source.
