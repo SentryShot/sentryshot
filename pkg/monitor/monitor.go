@@ -47,6 +47,9 @@ type RecSaveHook func(*Monitor, *string)
 // RecSavedHook is called after recording have been saved successfully.
 type RecSavedHook func(*Monitor, string, storage.RecordingData)
 
+// MigationHook is called when each monitor config is loaded.
+type MigationHook func(Config) error
+
 // Hooks monitor hooks.
 type Hooks struct {
 	Start      StartHook
@@ -54,6 +57,7 @@ type Hooks struct {
 	Event      EventHook
 	RecSave    RecSaveHook
 	RecSaved   RecSavedHook
+	Migrate    MigationHook
 }
 
 // Configs Monitor configurations.
@@ -155,9 +159,19 @@ func NewManager(
 	for _, file := range configFiles {
 		var config Config
 		if err := json.Unmarshal(file, &config); err != nil {
-			return nil, fmt.Errorf("unmarshal config: %w: %v", err, file)
+			return nil, fmt.Errorf("unmarshal config: %w: %v", err, string(file))
 		}
-		monitors[config["id"]] = manager.newMonitor(config)
+		if err := hooks.Migrate(config); err != nil {
+			return nil, fmt.Errorf("migration failed: %w", err)
+		}
+
+		configPath := manager.configPath(config.ID())
+		migratedConf, _ := json.MarshalIndent(config, "", "    ")
+		err := os.WriteFile(configPath, migratedConf, 0o600)
+		if err != nil {
+			return nil, fmt.Errorf("write migrated config: %w", err)
+		}
+		monitors[config.ID()] = manager.newMonitor(config)
 	}
 	manager.Monitors = monitors
 

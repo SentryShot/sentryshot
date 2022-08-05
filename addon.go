@@ -53,6 +53,7 @@ type hookList struct {
 	monitorEvent        []monitor.EventHook
 	monitorRecSave      []monitor.RecSaveHook
 	monitorRecSaved     []monitor.RecSavedHook
+	migrationMonitor    []monitor.MigationHook
 	logSource           []string
 }
 
@@ -141,6 +142,11 @@ func RegisterMonitorRecSaveHook(h monitor.RecSaveHook) {
 // RegisterMonitorRecSavedHook registers hook that's called after monitor have saved recording.
 func RegisterMonitorRecSavedHook(h monitor.RecSavedHook) {
 	hooks.monitorRecSaved = append(hooks.monitorRecSaved, h)
+}
+
+// RegisterMigrationMonitorHook is called when each monitor config is loaded.
+func RegisterMigrationMonitorHook(h monitor.MigationHook) {
+	hooks.migrationMonitor = append(hooks.migrationMonitor, h)
 }
 
 // RegisterLogSource adds log source.
@@ -243,6 +249,15 @@ func (h *hookList) monitor() *monitor.Hooks {
 			hook(m, recPath, recData)
 		}
 	}
+	migrateHook := func(conf monitor.Config) error {
+		for _, hook := range h.migrationMonitor {
+			err := hook(conf)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 
 	return &monitor.Hooks{
 		Start:      startHook,
@@ -250,5 +265,6 @@ func (h *hookList) monitor() *monitor.Hooks {
 		Event:      eventHook,
 		RecSave:    recSaveHook,
 		RecSaved:   recSavedHook,
+		Migrate:    migrateHook,
 	}
 }

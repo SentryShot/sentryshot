@@ -60,7 +60,7 @@ if (isAdmin === "true") {
 			}
 		),
 		name: fieldTemplate.text("Name", "my_monitor"),
-		enable: fieldTemplate.toggle("Enable", "true"),
+		enable: fieldTemplate.toggle("Enable monitor", "true"),
 		mainInput: newField(
 			[inputRules.notEmpty],
 			{

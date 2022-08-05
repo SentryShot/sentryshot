@@ -1092,7 +1092,7 @@ a:focus {
 /* Tablet/Dektop. */
 @media only screen and (min-width: 768px) {
 	:root {
-		font-size: 5vh; /* Window scale. */
+		font-size: 4.5vh; /* Window scale. */
 
 		--gridsize: 3;
 	}
@@ -1200,8 +1200,8 @@ a:focus {
 	}
 
 	.modal {
-		width: 50vw;
-		height: 90vh;
+		width: 30vw;
+		max-height: 90vh;
 		padding-bottom: 0.3rem;
 		border-radius: 0.2rem;
 	}

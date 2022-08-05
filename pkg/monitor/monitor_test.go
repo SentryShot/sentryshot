@@ -99,7 +99,7 @@ func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
 		storage.ConfigEnv{},
 		logger,
 		videoServer,
-		&Hooks{},
+		&Hooks{Migrate: func(Config) error { return nil }},
 	)
 	require.NoError(t, err)
 
@@ -125,6 +125,42 @@ func TestNewManager(t *testing.T) {
 		config := readConfig(t, filepath.Join(configDir, "1.json"))
 		require.Equal(t, config, manager.Monitors["1"].Config)
 	})
+	t.Run("migration", func(t *testing.T) {
+		configDir, cancel := prepareDir(t)
+		defer cancel()
+
+		data := []byte(`{"id":"x", "test": "a"}`)
+		configPath := configDir + "/x.json"
+		err := os.WriteFile(configPath, data, 0o600)
+		require.NoError(t, err)
+
+		migrate := func(c Config) error {
+			delete(c, "test")
+			c["test2"] = "b"
+			return nil
+		}
+
+		manager, err := NewManager(
+			configDir,
+			storage.ConfigEnv{},
+			&log.Logger{},
+			&video.Server{},
+			&Hooks{Migrate: migrate},
+		)
+		require.NoError(t, err)
+
+		actual := manager.Monitors["x"].Config
+		expected := Config{"id": "x", "test2": "b"}
+		require.Equal(t, expected, actual)
+
+		actual2, err := os.ReadFile(configPath)
+		require.NoError(t, err)
+		expected2 := `{
+    "id": "x",
+    "test2": "b"
+}`
+		require.Equal(t, expected2, string(actual2))
+	})
 	t.Run("mkDirErr", func(t *testing.T) {
 		_, err := NewManager("/dev/null/nil", storage.ConfigEnv{}, nil, nil, nil)
 		require.Error(t, err)
@@ -135,7 +171,7 @@ func TestNewManager(t *testing.T) {
 			storage.ConfigEnv{},
 			&log.Logger{},
 			&video.Server{},
-			&Hooks{},
+			&Hooks{Migrate: func(Config) error { return nil }},
 		)
 		require.Error(t, err)
 	})
@@ -152,10 +188,29 @@ func TestNewManager(t *testing.T) {
 			storage.ConfigEnv{},
 			&log.Logger{},
 			&video.Server{},
-			&Hooks{},
+			&Hooks{Migrate: func(Config) error { return nil }},
 		)
 		var e *json.SyntaxError
 		require.ErrorAs(t, err, &e)
+	})
+	t.Run("migrationErr", func(t *testing.T) {
+		configDir, cancel := prepareDir(t)
+		defer cancel()
+
+		data := []byte("{}")
+		err := os.WriteFile(configDir+"/1.json", data, 0o600)
+		require.NoError(t, err)
+
+		mockErr := errors.New("mock")
+
+		_, err = NewManager(
+			configDir,
+			storage.ConfigEnv{},
+			&log.Logger{},
+			&video.Server{},
+			&Hooks{Migrate: func(Config) error { return mockErr }},
+		)
+		require.ErrorIs(t, err, mockErr)
 	})
 }
 

@@ -1,125 +1,131 @@
 import Hls from "./static/scripts/vendor/hls.mjs";
 import { $, uniqueID } from "./static/scripts/libs/common.mjs";
+import {
+	newForm,
+	newField,
+	inputRules,
+	fieldTemplate,
+} from "./static/scripts/components/form.mjs";
 import { newFeed } from "./static/scripts/components/feed.mjs";
 import { newModal } from "./static/scripts/components/modal.mjs";
 
-// CSS.
-let $style = document.createElement("style");
-$style.type = "text/css";
-$style.innerHTML = `
-	.doods-label-wrapper {
-		display: flex;
-		padding: 0.1rem;
-		border-top-style: solid;
-		border-color: var(--color1);
-		border-width: 0.03rem;
-		align-items: center;
-	}
-	.doods-label-wrapper:first-child {
-		border-top-style: none;
-	}
-	.doods-label {
-		font-size: 0.7rem;
-		color: var(--color-text);
-	}
-	.doods-threshold {
-		margin-left: auto;
-		font-size: 0.6rem;
-		text-align: center;
-		width: 1.4rem;
-		height: 100%;
-	}
-
-	/* Crop. */
-	.doodsCrop-preview-feed {
-		width: 100%;
-		min-width: 0;
-		display: flex;
-		background: black;
-	}
-	.doodsCrop-preview-overlay {
-		position: absolute;
-		height: 100%;
-		width: 100%;
-		top: 0;
-	}
-	.doodsCrop-option-wrapper {
-		display: flex;
-		flex-wrap: wrap;
-	}
-	.doodsCrop-option {
-		display: flex;
-		background: var(--color2);
-		padding: 0.15rem;
-		border-radius: 0.15rem;
-		margin-right: 0.2rem;
-		margin-bottom: 0.2rem;
-	}
-	.doodsCrop-option-label {
-		font-size: 0.7rem;
-		color: var(--color-text);
-		margin-left: 0.1rem;
-		margin-right: 0.2rem;
-	}
-	.doodsCrop-option-input {
-		text-align: center;
-		font-size: 0.5rem;
-		border-style: none;
-		border-radius: 5px;
-		width: 1.4rem;
-	}
-
-	/* Mask. */
-	.doodsMask-preview-feed {
-		width: 100%;
-		min-width: 0;
-		display: flex;
-		background: black;
-	}
-	.doodsMask-preview-overlay {
-		position: absolute;
-		height: 100%;
-		width: 100%;
-		top: 0;
-	}
-	.doodsMask-points-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(3.6rem, 3.7rem));
-		column-gap: 0.1rem;
-		row-gap: 0.1rem;
-	}
-	.doodsMask-point {
-		display: flex;
-		background: var(--color2);
-		padding: 0.15rem;
-		border-radius: 0.15rem;
-	}
-	.doodsMask-point-label {
-		font-size: 0.7rem;
-		color: var(--color-text);
-		margin-left: 0.1rem;
-		margin-right: 0.1rem;
-	}
-	.doodsMask-point-input {
-		text-align: center;
-		font-size: 0.5rem;
-		border-style: none;
-		border-radius: 5px;
-		min-width: 0;
-	}
-	.doodsMask-button {
-		background: var(--color2);
-	}
-	.doodsMask-button:hover {
-		background: var(--color1);
-	}`;
-
-$("head").append($style);
-
 const Detectors = JSON.parse(`$detectorsJSON`);
 
-function doodsThresholds() {
-	return thresholds(Detectors);
+export function doods() {
+	return _doods(Hls, Detectors);
+}
+
+function _doods(hls, detectors) {
+	let detectorNames = [];
+	for (const detector of Detectors) {
+		detectorNames.push(detector.name);
+	}
+
+	const fields = {
+		enable: fieldTemplate.toggle("Enable object detection", "false"),
+		thresholds: thresholds(detectors),
+		crop: crop(hls, detectors),
+		mask: mask(hls),
+		detectorName: fieldTemplate.select(
+			"Detector",
+			detectorNames,
+			detectorNames[detectorNames.length - 1] // Last item.
+		),
+		feedRate: newField(
+			[inputRules.notEmpty, inputRules.noSpaces],
+			{
+				errorField: true,
+				input: "number",
+				min: "0",
+			},
+			{
+				label: "Feed rate (fps)",
+				placeholder: "",
+				initial: "0.2",
+			}
+		),
+		duration: fieldTemplate.integer("Trigger duration (sec)", "", "120"),
+		useSubStream: fieldTemplate.toggle("Use sub stream", "true"),
+	};
+
+	const form = newForm(fields);
+	const modal = newModal("DOODS", form.html());
+
+	let value = {};
+
+	let isRendered = false;
+	const render = (element) => {
+		if (isRendered) {
+			return;
+		}
+		element.insertAdjacentHTML("beforeend", modal.html);
+		element.querySelector(".js-modal").style.maxWidth = "12rem";
+
+		const $modalContent = modal.init(element);
+		form.init($modalContent);
+
+		modal.onClose(() => {
+			// Get value.
+			for (const key of Object.keys(form.fields)) {
+				value[key] = form.fields[key].value();
+			}
+		});
+
+		isRendered = true;
+	};
+
+	let monitorFields;
+	const update = () => {
+		// Set value.
+		for (const key of Object.keys(form.fields)) {
+			if (form.fields[key] && form.fields[key].set) {
+				if (value[key]) {
+					form.fields[key].set(value[key], fields, monitorFields);
+				} else {
+					form.fields[key].set("", fields, monitorFields);
+				}
+			}
+		}
+	};
+
+	const id = uniqueID();
+
+	return {
+		html: `
+				<li id="${id}" class="form-field" style="display:flex;">
+					<label class="form-field-label">DOODS</label>
+					<div>
+						<button class="settings-edit-btn" style="background: var(--color3);">
+							<img src="static/icons/feather/edit-3.svg"/>
+						</button>
+					</div>
+				</li> `,
+		value() {
+			return JSON.stringify(value);
+		},
+		set(input, _, f) {
+			monitorFields = f;
+			value = input ? JSON.parse(input) : {};
+		},
+		validate() {
+			if (!isRendered) {
+				return "";
+			}
+			const err = form.validate();
+			if (err != "") {
+				return "DOODS: " + err;
+			}
+			return "";
+		},
+		init($parent) {
+			const element = $parent.querySelector("#" + id);
+			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
+				render(element);
+				update();
+				modal.open();
+			});
+		},
+	};
 }
 
 function thresholds(detectors) {
@@ -168,7 +174,7 @@ function thresholds(detectors) {
 		if (isRendered) {
 			return;
 		}
-		modal = newModal("DOODS thresholds");
+		modal = newModal("Thresholds");
 		element.insertAdjacentHTML("beforeend", modal.html);
 		$modalContent = modal.init(element);
 
@@ -184,7 +190,7 @@ function thresholds(detectors) {
 			for (const field of fields) {
 				const err = field.validate(field.value());
 				if (err != "") {
-					validateErr = `"DOODS thresholds": "${field.label()}": ${err}`;
+					validateErr = `"Thresholds": "${field.label()}": ${err}`;
 					break;
 				}
 			}
@@ -232,7 +238,7 @@ function thresholds(detectors) {
 		$modalContent.innerHTML = html;
 	};
 
-	let monitorFields;
+	let doodsFields;
 	const id = uniqueID();
 
 	return {
@@ -242,9 +248,9 @@ function thresholds(detectors) {
 				class="form-field"
 				style="display:flex; padding-bottom:0.25rem;"
 			>
-				<label class="form-field-label">DOODS thresholds</label>
+				<label class="form-field-label">Thresholds</label>
 				<div style="width:auto">
-					<button class="settings-edit-btn color3">
+					<button class="settings-edit-btn color2">
 						<img src="static/icons/feather/edit-3.svg"/>
 					</button>
 				</div>
@@ -252,10 +258,10 @@ function thresholds(detectors) {
 		value() {
 			return JSON.stringify(value);
 		},
-		set(input, _, f) {
+		set(input, f) {
 			value = input ? JSON.parse(input) : {};
 			validateErr = "";
-			monitorFields = f;
+			doodsFields = f;
 		},
 		validate() {
 			return validateErr;
@@ -263,7 +269,7 @@ function thresholds(detectors) {
 		init($parent) {
 			const element = $parent.querySelector("#" + id);
 			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
-				const detectorName = monitorFields.doodsDetectorName.value();
+				const detectorName = doodsFields.detectorName.value();
 				if (detectorName === "") {
 					alert("please select a detector");
 					return;
@@ -277,10 +283,6 @@ function thresholds(detectors) {
 	};
 }
 
-function doodsCrop() {
-	return crop(Hls, Detectors);
-}
-
 function crop(hls, detectors) {
 	const detectorAspectRatio = (name) => {
 		for (const detector of detectors) {
@@ -290,11 +292,10 @@ function crop(hls, detectors) {
 		}
 	};
 
-	let fields = {};
 	let value = [];
 	let $wrapper, $padding, $x, $y, $size, $modalContent, $feed;
 
-	const modal = newModal("DOODS crop");
+	const modal = newModal("Crop");
 
 	const renderModal = (element, feed) => {
 		const html = `
@@ -366,13 +367,14 @@ function crop(hls, detectors) {
 
 		const $overlay = $modalContent.querySelector(".js-overlay");
 		$modalContent.querySelector(".js-options").addEventListener("change", () => {
-			$overlay.innerHTML = updatePreview();
+			$overlay.innerHTML = renderPreviewOverlay();
 		});
-		$overlay.innerHTML = updatePreview();
+		$overlay.innerHTML = renderPreviewOverlay();
 	};
 
+	let doodsFields;
 	const updatePadding = () => {
-		const detectorName = fields.doodsDetectorName.value();
+		const detectorName = doodsFields.detectorName.value();
 		if (detectorName === "") {
 			alert("please select a detector");
 			return;
@@ -396,7 +398,7 @@ function crop(hls, detectors) {
 		}
 	};
 
-	const updatePreview = () => {
+	const renderPreviewOverlay = () => {
 		const x = Number($x.value);
 		const y = Number($y.value);
 		let s = Number($size.value);
@@ -407,12 +409,24 @@ function crop(hls, detectors) {
 			$size.value = s;
 		}
 
+		const draw =
+			// Outer box.
+			"m 0 0" +
+			" L 100 0" +
+			" L 100 100" +
+			" L 0 100" +
+			" L 0 0" +
+			// Inner box.
+			` M ${x} ${y}` +
+			` L ${x + s} ${y}` +
+			` L ${x + s} ${y + s}` +
+			` L ${x} ${y + s}` +
+			` L ${x} ${y}`;
+
 		return `
 			<path
 				fill-rule="evenodd"
-				d="m 0 0 L 100 0 L 100 100 L 0 100 L 0 0 M ${x} ${y} L ${x + s} ${y} L ${x + s} ${
-			y + s
-		} L ${x} ${y + s} L ${x} ${y}"
+				d="${draw}"
 			/>`;
 	};
 
@@ -425,6 +439,7 @@ function crop(hls, detectors) {
 
 	let rendered = false;
 	const id = uniqueID();
+	let monitorFields = {};
 
 	return {
 		html: `
@@ -433,9 +448,9 @@ function crop(hls, detectors) {
 				class="form-field"
 				style="display:flex; padding-bottom:0.25rem;"
 			>
-				<label class="form-field-label">DOODS crop</label>
+				<label class="form-field-label">Crop</label>
 				<div style="width:auto">
-					<button class="settings-edit-btn color3">
+					<button class="settings-edit-btn color2">
 						<img src="static/icons/feather/edit-3.svg"/>
 					</button>
 				</div>
@@ -452,21 +467,23 @@ function crop(hls, detectors) {
 				Number($size.value),
 			]);
 		},
-		set(input, _, f) {
-			fields = f;
+		set(input, f, mf) {
 			value = input === "" ? [0, 0, 100] : JSON.parse(input);
 			if (rendered) {
 				set(value);
 			}
+			doodsFields = f;
+			monitorFields = mf;
 		},
 		init($parent) {
 			var feed;
 			const element = $parent.querySelector("#" + id);
 			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
 				if (!rendered) {
-					const subInputEnabled = fields.subInput.value() !== "" ? "true" : "";
+					const subInputEnabled =
+						monitorFields.subInput.value() !== "" ? "true" : "";
 					const monitor = {
-						id: fields.id.value(),
+						id: monitorFields.id.value(),
 						audioEnabled: "false",
 						subInputEnabled: subInputEnabled,
 					};
@@ -487,21 +504,17 @@ function crop(hls, detectors) {
 	};
 }
 
-function doodsMask() {
-	return mask(Hls);
-}
-
 function mask(hls) {
 	let fields = {};
 	let value = {};
 	let $enable, $overlay, $points, $modalContent;
 
-	const modal = newModal("DOODS mask");
+	const modal = newModal("Mask");
 
 	const renderModal = (element, feed) => {
 		const html = `
 			<li class="js-enable doodsMask-enabled form-field">
-				<label class="form-field-label" for="doodsMask-enable">Enable</label>
+				<label class="form-field-label" for="doodsMask-enable">Enable mask</label>
 				<div class="form-field-select-container">
 					<select id="modal-enable" class="form-field-select js-input">
 						<option>true</option>
@@ -640,9 +653,9 @@ function mask(hls) {
 				class="form-field"
 				style="display:flex; padding-bottom:0.25rem;"
 			>
-				<label class="form-field-label">DOODS mask</label>
+				<label class="form-field-label">Mask</label>
 				<div style="width:auto">
-					<button class="settings-edit-btn color3">
+					<button class="settings-edit-btn color2">
 						<img src="static/icons/feather/edit-3.svg"/>
 					</button>
 				</div>
@@ -687,4 +700,114 @@ function mask(hls) {
 	};
 }
 
-export { doodsThresholds, doodsCrop, doodsMask };
+// CSS.
+let $style = document.createElement("style");
+$style.innerHTML = `
+	.doods-label-wrapper {
+		display: flex;
+		padding: 0.1rem;
+		border-top-style: solid;
+		border-color: var(--color1);
+		border-width: 0.03rem;
+		align-items: center;
+	}
+	.doods-label-wrapper:first-child {
+		border-top-style: none;
+	}
+	.doods-label {
+		font-size: 0.7rem;
+		color: var(--color-text);
+	}
+	.doods-threshold {
+		margin-left: auto;
+		font-size: 0.6rem;
+		text-align: center;
+		width: 1.4rem;
+		height: 100%;
+	}
+
+	/* Crop. */
+	.doodsCrop-preview-feed {
+		width: 100%;
+		min-width: 0;
+		display: flex;
+		background: black;
+	}
+	.doodsCrop-preview-overlay {
+		position: absolute;
+		height: 100%;
+		width: 100%;
+		top: 0;
+	}
+	.doodsCrop-option-wrapper {
+		display: flex;
+		flex-wrap: wrap;
+	}
+	.doodsCrop-option {
+		display: flex;
+		background: var(--color2);
+		padding: 0.15rem;
+		border-radius: 0.15rem;
+		margin-right: 0.2rem;
+		margin-bottom: 0.2rem;
+	}
+	.doodsCrop-option-label {
+		font-size: 0.7rem;
+		color: var(--color-text);
+		margin-left: 0.1rem;
+		margin-right: 0.2rem;
+	}
+	.doodsCrop-option-input {
+		text-align: center;
+		font-size: 0.5rem;
+		border-style: none;
+		border-radius: 5px;
+		width: 1.4rem;
+	}
+
+	/* Mask. */
+	.doodsMask-preview-feed {
+		width: 100%;
+		min-width: 0;
+		display: flex;
+		background: black;
+	}
+	.doodsMask-preview-overlay {
+		position: absolute;
+		height: 100%;
+		width: 100%;
+		top: 0;
+	}
+	.doodsMask-points-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(3.6rem, 3.7rem));
+		column-gap: 0.1rem;
+		row-gap: 0.1rem;
+	}
+	.doodsMask-point {
+		display: flex;
+		background: var(--color2);
+		padding: 0.15rem;
+		border-radius: 0.15rem;
+	}
+	.doodsMask-point-label {
+		font-size: 0.7rem;
+		color: var(--color-text);
+		margin-left: 0.1rem;
+		margin-right: 0.1rem;
+	}
+	.doodsMask-point-input {
+		text-align: center;
+		font-size: 0.5rem;
+		border-style: none;
+		border-radius: 5px;
+		min-width: 0;
+	}
+	.doodsMask-button {
+		background: var(--color2);
+	}
+	.doodsMask-button:hover {
+		background: var(--color1);
+	}`;
+
+$("head").append($style);

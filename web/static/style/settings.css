@@ -312,7 +312,7 @@
 
 	.settings-sub-category {
 		position: relative;
-		max-width: 9rem;
+		max-width: 12rem;
 		visibility: hidden;
 		transition: transform 0ms;
 	}

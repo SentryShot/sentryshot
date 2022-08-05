@@ -48,56 +48,12 @@ func modifyTemplates(pageFiles map[string]string) error {
 }
 
 func modifySettingsjs(tpl string) string {
-	const target = "logLevel: fieldTemplate.select("
+	importStatement := `import { doods } from "./doods.mjs"`
 
-	importStatement := `import { doodsThresholds, doodsCrop, doodsMask } from "./doods.mjs"`
-	tpl = strings.ReplaceAll(tpl, target, javascript()+target)
+	const target = "logLevel: fieldTemplate.select("
+	tpl = strings.ReplaceAll(tpl, target, "doods: doods(),"+target)
 
 	return importStatement + tpl
-}
-
-func javascript() string {
-	var detectors string
-	for _, detector := range addon.detectorList {
-		detectors += `"` + detector.Name + `", `
-	}
-
-	return `
-	doodsEnable: fieldTemplate.toggle(
-		"DOODS enable",
-		"false"
-	),
-	doodsDetectorName: fieldTemplate.select(
-		"DOODS detector",
-		[` + detectors + `],
-		"default"
-	),
-	doodsThresholds: doodsThresholds(),
-	doodsCrop: doodsCrop(),
-	doodsMask: doodsMask(),
-	doodsFeedRate: newField(
-		[inputRules.notEmpty, inputRules.noSpaces],
-		{
-			errorField: true,
-			input: "number",
-			min: "0",
-		},
-		{
-			label: "DOODS feed rate (fps)",
-			placeholder: "",
-			initial: "2",
-		}
-	),
-	doodsDuration: fieldTemplate.integer(
-		"DOODS trigger duration (sec)",
-		"",
-		"120"
-	),
-	doodsUseSubStream: fieldTemplate.toggle(
-		"DOODS use sub stream",
-		"true"
-	),
-	`
 }
 
 //go:embed doods.mjs
