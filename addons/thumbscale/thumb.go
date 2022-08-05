@@ -42,7 +42,7 @@ func onRecSave(m *monitor.Monitor, args *string) {
 	defer m.Mu.Unlock()
 
 	scale := ffmpeg.ParseScaleString(m.Config["thumbScale"])
-	if scale == "1" {
+	if scale == "" || scale == "1" {
 		return
 	}
 

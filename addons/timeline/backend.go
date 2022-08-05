@@ -17,8 +17,11 @@ package timeline
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"nvr"
 	"nvr/pkg/ffmpeg"
+	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
 	"os"
@@ -30,33 +33,35 @@ import (
 func init() {
 	nvr.RegisterLogSource([]string{"timeline"})
 	nvr.RegisterMonitorRecSavedHook(onRecSaved)
+	nvr.RegisterMigrationMonitorHook(migrate)
 }
 
 func onRecSaved(m *monitor.Monitor, recPath string, recData storage.RecordingData) {
+	id := m.Config.ID()
+	logf := func(level log.Level, format string, a ...interface{}) {
+		m.Log.Level(level).Src("timeline").Monitor(id).Msgf(format, a...)
+	}
+
 	tempPath := recPath + "_timeline_tmp.mp4"
 	timelinePath := recPath + "_timeline.mp4"
 	opts := argOpts{
 		logLevel:   m.Config.LogLevel(),
 		inputPath:  recPath + ".mp4",
 		outputPath: tempPath,
-		scale:      m.Config["timelineScale"],
-		quality:    m.Config["timelineQuality"],
-		frameRate:  m.Config["timelineFrameRate"],
 	}
-	args := genArgs(opts)
 
-	m.Log.Info().
-		Src("timeline").
-		Monitor(m.Config.ID()).
-		Msgf("generating video: %v", strings.Join(args, " "))
+	config, err := parseConfig(m.Config)
+	if err != nil {
+		logf(log.LevelError, "could not parse config: %w")
+	}
 
+	args := genArgs(opts, *config)
+
+	logf(log.LevelInfo, "generating video: %v", strings.Join(args, " "))
 	cmd := exec.Command(m.Env.FFmpegBin, args...)
 
 	logFunc := func(msg string) {
-		m.Log.FFmpegLevel(m.Config.LogLevel()).
-			Src("timeline").
-			Monitor(m.Config.ID()).
-			Msgf("process: %v", msg)
+		logf(log.FFmpegLevel(m.Config.LogLevel()), "process: %v", msg)
 	}
 
 	process := m.NewProcess(cmd).
@@ -68,18 +73,12 @@ func onRecSaved(m *monitor.Monitor, recPath string, recData storage.RecordingDat
 	defer cancel()
 
 	if err := process.Start(ctx); err != nil {
-		m.Log.Error().
-			Src("timeline").
-			Monitor(m.Config.ID()).
-			Msgf("could not generate video: %v", args)
+		logf(log.LevelError, "could not generate video: %v", args)
 		return
 	}
 
 	if err := os.Rename(tempPath, timelinePath); err != nil {
-		m.Log.Error().
-			Src("timeline").
-			Monitor(m.Config.ID()).
-			Msgf("could not rename temp file: %v", err)
+		logf(log.LevelError, "could not rename temp file: %v", err)
 	}
 }
 
@@ -87,15 +86,17 @@ type argOpts struct {
 	logLevel   string
 	inputPath  string
 	outputPath string
-	scale      string
-	quality    string
-	frameRate  string
 }
 
-func genArgs(opts argOpts) []string {
-	s := ffmpeg.ParseScaleString(opts.scale)
-	crf := parseQuality(opts.quality)
-	fps := parseFrameRate(opts.frameRate)
+const defaultScale = "8"
+
+func genArgs(opts argOpts, c config) []string {
+	scale := ffmpeg.ParseScaleString(c.scale)
+	if scale == "" {
+		scale = defaultScale
+	}
+	crf := parseQuality(c.quality)
+	fps := parseFrameRate(c.frameRate)
 
 	args := []string{
 		"-n", "-loglevel", opts.logLevel,
@@ -107,8 +108,8 @@ func genArgs(opts argOpts) []string {
 	}
 
 	filters := "mpdecimate,fps=" + fps + ",mpdecimate"
-	if s != "1" {
-		filters += ",scale='iw/" + s + ":ih/" + s + "'"
+	if scale != "1" {
+		filters += ",scale='iw/" + scale + ":ih/" + scale + "'"
 	}
 
 	args = append(args, filters)
@@ -148,14 +149,76 @@ func parseQuality(q string) string {
 	return "27"
 }
 
-const defaultRate = "6"
+const defaultFrameRate = "6"
 
 func parseFrameRate(rate string) string {
 	fpm, err := strconv.ParseFloat(rate, 64)
 	if err != nil || fpm <= 0 {
-		return defaultRate
+		return defaultFrameRate
 	}
 
 	fps := fpm / 60
 	return strconv.FormatFloat(fps, 'f', 4, 32)
+}
+
+type config struct {
+	scale     string
+	quality   string
+	frameRate string
+}
+
+type rawConfigV1 struct {
+	Scale     string `json:"scale"`
+	Quality   string `json:"quality"`
+	FrameRate string `json:"frameRate"`
+}
+
+func parseConfig(conf monitor.Config) (*config, error) {
+	var rawConf rawConfigV1
+	rawTimeline := conf["timeline"]
+	if rawTimeline != "" {
+		err := json.Unmarshal([]byte(rawTimeline), &rawConf)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshal doods: %w", err)
+		}
+	}
+	return &config{
+		scale:     rawConf.Scale,
+		quality:   rawConf.Quality,
+		frameRate: rawConf.FrameRate,
+	}, nil
+}
+
+const currentConfigVersion = 1
+
+func migrate(conf monitor.Config) error {
+	configVersion, _ := strconv.Atoi(conf["timelineConfigVersion"])
+
+	if configVersion < 1 {
+		if err := migrateV0toV1(conf); err != nil {
+			return fmt.Errorf("timeline v0 to v1: %w", err)
+		}
+	}
+
+	conf["timelineConfigVersion"] = strconv.Itoa(currentConfigVersion)
+	return nil
+}
+
+func migrateV0toV1(conf monitor.Config) error {
+	config := rawConfigV1{
+		Scale:     conf["timelineScale"],
+		Quality:   conf["timelineQuality"],
+		FrameRate: conf["timelineFrameRate"],
+	}
+
+	delete(conf, "timelineScale")
+	delete(conf, "timelineQuality")
+	delete(conf, "timelineFrameRate")
+
+	rawConfig, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("marshal raw config: %w", err)
+	}
+	conf["timeline"] = string(rawConfig)
+	return nil
 }

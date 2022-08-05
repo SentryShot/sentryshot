@@ -476,7 +476,8 @@ func TestParseArgs(t *testing.T) {
 
 func TestParseScaleString(t *testing.T) {
 	cases := []struct{ input, expected string }{
-		{"", "1"},
+		{"", ""},
+		{"x", ""},
 		{"full", "1"},
 		{"half", "2"},
 		{"third", "3"},

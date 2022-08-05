@@ -82,34 +82,115 @@ func modifyTemplates(pageFiles map[string]string) error {
 	return nil
 }
 
-func modifySettingsjs(tpl string) string {
+func modifySettingsjs(tpl string) string { // nolint:funlen
 	const target = "logLevel: fieldTemplate.select("
 
 	const javascript = `
-		timelineScale:fieldTemplate.select(
-			"Timeline scale",
-			["full", "half", "third", "quarter", "sixth", "eighth"],
-			"eighth",
-		),
-		timelineQuality: fieldTemplate.select(
-			"Timeline quality",
-			["1", "2", "3", "4", "5", "6", "7", "8"],
-			"4"
-		),
-		timelineFrameRate: newField(
-			[inputRules.notEmpty],
-			{
-				errorField: true,
-				input: "number",
-				min: "0",
-				max: "30",
-			},
-			{
-				label: "Timeline frames per minute",
-				placeholder: "0-30",
-				initial: 15,
-			}
-		),`
+		timeline: (() => {
+			const fields = {
+				scale:fieldTemplate.select(
+					"Scale",
+					["full", "half", "third", "quarter", "sixth", "eighth"],
+					"eighth",
+				),
+				quality: fieldTemplate.select(
+					"Quality",
+					["1", "2", "3", "4", "5", "6", "7", "8"],
+					"4"
+				),
+				frameRate: newField(
+					[inputRules.notEmpty],
+					{
+						errorField: true,
+						input: "number",
+						min: "0",
+						max: "30",
+					},
+					{
+						label: "Frames per minute",
+						placeholder: "0-30",
+						initial: 15,
+					}
+				),
+			};
+
+			const form = newForm(fields);
+			const modal = newModal("Timeline", form.html());
+
+			let value = {};
+
+			let isRendered = false;
+			const render = (element) => {
+				if (isRendered) {
+					return;
+				}
+				element.insertAdjacentHTML("beforeend", modal.html);
+				element.querySelector(".js-modal").style.maxWidth = "12rem";
+
+				const $modalContent = modal.init(element);
+				form.init($modalContent);
+
+				modal.onClose(() => {
+					// Get value.
+					for (const key of Object.keys(form.fields)) {
+						value[key] = form.fields[key].value();
+					}
+				});
+
+				isRendered = true;
+			};
+
+			const update = () => {
+				// Set value.
+				for (const key of Object.keys(form.fields)) {
+					if (form.fields[key] && form.fields[key].set) {
+						if (value[key]) {
+							form.fields[key].set(value[key]);
+						} else {
+							form.fields[key].set("");
+						}
+					}
+				}
+			};
+
+			const id = uniqueID();
+
+			return {
+				html: ` + "`" + `
+					<li id="${id}" class="form-field" style="display:flex;">
+						<label class="form-field-label">Timeline</label>
+						<div>
+							<button class="settings-edit-btn" style="background: var(--color3);">
+								<img src="static/icons/feather/edit-3.svg"/>
+							</button>
+						</div>
+					</li> ` + "`" + `,
+				value() {
+					return JSON.stringify(value);
+				},
+				set(input) {
+					value = input ? JSON.parse(input) : {};
+				},
+				validate() {
+					if (!isRendered) {
+						return "";
+					}
+					const err = form.validate();
+					if (err != "") {
+						return "Timeline: " + err;
+					}
+					return "";
+				},
+				init($parent) {
+					const element = $parent.querySelector("#" + id);
+					element.querySelector(".settings-edit-btn").addEventListener("click", () => {
+						render(element);
+						update();
+						modal.open();
+					});
+				},
+			};
+		})(),`
 
 	return strings.ReplaceAll(tpl, target, javascript+target)
 }

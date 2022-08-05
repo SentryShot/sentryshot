@@ -405,7 +405,7 @@ func ParseScaleString(scale string) string {
 	case "eighth":
 		return "8"
 	default:
-		return "1"
+		return ""
 	}
 }
 
