@@ -15,6 +15,16 @@ const (
 	readBufferCount = 2048
 )
 
+// Server is an instance of rtsp-simple-server.
+type Server struct {
+	rtspAddress string
+	hlsAddress  string
+	pathManager *pathManager
+	rtspServer  *rtspServer
+	hlsServer   *hlsServer
+	wg          *sync.WaitGroup
+}
+
 // NewServer allocates a server.
 func NewServer(log *log.Logger, wg *sync.WaitGroup, rtspPort int, hlsPort int) *Server {
 	// Only allow local connections.
@@ -58,29 +68,19 @@ func NewServer(log *log.Logger, wg *sync.WaitGroup, rtspPort int, hlsPort int) *
 	}
 }
 
-// Server is an instance of rtsp-simple-server.
-type Server struct {
-	rtspAddress string
-	hlsAddress  string
-	pathManager *pathManager
-	rtspServer  *rtspServer
-	hlsServer   *hlsServer
-	wg          *sync.WaitGroup
-}
-
 // Start server.
-func (p *Server) Start(ctx context.Context) error {
+func (s *Server) Start(ctx context.Context) error {
 	ctx2, cancel := context.WithCancel(ctx)
 	_ = cancel
 
-	p.pathManager.start(ctx2)
+	s.pathManager.start(ctx2)
 
-	if err := p.rtspServer.start(ctx2); err != nil {
+	if err := s.rtspServer.start(ctx2); err != nil {
 		cancel()
 		return err
 	}
 
-	if err := p.hlsServer.start(ctx2); err != nil {
+	if err := s.hlsServer.start(ctx2); err != nil {
 		cancel()
 		return err
 	}
@@ -90,36 +90,39 @@ func (p *Server) Start(ctx context.Context) error {
 // CancelFunc .
 type CancelFunc func()
 
+// ServerPath .
+type ServerPath struct {
+	HlsAddress           string
+	RtspAddress          string
+	RtspProtocol         string
+	WaitForNewHLSsegment WaitForNewHLSsegementFunc
+}
+
 // NewPath add path.
-func (p *Server) NewPath(
-	name string, newConf PathConf) (
-	string, string, string, WaitForNewHLSsegementFunc, CancelFunc, error,
-) {
-	err := p.pathManager.AddPath(name, &newConf)
+func (s *Server) NewPath(name string, newConf PathConf) (*ServerPath, CancelFunc, error) {
+	err := s.pathManager.AddPath(name, &newConf)
 	if err != nil {
-		return "", "", "", nil, nil, err
+		return nil, nil, err
 	}
 
-	hlsAddress := "http://" + p.hlsAddress + "/hls/" + name + "/index.m3u8"
-	rtspAddress := "rtsp://" + p.rtspAddress + "/" + name
-	rtspProtocol := "tcp"
 	cancelFunc := func() {
-		p.pathManager.RemovePath(name)
+		s.pathManager.RemovePath(name)
 	}
 
-	return hlsAddress,
-		rtspAddress,
-		rtspProtocol,
-		newConf.WaitForNewHLSsegment,
-		cancelFunc, nil
+	return &ServerPath{
+		HlsAddress:           "http://" + s.hlsAddress + "/hls/" + name + "/index.m3u8",
+		RtspAddress:          "rtsp://" + s.rtspAddress + "/" + name,
+		RtspProtocol:         "tcp",
+		WaitForNewHLSsegment: newConf.WaitForNewHLSsegment,
+	}, cancelFunc, nil
 }
 
 // PathExist returns true if path exist.
-func (p *Server) PathExist(name string) bool {
-	return p.pathManager.pathExist(name)
+func (s *Server) PathExist(name string) bool {
+	return s.pathManager.pathExist(name)
 }
 
 // HandleHLS handle hls requests.
-func (p *Server) HandleHLS() http.HandlerFunc {
-	return p.hlsServer.HandleRequest()
+func (s *Server) HandleHLS() http.HandlerFunc {
+	return s.hlsServer.HandleRequest()
 }

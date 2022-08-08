@@ -32,14 +32,14 @@ func TestOnRecSave(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := &monitor.Monitor{
-				Mu: sync.Mutex{},
+			r := &monitor.Recorder{
+				MonitorLock: &sync.Mutex{},
 				Config: map[string]string{
 					"thumbScale": tc.input,
 				},
 			}
 			args := " -frames"
-			onRecSave(m, &args)
+			onRecSave(r, &args)
 
 			require.Equal(t, tc.output, args)
 		})

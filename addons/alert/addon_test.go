@@ -121,13 +121,13 @@ func TestProcessEvent(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			var outEvent *storage.Event
-			onEvent := func(_ *monitor.Monitor, event *storage.Event, _ []byte) {
+			onEvent := func(_ *monitor.Recorder, event *storage.Event, _ []byte) {
 				outEvent = event
 			}
 
 			a := newAlerter([]Hook{onEvent})
 
-			err := a.processEvent(&monitor.Monitor{}, tc.event, "", tc.config)
+			err := a.processEvent(nil, tc.event, "", tc.config)
 			require.Equal(t, err != nil, tc.err)
 
 			if tc.passEvent {
@@ -138,7 +138,7 @@ func TestProcessEvent(t *testing.T) {
 
 	t.Run("cooldown", func(t *testing.T) {
 		var outEvent *storage.Event
-		onEvent := func(_ *monitor.Monitor, event *storage.Event, _ []byte) {
+		onEvent := func(_ *monitor.Recorder, event *storage.Event, _ []byte) {
 			outEvent = event
 		}
 
@@ -161,16 +161,16 @@ func TestProcessEvent(t *testing.T) {
 			Cooldown:  "1",
 		})
 
-		err := a.processEvent(&monitor.Monitor{}, event1, "", config)
+		err := a.processEvent(nil, event1, "", config)
 		require.NoError(t, err)
 		require.Equal(t, outEvent, event1)
 
-		err = a.processEvent(&monitor.Monitor{}, event2, "", config)
+		err = a.processEvent(nil, event2, "", config)
 		require.NoError(t, err)
 		require.Equal(t, outEvent, event1)
 
 		a.prevAlerts = map[string]time.Time{}
-		err = a.processEvent(&monitor.Monitor{}, event2, "", config)
+		err = a.processEvent(nil, event2, "", config)
 		require.NoError(t, err)
 		require.Equal(t, outEvent, event2)
 	})

@@ -35,9 +35,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type cancelFunc func()
-
-func prepareDir(t *testing.T) (string, cancelFunc) {
+func prepareDir(t *testing.T) string {
 	tempDir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)
 
@@ -69,41 +67,26 @@ func prepareDir(t *testing.T) (string, cancelFunc) {
 		t.Fatal(err)
 	}
 
-	cancel := func() {
+	t.Cleanup(func() {
 		os.RemoveAll(tempDir)
-	}
-	return testConfigDir, cancel
+	})
+
+	return testConfigDir
 }
 
-func newTestManager(t *testing.T) (string, *Manager, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
-	logger := log.NewMockLogger()
-	logger.Start(ctx)
-
-	wg := sync.WaitGroup{}
-	videoServer := video.NewServer(logger, &wg, 2021, 2022)
-
-	err := videoServer.Start(ctx)
-	require.NoError(t, err)
-
-	configDir, cancel2 := prepareDir(t)
-
-	cancelFunc := func() {
-		cancel()
-		cancel2()
-		wg.Wait()
-	}
+func newTestManager(t *testing.T) (string, *Manager) {
+	configDir := prepareDir(t)
 
 	manager, err := NewManager(
 		configDir,
 		storage.ConfigEnv{},
-		logger,
-		videoServer,
+		nil,
+		nil,
 		&Hooks{Migrate: func(Config) error { return nil }},
 	)
 	require.NoError(t, err)
 
-	return configDir, manager, cancelFunc
+	return configDir, manager
 }
 
 func readConfig(t *testing.T, path string) Config {
@@ -119,15 +102,13 @@ func readConfig(t *testing.T, path string) Config {
 
 func TestNewManager(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		configDir, manager, cancel := newTestManager(t)
-		defer cancel()
+		configDir, manager := newTestManager(t)
 
 		config := readConfig(t, filepath.Join(configDir, "1.json"))
 		require.Equal(t, config, manager.Monitors["1"].Config)
 	})
 	t.Run("migration", func(t *testing.T) {
-		configDir, cancel := prepareDir(t)
-		defer cancel()
+		configDir := prepareDir(t)
 
 		data := []byte(`{"id":"x", "test": "a"}`)
 		configPath := configDir + "/x.json"
@@ -176,8 +157,7 @@ func TestNewManager(t *testing.T) {
 		require.Error(t, err)
 	})
 	t.Run("unmarshalErr", func(t *testing.T) {
-		configDir, cancel := prepareDir(t)
-		defer cancel()
+		configDir := prepareDir(t)
 
 		data := []byte("{")
 		err := os.WriteFile(configDir+"/1.json", data, 0o600)
@@ -194,8 +174,7 @@ func TestNewManager(t *testing.T) {
 		require.ErrorAs(t, err, &e)
 	})
 	t.Run("migrationErr", func(t *testing.T) {
-		configDir, cancel := prepareDir(t)
-		defer cancel()
+		configDir := prepareDir(t)
 
 		data := []byte("{}")
 		err := os.WriteFile(configDir+"/1.json", data, 0o600)
@@ -216,8 +195,7 @@ func TestNewManager(t *testing.T) {
 
 func TestMonitorSet(t *testing.T) {
 	t.Run("createNew", func(t *testing.T) {
-		configDir, manager, cancel := newTestManager(t)
-		defer cancel()
+		configDir, manager := newTestManager(t)
 
 		config := manager.Monitors["1"].Config
 		config["name"] = "new"
@@ -233,8 +211,7 @@ func TestMonitorSet(t *testing.T) {
 		require.Equal(t, config, manager.Monitors["new"].Config)
 	})
 	t.Run("setOld", func(t *testing.T) {
-		configDir, manager, cancel := newTestManager(t)
-		defer cancel()
+		configDir, manager := newTestManager(t)
 
 		oldMonitor := manager.Monitors["1"]
 		oldMonitor.running = true
@@ -259,9 +236,7 @@ func TestMonitorSet(t *testing.T) {
 		require.Equal(t, config, manager.Monitors["1"].Config)
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
-		_, manager, cancel := newTestManager(t)
-		defer cancel()
-
+		_, manager := newTestManager(t)
 		manager.path = "/dev/null"
 
 		err := manager.MonitorSet("1", Config{})
@@ -271,8 +246,7 @@ func TestMonitorSet(t *testing.T) {
 
 func TestMonitorDelete(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		_, manager, cancel := newTestManager(t)
-		defer cancel()
+		_, manager := newTestManager(t)
 
 		require.NotNil(t, manager.Monitors["1"])
 
@@ -282,16 +256,12 @@ func TestMonitorDelete(t *testing.T) {
 		require.Nil(t, manager.Monitors["1"])
 	})
 	t.Run("existErr", func(t *testing.T) {
-		_, manager, cancel := newTestManager(t)
-		defer cancel()
-
+		_, manager := newTestManager(t)
 		err := manager.MonitorDelete("nil")
 		require.ErrorIs(t, err, ErrNotExist)
 	})
 	t.Run("removeErr", func(t *testing.T) {
-		_, manager, cancel := newTestManager(t)
-		defer cancel()
-
+		_, manager := newTestManager(t)
 		manager.path = "/dev/null"
 
 		err := manager.MonitorDelete("1")
@@ -343,8 +313,7 @@ func TestMonitorList(t *testing.T) {
 }
 
 func TestMonitorConfigs(t *testing.T) {
-	_, manager, cancel := newTestManager(t)
-	defer cancel()
+	_, manager := newTestManager(t)
 
 	actual := fmt.Sprintf("%v", manager.MonitorConfigs())
 	expected := "map[1:map[audioEncoder:copy enable:false id:1 mainInput:x1 name:one]" +
@@ -356,10 +325,9 @@ func TestMonitorConfigs(t *testing.T) {
 func TestStopAllMonitors(t *testing.T) {
 	runningMonitor := func() *Monitor {
 		return &Monitor{
-			eventChan: make(chan storage.Event),
-			running:   true,
-			WG:        &sync.WaitGroup{},
-			cancel:    func() {},
+			running: true,
+			WG:      &sync.WaitGroup{},
+			cancel:  func() {},
 		}
 	}
 	m := Manager{
@@ -382,72 +350,52 @@ func mockWaitForNewHLSsegment(context.Context, int) (time.Duration, error) {
 	return 0, nil
 }
 
-func newMockInputProcess(m *Monitor, isSubInput bool) *InputProcess {
+func mockNewVideoServerPath(
+	name string, _ video.PathConf) (*video.ServerPath, video.CancelFunc, error,
+) {
+	if name == "" {
+		return nil, nil, video.ErrEmptyPathName
+	}
+	return &video.ServerPath{
+		WaitForNewHLSsegment: func(context.Context, int) (time.Duration, error) {
+			return 0, nil
+		},
+	}, func() {}, nil
+}
+
+func newTestInputProcess() *InputProcess {
 	return &InputProcess{
-		isSubInput: isSubInput,
+		Config: Config{
+			"id": "test",
+		},
+		MonitorLock: &sync.Mutex{},
+
+		isSubInput: false,
 		hlsAddress: "hls.m3u8",
 
 		waitForNewHLSsegment: mockWaitForNewHLSsegment,
 
-		M: m,
+		logf:  func(level log.Level, format string, a ...interface{}) {},
+		hooks: mockHooks(),
+		WG:    &sync.WaitGroup{},
 
-		sizeFromStream:   mockSizeFromStream,
-		runInputProcess:  mockRunInputProcess,
-		newProcess:       ffmock.NewProcess,
-		watchdogInterval: 10 * time.Second,
+		newVideoServerPath: mockNewVideoServerPath,
+		sizeFromStream:     mockSizeFromStream,
+		runInputProcess:    mockRunInputProcess,
+		newProcess:         ffmock.NewProcess,
 	}
 }
 
-func newTestMonitor(t *testing.T) (*Monitor, context.Context, func()) {
-	ctx, cancel := context.WithCancel(context.Background())
-	logger := log.NewMockLogger()
-	logger.Start(ctx)
+func newTestMonitor(t *testing.T) *Monitor {
+	logf := func(level log.Level, format string, a ...interface{}) {}
+	return &Monitor{
+		running: true,
+		logf:    logf,
+		WG:      &sync.WaitGroup{},
 
-	wg := sync.WaitGroup{}
-	videoServer := video.NewServer(logger, &wg, 2021, 2022)
-
-	err := videoServer.Start(ctx)
-	require.NoError(t, err)
-
-	tempDir := t.TempDir()
-	wg2 := sync.WaitGroup{}
-	m := &Monitor{
-		Env: storage.ConfigEnv{
-			TempDir:    tempDir,
-			StorageDir: tempDir + "/storage",
-		},
-		Config: map[string]string{
-			"id":              "test",
-			"enable":          "true",
-			"videoLength":     "0.0003", // 18ms
-			"timestampOffset": "0",
-		},
-		eventsMu: sync.Mutex{},
-
-		eventChan: make(chan storage.Event),
-		running:   true,
-
-		hooks:         mockHooks(),
-		NewProcess:    ffmock.NewProcess,
-		videoDuration: mockVideoDuration,
-
-		WG:          &wg2,
-		Log:         logger,
-		videoServer: videoServer,
+		mainInput: &InputProcess{},
+		subInput:  &InputProcess{},
 	}
-
-	cancelFunc := func() {
-		cancel()
-		wg.Wait()
-		wg2.Wait()
-		os.RemoveAll(tempDir)
-		close(m.eventChan)
-	}
-
-	m.mainInput = newMockInputProcess(m, false)
-	m.subInput = newMockInputProcess(m, true)
-
-	return m, ctx, cancelFunc
 }
 
 func TestStartMonitor(t *testing.T) {
@@ -458,21 +406,21 @@ func TestStartMonitor(t *testing.T) {
 		require.ErrorIs(t, err, ErrRunning)
 	})
 	t.Run("disabled", func(t *testing.T) {
-		m, _, cancel := newTestMonitor(t)
-		defer cancel()
+		logs := make(chan string)
+		defer close(logs)
 
+		m := newTestMonitor(t)
 		m.running = false
 		m.Config = map[string]string{"name": "test"}
-
-		feed, cancel2 := m.Log.Subscribe()
-		defer cancel2()
+		m.logf = func(level log.Level, format string, a ...interface{}) {
+			logs <- fmt.Sprintf(format, a...)
+		}
 
 		go func() {
 			m.Start()
 		}()
 
-		actual := <-feed
-		require.Equal(t, actual.Msg, "disabled")
+		require.Equal(t, "disabled", <-logs)
 	})
 }
 
@@ -486,100 +434,68 @@ func mockRunInputProcessErr(context.Context, *InputProcess) error {
 
 func TestStartInputProcess(t *testing.T) {
 	t.Run("canceled", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
-		defer cancel()
+		logs := make(chan string)
+		defer close(logs)
 
-		ctx, cancel2 := context.WithCancel(context.Background())
-		cancel2()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
 
-		feed, cancel3 := m.Log.Subscribe()
-		defer cancel3()
+		input := newTestInputProcess()
+		input.logf = func(level log.Level, format string, a ...interface{}) {
+			logs <- fmt.Sprintf(format, a...)
+		}
+		input.WG.Add(1)
+		go input.start(ctx)
 
-		m.WG.Add(1)
-		go m.newInputProcess(false).start(ctx, m)
-
-		actual := <-feed
-		require.Equal(t, actual.Msg, "main process: stopped")
+		require.Equal(t, "main process: stopped", <-logs)
 	})
 	t.Run("crashed", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
-		defer cancel()
+		logs := make(chan string)
+		defer close(logs)
 
-		m.mainInput.runInputProcess = mockRunInputProcessErr
-		m.subInput.runInputProcess = mockRunInputProcessErr
+		ctx, cancel := context.WithCancel(context.Background())
 
-		feed, cancel2 := m.Log.Subscribe()
-		defer cancel2()
+		input := newTestInputProcess()
+		input.runInputProcess = mockRunInputProcessErr
+		input.logf = func(level log.Level, format string, a ...interface{}) {
+			logs <- fmt.Sprintf(format, a...)
+		}
+		input.WG.Add(1)
+		go input.start(ctx)
 
-		m.WG.Add(1)
-		go m.mainInput.start(ctx, m)
-
-		actual := <-feed
-		require.Equal(t, actual.Msg, "main process: crashed: mock")
+		require.Equal(t, "main process: crashed: mock", <-logs)
+		cancel()
+		<-logs
 	})
-}
-
-func newTestInputProcess(t *testing.T) (*InputProcess, context.Context, func()) {
-	m, ctx, cancel := newTestMonitor(t)
-
-	i := newMockInputProcess(m, false)
-	i.M = m
-
-	return i, ctx, cancel
 }
 
 func TestRunInputProcess(t *testing.T) {
 	t.Run("sizeFromStream", func(t *testing.T) {
-		i, ctx, cancel := newTestInputProcess(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
+		i := newTestInputProcess()
 		err := runInputProcess(ctx, i)
 		require.NoError(t, err)
-		require.Equal(t, i.width, 123)
-		require.Equal(t, i.height, 456)
+		require.Equal(t, i.streamWidth, 123)
+		require.Equal(t, i.streamHeight, 456)
 	})
 	t.Run("sizeFromStreamErr", func(t *testing.T) {
-		i, ctx, cancel := newTestInputProcess(t)
-		defer cancel()
-
+		i := newTestInputProcess()
 		i.sizeFromStream = mockSizeFromStreamErr
-
-		err := runInputProcess(ctx, i)
+		err := runInputProcess(context.Background(), i)
 		require.Error(t, err)
 	})
 	t.Run("crashed", func(t *testing.T) {
-		i, ctx, cancel := newTestInputProcess(t)
-		defer cancel()
-
+		i := newTestInputProcess()
 		i.newProcess = ffmock.NewProcessErr
-
-		err := runInputProcess(ctx, i)
+		err := runInputProcess(context.Background(), i)
 		require.Error(t, err)
 	})
-	t.Run("rtspPath", func(t *testing.T) {
-		i, ctx, cancel := newTestInputProcess(t)
-		i.isSubInput = true
-
-		go runInputProcess(ctx, i)
-
-		time.Sleep(10 * time.Millisecond)
-
-		path := i.M.Config.ID() + "_sub"
-		require.True(t, i.M.videoServer.PathExist(path))
-
-		cancel()
-		i.M.WG.Wait()
-
-		require.False(t, i.M.videoServer.PathExist(path))
-	})
-
 	t.Run("rtspPathErr", func(t *testing.T) {
-		i, ctx, cancel := newTestInputProcess(t)
-		defer cancel()
-
-		i.M.Config["id"] = ""
-
-		err := runInputProcess(ctx, i)
+		i := newTestInputProcess()
+		i.Config["id"] = ""
+		err := runInputProcess(context.Background(), i)
 		require.ErrorIs(t, err, video.ErrEmptyPathName)
 	})
 }
@@ -596,54 +512,46 @@ func mockHooks() Hooks {
 	return Hooks{
 		Start:      func(context.Context, *Monitor) {},
 		StartInput: func(context.Context, *InputProcess, *[]string) {},
-		Event:      func(*Monitor, *storage.Event) {},
-		RecSave:    func(*Monitor, *string) {},
-		RecSaved:   func(*Monitor, string, storage.RecordingData) {},
+		Event:      func(*Recorder, *storage.Event) {},
+		RecSave:    func(*Recorder, *string) {},
+		RecSaved:   func(*Recorder, string, storage.RecordingData) {},
 	}
 }
 
 func TestGenInputArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		i := &InputProcess{
+			Config: Config{
+				"logLevel":     "1",
+				"mainInput":    "2",
+				"audioEncoder": "none",
+				"videoEncoder": "3",
+			},
 			rtspProtocol: "4",
 			rtspAddress:  "5",
-			M: &Monitor{
-				Env: storage.ConfigEnv{},
-				Config: map[string]string{
-					"logLevel":     "1",
-					"mainInput":    "2",
-					"audioEncoder": "none",
-					"videoEncoder": "3",
-				},
-			},
 		}
 		actual := i.generateArgs()
 		expected := "-threads 1 -loglevel 1 -i 2 -an -c:v 3 -f rtsp -rtsp_transport 4 5"
-
 		require.Equal(t, expected, actual)
 	})
 	t.Run("maximal", func(t *testing.T) {
 		i := &InputProcess{
+			Config: Config{
+				"logLevel":     "1",
+				"hwaccel":      "2",
+				"inputOpts":    "3",
+				"subInput":     "4",
+				"audioEncoder": "5",
+				"videoEncoder": "6",
+			},
 			isSubInput:   true,
 			hlsAddress:   "7",
 			rtspProtocol: "8",
 			rtspAddress:  "9",
-			M: &Monitor{
-				Env: storage.ConfigEnv{},
-				Config: map[string]string{
-					"logLevel":     "1",
-					"hwaccel":      "2",
-					"inputOptions": "3",
-					"subInput":     "4",
-					"audioEncoder": "5",
-					"videoEncoder": "6",
-				},
-			},
 		}
-		args := i.generateArgs()
+		actual := i.generateArgs()
 		expected := "-threads 1 -loglevel 1 -hwaccel 2 3 -i 4 -c:a 5 -c:v 6 -f rtsp -rtsp_transport 8 9"
-
-		require.Equal(t, expected, args)
+		require.Equal(t, expected, actual)
 	})
 }
 
@@ -655,11 +563,7 @@ func TestSendEvent(t *testing.T) {
 		require.ErrorIs(t, err, context.Canceled)
 	})
 	t.Run("missingTimeErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
-		defer cancel()
-
-		m.WG.Add(1)
-		go m.startRecorder(ctx)
+		m := newTestMonitor(t)
 
 		actual := m.SendEvent(storage.Event{RecDuration: 1}).Error()
 		expected := `invalid event: {
@@ -673,11 +577,7 @@ func TestSendEvent(t *testing.T) {
 		require.Equal(t, actual, expected)
 	})
 	t.Run("missingRecDurationErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
-		defer cancel()
-
-		m.WG.Add(1)
-		go m.startRecorder(ctx)
+		m := newTestMonitor(t)
 
 		actual := m.SendEvent(storage.Event{Time: (time.Unix(1, 0).UTC())}).Error()
 		expected := `invalid event: {

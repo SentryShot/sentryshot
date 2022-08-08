@@ -1,40 +1,105 @@
+// Copyright 2020-2022 The OS-NVR Authors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package monitor
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/ffmpeg/ffmock"
+	"nvr/pkg/log"
 	"nvr/pkg/storage"
 
 	"github.com/stretchr/testify/require"
 )
 
+func newTestRecorder(t *testing.T) *Recorder {
+	tempDir := t.TempDir()
+	t.Cleanup(func() {
+		os.Remove(tempDir)
+	})
+
+	logf := func(level log.Level, format string, a ...interface{}) {}
+	return &Recorder{
+		Config: Config{
+			"timestampOffset": "0",
+			"videoLength":     "0.0003",
+		},
+		MonitorLock: &sync.Mutex{},
+
+		logf:          logf,
+		runProcess:    runRecordingProcess,
+		NewProcess:    ffmock.NewProcess,
+		videoDuration: mockVideoDuration,
+
+		input: &InputProcess{
+			isSubInput: false,
+			hlsAddress: "hls.m3u8",
+
+			waitForNewHLSsegment: mockWaitForNewHLSsegment,
+
+			logf: logf,
+
+			sizeFromStream:  mockSizeFromStream,
+			runInputProcess: mockRunInputProcess,
+			newProcess:      ffmock.NewProcess,
+		},
+		wg: &sync.WaitGroup{},
+		Env: storage.ConfigEnv{
+			TempDir:    tempDir,
+			StorageDir: tempDir,
+		},
+		eventsLock: sync.Mutex{},
+		eventChan:  make(chan storage.Event),
+		hooks:      mockHooks(),
+	}
+}
+
+func mockVideoDuration(string) (time.Duration, error) {
+	return 10 * time.Minute, nil
+}
+
 func TestStartRecorder(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
 		onRunProcess := make(chan struct{})
 		onCanceled := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Monitor) error {
+		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
 			close(onRunProcess)
 			<-ctx.Done()
 			close(onCanceled)
 			return nil
 		}
 
-		m, ctx, cancel := newTestMonitor(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		m.WG.Add(1)
-		m.runRecordingProcess = mockRunRecordingProcess
-		go m.startRecorder(ctx)
+		r := newTestRecorder(t)
+		r.wg.Add(1)
+		r.runProcess = mockRunRecordingProcess
+		go r.start(ctx)
 
-		err := m.SendEvent(storage.Event{
+		err := r.sendEvent(storage.Event{
 			Time:        time.Now().Add(time.Duration(-1) * time.Hour),
 			RecDuration: 1,
 		})
@@ -45,73 +110,69 @@ func TestStartRecorder(t *testing.T) {
 	})
 	t.Run("timeoutUpdate", func(t *testing.T) {
 		onRunProcess := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Monitor) error {
+		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
 			close(onRunProcess)
 			<-ctx.Done()
 			return nil
 		}
 
-		m, ctx, cancel := newTestMonitor(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		m.WG.Add(1)
-		m.runRecordingProcess = mockRunRecordingProcess
-
-		ctx, cancel2 := context.WithCancel(context.Background())
-		defer cancel2()
-
-		go m.startRecorder(ctx)
+		r := newTestRecorder(t)
+		r.wg.Add(1)
+		r.runProcess = mockRunRecordingProcess
+		go r.start(ctx)
 
 		now := time.Now()
-		m.eventChan <- storage.Event{Time: now, RecDuration: 20 * time.Millisecond}
-		m.eventChan <- storage.Event{Time: now, RecDuration: 60 * time.Millisecond}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 20 * time.Millisecond}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 60 * time.Millisecond}
 
 		<-onRunProcess
 	})
 	t.Run("recordingCheck", func(t *testing.T) {
 		onRunProcess := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Monitor) error {
+		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
 			close(onRunProcess)
 			<-ctx.Done()
 			return nil
 		}
 
-		m, ctx, cancel := newTestMonitor(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ctx, cancel2 := context.WithCancel(context.Background())
-		defer cancel2()
-
-		m.WG.Add(1)
-		m.runRecordingProcess = mockRunRecordingProcess
-		go m.startRecorder(ctx)
+		r := newTestRecorder(t)
+		r.wg.Add(1)
+		r.runProcess = mockRunRecordingProcess
+		go r.start(ctx)
 
 		now := time.Now()
-		m.eventChan <- storage.Event{Time: now, RecDuration: 10 * time.Millisecond}
-		m.eventChan <- storage.Event{Time: now, RecDuration: 11 * time.Millisecond}
-		m.eventChan <- storage.Event{Time: now, RecDuration: 0 * time.Millisecond}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 10 * time.Millisecond}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 11 * time.Millisecond}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 0 * time.Millisecond}
 
 		<-onRunProcess
 	})
 	// Only update timeout if new time is after current time.
 	t.Run("updateTimeout", func(t *testing.T) {
 		onCancel := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Monitor) error {
+		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
 			<-ctx.Done()
 			close(onCancel)
 			return nil
 		}
 
-		m, ctx, cancel := newTestMonitor(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		m.WG.Add(1)
-		m.runRecordingProcess = mockRunRecordingProcess
-		go m.startRecorder(ctx)
+		r := newTestRecorder(t)
+		r.wg.Add(1)
+		r.runProcess = mockRunRecordingProcess
+		go r.start(ctx)
 
 		now := time.Now()
-		m.eventChan <- storage.Event{Time: now, RecDuration: 30 * time.Millisecond}
-		m.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Millisecond}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 30 * time.Millisecond}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Millisecond}
 
 		select {
 		case <-time.After(15 * time.Millisecond):
@@ -122,20 +183,21 @@ func TestStartRecorder(t *testing.T) {
 	t.Run("normalExit", func(t *testing.T) {
 		onRunProcess := make(chan struct{})
 		exitProcess := make(chan error)
-		mockRunRecordingProcess := func(ctx context.Context, _ *Monitor) error {
+		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
 			onRunProcess <- struct{}{}
 			return <-exitProcess
 		}
 
-		m, ctx, cancel := newTestMonitor(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		m.WG.Add(1)
-		m.runRecordingProcess = mockRunRecordingProcess
-		go m.startRecorder(ctx)
+		r := newTestRecorder(t)
+		r.wg.Add(1)
+		r.runProcess = mockRunRecordingProcess
+		go r.start(ctx)
 
 		now := time.Now()
-		m.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Hour}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Hour}
 
 		<-onRunProcess
 		exitProcess <- nil
@@ -146,91 +208,97 @@ func TestStartRecorder(t *testing.T) {
 		exitProcess <- ffmock.ErrMock
 	})
 	t.Run("canceled", func(t *testing.T) {
-		m, _, cancel := newTestMonitor(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ctx2, cancel2 := context.WithCancel(context.Background())
-		defer cancel2()
-
-		mockRunRecordingProcess := func(context.Context, *Monitor) error {
-			cancel2()
+		mockRunRecordingProcess := func(context.Context, *Recorder) error {
+			cancel()
 			return nil
 		}
 
-		m.WG.Add(1)
-		m.runRecordingProcess = mockRunRecordingProcess
-		go m.startRecorder(ctx2)
+		r := newTestRecorder(t)
+		r.wg.Add(1)
+		r.runProcess = mockRunRecordingProcess
+		go r.start(ctx)
 
 		now := time.Now()
-		m.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Hour}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Hour}
 	})
 	t.Run("canceledRecording", func(t *testing.T) {
 		onCancel := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Monitor) error {
+		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
 			<-ctx.Done()
 			close(onCancel)
 			return nil
 		}
 
-		m, ctx, cancel := newTestMonitor(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		m.WG.Add(1)
-		m.runRecordingProcess = mockRunRecordingProcess
-		go m.startRecorder(ctx)
+		r := newTestRecorder(t)
+		r.wg.Add(1)
+		r.runProcess = mockRunRecordingProcess
+		go r.start(ctx)
 
 		now := time.Now()
-		m.eventChan <- storage.Event{Time: now, RecDuration: 0}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 0}
 		<-onCancel
 	})
 	t.Run("crashed", func(t *testing.T) {
 		onRunProcess := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Monitor) error {
+		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
 			close(onRunProcess)
 			return ffmock.ErrMock
 		}
 
-		m, ctx, cancel := newTestMonitor(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		m.WG.Add(1)
-		m.runRecordingProcess = mockRunRecordingProcess
-		go m.startRecorder(ctx)
+		r := newTestRecorder(t)
+		r.wg.Add(1)
+		r.runProcess = mockRunRecordingProcess
+		go r.start(ctx)
 
 		now := time.Now()
-		m.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Hour}
+		r.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Hour}
 		<-onRunProcess
 	})
 }
 
+func createTempDir(t *testing.T, r *Recorder) {
+}
+
 func TestRunRecordingProcess(t *testing.T) {
 	t.Run("finished", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
+		logs := make(chan string)
+		logf := func(level log.Level, format string, a ...interface{}) {
+			logs <- fmt.Sprintf(format, a...)
+		}
+
+		r := newTestRecorder(t)
+		r.logf = logf
+		r.NewProcess = ffmock.NewProcessNil
+
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-
-		m.NewProcess = ffmock.NewProcessNil
-
-		feed, cancel2 := m.Log.Subscribe()
-		defer cancel2()
-
 		go func() {
-			runRecordingProcess(ctx, m)
+			runRecordingProcess(ctx, r)
 		}()
 
-		<-feed
-		<-feed
-		actual := <-feed
-		require.Equal(t, actual.Msg, "recording finished")
+		<-logs
+		<-logs
+		require.Equal(t, "recording finished", <-logs)
 	})
 	t.Run("saveRecordingAsync", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		m.NewProcess = ffmock.NewProcessNil
-		m.hooks.RecSave = func(*Monitor, *string) {
+		r := newTestRecorder(t)
+		r.NewProcess = ffmock.NewProcessNil
+		r.hooks.RecSave = func(*Recorder, *string) {
 			<-ctx.Done()
 		}
-		err := runRecordingProcess(ctx, m)
+		err := runRecordingProcess(ctx, r)
 		require.NoError(t, err)
 	})
 	t.Run("waitForKeyframeErr", func(t *testing.T) {
@@ -238,83 +306,63 @@ func TestRunRecordingProcess(t *testing.T) {
 			return 0, ffmock.ErrMock
 		}
 
-		m, ctx, cancel := newTestMonitor(t)
-		defer cancel()
+		r := newTestRecorder(t)
+		r.NewProcess = ffmock.NewProcess
+		r.input.waitForNewHLSsegment = mockWaitForNewHLSsegmentErr
 
-		m.NewProcess = ffmock.NewProcess
-		m.mainInput.waitForNewHLSsegment = mockWaitForNewHLSsegmentErr
-
-		err := runRecordingProcess(ctx, m)
+		err := runRecordingProcess(context.Background(), r)
 		require.ErrorIs(t, err, ffmock.ErrMock)
 	})
 	t.Run("mkdirErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
-		defer cancel()
+		r := newTestRecorder(t)
+		r.Env.StorageDir = "/dev/null"
 
-		m.Env = storage.ConfigEnv{
-			StorageDir: "/dev/null",
-		}
-		err := runRecordingProcess(ctx, m)
+		err := runRecordingProcess(context.Background(), r)
 		require.Error(t, err)
 	})
 	t.Run("genArgsErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
-		defer cancel()
+		r := newTestRecorder(t)
+		r.Config["videoLength"] = ""
 
-		m.Config["videoLength"] = ""
-
-		err := runRecordingProcess(ctx, m)
+		err := runRecordingProcess(context.Background(), r)
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 	t.Run("parseOffsetErr", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
-		defer cancel()
+		r := newTestRecorder(t)
+		r.Config["timestampOffset"] = ""
 
-		m.Config["timestampOffset"] = ""
-
-		err := runRecordingProcess(ctx, m)
+		err := runRecordingProcess(context.Background(), r)
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 	t.Run("crashed", func(t *testing.T) {
-		m, ctx, cancel := newTestMonitor(t)
-		defer cancel()
-		m.NewProcess = ffmock.NewProcessErr
+		r := newTestRecorder(t)
+		r.NewProcess = ffmock.NewProcessErr
 
-		err := runRecordingProcess(ctx, m)
+		err := runRecordingProcess(context.Background(), r)
 		require.Error(t, err)
 	})
 }
 
 func TestGenRecorderArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
-		m := &Monitor{
-			Env: storage.ConfigEnv{},
-			Config: map[string]string{
-				"logLevel":    "1",
-				"videoLength": "3",
-				"id":          "id",
-			},
-		}
-		m.mainInput = newMockInputProcess(m, false)
+		r := newTestRecorder(t)
+		r.Config["id"] = "id"
+		r.Config["logLevel"] = "1"
+		r.Config["videoLength"] = "3"
 
-		args, err := m.generateRecorderArgs("path")
+		args, err := r.generateRecorderArgs("path")
 		require.NoError(t, err)
 
 		expected := "-y -threads 1 -loglevel 1 -live_start_index -2 -i hls.m3u8 -t 180 -c:v copy path.mp4"
 		require.Equal(t, args, expected)
 	})
 	t.Run("videoLengthErr", func(t *testing.T) {
-		m := &Monitor{
-			Env: storage.ConfigEnv{},
-		}
+		r := newTestRecorder(t)
+		r.Config["videoLength"] = ""
 
-		_, err := m.generateRecorderArgs("path")
+		_, err := r.generateRecorderArgs("path")
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
-}
-
-func mockVideoDuration(string) (time.Duration, error) {
-	return 10 * time.Minute, nil
 }
 
 func mockVideoDurationErr(string) (time.Duration, error) {
@@ -323,10 +371,8 @@ func mockVideoDurationErr(string) (time.Duration, error) {
 
 func TestSaveRecording(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		m, _, cancel := newTestMonitor(t)
-		defer cancel()
-
-		m.events = storage.Events{
+		r := newTestRecorder(t)
+		r.events = storage.Events{
 			storage.Event{
 				Time: time.Time{},
 			},
@@ -353,10 +399,10 @@ func TestSaveRecording(t *testing.T) {
 		}
 
 		start := time.Time{}.Add(1 * time.Minute)
-		tempdir := m.Env.TempDir
+		tempdir := r.Env.TempDir
 		filePath := tempdir + "file"
 
-		err := m.saveRec(filePath, start)
+		err := r.saveRec(filePath, start)
 		require.NoError(t, err)
 
 		b, err := os.ReadFile(filePath + ".json")
@@ -374,28 +420,23 @@ func TestSaveRecording(t *testing.T) {
 		require.Equal(t, actual, expected)
 	})
 	t.Run("genThumbnailErr", func(t *testing.T) {
-		m, _, cancel := newTestMonitor(t)
-		defer cancel()
+		r := newTestRecorder(t)
+		r.NewProcess = ffmock.NewProcessErr
 
-		m.NewProcess = ffmock.NewProcessErr
-
-		err := m.saveRec("", time.Time{})
+		err := r.saveRec("", time.Time{})
 		require.Error(t, err)
 	})
 	t.Run("durationErr", func(t *testing.T) {
-		m, _, cancel := newTestMonitor(t)
-		defer cancel()
+		r := newTestRecorder(t)
+		r.videoDuration = mockVideoDurationErr
 
-		m.videoDuration = mockVideoDurationErr
-
-		err := m.saveRec("", time.Time{})
+		err := r.saveRec("", time.Time{})
 		require.Error(t, err)
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
-		m, _, cancel := newTestMonitor(t)
-		defer cancel()
+		r := newTestRecorder(t)
 
-		err := m.saveRec("/dev/null/", time.Time{})
+		err := r.saveRec("/dev/null/", time.Time{})
 		require.Error(t, err)
 	})
 }

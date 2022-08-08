@@ -43,13 +43,15 @@ func init() {
 type logFunc func(log.Level, string, ...interface{})
 
 func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]string) {
-	id := i.M.Config.ID()
+	i.MonitorLock.Lock()
+	defer i.MonitorLock.Unlock()
 
+	id := i.Config.ID()
 	logf := func(level log.Level, format string, a ...interface{}) {
-		i.M.Log.Level(level).Src("doods").Monitor(id).Msgf(format, a...)
+		i.Log.Level(level).Src("doods").Monitor(id).Msgf(format, a...)
 	}
 
-	config, enable, err := parseConfig(i.M.Config)
+	config, enable, err := parseConfig(i.Config)
 	if err != nil {
 		logf(log.LevelError, "could not parse config: %v", err)
 		return
@@ -144,12 +146,12 @@ func newInstance(
 ) *instance {
 	return &instance{
 		c:         c,
-		wg:        i.M.WG,
+		wg:        i.WG,
 		logf:      logf,
-		sendEvent: i.M.SendEvent,
+		sendEvent: i.SendEvent,
 		warmup:    10 * time.Second,
 
-		env: i.M.Env,
+		env: i.Env,
 
 		newProcess:    ffmpeg.NewProcess,
 		runFFmpeg:     runFFmpeg,

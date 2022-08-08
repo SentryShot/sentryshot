@@ -234,19 +234,19 @@ func (h *hookList) monitor() *monitor.Hooks {
 			hook(ctx, i, args)
 		}
 	}
-	eventHook := func(m *monitor.Monitor, event *storage.Event) {
+	eventHook := func(r *monitor.Recorder, event *storage.Event) {
 		for _, hook := range h.monitorEvent {
-			hook(m, event)
+			hook(r, event)
 		}
 	}
-	recSaveHook := func(m *monitor.Monitor, args *string) {
+	recSaveHook := func(r *monitor.Recorder, args *string) {
 		for _, hook := range h.monitorRecSave {
-			hook(m, args)
+			hook(r, args)
 		}
 	}
-	recSavedHook := func(m *monitor.Monitor, recPath string, recData storage.RecordingData) {
+	recSavedHook := func(r *monitor.Recorder, recPath string, recData storage.RecordingData) {
 		for _, hook := range h.monitorRecSaved {
-			hook(m, recPath, recData)
+			hook(r, recPath, recData)
 		}
 	}
 	migrateHook := func(conf monitor.Config) error {

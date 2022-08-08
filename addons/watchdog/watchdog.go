@@ -25,13 +25,13 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 	}
 
 	d := &watchdog{
-		monitorID:   i.M.Config.ID(),
+		monitorID:   i.Config.ID(),
 		processName: i.ProcessName(),
 		watchFunc:   watchFunc,
 		interval:    defaultInterval,
 		onFreeze:    i.Cancel,
 
-		log: i.M.Log,
+		log: i.Log,
 	}
 	go d.start(ctx)
 }

@@ -36,21 +36,21 @@ func init() {
 	nvr.RegisterMigrationMonitorHook(migrate)
 }
 
-func onRecSaved(m *monitor.Monitor, recPath string, recData storage.RecordingData) {
-	id := m.Config.ID()
+func onRecSaved(r *monitor.Recorder, recPath string, recData storage.RecordingData) {
+	id := r.Config.ID()
 	logf := func(level log.Level, format string, a ...interface{}) {
-		m.Log.Level(level).Src("timeline").Monitor(id).Msgf(format, a...)
+		r.Log.Level(level).Src("timeline").Monitor(id).Msgf(format, a...)
 	}
 
 	tempPath := recPath + "_timeline_tmp.mp4"
 	timelinePath := recPath + "_timeline.mp4"
 	opts := argOpts{
-		logLevel:   m.Config.LogLevel(),
+		logLevel:   r.Config.LogLevel(),
 		inputPath:  recPath + ".mp4",
 		outputPath: tempPath,
 	}
 
-	config, err := parseConfig(m.Config)
+	config, err := parseConfig(r.Config)
 	if err != nil {
 		logf(log.LevelError, "could not parse config: %w")
 	}
@@ -58,13 +58,13 @@ func onRecSaved(m *monitor.Monitor, recPath string, recData storage.RecordingDat
 	args := genArgs(opts, *config)
 
 	logf(log.LevelInfo, "generating video: %v", strings.Join(args, " "))
-	cmd := exec.Command(m.Env.FFmpegBin, args...)
+	cmd := exec.Command(r.Env.FFmpegBin, args...)
 
 	logFunc := func(msg string) {
-		logf(log.FFmpegLevel(m.Config.LogLevel()), "process: %v", msg)
+		logf(log.FFmpegLevel(r.Config.LogLevel()), "process: %v", msg)
 	}
 
-	process := m.NewProcess(cmd).
+	process := r.NewProcess(cmd).
 		StdoutLogger(logFunc).
 		StderrLogger(logFunc)
 

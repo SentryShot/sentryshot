@@ -26,7 +26,7 @@ import (
 )
 
 // Hook Alert hook.
-type Hook func(*monitor.Monitor, *storage.Event, []byte)
+type Hook func(*monitor.Recorder, *storage.Event, []byte)
 
 var addon struct {
 	hooks []Hook
@@ -57,22 +57,22 @@ type alerter struct {
 	prevAlerts map[string]time.Time // map[monitorID]prevAlert.
 }
 
-func (a *alerter) onEvent(m *monitor.Monitor, event *storage.Event) {
+func (a *alerter) onEvent(r *monitor.Recorder, event *storage.Event) {
 	go func() {
-		m.Mu.Lock()
-		id := m.Config.ID()
-		rawConfig := m.Config["alert"]
-		m.Mu.Unlock()
+		r.MonitorLock.Lock()
+		id := r.Config.ID()
+		rawConfig := r.Config["alert"]
+		r.MonitorLock.Unlock()
 
-		err := a.processEvent(m, event, id, rawConfig)
+		err := a.processEvent(r, event, id, rawConfig)
 		if err != nil {
-			m.Log.Error().Src("alert").Monitor(id).Msgf("%v", err)
+			r.Log.Error().Src("alert").Monitor(id).Msgf("%v", err)
 		}
 	}()
 }
 
 func (a *alerter) processEvent(
-	m *monitor.Monitor,
+	r *monitor.Recorder,
 	event *storage.Event,
 	id string,
 	rawConfig string,
@@ -115,7 +115,7 @@ func (a *alerter) processEvent(
 	a.prevAlerts[id] = time.Now()
 
 	for _, hook := range a.alertHooks {
-		hook(m, event, nil)
+		hook(r, event, nil)
 	}
 
 	return nil
@@ -150,14 +150,14 @@ func bestDetection(e storage.Event) storage.Detection {
 	return best
 }
 
-func logAlert(m *monitor.Monitor, event *storage.Event, _ []byte) {
-	m.Mu.Lock()
-	id := m.Config.ID()
-	m.Mu.Unlock()
+func logAlert(r *monitor.Recorder, event *storage.Event, _ []byte) {
+	r.MonitorLock.Lock()
+	id := r.Config.ID()
+	r.MonitorLock.Unlock()
 
 	d := bestDetection(*event)
 
-	m.Log.Info().
+	r.Log.Info().
 		Src("alert").
 		Monitor(id).
 		Msgf("label:%v score:%v", d.Label, d.Score)
