@@ -5,17 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"nvr/pkg/video/gortsplib"
-	"nvr/pkg/video/gortsplib/pkg/aac"
-
 	"github.com/stretchr/testify/require"
 )
 
 func TestGeneratePart(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		actual := generatePart(
-			&gortsplib.TrackH264{},
-			&gortsplib.TrackAAC{},
+			false,
+			func() int { return 0 },
 			[]*videoSample{{
 				avcc: []byte{},
 				next: &videoSample{},
@@ -48,8 +45,8 @@ func TestGeneratePart(t *testing.T) {
 	})
 	t.Run("videoSample", func(t *testing.T) {
 		actual := generatePart(
-			&gortsplib.TrackH264{},
-			&gortsplib.TrackAAC{},
+			false,
+			func() int { return 0 },
 			[]*videoSample{{
 				avcc: []byte{'a', 'b', 'c', 'd'},
 				next: &videoSample{},
@@ -83,10 +80,8 @@ func TestGeneratePart(t *testing.T) {
 	})
 	t.Run("audioSample", func(t *testing.T) {
 		actual := generatePart(
-			&gortsplib.TrackH264{},
-			&gortsplib.TrackAAC{
-				Config: &aac.MPEG4AudioConfig{},
-			},
+			true,
+			func() int { return 0 },
 			[]*videoSample{{
 				avcc: []byte{},
 				next: &videoSample{},
@@ -135,10 +130,8 @@ func TestGeneratePart(t *testing.T) {
 	})
 	t.Run("videoAndAudioSample", func(t *testing.T) {
 		actual := generatePart(
-			&gortsplib.TrackH264{},
-			&gortsplib.TrackAAC{
-				Config: &aac.MPEG4AudioConfig{},
-			},
+			true,
+			func() int { return 0 },
 			[]*videoSample{{
 				avcc: []byte{'a', 'b', 'c', 'd'},
 				next: &videoSample{},
@@ -188,8 +181,8 @@ func TestGeneratePart(t *testing.T) {
 	})
 	t.Run("multipleVideoSample", func(t *testing.T) {
 		actual := generatePart(
-			&gortsplib.TrackH264{},
-			&gortsplib.TrackAAC{},
+			true,
+			func() int { return 0 },
 			[]*videoSample{
 				{
 					avcc:       []byte{'a', 'b', 'c', 'd'},
@@ -253,27 +246,10 @@ func TestGeneratePart(t *testing.T) {
 			idrPresent: true,
 			next:       videoSample2,
 		}
+
 		actual := generatePart(
-			&gortsplib.TrackH264{
-				PayloadType: 96,
-				SPS: []byte{
-					103, 100, 0, 22, 172, 217, 64, 164,
-					59, 228, 136, 192, 68, 0, 0, 3,
-					0, 4, 0, 0, 3, 0, 96, 60,
-					88, 182, 88,
-				},
-				PPS: []byte{104, 235, 227, 203, 34, 192},
-			},
-			&gortsplib.TrackAAC{
-				PayloadType: 97,
-				Config: &aac.MPEG4AudioConfig{
-					Type:         2,
-					SampleRate:   44100,
-					ChannelCount: 2,
-				},
-				SizeLength:  13,
-				IndexLength: 3,
-			},
+			true,
+			func() int { return 44100 },
 			[]*videoSample{
 				videoSample1,
 				videoSample2,

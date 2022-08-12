@@ -2,7 +2,6 @@ package hls
 
 import (
 	"bytes"
-	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/aac"
 	"nvr/pkg/video/gortsplib/pkg/h264"
 	"time"
@@ -47,8 +46,10 @@ type segmenter struct {
 	segmentDuration    time.Duration
 	partDuration       time.Duration
 	segmentMaxSize     uint64
-	videoTrack         *gortsplib.TrackH264
-	audioTrack         *gortsplib.TrackAAC
+	videoTrackExist    func() bool
+	videoSps           videoSpsFunc
+	audioTrackExist    func() bool
+	audioClockRate     audioClockRateFunc
 	onSegmentFinalized func(*Segment)
 	onPartFinalized    func(*muxerPart)
 
@@ -66,13 +67,17 @@ type segmenter struct {
 	adjustedPartDuration  time.Duration
 }
 
+type videoSpsFunc func() []byte
+
 func newSegmenter(
 	segmentCount int,
 	segmentDuration time.Duration,
 	partDuration time.Duration,
 	segmentMaxSize uint64,
-	videoTrack *gortsplib.TrackH264,
-	audioTrack *gortsplib.TrackAAC,
+	videoTrackExist func() bool,
+	videoSps videoSpsFunc,
+	audioTrackExist func() bool,
+	audioClockRate audioClockRateFunc,
 	onSegmentFinalized func(*Segment),
 	onPartFinalized func(*muxerPart),
 ) *segmenter {
@@ -80,8 +85,10 @@ func newSegmenter(
 		segmentDuration:    segmentDuration,
 		partDuration:       partDuration,
 		segmentMaxSize:     segmentMaxSize,
-		videoTrack:         videoTrack,
-		audioTrack:         audioTrack,
+		videoTrackExist:    videoTrackExist,
+		videoSps:           videoSps,
+		audioTrackExist:    audioTrackExist,
+		audioClockRate:     audioClockRate,
 		onSegmentFinalized: onSegmentFinalized,
 		onPartFinalized:    onPartFinalized,
 		nextSegmentID:      uint64(segmentCount),
@@ -155,7 +162,7 @@ func (m *segmenter) writeH264Entry(sample *videoSample) error { //nolint:funlen
 
 		m.videoFirstIDRReceived = true
 		m.videoDTSExtractor = h264.NewDTSExtractor()
-		m.videoSPS = append([]byte(nil), m.videoTrack.SafeSPS()...)
+		m.videoSPS = append([]byte(nil), m.videoSps()...)
 
 		var err error
 		sample.dts, err = m.videoDTSExtractor.Extract(sample.nalus, sample.pts)
@@ -197,8 +204,9 @@ func (m *segmenter) writeH264Entry(sample *videoSample) error { //nolint:funlen
 			now,
 			sample.dts,
 			m.segmentMaxSize,
-			m.videoTrack,
-			m.audioTrack,
+			m.videoTrackExist,
+			m.audioTrackExist,
+			m.audioClockRate,
 			m.genPartID,
 			m.onPartFinalized,
 		)
@@ -215,7 +223,7 @@ func (m *segmenter) writeH264Entry(sample *videoSample) error { //nolint:funlen
 		return nil
 	}
 	// switch segment
-	sps := m.videoTrack.SafeSPS()
+	sps := m.videoSps()
 	spsChanged := !bytes.Equal(m.videoSPS, sps)
 
 	if (sample.next.dts-m.currentSegment.startDTS) >= m.segmentDuration ||
@@ -230,8 +238,9 @@ func (m *segmenter) writeH264Entry(sample *videoSample) error { //nolint:funlen
 			now,
 			sample.next.pts,
 			m.segmentMaxSize,
-			m.videoTrack,
-			m.audioTrack,
+			m.videoTrackExist,
+			m.audioTrackExist,
+			m.audioClockRate,
 			m.genPartID,
 			m.onPartFinalized,
 		)
@@ -250,8 +259,9 @@ func (m *segmenter) writeH264Entry(sample *videoSample) error { //nolint:funlen
 func (m *segmenter) writeAAC(pts time.Duration, aus [][]byte) error {
 	for i, au := range aus {
 		err := m.writeAACEntry(&audioSample{
-			pts: pts + time.Duration(i)*aac.SamplesPerAccessUnit*time.Second/time.Duration(m.audioTrack.ClockRate()),
-			au:  au,
+			pts: pts + time.Duration(i)*aac.SamplesPerAccessUnit*
+				time.Second/time.Duration(m.audioClockRate()),
+			au: au,
 		})
 		if err != nil {
 			return err
@@ -261,7 +271,7 @@ func (m *segmenter) writeAAC(pts time.Duration, aus [][]byte) error {
 }
 
 func (m *segmenter) writeAACEntry(sample *audioSample) error { //nolint:funlen
-	if m.videoTrack != nil {
+	if m.videoTrackExist() {
 		// wait for the video track
 		if !m.videoFirstIDRReceived {
 			return nil
@@ -280,7 +290,7 @@ func (m *segmenter) writeAACEntry(sample *audioSample) error { //nolint:funlen
 
 	now := time.Now()
 
-	if m.videoTrack == nil {
+	if !m.videoTrackExist() {
 		if m.currentSegment == nil {
 			// create first segment
 			m.currentSegment = newSegment(
@@ -288,8 +298,9 @@ func (m *segmenter) writeAACEntry(sample *audioSample) error { //nolint:funlen
 				now,
 				sample.pts,
 				m.segmentMaxSize,
-				m.videoTrack,
-				m.audioTrack,
+				m.videoTrackExist,
+				m.audioTrackExist,
+				m.audioClockRate,
 				m.genPartID,
 				m.onPartFinalized,
 			)
@@ -307,7 +318,7 @@ func (m *segmenter) writeAACEntry(sample *audioSample) error { //nolint:funlen
 	}
 
 	// switch segment
-	if m.videoTrack == nil &&
+	if !m.videoTrackExist() &&
 		(sample.next.pts-m.currentSegment.startDTS) >= m.segmentDuration {
 		m.currentSegment.finalize(nil)
 		m.onSegmentFinalized(m.currentSegment)
@@ -319,8 +330,9 @@ func (m *segmenter) writeAACEntry(sample *audioSample) error { //nolint:funlen
 			now,
 			sample.next.pts,
 			m.segmentMaxSize,
-			m.videoTrack,
-			m.audioTrack,
+			m.videoTrackExist,
+			m.audioTrackExist,
+			m.audioClockRate,
 			m.genPartID,
 			m.onPartFinalized,
 		)

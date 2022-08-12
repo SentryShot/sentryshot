@@ -3,10 +3,11 @@ package hls
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
-	"nvr/pkg/video/gortsplib"
+	"nvr/pkg/log"
+	"nvr/pkg/video/gortsplib/pkg/aac"
+	"nvr/pkg/video/gortsplib/pkg/h264"
 	"sync"
 	"time"
 )
@@ -20,18 +21,18 @@ type MuxerFileResponse struct {
 
 // Muxer is a HLS muxer.
 type Muxer struct {
-	primaryPlaylist *primaryPlaylist
-	playlist        *playlist
-	segmenter       *segmenter
-	logFunc         func(string)
-	videoTrack      *gortsplib.TrackH264
-	audioTrack      *gortsplib.TrackAAC
+	playlist   *playlist
+	segmenter  *segmenter
+	logf       logFunc
+	streamInfo StreamInfoFunc
 
 	mutex        sync.Mutex
 	videoLastSPS []byte
 	videoLastPPS []byte
 	initContent  []byte
 }
+
+type logFunc func(log.Level, string, ...interface{})
 
 // ErrTrackInvalid invalid H264 track: SPS or PPS not provided into the SDP.
 var ErrTrackInvalid = errors.New("invalid H264 track: SPS or PPS not provided into the SDP")
@@ -43,21 +44,17 @@ func NewMuxer(
 	partDuration time.Duration,
 	segmentMaxSize uint64,
 	onNewSegment chan<- []SegmentOrGap,
-	logFunc func(string),
-	videoTrack *gortsplib.TrackH264,
-	audioTrack *gortsplib.TrackAAC,
+	logf logFunc,
+	videoTrackExist func() bool,
+	videoSps videoSpsFunc,
+	audioTrackExist func() bool,
+	audioClockRate audioClockRateFunc,
+	getStreamInfo StreamInfoFunc,
 ) *Muxer {
 	m := &Muxer{
-		primaryPlaylist: newPrimaryPlaylist(videoTrack, audioTrack),
-		playlist: newPlaylist(
-			segmentCount,
-			videoTrack,
-			audioTrack,
-			onNewSegment,
-		),
-		logFunc:    logFunc,
-		videoTrack: videoTrack,
-		audioTrack: audioTrack,
+		playlist:   newPlaylist(segmentCount, onNewSegment),
+		logf:       logf,
+		streamInfo: getStreamInfo,
 	}
 
 	m.segmenter = newSegmenter(
@@ -65,8 +62,10 @@ func NewMuxer(
 		segmentDuration,
 		partDuration,
 		segmentMaxSize,
-		videoTrack,
-		audioTrack,
+		videoTrackExist,
+		videoSps,
+		audioTrackExist,
+		audioClockRate,
 		m.playlist.onSegmentFinalized,
 		m.playlist.onPartFinalized,
 	)
@@ -88,33 +87,51 @@ func (m *Muxer) WriteAAC(pts time.Duration, aus [][]byte) error {
 	return m.segmenter.writeAAC(pts, aus)
 }
 
+// StreamInfoFunc returns the stream information.
+type StreamInfoFunc func() (*StreamInfo, error)
+
+// StreamInfo Stream information required for decoding.
+type StreamInfo struct {
+	VideoTrackExist bool
+	VideoSPS        []byte
+	VideoPPS        []byte
+	VideoSPSP       h264.SPS
+
+	AudioTrackExist   bool
+	AudioTrackConfig  []byte
+	AudioChannelCount int
+	AudioClockRate    int
+	AudioType         aac.MPEG4AudioType
+}
+
 // File returns a file reader.
-func (m *Muxer) File(name string, msn string, part string, skip string) *MuxerFileResponse {
+func (m *Muxer) File(
+	name string,
+	msn string,
+	part string,
+	skip string,
+) *MuxerFileResponse {
+	info, err := m.streamInfo()
+	if err != nil {
+		m.logf(log.LevelDebug, "generate stream info: %v", err)
+		return &MuxerFileResponse{Status: http.StatusInternalServerError}
+	}
+
 	if name == "index.m3u8" {
-		return m.primaryPlaylist.file()
+		return primaryPlaylist(*info)
 	}
 
 	if name == "init.mp4" {
 		m.mutex.Lock()
 		defer m.mutex.Unlock()
 
-		var sps []byte
-		var pps []byte
-		if m.videoTrack != nil {
-			sps = m.videoTrack.SafeSPS()
-			pps = m.videoTrack.SafePPS()
-		}
-
 		if m.initContent == nil ||
-			(m.videoTrack != nil && (!bytes.Equal(m.videoLastSPS, sps) || !bytes.Equal(m.videoLastPPS, pps))) {
-			initContent, err := generateInit(m.videoTrack, m.audioTrack)
-			if err != nil {
-				m.logFunc(fmt.Sprintf("generate init: %v", err))
-				return &MuxerFileResponse{Status: http.StatusInternalServerError}
-			}
-
-			m.videoLastSPS = sps
-			m.videoLastPPS = pps
+			(info.VideoTrackExist &&
+				(!bytes.Equal(m.videoLastSPS, info.VideoSPS) ||
+					!bytes.Equal(m.videoLastPPS, info.VideoPPS))) {
+			initContent := generateInit(*info)
+			m.videoLastSPS = info.VideoSPS
+			m.videoLastPPS = info.VideoPPS
 			m.initContent = initContent
 		}
 

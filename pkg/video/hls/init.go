@@ -1,10 +1,6 @@
 package hls
 
-import (
-	"nvr/pkg/video/gortsplib"
-	"nvr/pkg/video/gortsplib/pkg/h264"
-	"nvr/pkg/video/mp4"
-)
+import "nvr/pkg/video/mp4"
 
 type myEsds struct {
 	mp4.FullBox
@@ -24,11 +20,7 @@ func (b *myEsds) Marshal(buf []byte, pos *int) {
 	mp4.Write(buf, pos, b.Data)
 }
 
-func mp4InitGenerateVideoTrack( //nolint:funlen
-	trackID int,
-	videoTrack *gortsplib.TrackH264,
-	spsp h264.SPS,
-) mp4.Boxes {
+func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:funlen
 	/*
 		trak
 		- tkhd
@@ -51,11 +43,8 @@ func mp4InitGenerateVideoTrack( //nolint:funlen
 			  - stco
 	*/
 
-	sps := videoTrack.SafeSPS()
-	pps := videoTrack.SafePPS()
-
-	width := spsp.Width()
-	height := spsp.Height()
+	width := info.VideoSPSP.Width()
+	height := info.VideoSPSP.Height()
 
 	stbl := mp4.Boxes{
 		Box: &mp4.Stbl{},
@@ -79,22 +68,22 @@ func mp4InitGenerateVideoTrack( //nolint:funlen
 						Children: []mp4.Boxes{
 							{Box: &mp4.AvcC{
 								ConfigurationVersion:       1,
-								Profile:                    spsp.ProfileIdc,
-								ProfileCompatibility:       sps[2],
-								Level:                      spsp.LevelIdc,
+								Profile:                    info.VideoSPSP.ProfileIdc,
+								ProfileCompatibility:       info.VideoSPS[2],
+								Level:                      info.VideoSPSP.LevelIdc,
 								LengthSizeMinusOne:         3,
 								NumOfSequenceParameterSets: 1,
 								SequenceParameterSets: []mp4.AVCParameterSet{
 									{
-										Length:  uint16(len(sps)),
-										NALUnit: sps,
+										Length:  uint16(len(info.VideoSPS)),
+										NALUnit: info.VideoSPS,
 									},
 								},
 								NumOfPictureParameterSets: 1,
 								PictureParameterSets: []mp4.AVCParameterSet{
 									{
-										Length:  uint16(len(pps)),
-										NALUnit: pps,
+										Length:  uint16(len(info.VideoPPS)),
+										NALUnit: info.VideoPPS,
 									},
 								},
 							}},
@@ -177,16 +166,14 @@ func mp4InitGenerateVideoTrack( //nolint:funlen
 	return trak
 }
 
-func generateAudioEsdsData(trackID int, audioTrack *gortsplib.TrackAAC) []byte {
-	enc, _ := audioTrack.Config.Marshal()
-
-	decSpecificInfoTagSize := uint8(len(enc))
+func initGenerateAudioEsdsData(trackID int, config []byte) []byte {
+	decSpecificInfoTagSize := uint8(len(config))
 	decSpecificInfoTag := append(
 		[]byte{
 			mp4.DecSpecificInfoTag,
 			0x80, 0x80, 0x80, decSpecificInfoTagSize, // size
 		},
-		enc...,
+		config...,
 	)
 
 	esDescrTag := []byte{
@@ -224,10 +211,7 @@ func generateAudioEsdsData(trackID int, audioTrack *gortsplib.TrackAAC) []byte {
 	return data
 }
 
-func mp4InitGenerateAudioTrack( //nolint:funlen
-	trackID int,
-	audioTrack *gortsplib.TrackAAC,
-) mp4.Boxes {
+func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:funlen
 	/*
 		trak
 		- tkhd
@@ -281,12 +265,14 @@ func mp4InitGenerateAudioTrack( //nolint:funlen
 									SampleEntry: mp4.SampleEntry{
 										DataReferenceIndex: 1,
 									},
-									ChannelCount: uint16(audioTrack.Config.ChannelCount),
+									ChannelCount: uint16(info.AudioChannelCount),
 									SampleSize:   16,
-									SampleRate:   uint32(audioTrack.ClockRate() * 65536),
+									SampleRate:   uint32(info.AudioClockRate * 65536),
 								},
 								Children: []mp4.Boxes{
-									{Box: &myEsds{Data: generateAudioEsdsData(trackID, audioTrack)}},
+									{Box: &myEsds{
+										Data: initGenerateAudioEsdsData(trackID, info.AudioTrackConfig),
+									}},
 									{Box: &mp4.Btrt{
 										MaxBitrate: 128825,
 										AvgBitrate: 128825,
@@ -320,7 +306,7 @@ func mp4InitGenerateAudioTrack( //nolint:funlen
 				Box: &mp4.Mdia{},
 				Children: []mp4.Boxes{
 					{Box: &mp4.Mdhd{
-						Timescale: uint32(audioTrack.ClockRate()),
+						Timescale: uint32(info.AudioClockRate),
 						Language:  [3]byte{'u', 'n', 'd'},
 					}},
 					{Box: &mp4.Hdlr{
@@ -336,10 +322,34 @@ func mp4InitGenerateAudioTrack( //nolint:funlen
 	return trak
 }
 
-func generateInit( //nolint:funlen
-	videoTrack *gortsplib.TrackH264,
-	audioTrack *gortsplib.TrackAAC,
-) ([]byte, error) {
+func initGenerateMvex(info StreamInfo) mp4.Boxes {
+	mvex := mp4.Boxes{
+		Box: &mp4.Mvex{},
+	}
+	trackID := 1
+	if info.VideoTrackExist {
+		trex := mp4.Boxes{
+			Box: &mp4.Trex{
+				TrackID:                       uint32(trackID),
+				DefaultSampleDescriptionIndex: 1,
+			},
+		}
+		mvex.Children = append(mvex.Children, trex)
+		trackID++
+	}
+	if info.AudioTrackExist {
+		trex := mp4.Boxes{
+			Box: &mp4.Trex{
+				TrackID:                       uint32(trackID),
+				DefaultSampleDescriptionIndex: 1,
+			},
+		}
+		mvex.Children = append(mvex.Children, trex)
+	}
+	return mvex
+}
+
+func generateInit(info StreamInfo) []byte {
 	/*
 		- ftyp
 		- moov
@@ -378,44 +388,17 @@ func generateInit( //nolint:funlen
 	}
 
 	trackID := 1
-	if videoTrack != nil {
-		var spsp h264.SPS
-		err := spsp.Unmarshal(videoTrack.SafeSPS())
-		if err != nil {
-			return nil, err
-		}
-		videoTrak := mp4InitGenerateVideoTrack(trackID, videoTrack, spsp)
+	if info.VideoTrackExist {
+		videoTrak := initGenerateVideoTrack(trackID, info)
 		moov.Children = append(moov.Children, videoTrak)
 		trackID++
 	}
-	if audioTrack != nil {
-		audioTrak := mp4InitGenerateAudioTrack(trackID, audioTrack)
+	if info.AudioTrackExist {
+		audioTrak := initGenerateAudioTrack(trackID, info)
 		moov.Children = append(moov.Children, audioTrak)
 	}
 
-	mvex := mp4.Boxes{
-		Box: &mp4.Mvex{},
-	}
-	trackID = 1
-	if videoTrack != nil {
-		trex := mp4.Boxes{
-			Box: &mp4.Trex{
-				TrackID:                       uint32(trackID),
-				DefaultSampleDescriptionIndex: 1,
-			},
-		}
-		mvex.Children = append(mvex.Children, trex)
-		trackID++
-	}
-	if audioTrack != nil {
-		trex := mp4.Boxes{
-			Box: &mp4.Trex{
-				TrackID:                       uint32(trackID),
-				DefaultSampleDescriptionIndex: 1,
-			},
-		}
-		mvex.Children = append(mvex.Children, trex)
-	}
+	mvex := initGenerateMvex(info)
 	moov.Children = append(moov.Children, mvex)
 
 	size := ftyp.Size() + moov.Size()
@@ -425,5 +408,5 @@ func generateInit( //nolint:funlen
 	ftyp.Marshal(buf, &pos)
 	moov.Marshal(buf, &pos)
 
-	return buf, nil
+	return buf
 }

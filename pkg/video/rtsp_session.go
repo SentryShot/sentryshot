@@ -61,9 +61,9 @@ func (s *rtspSession) RemoteAddr() net.Addr {
 	return s.author.NetConn().RemoteAddr()
 }
 
-func (s *rtspSession) logf(level log.Level, conf PathConf, format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	sendLog(s.logger, conf, level, "RTSP:", fmt.Sprintf("S:%s %s", s.id, msg))
+func (s *rtspSession) logf(level log.Level, conf PathConf, format string, a ...interface{}) {
+	msg := fmt.Sprintf(format, a...)
+	sendLogf(s.logger, conf, level, "RTSP:", "S:%s %s", s.id, msg)
 }
 
 // onClose is called by rtspServer.

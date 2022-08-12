@@ -97,12 +97,11 @@ func (m *hlsMuxer) close() {
 	m.ctxCancel()
 }
 
-func (m *hlsMuxer) logf(format string, args ...interface{}) {
+func (m *hlsMuxer) logf(format string, a ...interface{}) {
 	if m.path == nil {
 		return
 	}
-	msg := fmt.Sprintf(format, args...)
-	sendLog(m.logger, *m.path.conf, log.LevelError, "HLS:", msg)
+	sendLogf(m.logger, *m.path.conf, log.LevelError, "HLS:", format, a...)
 }
 
 func (m *hlsMuxer) run() {
@@ -219,9 +218,12 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 		return ErrNoTracks
 	}
 
-	muxerLogFunc := func(msg string) {
-		sendLog(m.logger, *m.path.conf, log.LevelDebug, "HLS:", msg)
+	muxerLogFunc := func(level log.Level, format string, a ...interface{}) {
+		sendLogf(m.logger, *m.path.conf, level, "HLS:", format, a...)
 	}
+	videoTrackExist := func() bool { return videoTrack != nil }
+	audioTrackExist := func() bool { return audioTrack != nil }
+	streamInfo := getStreamInfo(videoTrack, audioTrack)
 
 	m.muxer = hls.NewMuxer(
 		m.path.hlsSegmentCount(),
@@ -230,8 +232,11 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 		m.path.hlsSegmentMaxSize(),
 		m.path.conf.onNewHLSsegment,
 		muxerLogFunc,
-		videoTrack,
-		audioTrack,
+		videoTrackExist,
+		videoTrack.SafeSPS,
+		audioTrackExist,
+		audioTrack.ClockRate,
+		streamInfo,
 	)
 	defer m.muxer.Close()
 
@@ -266,6 +271,41 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 			<-writerDone
 			return context.Canceled
 		}
+	}
+}
+
+// Creates a functions that returns the stream info.
+func getStreamInfo(
+	videoTrack *gortsplib.TrackH264,
+	audioTrack *gortsplib.TrackAAC,
+) hls.StreamInfoFunc {
+	return func() (*hls.StreamInfo, error) {
+		info := hls.StreamInfo{
+			VideoTrackExist: videoTrack != nil,
+			AudioTrackExist: audioTrack != nil,
+		}
+
+		if info.VideoTrackExist {
+			info.VideoSPS = videoTrack.SafeSPS()
+			info.VideoPPS = videoTrack.SafePPS()
+			err := info.VideoSPSP.Unmarshal(info.VideoSPS)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if info.AudioTrackExist {
+			var err error
+			info.AudioTrackConfig, err = audioTrack.Config.Marshal()
+			if err != nil {
+				return nil, err
+			}
+			info.AudioChannelCount = audioTrack.Config.ChannelCount
+			info.AudioClockRate = audioTrack.ClockRate()
+			info.AudioType = audioTrack.Config.Type
+		}
+
+		return &info, nil
 	}
 }
 

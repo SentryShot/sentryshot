@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"math"
-	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/aac"
 	"nvr/pkg/video/mp4"
 	"strconv"
@@ -123,7 +122,7 @@ func generateVideoTraf( //nolint:funlen
 
 func generateAudioTraf(
 	trackID int,
-	audioTrack *gortsplib.TrackAAC,
+	audioClockRate int,
 	audioSamples []*audioSample,
 	dataOffset int32,
 ) mp4.Boxes {
@@ -147,7 +146,7 @@ func generateAudioTraf(
 		},
 		BaseMediaDecodeTimeV1: uint64(
 			durationGoToMp4(audioSamples[0].pts,
-				time.Duration(audioTrack.ClockRate()))),
+				time.Duration(audioClockRate))),
 	}
 
 	flags := 0
@@ -168,7 +167,7 @@ func generateAudioTraf(
 	trun.Entries = make([]mp4.TrunEntry, len(audioSamples))
 	for i, e := range audioSamples {
 		trun.Entries[i] = mp4.TrunEntry{
-			SampleDuration: uint32(durationGoToMp4(e.duration(), time.Duration(audioTrack.ClockRate()))),
+			SampleDuration: uint32(durationGoToMp4(e.duration(), time.Duration(audioClockRate))),
 			SampleSize:     uint32(len(e.au)),
 		}
 	}
@@ -184,8 +183,8 @@ func generateAudioTraf(
 }
 
 func generatePart( //nolint:funlen
-	videoTrack *gortsplib.TrackH264,
-	audioTrack *gortsplib.TrackAAC,
+	audioTrackExist bool,
+	audioClockRate func() int,
 	videoSamples []*videoSample,
 	audioSamples []*audioSample,
 ) []byte {
@@ -213,44 +212,41 @@ func generatePart( //nolint:funlen
 	}
 
 	mfhdOffset := 24
-	audioOffset := mfhdOffset
-	if videoTrack != nil {
-		videoTrunSize := len(videoSamples)*16 + 20
-		audioOffset = mfhdOffset + videoTrunSize + 44
-	}
+	videoTrunSize := len(videoSamples)*16 + 20
+	audioOffset := mfhdOffset + videoTrunSize + 44
 
 	mdatOffset := audioOffset
-	if audioTrack != nil && len(audioSamples) != 0 {
+	if audioTrackExist && len(audioSamples) != 0 {
 		audioTrunOffset := audioOffset + 44
 		audioTrunSize := len(audioSamples)*8 + 20
 		mdatOffset = audioTrunOffset + audioTrunSize
 	}
 
 	trackID := 1
-	if videoTrack != nil {
-		videoDataOffset := int32(mdatOffset + 8)
-		traf := generateVideoTraf(trackID, videoSamples, videoDataOffset)
-		moof.Children = append(moof.Children, traf)
-		trackID++
-	}
+	videoDataOffset := int32(mdatOffset + 8)
+	traf := generateVideoTraf(trackID, videoSamples, videoDataOffset)
+	moof.Children = append(moof.Children, traf)
+	trackID++
 
 	dataSize := 0
 	videoDataSize := 0
-	if videoTrack != nil {
-		for _, e := range videoSamples {
-			dataSize += len(e.avcc)
-		}
-		videoDataSize = dataSize
+	for _, e := range videoSamples {
+		dataSize += len(e.avcc)
 	}
-	if audioTrack != nil {
+	videoDataSize = dataSize
+	if audioTrackExist {
 		for _, e := range audioSamples {
 			dataSize += len(e.au)
 		}
 	}
 
-	if audioTrack != nil && len(audioSamples) != 0 {
+	if audioTrackExist && len(audioSamples) != 0 {
 		audioDataOffset := int32(mdatOffset + 8 + videoDataSize)
-		traf := generateAudioTraf(trackID, audioTrack, audioSamples, audioDataOffset)
+		traf := generateAudioTraf(
+			trackID,
+			audioClockRate(),
+			audioSamples,
+			audioDataOffset)
 		moof.Children = append(moof.Children, traf)
 	}
 
@@ -276,9 +272,10 @@ func partName(id uint64) string {
 }
 
 type muxerPart struct {
-	videoTrack *gortsplib.TrackH264
-	audioTrack *gortsplib.TrackAAC
-	id         uint64
+	videoTrackExist func() bool
+	audioTrackExist func() bool
+	audioClockRate  audioClockRateFunc
+	id              uint64
 
 	isIndependent    bool
 	videoSamples     []*videoSample
@@ -287,18 +284,22 @@ type muxerPart struct {
 	renderedDuration time.Duration
 }
 
+type audioClockRateFunc func() int
+
 func newPart(
-	videoTrack *gortsplib.TrackH264,
-	audioTrack *gortsplib.TrackAAC,
+	videoTrackExist func() bool,
+	audioTrackExist func() bool,
+	audioClockRate audioClockRateFunc,
 	id uint64,
 ) *muxerPart {
 	p := &muxerPart{
-		videoTrack: videoTrack,
-		audioTrack: audioTrack,
-		id:         id,
+		videoTrackExist: videoTrackExist,
+		audioTrackExist: audioTrackExist,
+		audioClockRate:  audioClockRate,
+		id:              id,
 	}
 
-	if videoTrack == nil {
+	if !videoTrackExist() {
 		p.isIndependent = true
 	}
 
@@ -314,7 +315,7 @@ func (p *muxerPart) reader() io.Reader {
 }
 
 func (p *muxerPart) duration() time.Duration {
-	if p.videoTrack != nil {
+	if p.videoTrackExist() {
 		ret := time.Duration(0)
 		for _, e := range p.videoSamples {
 			ret += e.duration()
@@ -326,14 +327,14 @@ func (p *muxerPart) duration() time.Duration {
 	// not the real duration,
 	// otherwise on iPhone iOS the stream freezes.
 	return time.Duration(len(p.audioSamples)) * time.Second *
-		time.Duration(aac.SamplesPerAccessUnit) / time.Duration(p.audioTrack.ClockRate())
+		time.Duration(aac.SamplesPerAccessUnit) / time.Duration(p.audioClockRate())
 }
 
 func (p *muxerPart) finalize() {
 	if len(p.videoSamples) > 0 || len(p.audioSamples) > 0 {
 		p.renderedContent = generatePart(
-			p.videoTrack,
-			p.audioTrack,
+			p.audioTrackExist(),
+			p.audioClockRate,
 			p.videoSamples,
 			p.audioSamples)
 

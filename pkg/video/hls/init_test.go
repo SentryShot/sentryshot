@@ -3,23 +3,30 @@ package hls
 import (
 	"testing"
 
-	"nvr/pkg/video/gortsplib"
-	"nvr/pkg/video/gortsplib/pkg/aac"
+	"nvr/pkg/video/gortsplib/pkg/h264"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateInit(t *testing.T) {
-	actual, err := generateInit(
-		&gortsplib.TrackH264{
-			SPS: []byte{
-				103, 100, 0, 22, 172, 217, 64, 164,
-				59, 228, 136, 192, 68, 0, 0, 3,
-				0, 4, 0, 0, 3, 0, 96, 60,
-				88, 182, 88,
-			},
+	sps := []byte{
+		103, 100, 0, 22, 172, 217, 64, 164,
+		59, 228, 136, 192, 68, 0, 0, 3,
+		0, 4, 0, 0, 3, 0, 96, 60,
+		88, 182, 88,
+	}
+
+	var spsp h264.SPS
+	err := spsp.Unmarshal(sps)
+	require.NoError(t, err)
+
+	actual := generateInit(
+		StreamInfo{
+			VideoTrackExist: true,
+			VideoSPS:        sps,
+			VideoSPSP:       spsp,
+			AudioTrackExist: true,
 		},
-		&gortsplib.TrackAAC{Config: &aac.MPEG4AudioConfig{}},
 	)
 	expected := []byte{
 		0, 0, 0, 0x20, 'f', 't', 'y', 'p',

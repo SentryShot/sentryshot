@@ -3,7 +3,6 @@ package hls
 import (
 	"errors"
 	"io"
-	"nvr/pkg/video/gortsplib"
 	"strconv"
 	"time"
 )
@@ -44,8 +43,9 @@ type Segment struct {
 	startTime       time.Time
 	startDTS        time.Duration
 	segmentMaxSize  uint64
-	videoTrack      *gortsplib.TrackH264
-	audioTrack      *gortsplib.TrackAAC
+	videoTrackExist func() bool
+	audioTrackExist func() bool
+	audioClockRate  audioClockRateFunc
 	genPartID       func() uint64
 	onPartFinalized func(*muxerPart)
 
@@ -60,8 +60,9 @@ func newSegment(
 	startTime time.Time,
 	startDTS time.Duration,
 	segmentMaxSize uint64,
-	videoTrack *gortsplib.TrackH264,
-	audioTrack *gortsplib.TrackAAC,
+	videoTrackExist func() bool,
+	audioTrackExist func() bool,
+	audioClockRate audioClockRateFunc,
 	genPartID func() uint64,
 	onPartFinalized func(*muxerPart),
 ) *Segment {
@@ -70,15 +71,17 @@ func newSegment(
 		startTime:       startTime,
 		startDTS:        startDTS,
 		segmentMaxSize:  segmentMaxSize,
-		videoTrack:      videoTrack,
-		audioTrack:      audioTrack,
+		videoTrackExist: videoTrackExist,
+		audioTrackExist: audioTrackExist,
+		audioClockRate:  audioClockRate,
 		genPartID:       genPartID,
 		onPartFinalized: onPartFinalized,
 	}
 
 	s.currentPart = newPart(
-		s.videoTrack,
-		s.audioTrack,
+		s.videoTrackExist,
+		s.audioTrackExist,
+		s.audioClockRate,
 		s.genPartID(),
 	)
 
@@ -112,7 +115,7 @@ func (s *Segment) finalize(nextVideoSample *videoSample) {
 
 	s.currentPart = nil
 
-	if s.videoTrack != nil {
+	if s.videoTrackExist() {
 		s.renderedDuration = nextVideoSample.dts - s.startDTS
 	} else {
 		s.renderedDuration = 0
@@ -144,8 +147,9 @@ func (s *Segment) writeH264(sample *videoSample, adjustedPartDuration time.Durat
 		s.onPartFinalized(s.currentPart)
 
 		s.currentPart = newPart(
-			s.videoTrack,
-			s.audioTrack,
+			s.videoTrackExist,
+			s.audioTrackExist,
+			s.audioClockRate,
 			s.genPartID(),
 		)
 	}
@@ -165,7 +169,7 @@ func (s *Segment) writeAAC(sample *audioSample, adjustedPartDuration time.Durati
 	s.size += size
 
 	// switch part
-	if s.videoTrack == nil &&
+	if s.videoTrackExist() &&
 		s.currentPart.duration() >= adjustedPartDuration {
 		s.currentPart.finalize()
 
@@ -173,8 +177,9 @@ func (s *Segment) writeAAC(sample *audioSample, adjustedPartDuration time.Durati
 		s.onPartFinalized(s.currentPart)
 
 		s.currentPart = newPart(
-			s.videoTrack,
-			s.audioTrack,
+			s.videoTrackExist,
+			s.audioTrackExist,
+			s.audioClockRate,
 			s.genPartID(),
 		)
 	}

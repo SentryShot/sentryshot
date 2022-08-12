@@ -2,10 +2,10 @@ package hls
 
 import (
 	"bytes"
+	"encoding/hex"
 	"io"
 	"math"
 	"net/http"
-	"nvr/pkg/video/gortsplib"
 	"strconv"
 	"strings"
 	"sync"
@@ -70,8 +70,6 @@ func partTargetDuration(
 
 type playlist struct {
 	segmentCount int
-	videoTrack   *gortsplib.TrackH264
-	audioTrack   *gortsplib.TrackAAC
 
 	mutex              sync.Mutex
 	cond               *sync.Cond
@@ -88,16 +86,9 @@ type playlist struct {
 	onNewSegment chan<- []SegmentOrGap
 }
 
-func newPlaylist(
-	segmentCount int,
-	videoTrack *gortsplib.TrackH264,
-	audioTrack *gortsplib.TrackAAC,
-	onNewSegment chan<- []SegmentOrGap,
-) *playlist {
+func newPlaylist(segmentCount int, onNewSegment chan<- []SegmentOrGap) *playlist {
 	p := &playlist{
 		segmentCount:   segmentCount,
-		videoTrack:     videoTrack,
-		audioTrack:     audioTrack,
 		segmentsByName: make(map[string]*Segment),
 		partsByName:    make(map[string]*muxerPart),
 		onNewSegment:   onNewSegment,
@@ -245,6 +236,41 @@ func (p *playlist) playlistReader(msn, part, skip string) *MuxerFileResponse { /
 			"Content-Type": `audio/mpegURL`,
 		},
 		Body: p.fullPlaylist(isDeltaUpdate),
+	}
+}
+
+func primaryPlaylist(info StreamInfo) *MuxerFileResponse {
+	return &MuxerFileResponse{
+		Status: http.StatusOK,
+		Header: map[string]string{
+			"Content-Type": `audio/mpegURL`,
+		},
+		Body: func() io.Reader {
+			var codecs []string
+
+			if info.VideoTrackExist {
+				sps := info.VideoSPS
+				if len(sps) >= 4 {
+					codecs = append(codecs, "avc1."+hex.EncodeToString(sps[1:4]))
+				}
+			}
+
+			// https://developer.mozilla.org/en-US/docs/Web/Media/Formats/codecs_parameter
+			if info.AudioTrackExist {
+				codecs = append(
+					codecs,
+					"mp4a.40."+strconv.FormatInt(int64(info.AudioType), 10),
+				)
+			}
+
+			return bytes.NewReader([]byte("#EXTM3U\n" +
+				"#EXT-X-VERSION:9\n" +
+				"#EXT-X-INDEPENDENT-SEGMENTS\n" +
+				"\n" +
+				"#EXT-X-STREAM-INF:BANDWIDTH=200000,CODECS=\"" + strings.Join(codecs, ",") + "\"\n" +
+				"stream.m3u8\n" +
+				"\n"))
+		}(),
 	}
 }
 
