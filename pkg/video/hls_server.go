@@ -14,6 +14,11 @@ import (
 	"time"
 )
 
+type streamInfoRequest struct {
+	pathName string
+	res      chan hls.StreamInfoFunc
+}
+
 type hlsServer struct {
 	address         string
 	readBufferCount int
@@ -28,6 +33,7 @@ type hlsServer struct {
 	// in
 	pathSourceReady chan *path
 	request         chan *hlsMuxerRequest
+	streamInfo      chan *streamInfoRequest
 	muxerClose      chan *hlsMuxer
 }
 
@@ -47,6 +53,7 @@ func newHLSServer(
 		muxers:          make(map[string]*hlsMuxer),
 		pathSourceReady: make(chan *path),
 		request:         make(chan *hlsMuxerRequest),
+		streamInfo:      make(chan *streamInfoRequest),
 		muxerClose:      make(chan *hlsMuxer),
 	}
 	s.pathManager.onHLSServerSet(s)
@@ -116,6 +123,14 @@ outer:
 
 		case req := <-s.request:
 			s.findOrCreateMuxer(req.path, req)
+
+		case req := <-s.streamInfo:
+			m, exist := s.muxers[req.pathName]
+			if !exist || m.streamInfo == nil {
+				req.res <- nil
+			} else {
+				req.res <- m.streamInfo
+			}
 
 		case c := <-s.muxerClose:
 			if c2, ok := s.muxers[c.pathName]; !ok || c2 != c {
@@ -204,9 +219,9 @@ func (s *hlsServer) HandleRequest() http.HandlerFunc { //nolint:funlen
 }
 
 func (s *hlsServer) findOrCreateMuxer(pathName string, req *hlsMuxerRequest) {
-	r, ok := s.muxers[pathName]
-	if !ok {
-		r = newHLSMuxer(
+	m, exist := s.muxers[pathName]
+	if !exist {
+		m := newHLSMuxer(
 			s.ctx,
 			pathName,
 			s.readBufferCount,
@@ -214,11 +229,45 @@ func (s *hlsServer) findOrCreateMuxer(pathName string, req *hlsMuxerRequest) {
 			s.wg,
 			pathName,
 			s.pathManager,
-			s,
+			s.onMuxerClose,
 			s.logger)
-		s.muxers[pathName] = r
+		s.muxers[pathName] = m
 	} else if req != nil {
-		r.onRequest(req)
+		m.onRequest(req)
+	}
+}
+
+// onPathSourceReady is called by path manager.
+func (s *hlsServer) onPathSourceReady(pa *path) {
+	select {
+	case s.pathSourceReady <- pa:
+	case <-s.ctx.Done():
+	}
+}
+
+// StreamInfo returns stream information from muxer pathName.
+func (s *hlsServer) StreamInfo(pathName string) (*hls.StreamInfo, error) {
+	res := make(chan hls.StreamInfoFunc)
+	req := &streamInfoRequest{
+		pathName: pathName,
+		res:      res,
+	}
+
+	select {
+	case s.streamInfo <- req:
+	case <-s.ctx.Done():
+		return nil, context.Canceled
+	}
+
+	select {
+	case streamInfo := <-res:
+		if streamInfo == nil {
+			return nil, nil
+		}
+		return streamInfo()
+
+	case <-s.ctx.Done():
+		return nil, context.Canceled
 	}
 }
 
@@ -226,14 +275,6 @@ func (s *hlsServer) findOrCreateMuxer(pathName string, req *hlsMuxerRequest) {
 func (s *hlsServer) onMuxerClose(c *hlsMuxer) {
 	select {
 	case s.muxerClose <- c:
-	case <-s.ctx.Done():
-	}
-}
-
-// onPathSourceReady is called by core.
-func (s *hlsServer) onPathSourceReady(pa *path) {
-	select {
-	case s.pathSourceReady <- pa:
 	case <-s.ctx.Done():
 	}
 }

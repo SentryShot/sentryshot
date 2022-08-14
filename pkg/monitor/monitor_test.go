@@ -31,6 +31,7 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"nvr/pkg/video"
+	"nvr/pkg/video/hls"
 
 	"github.com/stretchr/testify/require"
 )
@@ -371,16 +372,17 @@ func newTestInputProcess() *InputProcess {
 		MonitorLock: &sync.Mutex{},
 
 		isSubInput: false,
-		hlsAddress: "hls.m3u8",
 
-		waitForNewHLSsegment: mockWaitForNewHLSsegment,
+		serverPath: video.ServerPath{
+			HlsAddress:           "hls.m3u8",
+			WaitForNewHLSsegment: mockWaitForNewHLSsegment,
+		},
 
 		logf:  func(level log.Level, format string, a ...interface{}) {},
 		hooks: mockHooks(),
 		WG:    &sync.WaitGroup{},
 
 		newVideoServerPath: mockNewVideoServerPath,
-		sizeFromStream:     mockSizeFromStream,
 		runInputProcess:    mockRunInputProcess,
 		newProcess:         ffmock.NewProcess,
 	}
@@ -470,22 +472,6 @@ func TestStartInputProcess(t *testing.T) {
 }
 
 func TestRunInputProcess(t *testing.T) {
-	t.Run("sizeFromStream", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		i := newTestInputProcess()
-		err := runInputProcess(ctx, i)
-		require.NoError(t, err)
-		require.Equal(t, i.streamWidth, 123)
-		require.Equal(t, i.streamHeight, 456)
-	})
-	t.Run("sizeFromStreamErr", func(t *testing.T) {
-		i := newTestInputProcess()
-		i.sizeFromStream = mockSizeFromStreamErr
-		err := runInputProcess(context.Background(), i)
-		require.Error(t, err)
-	})
 	t.Run("crashed", func(t *testing.T) {
 		i := newTestInputProcess()
 		i.newProcess = ffmock.NewProcessErr
@@ -498,14 +484,6 @@ func TestRunInputProcess(t *testing.T) {
 		err := runInputProcess(context.Background(), i)
 		require.ErrorIs(t, err, video.ErrEmptyPathName)
 	})
-}
-
-func mockSizeFromStream(context.Context, string, string) (int, int, error) {
-	return 123, 456, nil
-}
-
-func mockSizeFromStreamErr(context.Context, string, string) (int, int, error) {
-	return 0, 0, errors.New("mock")
 }
 
 func mockHooks() Hooks {
@@ -527,8 +505,10 @@ func TestGenInputArgs(t *testing.T) {
 				"audioEncoder": "none",
 				"videoEncoder": "3",
 			},
-			rtspProtocol: "4",
-			rtspAddress:  "5",
+			serverPath: video.ServerPath{
+				RtspProtocol: "4",
+				RtspAddress:  "5",
+			},
 		}
 		actual := i.generateArgs()
 		expected := "-threads 1 -loglevel 1 -i 2 -an -c:v 3 -f rtsp -rtsp_transport 4 5"
@@ -544,14 +524,84 @@ func TestGenInputArgs(t *testing.T) {
 				"audioEncoder": "5",
 				"videoEncoder": "6",
 			},
-			isSubInput:   true,
-			hlsAddress:   "7",
-			rtspProtocol: "8",
-			rtspAddress:  "9",
+			isSubInput: true,
+			serverPath: video.ServerPath{
+				HlsAddress:   "7",
+				RtspProtocol: "8",
+				RtspAddress:  "9",
+			},
 		}
 		actual := i.generateArgs()
 		expected := "-threads 1 -loglevel 1 -hwaccel 2 3 -i 4 -c:a 5 -c:v 6 -f rtsp -rtsp_transport 8 9"
 		require.Equal(t, expected, actual)
+	})
+}
+
+func TestInputStreamInfo(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		mockStreamInfo := &hls.StreamInfo{}
+		streamInfo := func() (*hls.StreamInfo, error) {
+			return mockStreamInfo, nil
+		}
+		i := &InputProcess{
+			serverPath: video.ServerPath{
+				StreamInfo: streamInfo,
+			},
+		}
+		actual, err := i.StreamInfo(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, mockStreamInfo, actual)
+	})
+	t.Run("error", func(t *testing.T) {
+		mockError := errors.New("mock")
+		streamInfo := func() (*hls.StreamInfo, error) {
+			return nil, mockError
+		}
+		i := &InputProcess{
+			serverPath: video.ServerPath{
+				StreamInfo: streamInfo,
+			},
+		}
+		actual, err := i.StreamInfo(context.Background())
+		require.ErrorIs(t, err, mockError)
+		require.Nil(t, actual)
+	})
+	t.Run("canceled", func(t *testing.T) {
+		i := &InputProcess{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		actual, err := i.StreamInfo(ctx)
+		require.ErrorIs(t, err, context.Canceled)
+		require.Nil(t, actual)
+	})
+	t.Run("nilAndCanceled", func(t *testing.T) {
+		logs := make(chan string)
+		logf := func(_ log.Level, format string, a ...interface{}) {
+			logs <- fmt.Sprintf(format, a...)
+		}
+		streamInfo := func() (*hls.StreamInfo, error) {
+			return nil, nil
+		}
+		i := &InputProcess{
+			serverPath: video.ServerPath{
+				StreamInfo: streamInfo,
+			},
+			logf: logf,
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			actual, err := i.StreamInfo(ctx)
+			require.ErrorIs(t, err, context.Canceled)
+			require.Nil(t, actual)
+			close(done)
+		}()
+		require.Equal(t, "could not get stream info", <-logs)
+		cancel()
+		<-done
 	})
 }
 

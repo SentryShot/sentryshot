@@ -165,7 +165,7 @@ func (r *Recorder) start(ctx context.Context) { //nolint:funlen
 type runRecordingProcessFunc func(context.Context, *Recorder) error
 
 func runRecordingProcess(ctx context.Context, r *Recorder) error {
-	segmentDuration, err := r.input.waitForNewHLSsegment(ctx, 2)
+	segmentDuration, err := r.input.WaitForNewHLSsegment(ctx, 2)
 	if err != nil {
 		return fmt.Errorf("get keyframe duration: %w", err)
 	}

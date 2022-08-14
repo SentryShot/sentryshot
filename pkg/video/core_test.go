@@ -44,6 +44,7 @@ func TestNewPath(t *testing.T) {
 
 	actual, cancel2, err := p.NewPath("mypath", c)
 	require.NoError(t, err)
+	actual.StreamInfo = nil
 	actual.WaitForNewHLSsegment = nil
 
 	expected := ServerPath{

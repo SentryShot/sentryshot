@@ -30,6 +30,7 @@ import (
 	"nvr/pkg/ffmpeg/ffmock"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
+	"nvr/pkg/video"
 
 	"github.com/stretchr/testify/require"
 )
@@ -55,13 +56,14 @@ func newTestRecorder(t *testing.T) *Recorder {
 
 		input: &InputProcess{
 			isSubInput: false,
-			hlsAddress: "hls.m3u8",
 
-			waitForNewHLSsegment: mockWaitForNewHLSsegment,
+			serverPath: video.ServerPath{
+				HlsAddress:           "hls.m3u8",
+				WaitForNewHLSsegment: mockWaitForNewHLSsegment,
+			},
 
 			logf: logf,
 
-			sizeFromStream:  mockSizeFromStream,
 			runInputProcess: mockRunInputProcess,
 			newProcess:      ffmock.NewProcess,
 		},
@@ -308,7 +310,7 @@ func TestRunRecordingProcess(t *testing.T) {
 
 		r := newTestRecorder(t)
 		r.NewProcess = ffmock.NewProcess
-		r.input.waitForNewHLSsegment = mockWaitForNewHLSsegmentErr
+		r.input.serverPath.WaitForNewHLSsegment = mockWaitForNewHLSsegmentErr
 
 		err := runRecordingProcess(context.Background(), r)
 		require.ErrorIs(t, err, ffmock.ErrMock)

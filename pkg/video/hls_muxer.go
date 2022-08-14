@@ -26,10 +26,6 @@ type hlsMuxerPathManager interface {
 	onReaderSetupPlay(req pathReaderSetupPlayReq) pathReaderSetupPlayRes
 }
 
-type hlsMuxerParent interface {
-	onMuxerClose(*hlsMuxer)
-}
-
 // StringSize is a size that is unmarshaled from a string.
 type StringSize uint64
 
@@ -39,7 +35,7 @@ type hlsMuxer struct {
 	wg              *sync.WaitGroup
 	pathName        string
 	pathManager     hlsMuxerPathManager
-	parent          hlsMuxerParent
+	onMuxerClose    onMuxerCloseFunc
 	logger          *log.Logger
 
 	ctx             context.Context
@@ -51,8 +47,11 @@ type hlsMuxer struct {
 	requests        []*hlsMuxerRequest
 
 	// in
-	request chan *hlsMuxerRequest
+	request    chan *hlsMuxerRequest
+	streamInfo hls.StreamInfoFunc
 }
+
+type onMuxerCloseFunc func(*hlsMuxer)
 
 func newHLSMuxer(
 	parentCtx context.Context,
@@ -62,7 +61,7 @@ func newHLSMuxer(
 	wg *sync.WaitGroup,
 	pathName string,
 	pathManager hlsMuxerPathManager,
-	parent hlsMuxerParent,
+	onMuxerClose onMuxerCloseFunc,
 	logger *log.Logger,
 ) *hlsMuxer {
 	ctx, ctxCancel := context.WithCancel(parentCtx)
@@ -75,7 +74,7 @@ func newHLSMuxer(
 		wg:              wg,
 		pathName:        pathName,
 		pathManager:     pathManager,
-		parent:          parent,
+		onMuxerClose:    onMuxerClose,
 		logger:          logger,
 		ctx:             ctx,
 		ctxCancel:       ctxCancel,
@@ -153,7 +152,7 @@ func (m *hlsMuxer) run() {
 		}
 	}
 
-	m.parent.onMuxerClose(m)
+	m.onMuxerClose(m)
 
 	if err != nil && !errors.Is(err, context.Canceled) {
 		m.logf("closed (%v)", err)
@@ -223,7 +222,7 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 	}
 	videoTrackExist := func() bool { return videoTrack != nil }
 	audioTrackExist := func() bool { return audioTrack != nil }
-	streamInfo := getStreamInfo(videoTrack, audioTrack)
+	m.streamInfo = getStreamInfo(videoTrack, audioTrack)
 
 	m.muxer = hls.NewMuxer(
 		m.path.hlsSegmentCount(),
@@ -236,7 +235,7 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 		videoTrack.SafeSPS,
 		audioTrackExist,
 		audioTrack.ClockRate,
-		streamInfo,
+		m.streamInfo,
 	)
 	defer m.muxer.Close()
 
@@ -292,6 +291,8 @@ func getStreamInfo(
 			if err != nil {
 				return nil, err
 			}
+			info.VideoHeight = info.VideoSPSP.Height()
+			info.VideoWidth = info.VideoSPSP.Width()
 		}
 
 		if info.AudioTrackExist {

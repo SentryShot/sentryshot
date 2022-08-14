@@ -64,9 +64,19 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 		logf(log.LevelError, "config: %v", err)
 	}
 
-	if err := start(ctx, i, *config, logf); err != nil {
-		logf(log.LevelError, "could not start: %v", err)
-	}
+	i.WG.Add(1)
+	go func() {
+		defer i.WG.Done()
+		// Wait for monitor to start.
+		select {
+		case <-time.After(10 * time.Second):
+		case <-ctx.Done():
+			return
+		}
+		if err := start(ctx, i, *config, logf); err != nil {
+			logf(log.LevelError, "could not start: %v", err)
+		}
+	}()
 }
 
 func start(
@@ -80,11 +90,16 @@ func start(
 		return fmt.Errorf("get detector: %w", err)
 	}
 
-	i := newInstance(addon.sendRequest, input, config, logf)
+	ctx2, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	streamInfo, err := input.StreamInfo(ctx2)
+	if err != nil {
+		return fmt.Errorf("stream info: %w", err)
+	}
 
 	inputs := inputs{
-		inputWidth:   float64(input.Width()),
-		inputHeight:  float64(input.Height()),
+		inputWidth:   float64(streamInfo.VideoWidth),
+		inputHeight:  float64(streamInfo.VideoHeight),
 		outputWidth:  float64(detector.Width),
 		outputHeight: float64(detector.Height),
 	}
@@ -92,6 +107,9 @@ func start(
 	if err != nil {
 		return fmt.Errorf("calculate ffmpeg outputs: %w", err)
 	}
+
+	i := newInstance(addon.sendRequest, input, config, logf)
+
 	i.outputs = *outputs
 	i.reverseValues = *reverseValues
 
@@ -118,7 +136,6 @@ type instance struct {
 	c         config
 	logf      logFunc
 	sendEvent monitor.SendEventFunc
-	warmup    time.Duration
 
 	outputs       outputs
 	ffArgs        []string
@@ -149,7 +166,6 @@ func newInstance(
 		wg:        i.WG,
 		logf:      logf,
 		sendEvent: i.SendEvent,
-		warmup:    10 * time.Second,
 
 		env: i.Env,
 
@@ -358,13 +374,6 @@ func generateFFmpegArgs( //nolint:funlen
 
 func (i instance) startFFmpeg(ctx context.Context) {
 	defer i.wg.Done()
-
-	// Wait for monitor to warm up.
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(i.warmup):
-	}
 
 	for {
 		if ctx.Err() != nil {

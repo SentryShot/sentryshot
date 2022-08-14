@@ -96,6 +96,8 @@ type StreamInfo struct {
 	VideoSPS        []byte
 	VideoPPS        []byte
 	VideoSPSP       h264.SPS
+	VideoWidth      int
+	VideoHeight     int
 
 	AudioTrackExist   bool
 	AudioTrackConfig  []byte

@@ -25,6 +25,7 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"nvr/pkg/video"
+	"nvr/pkg/video/hls"
 	"os"
 	"os/exec"
 	"strings"
@@ -395,15 +396,11 @@ type InputProcess struct {
 	Config      Config
 	MonitorLock *sync.Mutex
 
-	isSubInput   bool
-	hlsAddress   string
-	rtspAddress  string
-	rtspProtocol string
-	streamWidth  int
-	streamHeight int
+	serverPath video.ServerPath
 
-	waitForNewHLSsegment video.WaitForNewHLSsegementFunc
-	cancel               func()
+	isSubInput bool
+
+	cancel func()
 
 	hooks     Hooks
 	Env       storage.ConfigEnv
@@ -414,7 +411,6 @@ type InputProcess struct {
 	logf               logFunc
 	newVideoServerPath newVideoServerPathFunc
 	runInputProcess    runInputProcessFunc
-	sizeFromStream     ffmpeg.SizeFromStreamFunc
 	newProcess         ffmpeg.NewProcessFunc
 }
 
@@ -438,7 +434,6 @@ func newInputProcess(m *Monitor, isSubInput bool) *InputProcess {
 		logf:               m.logf,
 		newVideoServerPath: m.videoServer.NewPath,
 		runInputProcess:    runInputProcess,
-		sizeFromStream:     ffmpeg.New(m.Env.FFmpegBin).SizeFromStream,
 		newProcess:         ffmpeg.NewProcess,
 	}
 
@@ -452,27 +447,43 @@ func (i *InputProcess) IsSubInput() bool {
 
 // HLSaddress internal HLS address.
 func (i *InputProcess) HLSaddress() string {
-	return i.hlsAddress
+	return i.serverPath.HlsAddress
 }
 
 // RTSPaddress internal RTSP address.
 func (i *InputProcess) RTSPaddress() string {
-	return i.rtspAddress
+	return i.serverPath.RtspAddress
 }
 
 // RTSPprotocol protocol used by RTSP address.
 func (i *InputProcess) RTSPprotocol() string {
-	return i.rtspProtocol
+	return i.serverPath.RtspProtocol
 }
 
-// Width stream width.
-func (i *InputProcess) Width() int {
-	return i.streamWidth
-}
-
-// Height stream height.
-func (i *InputProcess) Height() int {
-	return i.streamHeight
+// StreamInfo returns the stream information of the input.
+func (i *InputProcess) StreamInfo(ctx context.Context) (*hls.StreamInfo, error) {
+	// It may take a few seconds for the stream to
+	// become available after the monitor started.
+	for {
+		if ctx.Err() != nil {
+			return nil, context.Canceled
+		}
+		// Returns nil if the stream isn't available yet.
+		info, err := i.serverPath.StreamInfo()
+		if err != nil {
+			return nil, err
+		}
+		if info == nil {
+			i.logf(log.LevelDebug, "could not get stream info")
+			select {
+			case <-time.After(3 * time.Second):
+				continue
+			case <-ctx.Done():
+				return nil, context.Canceled
+			}
+		}
+		return info, nil
+	}
 }
 
 // ProcessName name of process "main" or "sub".
@@ -503,7 +514,7 @@ func (i *InputProcess) rtspPathName() string {
 func (i *InputProcess) WaitForNewHLSsegment(
 	ctx context.Context, nSegments int,
 ) (time.Duration, error) {
-	return i.waitForNewHLSsegment(ctx, nSegments)
+	return i.serverPath.WaitForNewHLSsegment(ctx, nSegments)
 }
 
 // Cancel process context.
@@ -540,20 +551,12 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 		return fmt.Errorf("add path to RTSP server: %w", err)
 	}
 	defer cancel()
-
-	i.hlsAddress = serverPath.HlsAddress
-	i.rtspAddress = serverPath.RtspAddress
-	i.rtspProtocol = serverPath.RtspProtocol
-	i.waitForNewHLSsegment = serverPath.WaitForNewHLSsegment
+	i.serverPath = *serverPath
 
 	i.MonitorLock.Lock()
 	logLevel := log.FFmpegLevel(i.Config.LogLevel())
 	args := ffmpeg.ParseArgs(i.generateArgs())
-	i.streamWidth, i.streamHeight, err = i.sizeFromStream(ctx, i.Config.InputOpts(), i.input())
 	i.MonitorLock.Unlock()
-	if err != nil {
-		return fmt.Errorf("get size of stream: %w", err)
-	}
 
 	processCTX, cancel2 := context.WithCancel(ctx)
 	i.cancel = cancel2

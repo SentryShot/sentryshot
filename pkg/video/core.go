@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"nvr/pkg/log"
+	"nvr/pkg/video/hls"
 	"strconv"
 	"sync"
 	"time"
@@ -95,6 +96,7 @@ type ServerPath struct {
 	HlsAddress           string
 	RtspAddress          string
 	RtspProtocol         string
+	StreamInfo           hls.StreamInfoFunc
 	WaitForNewHLSsegment WaitForNewHLSsegementFunc
 }
 
@@ -113,6 +115,7 @@ func (s *Server) NewPath(name string, newConf PathConf) (*ServerPath, CancelFunc
 		HlsAddress:           "http://" + s.hlsAddress + "/hls/" + name + "/index.m3u8",
 		RtspAddress:          "rtsp://" + s.rtspAddress + "/" + name,
 		RtspProtocol:         "tcp",
+		StreamInfo:           newConf.streamInfo,
 		WaitForNewHLSsegment: newConf.WaitForNewHLSsegment,
 	}, cancelFunc, nil
 }

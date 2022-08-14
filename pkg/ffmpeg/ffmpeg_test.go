@@ -145,22 +145,6 @@ func TestMakePipe(t *testing.T) {
 	})
 }
 
-func TestShellProcessSize(t *testing.T) {
-	if os.Getenv("GO_TEST_PROCESS") != "1" {
-		return
-	}
-	fmt.Fprint(os.Stderr, `
-		Stream #0:0: Video: h264 (Main), yuv420p(progressive), 1280x720 fps, 30.00
-	`)
-}
-
-func fakeExecCommandSize(...string) *exec.Cmd {
-	cs := []string{"-test.run=TestShellProcessSize"}
-	cmd := exec.Command(os.Args[0], cs...)
-	cmd.Env = []string{"GO_TEST_PROCESS=1"}
-	return cmd
-}
-
 func TestShellProcessNoOutput(t *testing.T) {}
 
 func fakeExecCommandNoOutput(...string) *exec.Cmd {
@@ -168,47 +152,6 @@ func fakeExecCommandNoOutput(...string) *exec.Cmd {
 	cmd := exec.Command(os.Args[0], cs...)
 	cmd.Env = []string{"GO_TEST_PROCESS=1"}
 	return cmd
-}
-
-func TestSizeFromStream(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		f := New("")
-		f.command = fakeExecCommandSize
-
-		w, h, err := f.SizeFromStream(context.Background(), "", "")
-		require.NoError(t, err)
-		require.Equal(t, w, 1280)
-		require.Equal(t, h, 720)
-	})
-	t.Run("runErr", func(t *testing.T) {
-		f := New("")
-		_, _, err := f.SizeFromStream(context.Background(), "", "")
-		require.Error(t, err)
-	})
-	t.Run("regexErr", func(t *testing.T) {
-		f := New("")
-		f.command = fakeExecCommandNoOutput
-
-		_, _, err := f.SizeFromStream(context.Background(), "", "")
-		require.ErrorIs(t, err, strconv.ErrSyntax)
-	})
-}
-
-func TestParseSize(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		w, h, err := ParseSize("640x480")
-		require.NoError(t, err)
-		require.Equal(t, w, 640)
-		require.Equal(t, h, 480)
-	})
-	t.Run("parseWidthErr", func(t *testing.T) {
-		_, _, err := ParseSize("nilx1")
-		require.ErrorIs(t, err, strconv.ErrSyntax)
-	})
-	t.Run("parseHeightErr", func(t *testing.T) {
-		_, _, err := ParseSize("1xnil")
-		require.ErrorIs(t, err, strconv.ErrSyntax)
-	})
 }
 
 func TestShellProcessDuration(t *testing.T) {

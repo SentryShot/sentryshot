@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"nvr/pkg/log"
+	"nvr/pkg/video/hls"
 	"sync"
 	"time"
 )
 
 type pathManagerHLSServer interface {
 	onPathSourceReady(pa *path)
+	StreamInfo(string) (*hls.StreamInfo, error)
 }
 
 type pathManager struct {
@@ -85,6 +87,10 @@ func (pm *pathManager) run() { //nolint:funlen,gocognit
 				req.ret <- ErrPathExist
 				continue
 			}
+			req.config.streamInfo = func() (*hls.StreamInfo, error) {
+				return pm.hlsServer.StreamInfo(req.name)
+			}
+
 			newPathConfs[req.name] = req.config
 
 			// add confs

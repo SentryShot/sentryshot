@@ -600,6 +600,7 @@ type PathConf struct {
 	HLSpartDuration    time.Duration
 	HLSsegmentMaxSize  uint64
 
+	streamInfo       hls.StreamInfoFunc
 	onNewHLSsegment  chan []hls.SegmentOrGap
 	registerListener chan chan []hls.SegmentOrGap
 	listeners        map[chan []hls.SegmentOrGap]struct{}
