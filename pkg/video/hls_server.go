@@ -19,10 +19,14 @@ type streamInfoRequest struct {
 	res      chan hls.StreamInfoFunc
 }
 
+type hlsServerPathManager interface {
+	onHlsServerSet(s pathManagerHLSServer)
+	onReaderSetupPlay(req pathReaderSetupPlayReq) pathReaderSetupPlayRes
+}
+
 type hlsServer struct {
-	address         string
 	readBufferCount int
-	pathManager     *pathManager
+	pathManager     hlsServerPathManager
 	logger          *log.Logger
 
 	ctx       context.Context
@@ -39,13 +43,11 @@ type hlsServer struct {
 
 func newHLSServer(
 	wg *sync.WaitGroup,
-	address string,
 	readBufferCount int,
 	pathManager *pathManager,
 	logger *log.Logger,
 ) *hlsServer {
 	s := &hlsServer{
-		address:         address,
 		readBufferCount: readBufferCount,
 		pathManager:     pathManager,
 		logger:          logger,
@@ -56,20 +58,20 @@ func newHLSServer(
 		streamInfo:      make(chan *streamInfoRequest),
 		muxerClose:      make(chan *hlsMuxer),
 	}
-	s.pathManager.onHLSServerSet(s)
+	s.pathManager.onHlsServerSet(s)
 	return s
 }
 
-func (s *hlsServer) start(ctx context.Context) error {
+func (s *hlsServer) start(ctx context.Context, address string) error {
 	s.ctx, s.ctxCancel = context.WithCancel(ctx)
 
-	ln, err := net.Listen("tcp", s.address)
+	ln, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
 	s.logger.Info().
 		Src("app").
-		Msgf("HLS: listener opened on %v", s.address)
+		Msgf("HLS: listener opened on %v", address)
 
 	s.wg.Add(2)
 	s.startServer(ln)
@@ -223,12 +225,11 @@ func (s *hlsServer) findOrCreateMuxer(pathName string, req *hlsMuxerRequest) {
 	if !exist {
 		m := newHLSMuxer(
 			s.ctx,
-			pathName,
 			s.readBufferCount,
 			req,
 			s.wg,
 			pathName,
-			s.pathManager,
+			s.pathManager.onReaderSetupPlay,
 			s.onMuxerClose,
 			s.logger)
 		s.muxers[pathName] = m

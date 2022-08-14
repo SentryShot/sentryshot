@@ -3,7 +3,6 @@ package video
 import (
 	"errors"
 	"fmt"
-	"net"
 	"nvr/pkg/log"
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/base"
@@ -48,17 +47,9 @@ func (s *rtspSession) close() {
 	s.ss.Close()
 }
 
-// IsRTSPSession implements pathRTSPSession.
-func (s *rtspSession) IsRTSPSession() {}
-
 // ID returns the public ID of the session.
 func (s *rtspSession) ID() string {
 	return s.id
-}
-
-// RemoteAddr returns the remote address of the author of the session.
-func (s *rtspSession) RemoteAddr() net.Addr {
-	return s.author.NetConn().RemoteAddr()
 }
 
 func (s *rtspSession) logf(level log.Level, conf PathConf, format string, a ...interface{}) {

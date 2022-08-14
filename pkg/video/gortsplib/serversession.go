@@ -249,12 +249,10 @@ func (ss *ServerSession) checkState(allowed map[ServerSessionState]struct{}) err
 func (ss *ServerSession) run() {
 	defer ss.s.wg.Done()
 
-	if h, ok := ss.s.Handler.(ServerHandlerOnSessionOpen); ok {
-		h.OnSessionOpen(&ServerHandlerOnSessionOpenCtx{
-			Session: ss,
-			Conn:    ss.author,
-		})
-	}
+	ss.s.Handler.OnSessionOpen(&ServerHandlerOnSessionOpenCtx{
+		Session: ss,
+		Conn:    ss.author,
+	})
 
 	err := ss.runInner()
 	ss.ctxCancel()
@@ -291,12 +289,10 @@ func (ss *ServerSession) run() {
 	case <-ss.s.ctx.Done():
 	}
 
-	if h, ok := ss.s.Handler.(ServerHandlerOnSessionClose); ok {
-		h.OnSessionClose(&ServerHandlerOnSessionCloseCtx{
-			Session: ss,
-			Error:   err,
-		})
-	}
+	ss.s.Handler.OnSessionClose(&ServerHandlerOnSessionCloseCtx{
+		Session: ss,
+		Error:   err,
+	})
 }
 
 func (ss *ServerSession) runInner() error { //nolint:funlen,gocognit
@@ -366,7 +362,7 @@ func (ss *ServerSession) runInner() error { //nolint:funlen,gocognit
 	}
 }
 
-func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base.Response, error) { //nolint:funlen
+func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base.Response, error) {
 	if ss.tcpConn != nil && sc != ss.tcpConn {
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
@@ -375,7 +371,7 @@ func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base
 
 	switch req.Method {
 	case base.Options:
-		return ss.handleOptions(sc)
+		return ss.handleOptions()
 
 	case base.Announce:
 		return ss.handleAnnounce(sc, req)
@@ -404,25 +400,6 @@ func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base
 		}, err
 
 	case base.GetParameter:
-		if h, ok := sc.s.Handler.(ServerHandlerOnGetParameter); ok {
-			pathAndQuery, ok := req.URL.RTSPPathAndQuery()
-			if !ok {
-				return &base.Response{
-					StatusCode: base.StatusBadRequest,
-				}, liberrors.ErrServerInvalidPath
-			}
-
-			path, query := url.PathSplitQuery(pathAndQuery)
-
-			return h.OnGetParameter(&ServerHandlerOnGetParameterCtx{
-				Session: ss,
-				Conn:    sc,
-				Request: req,
-				Path:    path,
-				Query:   query,
-			})
-		}
-
 		// GET_PARAMETER is used like a ping when reading, and sometimes
 		// also when publishing; reply with 200
 		return &base.Response{
@@ -439,36 +416,11 @@ func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base
 	}, liberrors.ServerUnhandledRequestError{Request: req}
 }
 
-func (ss *ServerSession) handleOptions(sc *ServerConn) (*base.Response, error) {
-	var methods []string
-	if _, ok := sc.s.Handler.(ServerHandlerOnDescribe); ok {
-		methods = append(methods, string(base.Describe))
-	}
-	if _, ok := sc.s.Handler.(ServerHandlerOnAnnounce); ok {
-		methods = append(methods, string(base.Announce))
-	}
-	if _, ok := sc.s.Handler.(ServerHandlerOnSetup); ok {
-		methods = append(methods, string(base.Setup))
-	}
-	if _, ok := sc.s.Handler.(ServerHandlerOnPlay); ok {
-		methods = append(methods, string(base.Play))
-	}
-	if _, ok := sc.s.Handler.(ServerHandlerOnRecord); ok {
-		methods = append(methods, string(base.Record))
-	}
-	if _, ok := sc.s.Handler.(ServerHandlerOnPause); ok {
-		methods = append(methods, string(base.Pause))
-	}
-	methods = append(methods, string(base.GetParameter))
-	if _, ok := sc.s.Handler.(ServerHandlerOnSetParameter); ok {
-		methods = append(methods, string(base.SetParameter))
-	}
-	methods = append(methods, string(base.Teardown))
-
+func (ss *ServerSession) handleOptions() (*base.Response, error) {
 	return &base.Response{
 		StatusCode: base.StatusOK,
 		Header: base.Header{
-			"Public": base.HeaderValue{strings.Join(methods, ", ")},
+			"Public": base.HeaderValue{strings.Join(supportedMethods, ", ")},
 		},
 	}, nil
 }
@@ -543,7 +495,7 @@ func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*bas
 		}
 	}
 
-	res, err := ss.s.Handler.(ServerHandlerOnAnnounce).OnAnnounce(&ServerHandlerOnAnnounceCtx{
+	res, err := ss.s.Handler.OnAnnounce(&ServerHandlerOnAnnounceCtx{
 		Server:  ss.s,
 		Session: ss,
 		Conn:    sc,
@@ -650,7 +602,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 		}
 	}
 
-	res, stream, err := ss.s.Handler.(ServerHandlerOnSetup).OnSetup(&ServerHandlerOnSetupCtx{ //nolint:forcetypeassert
+	res, stream, err := ss.s.Handler.OnSetup(&ServerHandlerOnSetupCtx{
 		Server:  ss.s,
 		Session: ss,
 		Conn:    sc,
@@ -764,7 +716,7 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 		ss.writeBuffer, _ = ringbuffer.New(uint64(ss.s.WriteBufferCount))
 	}
 
-	res, err := sc.s.Handler.(ServerHandlerOnPlay).OnPlay(&ServerHandlerOnPlayCtx{
+	res, err := sc.s.Handler.OnPlay(&ServerHandlerOnPlayCtx{
 		Session: ss,
 		Conn:    sc,
 		Request: req,
@@ -874,7 +826,7 @@ func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.
 	// inside the callback.
 	ss.writeBuffer, _ = ringbuffer.New(uint64(8))
 
-	res, err := ss.s.Handler.(ServerHandlerOnRecord).OnRecord(&ServerHandlerOnRecordCtx{
+	res, err := ss.s.Handler.OnRecord(&ServerHandlerOnRecordCtx{
 		Session: ss,
 		Conn:    sc,
 		Request: req,
@@ -927,7 +879,7 @@ func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.R
 
 	path, query := url.PathSplitQuery(pathAndQuery)
 
-	res, err := ss.s.Handler.(ServerHandlerOnPause).OnPause(&ServerHandlerOnPauseCtx{
+	res, err := ss.s.Handler.OnPause(&ServerHandlerOnPauseCtx{
 		Session: ss,
 		Conn:    sc,
 		Request: req,

@@ -22,21 +22,18 @@ type hlsMuxerRequest struct {
 	res  chan func() *hls.MuxerFileResponse
 }
 
-type hlsMuxerPathManager interface {
-	onReaderSetupPlay(req pathReaderSetupPlayReq) pathReaderSetupPlayRes
-}
-
-// StringSize is a size that is unmarshaled from a string.
-type StringSize uint64
+type (
+	onReaderSetupPlayFunc func(req pathReaderSetupPlayReq) pathReaderSetupPlayRes
+	onMuxerCloseFunc      func(*hlsMuxer)
+)
 
 type hlsMuxer struct {
-	name            string
-	readBufferCount int
-	wg              *sync.WaitGroup
-	pathName        string
-	pathManager     hlsMuxerPathManager
-	onMuxerClose    onMuxerCloseFunc
-	logger          *log.Logger
+	wg                *sync.WaitGroup
+	readBufferCount   int
+	pathName          string
+	onReaderSetupPlay onReaderSetupPlayFunc
+	onMuxerClose      onMuxerCloseFunc
+	logger            *log.Logger
 
 	ctx             context.Context
 	ctxCancel       func()
@@ -51,16 +48,13 @@ type hlsMuxer struct {
 	streamInfo hls.StreamInfoFunc
 }
 
-type onMuxerCloseFunc func(*hlsMuxer)
-
 func newHLSMuxer(
 	parentCtx context.Context,
-	name string,
 	readBufferCount int,
 	req *hlsMuxerRequest,
 	wg *sync.WaitGroup,
 	pathName string,
-	pathManager hlsMuxerPathManager,
+	onReaderSetupPlay onReaderSetupPlayFunc,
 	onMuxerClose onMuxerCloseFunc,
 	logger *log.Logger,
 ) *hlsMuxer {
@@ -69,17 +63,16 @@ func newHLSMuxer(
 	now := time.Now().Unix()
 
 	m := &hlsMuxer{
-		name:            name,
-		readBufferCount: readBufferCount,
-		wg:              wg,
-		pathName:        pathName,
-		pathManager:     pathManager,
-		onMuxerClose:    onMuxerClose,
-		logger:          logger,
-		ctx:             ctx,
-		ctxCancel:       ctxCancel,
-		lastRequestTime: &now,
-		request:         make(chan *hlsMuxerRequest),
+		readBufferCount:   readBufferCount,
+		wg:                wg,
+		pathName:          pathName,
+		onReaderSetupPlay: onReaderSetupPlay,
+		onMuxerClose:      onMuxerClose,
+		logger:            logger,
+		ctx:               ctx,
+		ctxCancel:         ctxCancel,
+		lastRequestTime:   &now,
+		request:           make(chan *hlsMuxerRequest),
 	}
 
 	if req != nil {
@@ -166,7 +159,7 @@ var (
 )
 
 func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) error { //nolint:funlen
-	res := m.pathManager.onReaderSetupPlay(pathReaderSetupPlayReq{
+	res := m.onReaderSetupPlay(pathReaderSetupPlayReq{
 		author:   m,
 		pathName: m.pathName,
 	})
@@ -401,7 +394,6 @@ func (m *hlsMuxer) onRequest(req *hlsMuxerRequest) {
 
 // onReaderAccepted implements reader.
 func (m *hlsMuxer) onReaderAccepted() {
-	// m.logf("is converting into HLS")
 }
 
 // onReaderData implements reader.

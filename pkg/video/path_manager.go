@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"nvr/pkg/log"
+	"nvr/pkg/video/gortsplib"
+	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/hls"
 	"sync"
-	"time"
 )
 
 type pathManagerHLSServer interface {
@@ -16,12 +17,8 @@ type pathManagerHLSServer interface {
 }
 
 type pathManager struct {
-	rtspAddress     string
-	readTimeout     time.Duration
-	writeTimeout    time.Duration
-	readBufferCount int
-	pathConfs       map[string]*PathConf
-	log             *log.Logger
+	pathConfs map[string]*PathConf
+	log       *log.Logger
 
 	ctx       context.Context
 	paths     map[string]*path
@@ -39,21 +36,10 @@ type pathManager struct {
 	publisherAnnounce chan pathPublisherAnnounceReq
 }
 
-func newPathManager(
-	wg *sync.WaitGroup,
-	rtspAddress string,
-	readTimeout time.Duration,
-	writeTimeout time.Duration,
-	readBufferCount int,
-	log *log.Logger,
-) *pathManager {
+func newPathManager(wg *sync.WaitGroup, log *log.Logger) *pathManager {
 	pm := &pathManager{
 		wg:                wg,
 		log:               log,
-		rtspAddress:       rtspAddress,
-		readTimeout:       readTimeout,
-		writeTimeout:      writeTimeout,
-		readBufferCount:   readBufferCount,
 		pathConfs:         make(map[string]*PathConf),
 		paths:             make(map[string]*path),
 		onAddPath:         make(chan addPathReq),
@@ -196,10 +182,6 @@ func (pm *pathManager) createPath(
 ) {
 	pm.paths[name] = newPath(
 		pm.ctx,
-		pm.rtspAddress,
-		pm.readTimeout,
-		pm.writeTimeout,
-		pm.readBufferCount,
 		pathConfName,
 		pathConf,
 		name,
@@ -310,20 +292,42 @@ func (pm *pathManager) onPathClose(pa *path) {
 }
 
 // onDescribe is called by a reader or publisher.
-func (pm *pathManager) onDescribe(req pathDescribeReq) pathDescribeRes {
-	req.res = make(chan pathDescribeRes)
-	select {
-	case pm.describe <- req:
-		res := <-req.res
-		if res.err != nil {
-			return res
+func (pm *pathManager) onDescribe(ctx *gortsplib.ServerHandlerOnDescribeCtx,
+) (*base.Response, *gortsplib.ServerStream, error) {
+	res := func() pathDescribeRes {
+		req := pathDescribeReq{
+			pathName: ctx.Path,
+			url:      ctx.Request.URL,
+			res:      make(chan pathDescribeRes),
 		}
+		select {
+		case pm.describe <- req:
+			res := <-req.res
+			if res.err != nil {
+				return res
+			}
 
-		return res.path.onDescribe(req)
+			return res.path.onDescribe(req)
 
-	case <-pm.ctx.Done():
-		return pathDescribeRes{err: ErrTerminated}
+		case <-pm.ctx.Done():
+			return pathDescribeRes{err: ErrTerminated}
+		}
+	}()
+
+	if res.err != nil {
+		if errors.Is(res.err, ErrPathNoOnePublishing) {
+			return &base.Response{
+				StatusCode: base.StatusNotFound,
+			}, nil, res.err
+		}
+		return &base.Response{
+			StatusCode: base.StatusBadRequest,
+		}, nil, res.err
 	}
+
+	return &base.Response{
+		StatusCode: base.StatusOK,
+	}, res.stream.rtspStream, nil
 }
 
 // onPublisherAnnounce is called by a publisher.
@@ -360,7 +364,7 @@ func (pm *pathManager) onReaderSetupPlay(req pathReaderSetupPlayReq) pathReaderS
 	}
 }
 
-// onHLSServerSet is called by hlsServer before pathManager is started.
-func (pm *pathManager) onHLSServerSet(s pathManagerHLSServer) {
+// onHlsServerSet is called by hlsServer before pathManager is started.
+func (pm *pathManager) onHlsServerSet(s pathManagerHLSServer) {
 	pm.hlsServer = s
 }

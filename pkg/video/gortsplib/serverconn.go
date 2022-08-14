@@ -89,12 +89,6 @@ func (sc *ServerConn) run() {
 	defer sc.s.wg.Done()
 	defer close(sc.done)
 
-	if h, ok := sc.s.Handler.(ServerHandlerOnConnOpen); ok {
-		h.OnConnOpen(&ServerHandlerOnConnOpenCtx{
-			Conn: sc,
-		})
-	}
-
 	sc.br = bufio.NewReaderSize(sc.conn, tcpReadBufferSize)
 
 	readRequest := make(chan readReq)
@@ -139,12 +133,10 @@ func (sc *ServerConn) run() {
 	case <-sc.s.ctx.Done():
 	}
 
-	if h, ok := sc.s.Handler.(ServerHandlerOnConnClose); ok {
-		h.OnConnClose(&ServerHandlerOnConnCloseCtx{
-			Conn:  sc,
-			Error: err,
-		})
-	}
+	sc.s.Handler.OnConnClose(&ServerHandlerOnConnCloseCtx{
+		Conn:  sc,
+		Error: err,
+	})
 }
 
 var errSwitchReadFunc = errors.New("switch read function")
@@ -193,7 +185,7 @@ func (sc *ServerConn) readFuncStandard(readRequest chan readReq) error {
 	}
 }
 
-func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:funlen,gocognit
+func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:funlen
 	// reset deadline
 	sc.conn.SetReadDeadline(time.Time{}) // nolint:errcheck
 
@@ -222,17 +214,15 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 			if err != nil {
 				return err
 			}
-			if h, ok := sc.s.Handler.(ServerHandlerOnPacketRTP); ok {
-				for _, entry := range out {
-					h.OnPacketRTP(&ServerHandlerOnPacketRTPCtx{
-						Session:      sc.session,
-						TrackID:      trackID,
-						Packet:       entry.Packet,
-						PTSEqualsDTS: entry.PTSEqualsDTS,
-						H264NALUs:    entry.H264NALUs,
-						H264PTS:      entry.H264PTS,
-					})
-				}
+			for _, entry := range out {
+				sc.s.Handler.OnPacketRTP(&ServerHandlerOnPacketRTPCtx{
+					Session:      sc.session,
+					TrackID:      trackID,
+					Packet:       entry.Packet,
+					PTSEqualsDTS: entry.PTSEqualsDTS,
+					H264NALUs:    entry.H264NALUs,
+					H264PTS:      entry.H264PTS,
+				})
 			}
 			return nil
 		}
@@ -279,7 +269,17 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 	}
 }
 
-func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) { //nolint:funlen,gocognit,gocyclo
+var supportedMethods = []string{
+	string(base.Describe),
+	string(base.Announce),
+	string(base.Setup),
+	string(base.Play),
+	string(base.Record),
+	string(base.Pause),
+	string(base.Teardown),
+}
+
+func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) { //nolint:funlen
 	if cseq, ok := req.Header["CSeq"]; !ok || len(cseq) != 1 {
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
@@ -289,156 +289,77 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 
 	sxID := getSessionID(req.Header)
 
+	h := sc.s.Handler
+
 	switch req.Method {
 	case base.Options:
 		if sxID != "" {
 			return sc.handleRequestInSession(sxID, req, false)
 		}
 
-		// handle request here
-		var methods []string
-		if _, ok := sc.s.Handler.(ServerHandlerOnDescribe); ok {
-			methods = append(methods, string(base.Describe))
-		}
-		if _, ok := sc.s.Handler.(ServerHandlerOnAnnounce); ok {
-			methods = append(methods, string(base.Announce))
-		}
-		if _, ok := sc.s.Handler.(ServerHandlerOnSetup); ok {
-			methods = append(methods, string(base.Setup))
-		}
-		if _, ok := sc.s.Handler.(ServerHandlerOnPlay); ok {
-			methods = append(methods, string(base.Play))
-		}
-		if _, ok := sc.s.Handler.(ServerHandlerOnRecord); ok {
-			methods = append(methods, string(base.Record))
-		}
-		if _, ok := sc.s.Handler.(ServerHandlerOnPause); ok {
-			methods = append(methods, string(base.Pause))
-		}
-		methods = append(methods, string(base.GetParameter))
-		if _, ok := sc.s.Handler.(ServerHandlerOnSetParameter); ok {
-			methods = append(methods, string(base.SetParameter))
-		}
-		methods = append(methods, string(base.Teardown))
-
 		return &base.Response{
 			StatusCode: base.StatusOK,
 			Header: base.Header{
-				"Public": base.HeaderValue{strings.Join(methods, ", ")},
+				"Public": base.HeaderValue{strings.Join(supportedMethods, ", ")},
 			},
 		}, nil
 
 	case base.Describe:
-		if h, ok := sc.s.Handler.(ServerHandlerOnDescribe); ok { //nolint:nestif
-			pathAndQuery, ok := req.URL.RTSPPathAndQuery()
-			if !ok {
-				return &base.Response{
-					StatusCode: base.StatusBadRequest,
-				}, liberrors.ErrServerInvalidPath
-			}
-
-			path, query := url.PathSplitQuery(pathAndQuery)
-
-			res, stream, err := h.OnDescribe(&ServerHandlerOnDescribeCtx{
-				Conn:    sc,
-				Request: req,
-				Path:    path,
-				Query:   query,
-			})
-
-			if res.StatusCode == base.StatusOK {
-				if res.Header == nil {
-					res.Header = make(base.Header)
-				}
-
-				res.Header["Content-Base"] = base.HeaderValue{req.URL.String() + "/"}
-				res.Header["Content-Type"] = base.HeaderValue{"application/sdp"}
-
-				if stream != nil {
-					res.Body = stream.Tracks().Marshal()
-				}
-			}
-
-			return res, err
+		pathAndQuery, ok := req.URL.RTSPPathAndQuery()
+		if !ok {
+			return &base.Response{
+				StatusCode: base.StatusBadRequest,
+			}, liberrors.ErrServerInvalidPath
 		}
+
+		path, query := url.PathSplitQuery(pathAndQuery)
+
+		res, stream, err := h.OnDescribe(&ServerHandlerOnDescribeCtx{
+			Conn:    sc,
+			Request: req,
+			Path:    path,
+			Query:   query,
+		})
+
+		if res.StatusCode == base.StatusOK {
+			if res.Header == nil {
+				res.Header = make(base.Header)
+			}
+
+			res.Header["Content-Base"] = base.HeaderValue{req.URL.String() + "/"}
+			res.Header["Content-Type"] = base.HeaderValue{"application/sdp"}
+
+			if stream != nil {
+				res.Body = stream.Tracks().Marshal()
+			}
+		}
+
+		return res, err
 
 	case base.Announce:
-		if _, ok := sc.s.Handler.(ServerHandlerOnAnnounce); ok {
-			return sc.handleRequestInSession(sxID, req, true)
-		}
+		return sc.handleRequestInSession(sxID, req, true)
 
 	case base.Setup:
-		if _, ok := sc.s.Handler.(ServerHandlerOnSetup); ok {
-			return sc.handleRequestInSession(sxID, req, true)
-		}
+		return sc.handleRequestInSession(sxID, req, true)
 
 	case base.Play:
 		if sxID != "" {
-			if _, ok := sc.s.Handler.(ServerHandlerOnPlay); ok {
-				return sc.handleRequestInSession(sxID, req, false)
-			}
+			return sc.handleRequestInSession(sxID, req, false)
 		}
 
 	case base.Record:
 		if sxID != "" {
-			if _, ok := sc.s.Handler.(ServerHandlerOnRecord); ok {
-				return sc.handleRequestInSession(sxID, req, false)
-			}
+			return sc.handleRequestInSession(sxID, req, false)
 		}
 
 	case base.Pause:
 		if sxID != "" {
-			if _, ok := sc.s.Handler.(ServerHandlerOnPause); ok {
-				return sc.handleRequestInSession(sxID, req, false)
-			}
+			return sc.handleRequestInSession(sxID, req, false)
 		}
 
 	case base.Teardown:
 		if sxID != "" {
 			return sc.handleRequestInSession(sxID, req, false)
-		}
-
-	case base.GetParameter:
-		if sxID != "" {
-			return sc.handleRequestInSession(sxID, req, false)
-		}
-
-		// handle request here
-		if h, ok := sc.s.Handler.(ServerHandlerOnGetParameter); ok {
-			pathAndQuery, ok := req.URL.RTSPPathAndQuery()
-			if !ok {
-				return &base.Response{
-					StatusCode: base.StatusBadRequest,
-				}, liberrors.ErrServerInvalidPath
-			}
-
-			path, query := url.PathSplitQuery(pathAndQuery)
-
-			return h.OnGetParameter(&ServerHandlerOnGetParameterCtx{
-				Conn:    sc,
-				Request: req,
-				Path:    path,
-				Query:   query,
-			})
-		}
-
-	case base.SetParameter:
-		if h, ok := sc.s.Handler.(ServerHandlerOnSetParameter); ok {
-			pathAndQuery, ok := req.URL.RTSPPathAndQuery()
-			if !ok {
-				return &base.Response{
-					StatusCode: base.StatusBadRequest,
-				}, liberrors.ErrServerInvalidPath
-			}
-
-			path, query := url.PathSplitQuery(pathAndQuery)
-
-			return h.OnSetParameter(&ServerHandlerOnSetParameterCtx{
-				Conn:    sc,
-				Request: req,
-				Path:    path,
-				Query:   query,
-			})
 		}
 	}
 
@@ -448,10 +369,6 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 }
 
 func (sc *ServerConn) handleRequestOuter(req *base.Request) error {
-	if h, ok := sc.s.Handler.(ServerHandlerOnRequest); ok {
-		h.OnRequest(sc, req)
-	}
-
 	res, err := sc.handleRequest(req)
 
 	if res.Header == nil {
@@ -465,10 +382,6 @@ func (sc *ServerConn) handleRequestOuter(req *base.Request) error {
 
 	// add server
 	res.Header["Server"] = base.HeaderValue{"gortsplib"}
-
-	if h, ok := sc.s.Handler.(ServerHandlerOnResponse); ok {
-		h.OnResponse(sc, res)
-	}
 
 	byts, _ := res.Marshal()
 

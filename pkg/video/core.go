@@ -7,13 +7,6 @@ import (
 	"nvr/pkg/video/hls"
 	"strconv"
 	"sync"
-	"time"
-)
-
-const (
-	readTimeout     = 10 * time.Second
-	writeTimeout    = 10 * time.Second
-	readBufferCount = 2048
 )
 
 // Server is an instance of rtsp-simple-server.
@@ -26,38 +19,17 @@ type Server struct {
 	wg          *sync.WaitGroup
 }
 
+const readBufferCount = 2048
+
 // NewServer allocates a server.
 func NewServer(log *log.Logger, wg *sync.WaitGroup, rtspPort int, hlsPort int) *Server {
 	// Only allow local connections.
 	rtspAddress := "127.0.0.1:" + strconv.Itoa(rtspPort)
 	hlsAddress := "127.0.0.1:" + strconv.Itoa(hlsPort)
 
-	pathManager := newPathManager(
-		wg,
-		rtspAddress,
-		readTimeout,
-		writeTimeout,
-		readBufferCount,
-		log,
-	)
-
-	rtspServer := newRTSPServer(
-		wg,
-		rtspAddress,
-		readTimeout,
-		writeTimeout,
-		readBufferCount,
-		log,
-		pathManager,
-	)
-
-	hlsServer := newHLSServer(
-		wg,
-		hlsAddress,
-		readBufferCount,
-		pathManager,
-		log,
-	)
+	pathManager := newPathManager(wg, log)
+	rtspServer := newRTSPServer(wg, rtspAddress, readBufferCount, pathManager, log)
+	hlsServer := newHLSServer(wg, readBufferCount, pathManager, log)
 
 	return &Server{
 		rtspAddress: rtspAddress,
@@ -81,7 +53,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return err
 	}
 
-	if err := s.hlsServer.start(ctx2); err != nil {
+	if err := s.hlsServer.start(ctx2, s.hlsAddress); err != nil {
 		cancel()
 		return err
 	}

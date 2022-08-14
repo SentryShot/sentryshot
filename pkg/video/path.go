@@ -13,9 +13,6 @@ import (
 	"time"
 )
 
-// ErrPathNoOnePublishing No one is publishing to path.
-var ErrPathNoOnePublishing = errors.New("no one is publishing to path")
-
 type pathParent interface {
 	onPathSourceReady(*path)
 	onPathClose(*path)
@@ -100,16 +97,12 @@ type pathPublisherPauseReq struct {
 }
 
 type path struct {
-	rtspAddress     string
-	readTimeout     time.Duration
-	writeTimeout    time.Duration
-	readBufferCount int
-	confName        string
-	conf            *PathConf
-	name            string
-	wg              *sync.WaitGroup
-	parent          pathParent
-	logger          *log.Logger
+	confName string
+	conf     *PathConf
+	name     string
+	wg       *sync.WaitGroup
+	parent   pathParent
+	logger   *log.Logger
 
 	ctx               context.Context
 	ctxCancel         func()
@@ -134,10 +127,6 @@ type path struct {
 
 func newPath(
 	parentCtx context.Context,
-	rtspAddress string,
-	readTimeout time.Duration,
-	writeTimeout time.Duration,
-	readBufferCount int,
 	confName string,
 	conf *PathConf,
 	name string,
@@ -148,10 +137,6 @@ func newPath(
 	ctx, ctxCancel := context.WithCancel(parentCtx)
 
 	pa := &path{
-		rtspAddress:       rtspAddress,
-		readTimeout:       readTimeout,
-		writeTimeout:      writeTimeout,
-		readBufferCount:   readBufferCount,
 		confName:          confName,
 		conf:              conf,
 		name:              name,
@@ -340,6 +325,9 @@ func (pa *path) doPublisherRemove() {
 	pa.source = nil
 }
 
+// ErrPathNoOnePublishing No one is publishing to path.
+var ErrPathNoOnePublishing = errors.New("no one is publishing to path")
+
 func (pa *path) handleDescribe(req pathDescribeReq) {
 	if pa.sourceReady {
 		req.res <- pathDescribeRes{
@@ -348,7 +336,8 @@ func (pa *path) handleDescribe(req pathDescribeReq) {
 		return
 	}
 
-	req.res <- pathDescribeRes{err: fmt.Errorf("%w: (%s)", ErrPathNoOnePublishing, pa.name)}
+	req.res <- pathDescribeRes{err: fmt.Errorf("%w: (%s)",
+		ErrPathNoOnePublishing, pa.name)}
 }
 
 func (pa *path) handlePublisherRemove(req pathPublisherRemoveReq) {
