@@ -23,7 +23,10 @@
 package mp4
 
 import (
+	"bytes"
 	"testing"
+
+	"nvr/pkg/video/mp4/bitio"
 
 	"github.com/stretchr/testify/require"
 )
@@ -981,12 +984,13 @@ func TestBoxTypes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Marshal
 			box := Boxes{Box: tc.src}
-			buf := make([]byte, tc.src.Size())
-			var pos int
-			box.Box.Marshal(buf, &pos)
+			buf := bytes.NewBuffer(make([]byte, 0, tc.src.Size()))
 
-			require.Equal(t, int(tc.src.Size()), len(buf))
-			require.Equal(t, tc.bin, buf)
+			w := bitio.NewWriter(buf)
+			box.Box.Marshal(w)
+
+			require.Equal(t, int(tc.src.Size()), buf.Len())
+			require.Equal(t, tc.bin, buf.Bytes())
 		})
 	}
 }

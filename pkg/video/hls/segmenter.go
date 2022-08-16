@@ -228,7 +228,10 @@ func (m *segmenter) writeH264Entry(sample *videoSample) error { //nolint:funlen
 
 	if (sample.next.dts-m.currentSegment.startDTS) >= m.segmentDuration ||
 		spsChanged {
-		m.currentSegment.finalize(sample.next)
+		err := m.currentSegment.finalize(sample.next)
+		if err != nil {
+			return err
+		}
 		m.onSegmentFinalized(m.currentSegment)
 
 		m.firstSegmentFinalized = true
@@ -320,7 +323,10 @@ func (m *segmenter) writeAACEntry(sample *audioSample) error { //nolint:funlen
 	// switch segment
 	if !m.videoTrackExist() &&
 		(sample.next.pts-m.currentSegment.startDTS) >= m.segmentDuration {
-		m.currentSegment.finalize(nil)
+		err := m.currentSegment.finalize(nil)
+		if err != nil {
+			return nil
+		}
 		m.onSegmentFinalized(m.currentSegment)
 
 		m.firstSegmentFinalized = true

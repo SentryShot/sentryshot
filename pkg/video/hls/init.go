@@ -1,10 +1,16 @@
 package hls
 
-import "nvr/pkg/video/mp4"
+import (
+	"bytes"
+	"nvr/pkg/video/mp4"
+	"nvr/pkg/video/mp4/bitio"
+)
 
+//  ISO/IEC 14496-1
 type myEsds struct {
 	mp4.FullBox
-	Data []byte
+	ESID   uint8
+	config []byte
 }
 
 func (*myEsds) Type() mp4.BoxType {
@@ -12,12 +18,52 @@ func (*myEsds) Type() mp4.BoxType {
 }
 
 func (b *myEsds) Size() int {
-	return 4 + len(b.Data)
+	return 41 + len(b.config)
 }
 
-func (b *myEsds) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	mp4.Write(buf, pos, b.Data)
+func (b *myEsds) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
+	}
+
+	decSpecificInfoTagSize := uint8(len(b.config))
+
+	w.TryWrite([]byte{
+		mp4.ESDescrTag,
+		0x80, 0x80, 0x80,
+		32 + decSpecificInfoTagSize, // Size.
+		0, b.ESID,                   // ES_ID.
+		0, // Flags.
+	})
+
+	w.TryWrite([]byte{
+		mp4.DecoderConfigDescrTag,
+		0x80, 0x80, 0x80,
+		18 + decSpecificInfoTagSize, // Size
+
+		0x40,    // Object type indicator (MPEG-4 Audio)
+		0x15,    // StreamType and upStream.
+		0, 0, 0, // BufferSizeDB.
+		0, 1, 0xf7, 0x39, // MaxBitrate.
+		0, 1, 0xf7, 0x39, // AverageBitrate.
+	})
+
+	w.TryWrite([]byte{
+		mp4.DecSpecificInfoTag,
+		0x80, 0x80, 0x80,
+		decSpecificInfoTagSize, // Size.
+	})
+	w.TryWrite(b.config)
+
+	w.TryWrite([]byte{
+		mp4.SLConfigDescrTag,
+		0x80, 0x80, 0x80,
+		1, // Size.
+		2, // Flags.
+	})
+
+	return w.TryError
 }
 
 func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:funlen
@@ -166,51 +212,6 @@ func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:
 	return trak
 }
 
-func initGenerateAudioEsdsData(trackID int, config []byte) []byte {
-	decSpecificInfoTagSize := uint8(len(config))
-	decSpecificInfoTag := append(
-		[]byte{
-			mp4.DecSpecificInfoTag,
-			0x80, 0x80, 0x80, decSpecificInfoTagSize, // size
-		},
-		config...,
-	)
-
-	esDescrTag := []byte{
-		mp4.ESDescrTag,
-		0x80, 0x80, 0x80, 32 + decSpecificInfoTagSize, // size
-		0x00,
-		byte(trackID), // ES_ID
-		0x00,
-	}
-
-	decoderConfigDescrTag := []byte{
-		mp4.DecoderConfigDescrTag,
-		0x80, 0x80, 0x80, 18 + decSpecificInfoTagSize, // size
-		0x40, // object type indicator (MPEG-4 Audio)
-		0x15, 0x00,
-		0x00, 0x00, 0x00, 0x01,
-		0xf7, 0x39, 0x00, 0x01,
-		0xf7, 0x39,
-	}
-
-	slConfigDescrTag := []byte{
-		mp4.SLConfigDescrTag,
-		0x80, 0x80, 0x80, 0x01, // size (1)
-		0x02,
-	}
-
-	data := make([]byte, len(esDescrTag)+len(decoderConfigDescrTag)+len(decSpecificInfoTag)+len(slConfigDescrTag))
-	pos := 0
-
-	pos += copy(data[pos:], esDescrTag)
-	pos += copy(data[pos:], decoderConfigDescrTag)
-	pos += copy(data[pos:], decSpecificInfoTag)
-	copy(data[pos:], slConfigDescrTag)
-
-	return data
-}
-
 func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:funlen
 	/*
 		trak
@@ -271,7 +272,8 @@ func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:
 								},
 								Children: []mp4.Boxes{
 									{Box: &myEsds{
-										Data: initGenerateAudioEsdsData(trackID, info.AudioTrackConfig),
+										ESID:   uint8(trackID),
+										config: info.AudioTrackConfig,
 									}},
 									{Box: &mp4.Btrt{
 										MaxBitrate: 128825,
@@ -349,7 +351,7 @@ func initGenerateMvex(info StreamInfo) mp4.Boxes {
 	return mvex
 }
 
-func generateInit(info StreamInfo) []byte {
+func generateInit(info StreamInfo) ([]byte, error) { // nolint:funlen
 	/*
 		- ftyp
 		- moov
@@ -402,11 +404,16 @@ func generateInit(info StreamInfo) []byte {
 	moov.Children = append(moov.Children, mvex)
 
 	size := ftyp.Size() + moov.Size()
-	buf := make([]byte, size)
+	buf := bytes.NewBuffer(make([]byte, 0, size))
 
-	var pos int
-	ftyp.Marshal(buf, &pos)
-	moov.Marshal(buf, &pos)
+	w := bitio.NewWriter(buf)
 
-	return buf
+	if err := ftyp.Marshal(w); err != nil {
+		return nil, err
+	}
+	if err := moov.Marshal(w); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }

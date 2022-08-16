@@ -1,5 +1,7 @@
 package mp4
 
+import "nvr/pkg/video/mp4/bitio"
+
 // BoxType is mpeg box type.
 type BoxType [4]byte
 
@@ -13,8 +15,8 @@ type ImmutableBox interface {
 	// since the box header contains the size.
 	Size() int
 
-	// Marshal box to buffer.
-	Marshal(buf []byte, pos *int)
+	// Marshal box to writer.
+	Marshal(w *bitio.Writer) error
 }
 
 // Boxes is a structure of boxes that can be marshaled together.
@@ -34,21 +36,33 @@ func (b *Boxes) Size() int {
 }
 
 // Marshal box including children.
-func (b *Boxes) Marshal(buf []byte, pos *int) {
+func (b *Boxes) Marshal(w *bitio.Writer) error {
 	size := b.Size()
-	writeBoxInfo(buf, pos, uint32(size), b.Box.Type())
+
+	err := writeBoxInfo(w, uint32(size), b.Box.Type())
+	if err != nil {
+		return err
+	}
 
 	// The size of a empty box is 8 bytes.
 	if size != 8 {
-		b.Box.Marshal(buf, pos)
+		err := b.Box.Marshal(w)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, child := range b.Children {
-		child.Marshal(buf, pos)
+		err := child.Marshal(w)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func writeBoxInfo(buf []byte, pos *int, size uint32, typ BoxType) {
-	WriteUint32(buf, pos, size)
-	Write(buf, pos, typ[:])
+func writeBoxInfo(w *bitio.Writer, size uint32, typ BoxType) error {
+	w.TryWriteUint32(size)
+	w.TryWrite(typ[:])
+	return w.TryError
 }

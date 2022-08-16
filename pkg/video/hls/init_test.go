@@ -20,7 +20,7 @@ func TestGenerateInit(t *testing.T) {
 	err := spsp.Unmarshal(sps)
 	require.NoError(t, err)
 
-	actual := generateInit(
+	actual, err := generateInit(
 		StreamInfo{
 			VideoTrackExist: true,
 			VideoSPS:        sps,
@@ -28,6 +28,7 @@ func TestGenerateInit(t *testing.T) {
 			AudioTrackExist: true,
 		},
 	)
+	require.NoError(t, err)
 	expected := []byte{
 		0, 0, 0, 0x20, 'f', 't', 'y', 'p',
 		'm', 'p', '4', '2', // Major brand.
@@ -240,12 +241,26 @@ func TestGenerateInit(t *testing.T) {
 		0, 0, 0, 0, // Sample rate.
 		0, 0, 0, 0x31, 'e', 's', 'd', 's',
 		0, 0, 0, 0, // FullBox.
-		3, 0x80, 0x80, 0x80, 0x20, 0, 2, 0, // Data.
-		4, 0x80, 0x80, 0x80, 0x12, 0x40, 0x15, 0,
-		0, 0, 0, 1,
-		0xf7, 0x39, 0, 1,
-		0xf7, 0x39, 5, 0x80,
-		0x80, 0x80, 0, 6, 0x80, 0x80, 0x80, 1, 2,
+		3, // Tag ES_Descriptor.
+		0x80, 0x80, 0x80,
+		0x20, // Size.
+		0, 2, // ES_ID.
+		0, // Flags.
+		4, // Tag DecoderConfigDescriptor.
+		0x80, 0x80, 0x80,
+		0x12,    // Size.
+		0x40,    // ObjectTypeIndicator.
+		0x15,    // StreamType and upStream.
+		0, 0, 0, // BufferSizeDB.
+		0, 1, 0xf7, 0x39, // MaxBitrate.
+		0, 1, 0xf7, 0x39, // AverageBitrate.
+		5, // Tag DecoderSpecificInfo.
+		0x80, 0x80, 0x80,
+		0, // Size
+		6, // Tag SLConfigDescriptor.
+		0x80, 0x80, 0x80,
+		1, // Size.
+		2, // Flags.
 		0, 0, 0, 0x14, 'b', 't', 'r', 't',
 		0, 0, 0, 0, // Buffer size.
 		0, 1, 0xf7, 0x39, // Max bitrate.

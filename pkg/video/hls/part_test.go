@@ -10,15 +10,17 @@ import (
 
 func TestGeneratePart(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
-		actual := generatePart(
+		actual, err := generatePart(
 			false,
 			func() int { return 0 },
+
 			[]*videoSample{{
 				avcc: []byte{},
 				next: &videoSample{},
 			}},
 			[]*audioSample{},
 		)
+		require.NoError(t, err)
 		expected := []byte{
 			0, 0, 0, 0x68, 'm', 'o', 'o', 'f',
 			0, 0, 0, 0x10, 'm', 'f', 'h', 'd',
@@ -44,15 +46,17 @@ func TestGeneratePart(t *testing.T) {
 		require.Equal(t, expected, actual)
 	})
 	t.Run("videoSample", func(t *testing.T) {
-		actual := generatePart(
+		actual, err := generatePart(
 			false,
 			func() int { return 0 },
+
 			[]*videoSample{{
 				avcc: []byte{'a', 'b', 'c', 'd'},
 				next: &videoSample{},
 			}},
 			[]*audioSample{},
 		)
+		require.NoError(t, err)
 		expected := []byte{
 			0, 0, 0, 0x68, 'm', 'o', 'o', 'f',
 			0, 0, 0, 0x10, 'm', 'f', 'h', 'd',
@@ -79,9 +83,10 @@ func TestGeneratePart(t *testing.T) {
 		require.Equal(t, expected, actual)
 	})
 	t.Run("audioSample", func(t *testing.T) {
-		actual := generatePart(
+		actual, err := generatePart(
 			true,
 			func() int { return 0 },
+
 			[]*videoSample{{
 				avcc: []byte{},
 				next: &videoSample{},
@@ -91,6 +96,7 @@ func TestGeneratePart(t *testing.T) {
 				next: &audioSample{},
 			}},
 		)
+		require.NoError(t, err)
 		expected := []byte{
 			0, 0, 0, 0xb0, 'm', 'o', 'o', 'f',
 			0, 0, 0, 0x10, 'm', 'f', 'h', 'd',
@@ -129,9 +135,10 @@ func TestGeneratePart(t *testing.T) {
 		require.Equal(t, expected, actual)
 	})
 	t.Run("videoAndAudioSample", func(t *testing.T) {
-		actual := generatePart(
+		actual, err := generatePart(
 			true,
 			func() int { return 0 },
+
 			[]*videoSample{{
 				avcc: []byte{'a', 'b', 'c', 'd'},
 				next: &videoSample{},
@@ -141,6 +148,7 @@ func TestGeneratePart(t *testing.T) {
 				next: &audioSample{},
 			}},
 		)
+		require.NoError(t, err)
 		expected := []byte{
 			0, 0, 0, 0xb0, 'm', 'o', 'o', 'f',
 			0, 0, 0, 0x10, 'm', 'f', 'h', 'd',
@@ -180,9 +188,10 @@ func TestGeneratePart(t *testing.T) {
 		require.Equal(t, expected, actual)
 	})
 	t.Run("multipleVideoSample", func(t *testing.T) {
-		actual := generatePart(
+		actual, err := generatePart(
 			true,
 			func() int { return 0 },
+
 			[]*videoSample{
 				{
 					avcc:       []byte{'a', 'b', 'c', 'd'},
@@ -201,6 +210,7 @@ func TestGeneratePart(t *testing.T) {
 			},
 			[]*audioSample{},
 		)
+		require.NoError(t, err)
 		expected := []byte{
 			0, 0, 0, 0x88, 'm', 'o', 'o', 'f',
 			0, 0, 0, 0x10, 'm', 'f', 'h', 'd',
@@ -247,9 +257,10 @@ func TestGeneratePart(t *testing.T) {
 			next:       videoSample2,
 		}
 
-		actual := generatePart(
+		actual, err := generatePart(
 			true,
 			func() int { return 44100 },
+
 			[]*videoSample{
 				videoSample1,
 				videoSample2,
@@ -260,6 +271,7 @@ func TestGeneratePart(t *testing.T) {
 				next: &audioSample{},
 			}},
 		)
+		require.NoError(t, err)
 		expected := []byte{
 			0, 0, 0, 0xc0, 'm', 'o', 'o', 'f',
 			0, 0, 0, 0x10, 'm', 'f', 'h', 'd',

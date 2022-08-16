@@ -7,6 +7,7 @@ import (
 	"math"
 	"nvr/pkg/video/gortsplib/pkg/aac"
 	"nvr/pkg/video/mp4"
+	"nvr/pkg/video/mp4/bitio"
 	"strconv"
 	"time"
 )
@@ -31,13 +32,18 @@ func (b *myMdat) Size() int {
 	return total
 }
 
-func (b *myMdat) Marshal(buf []byte, pos *int) {
+func (b *myMdat) Marshal(w *bitio.Writer) error {
 	for _, e := range b.videoSamples {
-		mp4.Write(buf, pos, e.avcc)
+		if _, err := w.Write(e.avcc); err != nil {
+			return err
+		}
 	}
 	for _, e := range b.audioSamples {
-		mp4.Write(buf, pos, e.au)
+		if _, err := w.Write(e.au); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 const _3000Days = 3000 * (time.Hour * 24)
@@ -187,7 +193,7 @@ func generatePart( //nolint:funlen
 	audioClockRate func() int,
 	videoSamples []*videoSample,
 	audioSamples []*audioSample,
-) []byte {
+) ([]byte, error) {
 	/*
 		moof
 		- mfhd
@@ -258,13 +264,19 @@ func generatePart( //nolint:funlen
 	}
 
 	size := moof.Size() + mdat.Size()
-	buf := make([]byte, size)
-	var pos int
+	buf := bytes.NewBuffer(make([]byte, 0, size))
 
-	moof.Marshal(buf, &pos)
-	mdat.Marshal(buf, &pos)
+	w := bitio.NewWriter(buf)
 
-	return buf
+	if err := moof.Marshal(w); err != nil {
+		return nil, err
+	}
+
+	if err := mdat.Marshal(w); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
 
 func partName(id uint64) string {
@@ -330,19 +342,23 @@ func (p *muxerPart) duration() time.Duration {
 		time.Duration(aac.SamplesPerAccessUnit) / time.Duration(p.audioClockRate())
 }
 
-func (p *muxerPart) finalize() {
+func (p *muxerPart) finalize() error {
 	if len(p.videoSamples) > 0 || len(p.audioSamples) > 0 {
-		p.renderedContent = generatePart(
+		var err error
+		p.renderedContent, err = generatePart(
 			p.audioTrackExist(),
 			p.audioClockRate,
 			p.videoSamples,
 			p.audioSamples)
-
+		if err != nil {
+			return err
+		}
 		p.renderedDuration = p.duration()
 	}
 
 	p.videoSamples = nil
 	p.audioSamples = nil
+	return nil
 }
 
 func (p *muxerPart) writeH264(sample *videoSample) {

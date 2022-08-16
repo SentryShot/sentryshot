@@ -1,6 +1,9 @@
 package mp4
 
-import "log"
+import (
+	"log"
+	"nvr/pkg/video/mp4/bitio"
+)
 
 /************************* FullBox **************************/
 
@@ -23,17 +26,18 @@ func (b *FullBox) CheckFlag(flag uint32) bool {
 	return b.GetFlags()&flag != 0
 }
 
-// Size returns the marshaled size in bytes.
-func (b *FullBox) Size() int {
+// FieldSize returns the marshaled size in bytes.
+func (b *FullBox) FieldSize() int {
 	return 4
 }
 
-// Marshal box to buffer.
-func (b *FullBox) Marshal(buf []byte, pos *int) {
-	WriteByte(buf, pos, b.Version)
-	WriteByte(buf, pos, b.Flags[0])
-	WriteByte(buf, pos, b.Flags[1])
-	WriteByte(buf, pos, b.Flags[2])
+// MarshalField box to writer.
+func (b *FullBox) MarshalField(w *bitio.Writer) error {
+	w.TryWriteByte(b.Version)
+	w.TryWriteByte(b.Flags[0])
+	w.TryWriteByte(b.Flags[1])
+	w.TryWriteByte(b.Flags[2])
+	return w.TryError
 }
 
 /*************************** btrt ****************************/
@@ -55,11 +59,12 @@ func (*Btrt) Size() int {
 	return 12
 }
 
-// Marshal box to buffer.
-func (b *Btrt) Marshal(buf []byte, pos *int) {
-	WriteUint32(buf, pos, b.BufferSizeDB)
-	WriteUint32(buf, pos, b.MaxBitrate)
-	WriteUint32(buf, pos, b.AvgBitrate)
+// Marshal box to writer.
+func (b *Btrt) Marshal(w *bitio.Writer) error {
+	w.TryWriteUint32(b.BufferSizeDB)
+	w.TryWriteUint32(b.MaxBitrate)
+	w.TryWriteUint32(b.AvgBitrate)
+	return w.TryError
 }
 
 /*************************** dinf ****************************/
@@ -78,7 +83,7 @@ func (*Dinf) Size() int {
 }
 
 // Marshal is never called.
-func (b *Dinf) Marshal(buf []byte, pos *int) {}
+func (b *Dinf) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** dref ****************************/
 
@@ -98,10 +103,13 @@ func (b *Dref) Size() int {
 	return 8
 }
 
-// Marshal box to buffer.
-func (b *Dref) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.EntryCount)
+// Marshal box to writer.
+func (b *Dref) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
+	}
+	return w.WriteUint32(b.EntryCount)
 }
 
 /*************************** url ****************************/
@@ -127,12 +135,17 @@ func (b *Url) Size() int {
 
 const urlNopt = 0x000001
 
-// Marshal box to buffer.
-func (b *Url) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	if !b.FullBox.CheckFlag(urlNopt) {
-		WriteString(buf, pos, b.Location)
+// Marshal box to writer.
+func (b *Url) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
+	if !b.FullBox.CheckFlag(urlNopt) {
+		_, err := w.Write([]byte(b.Location + "\000"))
+		return err
+	}
+	return nil
 }
 
 /*************************** esds ****************************/
@@ -171,13 +184,14 @@ func (b *Ftyp) Size() int {
 	return total
 }
 
-// Marshal box to buffer.
-func (b *Ftyp) Marshal(buf []byte, pos *int) {
-	Write(buf, pos, b.MajorBrand[:])
-	WriteUint32(buf, pos, b.MinorVersion)
+// Marshal box to writer.
+func (b *Ftyp) Marshal(w *bitio.Writer) error {
+	w.TryWrite(b.MajorBrand[:])
+	w.TryWriteUint32(b.MinorVersion)
 	for _, brands := range b.CompatibleBrands {
-		Write(buf, pos, brands.CompatibleBrand[:])
+		w.TryWrite(brands.CompatibleBrand[:])
 	}
+	return w.TryError
 }
 
 /*************************** hdlr ****************************/
@@ -207,15 +221,19 @@ func (b *Hdlr) Size() int {
 	return total
 }
 
-// Marshal box to buffer.
-func (b *Hdlr) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.PreDefined)
-	Write(buf, pos, b.HandlerType[:])
-	for _, reserved := range b.Reserved {
-		WriteUint32(buf, pos, reserved)
+// Marshal box to writer.
+func (b *Hdlr) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
-	WriteString(buf, pos, b.Name)
+	w.TryWriteUint32(b.PreDefined)
+	w.TryWrite(b.HandlerType[:])
+	for _, reserved := range b.Reserved {
+		w.TryWriteUint32(reserved)
+	}
+	w.TryWrite([]byte(b.Name + "\000"))
+	return w.TryError
 }
 
 /*************************** mdat ****************************/
@@ -235,9 +253,10 @@ func (b *Mdat) Size() int {
 	return len(b.Data)
 }
 
-// Marshal box to buffer.
-func (b *Mdat) Marshal(buf []byte, pos *int) {
-	Write(buf, pos, b.Data)
+// Marshal box to writer.
+func (b *Mdat) Marshal(w *bitio.Writer) error {
+	_, err := w.Write(b.Data)
+	return err
 }
 
 /*************************** mdhd ****************************/
@@ -271,29 +290,33 @@ func (b *Mdhd) Size() int {
 	return 36
 }
 
-// Marshal box to buffer.
-func (b *Mdhd) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	if b.FullBox.Version == 0 {
-		WriteUint32(buf, pos, b.CreationTimeV0)
-		WriteUint32(buf, pos, b.ModificationTimeV0)
-	} else {
-		WriteUint64(buf, pos, b.CreationTimeV1)
-		WriteUint64(buf, pos, b.ModificationTimeV1)
+// Marshal box to writer.
+func (b *Mdhd) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
-	WriteUint32(buf, pos, b.Timescale)
 	if b.FullBox.Version == 0 {
-		WriteUint32(buf, pos, b.DurationV0)
+		w.TryWriteUint32(b.CreationTimeV0)
+		w.TryWriteUint32(b.ModificationTimeV0)
 	} else {
-		WriteUint64(buf, pos, b.DurationV1)
+		w.TryWriteUint64(b.CreationTimeV1)
+		w.TryWriteUint64(b.ModificationTimeV1)
+	}
+	w.TryWriteUint32(b.Timescale)
+	if b.FullBox.Version == 0 {
+		w.TryWriteUint32(b.DurationV0)
+	} else {
+		w.TryWriteUint64(b.DurationV1)
 	}
 	if b.Pad {
-		WriteByte(buf, pos, byte(0x1)<<7|(b.Language[0]&0x1f)<<2|(b.Language[1]&0x1f)>>3)
+		w.TryWriteByte(byte(0x1)<<7 | b.Language[0]&0x1f<<2 | b.Language[1]&0x1f>>3)
 	} else {
-		WriteByte(buf, pos, (b.Language[0]&0x1f)<<2|(b.Language[1]&0x1f)>>3)
+		w.TryWriteByte(b.Language[0]&0x1f<<2 | b.Language[1]&0x1f>>3)
 	}
-	WriteByte(buf, pos, (b.Language[1]&0x7)<<5|(b.Language[2]&0x1f))
-	WriteUint16(buf, pos, b.PreDefined)
+	w.TryWriteByte(b.Language[1]<<5 | b.Language[2]&0x1f)
+	w.TryWriteUint16(b.PreDefined)
+	return w.TryError
 }
 
 /*************************** mdia ****************************/
@@ -312,8 +335,7 @@ func (b *Mdia) Size() int {
 }
 
 // Marshal is never called.
-func (b *Mdia) Marshal(buf []byte, pos *int) {
-}
+func (b *Mdia) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** mfhd ****************************/
 
@@ -333,10 +355,13 @@ func (b *Mfhd) Size() int {
 	return 8
 }
 
-// Marshal box to buffer.
-func (b *Mfhd) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.SequenceNumber)
+// Marshal box to writer.
+func (b *Mfhd) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
+	}
+	return w.WriteUint32(b.SequenceNumber)
 }
 
 /*************************** minf ****************************/
@@ -355,8 +380,7 @@ func (b *Minf) Size() int {
 }
 
 // Marshal is never called.
-func (b *Minf) Marshal(buf []byte, pos *int) {
-}
+func (b *Minf) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** moof ****************************/
 
@@ -374,8 +398,7 @@ func (b *Moof) Size() int {
 }
 
 // Marshal is never called.
-func (b *Moof) Marshal(buf []byte, pos *int) {
-}
+func (b *Moof) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** moov ****************************/
 
@@ -393,8 +416,7 @@ func (b *Moov) Size() int {
 }
 
 // Marshal is never called.
-func (b *Moov) Marshal(buf []byte, pos *int) {
-}
+func (b *Moov) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** mvex ****************************/
 
@@ -412,8 +434,7 @@ func (b *Mvex) Size() int {
 }
 
 // Marshal is never called.
-func (b *Mvex) Marshal(buf []byte, pos *int) {
-}
+func (b *Mvex) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** mvhd ****************************/
 
@@ -449,35 +470,39 @@ func (b *Mvhd) Size() int {
 	return 112
 }
 
-// Marshal box to buffer.
-func (b *Mvhd) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	if b.FullBox.Version == 0 {
-		WriteUint32(buf, pos, b.CreationTimeV0)
-		WriteUint32(buf, pos, b.ModificationTimeV0)
-	} else {
-		WriteUint64(buf, pos, b.CreationTimeV1)
-		WriteUint64(buf, pos, b.ModificationTimeV1)
+// Marshal box to writer.
+func (b *Mvhd) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
-	WriteUint32(buf, pos, b.Timescale)
 	if b.FullBox.Version == 0 {
-		WriteUint32(buf, pos, b.DurationV0)
+		w.TryWriteUint32(b.CreationTimeV0)
+		w.TryWriteUint32(b.ModificationTimeV0)
 	} else {
-		WriteUint64(buf, pos, b.DurationV1)
+		w.TryWriteUint64(b.CreationTimeV1)
+		w.TryWriteUint64(b.ModificationTimeV1)
 	}
-	WriteUint32(buf, pos, uint32(b.Rate))
-	WriteUint16(buf, pos, uint16(b.Volume))
-	WriteUint16(buf, pos, uint16(b.Reserved))
+	w.TryWriteUint32(b.Timescale)
+	if b.FullBox.Version == 0 {
+		w.TryWriteUint32(b.DurationV0)
+	} else {
+		w.TryWriteUint64(b.DurationV1)
+	}
+	w.TryWriteUint32(uint32(b.Rate))
+	w.TryWriteUint16(uint16(b.Volume))
+	w.TryWriteUint16(uint16(b.Reserved))
 	for _, reserved := range b.Reserved2 {
-		WriteUint32(buf, pos, reserved)
+		w.TryWriteUint32(reserved)
 	}
 	for _, matrix := range b.Matrix {
-		WriteUint32(buf, pos, uint32(matrix))
+		w.TryWriteUint32(uint32(matrix))
 	}
 	for _, preDefined := range b.PreDefined {
-		WriteUint32(buf, pos, uint32(preDefined))
+		w.TryWriteUint32(uint32(preDefined))
 	}
-	WriteUint32(buf, pos, b.NextTrackID)
+	w.TryWriteUint32(b.NextTrackID)
+	return w.TryError
 }
 
 /*********************** SampleEntry *************************/
@@ -489,11 +514,12 @@ type SampleEntry struct {
 }
 
 // Marshal entry to buffer.
-func (b *SampleEntry) Marshal(buf []byte, pos *int) {
+func (b *SampleEntry) Marshal(w *bitio.Writer) error {
 	for _, reserved := range b.Reserved {
-		WriteByte(buf, pos, reserved)
+		w.TryWriteByte(reserved)
 	}
-	WriteUint16(buf, pos, b.DataReferenceIndex)
+	w.TryWriteUint16(b.DataReferenceIndex)
+	return w.TryError
 }
 
 /*********************** avc1 *************************/
@@ -525,23 +551,27 @@ func (b *Avc1) Size() int {
 	return 78
 }
 
-// Marshal box to buffer.
-func (b *Avc1) Marshal(buf []byte, pos *int) {
-	b.SampleEntry.Marshal(buf, pos)
-	WriteUint16(buf, pos, b.PreDefined)
-	WriteUint16(buf, pos, b.Reserved)
-	for _, preDefined := range b.PreDefined2 {
-		WriteUint32(buf, pos, preDefined)
+// Marshal box to writer.
+func (b *Avc1) Marshal(w *bitio.Writer) error {
+	err := b.SampleEntry.Marshal(w)
+	if err != nil {
+		return err
 	}
-	WriteUint16(buf, pos, b.Width)
-	WriteUint16(buf, pos, b.Height)
-	WriteUint32(buf, pos, b.Horizresolution)
-	WriteUint32(buf, pos, b.Vertresolution)
-	WriteUint32(buf, pos, b.Reserved2)
-	WriteUint16(buf, pos, b.FrameCount)
-	Write(buf, pos, b.Compressorname[:])
-	WriteUint16(buf, pos, b.Depth)
-	WriteUint16(buf, pos, uint16(b.PreDefined3))
+	w.TryWriteUint16(b.PreDefined)
+	w.TryWriteUint16(b.Reserved)
+	for _, preDefined := range b.PreDefined2 {
+		w.TryWriteUint32(preDefined)
+	}
+	w.TryWriteUint16(b.Width)
+	w.TryWriteUint16(b.Height)
+	w.TryWriteUint32(b.Horizresolution)
+	w.TryWriteUint32(b.Vertresolution)
+	w.TryWriteUint32(b.Reserved2)
+	w.TryWriteUint16(b.FrameCount)
+	w.TryWrite(b.Compressorname[:])
+	w.TryWriteUint16(b.Depth)
+	w.TryWriteUint16(uint16(b.PreDefined3))
+	return w.TryError
 }
 
 /*********************** mp4a *************************/
@@ -568,18 +598,22 @@ func (b *Mp4a) Size() int {
 	return 28
 }
 
-// Marshal box to buffer.
-func (b *Mp4a) Marshal(buf []byte, pos *int) {
-	b.SampleEntry.Marshal(buf, pos)
-	WriteUint16(buf, pos, b.EntryVersion)
-	for _, reserved := range b.Reserved {
-		WriteUint16(buf, pos, reserved)
+// Marshal box to writer.
+func (b *Mp4a) Marshal(w *bitio.Writer) error {
+	err := b.SampleEntry.Marshal(w)
+	if err != nil {
+		return err
 	}
-	WriteUint16(buf, pos, b.ChannelCount)
-	WriteUint16(buf, pos, b.SampleSize)
-	WriteUint16(buf, pos, b.PreDefined)
-	WriteUint16(buf, pos, b.Reserved2)
-	WriteUint32(buf, pos, b.SampleRate)
+	w.TryWriteUint16(b.EntryVersion)
+	for _, reserved := range b.Reserved {
+		w.TryWriteUint16(reserved)
+	}
+	w.TryWriteUint16(b.ChannelCount)
+	w.TryWriteUint16(b.SampleSize)
+	w.TryWriteUint16(b.PreDefined)
+	w.TryWriteUint16(b.Reserved2)
+	w.TryWriteUint32(b.SampleRate)
+	return w.TryError
 }
 
 /**************** AVCDecoderConfiguration ****************.*/
@@ -598,15 +632,16 @@ type AVCParameterSet struct {
 	NALUnit []byte
 }
 
-// Size returns the marshaled size in bytes.
-func (b *AVCParameterSet) Size() int {
+// FieldSize returns the marshaled size in bytes.
+func (b *AVCParameterSet) FieldSize() int {
 	return len(b.NALUnit) + 2
 }
 
-// Marshal box to buffer.
-func (b *AVCParameterSet) Marshal(buf []byte, pos *int) {
-	WriteUint16(buf, pos, b.Length)
-	Write(buf, pos, b.NALUnit)
+// MarshalField box to writer.
+func (b *AVCParameterSet) MarshalField(w *bitio.Writer) error {
+	w.TryWriteUint16(b.Length)
+	w.TryWrite(b.NALUnit)
+	return w.TryError
 }
 
 /*************************** avcC ****************************/
@@ -644,34 +679,40 @@ func (*AvcC) Type() BoxType {
 func (b *AvcC) Size() int {
 	total := 7
 	for _, sets := range b.SequenceParameterSets {
-		total += sets.Size()
+		total += sets.FieldSize()
 	}
 	for _, sets := range b.PictureParameterSets {
-		total += sets.Size()
+		total += sets.FieldSize()
 	}
 	if b.Reserved3 != 0 {
 		total += 4
 		for _, sets := range b.SequenceParameterSetsExt {
-			total += sets.Size()
+			total += sets.FieldSize()
 		}
 	}
 	return total
 }
 
-// Marshal box to buffer.
-func (b *AvcC) Marshal(buf []byte, pos *int) {
-	WriteByte(buf, pos, b.ConfigurationVersion)
-	WriteByte(buf, pos, b.Profile)
-	WriteByte(buf, pos, b.ProfileCompatibility)
-	WriteByte(buf, pos, b.Level)
-	WriteByte(buf, pos, b.Reserved&0x3f<<2|b.LengthSizeMinusOne&0x3)
-	WriteByte(buf, pos, b.Reserved2&0x7<<5|b.NumOfSequenceParameterSets&0x1f)
+// Marshal box to writer.
+func (b *AvcC) Marshal(w *bitio.Writer) error {
+	w.TryWriteByte(b.ConfigurationVersion)
+	w.TryWriteByte(b.Profile)
+	w.TryWriteByte(b.ProfileCompatibility)
+	w.TryWriteByte(b.Level)
+	w.TryWriteByte(b.Reserved<<2 | b.LengthSizeMinusOne&0x3)
+	w.TryWriteByte(b.Reserved2<<5 | b.NumOfSequenceParameterSets&0x1f)
 	for _, sets := range b.SequenceParameterSets {
-		sets.Marshal(buf, pos)
+		err := sets.MarshalField(w)
+		if err != nil {
+			return err
+		}
 	}
-	WriteByte(buf, pos, b.NumOfPictureParameterSets)
+	w.TryWriteByte(b.NumOfPictureParameterSets)
 	for _, sets := range b.PictureParameterSets {
-		sets.Marshal(buf, pos)
+		err := sets.MarshalField(w)
+		if err != nil {
+			return err
+		}
 	}
 	if b.HighProfileFieldsEnabled &&
 		b.Profile != AVCHighProfile &&
@@ -682,14 +723,18 @@ func (b *AvcC) Marshal(buf []byte, pos *int) {
 			" HighProfileFieldsEnabled are inconsistent")
 	}
 	if b.Reserved3 != 0 {
-		WriteByte(buf, pos, b.Reserved3&0x3f<<2|b.ChromaFormat&0x3)
-		WriteByte(buf, pos, b.Reserved4&0x1f<<3|b.BitDepthLumaMinus8&0x7)
-		WriteByte(buf, pos, b.Reserved4&0x1f<<3|b.BitDepthChromaMinus8&0x7)
-		WriteByte(buf, pos, b.NumOfSequenceParameterSetExt)
+		w.TryWriteByte(b.Reserved3<<2 | b.ChromaFormat&0x3)
+		w.TryWriteByte(b.Reserved4<<3 | b.BitDepthLumaMinus8&0x7)
+		w.TryWriteByte(b.Reserved5<<3 | b.BitDepthChromaMinus8&0x7)
+		w.TryWriteByte(b.NumOfSequenceParameterSetExt)
 		for _, sets := range b.SequenceParameterSetsExt {
-			sets.Marshal(buf, pos)
+			err := sets.MarshalField(w)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return w.TryError
 }
 
 /*************************** smhd ****************************/
@@ -711,11 +756,15 @@ func (b *Smhd) Size() int {
 	return 8
 }
 
-// Marshal box to buffer.
-func (b *Smhd) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint16(buf, pos, uint16(b.Balance))
-	WriteUint16(buf, pos, b.Reserved)
+// Marshal box to writer.
+func (b *Smhd) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
+	}
+	w.TryWriteUint16(uint16(b.Balance))
+	w.TryWriteUint16(b.Reserved)
+	return w.TryError
 }
 
 /*************************** stbl ****************************/
@@ -734,7 +783,7 @@ func (b *Stbl) Size() int {
 }
 
 // Marshal is never called.
-func (b *Stbl) Marshal(buf []byte, pos *int) {}
+func (b *Stbl) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** stco ****************************/
 
@@ -755,13 +804,17 @@ func (b *Stco) Size() int {
 	return 8 + len(b.ChunkOffset)*4
 }
 
-// Marshal box to buffer.
-func (b *Stco) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.EntryCount)
-	for _, offset := range b.ChunkOffset {
-		WriteUint32(buf, pos, offset)
+// Marshal box to writer.
+func (b *Stco) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
+	w.TryWriteUint32(b.EntryCount)
+	for _, offset := range b.ChunkOffset {
+		w.TryWriteUint32(offset)
+	}
+	return w.TryError
 }
 
 /*************************** stsc ****************************/
@@ -773,11 +826,12 @@ type StscEntry struct {
 	SampleDescriptionIndex uint32
 }
 
-// Marshal entry to buffer.
-func (b *StscEntry) Marshal(buf []byte, pos *int) {
-	WriteUint32(buf, pos, b.FirstChunk)
-	WriteUint32(buf, pos, b.SamplesPerChunk)
-	WriteUint32(buf, pos, b.SampleDescriptionIndex)
+// MarshalField entry to buffer.
+func (b *StscEntry) MarshalField(w *bitio.Writer) error {
+	w.TryWriteUint32(b.FirstChunk)
+	w.TryWriteUint32(b.SamplesPerChunk)
+	w.TryWriteUint32(b.SampleDescriptionIndex)
+	return w.TryError
 }
 
 // Stsc is ISOBMFF stsc box type.
@@ -797,13 +851,23 @@ func (b *Stsc) Size() int {
 	return 8 + len(b.Entries)*12
 }
 
-// Marshal box to buffer.
-func (b *Stsc) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.EntryCount)
-	for _, entry := range b.Entries {
-		entry.Marshal(buf, pos)
+// Marshal box to writer.
+func (b *Stsc) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
+	err = w.WriteUint32(b.EntryCount)
+	if err != nil {
+		return err
+	}
+	for _, entry := range b.Entries {
+		err := entry.MarshalField(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 /*************************** stsd ****************************/
@@ -824,10 +888,13 @@ func (b *Stsd) Size() int {
 	return 8
 }
 
-// Marshal box to buffer.
-func (b *Stsd) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.EntryCount)
+// Marshal box to writer.
+func (b *Stsd) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return nil
+	}
+	return w.WriteUint32(b.EntryCount)
 }
 
 /*************************** stsz ****************************/
@@ -850,14 +917,18 @@ func (b *Stsz) Size() int {
 	return 12 + len(b.EntrySize)*4
 }
 
-// Marshal box to buffer.
-func (b *Stsz) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.SampleSize)
-	WriteUint32(buf, pos, b.SampleCount)
-	for _, entry := range b.EntrySize {
-		WriteUint32(buf, pos, entry)
+// Marshal box to writer.
+func (b *Stsz) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
+	w.TryWriteUint32(b.SampleSize)
+	w.TryWriteUint32(b.SampleCount)
+	for _, entry := range b.EntrySize {
+		w.TryWriteUint32(entry)
+	}
+	return w.TryError
 }
 
 /*************************** stts ****************************/
@@ -876,9 +947,10 @@ type SttsEntry struct {
 }
 
 // Marshal entry to buffer.
-func (b *SttsEntry) Marshal(buf []byte, pos *int) {
-	WriteUint32(buf, pos, b.SampleCount)
-	WriteUint32(buf, pos, b.SampleDelta)
+func (b *SttsEntry) Marshal(w *bitio.Writer) error {
+	w.TryWriteUint32(b.SampleCount)
+	w.TryWriteUint32(b.SampleDelta)
+	return w.TryError
 }
 
 // Type returns the BoxType.
@@ -891,13 +963,23 @@ func (b *Stts) Size() int {
 	return 8 + len(b.Entries)*8
 }
 
-// Marshal box to buffer.
-func (b *Stts) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.EntryCount)
-	for _, entry := range b.Entries {
-		entry.Marshal(buf, pos)
+// Marshal box to writer.
+func (b *Stts) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
+	err = w.WriteUint32(b.EntryCount)
+	if err != nil {
+		return err
+	}
+	for _, entry := range b.Entries {
+		err := entry.Marshal(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 /*************************** tfdt ****************************/
@@ -916,7 +998,7 @@ func (*Tfdt) Type() BoxType {
 
 // Size returns the marshaled size in bytes.
 func (b *Tfdt) Size() int {
-	total := b.FullBox.Size()
+	total := b.FullBox.FieldSize()
 	if b.FullBox.Version == 0 {
 		total += 4
 	} else {
@@ -925,14 +1007,18 @@ func (b *Tfdt) Size() int {
 	return total
 }
 
-// Marshal box to buffer.
-func (b *Tfdt) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	if b.FullBox.Version == 0 {
-		WriteUint32(buf, pos, b.BaseMediaDecodeTimeV0)
-	} else {
-		WriteUint64(buf, pos, b.BaseMediaDecodeTimeV1)
+// Marshal box to writer.
+func (b *Tfdt) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
+	if b.FullBox.Version == 0 {
+		err = w.WriteUint32(b.BaseMediaDecodeTimeV0)
+	} else {
+		err = w.WriteUint64(b.BaseMediaDecodeTimeV1)
+	}
+	return err
 }
 
 /*************************** tfhd ****************************/
@@ -966,7 +1052,7 @@ func (*Tfhd) Type() BoxType {
 
 // Size returns the marshaled size in bytes.
 func (b *Tfhd) Size() int {
-	total := b.FullBox.Size() + 4
+	total := b.FullBox.FieldSize() + 4
 	if b.FullBox.CheckFlag(TfhdBaseDataOffsetPresent) {
 		total += 8
 	}
@@ -985,25 +1071,29 @@ func (b *Tfhd) Size() int {
 	return total
 }
 
-// Marshal box to buffer.
-func (b *Tfhd) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.TrackID)
+// Marshal box to writer.
+func (b *Tfhd) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
+	}
+	w.TryWriteUint32(b.TrackID)
 	if b.FullBox.CheckFlag(TfhdBaseDataOffsetPresent) {
-		WriteUint64(buf, pos, b.BaseDataOffset)
+		w.TryWriteUint64(b.BaseDataOffset)
 	}
 	if b.FullBox.CheckFlag(TfhdSampleDescriptionIndexPresent) {
-		WriteUint32(buf, pos, b.SampleDescriptionIndex)
+		w.TryWriteUint32(b.SampleDescriptionIndex)
 	}
 	if b.FullBox.CheckFlag(TfhdDefaultSampleDurationPresent) {
-		WriteUint32(buf, pos, b.DefaultSampleDuration)
+		w.TryWriteUint32(b.DefaultSampleDuration)
 	}
 	if b.FullBox.CheckFlag(TfhdDefaultSampleSizePresent) {
-		WriteUint32(buf, pos, b.DefaultSampleSize)
+		w.TryWriteUint32(b.DefaultSampleSize)
 	}
 	if b.FullBox.CheckFlag(TfhdDefaultSampleFlagsPresent) {
-		WriteUint32(buf, pos, b.DefaultSampleFlags)
+		w.TryWriteUint32(b.DefaultSampleFlags)
 	}
+	return w.TryError
 }
 
 /*************************** tkhd ****************************/
@@ -1043,35 +1133,39 @@ func (b *Tkhd) Size() int {
 	return 96
 }
 
-// Marshal box to buffer.
-func (b *Tkhd) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	if b.FullBox.Version == 0 {
-		WriteUint32(buf, pos, b.CreationTimeV0)
-		WriteUint32(buf, pos, b.ModificationTimeV0)
-	} else {
-		WriteUint64(buf, pos, b.CreationTimeV1)
-		WriteUint64(buf, pos, b.ModificationTimeV1)
+// Marshal box to writer.
+func (b *Tkhd) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
-	WriteUint32(buf, pos, b.TrackID)
-	WriteUint32(buf, pos, b.Reserved0)
 	if b.FullBox.Version == 0 {
-		WriteUint32(buf, pos, b.DurationV0)
+		w.TryWriteUint32(b.CreationTimeV0)
+		w.TryWriteUint32(b.ModificationTimeV0)
 	} else {
-		WriteUint64(buf, pos, b.DurationV1)
+		w.TryWriteUint64(b.CreationTimeV1)
+		w.TryWriteUint64(b.ModificationTimeV1)
+	}
+	w.TryWriteUint32(b.TrackID)
+	w.TryWriteUint32(b.Reserved0)
+	if b.FullBox.Version == 0 {
+		w.TryWriteUint32(b.DurationV0)
+	} else {
+		w.TryWriteUint64(b.DurationV1)
 	}
 	for _, reserved := range b.Reserved1 {
-		WriteUint32(buf, pos, reserved)
+		w.TryWriteUint32(reserved)
 	}
-	WriteUint16(buf, pos, uint16(b.Layer))
-	WriteUint16(buf, pos, uint16(b.AlternateGroup))
-	WriteUint16(buf, pos, uint16(b.Volume))
-	WriteUint16(buf, pos, b.Reserved2)
+	w.TryWriteUint16(uint16(b.Layer))
+	w.TryWriteUint16(uint16(b.AlternateGroup))
+	w.TryWriteUint16(uint16(b.Volume))
+	w.TryWriteUint16(b.Reserved2)
 	for _, matrix := range b.Matrix {
-		WriteUint32(buf, pos, uint32(matrix))
+		w.TryWriteUint32(uint32(matrix))
 	}
-	WriteUint32(buf, pos, b.Width)
-	WriteUint32(buf, pos, b.Height)
+	w.TryWriteUint32(b.Width)
+	w.TryWriteUint32(b.Height)
+	return w.TryError
 }
 
 /*************************** traf ****************************/
@@ -1090,7 +1184,7 @@ func (b *Traf) Size() int {
 }
 
 // Marshal is never called.
-func (b *Traf) Marshal(buf []byte, pos *int) {}
+func (b *Traf) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** trak ****************************/
 
@@ -1108,7 +1202,7 @@ func (b *Trak) Size() int {
 }
 
 // Marshal is never called.
-func (b *Trak) Marshal(buf []byte, pos *int) {}
+func (b *Trak) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** trex ****************************/
 
@@ -1132,14 +1226,18 @@ func (b *Trex) Size() int {
 	return 24
 }
 
-// Marshal box to buffer.
-func (b *Trex) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.TrackID)
-	WriteUint32(buf, pos, b.DefaultSampleDescriptionIndex)
-	WriteUint32(buf, pos, b.DefaultSampleDuration)
-	WriteUint32(buf, pos, b.DefaultSampleSize)
-	WriteUint32(buf, pos, b.DefaultSampleFlags)
+// Marshal box to writer.
+func (b *Trex) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
+	}
+	w.TryWriteUint32(b.TrackID)
+	w.TryWriteUint32(b.DefaultSampleDescriptionIndex)
+	w.TryWriteUint32(b.DefaultSampleDuration)
+	w.TryWriteUint32(b.DefaultSampleSize)
+	w.TryWriteUint32(b.DefaultSampleFlags)
+	return nil
 }
 
 /*************************** trun ****************************/
@@ -1163,8 +1261,8 @@ const (
 	TrunSampleCompositionTimeOffsetPresent = 0x000800
 )
 
-// Size returns the marshaled size in bytes.
-func (b *TrunEntry) Size(fullBox FullBox) int {
+// FieldSize returns the marshaled size in bytes.
+func (b *TrunEntry) FieldSize(fullBox FullBox) int {
 	total := 0
 	if fullBox.CheckFlag(TrunSampleDurationPresent) {
 		total += 4
@@ -1181,24 +1279,25 @@ func (b *TrunEntry) Size(fullBox FullBox) int {
 	return total
 }
 
-// Marshal entry to buffer.
-func (b *TrunEntry) Marshal(buf []byte, pos *int, fullBox FullBox) {
+// MarshalField entry to buffer.
+func (b *TrunEntry) MarshalField(w *bitio.Writer, fullBox FullBox) error {
 	if fullBox.CheckFlag(TrunSampleDurationPresent) {
-		WriteUint32(buf, pos, b.SampleDuration)
+		w.TryWriteUint32(b.SampleDuration)
 	}
 	if fullBox.CheckFlag(TrunSampleSizePresent) {
-		WriteUint32(buf, pos, b.SampleSize)
+		w.TryWriteUint32(b.SampleSize)
 	}
 	if fullBox.CheckFlag(TrunSampleFlagsPresent) {
-		WriteUint32(buf, pos, b.SampleFlags)
+		w.TryWriteUint32(b.SampleFlags)
 	}
 	if fullBox.CheckFlag(TrunSampleCompositionTimeOffsetPresent) {
 		if fullBox.Version == 0 {
-			WriteUint32(buf, pos, b.SampleCompositionTimeOffsetV0)
+			w.TryWriteUint32(b.SampleCompositionTimeOffsetV0)
 		} else {
-			WriteUint32(buf, pos, uint32(b.SampleCompositionTimeOffsetV1))
+			w.TryWriteUint32(uint32(b.SampleCompositionTimeOffsetV1))
 		}
 	}
+	return w.TryError
 }
 
 // Trun is ISOBMFF trun box type.
@@ -1227,24 +1326,34 @@ func (b *Trun) Size() int {
 		total += 4
 	}
 	for _, entry := range b.Entries {
-		total += entry.Size(b.FullBox)
+		total += entry.FieldSize(b.FullBox)
 	}
 	return total
 }
 
-// Marshal box to buffer.
-func (b *Trun) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint32(buf, pos, b.SampleCount)
+// Marshal box to writer.
+func (b *Trun) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
+	}
+	w.TryWriteUint32(b.SampleCount)
 	if b.FullBox.CheckFlag(TrunDataOffsetPresent) {
-		WriteUint32(buf, pos, uint32(b.DataOffset))
+		w.TryWriteUint32(uint32(b.DataOffset))
 	}
 	if b.FullBox.CheckFlag(TrunFirstSampleFlagsPresent) {
-		WriteUint32(buf, pos, b.FirstSampleFlags)
+		w.TryWriteUint32(b.FirstSampleFlags)
+	}
+	if w.TryError != nil {
+		return nil
 	}
 	for _, entry := range b.Entries {
-		entry.Marshal(buf, pos, b.FullBox)
+		err := entry.MarshalField(w, b.FullBox)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 /*************************** vmhd ****************************/
@@ -1266,11 +1375,15 @@ func (b *Vmhd) Size() int {
 	return 12
 }
 
-// Marshal box to buffer.
-func (b *Vmhd) Marshal(buf []byte, pos *int) {
-	b.FullBox.Marshal(buf, pos)
-	WriteUint16(buf, pos, b.Graphicsmode)
-	for _, color := range b.Opcolor {
-		WriteUint16(buf, pos, color)
+// Marshal box to writer.
+func (b *Vmhd) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
 	}
+	w.TryWriteUint16(b.Graphicsmode)
+	for _, color := range b.Opcolor {
+		w.TryWriteUint16(color)
+	}
+	return w.TryError
 }

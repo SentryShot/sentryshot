@@ -131,7 +131,11 @@ func (m *Muxer) File(
 			(info.VideoTrackExist &&
 				(!bytes.Equal(m.videoLastSPS, info.VideoSPS) ||
 					!bytes.Equal(m.videoLastPPS, info.VideoPPS))) {
-			initContent := generateInit(*info)
+			initContent, err := generateInit(*info)
+			if err != nil {
+				m.logf(log.LevelError, "generate init.mp4: %w", err)
+				return &MuxerFileResponse{Status: http.StatusInternalServerError}
+			}
 			m.videoLastSPS = info.VideoSPS
 			m.videoLastPPS = info.VideoPPS
 			m.initContent = initContent
