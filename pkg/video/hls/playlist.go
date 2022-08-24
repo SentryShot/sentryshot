@@ -83,6 +83,9 @@ type playlist struct {
 	nextSegmentParts   []*muxerPart
 	nextPartID         uint64
 
+	// Cached playlist for the initial non-blocking request.
+	cachedPlaylist []byte
+
 	onNewSegment chan<- []SegmentOrGap
 }
 
@@ -210,7 +213,7 @@ func (p *playlist) playlistReader(msn, part, skip string) *MuxerFileResponse { /
 			Header: map[string]string{
 				"Content-Type": `audio/mpegURL`,
 			},
-			Body: p.fullPlaylist(isDeltaUpdate),
+			Body: bytes.NewReader(p.fullPlaylist(isDeltaUpdate)),
 		}
 	}
 
@@ -221,6 +224,16 @@ func (p *playlist) playlistReader(msn, part, skip string) *MuxerFileResponse { /
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+
+	if p.cachedPlaylist != nil {
+		return &MuxerFileResponse{
+			Status: http.StatusOK,
+			Header: map[string]string{
+				"Content-Type": `audio/mpegURL`,
+			},
+			Body: bytes.NewReader(p.cachedPlaylist),
+		}
+	}
 
 	for !p.closed && !p.hasContent() {
 		p.cond.Wait()
@@ -235,7 +248,7 @@ func (p *playlist) playlistReader(msn, part, skip string) *MuxerFileResponse { /
 		Header: map[string]string{
 			"Content-Type": `audio/mpegURL`,
 		},
-		Body: p.fullPlaylist(isDeltaUpdate),
+		Body: bytes.NewReader(p.fullPlaylist(isDeltaUpdate)),
 	}
 }
 
@@ -274,7 +287,7 @@ func primaryPlaylist(info StreamInfo) *MuxerFileResponse {
 	}
 }
 
-func (p *playlist) fullPlaylist(isDeltaUpdate bool) io.Reader { //nolint:funlen
+func (p *playlist) fullPlaylist(isDeltaUpdate bool) []byte { //nolint:funlen
 	cnt := "#EXTM3U\n"
 	cnt += "#EXT-X-VERSION:9\n"
 
@@ -373,7 +386,7 @@ func (p *playlist) fullPlaylist(isDeltaUpdate bool) io.Reader { //nolint:funlen
 	// otherwise hls.js goes into a loop
 	cnt += "#EXT-X-PRELOAD-HINT:TYPE=PART,URI=\"" + partName(p.nextPartID) + ".mp4\"\n"
 
-	return bytes.NewReader([]byte(cnt))
+	return []byte(cnt)
 }
 
 func (p *playlist) segmentReader(fname string) *MuxerFileResponse { //nolint:funlen
@@ -483,6 +496,9 @@ func (p *playlist) onSegmentFinalized(segment *Segment) {
 		p.segments = p.segments[1:]
 		p.segmentDeleteCount++
 	}
+
+	p.cachedPlaylist = p.fullPlaylist(false)
+
 	p.mutex.Unlock()
 
 	p.cond.Broadcast()
