@@ -41,7 +41,7 @@ func onRecSave(r *monitor.Recorder, args *string) {
 	r.MonitorLock.Lock()
 	defer r.MonitorLock.Unlock()
 
-	scale := ffmpeg.ParseScaleString(r.Config["thumbScale"])
+	scale := ffmpeg.ParseScaleString((*r.Config)["thumbScale"])
 	if scale == "" || scale == "1" {
 		return
 	}

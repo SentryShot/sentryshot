@@ -51,7 +51,7 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 		i.Log.Level(level).Src("doods").Monitor(id).Msgf(format, a...)
 	}
 
-	config, enable, err := parseConfig(i.Config)
+	config, enable, err := parseConfig(*i.Config)
 	if err != nil {
 		logf(log.LevelError, "could not parse config: %v", err)
 		return

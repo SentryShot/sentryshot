@@ -148,7 +148,7 @@ func (m *Manager) MonitorSet(id string, c Config) error {
 	monitor, exist := m.Monitors[id]
 	if exist {
 		monitor.Lock.Lock()
-		monitor.Config = c
+		*monitor.Config = c
 		monitor.Lock.Unlock()
 	} else {
 		monitor = m.newMonitor(c)
@@ -239,7 +239,7 @@ func (m *Manager) MonitorConfigs() map[string]Config {
 	m.mu.Lock()
 	for _, monitor := range m.Monitors {
 		monitor.Lock.Lock()
-		configs[monitor.Config.ID()] = monitor.Config
+		configs[monitor.Config.ID()] = *monitor.Config
 		monitor.Lock.Unlock()
 	}
 	m.mu.Unlock()
@@ -254,7 +254,7 @@ type monitors map[string]*Monitor
 type Monitor struct {
 	running bool
 
-	Config Config
+	Config *Config
 	Lock   sync.Mutex
 
 	Env         storage.ConfigEnv
@@ -286,7 +286,7 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 		Env:         m.env,
 		Log:         m.log,
 		videoServer: m.videoServer,
-		Config:      config,
+		Config:      &config,
 
 		hooks:      m.hooks,
 		NewProcess: ffmpeg.NewProcess,
@@ -393,7 +393,7 @@ func (m *Manager) StopAll() {
 
 // InputProcess monitor input process.
 type InputProcess struct {
-	Config      Config
+	Config      *Config
 	MonitorLock *sync.Mutex
 
 	serverPath video.ServerPath

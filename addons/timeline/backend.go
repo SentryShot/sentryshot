@@ -50,7 +50,7 @@ func onRecSaved(r *monitor.Recorder, recPath string, recData storage.RecordingDa
 		outputPath: tempPath,
 	}
 
-	config, err := parseConfig(r.Config)
+	config, err := parseConfig(*r.Config)
 	if err != nil {
 		logf(log.LevelError, "could not parse config: %w")
 	}

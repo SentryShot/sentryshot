@@ -106,7 +106,7 @@ func TestNewManager(t *testing.T) {
 		configDir, manager := newTestManager(t)
 
 		config := readConfig(t, filepath.Join(configDir, "1.json"))
-		require.Equal(t, config, manager.Monitors["1"].Config)
+		require.Equal(t, config, *manager.Monitors["1"].Config)
 	})
 	t.Run("migration", func(t *testing.T) {
 		configDir := prepareDir(t)
@@ -131,7 +131,7 @@ func TestNewManager(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		actual := manager.Monitors["x"].Config
+		actual := *manager.Monitors["x"].Config
 		expected := Config{"id": "x", "test2": "b"}
 		require.Equal(t, expected, actual)
 
@@ -198,18 +198,18 @@ func TestMonitorSet(t *testing.T) {
 	t.Run("createNew", func(t *testing.T) {
 		configDir, manager := newTestManager(t)
 
-		config := manager.Monitors["1"].Config
+		config := *manager.Monitors["1"].Config
 		config["name"] = "new"
 
 		err := manager.MonitorSet("new", config)
 		require.NoError(t, err)
 
-		newName := manager.Monitors["new"].Config["name"]
+		newName := manager.Monitors["new"].Config.Name()
 		require.Equal(t, newName, "new")
 
 		// Check if changes were saved to file.
 		config = readConfig(t, configDir+"/new.json")
-		require.Equal(t, config, manager.Monitors["new"].Config)
+		require.Equal(t, config, *manager.Monitors["new"].Config)
 	})
 	t.Run("setOld", func(t *testing.T) {
 		configDir, manager := newTestManager(t)
@@ -217,11 +217,10 @@ func TestMonitorSet(t *testing.T) {
 		oldMonitor := manager.Monitors["1"]
 		oldMonitor.running = true
 
-		oldname := oldMonitor.Config["name"]
+		oldname := oldMonitor.Config.Name()
 		require.Equal(t, oldname, "one")
 
-		config := oldMonitor.Config
-		config["name"] = "two"
+		config := Config{"name": "two"}
 
 		err := manager.MonitorSet("1", config)
 		require.NoError(t, err)
@@ -229,12 +228,16 @@ func TestMonitorSet(t *testing.T) {
 		running := manager.Monitors["1"].running
 		require.True(t, running, "old monitor was reset")
 
-		newName := manager.Monitors["1"].Config["name"]
+		newName := manager.Monitors["1"].Config.Name()
+		require.Equal(t, newName, "two")
+
+		// Check if changes applied to mainInput.
+		newName = manager.Monitors["1"].mainInput.Config.Name()
 		require.Equal(t, newName, "two")
 
 		// Check if changes were saved to file.
 		config = readConfig(t, configDir+"/1.json")
-		require.Equal(t, config, manager.Monitors["1"].Config)
+		require.Equal(t, config, *manager.Monitors["1"].Config)
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
 		_, manager := newTestManager(t)
@@ -274,13 +277,13 @@ func TestMonitorList(t *testing.T) {
 	manager := Manager{
 		Monitors: monitors{
 			"x": &Monitor{
-				Config: Config{
+				Config: &Config{
 					"id":   "1",
 					"name": "2",
 				},
 			},
 			"y": &Monitor{
-				Config: Config{
+				Config: &Config{
 					"id":           "3",
 					"name":         "4",
 					"enable":       "true",
@@ -366,7 +369,7 @@ func mockNewVideoServerPath(
 
 func newTestInputProcess() *InputProcess {
 	return &InputProcess{
-		Config: Config{
+		Config: &Config{
 			"id": "test",
 		},
 		MonitorLock: &sync.Mutex{},
@@ -413,7 +416,7 @@ func TestStartMonitor(t *testing.T) {
 
 		m := newTestMonitor(t)
 		m.running = false
-		m.Config = map[string]string{"name": "test"}
+		m.Config = &Config{"name": "test"}
 		m.logf = func(level log.Level, format string, a ...interface{}) {
 			logs <- fmt.Sprintf(format, a...)
 		}
@@ -480,7 +483,7 @@ func TestRunInputProcess(t *testing.T) {
 	})
 	t.Run("rtspPathErr", func(t *testing.T) {
 		i := newTestInputProcess()
-		i.Config["id"] = ""
+		(*i.Config)["id"] = ""
 		err := runInputProcess(context.Background(), i)
 		require.ErrorIs(t, err, video.ErrEmptyPathName)
 	})
@@ -499,7 +502,7 @@ func mockHooks() Hooks {
 func TestGenInputArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		i := &InputProcess{
-			Config: Config{
+			Config: &Config{
 				"logLevel":     "1",
 				"mainInput":    "2",
 				"audioEncoder": "none",
@@ -516,7 +519,7 @@ func TestGenInputArgs(t *testing.T) {
 	})
 	t.Run("maximal", func(t *testing.T) {
 		i := &InputProcess{
-			Config: Config{
+			Config: &Config{
 				"logLevel":     "1",
 				"hwaccel":      "2",
 				"inputOpts":    "3",

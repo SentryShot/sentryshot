@@ -33,7 +33,7 @@ import (
 
 // Recorder creates and saves new recordings.
 type Recorder struct {
-	Config      Config
+	Config      *Config
 	MonitorLock *sync.Mutex
 
 	events     storage.Events

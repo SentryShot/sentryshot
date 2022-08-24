@@ -43,7 +43,7 @@ func newTestRecorder(t *testing.T) *Recorder {
 
 	logf := func(level log.Level, format string, a ...interface{}) {}
 	return &Recorder{
-		Config: Config{
+		Config: &Config{
 			"timestampOffset": "0",
 			"videoLength":     "0.0003",
 		},
@@ -324,14 +324,14 @@ func TestRunRecordingProcess(t *testing.T) {
 	})
 	t.Run("genArgsErr", func(t *testing.T) {
 		r := newTestRecorder(t)
-		r.Config["videoLength"] = ""
+		(*r.Config)["videoLength"] = ""
 
 		err := runRecordingProcess(context.Background(), r)
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 	t.Run("parseOffsetErr", func(t *testing.T) {
 		r := newTestRecorder(t)
-		r.Config["timestampOffset"] = ""
+		(*r.Config)["timestampOffset"] = ""
 
 		err := runRecordingProcess(context.Background(), r)
 		require.ErrorIs(t, err, strconv.ErrSyntax)
@@ -348,9 +348,9 @@ func TestRunRecordingProcess(t *testing.T) {
 func TestGenRecorderArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		r := newTestRecorder(t)
-		r.Config["id"] = "id"
-		r.Config["logLevel"] = "1"
-		r.Config["videoLength"] = "3"
+		(*r.Config)["id"] = "id"
+		(*r.Config)["logLevel"] = "1"
+		(*r.Config)["videoLength"] = "3"
 
 		args, err := r.generateRecorderArgs("path")
 		require.NoError(t, err)
@@ -360,7 +360,7 @@ func TestGenRecorderArgs(t *testing.T) {
 	})
 	t.Run("videoLengthErr", func(t *testing.T) {
 		r := newTestRecorder(t)
-		r.Config["videoLength"] = ""
+		(*r.Config)["videoLength"] = ""
 
 		_, err := r.generateRecorderArgs("path")
 		require.ErrorIs(t, err, strconv.ErrSyntax)
