@@ -13,8 +13,8 @@ import (
 )
 
 type myMdat struct {
-	videoSamples []*videoSample
-	audioSamples []*audioSample
+	videoSamples []*VideoSample
+	audioSamples []*AudioSample
 }
 
 func (*myMdat) Type() mp4.BoxType {
@@ -24,22 +24,22 @@ func (*myMdat) Type() mp4.BoxType {
 func (b *myMdat) Size() int {
 	var total int
 	for _, e := range b.videoSamples {
-		total += len(e.avcc)
+		total += len(e.Avcc)
 	}
 	for _, e := range b.audioSamples {
-		total += len(e.au)
+		total += len(e.Au)
 	}
 	return total
 }
 
 func (b *myMdat) Marshal(w *bitio.Writer) error {
 	for _, e := range b.videoSamples {
-		if _, err := w.Write(e.avcc); err != nil {
+		if _, err := w.Write(e.Avcc); err != nil {
 			return err
 		}
 	}
 	for _, e := range b.audioSamples {
-		if _, err := w.Write(e.au); err != nil {
+		if _, err := w.Write(e.Au); err != nil {
 			return err
 		}
 	}
@@ -48,8 +48,8 @@ func (b *myMdat) Marshal(w *bitio.Writer) error {
 
 const _3000Days = 3000 * (time.Hour * 24)
 
-// this function will overflow if the input is greater than 3000 days.
-func durationGoToMp4(v time.Duration, timescale time.Duration) int64 {
+// DurationGoToMp4 this function will overflow if the input is greater than 3000 days.
+func DurationGoToMp4(v time.Duration, timescale time.Duration) int64 {
 	if v > _3000Days {
 		log.Fatal("You win!")
 	}
@@ -59,14 +59,14 @@ func durationGoToMp4(v time.Duration, timescale time.Duration) int64 {
 
 func generateVideoTraf( //nolint:funlen
 	trackID int,
-	videoSamples []*videoSample,
+	videoSamples []*VideoSample,
 	dataOffset int32,
 ) mp4.Boxes {
 	/*
-		traf
-		- tfhd
-		- tfdt
-		- trun
+	   traf
+	   - tfhd
+	   - tfdt
+	   - trun
 	*/
 
 	tfhd := &mp4.Tfhd{
@@ -82,7 +82,7 @@ func generateVideoTraf( //nolint:funlen
 		},
 		// sum of decode durations of all earlier samples
 		BaseMediaDecodeTimeV1: uint64(
-			durationGoToMp4(videoSamples[0].dts, videoTimescale)),
+			DurationGoToMp4(videoSamples[0].Dts, VideoTimescale)),
 	}
 
 	flags := 0
@@ -102,17 +102,17 @@ func generateVideoTraf( //nolint:funlen
 
 	trun.Entries = make([]mp4.TrunEntry, len(videoSamples))
 	for i, e := range videoSamples {
-		off := e.pts - e.dts
+		off := e.Pts - e.Dts
 
 		flags := uint32(0)
-		if !e.idrPresent {
+		if !e.IdrPresent {
 			flags |= 1 << 16 // sample_is_non_sync_sample
 		}
 		trun.Entries[i] = mp4.TrunEntry{
-			SampleDuration:                uint32(durationGoToMp4(e.duration(), videoTimescale)),
-			SampleSize:                    uint32(len(e.avcc)),
+			SampleDuration:                uint32(DurationGoToMp4(e.duration(), VideoTimescale)),
+			SampleSize:                    uint32(len(e.Avcc)),
 			SampleFlags:                   flags,
-			SampleCompositionTimeOffsetV1: int32(durationGoToMp4(off, videoTimescale)),
+			SampleCompositionTimeOffsetV1: int32(DurationGoToMp4(off, VideoTimescale)),
 		}
 	}
 
@@ -129,14 +129,14 @@ func generateVideoTraf( //nolint:funlen
 func generateAudioTraf(
 	trackID int,
 	audioClockRate int,
-	audioSamples []*audioSample,
+	audioSamples []*AudioSample,
 	dataOffset int32,
 ) mp4.Boxes {
 	/*
-		traf
-		- tfhd
-		- tfdt
-		- trun
+	   traf
+	   - tfhd
+	   - tfdt
+	   - trun
 	*/
 
 	tfhd := &mp4.Tfhd{
@@ -151,7 +151,7 @@ func generateAudioTraf(
 			Version: 1,
 		},
 		BaseMediaDecodeTimeV1: uint64(
-			durationGoToMp4(audioSamples[0].pts,
+			DurationGoToMp4(audioSamples[0].Pts,
 				time.Duration(audioClockRate))),
 	}
 
@@ -173,8 +173,8 @@ func generateAudioTraf(
 	trun.Entries = make([]mp4.TrunEntry, len(audioSamples))
 	for i, e := range audioSamples {
 		trun.Entries[i] = mp4.TrunEntry{
-			SampleDuration: uint32(durationGoToMp4(e.duration(), time.Duration(audioClockRate))),
-			SampleSize:     uint32(len(e.au)),
+			SampleDuration: uint32(DurationGoToMp4(e.Duration(), time.Duration(audioClockRate))),
+			SampleSize:     uint32(len(e.Au)),
 		}
 	}
 
@@ -191,21 +191,21 @@ func generateAudioTraf(
 func generatePart( //nolint:funlen
 	audioTrackExist bool,
 	audioClockRate func() int,
-	videoSamples []*videoSample,
-	audioSamples []*audioSample,
+	videoSamples []*VideoSample,
+	audioSamples []*AudioSample,
 ) ([]byte, error) {
 	/*
-		moof
-		- mfhd
-		- traf (video)
-		  - tfhd
-		  - tfdt
-		  - trun
-		- traf (audio)
-		  - tfhd
-		  - tfdt
-		  - trun
-		mdat
+	   moof
+	   - mfhd
+	   - traf (video)
+	     - tfhd
+	     - tfdt
+	     - trun
+	   - traf (audio)
+	     - tfhd
+	     - tfdt
+	     - trun
+	   mdat
 	*/
 
 	moof := mp4.Boxes{
@@ -237,12 +237,12 @@ func generatePart( //nolint:funlen
 	dataSize := 0
 	videoDataSize := 0
 	for _, e := range videoSamples {
-		dataSize += len(e.avcc)
+		dataSize += len(e.Avcc)
 	}
 	videoDataSize = dataSize
 	if audioTrackExist {
 		for _, e := range audioSamples {
-			dataSize += len(e.au)
+			dataSize += len(e.Au)
 		}
 	}
 
@@ -283,15 +283,16 @@ func partName(id uint64) string {
 	return "part" + strconv.FormatUint(id, 10)
 }
 
-type muxerPart struct {
+// MuxerPart fmp4 part.
+type MuxerPart struct {
 	videoTrackExist func() bool
 	audioTrackExist func() bool
 	audioClockRate  audioClockRateFunc
 	id              uint64
 
 	isIndependent    bool
-	videoSamples     []*videoSample
-	audioSamples     []*audioSample
+	VideoSamples     []*VideoSample
+	AudioSamples     []*AudioSample
 	renderedContent  []byte
 	renderedDuration time.Duration
 }
@@ -303,8 +304,8 @@ func newPart(
 	audioTrackExist func() bool,
 	audioClockRate audioClockRateFunc,
 	id uint64,
-) *muxerPart {
-	p := &muxerPart{
+) *MuxerPart {
+	p := &MuxerPart{
 		videoTrackExist: videoTrackExist,
 		audioTrackExist: audioTrackExist,
 		audioClockRate:  audioClockRate,
@@ -318,18 +319,18 @@ func newPart(
 	return p
 }
 
-func (p *muxerPart) name() string {
+func (p *MuxerPart) name() string {
 	return partName(p.id)
 }
 
-func (p *muxerPart) reader() io.Reader {
+func (p *MuxerPart) reader() io.Reader {
 	return bytes.NewReader(p.renderedContent)
 }
 
-func (p *muxerPart) duration() time.Duration {
+func (p *MuxerPart) duration() time.Duration {
 	if p.videoTrackExist() {
 		ret := time.Duration(0)
-		for _, e := range p.videoSamples {
+		for _, e := range p.VideoSamples {
 			ret += e.duration()
 		}
 		return ret
@@ -338,36 +339,34 @@ func (p *muxerPart) duration() time.Duration {
 	// use the sum of the default duration of all samples,
 	// not the real duration,
 	// otherwise on iPhone iOS the stream freezes.
-	return time.Duration(len(p.audioSamples)) * time.Second *
+	return time.Duration(len(p.AudioSamples)) * time.Second *
 		time.Duration(aac.SamplesPerAccessUnit) / time.Duration(p.audioClockRate())
 }
 
-func (p *muxerPart) finalize() error {
-	if len(p.videoSamples) > 0 || len(p.audioSamples) > 0 {
+func (p *MuxerPart) finalize() error {
+	if len(p.VideoSamples) > 0 || len(p.AudioSamples) > 0 {
 		var err error
 		p.renderedContent, err = generatePart(
 			p.audioTrackExist(),
 			p.audioClockRate,
-			p.videoSamples,
-			p.audioSamples)
+			p.VideoSamples,
+			p.AudioSamples)
 		if err != nil {
 			return err
 		}
 		p.renderedDuration = p.duration()
 	}
 
-	p.videoSamples = nil
-	p.audioSamples = nil
 	return nil
 }
 
-func (p *muxerPart) writeH264(sample *videoSample) {
-	if sample.idrPresent {
+func (p *MuxerPart) writeH264(sample *VideoSample) {
+	if sample.IdrPresent {
 		p.isIndependent = true
 	}
-	p.videoSamples = append(p.videoSamples, sample)
+	p.VideoSamples = append(p.VideoSamples, sample)
 }
 
-func (p *muxerPart) writeAAC(sample *audioSample) {
-	p.audioSamples = append(p.audioSamples, sample)
+func (p *MuxerPart) writeAAC(sample *AudioSample) {
+	p.AudioSamples = append(p.AudioSamples, sample)
 }

@@ -2,59 +2,67 @@ package watchdog
 
 import (
 	"context"
-	"sync"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"nvr/pkg/log"
+	"nvr/pkg/video"
+	"nvr/pkg/video/hls"
 
 	"github.com/stretchr/testify/require"
 )
 
-func newTestWatchdog(t *testing.T) (context.Context, watchdog, log.Feed, func()) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	logger := log.NewMockLogger()
-	logger.Start(ctx)
-
-	feed, cancel2 := logger.Subscribe()
-
-	cancel3 := func() {
-		cancel2()
-		cancel()
+func newTestWatchdog(t *testing.T) (watchdog, chan string) {
+	subFunc := func() (chan []*hls.Segment, video.CancelFunc, error) {
+		return make(chan []*hls.Segment), func() {}, nil
 	}
 
-	watchFunc := func() {
-		time.Sleep(50 * time.Millisecond)
+	logs := make(chan string)
+	logFunc := func(_ log.Level, format string, a ...interface{}) {
+		logs <- fmt.Sprintf(format, a...)
 	}
 
 	d := watchdog{
-		processName: "x",
-		interval:    10 * time.Millisecond,
-		watchFunc:   watchFunc,
-		onFreeze:    func() {},
-		log:         logger,
+		interval: 10 * time.Millisecond,
+		subFunc:  subFunc,
+		onFreeze: func() {},
+		logf:     logFunc,
 	}
 
-	return ctx, d, feed, cancel3
+	return d, logs
 }
 
 func TestWatchdog(t *testing.T) {
 	t.Run("freeze", func(t *testing.T) {
-		ctx, d, feed, cancel := newTestWatchdog(t)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		mu := sync.Mutex{}
-		mu.Lock()
+		d, logs := newTestWatchdog(t)
+
+		done := make(chan struct{})
 		d.onFreeze = func() {
-			mu.Unlock()
+			close(done)
 		}
 
 		go d.start(ctx)
-		mu.Lock()
-		mu.Unlock()
+		require.Equal(t, "possible freeze detected, restarting..", <-logs)
+		<-done
+	})
+	t.Run("canceled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
 
-		actual := <-feed
-		require.Equal(t, actual.Msg, "x process: possible freeze detected, restarting..")
+		d, _ := newTestWatchdog(t)
+		d.start(ctx)
+	})
+	t.Run("subErr", func(t *testing.T) {
+		d, logs := newTestWatchdog(t)
+		d.subFunc = func() (chan []*hls.Segment, video.CancelFunc, error) {
+			return make(chan []*hls.Segment), func() {}, errors.New("mock")
+		}
+		go d.start(context.Background())
+		require.Equal(t, "could not subscribe", <-logs)
 	})
 }

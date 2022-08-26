@@ -65,11 +65,12 @@ type CancelFunc func()
 
 // ServerPath .
 type ServerPath struct {
-	HlsAddress           string
-	RtspAddress          string
-	RtspProtocol         string
-	StreamInfo           hls.StreamInfoFunc
-	WaitForNewHLSsegment WaitForNewHLSsegementFunc
+	HlsAddress   string
+	RtspAddress  string
+	RtspProtocol string
+	StreamInfo   hls.StreamInfoFunc
+
+	SubscribeToHlsSegmentFinalized SubscibeToHlsSegmentFinalizedFunc
 }
 
 // NewPath add path.
@@ -84,11 +85,12 @@ func (s *Server) NewPath(name string, newConf PathConf) (*ServerPath, CancelFunc
 	}
 
 	return &ServerPath{
-		HlsAddress:           "http://" + s.hlsAddress + "/hls/" + name + "/index.m3u8",
-		RtspAddress:          "rtsp://" + s.rtspAddress + "/" + name,
-		RtspProtocol:         "tcp",
-		StreamInfo:           newConf.streamInfo,
-		WaitForNewHLSsegment: newConf.WaitForNewHLSsegment,
+		HlsAddress:   "http://" + s.hlsAddress + "/hls/" + name + "/index.m3u8",
+		RtspAddress:  "rtsp://" + s.rtspAddress + "/" + name,
+		RtspProtocol: "tcp",
+		StreamInfo:   newConf.streamInfo,
+
+		SubscribeToHlsSegmentFinalized: newConf.subscibeToHlsSegmentFinalized,
 	}, cancelFunc, nil
 }
 

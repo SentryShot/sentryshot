@@ -75,6 +75,7 @@ func (c Config) SubInputEnabled() bool {
 	return c.SubInput() != ""
 }
 
+// video length is seconds.
 func (c Config) videoLength() string {
 	return c["videoLength"]
 }

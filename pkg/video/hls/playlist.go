@@ -42,7 +42,7 @@ func targetDuration(segments []SegmentOrGap) uint {
 
 func partTargetDuration(
 	segments []SegmentOrGap,
-	nextSegmentParts []*muxerPart,
+	nextSegmentParts []*MuxerPart,
 ) time.Duration {
 	var ret time.Duration
 
@@ -52,7 +52,7 @@ func partTargetDuration(
 			continue
 		}
 
-		for _, part := range seg.parts {
+		for _, part := range seg.Parts {
 			if part.renderedDuration > ret {
 				ret = part.renderedDuration
 			}
@@ -77,24 +77,30 @@ type playlist struct {
 	segments           []SegmentOrGap
 	segmentsByName     map[string]*Segment
 	segmentDeleteCount int
-	parts              []*muxerPart
-	partsByName        map[string]*muxerPart
+	parts              []*MuxerPart
+	partsByName        map[string]*MuxerPart
 	nextSegmentID      uint64
-	nextSegmentParts   []*muxerPart
+	nextSegmentParts   []*MuxerPart
 	nextPartID         uint64
+
+	segmentFinalized OnSegmentFinalizedFunc
 
 	// Cached playlist for the initial non-blocking request.
 	cachedPlaylist []byte
-
-	onNewSegment chan<- []SegmentOrGap
 }
 
-func newPlaylist(segmentCount int, onNewSegment chan<- []SegmentOrGap) *playlist {
+// OnSegmentFinalizedFunc is injected by core.
+type OnSegmentFinalizedFunc func([]SegmentOrGap)
+
+func newPlaylist(
+	segmentCount int,
+	segmentFinalized OnSegmentFinalizedFunc,
+) *playlist {
 	p := &playlist{
-		segmentCount:   segmentCount,
-		segmentsByName: make(map[string]*Segment),
-		partsByName:    make(map[string]*muxerPart),
-		onNewSegment:   onNewSegment,
+		segmentCount:     segmentCount,
+		segmentsByName:   make(map[string]*Segment),
+		partsByName:      make(map[string]*MuxerPart),
+		segmentFinalized: segmentFinalized,
 	}
 	p.cond = sync.NewCond(&p.mutex)
 
@@ -126,14 +132,14 @@ func (p *playlist) hasPart(segmentID uint64, partID uint64) bool {
 			continue
 		}
 
-		if segmentID != seg.id {
+		if segmentID != seg.ID {
 			continue
 		}
 
 		// If the Client requests a Part Index greater than that of the final
 		// Partial Segment of the Parent Segment, the Server MUST treat the
 		// request as one for Part Index 0 of the following Parent Segment.
-		if partID >= uint64(len(seg.parts)) {
+		if partID >= uint64(len(seg.Parts)) {
 			segmentID++
 			partID = 0
 			continue
@@ -349,11 +355,11 @@ func (p *playlist) fullPlaylist(isDeltaUpdate bool) []byte { //nolint:funlen
 		switch seg := sog.(type) {
 		case *Segment:
 			if (len(p.segments) - i) <= 2 {
-				cnt += "#EXT-X-PROGRAM-DATE-TIME:" + seg.startTime.Format("2006-01-02T15:04:05.999Z07:00") + "\n"
+				cnt += "#EXT-X-PROGRAM-DATE-TIME:" + seg.StartTime.Format("2006-01-02T15:04:05.999Z07:00") + "\n"
 			}
 
 			if (len(p.segments) - i) <= 2 {
-				for _, part := range seg.parts {
+				for _, part := range seg.Parts {
 					cnt += "#EXT-X-PART:DURATION=" + strconv.FormatFloat(part.renderedDuration.Seconds(), 'f', 5, 64) +
 						",URI=\"" + part.name() + ".mp4\""
 					if part.isIndependent {
@@ -363,7 +369,7 @@ func (p *playlist) fullPlaylist(isDeltaUpdate bool) []byte { //nolint:funlen
 				}
 			}
 
-			cnt += "#EXTINF:" + strconv.FormatFloat(seg.renderedDuration.Seconds(), 'f', 5, 64) + ",\n" +
+			cnt += "#EXTINF:" + strconv.FormatFloat(seg.RenderedDuration.Seconds(), 'f', 5, 64) + ",\n" +
 				seg.name() + ".mp4\n"
 
 		case *Gap:
@@ -471,24 +477,24 @@ func (p *playlist) onSegmentFinalized(segment *Segment) {
 	if len(p.segments) == 0 {
 		for i := 0; i < p.segmentCount; i++ {
 			p.segments = append(p.segments, &Gap{
-				renderedDuration: segment.renderedDuration,
+				renderedDuration: segment.RenderedDuration,
 			})
 		}
 	}
 
 	p.segmentsByName[segment.name()] = segment
 	p.segments = append(p.segments, segment)
-	p.nextSegmentID = segment.id + 1
+	p.nextSegmentID = segment.ID + 1
 	p.nextSegmentParts = p.nextSegmentParts[:0]
 
 	if len(p.segments) > p.segmentCount {
 		toDelete := p.segments[0]
 
 		if toDeleteSeg, ok := toDelete.(*Segment); ok {
-			for _, part := range toDeleteSeg.parts {
+			for _, part := range toDeleteSeg.Parts {
 				delete(p.partsByName, part.name())
 			}
-			p.parts = p.parts[len(toDeleteSeg.parts):]
+			p.parts = p.parts[len(toDeleteSeg.Parts):]
 
 			delete(p.segmentsByName, toDeleteSeg.name())
 		}
@@ -503,16 +509,12 @@ func (p *playlist) onSegmentFinalized(segment *Segment) {
 
 	p.cond.Broadcast()
 
-	for {
-		select {
-		case p.onNewSegment <- p.segments:
-		default:
-			return
-		}
+	if p.segmentFinalized != nil {
+		p.segmentFinalized(p.segments)
 	}
 }
 
-func (p *playlist) onPartFinalized(part *muxerPart) {
+func (p *playlist) onPartFinalized(part *MuxerPart) {
 	func() {
 		p.mutex.Lock()
 		defer p.mutex.Unlock()

@@ -43,7 +43,7 @@ func NewMuxer(
 	segmentDuration time.Duration,
 	partDuration time.Duration,
 	segmentMaxSize uint64,
-	onNewSegment chan<- []SegmentOrGap,
+	onSegmentFinalized OnSegmentFinalizedFunc,
 	logf logFunc,
 	videoTrackExist func() bool,
 	videoSps videoSpsFunc,
@@ -52,7 +52,7 @@ func NewMuxer(
 	getStreamInfo StreamInfoFunc,
 ) *Muxer {
 	m := &Muxer{
-		playlist:   newPlaylist(segmentCount, onNewSegment),
+		playlist:   newPlaylist(segmentCount, onSegmentFinalized),
 		logf:       logf,
 		streamInfo: getStreamInfo,
 	}
@@ -93,6 +93,7 @@ type StreamInfoFunc func() (*StreamInfo, error)
 // StreamInfo Stream information required for decoding.
 type StreamInfo struct {
 	VideoTrackExist bool
+	VideoTrackID    int
 	VideoSPS        []byte
 	VideoPPS        []byte
 	VideoSPSP       h264.SPS
@@ -100,6 +101,7 @@ type StreamInfo struct {
 	VideoHeight     int
 
 	AudioTrackExist   bool
+	AudioTrackID      int
 	AudioTrackConfig  []byte
 	AudioChannelCount int
 	AudioClockRate    int
@@ -153,29 +155,30 @@ func (m *Muxer) File(
 	return m.playlist.file(name, msn, part, skip)
 }
 
-const (
-	videoTimescale = 90000
-)
+// VideoTimescale the number of time units that pass per second.
+const VideoTimescale = 90000
 
-type videoSample struct {
-	nalus      [][]byte
-	pts        time.Duration
-	dts        time.Duration
-	avcc       []byte
-	idrPresent bool
-	next       *videoSample
+// VideoSample .
+type VideoSample struct {
+	Pts        time.Duration
+	Dts        time.Duration
+	Avcc       []byte
+	IdrPresent bool
+	Next       *VideoSample
 }
 
-func (s videoSample) duration() time.Duration {
-	return s.next.dts - s.dts
+func (s VideoSample) duration() time.Duration {
+	return s.Next.Dts - s.Dts
 }
 
-type audioSample struct {
-	au   []byte
-	pts  time.Duration
-	next *audioSample
+// AudioSample .
+type AudioSample struct {
+	Au   []byte
+	Pts  time.Duration
+	Next *AudioSample
 }
 
-func (s audioSample) duration() time.Duration {
-	return s.next.pts - s.pts
+// Duration sample duration.
+func (s AudioSample) Duration() time.Duration {
+	return s.Next.Pts - s.Pts
 }

@@ -102,3 +102,24 @@ func (w *Writer) TryWriteUint64(r uint64) {
 		w.TryError = w.WriteUint64(r)
 	}
 }
+
+// ByteWriter is a helper for io.Writers without io.ByteWriter.
+type ByteWriter struct {
+	out io.Writer
+}
+
+// NewByteWriter returns a new ByteWriter using the specified io.Writer as the output.
+func NewByteWriter(out io.Writer) *ByteWriter {
+	return &ByteWriter{out: out}
+}
+
+// Write implements io.Writer.
+func (w *ByteWriter) Write(p []byte) (int, error) {
+	return w.out.Write(p)
+}
+
+// WriteByte implements io.ByteWriter.
+func (w *ByteWriter) WriteByte(b byte) error {
+	_, err := w.out.Write([]byte{b})
+	return err
+}

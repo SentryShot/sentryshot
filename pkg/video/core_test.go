@@ -21,19 +21,23 @@ func newTestServer(t *testing.T) (*Server, cancelFunc) {
 		require.NoError(t, err)
 	}
 
-	go logger.LogToStdout(ctx)
+	pathManager := newPathManager(&wg, logger)
 
-	p := NewServer(logger, &wg, 8554, 8888)
-	if err := p.Start(ctx); err != nil {
-		require.NoError(t, err)
+	s := &Server{
+		rtspAddress: "127.0.0.1:8554",
+		hlsAddress:  "127.0.0.1:8888",
+		pathManager: pathManager,
+		wg:          &wg,
 	}
+
+	s.pathManager.start(ctx)
 
 	cancelFunc := func() {
 		cancel()
 		wg.Wait()
 	}
 
-	return p, cancelFunc
+	return s, cancelFunc
 }
 
 func TestNewPath(t *testing.T) {
@@ -45,7 +49,7 @@ func TestNewPath(t *testing.T) {
 	actual, cancel2, err := p.NewPath("mypath", c)
 	require.NoError(t, err)
 	actual.StreamInfo = nil
-	actual.WaitForNewHLSsegment = nil
+	actual.SubscribeToHlsSegmentFinalized = nil
 
 	expected := ServerPath{
 		HlsAddress:   "http://127.0.0.1:8888/hls/mypath/index.m3u8",

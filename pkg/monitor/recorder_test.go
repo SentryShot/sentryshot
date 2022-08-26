@@ -17,7 +17,6 @@ package monitor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -31,6 +30,7 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"nvr/pkg/video"
+	"nvr/pkg/video/hls"
 
 	"github.com/stretchr/testify/require"
 )
@@ -49,17 +49,18 @@ func newTestRecorder(t *testing.T) *Recorder {
 		},
 		MonitorLock: &sync.Mutex{},
 
-		logf:          logf,
-		runProcess:    runRecordingProcess,
-		NewProcess:    ffmock.NewProcess,
-		videoDuration: mockVideoDuration,
+		logf:       logf,
+		runProcess: runRecordingProcess,
+		NewProcess: ffmock.NewProcess,
 
 		input: &InputProcess{
 			isSubInput: false,
 
 			serverPath: video.ServerPath{
-				HlsAddress:           "hls.m3u8",
-				WaitForNewHLSsegment: mockWaitForNewHLSsegment,
+				HlsAddress: "hls.m3u8",
+				StreamInfo: mockStreamInfo,
+
+				SubscribeToHlsSegmentFinalized: mockSegmentFinalize,
 			},
 
 			logf: logf,
@@ -78,8 +79,29 @@ func newTestRecorder(t *testing.T) *Recorder {
 	}
 }
 
-func mockVideoDuration(string) (time.Duration, error) {
-	return 10 * time.Minute, nil
+func mockSegmentFinalize() (chan []*hls.Segment, video.CancelFunc, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancelFunc := func() {
+		cancel()
+	}
+	sub := make(chan []*hls.Segment)
+	go func() {
+		for i := 0; i >= 0; i++ {
+			select {
+			case <-ctx.Done():
+				return
+			case sub <- []*hls.Segment{{
+				ID:        uint64(i),
+				StartTime: time.Unix(1*int64(i), 0),
+			}}:
+			}
+		}
+	}()
+	return sub, cancelFunc, nil
+}
+
+func mockStreamInfo() (*hls.StreamInfo, error) {
+	return &hls.StreamInfo{VideoSPS: []byte{0, 0, 0}}, nil
 }
 
 func TestStartRecorder(t *testing.T) {
@@ -303,18 +325,6 @@ func TestRunRecordingProcess(t *testing.T) {
 		err := runRecordingProcess(ctx, r)
 		require.NoError(t, err)
 	})
-	t.Run("waitForKeyframeErr", func(t *testing.T) {
-		mockWaitForNewHLSsegmentErr := func(context.Context, int) (time.Duration, error) {
-			return 0, ffmock.ErrMock
-		}
-
-		r := newTestRecorder(t)
-		r.NewProcess = ffmock.NewProcess
-		r.input.serverPath.WaitForNewHLSsegment = mockWaitForNewHLSsegmentErr
-
-		err := runRecordingProcess(context.Background(), r)
-		require.ErrorIs(t, err, ffmock.ErrMock)
-	})
 	t.Run("mkdirErr", func(t *testing.T) {
 		r := newTestRecorder(t)
 		r.Env.StorageDir = "/dev/null"
@@ -336,39 +346,6 @@ func TestRunRecordingProcess(t *testing.T) {
 		err := runRecordingProcess(context.Background(), r)
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
-	t.Run("crashed", func(t *testing.T) {
-		r := newTestRecorder(t)
-		r.NewProcess = ffmock.NewProcessErr
-
-		err := runRecordingProcess(context.Background(), r)
-		require.Error(t, err)
-	})
-}
-
-func TestGenRecorderArgs(t *testing.T) {
-	t.Run("minimal", func(t *testing.T) {
-		r := newTestRecorder(t)
-		(*r.Config)["id"] = "id"
-		(*r.Config)["logLevel"] = "1"
-		(*r.Config)["videoLength"] = "3"
-
-		args, err := r.generateRecorderArgs("path")
-		require.NoError(t, err)
-
-		expected := "-y -threads 1 -loglevel 1 -live_start_index -2 -i hls.m3u8 -t 180 -c:v copy path.mp4"
-		require.Equal(t, args, expected)
-	})
-	t.Run("videoLengthErr", func(t *testing.T) {
-		r := newTestRecorder(t)
-		(*r.Config)["videoLength"] = ""
-
-		_, err := r.generateRecorderArgs("path")
-		require.ErrorIs(t, err, strconv.ErrSyntax)
-	})
-}
-
-func mockVideoDurationErr(string) (time.Duration, error) {
-	return 0, errors.New("mock")
 }
 
 func TestSaveRecording(t *testing.T) {
@@ -401,10 +378,11 @@ func TestSaveRecording(t *testing.T) {
 		}
 
 		start := time.Time{}.Add(1 * time.Minute)
+		end := time.Time{}.Add(11 * time.Minute)
 		tempdir := r.Env.TempDir
 		filePath := tempdir + "file"
 
-		err := r.saveRec(filePath, start)
+		err := r.saveRec(filePath, start, end)
 		require.NoError(t, err)
 
 		b, err := os.ReadFile(filePath + ".json")
@@ -425,20 +403,13 @@ func TestSaveRecording(t *testing.T) {
 		r := newTestRecorder(t)
 		r.NewProcess = ffmock.NewProcessErr
 
-		err := r.saveRec("", time.Time{})
-		require.Error(t, err)
-	})
-	t.Run("durationErr", func(t *testing.T) {
-		r := newTestRecorder(t)
-		r.videoDuration = mockVideoDurationErr
-
-		err := r.saveRec("", time.Time{})
+		err := r.saveRec("", time.Time{}, time.Time{})
 		require.Error(t, err)
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
 		r := newTestRecorder(t)
 
-		err := r.saveRec("/dev/null/", time.Time{})
+		err := r.saveRec("/dev/null/", time.Time{}, time.Time{})
 		require.Error(t, err)
 	})
 }

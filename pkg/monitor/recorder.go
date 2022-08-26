@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/log"
+	"nvr/pkg/monitor/mp4muxer"
 	"nvr/pkg/storage"
+	"nvr/pkg/video/hls"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,16 +42,17 @@ type Recorder struct {
 	eventsLock sync.Mutex
 	eventChan  chan storage.Event
 
-	logf          logFunc
-	runProcess    runRecordingProcessFunc
-	NewProcess    ffmpeg.NewProcessFunc
-	videoDuration ffmpeg.VideoDurationFunc
+	logf       logFunc
+	runProcess runRecordingProcessFunc
+	NewProcess ffmpeg.NewProcessFunc
 
 	input *InputProcess
 	Env   storage.ConfigEnv
 	Log   *log.Logger
 	wg    *sync.WaitGroup
 	hooks Hooks
+
+	prevSeg uint64
 }
 
 func newRecorder(m *Monitor) *Recorder {
@@ -63,10 +66,9 @@ func newRecorder(m *Monitor) *Recorder {
 		eventsLock:  sync.Mutex{},
 		eventChan:   make(chan storage.Event),
 
-		logf:          logf,
-		runProcess:    runRecordingProcess,
-		NewProcess:    ffmpeg.NewProcess,
-		videoDuration: ffmpeg.New(m.Env.FFmpegBin).VideoDuration,
+		logf:       logf,
+		runProcess: runRecordingProcess,
+		NewProcess: ffmpeg.NewProcess,
 
 		input: m.mainInput,
 		Env:   m.Env,
@@ -164,22 +166,29 @@ func (r *Recorder) start(ctx context.Context) { //nolint:funlen
 
 type runRecordingProcessFunc func(context.Context, *Recorder) error
 
-func runRecordingProcess(ctx context.Context, r *Recorder) error {
-	segmentDuration, err := r.input.WaitForNewHLSsegment(ctx, 2)
-	if err != nil {
-		return fmt.Errorf("get keyframe duration: %w", err)
-	}
-
+func runRecordingProcess(ctx context.Context, r *Recorder) error { //nolint:funlen
 	r.MonitorLock.Lock()
 	monitorID := r.Config.ID()
+	videoLengthStr := r.Config.videoLength()
 	timestampOffsetInt, err := strconv.Atoi(r.Config.TimestampOffset())
 	r.MonitorLock.Unlock()
 	if err != nil {
 		return fmt.Errorf("parse timestamp offset %w", err)
 	}
 
-	offset := segmentDuration + time.Duration(timestampOffsetInt)*time.Millisecond
-	startTime := time.Now().UTC().Add(-offset)
+	hlsChan, cancel, err := r.input.SubsribeToHlsSegmentFinalized()
+	if err != nil {
+		return fmt.Errorf("subcribe: %w", err)
+	}
+	defer cancel()
+
+	firstSegment, err := getFirstSegment(ctx, r.prevSeg, hlsChan)
+	if err != nil {
+		return fmt.Errorf("start timestamp: %w", err)
+	}
+
+	offset := 0 + time.Duration(timestampOffsetInt)*time.Millisecond
+	startTime := firstSegment.StartTime.Add(-offset)
 
 	fileDir := filepath.Join(
 		r.Env.RecordingsDir(),
@@ -195,29 +204,33 @@ func runRecordingProcess(ctx context.Context, r *Recorder) error {
 		return fmt.Errorf("make directory for video: %w", err)
 	}
 
-	r.MonitorLock.Lock()
-	logLevel := log.FFmpegLevel(r.Config.LogLevel())
-	args, err := r.generateRecorderArgs(filePath)
-	r.MonitorLock.Unlock()
+	videoLengthFloat, err := strconv.ParseFloat(videoLengthStr, 64)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse video length: %w", err)
 	}
-	cmd := exec.Command(r.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
+	videoLength := time.Duration(videoLengthFloat * float64(time.Minute))
 
-	logFunc := func(msg string) {
-		r.logf(logLevel, "recording process:%v", cmd)
+	r.logf(log.LevelInfo, "starting recording: %v", filePath)
+
+	file, err := os.OpenFile(filePath+".mp4", os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return fmt.Errorf("create video file: %w", err)
+	}
+	defer file.Close()
+
+	info, err := r.input.StreamInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("stream info: %w", err)
 	}
 
-	process := r.NewProcess(cmd).
-		Timeout(10 * time.Second).
-		StdoutLogger(logFunc).
-		StderrLogger(logFunc)
+	prevSeg, endTime, err := mp4muxer.WriteVideo(
+		ctx, file, hlsChan, firstSegment, *info, videoLength)
+	if err != nil {
+		return fmt.Errorf("write video: %w", err)
+	}
+	r.prevSeg = prevSeg
 
-	r.logf(log.LevelInfo, "starting recording: %v", cmd)
-
-	err = process.Start(ctx)
-
-	go r.saveRecording(filePath, startTime)
+	go r.saveRecording(filePath, startTime, *endTime)
 
 	if err != nil {
 		return fmt.Errorf("crashed: %w", err)
@@ -225,24 +238,33 @@ func runRecordingProcess(ctx context.Context, r *Recorder) error {
 	return nil
 }
 
-func (r *Recorder) generateRecorderArgs(filePath string) (string, error) {
-	videoLength, err := strconv.ParseFloat(r.Config.videoLength(), 64)
-	if err != nil {
-		return "", fmt.Errorf("parse video length: %w", err)
+func getFirstSegment(
+	ctx context.Context,
+	prevSeg uint64,
+	hlsChan chan []*hls.Segment,
+) (*hls.Segment, error) {
+	var segments []*hls.Segment
+	for {
+		select {
+		case segments = <-hlsChan:
+		case <-ctx.Done():
+			return nil, context.Canceled
+		}
+
+		for _, seg := range segments {
+			if seg.ID > prevSeg {
+				return seg, nil
+			}
+		}
 	}
-	videoLengthSec := strconv.Itoa((int(videoLength * 60)))
-
-	args := "-y -threads 1 -loglevel " + r.Config.LogLevel() +
-		" -live_start_index -2" + // HLS segment to start from.
-		" -i " + r.input.HLSaddress() + // Input.
-		" -t " + videoLengthSec + // Max video length.
-		" -c:v copy " + filePath + ".mp4" // Output.
-
-	return args, nil
 }
 
-func (r *Recorder) saveRecording(filePath string, startTime time.Time) {
-	err := r.saveRec(filePath, startTime)
+func (r *Recorder) saveRecording(
+	filePath string,
+	startTime time.Time,
+	endTime time.Time,
+) {
+	err := r.saveRec(filePath, startTime, endTime)
 	if err != nil {
 		r.logf(log.LevelError, "could not save recording: %v", err)
 	} else {
@@ -250,7 +272,11 @@ func (r *Recorder) saveRecording(filePath string, startTime time.Time) {
 	}
 }
 
-func (r *Recorder) saveRec(filePath string, startTime time.Time) error {
+func (r *Recorder) saveRec(
+	filePath string,
+	startTime time.Time,
+	endTime time.Time,
+) error {
 	videoPath := filePath + ".mp4"
 	thumbPath := filePath + ".jpeg"
 	dataPath := filePath + ".json"
@@ -286,14 +312,6 @@ func (r *Recorder) saveRec(filePath string, startTime time.Time) error {
 		abort()
 		return fmt.Errorf("generate thumbnail, args: %v error: %w", args, err)
 	}
-
-	duration, err := r.videoDuration(videoPath)
-	if err != nil {
-		abort()
-		return fmt.Errorf("get video duration of: %v: %w", videoPath, err)
-	}
-
-	endTime := startTime.Add(duration)
 
 	r.eventsLock.Lock()
 	e := queryEvents(r.events, startTime, endTime)

@@ -350,21 +350,13 @@ func TestStopAllMonitors(t *testing.T) {
 	require.False(t, m.Monitors["2"].running)
 }
 
-func mockWaitForNewHLSsegment(context.Context, int) (time.Duration, error) {
-	return 0, nil
-}
-
 func mockNewVideoServerPath(
 	name string, _ video.PathConf) (*video.ServerPath, video.CancelFunc, error,
 ) {
 	if name == "" {
 		return nil, nil, video.ErrEmptyPathName
 	}
-	return &video.ServerPath{
-		WaitForNewHLSsegment: func(context.Context, int) (time.Duration, error) {
-			return 0, nil
-		},
-	}, func() {}, nil
+	return &video.ServerPath{}, func() {}, nil
 }
 
 func newTestInputProcess() *InputProcess {
@@ -377,8 +369,7 @@ func newTestInputProcess() *InputProcess {
 		isSubInput: false,
 
 		serverPath: video.ServerPath{
-			HlsAddress:           "hls.m3u8",
-			WaitForNewHLSsegment: mockWaitForNewHLSsegment,
+			HlsAddress: "hls.m3u8",
 		},
 
 		logf:  func(level log.Level, format string, a ...interface{}) {},

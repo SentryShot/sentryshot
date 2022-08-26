@@ -8,7 +8,7 @@ import (
 )
 
 type partsReader struct {
-	parts   []*muxerPart
+	parts   []*MuxerPart
 	curPart int
 	curPos  int
 }
@@ -39,20 +39,20 @@ func (mbr *partsReader) Read(p []byte) (int, error) {
 
 // Segment .
 type Segment struct {
-	id              uint64
-	startTime       time.Time
+	ID              uint64
+	StartTime       time.Time
 	startDTS        time.Duration
 	segmentMaxSize  uint64
 	videoTrackExist func() bool
 	audioTrackExist func() bool
 	audioClockRate  audioClockRateFunc
 	genPartID       func() uint64
-	onPartFinalized func(*muxerPart)
+	onPartFinalized func(*MuxerPart)
 
 	size             uint64
-	parts            []*muxerPart
-	currentPart      *muxerPart
-	renderedDuration time.Duration
+	Parts            []*MuxerPart
+	currentPart      *MuxerPart
+	RenderedDuration time.Duration
 }
 
 func newSegment(
@@ -64,11 +64,11 @@ func newSegment(
 	audioTrackExist func() bool,
 	audioClockRate audioClockRateFunc,
 	genPartID func() uint64,
-	onPartFinalized func(*muxerPart),
+	onPartFinalized func(*MuxerPart),
 ) *Segment {
 	s := &Segment{
-		id:              id,
-		startTime:       startTime,
+		ID:              id,
+		StartTime:       startTime,
 		startDTS:        startDTS,
 		segmentMaxSize:  segmentMaxSize,
 		videoTrackExist: videoTrackExist,
@@ -88,41 +88,36 @@ func newSegment(
 	return s
 }
 
-// Duration .
-func (s *Segment) Duration() time.Duration {
-	return s.renderedDuration
-}
-
 func (s *Segment) name() string {
-	return "seg" + strconv.FormatUint(s.id, 10)
+	return "seg" + strconv.FormatUint(s.ID, 10)
 }
 
 func (s *Segment) reader() io.Reader {
-	return &partsReader{parts: s.parts}
+	return &partsReader{parts: s.Parts}
 }
 
 func (s *Segment) getRenderedDuration() time.Duration {
-	return s.renderedDuration
+	return s.RenderedDuration
 }
 
-func (s *Segment) finalize(nextVideoSample *videoSample) error {
+func (s *Segment) finalize(nextVideoSample *VideoSample) error {
 	if err := s.currentPart.finalize(); err != nil {
 		return err
 	}
 
 	if s.currentPart.renderedContent != nil {
 		s.onPartFinalized(s.currentPart)
-		s.parts = append(s.parts, s.currentPart)
+		s.Parts = append(s.Parts, s.currentPart)
 	}
 
 	s.currentPart = nil
 
 	if s.videoTrackExist() {
-		s.renderedDuration = nextVideoSample.dts - s.startDTS
+		s.RenderedDuration = nextVideoSample.Dts - s.startDTS
 	} else {
-		s.renderedDuration = 0
-		for _, pa := range s.parts {
-			s.renderedDuration += pa.renderedDuration
+		s.RenderedDuration = 0
+		for _, pa := range s.Parts {
+			s.RenderedDuration += pa.renderedDuration
 		}
 	}
 	return nil
@@ -131,8 +126,8 @@ func (s *Segment) finalize(nextVideoSample *videoSample) error {
 // ErrMaximumSegmentSize reached maximum segment size.
 var ErrMaximumSegmentSize = errors.New("reached maximum segment size")
 
-func (s *Segment) writeH264(sample *videoSample, adjustedPartDuration time.Duration) error {
-	size := uint64(len(sample.avcc))
+func (s *Segment) writeH264(sample *VideoSample, adjustedPartDuration time.Duration) error {
+	size := uint64(len(sample.Avcc))
 
 	if (s.size + size) > s.segmentMaxSize {
 		return ErrMaximumSegmentSize
@@ -148,7 +143,7 @@ func (s *Segment) writeH264(sample *videoSample, adjustedPartDuration time.Durat
 			return err
 		}
 
-		s.parts = append(s.parts, s.currentPart)
+		s.Parts = append(s.Parts, s.currentPart)
 		s.onPartFinalized(s.currentPart)
 
 		s.currentPart = newPart(
@@ -162,8 +157,8 @@ func (s *Segment) writeH264(sample *videoSample, adjustedPartDuration time.Durat
 	return nil
 }
 
-func (s *Segment) writeAAC(sample *audioSample, adjustedPartDuration time.Duration) error {
-	size := uint64(len(sample.au))
+func (s *Segment) writeAAC(sample *AudioSample, adjustedPartDuration time.Duration) error {
+	size := uint64(len(sample.Au))
 
 	if (s.size + size) > s.segmentMaxSize {
 		return ErrMaximumSegmentSize
@@ -180,7 +175,7 @@ func (s *Segment) writeAAC(sample *audioSample, adjustedPartDuration time.Durati
 			return err
 		}
 
-		s.parts = append(s.parts, s.currentPart)
+		s.Parts = append(s.Parts, s.currentPart)
 		s.onPartFinalized(s.currentPart)
 
 		s.currentPart = newPart(

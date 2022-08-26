@@ -5,9 +5,11 @@ package watchdog
 
 import (
 	"context"
+	"fmt"
 	"nvr"
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
+	"nvr/pkg/video"
 	"time"
 )
 
@@ -19,52 +21,46 @@ func init() {
 const defaultInterval = 15 * time.Second
 
 func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]string) {
-	// Function that must return before interval ends.
-	watchFunc := func() {
-		i.WaitForNewHLSsegment(ctx, 0) //nolint:errcheck
+	monitorID := i.Config.ID()
+	processName := i.ProcessName()
+
+	logf := func(level log.Level, format string, a ...interface{}) {
+		format = fmt.Sprintf("%v process: %s", processName, format)
+		i.Log.Level(level).Src("watchdog").Monitor(monitorID).Msgf(format, a...)
 	}
 
 	d := &watchdog{
-		monitorID:   i.Config.ID(),
-		processName: i.ProcessName(),
-		watchFunc:   watchFunc,
-		interval:    defaultInterval,
-		onFreeze:    i.Cancel,
-
-		log: i.Log,
+		subFunc:  i.SubsribeToHlsSegmentFinalized,
+		interval: defaultInterval,
+		onFreeze: i.Cancel,
+		logf:     logf,
 	}
 	go d.start(ctx)
 }
 
 type watchdog struct {
-	monitorID   string
-	processName string
-	watchFunc   func()
-	interval    time.Duration
-	onFreeze    func()
-
-	log *log.Logger
+	subFunc  video.SubscibeToHlsSegmentFinalizedFunc
+	interval time.Duration
+	onFreeze func()
+	logf     func(log.Level, string, ...interface{})
 }
 
 func (d *watchdog) start(ctx context.Context) {
-	watch := func() {
-		returned := make(chan struct{})
-		go func() {
-			d.watchFunc()
-			close(returned)
-		}()
+	sub, cancel, err := d.subFunc()
+	if err != nil {
+		d.onFreeze()
+		d.logf(log.LevelError, "could not subscribe")
+		return
+	}
+	defer cancel()
 
+	watch := func() {
 		select {
 		case <-time.After(d.interval):
 			// Function didn't return in time.
-			d.log.Error().
-				Src("watchdog").
-				Monitor(d.monitorID).
-				Msgf("%v process: possible freeze detected, restarting..",
-					d.processName)
-
+			d.logf(log.LevelError, "possible freeze detected, restarting..")
 			d.onFreeze()
-		case <-returned:
+		case <-sub:
 		case <-ctx.Done():
 		}
 	}

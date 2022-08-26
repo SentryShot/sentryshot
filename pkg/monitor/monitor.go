@@ -162,6 +162,7 @@ func (m *Manager) MonitorSet(id string, c Config) error {
 	if err := os.WriteFile(m.configPath(id), config, 0o600); err != nil {
 		return err
 	}
+
 	monitor.Lock.Unlock()
 
 	return nil
@@ -486,6 +487,13 @@ func (i *InputProcess) StreamInfo(ctx context.Context) (*hls.StreamInfo, error) 
 	}
 }
 
+// SubsribeToHlsSegmentFinalized .
+func (i *InputProcess) SubsribeToHlsSegmentFinalized() (
+	chan []*hls.Segment, video.CancelFunc, error,
+) {
+	return i.serverPath.SubscribeToHlsSegmentFinalized()
+}
+
 // ProcessName name of process "main" or "sub".
 func (i *InputProcess) ProcessName() string {
 	if i.isSubInput {
@@ -506,15 +514,6 @@ func (i *InputProcess) rtspPathName() string {
 		return i.Config.ID() + "_sub"
 	}
 	return i.Config.ID()
-}
-
-// WaitForNewHLSsegment waits for a new HLS segment and
-// returns the combined duration of the last nSegments.
-// Used to calculate start time of the recordings.
-func (i *InputProcess) WaitForNewHLSsegment(
-	ctx context.Context, nSegments int,
-) (time.Duration, error) {
-	return i.serverPath.WaitForNewHLSsegment(ctx, nSegments)
 }
 
 // Cancel process context.

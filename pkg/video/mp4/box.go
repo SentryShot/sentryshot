@@ -5,6 +5,9 @@ import "nvr/pkg/video/mp4/bitio"
 // BoxType is mpeg box type.
 type BoxType [4]byte
 
+// ImmutableBoxes is slice of ImmutableBox.
+type ImmutableBoxes []ImmutableBox
+
 // ImmutableBox is common interface of box.
 type ImmutableBox interface {
 	// Type returns the BoxType.
@@ -65,4 +68,43 @@ func writeBoxInfo(w *bitio.Writer, size uint32, typ BoxType) error {
 	w.TryWriteUint32(size)
 	w.TryWrite(typ[:])
 	return w.TryError
+}
+
+// WriteSingleBox write a single box.
+func WriteSingleBox(w *bitio.Writer, b ImmutableBox) (int, error) {
+	size := 8 + b.Size()
+
+	err := writeBoxInfo(w, uint32(size), b.Type())
+	if err != nil {
+		return 0, err
+	}
+
+	// The size of a empty box is 8 bytes.
+	if size != 8 {
+		err := b.Marshal(w)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return size, nil
+}
+
+// Marshal ImmutableBoxes to writer.
+func (boxes ImmutableBoxes) Marshal(w *bitio.Writer) error {
+	for _, b := range boxes {
+		if _, err := WriteSingleBox(w, b); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Size combined size of boxes.
+func (boxes ImmutableBoxes) Size() int {
+	var n int
+	for _, b := range boxes {
+		n += 8
+		n += b.Size()
+	}
+	return n
 }

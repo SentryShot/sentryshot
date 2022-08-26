@@ -67,6 +67,50 @@ func (b *Btrt) Marshal(w *bitio.Writer) error {
 	return w.TryError
 }
 
+/*************************** ctts ****************************/
+
+// Ctts is ISOBMFF ctts box type.
+type Ctts struct {
+	FullBox
+	EntryCount uint32
+	Entries    []CttsEntry
+}
+
+// CttsEntry .
+type CttsEntry struct {
+	SampleCount    uint32
+	SampleOffsetV0 uint32
+	SampleOffsetV1 int32
+}
+
+// Type returns the BoxType.
+func (*Ctts) Type() BoxType {
+	return [4]byte{'c', 't', 't', 's'}
+}
+
+// Size returns the marshaled size in bytes.
+func (b *Ctts) Size() int {
+	return 8 + len(b.Entries)*8
+}
+
+// Marshal is never called.
+func (b *Ctts) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
+	}
+	w.TryWriteUint32(b.EntryCount)
+	for _, entry := range b.Entries {
+		w.TryWriteUint32(entry.SampleCount)
+		if b.FullBox.Version == 0 {
+			w.TryWriteUint32(entry.SampleOffsetV0)
+		} else {
+			w.TryWriteUint32(uint32(entry.SampleOffsetV1))
+		}
+	}
+	return nil
+}
+
 /*************************** dinf ****************************/
 
 // Dinf is ISOBMFF dinf box type.
@@ -148,6 +192,77 @@ func (b *Url) Marshal(w *bitio.Writer) error {
 	return nil
 }
 
+/*************************** edts ****************************/
+
+// Edts is ISOBMFF edts box type.
+type Edts struct{}
+
+// Type returns the BoxType.
+func (*Edts) Type() BoxType {
+	return [4]byte{'e', 'd', 't', 's'}
+}
+
+// Size returns the marshaled size in bytes.
+func (b *Edts) Size() int {
+	return 0
+}
+
+// Marshal is never called.
+func (b *Edts) Marshal(w *bitio.Writer) error { return nil }
+
+/*************************** elst ****************************/
+
+// Elst is ISOBMFF elst box type.
+type Elst struct {
+	FullBox
+	EntryCount uint32
+	Entries    []ElstEntry
+}
+
+// ElstEntry .
+type ElstEntry struct {
+	SegmentDurationV0 uint32
+	MediaTimeV0       int32
+	SegmentDurationV1 uint64
+	MediaTimeV1       int64
+	MediaRateInteger  int16
+	MediaRateFraction int16
+}
+
+// Type returns the BoxType.
+func (*Elst) Type() BoxType {
+	return [4]byte{'e', 'l', 's', 't'}
+}
+
+// Size returns the marshaled size in bytes.
+func (b *Elst) Size() int {
+	if b.FullBox.Version == 0 {
+		return 8 + len(b.Entries)*12
+	}
+	return 8 + len(b.Entries)*20
+}
+
+// Marshal box to writer.
+func (b *Elst) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
+	}
+	w.TryWriteUint32(b.EntryCount)
+	for _, entry := range b.Entries {
+		if b.FullBox.Version == 0 {
+			w.TryWriteUint32(entry.SegmentDurationV0)
+			w.TryWriteUint32(uint32(entry.MediaTimeV0))
+		} else {
+			w.TryWriteUint64(entry.SegmentDurationV1)
+			w.TryWriteUint64(uint64(entry.MediaTimeV1))
+		}
+		w.TryWriteUint16(uint16(entry.MediaRateInteger))
+		w.TryWriteUint16(uint16(entry.MediaRateFraction))
+	}
+	return w.TryError
+}
+
 /*************************** esds ****************************/
 
 // https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html
@@ -157,6 +272,24 @@ const (
 	DecSpecificInfoTag    = 0x05
 	SLConfigDescrTag      = 0x06
 )
+
+/*************************** free ****************************/
+
+// Free is ISOBMFF free box type.
+type Free struct{}
+
+// Type returns the BoxType.
+func (*Free) Type() BoxType {
+	return [4]byte{'f', 'r', 'e', 'e'}
+}
+
+// Size returns the marshaled size in bytes.
+func (b *Free) Size() int {
+	return 0
+}
+
+// Marshal is never called.
+func (b *Free) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** ftyp ****************************/
 
@@ -198,7 +331,7 @@ func (b *Ftyp) Marshal(w *bitio.Writer) error {
 
 // Hdlr is ISOBMFF hdlr box type.
 type Hdlr struct {
-	FullBox `mp4:"0,extend"`
+	FullBox
 	// Predefined corresponds to component_type of QuickTime.
 	// pre_defined of ISO-14496 has albufays zero,
 	// hobufever component_type has "mhlr" or "dhlr".
@@ -336,6 +469,28 @@ func (b *Mdia) Size() int {
 
 // Marshal is never called.
 func (b *Mdia) Marshal(w *bitio.Writer) error { return nil }
+
+/*************************** meta ****************************/
+
+// Meta is ISOBMFF meta box type.
+type Meta struct {
+	FullBox
+}
+
+// Type returns the BoxType.
+func (*Meta) Type() BoxType {
+	return [4]byte{'m', 'e', 't', 'a'}
+}
+
+// Size returns the marshaled size in bytes.
+func (b *Meta) Size() int {
+	return 4
+}
+
+// Marshal is never called.
+func (b *Meta) Marshal(w *bitio.Writer) error {
+	return b.FullBox.MarshalField(w)
+}
 
 /*************************** mfhd ****************************/
 
@@ -897,6 +1052,44 @@ func (b *Stsd) Marshal(w *bitio.Writer) error {
 	return w.WriteUint32(b.EntryCount)
 }
 
+/*************************** stss ****************************/
+
+// Stss is ISOBMFF stss box type.
+type Stss struct {
+	FullBox
+	EntryCount   uint32
+	SampleNumber []uint32
+}
+
+// Type returns the BoxType.
+func (*Stss) Type() BoxType {
+	return [4]byte{'s', 't', 's', 's'}
+}
+
+// Size returns the marshaled size in bytes.
+func (b *Stss) Size() int {
+	return 8 + len(b.SampleNumber)*4
+}
+
+// Marshal is never called.
+func (b *Stss) Marshal(w *bitio.Writer) error {
+	err := b.FullBox.MarshalField(w)
+	if err != nil {
+		return err
+	}
+	err = w.WriteUint32(b.EntryCount)
+	if err != nil {
+		return err
+	}
+	for _, number := range b.SampleNumber {
+		err := w.WriteUint32(number)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 /*************************** stsz ****************************/
 
 // Stsz is ISOBMFF stsz box type.
@@ -1355,6 +1548,24 @@ func (b *Trun) Marshal(w *bitio.Writer) error {
 	}
 	return nil
 }
+
+/*************************** udta ****************************/
+
+// Udta is ISOBMFF udta box type.
+type Udta struct{}
+
+// Type returns the BoxType.
+func (*Udta) Type() BoxType {
+	return [4]byte{'u', 'd', 't', 'a'}
+}
+
+// Size returns the marshaled size in bytes.
+func (b *Udta) Size() int {
+	return 0
+}
+
+// Marshal is never called.
+func (b *Udta) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** vmhd ****************************/
 

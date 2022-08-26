@@ -51,6 +51,52 @@ func TestBoxTypes(t *testing.T) {
 			},
 		},
 		{
+			name: "ctts: version 0",
+			src: &Ctts{
+				FullBox: FullBox{
+					Version: 0,
+					Flags:   [3]byte{0x00, 0x00, 0x00},
+				},
+				EntryCount: 2,
+				Entries: []CttsEntry{
+					{SampleCount: 0x01234567, SampleOffsetV0: 0x12345678},
+					{SampleCount: 0x89abcdef, SampleOffsetV0: 0x789abcde},
+				},
+			},
+			bin: []byte{
+				0,                // version
+				0x00, 0x00, 0x00, // flags
+				0x00, 0x00, 0x00, 0x02, // entry count
+				0x01, 0x23, 0x45, 0x67, // sample count
+				0x12, 0x34, 0x56, 0x78, // sample offset
+				0x89, 0xab, 0xcd, 0xef, // sample count
+				0x78, 0x9a, 0xbc, 0xde, // sample offset
+			},
+		},
+		{
+			name: "ctts: version 1",
+			src: &Ctts{
+				FullBox: FullBox{
+					Version: 1,
+					Flags:   [3]byte{0x00, 0x00, 0x00},
+				},
+				EntryCount: 2,
+				Entries: []CttsEntry{
+					{SampleCount: 0x01234567, SampleOffsetV1: 0x12345678},
+					{SampleCount: 0x89abcdef, SampleOffsetV1: -0x789abcde},
+				},
+			},
+			bin: []byte{
+				1,                // version
+				0x00, 0x00, 0x00, // flags
+				0x00, 0x00, 0x00, 0x02, // entry count
+				0x01, 0x23, 0x45, 0x67, // sample count
+				0x12, 0x34, 0x56, 0x78, // sample offset
+				0x89, 0xab, 0xcd, 0xef, // sample count
+				0x87, 0x65, 0x43, 0x22, // sample offset
+			},
+		},
+		{
 			name: "dinf",
 			src:  &Dinf{},
 			bin:  []byte{},
@@ -68,6 +114,83 @@ func TestBoxTypes(t *testing.T) {
 				0,                // version
 				0x00, 0x00, 0x00, // flags
 				0x12, 0x34, 0x56, 0x78, // entry count
+			},
+		},
+		{
+			name: "edts",
+			src:  &Edts{},
+			bin:  []byte{},
+		},
+		{
+			name: "elst: version 0",
+			src: &Elst{
+				FullBox: FullBox{
+					Version: 0,
+					Flags:   [3]byte{0x00, 0x00, 0x00},
+				},
+				EntryCount: 2,
+				Entries: []ElstEntry{
+					{
+						SegmentDurationV0: 0x0100000a,
+						MediaTimeV0:       0x0100000b,
+						MediaRateInteger:  0x010c,
+						MediaRateFraction: 0x010d,
+					}, {
+						SegmentDurationV0: 0x0200000a,
+						MediaTimeV0:       0x0200000b,
+						MediaRateInteger:  0x020c,
+						MediaRateFraction: 0x020d,
+					},
+				},
+			},
+			bin: []byte{
+				0,                // version
+				0x00, 0x00, 0x00, // flags
+				0x00, 0x00, 0x00, 0x02, // entry count
+				0x01, 0x00, 0x00, 0x0a, // segment duration v0
+				0x01, 0x00, 0x00, 0x0b, // media time v0
+				0x01, 0x0c, // media rate integer
+				0x01, 0x0d, // media rate fraction
+				0x02, 0x00, 0x00, 0x0a, // segment duration v0
+				0x02, 0x00, 0x00, 0x0b, // media time v0
+				0x02, 0x0c, // media rate integer
+				0x02, 0x0d, // media rate fraction
+			},
+		},
+		{
+			name: "elst: version 1",
+			src: &Elst{
+				FullBox: FullBox{
+					Version: 1,
+					Flags:   [3]byte{0x00, 0x00, 0x00},
+				},
+				EntryCount: 2,
+				Entries: []ElstEntry{
+					{
+						SegmentDurationV1: 0x010000000000000a,
+						MediaTimeV1:       0x010000000000000b,
+						MediaRateInteger:  0x010c,
+						MediaRateFraction: 0x010d,
+					}, {
+						SegmentDurationV1: 0x020000000000000a,
+						MediaTimeV1:       0x020000000000000b,
+						MediaRateInteger:  0x020c,
+						MediaRateFraction: 0x020d,
+					},
+				},
+			},
+			bin: []byte{
+				1,                // version
+				0x00, 0x00, 0x00, // flags
+				0x00, 0x00, 0x00, 0x02, // entry count
+				0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, // segment duration v1
+				0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, // media time v1
+				0x01, 0x0c, // media rate integer
+				0x01, 0x0d, // media rate fraction
+				0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, // segment duration v1
+				0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, // media time v1
+				0x02, 0x0c, // media rate integer
+				0x02, 0x0d, // media rate fraction
 			},
 		},
 		{
@@ -227,6 +350,19 @@ func TestBoxTypes(t *testing.T) {
 			name: "mdia",
 			src:  &Mdia{},
 			bin:  []byte{},
+		},
+		{
+			name: "meta",
+			src: &Meta{
+				FullBox: FullBox{
+					Version: 0,
+					Flags:   [3]byte{0x00, 0x00, 0x00},
+				},
+			},
+			bin: []byte{
+				0,                // version
+				0x00, 0x00, 0x00, // flags
+			},
 		},
 		{
 			name: "mfhd",
@@ -617,6 +753,24 @@ func TestBoxTypes(t *testing.T) {
 			},
 		},
 		{
+			name: "stss",
+			src: &Stss{
+				FullBox: FullBox{
+					Version: 0,
+					Flags:   [3]byte{0x00, 0x00, 0x00},
+				},
+				EntryCount:   2,
+				SampleNumber: []uint32{0x01234567, 0x89abcdef},
+			},
+			bin: []byte{
+				0,                // version
+				0x00, 0x00, 0x00, // flags
+				0x00, 0x00, 0x00, 0x02, // entry count
+				0x01, 0x23, 0x45, 0x67, // sample number
+				0x89, 0xab, 0xcd, 0xef, // sample number
+			},
+		},
+		{
 			name: "stsz: common sample size",
 			src: &Stsz{
 				FullBox: FullBox{
@@ -961,6 +1115,11 @@ func TestBoxTypes(t *testing.T) {
 				0x00, 0x00, 0x00, 0xc9, // sample composition time offset
 				0xff, 0xff, 0xff, 0x36, // sample composition time offset
 			},
+		},
+		{
+			name: "udta",
+			src:  &Udta{},
+			bin:  []byte{},
 		},
 		{
 			name: "vmhd",

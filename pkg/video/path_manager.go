@@ -223,11 +223,7 @@ func (pm *pathManager) AddPath(name string, newConf *PathConf) error {
 		return err
 	}
 
-	newConf.start(pm.ctx)
-	go func() {
-		<-pm.ctx.Done()
-		close(newConf.onNewHLSsegment)
-	}()
+	newConf.start(pm.ctx, pm.wg)
 
 	ret := make(chan error)
 	defer close(ret)

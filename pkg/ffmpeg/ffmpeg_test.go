@@ -154,47 +154,6 @@ func fakeExecCommandNoOutput(...string) *exec.Cmd {
 	return cmd
 }
 
-func TestShellProcessDuration(t *testing.T) {
-	if os.Getenv("GO_TEST_PROCESS") != "1" {
-		return
-	}
-	fmt.Fprint(os.Stderr, `
-		Duration: 01:02:59.99, start: 0.000000, bitrate: 614 kb/s
-	`)
-}
-
-func fakeExecCommandDuration(...string) *exec.Cmd {
-	cs := []string{"-test.run=TestShellProcessDuration"}
-	cmd := exec.Command(os.Args[0], cs...)
-	cmd.Env = []string{"GO_TEST_PROCESS=1"}
-	return cmd
-}
-
-func TestVideoDuration(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		f := New("")
-		f.command = fakeExecCommandDuration
-
-		output, err := f.VideoDuration("")
-		require.NoError(t, err)
-
-		actual := fmt.Sprintf("%v", output)
-		require.Equal(t, actual, "1h2m59.99s")
-	})
-	t.Run("runErr", func(t *testing.T) {
-		f := New("")
-		_, err := f.VideoDuration("")
-		require.Error(t, err)
-	})
-	t.Run("regexErr", func(t *testing.T) {
-		f := New("")
-		f.command = fakeExecCommandNoOutput
-
-		_, err := f.VideoDuration("")
-		require.ErrorIs(t, err, strconv.ErrSyntax)
-	})
-}
-
 func imageToText(img image.Image) string {
 	var text string
 	max := img.Bounds().Max

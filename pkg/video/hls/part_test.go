@@ -14,11 +14,11 @@ func TestGeneratePart(t *testing.T) {
 			false,
 			func() int { return 0 },
 
-			[]*videoSample{{
-				avcc: []byte{},
-				next: &videoSample{},
+			[]*VideoSample{{
+				Avcc: []byte{},
+				Next: &VideoSample{},
 			}},
-			[]*audioSample{},
+			[]*AudioSample{},
 		)
 		require.NoError(t, err)
 		expected := []byte{
@@ -50,11 +50,11 @@ func TestGeneratePart(t *testing.T) {
 			false,
 			func() int { return 0 },
 
-			[]*videoSample{{
-				avcc: []byte{'a', 'b', 'c', 'd'},
-				next: &videoSample{},
+			[]*VideoSample{{
+				Avcc: []byte{'a', 'b', 'c', 'd'},
+				Next: &VideoSample{},
 			}},
-			[]*audioSample{},
+			[]*AudioSample{},
 		)
 		require.NoError(t, err)
 		expected := []byte{
@@ -87,13 +87,13 @@ func TestGeneratePart(t *testing.T) {
 			true,
 			func() int { return 0 },
 
-			[]*videoSample{{
-				avcc: []byte{},
-				next: &videoSample{},
+			[]*VideoSample{{
+				Avcc: []byte{},
+				Next: &VideoSample{},
 			}},
-			[]*audioSample{{
-				au:   []byte{'a', 'b', 'c', 'd'},
-				next: &audioSample{},
+			[]*AudioSample{{
+				Au:   []byte{'a', 'b', 'c', 'd'},
+				Next: &AudioSample{},
 			}},
 		)
 		require.NoError(t, err)
@@ -139,13 +139,13 @@ func TestGeneratePart(t *testing.T) {
 			true,
 			func() int { return 0 },
 
-			[]*videoSample{{
-				avcc: []byte{'a', 'b', 'c', 'd'},
-				next: &videoSample{},
+			[]*VideoSample{{
+				Avcc: []byte{'a', 'b', 'c', 'd'},
+				Next: &VideoSample{},
 			}},
-			[]*audioSample{{
-				au:   []byte{'e', 'f', 'g', 'h'},
-				next: &audioSample{},
+			[]*AudioSample{{
+				Au:   []byte{'e', 'f', 'g', 'h'},
+				Next: &AudioSample{},
 			}},
 		)
 		require.NoError(t, err)
@@ -192,23 +192,23 @@ func TestGeneratePart(t *testing.T) {
 			true,
 			func() int { return 0 },
 
-			[]*videoSample{
+			[]*VideoSample{
 				{
-					avcc:       []byte{'a', 'b', 'c', 'd'},
-					idrPresent: true,
-					next:       &videoSample{},
+					Avcc:       []byte{'a', 'b', 'c', 'd'},
+					IdrPresent: true,
+					Next:       &VideoSample{},
 				},
 
 				{
-					avcc: []byte{'e', 'f', 'g', 'h'},
-					next: &videoSample{},
+					Avcc: []byte{'e', 'f', 'g', 'h'},
+					Next: &VideoSample{},
 				},
 				{
-					avcc: []byte{'i', 'j', 'k', 'l'},
-					next: &videoSample{},
+					Avcc: []byte{'i', 'j', 'k', 'l'},
+					Next: &VideoSample{},
 				},
 			},
-			[]*audioSample{},
+			[]*AudioSample{},
 		)
 		require.NoError(t, err)
 		expected := []byte{
@@ -245,30 +245,30 @@ func TestGeneratePart(t *testing.T) {
 		require.Equal(t, expected, actual)
 	})
 	t.Run("real", func(t *testing.T) {
-		videoSample2 := &videoSample{
-			avcc: []byte{'e', 'f', 'g', 'h'},
-			dts:  666666667,
-			next: &videoSample{},
+		videoSample2 := &VideoSample{
+			Avcc: []byte{'e', 'f', 'g', 'h'},
+			Dts:  666666667,
+			Next: &VideoSample{},
 		}
-		videoSample1 := &videoSample{
-			avcc:       []byte{'a', 'b', 'c', 'd'},
-			dts:        666666667,
-			idrPresent: true,
-			next:       videoSample2,
+		videoSample1 := &VideoSample{
+			Avcc:       []byte{'a', 'b', 'c', 'd'},
+			Dts:        666666667,
+			IdrPresent: true,
+			Next:       videoSample2,
 		}
 
 		actual, err := generatePart(
 			true,
 			func() int { return 44100 },
 
-			[]*videoSample{
+			[]*VideoSample{
 				videoSample1,
 				videoSample2,
 			},
-			[]*audioSample{{
-				au:   []byte{'i', 'j', 'k', 'l'},
-				pts:  2024263038,
-				next: &audioSample{},
+			[]*AudioSample{{
+				Au:   []byte{'i', 'j', 'k', 'l'},
+				Pts:  2024263038,
+				Next: &AudioSample{},
 			}},
 		)
 		require.NoError(t, err)
@@ -324,43 +324,43 @@ func TestDurationGoToMp4(t *testing.T) {
 	}{
 		{
 			input:    100000,
-			scale:    videoTimescale,
+			scale:    VideoTimescale,
 			expected: 9,
 		},
 		{
 			input:    100000000,
-			scale:    videoTimescale,
+			scale:    VideoTimescale,
 			expected: 9000,
 		},
 		{
 			input:    100000000000,
-			scale:    videoTimescale,
+			scale:    VideoTimescale,
 			expected: 9000000,
 		},
 		{
 			input:    100000000000000, // 3 days.
-			scale:    videoTimescale,
+			scale:    VideoTimescale,
 			expected: 9000000000,
 		},
 		{
 			input:    1000000000000000, // 30 days.
-			scale:    videoTimescale,
+			scale:    VideoTimescale,
 			expected: 90000000000,
 		},
 		{
 			input:    10000000000000000, // 300 days.
-			scale:    videoTimescale,
+			scale:    VideoTimescale,
 			expected: 900000000000,
 		},
 		{
 			input:    100000000000000000, // 3000 days.
-			scale:    videoTimescale,
+			scale:    VideoTimescale,
 			expected: 9000000000000,
 		},
 	}
 	for i, tc := range cases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			require.Equal(t, tc.expected, durationGoToMp4(tc.input, tc.scale))
+			require.Equal(t, tc.expected, DurationGoToMp4(tc.input, tc.scale))
 		})
 	}
 }

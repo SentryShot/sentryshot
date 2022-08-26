@@ -589,10 +589,10 @@ type PathConf struct {
 	HLSpartDuration    time.Duration
 	HLSsegmentMaxSize  uint64
 
-	streamInfo       hls.StreamInfoFunc
-	onNewHLSsegment  chan []hls.SegmentOrGap
-	registerListener chan chan []hls.SegmentOrGap
-	listeners        map[chan []hls.SegmentOrGap]struct{}
+	streamInfo            hls.StreamInfoFunc
+	onHlsSegmentFinalized hls.OnSegmentFinalizedFunc
+	subSegments           chan chan []*hls.Segment
+	unsubSegments         chan chan []*hls.Segment
 }
 
 // Errors.
@@ -643,70 +643,72 @@ func (pconf *PathConf) CheckAndFillMissing(name string) error {
 	return nil
 }
 
-func (pconf *PathConf) start(ctx context.Context) {
+func (pconf *PathConf) start(ctx context.Context, wg *sync.WaitGroup) {
 	pconf.ctx, pconf.cancel = context.WithCancel(ctx)
-	pconf.onNewHLSsegment = make(chan []hls.SegmentOrGap)
-	pconf.listeners = make(map[chan []hls.SegmentOrGap]struct{})
-	pconf.registerListener = make(chan chan []hls.SegmentOrGap)
 
+	onFinalized := make(chan []hls.SegmentOrGap)
+	pconf.onHlsSegmentFinalized = func(segments []hls.SegmentOrGap) {
+		select {
+		case onFinalized <- segments:
+		case <-pconf.ctx.Done():
+		}
+	}
+
+	subscribers := make(map[chan []*hls.Segment]struct{})
+	pconf.subSegments = make(chan chan []*hls.Segment)
+	pconf.unsubSegments = make(chan chan []*hls.Segment)
+
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case <-pconf.ctx.Done():
-				return
-			case listener := <-pconf.registerListener:
-				pconf.listeners[listener] = struct{}{}
-			case segment := <-pconf.onNewHLSsegment:
-				for listener := range pconf.listeners {
-					listener <- segment
-					close(listener)
-					delete(pconf.listeners, listener)
+				if len(subscribers) == 0 {
+					return
+				}
+
+			case sub := <-pconf.subSegments:
+				subscribers[sub] = struct{}{}
+
+			case sub := <-pconf.unsubSegments:
+				close(sub)
+				delete(subscribers, sub)
+
+			case segments := <-onFinalized:
+				var segs []*hls.Segment
+				for _, seg := range segments {
+					if s, ok := seg.(*hls.Segment); ok {
+						segs = append(segs, s)
+					}
+				}
+				for listener := range subscribers {
+					select {
+					case listener <- segs:
+					default:
+					}
 				}
 			}
 		}
 	}()
 }
 
-// WaitForNewHLSsegementFunc is used for mocking.
-type WaitForNewHLSsegementFunc func(context.Context, int) (time.Duration, error)
+// SubscibeToHlsSegmentFinalizedFunc .
+type SubscibeToHlsSegmentFinalizedFunc func() (chan []*hls.Segment, CancelFunc, error)
 
-// WaitForNewHLSsegment waits for a new HLS segment and
-// returns the combined duration of the last nSegments.
-// Used to calculate start time of the recordings.
-func (pconf *PathConf) WaitForNewHLSsegment(
-	ctx context.Context, nSegments int,
-) (time.Duration, error) {
-	for {
-		listener := make(chan []hls.SegmentOrGap)
-		// Register listener.
-		select {
-		case <-ctx.Done():
-			return 0, context.Canceled
-		case pconf.registerListener <- listener:
-		}
+func (pconf *PathConf) subscibeToHlsSegmentFinalized() (chan []*hls.Segment, CancelFunc, error) {
+	subscriber := make(chan []*hls.Segment)
 
-		// Listen for segments.
-		select {
-		case <-ctx.Done():
-			return 0, context.Canceled
-		case segments := <-listener:
-			if len(segments) < nSegments {
-				// Wait for more segments.
-				continue
-			}
+	select {
+	case <-pconf.ctx.Done():
+		return nil, nil, context.Canceled
 
-			var totalDuration time.Duration
-			for i := nSegments; i != 0; i-- {
-				dIndex := len(segments) - i
-				segment := segments[dIndex]
-
-				seg, ok := segment.(*hls.Segment)
-				if !ok {
-					continue
-				}
-				totalDuration += seg.Duration()
-			}
-			return totalDuration, nil
-		}
+	case pconf.subSegments <- subscriber:
 	}
+
+	cancelFunc := func() {
+		pconf.unsubSegments <- subscriber
+	}
+
+	return subscriber, cancelFunc, nil
 }

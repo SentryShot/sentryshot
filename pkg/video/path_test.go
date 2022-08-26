@@ -11,28 +11,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPathConf(t *testing.T) {
+func TestPathConfStart(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		pconf := PathConf{}
-		pconf.start(ctx)
-
 		wg := sync.WaitGroup{}
 
-		wg.Add(2)
+		pconf := PathConf{}
+		pconf.start(ctx, &wg)
+
+		sub, cancel2, err := pconf.subscibeToHlsSegmentFinalized()
+		require.NoError(t, err)
+
+		done := make(chan struct{})
 		go func() {
-			pconf.WaitForNewHLSsegment(ctx, 0)
-			wg.Done()
-		}()
-		go func() {
-			pconf.WaitForNewHLSsegment(ctx, 0)
-			wg.Done()
+			<-sub
+			close(done)
+			cancel2()
 		}()
 
 		time.Sleep(10 * time.Millisecond)
-		pconf.onNewHLSsegment <- []hls.SegmentOrGap{}
+		pconf.onHlsSegmentFinalized([]hls.SegmentOrGap{})
+		<-done
+
+		cancel()
 		wg.Wait()
 	})
 
@@ -40,29 +41,12 @@ func TestPathConf(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		pconf := PathConf{}
-		pconf.start(ctx)
-
-		_, err := pconf.WaitForNewHLSsegment(ctx, 0)
-		require.ErrorIs(t, err, context.Canceled)
-	})
-	t.Run("canceled2", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-
-		pconf := PathConf{}
-		pconf.start(ctx)
-
 		wg := sync.WaitGroup{}
+		pconf := PathConf{}
+		pconf.start(ctx, &wg)
 
-		wg.Add(1)
-		go func() {
-			pconf.WaitForNewHLSsegment(ctx, 0)
-			wg.Done()
-		}()
-
-		time.Sleep(10 * time.Millisecond)
-		cancel()
-
+		_, _, err := pconf.subscibeToHlsSegmentFinalized()
+		require.ErrorIs(t, err, context.Canceled)
 		wg.Wait()
 	})
 }

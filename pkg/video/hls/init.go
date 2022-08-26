@@ -68,25 +68,25 @@ func (b *myEsds) Marshal(w *bitio.Writer) error {
 
 func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:funlen
 	/*
-		trak
-		- tkhd
-		- mdia
-		  - mdhd
-		  - hdlr
-		  - minf
-		    - vmhd
-			- dinf
-			  - dref
-			    - url
-			- stbl
-			  - stsd
-			    - avc1
-				  - avcC
-				  - btrt
-			  - stts
-			  - stsc
-			  - stsz
-			  - stco
+	   trak
+	   - tkhd
+	   - mdia
+	     - mdhd
+	     - hdlr
+	     - minf
+	       - vmhd
+	       - dinf
+	         - dref
+	           - url
+	       - stbl
+	         - stsd
+	           - avc1
+	             - avcC
+	             - btrt
+	         - stts
+	         - stsc
+	         - stsz
+	         - stco
 	*/
 
 	width := info.VideoSPSP.Width()
@@ -197,7 +197,7 @@ func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:
 				Box: &mp4.Mdia{},
 				Children: []mp4.Boxes{
 					{Box: &mp4.Mdhd{
-						Timescale: videoTimescale, // the number of time units that pass per second
+						Timescale: VideoTimescale, // the number of time units that pass per second.
 						Language:  [3]byte{'u', 'n', 'd'},
 					}},
 					{Box: &mp4.Hdlr{
@@ -214,25 +214,25 @@ func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:
 
 func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:funlen
 	/*
-		trak
-		- tkhd
-		- mdia
-		  - mdhd
-		  - hdlr
-		  - minf
-		    - smhd
-		    - dinf
-			  - dref
-			    - url
-		    - stbl
-			  - stsd
-			    - mp4a
-				  - esds
-				  - btrt
-			  - stts
-			  - stsc
-			  - stsz
-			  - stco
+	   trak
+	   - tkhd
+	   - mdia
+	     - mdhd
+	     - hdlr
+	     - minf
+	       - smhd
+	       - dinf
+	         - dref
+	           - url
+	       - stbl
+	         - stsd
+	           - mp4a
+	             - esds
+	             - btrt
+	         - stts
+	         - stsc
+	         - stsz
+	         - stco
 	*/
 
 	minf := mp4.Boxes{
@@ -353,14 +353,14 @@ func initGenerateMvex(info StreamInfo) mp4.Boxes {
 
 func generateInit(info StreamInfo) ([]byte, error) { // nolint:funlen
 	/*
-		- ftyp
-		- moov
-		  - mvhd
-		  - trak (video)
-		  - trak (audio)
-		  - mvex
-		    - trex (video)
-		    - trex (audio)
+	   - ftyp
+	   - moov
+	     - mvhd
+	     - trak (video)
+	     - trak (audio)
+	     - mvex
+	       - trex (video)
+	       - trex (audio)
 	*/
 
 	ftyp := mp4.Boxes{

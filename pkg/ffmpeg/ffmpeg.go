@@ -17,7 +17,6 @@ package ffmpeg
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"image"
@@ -26,8 +25,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"regexp"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -176,33 +173,6 @@ func New(bin string) *FFMPEG {
 		return exec.Command(bin, args...)
 	}
 	return &FFMPEG{command: command}
-}
-
-// VideoDurationFunc is used for mocking.
-type VideoDurationFunc func(string) (time.Duration, error)
-
-// VideoDuration uses ffmpeg to get video duration.
-func (f *FFMPEG) VideoDuration(path string) (time.Duration, error) {
-	cmd := f.command("-i", path, "-f", "ffmetadata", "-")
-
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return 0, fmt.Errorf("%s %w", stderr.String(), err)
-	}
-
-	// Input  "Duration: 01:02:59.99, start: 0.000000, bitrate: 614 kb/s"
-	// Output "1h2m59s99ms"
-	re := regexp.MustCompile(`\bDuration: (\d\d):(\d\d):(\d\d).(\d\d)`)
-	m := re.FindStringSubmatch(stderr.String())
-	if len(m) != 5 {
-		return 0, fmt.Errorf("could not find duration: %v, %v: %w",
-			m, stderr.String(), strconv.ErrSyntax)
-	}
-	output := m[1] + "h" + m[2] + "m" + m[3] + "s" + m[4] + "0ms"
-
-	return time.ParseDuration(output)
 }
 
 /*
