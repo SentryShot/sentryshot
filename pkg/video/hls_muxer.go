@@ -217,7 +217,11 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 	audioTrackExist := func() bool { return audioTrack != nil }
 	m.streamInfo = getStreamInfo(videoTrack, videoTrackID, audioTrack, audioTrackID)
 
+	ctx, cancel := context.WithCancel(m.ctx)
+	defer cancel()
+
 	m.muxer = hls.NewMuxer(
+		ctx,
 		m.path.hlsSegmentCount(),
 		m.path.hlsSegmentDuration(),
 		m.path.hlsPartDuration(),
@@ -230,7 +234,6 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 		audioTrack.ClockRate,
 		m.streamInfo,
 	)
-	defer m.muxer.Close()
 
 	innerReady <- struct{}{}
 

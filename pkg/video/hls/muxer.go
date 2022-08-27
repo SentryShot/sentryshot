@@ -2,6 +2,7 @@ package hls
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -39,6 +40,7 @@ var ErrTrackInvalid = errors.New("invalid H264 track: SPS or PPS not provided in
 
 // NewMuxer allocates a Muxer.
 func NewMuxer(
+	ctx context.Context,
 	segmentCount int,
 	segmentDuration time.Duration,
 	partDuration time.Duration,
@@ -51,8 +53,11 @@ func NewMuxer(
 	audioClockRate audioClockRateFunc,
 	getStreamInfo StreamInfoFunc,
 ) *Muxer {
+	playlist := newPlaylist(ctx, segmentCount, onSegmentFinalized)
+	go playlist.start()
+
 	m := &Muxer{
-		playlist:   newPlaylist(segmentCount, onSegmentFinalized),
+		playlist:   playlist,
 		logf:       logf,
 		streamInfo: getStreamInfo,
 	}
@@ -72,10 +77,8 @@ func NewMuxer(
 	return m
 }
 
-// Close closes a Muxer.
-func (m *Muxer) Close() {
-	m.playlist.close()
-}
+// OnSegmentFinalizedFunc is injected by core.
+type OnSegmentFinalizedFunc func([]SegmentOrGap)
 
 // WriteH264 writes H264 NALUs, grouped by timestamp.
 func (m *Muxer) WriteH264(pts time.Duration, nalus [][]byte) error {

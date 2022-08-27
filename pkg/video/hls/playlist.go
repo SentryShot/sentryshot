@@ -2,13 +2,13 @@ package hls
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"io"
 	"math"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -69,11 +69,10 @@ func partTargetDuration(
 }
 
 type playlist struct {
+	ctx context.Context
+
 	segmentCount int
 
-	mutex              sync.Mutex
-	cond               *sync.Cond
-	closed             bool
 	segments           []SegmentOrGap
 	segmentsByName     map[string]*Segment
 	segmentDeleteCount int
@@ -83,38 +82,217 @@ type playlist struct {
 	nextSegmentParts   []*MuxerPart
 	nextPartID         uint64
 
-	segmentFinalized OnSegmentFinalizedFunc
+	onSegmentFinalizedHook OnSegmentFinalizedFunc
 
-	// Cached playlist for the initial non-blocking request.
-	cachedPlaylist []byte
+	playlist         chan playlistRequest
+	segment          chan segmentRequest
+	segmentFinalized chan segmentFinalizedRequest
+	partFinalized    chan partFinalizedRequest
+	pendingPlaylists map[blockingPlaylistRequest]struct{}
+	blockingPlaylist chan blockingPlaylistRequest
+	pendingParts     map[blockingPartRequest]struct{}
+	blockingPart     chan blockingPartRequest
 }
-
-// OnSegmentFinalizedFunc is injected by core.
-type OnSegmentFinalizedFunc func([]SegmentOrGap)
 
 func newPlaylist(
+	ctx context.Context,
 	segmentCount int,
-	segmentFinalized OnSegmentFinalizedFunc,
+	onSegmentFinalized OnSegmentFinalizedFunc,
 ) *playlist {
-	p := &playlist{
-		segmentCount:     segmentCount,
-		segmentsByName:   make(map[string]*Segment),
-		partsByName:      make(map[string]*MuxerPart),
-		segmentFinalized: segmentFinalized,
-	}
-	p.cond = sync.NewCond(&p.mutex)
+	return &playlist{
+		ctx:            ctx,
+		segmentCount:   segmentCount,
+		segmentsByName: make(map[string]*Segment),
+		partsByName:    make(map[string]*MuxerPart),
 
-	return p
+		onSegmentFinalizedHook: onSegmentFinalized,
+
+		playlist:         make(chan playlistRequest),
+		segment:          make(chan segmentRequest),
+		segmentFinalized: make(chan segmentFinalizedRequest),
+		partFinalized:    make(chan partFinalizedRequest),
+		pendingPlaylists: make(map[blockingPlaylistRequest]struct{}),
+		blockingPlaylist: make(chan blockingPlaylistRequest),
+		pendingParts:     make(map[blockingPartRequest]struct{}),
+		blockingPart:     make(chan blockingPartRequest),
+	}
 }
 
-func (p *playlist) close() {
-	func() {
-		p.mutex.Lock()
-		defer p.mutex.Unlock()
-		p.closed = true
-	}()
+func (p *playlist) start() { //nolint:funlen,gocognit
+	for {
+		select {
+		case <-p.ctx.Done():
+			p.cleanup()
+			return
 
-	p.cond.Broadcast()
+		case req := <-p.playlist:
+			if !p.hasContent() {
+				req.res <- &MuxerFileResponse{
+					Status: http.StatusNotFound,
+				}
+				continue
+			}
+			req.res <- &MuxerFileResponse{
+				Status: http.StatusOK,
+				Header: map[string]string{
+					"Content-Type": `audio/mpegURL`,
+				},
+				Body: bytes.NewReader(p.fullPlaylist(req.isDeltaUpdate)),
+			}
+
+		case req := <-p.segment:
+			segment, exist := p.segmentsByName[req.name]
+			if !exist {
+				req.res <- &MuxerFileResponse{Status: http.StatusNotFound}
+				continue
+			}
+			req.res <- &MuxerFileResponse{
+				Status: http.StatusOK,
+				Header: map[string]string{
+					"Content-Type": "video/mp4",
+				},
+				Body: segment.reader(),
+			}
+
+		case req := <-p.segmentFinalized:
+			segment := req.segment
+
+			// Create initial gap.
+			if len(p.segments) == 0 {
+				for i := 0; i < p.segmentCount; i++ {
+					p.segments = append(p.segments, &Gap{
+						renderedDuration: segment.RenderedDuration,
+					})
+				}
+			}
+
+			p.segmentsByName[segment.name()] = segment
+			p.segments = append(p.segments, segment)
+			p.nextSegmentID = segment.ID + 1
+			p.nextSegmentParts = p.nextSegmentParts[:0]
+
+			if len(p.segments) > p.segmentCount {
+				toDelete := p.segments[0]
+
+				if toDeleteSeg, ok := toDelete.(*Segment); ok {
+					for _, part := range toDeleteSeg.Parts {
+						delete(p.partsByName, part.name())
+					}
+					p.parts = p.parts[len(toDeleteSeg.Parts):]
+
+					delete(p.segmentsByName, toDeleteSeg.name())
+				}
+
+				p.segments[0] = nil
+				p.segments = p.segments[1:]
+				p.segmentDeleteCount++
+			}
+
+			p.onSegmentFinalizedHook(p.segments)
+			p.checkPending()
+			close(req.done)
+
+		case req := <-p.partFinalized:
+			part := req.part
+			p.partsByName[part.name()] = part
+			p.parts = append(p.parts, part)
+			p.nextSegmentParts = append(p.nextSegmentParts, part)
+			p.nextPartID = part.id + 1
+
+			p.checkPending()
+			close(req.done)
+
+		case req := <-p.blockingPlaylist:
+			// If the _HLS_msn is greater than the Media Sequence Number of the last
+			// Media Segment in the current Playlist plus two, or if the _HLS_part
+			// exceeds the last Partial Segment in the current Playlist by the
+			// Advance Part Limit, then the server SHOULD immediately return Bad
+			// Request, such as HTTP 400.
+			if req.msnint > (p.nextSegmentID + 1) {
+				req.res <- &MuxerFileResponse{Status: http.StatusBadRequest}
+				continue
+			}
+
+			if !p.hasContent() || !p.hasPart(req.msnint, req.partint) {
+				p.pendingPlaylists[req] = struct{}{}
+				continue
+			}
+			req.res <- &MuxerFileResponse{
+				Status: http.StatusOK,
+				Header: map[string]string{
+					"Content-Type": `audio/mpegURL`,
+				},
+				Body: bytes.NewReader(p.fullPlaylist(req.isDeltaUpdate)),
+			}
+
+		case req := <-p.blockingPart:
+			base := strings.TrimSuffix(req.partName, ".mp4")
+			part, exist := p.partsByName[base]
+			if exist {
+				req.res <- &MuxerFileResponse{
+					Status: http.StatusOK,
+					Header: map[string]string{
+						"Content-Type": "video/mp4",
+					},
+					Body: part.reader(),
+				}
+				continue
+			}
+
+			if req.partName == partName(p.nextPartID) {
+				req.partID = p.nextPartID
+				p.pendingParts[req] = struct{}{}
+				continue
+			}
+
+			req.res <- &MuxerFileResponse{Status: http.StatusNotFound}
+		}
+	}
+}
+
+func (p *playlist) checkPending() {
+	if p.hasContent() {
+		for req := range p.pendingPlaylists {
+			if !p.hasPart(req.msnint, req.partint) {
+				return
+			}
+			req.res <- &MuxerFileResponse{
+				Status: http.StatusOK,
+				Header: map[string]string{
+					"Content-Type": `audio/mpegURL`,
+				},
+				Body: bytes.NewReader(p.fullPlaylist(req.isDeltaUpdate)),
+			}
+			delete(p.pendingPlaylists, req)
+		}
+	}
+	for req := range p.pendingParts {
+		if p.nextPartID <= req.partID {
+			return
+		}
+		part := p.partsByName[req.partName]
+		req.res <- &MuxerFileResponse{
+			Status: http.StatusOK,
+			Header: map[string]string{
+				"Content-Type": "video/mp4",
+			},
+			Body: part.reader(),
+		}
+		delete(p.pendingParts, req)
+	}
+}
+
+func (p *playlist) cleanup() {
+	for req := range p.pendingPlaylists {
+		req.res <- &MuxerFileResponse{
+			Status: http.StatusInternalServerError,
+		}
+	}
+	for req := range p.pendingParts {
+		req.res <- &MuxerFileResponse{
+			Status: http.StatusInternalServerError,
+		}
+	}
 }
 
 func (p *playlist) hasContent() bool {
@@ -172,7 +350,19 @@ func (p *playlist) file(name, msn, part, skip string) *MuxerFileResponse {
 	}
 }
 
-func (p *playlist) playlistReader(msn, part, skip string) *MuxerFileResponse { //nolint:funlen
+type blockingPlaylistRequest struct {
+	isDeltaUpdate bool
+	msnint        uint64
+	partint       uint64
+	res           chan *MuxerFileResponse
+}
+
+type playlistRequest struct {
+	res           chan *MuxerFileResponse
+	isDeltaUpdate bool
+}
+
+func (p *playlist) playlistReader(msn, part, skip string) *MuxerFileResponse {
 	isDeltaUpdate := skip == "YES" || skip == "v2"
 
 	var msnint uint64
@@ -194,32 +384,18 @@ func (p *playlist) playlistReader(msn, part, skip string) *MuxerFileResponse { /
 	}
 
 	if msn != "" {
-		p.mutex.Lock()
-		defer p.mutex.Unlock()
-
-		// If the _HLS_msn is greater than the Media Sequence Number of the last
-		// Media Segment in the current Playlist plus two, or if the _HLS_part
-		// exceeds the last Partial Segment in the current Playlist by the
-		// Advance Part Limit, then the server SHOULD immediately return Bad
-		// Request, such as HTTP 400.
-		if msnint > (p.nextSegmentID + 1) {
-			return &MuxerFileResponse{Status: http.StatusBadRequest}
+		blockingPlaylistRes := make(chan *MuxerFileResponse)
+		blockingPlaylistReq := blockingPlaylistRequest{
+			isDeltaUpdate: isDeltaUpdate,
+			msnint:        msnint,
+			partint:       partint,
+			res:           blockingPlaylistRes,
 		}
-
-		for !p.closed && !p.hasPart(msnint, partint) {
-			p.cond.Wait()
-		}
-
-		if p.closed {
+		select {
+		case <-p.ctx.Done():
 			return &MuxerFileResponse{Status: http.StatusInternalServerError}
-		}
-
-		return &MuxerFileResponse{
-			Status: http.StatusOK,
-			Header: map[string]string{
-				"Content-Type": `audio/mpegURL`,
-			},
-			Body: bytes.NewReader(p.fullPlaylist(isDeltaUpdate)),
+		case p.blockingPlaylist <- blockingPlaylistReq:
+			return <-blockingPlaylistRes
 		}
 	}
 
@@ -228,33 +404,16 @@ func (p *playlist) playlistReader(msn, part, skip string) *MuxerFileResponse { /
 		return &MuxerFileResponse{Status: http.StatusBadRequest}
 	}
 
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	if p.cachedPlaylist != nil {
-		return &MuxerFileResponse{
-			Status: http.StatusOK,
-			Header: map[string]string{
-				"Content-Type": `audio/mpegURL`,
-			},
-			Body: bytes.NewReader(p.cachedPlaylist),
-		}
+	playlistRes := make(chan *MuxerFileResponse)
+	playlistReq := playlistRequest{
+		isDeltaUpdate: isDeltaUpdate,
+		res:           playlistRes,
 	}
-
-	for !p.closed && !p.hasContent() {
-		p.cond.Wait()
-	}
-
-	if p.closed {
+	select {
+	case <-p.ctx.Done():
 		return &MuxerFileResponse{Status: http.StatusInternalServerError}
-	}
-
-	return &MuxerFileResponse{
-		Status: http.StatusOK,
-		Header: map[string]string{
-			"Content-Type": `audio/mpegURL`,
-		},
-		Body: bytes.NewReader(p.fullPlaylist(isDeltaUpdate)),
+	case p.playlist <- playlistReq:
+		return <-playlistRes
 	}
 }
 
@@ -395,135 +554,84 @@ func (p *playlist) fullPlaylist(isDeltaUpdate bool) []byte { //nolint:funlen
 	return []byte(cnt)
 }
 
-func (p *playlist) segmentReader(fname string) *MuxerFileResponse { //nolint:funlen
+type segmentRequest struct {
+	name string
+	res  chan *MuxerFileResponse
+}
+
+type blockingPartRequest struct {
+	partName string
+	partID   uint64
+	res      chan *MuxerFileResponse
+}
+
+func (p *playlist) segmentReader(fname string) *MuxerFileResponse {
 	switch {
 	case strings.HasPrefix(fname, "seg"):
 		base := strings.TrimSuffix(fname, ".mp4")
 
-		p.mutex.Lock()
-		segment, ok := p.segmentsByName[base]
-		p.mutex.Unlock()
-
-		if !ok {
-			return &MuxerFileResponse{Status: http.StatusNotFound}
+		segmentRes := make(chan *MuxerFileResponse)
+		segmentReq := segmentRequest{
+			name: base,
+			res:  segmentRes,
 		}
-
-		return &MuxerFileResponse{
-			Status: http.StatusOK,
-			Header: map[string]string{
-				"Content-Type": "video/mp4",
-			},
-			Body: segment.reader(),
+		select {
+		case <-p.ctx.Done():
+			return &MuxerFileResponse{Status: http.StatusInternalServerError}
+		case p.segment <- segmentReq:
+			return <-segmentRes
 		}
 
 	case strings.HasPrefix(fname, "part"):
-		base := strings.TrimSuffix(fname, ".mp4")
-
-		p.mutex.Lock()
-		part, ok := p.partsByName[base]
-		nextPartID := p.nextPartID
-		p.mutex.Unlock()
-
-		if ok {
-			return &MuxerFileResponse{
-				Status: http.StatusOK,
-				Header: map[string]string{
-					"Content-Type": "video/mp4",
-				},
-				Body: part.reader(),
-			}
+		blockingPartRes := make(chan *MuxerFileResponse)
+		blockingPartReq := blockingPartRequest{
+			partName: fname,
+			res:      blockingPartRes,
 		}
-
-		if fname == partName(p.nextPartID) {
-			p.mutex.Lock()
-			defer p.mutex.Unlock()
-
-			for {
-				if p.closed {
-					break
-				}
-
-				if p.nextPartID > nextPartID {
-					break
-				}
-
-				p.cond.Wait()
-			}
-
-			if p.closed {
-				return &MuxerFileResponse{Status: http.StatusInternalServerError}
-			}
-
-			return &MuxerFileResponse{
-				Status: http.StatusOK,
-				Header: map[string]string{
-					"Content-Type": "video/mp4",
-				},
-				Body: p.partsByName[partName(nextPartID)].reader(),
-			}
+		select {
+		case <-p.ctx.Done():
+			return &MuxerFileResponse{Status: http.StatusInternalServerError}
+		case p.blockingPart <- blockingPartReq:
+			return <-blockingPartRes
 		}
-
-		return &MuxerFileResponse{Status: http.StatusNotFound}
 
 	default:
 		return &MuxerFileResponse{Status: http.StatusNotFound}
 	}
 }
 
+type segmentFinalizedRequest struct {
+	segment *Segment
+	done    chan struct{}
+}
+
 func (p *playlist) onSegmentFinalized(segment *Segment) {
-	p.mutex.Lock()
-
-	// Create initial gap.
-	if len(p.segments) == 0 {
-		for i := 0; i < p.segmentCount; i++ {
-			p.segments = append(p.segments, &Gap{
-				renderedDuration: segment.RenderedDuration,
-			})
-		}
+	done := make(chan struct{})
+	req := segmentFinalizedRequest{
+		segment: segment,
+		done:    done,
 	}
-
-	p.segmentsByName[segment.name()] = segment
-	p.segments = append(p.segments, segment)
-	p.nextSegmentID = segment.ID + 1
-	p.nextSegmentParts = p.nextSegmentParts[:0]
-
-	if len(p.segments) > p.segmentCount {
-		toDelete := p.segments[0]
-
-		if toDeleteSeg, ok := toDelete.(*Segment); ok {
-			for _, part := range toDeleteSeg.Parts {
-				delete(p.partsByName, part.name())
-			}
-			p.parts = p.parts[len(toDeleteSeg.Parts):]
-
-			delete(p.segmentsByName, toDeleteSeg.name())
-		}
-
-		p.segments = p.segments[1:]
-		p.segmentDeleteCount++
-	}
-
-	p.cachedPlaylist = p.fullPlaylist(false)
-
-	p.mutex.Unlock()
-
-	p.cond.Broadcast()
-
-	if p.segmentFinalized != nil {
-		p.segmentFinalized(p.segments)
+	select {
+	case <-p.ctx.Done():
+	case p.segmentFinalized <- req:
+		<-done
 	}
 }
 
+type partFinalizedRequest struct {
+	part *MuxerPart
+	done chan struct{}
+}
+
 func (p *playlist) onPartFinalized(part *MuxerPart) {
-	func() {
-		p.mutex.Lock()
-		defer p.mutex.Unlock()
-
-		p.partsByName[part.name()] = part
-		p.parts = append(p.parts, part)
-		p.nextSegmentParts = append(p.nextSegmentParts, part)
-		p.nextPartID = part.id + 1
-	}()
-
-	p.cond.Broadcast()
+	done := make(chan struct{})
+	req := partFinalizedRequest{
+		part: part,
+		done: done,
+	}
+	select {
+	case <-p.ctx.Done():
+	case p.partFinalized <- req:
+		<-done
+	}
 }
