@@ -513,7 +513,7 @@ func TestGenInputArgs(t *testing.T) {
 			Config: &Config{
 				"logLevel":     "1",
 				"hwaccel":      "2",
-				"inputOpts":    "3",
+				"inputOptions": "3",
 				"subInput":     "4",
 				"audioEncoder": "5",
 				"videoEncoder": "6",

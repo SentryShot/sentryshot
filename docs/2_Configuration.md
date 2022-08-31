@@ -45,6 +45,11 @@ Arbitrary display name, can probably be any ASCII character.
 ### Enable
 Enable or Disable the monitor.
 
+### Input options
+
+`-rtsp_transport tcp`: Force FFmpeg to use TCP instead of UDP.
+
+
 ### Main input
 Main camera feed, full resolution. Used when recording.
 

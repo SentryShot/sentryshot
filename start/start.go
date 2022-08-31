@@ -322,8 +322,4 @@ addons: # Uncomment to enable.
   # Timeline.
   # Works best with a Chromium based browser.
   #- nvr/addons/timeline
-
-  # Input options.
-  # Adds monitor config field for special FFmpeg input options.
-  # This isn't needed for the vast majority of cameras.
-  #- nvr/addons/inputopts`
+`

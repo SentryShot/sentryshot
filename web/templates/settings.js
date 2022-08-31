@@ -61,6 +61,9 @@ if (isAdmin === "true") {
 		),
 		name: fieldTemplate.text("Name", "my_monitor"),
 		enable: fieldTemplate.toggle("Enable monitor", "true"),
+		inputOptions: newSelectCustomField([], ["", "-rtsp_transport tcp"], {
+			label: "Input options",
+		}),
 		mainInput: newField(
 			[inputRules.notEmpty],
 			{

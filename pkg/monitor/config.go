@@ -37,7 +37,7 @@ func (c Config) Name() string {
 
 // InputOpts returns the monitor input options.
 func (c Config) InputOpts() string {
-	return c["inputOpts"]
+	return c["inputOptions"]
 }
 
 func (c Config) audioEnabled() bool {
