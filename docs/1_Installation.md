@@ -37,7 +37,7 @@ App will be served on `https://ip:2000`
 
 #### Install dependencies
 
-- [Golang](https://golang.org/doc/install) 1.16+
+- [Golang](https://golang.org/doc/install) 1.18+
 - [ffmpeg](https://ffmpeg.org/download.html) 4.3+
 - `git sed which`
 
