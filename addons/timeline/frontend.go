@@ -82,7 +82,7 @@ func modifyTemplates(pageFiles map[string]string) error {
 	return nil
 }
 
-func modifySettingsjs(tpl string) string { // nolint:funlen
+func modifySettingsjs(tpl string) string { //nolint:funlen
 	const target = "logLevel: fieldTemplate.select("
 
 	const javascript = `

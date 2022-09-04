@@ -27,6 +27,9 @@ import (
 	"time"
 
 	tpls "nvr/web/templates"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type (
@@ -112,7 +115,8 @@ func (templater *Templater) Render(page string) http.Handler {
 
 		data := make(template.FuncMap)
 
-		data["currentPage"] = strings.Title(strings.TrimSuffix(page, filepath.Ext(page)))
+		pageName := strings.TrimSuffix(page, filepath.Ext(page))
+		data["currentPage"] = cases.Title(language.Und).String(pageName)
 
 		auth := templater.auth.ValidateRequest(r)
 		data["user"] = auth.User

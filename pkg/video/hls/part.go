@@ -235,11 +235,10 @@ func generatePart( //nolint:funlen
 	trackID++
 
 	dataSize := 0
-	videoDataSize := 0
 	for _, e := range videoSamples {
 		dataSize += len(e.Avcc)
 	}
-	videoDataSize = dataSize
+	videoDataSize := dataSize
 	if audioTrackExist {
 		for _, e := range audioSamples {
 			dataSize += len(e.Au)

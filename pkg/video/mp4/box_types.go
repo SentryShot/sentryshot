@@ -159,7 +159,7 @@ func (b *Dref) Marshal(w *bitio.Writer) error {
 /*************************** url ****************************/
 
 // Url is ISOBMFF url box type.
-type Url struct { // nolint:revive,stylecheck
+type Url struct { //nolint:revive,stylecheck
 	FullBox
 	Location string
 }

@@ -48,6 +48,9 @@ func newTestRecorder(t *testing.T) *Recorder {
 			"videoLength":     "0.0003",
 		},
 		MonitorLock: &sync.Mutex{},
+		events:      &storage.Events{},
+		eventsLock:  sync.Mutex{},
+		eventChan:   make(chan storage.Event),
 
 		logf:       logf,
 		runProcess: runRecordingProcess,
@@ -73,9 +76,7 @@ func newTestRecorder(t *testing.T) *Recorder {
 			TempDir:    tempDir,
 			StorageDir: tempDir,
 		},
-		eventsLock: sync.Mutex{},
-		eventChan:  make(chan storage.Event),
-		hooks:      mockHooks(),
+		hooks: mockHooks(),
 	}
 }
 
@@ -351,7 +352,7 @@ func TestRunRecordingProcess(t *testing.T) {
 func TestSaveRecording(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		r := newTestRecorder(t)
-		r.events = storage.Events{
+		r.events = &storage.Events{
 			storage.Event{
 				Time: time.Time{},
 			},

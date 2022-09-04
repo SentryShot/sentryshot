@@ -14,7 +14,7 @@ type RGB struct {
 }
 
 // RGBA .
-func (c RGB) RGBA() (r, g, b, a uint32) {
+func (c RGB) RGBA() (r, g, b, a uint32) { //nolint:nonamedreturns
 	r = uint32(c.R)
 	r |= r << 8
 

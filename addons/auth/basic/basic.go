@@ -133,19 +133,19 @@ func (a *Authenticator) userByNameUnsafe(name string) (auth.Account, bool) {
 
 // Modified from net/http. Link:
 // https://cs.opensource.google/go/go/+/refs/tags/go1.17.8:src/net/http/request.go;l=949
-func parseBasicAuth(str string) (username, password string) {
+func parseBasicAuth(str string) (string, string) {
 	const prefix = "Basic "
 	if len(str) < len(prefix) || !strings.EqualFold(str[:len(prefix)], prefix) {
-		return
+		return "", ""
 	}
 	c, err := base64.StdEncoding.DecodeString(str[len(prefix):])
 	if err != nil {
-		return
+		return "", ""
 	}
 	cs := string(c)
 	s := strings.IndexByte(cs, ':')
 	if s < 0 {
-		return
+		return "", ""
 	}
 	return cs[:s], cs[s+1:]
 }

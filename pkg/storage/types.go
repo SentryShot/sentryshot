@@ -26,6 +26,24 @@ type RecordingData struct {
 // Events .
 type Events []Event
 
+// QueryAndPrune returns events within range and removes events before range.
+func (e *Events) QueryAndPrune(start, end time.Time) Events {
+	newEvents := Events{}
+	returnEvents := Events{}
+	for _, event := range *e {
+		if event.Time.Before(start) { // Discard events before start time.
+			continue
+		}
+		newEvents = append(newEvents, event)
+
+		if event.Time.Before(end) {
+			returnEvents = append(returnEvents, event)
+		}
+	}
+	*e = newEvents
+	return returnEvents
+}
+
 // Event is a recording trigger event.
 type Event struct {
 	Time        time.Time     `json:"time,omitempty"`

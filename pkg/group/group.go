@@ -96,8 +96,9 @@ func (m *Manager) GroupSet(id string, c Config) error {
 	group.mu.Lock()
 	config, _ := json.MarshalIndent(group.Config, "", "    ")
 
-	if err := os.WriteFile(m.configPath(id), config, 0o600); err != nil {
-		return err
+	err := os.WriteFile(m.configPath(id), config, 0o600)
+	if err != nil {
+		return fmt.Errorf("write file: %w", err)
 	}
 	group.mu.Unlock()
 

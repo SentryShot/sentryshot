@@ -66,7 +66,7 @@ func (b *myEsds) Marshal(w *bitio.Writer) error {
 	return w.TryError
 }
 
-func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:funlen
+func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:funlen
 	/*
 	   trak
 	   - tkhd
@@ -212,7 +212,7 @@ func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:
 	return trak
 }
 
-func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { // nolint:funlen
+func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:funlen
 	/*
 	   trak
 	   - tkhd
@@ -351,7 +351,7 @@ func initGenerateMvex(info StreamInfo) mp4.Boxes {
 	return mvex
 }
 
-func generateInit(info StreamInfo) ([]byte, error) { // nolint:funlen
+func generateInit(info StreamInfo) ([]byte, error) { //nolint:funlen
 	/*
 	   - ftyp
 	   - moov

@@ -116,7 +116,7 @@ func startMain(env configEnv, main string, envPath string) error {
 	signal.Notify(stop)
 	go func() {
 		s := <-stop
-		cmd.Process.Signal(s) // nolint:errcheck
+		cmd.Process.Signal(s) //nolint:errcheck
 	}()
 
 	return cmd.Wait()

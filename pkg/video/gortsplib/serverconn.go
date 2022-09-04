@@ -187,7 +187,7 @@ func (sc *ServerConn) readFuncStandard(readRequest chan readReq) error {
 
 func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:funlen
 	// reset deadline
-	sc.conn.SetReadDeadline(time.Time{}) // nolint:errcheck
+	sc.conn.SetReadDeadline(time.Time{}) //nolint:errcheck
 
 	select {
 	case sc.session.startWriter <- struct{}{}:

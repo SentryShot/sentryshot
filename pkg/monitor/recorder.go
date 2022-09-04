@@ -38,7 +38,7 @@ type Recorder struct {
 	Config      *Config
 	MonitorLock *sync.Mutex
 
-	events     storage.Events
+	events     *storage.Events
 	eventsLock sync.Mutex
 	eventChan  chan storage.Event
 
@@ -63,6 +63,7 @@ func newRecorder(m *Monitor) *Recorder {
 	return &Recorder{
 		Config:      m.Config,
 		MonitorLock: &m.Lock,
+		events:      &storage.Events{},
 		eventsLock:  sync.Mutex{},
 		eventChan:   make(chan storage.Event),
 
@@ -111,7 +112,7 @@ func (r *Recorder) start(ctx context.Context) { //nolint:funlen
 		case event := <-r.eventChan: // Incomming events.
 			r.hooks.Event(r, &event)
 			r.eventsLock.Lock()
-			r.events = append(r.events, event)
+			*r.events = append(*r.events, event)
 			r.eventsLock.Unlock()
 
 			end := event.Time.Add(event.RecDuration)
@@ -314,13 +315,13 @@ func (r *Recorder) saveRec(
 	}
 
 	r.eventsLock.Lock()
-	e := queryEvents(r.events, startTime, endTime)
+	events := r.events.QueryAndPrune(startTime, endTime)
 	r.eventsLock.Unlock()
 
 	data := storage.RecordingData{
 		Start:  startTime,
 		End:    endTime,
-		Events: e,
+		Events: events,
 	}
 	json, _ := json.MarshalIndent(data, "", "    ")
 	if err := os.WriteFile(dataPath, json, 0o600); err != nil {
@@ -337,21 +338,4 @@ func (r *Recorder) sendEvent(event storage.Event) error {
 	}
 	r.eventChan <- event
 	return nil
-}
-
-func queryEvents(e storage.Events, start time.Time, end time.Time) storage.Events {
-	newEvents := storage.Events{}
-	returnEvents := storage.Events{}
-	for _, event := range e {
-		if event.Time.Before(start) { // Discard events before start time.
-			continue
-		}
-		newEvents = append(newEvents, event) //nolint:staticcheck
-
-		if event.Time.Before(end) {
-			returnEvents = append(returnEvents, event)
-		}
-	}
-	e = newEvents //nolint:ineffassign,staticcheck
-	return returnEvents
 }

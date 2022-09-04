@@ -20,9 +20,11 @@ package log
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Level defines log level.
@@ -323,7 +325,8 @@ func printLog(log Log) {
 		output += log.Monitor + ": "
 	}
 	if log.Src != "" {
-		output += strings.Title(log.Src) + ": "
+		srcTitle := cases.Title(language.Und).String(log.Src)
+		output += srcTitle + ": "
 	}
 
 	output += log.Msg
