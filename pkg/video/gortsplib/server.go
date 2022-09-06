@@ -241,7 +241,16 @@ func (s *Server) run() { //nolint:funlen,gocognit
 						continue
 					}
 
-					ss.request <- req
+					select {
+					case ss.request <- req:
+					case <-ss.ctx.Done():
+						req.res <- sessionRequestRes{
+							res: &base.Response{
+								StatusCode: base.StatusBadRequest,
+							},
+							err: liberrors.ErrServerTerminated,
+						}
+					}
 				} else {
 					if !req.create {
 						req.res <- sessionRequestRes{

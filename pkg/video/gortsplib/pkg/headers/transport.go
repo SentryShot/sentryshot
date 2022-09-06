@@ -11,18 +11,6 @@ import (
 	"strings"
 )
 
-// TransportProtocol is a transport protocol.
-type TransportProtocol int
-
-// Transport protocols.
-const (
-	TransportProtocolUDP TransportProtocol = iota
-	TransportProtocolTCP
-)
-
-// TransportDelivery is a delivery method.
-type TransportDelivery int
-
 // TransportMode is a transport mode.
 type TransportMode int
 
@@ -36,9 +24,6 @@ const (
 
 // Transport is a Transport header.
 type Transport struct {
-	// protocol of the stream
-	Protocol TransportProtocol
-
 	// (optional) Source IP
 	Source *net.IP
 
@@ -131,12 +116,7 @@ func (h *Transport) Unmarshal(v base.HeaderValue) error { //nolint:funlen,gocogn
 		v := rv
 
 		switch k {
-		case "RTP/AVP", "RTP/AVP/UDP":
-			h.Protocol = TransportProtocolUDP
-			protocolFound = true
-
 		case "RTP/AVP/TCP":
-			h.Protocol = TransportProtocolTCP
 			protocolFound = true
 
 		case "destination":
@@ -191,20 +171,12 @@ func (h *Transport) Unmarshal(v base.HeaderValue) error { //nolint:funlen,gocogn
 				v = "0" + v
 			}
 
-			tmp, err := hex.DecodeString(v)
-			if err != nil {
-				return err
+			if tmp, err := hex.DecodeString(v); err == nil && len(tmp) <= 4 {
+				var ssrc [4]byte
+				copy(ssrc[4-len(tmp):], tmp)
+				v := uint32(ssrc[0])<<24 | uint32(ssrc[1])<<16 | uint32(ssrc[2])<<8 | uint32(ssrc[3])
+				h.SSRC = &v
 			}
-
-			if len(tmp) > 4 {
-				return ErrTransportInvalidSSRC
-			}
-
-			var ssrc [4]byte
-			copy(ssrc[4-len(tmp):], tmp)
-
-			v := binary.BigEndian.Uint32(ssrc[:])
-			h.SSRC = &v
 
 		case "mode":
 			str := strings.ToLower(v)

@@ -195,7 +195,7 @@ func TestBoxTypes(t *testing.T) {
 		},
 		{
 			name: "url",
-			src: &Url{
+			src: &URL{
 				FullBox: FullBox{
 					Version: 0,
 					Flags:   [3]byte{0, 0, 1},

@@ -5,6 +5,9 @@ import "nvr/pkg/video/mp4/bitio"
 // BoxType is mpeg box type.
 type BoxType [4]byte
 
+// BoxPath .
+type BoxPath []BoxType
+
 // ImmutableBoxes is slice of ImmutableBox.
 type ImmutableBoxes []ImmutableBox
 

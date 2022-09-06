@@ -27,7 +27,7 @@ func (b *FullBox) CheckFlag(flag uint32) bool {
 }
 
 // FieldSize returns the marshaled size in bytes.
-func (b *FullBox) FieldSize() int {
+func (*FullBox) FieldSize() int {
 	return 4
 }
 
@@ -42,6 +42,9 @@ func (b *FullBox) MarshalField(w *bitio.Writer) error {
 
 /*************************** btrt ****************************/
 
+// TypeBtrt BoxType.
+func TypeBtrt() BoxType { return [4]byte{'b', 't', 'r', 't'} }
+
 // Btrt ?
 type Btrt struct {
 	BufferSizeDB uint32
@@ -50,9 +53,7 @@ type Btrt struct {
 }
 
 // Type returns the BoxType.
-func (*Btrt) Type() BoxType {
-	return [4]byte{'b', 't', 'r', 't'}
-}
+func (*Btrt) Type() BoxType { return TypeBtrt() }
 
 // Size returns the marshaled size in bytes.
 func (*Btrt) Size() int {
@@ -69,6 +70,9 @@ func (b *Btrt) Marshal(w *bitio.Writer) error {
 
 /*************************** ctts ****************************/
 
+// TypeCtts BoxType.
+func TypeCtts() BoxType { return [4]byte{'c', 't', 't', 's'} }
+
 // Ctts is ISOBMFF ctts box type.
 type Ctts struct {
 	FullBox
@@ -84,9 +88,7 @@ type CttsEntry struct {
 }
 
 // Type returns the BoxType.
-func (*Ctts) Type() BoxType {
-	return [4]byte{'c', 't', 't', 's'}
-}
+func (*Ctts) Type() BoxType { return TypeCtts() }
 
 // Size returns the marshaled size in bytes.
 func (b *Ctts) Size() int {
@@ -113,23 +115,25 @@ func (b *Ctts) Marshal(w *bitio.Writer) error {
 
 /*************************** dinf ****************************/
 
+// TypeDinf BoxType.
+func TypeDinf() BoxType { return [4]byte{'d', 'i', 'n', 'f'} }
+
 // Dinf is ISOBMFF dinf box type.
 type Dinf struct{}
 
 // Type returns the BoxType.
-func (*Dinf) Type() BoxType {
-	return [4]byte{'d', 'i', 'n', 'f'}
-}
+func (*Dinf) Type() BoxType { return TypeDinf() }
 
 // Size returns the marshaled size in bytes.
-func (*Dinf) Size() int {
-	return 0
-}
+func (*Dinf) Size() int { return 0 }
 
 // Marshal is never called.
 func (b *Dinf) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** dref ****************************/
+
+// TypeDref BoxType.
+func TypeDref() BoxType { return [4]byte{'d', 'r', 'e', 'f'} }
 
 // Dref is ISOBMFF dref box type.
 type Dref struct {
@@ -138,12 +142,10 @@ type Dref struct {
 }
 
 // Type returns the BoxType.
-func (*Dref) Type() BoxType {
-	return [4]byte{'d', 'r', 'e', 'f'}
-}
+func (*Dref) Type() BoxType { return TypeDref() }
 
 // Size returns the marshaled size in bytes.
-func (b *Dref) Size() int {
+func (*Dref) Size() int {
 	return 8
 }
 
@@ -158,19 +160,20 @@ func (b *Dref) Marshal(w *bitio.Writer) error {
 
 /*************************** url ****************************/
 
-// Url is ISOBMFF url box type.
-type Url struct { //nolint:revive,stylecheck
+// TypeURL BoxType.
+func TypeURL() BoxType { return [4]byte{'u', 'r', 'l', ' '} }
+
+// URL is ISOBMFF url box type.
+type URL struct {
 	FullBox
 	Location string
 }
 
 // Type returns the BoxType.
-func (*Url) Type() BoxType {
-	return [4]byte{'u', 'r', 'l', ' '}
-}
+func (*URL) Type() BoxType { return TypeURL() }
 
 // Size returns the marshaled size in bytes.
-func (b *Url) Size() int {
+func (b *URL) Size() int {
 	if !b.FullBox.CheckFlag(urlNopt) {
 		return len(b.Location) + 5
 	}
@@ -180,7 +183,7 @@ func (b *Url) Size() int {
 const urlNopt = 0x000001
 
 // Marshal box to writer.
-func (b *Url) Marshal(w *bitio.Writer) error {
+func (b *URL) Marshal(w *bitio.Writer) error {
 	err := b.FullBox.MarshalField(w)
 	if err != nil {
 		return err
@@ -194,23 +197,25 @@ func (b *Url) Marshal(w *bitio.Writer) error {
 
 /*************************** edts ****************************/
 
+// TypeEdts BoxType.
+func TypeEdts() BoxType { return [4]byte{'e', 'd', 't', 's'} }
+
 // Edts is ISOBMFF edts box type.
 type Edts struct{}
 
 // Type returns the BoxType.
-func (*Edts) Type() BoxType {
-	return [4]byte{'e', 'd', 't', 's'}
-}
+func (*Edts) Type() BoxType { return TypeEdts() }
 
 // Size returns the marshaled size in bytes.
-func (b *Edts) Size() int {
-	return 0
-}
+func (*Edts) Size() int { return 0 }
 
 // Marshal is never called.
 func (b *Edts) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** elst ****************************/
+
+// TypeElts BoxType.
+func TypeElts() BoxType { return [4]byte{'e', 'l', 't', 's'} }
 
 // Elst is ISOBMFF elst box type.
 type Elst struct {
@@ -230,9 +235,7 @@ type ElstEntry struct {
 }
 
 // Type returns the BoxType.
-func (*Elst) Type() BoxType {
-	return [4]byte{'e', 'l', 's', 't'}
-}
+func (*Elst) Type() BoxType { return TypeElts() }
 
 // Size returns the marshaled size in bytes.
 func (b *Elst) Size() int {
@@ -265,6 +268,9 @@ func (b *Elst) Marshal(w *bitio.Writer) error {
 
 /*************************** esds ****************************/
 
+// TypeEsds BoxType.
+func TypeEsds() BoxType { return [4]byte{'e', 's', 'd', 's'} }
+
 // https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html
 const (
 	ESDescrTag            = 0x03
@@ -275,23 +281,25 @@ const (
 
 /*************************** free ****************************/
 
+// TypeFree BoxType.
+func TypeFree() BoxType { return [4]byte{'f', 'r', 'e', 'e'} }
+
 // Free is ISOBMFF free box type.
 type Free struct{}
 
 // Type returns the BoxType.
-func (*Free) Type() BoxType {
-	return [4]byte{'f', 'r', 'e', 'e'}
-}
+func (*Free) Type() BoxType { return TypeFree() }
 
 // Size returns the marshaled size in bytes.
-func (b *Free) Size() int {
-	return 0
-}
+func (*Free) Size() int { return 0 }
 
 // Marshal is never called.
-func (b *Free) Marshal(w *bitio.Writer) error { return nil }
+func (*Free) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** ftyp ****************************/
+
+// TypeFtyp BoxType.
+func TypeFtyp() BoxType { return [4]byte{'f', 't', 'y', 'p'} }
 
 // Ftyp is ISOBMFF ftyp box type.
 type Ftyp struct {
@@ -306,9 +314,7 @@ type CompatibleBrandElem struct {
 }
 
 // Type returns the BoxType.
-func (*Ftyp) Type() BoxType {
-	return [4]byte{'f', 't', 'y', 'p'}
-}
+func (*Ftyp) Type() BoxType { return TypeFtyp() }
 
 // Size returns the marshaled size in bytes.
 func (b *Ftyp) Size() int {
@@ -329,6 +335,9 @@ func (b *Ftyp) Marshal(w *bitio.Writer) error {
 
 /*************************** hdlr ****************************/
 
+// TypeHdlr BoxType.
+func TypeHdlr() BoxType { return [4]byte{'h', 'd', 'l', 'r'} }
+
 // Hdlr is ISOBMFF hdlr box type.
 type Hdlr struct {
 	FullBox
@@ -342,9 +351,7 @@ type Hdlr struct {
 }
 
 // Type returns the BoxType.
-func (*Hdlr) Type() BoxType {
-	return [4]byte{'h', 'd', 'l', 'r'}
-}
+func (*Hdlr) Type() BoxType { return TypeHdlr() }
 
 // Size returns the marshaled size in bytes.
 func (b *Hdlr) Size() int {
@@ -371,15 +378,16 @@ func (b *Hdlr) Marshal(w *bitio.Writer) error {
 
 /*************************** mdat ****************************/
 
+// TypeMdat BoxType.
+func TypeMdat() BoxType { return [4]byte{'m', 'd', 'a', 't'} }
+
 // Mdat is ISOBMFF mdat box type.
 type Mdat struct {
 	Data []byte
 }
 
 // Type returns the BoxType.
-func (*Mdat) Type() BoxType {
-	return [4]byte{'m', 'd', 'a', 't'}
-}
+func (*Mdat) Type() BoxType { return TypeMdat() }
 
 // Size returns the marshaled size in bytes.
 func (b *Mdat) Size() int {
@@ -393,6 +401,9 @@ func (b *Mdat) Marshal(w *bitio.Writer) error {
 }
 
 /*************************** mdhd ****************************/
+
+// TypeMdhd BoxType.
+func TypeMdhd() BoxType { return [4]byte{'m', 'd', 'h', 'd'} }
 
 // Mdhd is ISOBMFF mdhd box type.
 type Mdhd struct {
@@ -411,9 +422,7 @@ type Mdhd struct {
 }
 
 // Type returns the BoxType.
-func (*Mdhd) Type() BoxType {
-	return [4]byte{'m', 'd', 'h', 'd'}
-}
+func (*Mdhd) Type() BoxType { return TypeMdhd() }
 
 // Size returns the marshaled size in bytes.
 func (b *Mdhd) Size() int {
@@ -454,23 +463,25 @@ func (b *Mdhd) Marshal(w *bitio.Writer) error {
 
 /*************************** mdia ****************************/
 
+// TypeMdia BoxType.
+func TypeMdia() BoxType { return [4]byte{'m', 'd', 'i', 'a'} }
+
 // Mdia is ISOBMFF mdia box type.
 type Mdia struct{}
 
 // Type returns the BoxType.
-func (*Mdia) Type() BoxType {
-	return [4]byte{'m', 'd', 'i', 'a'}
-}
+func (*Mdia) Type() BoxType { return TypeMdia() }
 
 // Size returns the marshaled size in bytes.
-func (b *Mdia) Size() int {
-	return 0
-}
+func (*Mdia) Size() int { return 0 }
 
 // Marshal is never called.
-func (b *Mdia) Marshal(w *bitio.Writer) error { return nil }
+func (*Mdia) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** meta ****************************/
+
+// TypeMeta BoxType.
+func TypeMeta() BoxType { return [4]byte{'m', 'e', 't', 'a'} }
 
 // Meta is ISOBMFF meta box type.
 type Meta struct {
@@ -478,12 +489,10 @@ type Meta struct {
 }
 
 // Type returns the BoxType.
-func (*Meta) Type() BoxType {
-	return [4]byte{'m', 'e', 't', 'a'}
-}
+func (*Meta) Type() BoxType { return TypeMeta() }
 
 // Size returns the marshaled size in bytes.
-func (b *Meta) Size() int {
+func (*Meta) Size() int {
 	return 4
 }
 
@@ -494,6 +503,9 @@ func (b *Meta) Marshal(w *bitio.Writer) error {
 
 /*************************** mfhd ****************************/
 
+// TypeMfhd BoxType.
+func TypeMfhd() BoxType { return [4]byte{'m', 'f', 'h', 'd'} }
+
 // Mfhd is ISOBMFF mfhd box type.
 type Mfhd struct {
 	FullBox
@@ -501,12 +513,10 @@ type Mfhd struct {
 }
 
 // Type returns the BoxType.
-func (*Mfhd) Type() BoxType {
-	return [4]byte{'m', 'f', 'h', 'd'}
-}
+func (*Mfhd) Type() BoxType { return TypeMfhd() }
 
 // Size returns the marshaled size in bytes.
-func (b *Mfhd) Size() int {
+func (*Mfhd) Size() int {
 	return 8
 }
 
@@ -521,77 +531,76 @@ func (b *Mfhd) Marshal(w *bitio.Writer) error {
 
 /*************************** minf ****************************/
 
+// TypeMinf BoxType.
+func TypeMinf() BoxType { return [4]byte{'m', 'i', 'n', 'f'} }
+
 // Minf is ISOBMFF minf box type.
 type Minf struct{}
 
 // Type returns the BoxType.
-func (*Minf) Type() BoxType {
-	return [4]byte{'m', 'i', 'n', 'f'}
-}
+func (*Minf) Type() BoxType { return TypeMinf() }
 
 // Size returns the marshaled size in bytes.
-func (b *Minf) Size() int {
-	return 0
-}
+func (*Minf) Size() int { return 0 }
 
 // Marshal is never called.
 func (b *Minf) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** moof ****************************/
 
+// TypeMoof BoxType.
+func TypeMoof() BoxType { return [4]byte{'m', 'o', 'o', 'f'} }
+
 // Moof is ISOBMFF moof box type.
 type Moof struct{}
 
 // Type returns the BoxType.
-func (*Moof) Type() BoxType {
-	return [4]byte{'m', 'o', 'o', 'f'}
-}
+func (*Moof) Type() BoxType { return TypeMoof() }
 
 // Size returns the marshaled size in bytes.
-func (b *Moof) Size() int {
-	return 0
-}
+func (*Moof) Size() int { return 0 }
 
 // Marshal is never called.
 func (b *Moof) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** moov ****************************/
 
+// TypeMoov BoxType.
+func TypeMoov() BoxType { return [4]byte{'m', 'o', 'o', 'v'} }
+
 // Moov is ISOBMFF moov box type.
 type Moov struct{}
 
 // Type returns the BoxType.
-func (*Moov) Type() BoxType {
-	return [4]byte{'m', 'o', 'o', 'v'}
-}
+func (*Moov) Type() BoxType { return TypeMoov() }
 
 // Size returns the marshaled size in bytes.
-func (b *Moov) Size() int {
-	return 0
-}
+func (*Moov) Size() int { return 0 }
 
 // Marshal is never called.
 func (b *Moov) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** mvex ****************************/
 
+// TypeMvex BoxType.
+func TypeMvex() BoxType { return [4]byte{'m', 'v', 'e', 'x'} }
+
 // Mvex is ISOBMFF mvex box type.
 type Mvex struct{}
 
 // Type returns the BoxType.
-func (*Mvex) Type() BoxType {
-	return [4]byte{'m', 'v', 'e', 'x'}
-}
+func (*Mvex) Type() BoxType { return TypeMvex() }
 
 // Size returns the marshaled size in bytes.
-func (b *Mvex) Size() int {
-	return 0
-}
+func (*Mvex) Size() int { return 0 }
 
 // Marshal is never called.
 func (b *Mvex) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** mvhd ****************************/
+
+// TypeMvhd BoxType.
+func TypeMvhd() BoxType { return [4]byte{'m', 'v', 'h', 'd'} }
 
 // Mvhd is ISOBMFF mvhd box type.
 type Mvhd struct {
@@ -613,9 +622,7 @@ type Mvhd struct {
 }
 
 // Type returns the BoxType.
-func (*Mvhd) Type() BoxType {
-	return [4]byte{'m', 'v', 'h', 'd'}
-}
+func (*Mvhd) Type() BoxType { return TypeMvhd() }
 
 // Size returns the marshaled size in bytes.
 func (b *Mvhd) Size() int {
@@ -679,6 +686,9 @@ func (b *SampleEntry) Marshal(w *bitio.Writer) error {
 
 /*********************** avc1 *************************/
 
+// TypeAvc1 BoxType.
+func TypeAvc1() BoxType { return [4]byte{'a', 'v', 'c', '1'} }
+
 // Avc1 is ISOBMFF AVC box type.
 type Avc1 struct {
 	SampleEntry
@@ -697,12 +707,10 @@ type Avc1 struct {
 }
 
 // Type returns the BoxType.
-func (*Avc1) Type() BoxType {
-	return [4]byte{'a', 'v', 'c', '1'}
-}
+func (*Avc1) Type() BoxType { return TypeAvc1() }
 
 // Size returns the marshaled size in bytes.
-func (b *Avc1) Size() int {
+func (*Avc1) Size() int {
 	return 78
 }
 
@@ -731,6 +739,9 @@ func (b *Avc1) Marshal(w *bitio.Writer) error {
 
 /*********************** mp4a *************************/
 
+// TypeMp4a BoxType.
+func TypeMp4a() BoxType { return [4]byte{'m', 'p', '4', 'a'} }
+
 // Mp4a ?
 type Mp4a struct {
 	SampleEntry
@@ -744,12 +755,10 @@ type Mp4a struct {
 }
 
 // Type returns the BoxType.
-func (*Mp4a) Type() BoxType {
-	return [4]byte{'m', 'p', '4', 'a'}
-}
+func (*Mp4a) Type() BoxType { return TypeMp4a() }
 
 // Size returns the marshaled size in bytes.
-func (b *Mp4a) Size() int {
+func (*Mp4a) Size() int {
 	return 28
 }
 
@@ -801,6 +810,9 @@ func (b *AVCParameterSet) MarshalField(w *bitio.Writer) error {
 
 /*************************** avcC ****************************/
 
+// TypeAvcC BoxType.
+func TypeAvcC() BoxType { return [4]byte{'a', 'v', 'c', 'C'} }
+
 // AvcC is ISOBMFF AVC configuration box type.
 type AvcC struct {
 	ConfigurationVersion         uint8
@@ -826,9 +838,7 @@ type AvcC struct {
 }
 
 // Type returns the BoxType.
-func (*AvcC) Type() BoxType {
-	return [4]byte{'a', 'v', 'c', 'C'}
-}
+func (*AvcC) Type() BoxType { return TypeAvcC() }
 
 // Size returns the marshaled size in bytes.
 func (b *AvcC) Size() int {
@@ -894,6 +904,9 @@ func (b *AvcC) Marshal(w *bitio.Writer) error {
 
 /*************************** smhd ****************************/
 
+// TypeSmhd BoxType.
+func TypeSmhd() BoxType { return [4]byte{'s', 'm', 'h', 'd'} }
+
 // Smhd is ISOBMFF smhd box type.
 type Smhd struct {
 	FullBox
@@ -902,12 +915,10 @@ type Smhd struct {
 }
 
 // Type returns the BoxType.
-func (*Smhd) Type() BoxType {
-	return [4]byte{'s', 'm', 'h', 'd'}
-}
+func (*Smhd) Type() BoxType { return TypeSmhd() }
 
 // Size returns the marshaled size in bytes.
-func (b *Smhd) Size() int {
+func (*Smhd) Size() int {
 	return 8
 }
 
@@ -924,23 +935,25 @@ func (b *Smhd) Marshal(w *bitio.Writer) error {
 
 /*************************** stbl ****************************/
 
+// TypeStbl BoxType.
+func TypeStbl() BoxType { return [4]byte{'s', 't', 'b', 'l'} }
+
 // Stbl is ISOBMFF stbl box type.
 type Stbl struct{}
 
 // Type returns the BoxType.
-func (*Stbl) Type() BoxType {
-	return [4]byte{'s', 't', 'b', 'l'}
-}
+func (*Stbl) Type() BoxType { return TypeStbl() }
 
 // Size returns the marshaled size in bytes.
-func (b *Stbl) Size() int {
-	return 0
-}
+func (*Stbl) Size() int { return 0 }
 
 // Marshal is never called.
-func (b *Stbl) Marshal(w *bitio.Writer) error { return nil }
+func (*Stbl) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** stco ****************************/
+
+// TypeStco BoxType.
+func TypeStco() BoxType { return [4]byte{'s', 't', 'c', 'o'} }
 
 // Stco is ISOBMFF stco box type.
 type Stco struct {
@@ -950,9 +963,7 @@ type Stco struct {
 }
 
 // Type returns the BoxType.
-func (*Stco) Type() BoxType {
-	return [4]byte{'s', 't', 'c', 'o'}
-}
+func (*Stco) Type() BoxType { return TypeStco() }
 
 // Size returns the marshaled size in bytes.
 func (b *Stco) Size() int {
@@ -973,6 +984,9 @@ func (b *Stco) Marshal(w *bitio.Writer) error {
 }
 
 /*************************** stsc ****************************/
+
+// TypeStsc BoxType.
+func TypeStsc() BoxType { return [4]byte{'s', 't', 's', 'c'} }
 
 // StscEntry .
 type StscEntry struct {
@@ -997,9 +1011,7 @@ type Stsc struct {
 }
 
 // Type returns the BoxType.
-func (*Stsc) Type() BoxType {
-	return [4]byte{'s', 't', 's', 'c'}
-}
+func (*Stsc) Type() BoxType { return TypeStsc() }
 
 // Size returns the marshaled size in bytes.
 func (b *Stsc) Size() int {
@@ -1027,6 +1039,9 @@ func (b *Stsc) Marshal(w *bitio.Writer) error {
 
 /*************************** stsd ****************************/
 
+// TypeStsd BoxType.
+func TypeStsd() BoxType { return [4]byte{'s', 't', 's', 'd'} }
+
 // Stsd is ISOBMFF stsd box type.
 type Stsd struct {
 	FullBox
@@ -1034,12 +1049,10 @@ type Stsd struct {
 }
 
 // Type returns the BoxType.
-func (*Stsd) Type() BoxType {
-	return [4]byte{'s', 't', 's', 'd'}
-}
+func (*Stsd) Type() BoxType { return TypeStsd() }
 
 // Size returns the marshaled size in bytes.
-func (b *Stsd) Size() int {
+func (*Stsd) Size() int {
 	return 8
 }
 
@@ -1054,6 +1067,9 @@ func (b *Stsd) Marshal(w *bitio.Writer) error {
 
 /*************************** stss ****************************/
 
+// TypeStss BoxType.
+func TypeStss() BoxType { return [4]byte{'s', 't', 's', 's'} }
+
 // Stss is ISOBMFF stss box type.
 type Stss struct {
 	FullBox
@@ -1062,9 +1078,7 @@ type Stss struct {
 }
 
 // Type returns the BoxType.
-func (*Stss) Type() BoxType {
-	return [4]byte{'s', 't', 's', 's'}
-}
+func (*Stss) Type() BoxType { return TypeStss() }
 
 // Size returns the marshaled size in bytes.
 func (b *Stss) Size() int {
@@ -1092,6 +1106,9 @@ func (b *Stss) Marshal(w *bitio.Writer) error {
 
 /*************************** stsz ****************************/
 
+// TypeStsz BoxType.
+func TypeStsz() BoxType { return [4]byte{'s', 't', 's', 'z'} }
+
 // Stsz is ISOBMFF stsz box type.
 type Stsz struct {
 	FullBox
@@ -1101,9 +1118,7 @@ type Stsz struct {
 }
 
 // Type returns the BoxType.
-func (*Stsz) Type() BoxType {
-	return [4]byte{'s', 't', 's', 'z'}
-}
+func (*Stsz) Type() BoxType { return TypeStsz() }
 
 // Size returns the marshaled size in bytes.
 func (b *Stsz) Size() int {
@@ -1126,6 +1141,9 @@ func (b *Stsz) Marshal(w *bitio.Writer) error {
 
 /*************************** stts ****************************/
 
+// TypeStts BoxType.
+func TypeStts() BoxType { return [4]byte{'s', 't', 't', 's'} }
+
 // Stts is ISOBMFF stts box type.
 type Stts struct {
 	FullBox
@@ -1147,9 +1165,7 @@ func (b *SttsEntry) Marshal(w *bitio.Writer) error {
 }
 
 // Type returns the BoxType.
-func (*Stts) Type() BoxType {
-	return [4]byte{'s', 't', 't', 's'}
-}
+func (*Stts) Type() BoxType { return TypeStts() }
 
 // Size returns the marshaled size in bytes.
 func (b *Stts) Size() int {
@@ -1177,6 +1193,9 @@ func (b *Stts) Marshal(w *bitio.Writer) error {
 
 /*************************** tfdt ****************************/
 
+// TypeTfdt BoxType.
+func TypeTfdt() BoxType { return [4]byte{'t', 'f', 'd', 't'} }
+
 // Tfdt is ISOBMFF tfdt box type.
 type Tfdt struct {
 	FullBox
@@ -1185,9 +1204,7 @@ type Tfdt struct {
 }
 
 // Type returns the BoxType.
-func (*Tfdt) Type() BoxType {
-	return [4]byte{'t', 'f', 'd', 't'}
-}
+func (*Tfdt) Type() BoxType { return TypeTfdt() }
 
 // Size returns the marshaled size in bytes.
 func (b *Tfdt) Size() int {
@@ -1216,6 +1233,9 @@ func (b *Tfdt) Marshal(w *bitio.Writer) error {
 
 /*************************** tfhd ****************************/
 
+// TypeTfhd BoxType.
+func TypeTfhd() BoxType { return [4]byte{'t', 'f', 'h', 'd'} }
+
 // Tfhd is ISOBMFF tfhd box type.
 type Tfhd struct {
 	FullBox
@@ -1239,9 +1259,7 @@ const (
 )
 
 // Type returns the BoxType.
-func (*Tfhd) Type() BoxType {
-	return [4]byte{'t', 'f', 'h', 'd'}
-}
+func (*Tfhd) Type() BoxType { return TypeTfhd() }
 
 // Size returns the marshaled size in bytes.
 func (b *Tfhd) Size() int {
@@ -1291,6 +1309,9 @@ func (b *Tfhd) Marshal(w *bitio.Writer) error {
 
 /*************************** tkhd ****************************/
 
+// TypeTkhd BoxType.
+func TypeTkhd() BoxType { return [4]byte{'t', 'k', 'h', 'd'} }
+
 // Tkhd is ISOBMFF tkhd box type.
 type Tkhd struct {
 	FullBox
@@ -1314,9 +1335,7 @@ type Tkhd struct {
 }
 
 // Type returns the BoxType.
-func (*Tkhd) Type() BoxType {
-	return [4]byte{'t', 'k', 'h', 'd'}
-}
+func (*Tkhd) Type() BoxType { return TypeTkhd() }
 
 // Size returns the marshaled size in bytes.
 func (b *Tkhd) Size() int {
@@ -1363,41 +1382,42 @@ func (b *Tkhd) Marshal(w *bitio.Writer) error {
 
 /*************************** traf ****************************/
 
+// TypeTraf BoxType.
+func TypeTraf() BoxType { return [4]byte{'t', 'r', 'a', 'f'} }
+
 // Traf is ISOBMFF traf box type.
 type Traf struct{}
 
 // Type returns the BoxType.
-func (*Traf) Type() BoxType {
-	return [4]byte{'t', 'r', 'a', 'f'}
-}
+func (*Traf) Type() BoxType { return TypeTraf() }
 
 // Size returns the marshaled size in bytes.
-func (b *Traf) Size() int {
-	return 0
-}
+func (*Traf) Size() int { return 0 }
 
 // Marshal is never called.
-func (b *Traf) Marshal(w *bitio.Writer) error { return nil }
+func (*Traf) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** trak ****************************/
+
+// TypeTrak BoxType.
+func TypeTrak() BoxType { return [4]byte{'t', 'r', 'a', 'k'} }
 
 // Trak is ISOBMFF trak box type.
 type Trak struct{}
 
 // Type returns the BoxType.
-func (*Trak) Type() BoxType {
-	return [4]byte{'t', 'r', 'a', 'k'}
-}
+func (*Trak) Type() BoxType { return TypeTrak() }
 
 // Size returns the marshaled size in bytes.
-func (b *Trak) Size() int {
-	return 0
-}
+func (*Trak) Size() int { return 0 }
 
 // Marshal is never called.
-func (b *Trak) Marshal(w *bitio.Writer) error { return nil }
+func (*Trak) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** trex ****************************/
+
+// TypeTrex BoxType.
+func TypeTrex() BoxType { return [4]byte{'t', 'r', 'e', 'x'} }
 
 // Trex is ISOBMFF trex box type.
 type Trex struct {
@@ -1410,12 +1430,10 @@ type Trex struct {
 }
 
 // Type returns the BoxType.
-func (*Trex) Type() BoxType {
-	return [4]byte{'t', 'r', 'e', 'x'}
-}
+func (*Trex) Type() BoxType { return TypeTrex() }
 
 // Size returns the marshaled size in bytes.
-func (b *Trex) Size() int {
+func (*Trex) Size() int {
 	return 24
 }
 
@@ -1493,6 +1511,9 @@ func (b *TrunEntry) MarshalField(w *bitio.Writer, fullBox FullBox) error {
 	return w.TryError
 }
 
+// TypeTrun BoxType.
+func TypeTrun() BoxType { return [4]byte{'t', 'r', 'u', 'n'} }
+
 // Trun is ISOBMFF trun box type.
 type Trun struct {
 	FullBox
@@ -1505,9 +1526,7 @@ type Trun struct {
 }
 
 // Type returns the BoxType.
-func (*Trun) Type() BoxType {
-	return [4]byte{'t', 'r', 'u', 'n'}
-}
+func (*Trun) Type() BoxType { return TypeTrun() }
 
 // Size returns the marshaled size in bytes.
 func (b *Trun) Size() int {
@@ -1551,23 +1570,25 @@ func (b *Trun) Marshal(w *bitio.Writer) error {
 
 /*************************** udta ****************************/
 
+// TypeUdta BoxType.
+func TypeUdta() BoxType { return [4]byte{'u', 'd', 't', 'a'} }
+
 // Udta is ISOBMFF udta box type.
 type Udta struct{}
 
 // Type returns the BoxType.
-func (*Udta) Type() BoxType {
-	return [4]byte{'u', 'd', 't', 'a'}
-}
+func (*Udta) Type() BoxType { return TypeUdta() }
 
 // Size returns the marshaled size in bytes.
-func (b *Udta) Size() int {
-	return 0
-}
+func (*Udta) Size() int { return 0 }
 
 // Marshal is never called.
-func (b *Udta) Marshal(w *bitio.Writer) error { return nil }
+func (*Udta) Marshal(w *bitio.Writer) error { return nil }
 
 /*************************** vmhd ****************************/
+
+// TypeVmhd BoxType.
+func TypeVmhd() BoxType { return [4]byte{'v', 'm', 'h', 'd'} }
 
 // Vmhd is ISOBMFF vmhd box type.
 type Vmhd struct {
@@ -1577,12 +1598,10 @@ type Vmhd struct {
 }
 
 // Type returns the BoxType.
-func (*Vmhd) Type() BoxType {
-	return [4]byte{'v', 'm', 'h', 'd'}
-}
+func (*Vmhd) Type() BoxType { return TypeVmhd() }
 
 // Size returns the marshaled size in bytes.
-func (b *Vmhd) Size() int {
+func (*Vmhd) Size() int {
 	return 12
 }
 

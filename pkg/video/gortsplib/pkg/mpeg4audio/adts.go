@@ -1,16 +1,8 @@
-package aac
+package mpeg4audio
 
 import (
 	"errors"
 	"fmt"
-)
-
-const (
-	// MaxAccessUnitSize is the maximum size of an Access Unit (AU).
-	MaxAccessUnitSize = 5 * 1024
-
-	// SamplesPerAccessUnit is the number of samples contained by a single AAC AU.
-	SamplesPerAccessUnit = 1024
 )
 
 // ADTS decode errors.
@@ -39,7 +31,7 @@ func (e ADTSdecodeAUsizeToBigError) Error() string {
 
 // ADTSPacket is an ADTS packet.
 type ADTSPacket struct {
-	Type         MPEG4AudioType
+	Type         ObjectType
 	SampleRate   int
 	ChannelCount int
 	AU           []byte
@@ -72,8 +64,8 @@ func (ps *ADTSPackets) Unmarshal(buf []byte) error { //nolint:funlen
 
 		pkt := &ADTSPacket{}
 
-		pkt.Type = MPEG4AudioType((buf[pos+2] >> 6) + 1)
-		if pkt.Type != MPEG4AudioTypeAACLC {
+		pkt.Type = ObjectType((buf[pos+2] >> 6) + 1)
+		if pkt.Type != ObjectTypeAACLC {
 			return fmt.Errorf("%w: %d", ErrADTSdecodeTypeUnsupported, pkt.Type)
 		}
 

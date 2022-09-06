@@ -9,68 +9,9 @@ import (
 )
 
 const (
-	interleavedFrameMagicByte = 0x24
+	// InterleavedFrameMagicByte is the first byte of an interleaved frame.
+	InterleavedFrameMagicByte = 0x24
 )
-
-// ReadInterleavedFrameOrRequest reads an InterleavedFrame or a Response.
-func ReadInterleavedFrameOrRequest(
-	frame *InterleavedFrame,
-	maxPayloadSize int,
-	req *Request,
-	br *bufio.Reader,
-) (interface{}, error) {
-	b, err := br.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-	if err := br.UnreadByte(); err != nil {
-		return nil, err
-	}
-
-	if b == interleavedFrameMagicByte {
-		err := frame.Read(maxPayloadSize, br)
-		if err != nil {
-			return nil, err
-		}
-		return frame, err
-	}
-
-	err = req.Read(br)
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
-}
-
-// ReadInterleavedFrameOrResponse reads an InterleavedFrame or a Response.
-func ReadInterleavedFrameOrResponse(
-	frame *InterleavedFrame,
-	maxPayloadSize int,
-	res *Response,
-	br *bufio.Reader,
-) (interface{}, error) {
-	b, err := br.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-	if err := br.UnreadByte(); err != nil {
-		return nil, err
-	}
-
-	if b == interleavedFrameMagicByte {
-		err := frame.Read(maxPayloadSize, br)
-		if err != nil {
-			return nil, err
-		}
-		return frame, err
-	}
-
-	err = res.Read(br)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-}
 
 // InterleavedFrame is an interleaved frame, and allows to transfer binary data
 // within RTSP/TCP connections. It is used to send and receive RTP packets with TCP.
@@ -84,7 +25,7 @@ type InterleavedFrame struct {
 var ErrInvalidMagicByte = errors.New("invalid magic byte")
 
 // PayloadToBigError .
-type PayloadToBigError struct {
+/*type PayloadToBigError struct {
 	PayloadLen     int
 	MaxPayloadSize int
 }
@@ -92,24 +33,21 @@ type PayloadToBigError struct {
 func (e PayloadToBigError) Error() string {
 	return fmt.Sprintf("payload size (%d) greater than maximum allowed (%d)",
 		e.PayloadLen, e.MaxPayloadSize)
-}
+}*/
 
 // Read decodes an interleaved frame.
-func (f *InterleavedFrame) Read(maxPayloadSize int, br *bufio.Reader) error {
+func (f *InterleavedFrame) Read(br *bufio.Reader) error {
 	var header [4]byte
 	_, err := io.ReadFull(br, header[:])
 	if err != nil {
 		return err
 	}
 
-	if header[0] != interleavedFrameMagicByte {
+	if header[0] != InterleavedFrameMagicByte {
 		return fmt.Errorf("%w (0x%.2x)", ErrInvalidMagicByte, header[0])
 	}
 
 	payloadLen := int(binary.BigEndian.Uint16(header[2:]))
-	if payloadLen > maxPayloadSize {
-		return PayloadToBigError{PayloadLen: payloadLen, MaxPayloadSize: maxPayloadSize}
-	}
 
 	f.Channel = int(header[1])
 	f.Payload = make([]byte, payloadLen)

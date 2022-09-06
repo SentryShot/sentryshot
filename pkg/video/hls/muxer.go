@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 	"nvr/pkg/log"
-	"nvr/pkg/video/gortsplib/pkg/aac"
 	"nvr/pkg/video/gortsplib/pkg/h264"
+	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 	"sync"
 	"time"
 )
@@ -48,10 +48,10 @@ func NewMuxer(
 	onSegmentFinalized OnSegmentFinalizedFunc,
 	logf logFunc,
 	videoTrackExist func() bool,
-	videoSps videoSpsFunc,
+	videoSps videoSPSFunc,
 	audioTrackExist func() bool,
 	audioClockRate audioClockRateFunc,
-	getStreamInfo StreamInfoFunc,
+	streamInfo StreamInfoFunc,
 ) *Muxer {
 	playlist := newPlaylist(ctx, segmentCount, onSegmentFinalized)
 	go playlist.start()
@@ -59,11 +59,10 @@ func NewMuxer(
 	m := &Muxer{
 		playlist:   playlist,
 		logf:       logf,
-		streamInfo: getStreamInfo,
+		streamInfo: streamInfo,
 	}
 
 	m.segmenter = newSegmenter(
-		segmentCount,
 		segmentDuration,
 		partDuration,
 		segmentMaxSize,
@@ -71,8 +70,8 @@ func NewMuxer(
 		videoSps,
 		audioTrackExist,
 		audioClockRate,
-		m.playlist.onSegmentFinalized,
-		m.playlist.onPartFinalized,
+		m.playlist.segmentFinalized,
+		m.playlist.partFinalized,
 	)
 	return m
 }
@@ -81,13 +80,13 @@ func NewMuxer(
 type OnSegmentFinalizedFunc func([]SegmentOrGap)
 
 // WriteH264 writes H264 NALUs, grouped by timestamp.
-func (m *Muxer) WriteH264(pts time.Duration, nalus [][]byte) error {
-	return m.segmenter.writeH264(pts, nalus)
+func (m *Muxer) WriteH264(now time.Time, pts time.Duration, nalus [][]byte) error {
+	return m.segmenter.writeH264(now, pts, nalus)
 }
 
 // WriteAAC writes AAC AUs, grouped by timestamp.
-func (m *Muxer) WriteAAC(pts time.Duration, aus [][]byte) error {
-	return m.segmenter.writeAAC(pts, aus)
+func (m *Muxer) WriteAAC(now time.Time, pts time.Duration, au []byte) error {
+	return m.segmenter.writeAAC(now, pts, au)
 }
 
 // StreamInfoFunc returns the stream information.
@@ -108,7 +107,7 @@ type StreamInfo struct {
 	AudioTrackConfig  []byte
 	AudioChannelCount int
 	AudioClockRate    int
-	AudioType         aac.MPEG4AudioType
+	AudioType         mpeg4audio.ObjectType
 }
 
 // File returns a file reader.

@@ -5,7 +5,7 @@ import (
 	"io"
 	"log"
 	"math"
-	"nvr/pkg/video/gortsplib/pkg/aac"
+	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 	"nvr/pkg/video/mp4"
 	"nvr/pkg/video/mp4/bitio"
 	"strconv"
@@ -17,9 +17,7 @@ type myMdat struct {
 	audioSamples []*AudioSample
 }
 
-func (*myMdat) Type() mp4.BoxType {
-	return [4]byte{'m', 'd', 'a', 't'}
-}
+func (*myMdat) Type() mp4.BoxType { return mp4.TypeMdat() }
 
 func (b *myMdat) Size() int {
 	var total int
@@ -339,7 +337,7 @@ func (p *MuxerPart) duration() time.Duration {
 	// not the real duration,
 	// otherwise on iPhone iOS the stream freezes.
 	return time.Duration(len(p.AudioSamples)) * time.Second *
-		time.Duration(aac.SamplesPerAccessUnit) / time.Duration(p.audioClockRate())
+		time.Duration(mpeg4audio.SamplesPerAccessUnit) / time.Duration(p.audioClockRate())
 }
 
 func (p *MuxerPart) finalize() error {

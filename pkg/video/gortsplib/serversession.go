@@ -362,11 +362,33 @@ func (ss *ServerSession) runInner() error { //nolint:funlen,gocognit
 	}
 }
 
-func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base.Response, error) {
+func (ss *ServerSession) handleRequest( //nolint:funlen
+	sc *ServerConn,
+	req *base.Request,
+) (*base.Response, error) {
 	if ss.tcpConn != nil && sc != ss.tcpConn {
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
 		}, liberrors.ErrServerSessionLinkedToOtherConn
+	}
+
+	var path string
+	var query string
+	switch req.Method {
+	case base.Announce, base.Play, base.Record, base.Pause, base.GetParameter, base.SetParameter:
+		pathAndQuery, ok := req.URL.RTSPPathAndQuery()
+		if !ok {
+			return &base.Response{
+				StatusCode: base.StatusBadRequest,
+			}, liberrors.ErrServerInvalidPath
+		}
+
+		if req.Method != base.Announce {
+			// path can end with a slash due to Content-Base, remove it
+			pathAndQuery = strings.TrimSuffix(pathAndQuery, "/")
+		}
+
+		path, query = url.PathSplitQuery(pathAndQuery)
 	}
 
 	switch req.Method {
@@ -374,19 +396,19 @@ func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base
 		return ss.handleOptions()
 
 	case base.Announce:
-		return ss.handleAnnounce(sc, req)
+		return ss.handleAnnounce(sc, req, path, query)
 
 	case base.Setup:
 		return ss.handleSetup(sc, req)
 
 	case base.Play:
-		return ss.handlePlay(sc, req)
+		return ss.handlePlay(sc, req, path, query)
 
 	case base.Record:
-		return ss.handleRecord(sc, req)
+		return ss.handleRecord(sc, req, path, query)
 
 	case base.Pause:
-		return ss.handlePause(sc, req)
+		return ss.handlePause(sc, req, path, query)
 
 	case base.Teardown:
 		var err error
@@ -412,8 +434,8 @@ func (ss *ServerSession) handleRequest(sc *ServerConn, req *base.Request) (*base
 	}
 
 	return &base.Response{
-		StatusCode: base.StatusBadRequest,
-	}, liberrors.ServerUnhandledRequestError{Request: req}
+		StatusCode: base.StatusNotImplemented,
+	}, nil
 }
 
 func (ss *ServerSession) handleOptions() (*base.Response, error) {
@@ -432,7 +454,12 @@ var (
 	ErrTrackInvalidPath = errors.New("invalid track path")
 )
 
-func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*base.Response, error) { //nolint:funlen
+func (ss *ServerSession) handleAnnounce( //nolint:funlen
+	sc *ServerConn,
+	req *base.Request,
+	path string,
+	query string,
+) (*base.Response, error) {
 	err := ss.checkState(map[ServerSessionState]struct{}{
 		ServerSessionStateInitial: {},
 	})
@@ -441,15 +468,6 @@ func (ss *ServerSession) handleAnnounce(sc *ServerConn, req *base.Request) (*bas
 			StatusCode: base.StatusBadRequest,
 		}, err
 	}
-
-	pathAndQuery, ok := req.URL.RTSPPathAndQuery()
-	if !ok {
-		return &base.Response{
-			StatusCode: base.StatusBadRequest,
-		}, liberrors.ErrServerInvalidPath
-	}
-
-	path, query := url.PathSplitQuery(pathAndQuery)
 
 	ct, ok := req.Header["Content-Type"]
 	if !ok || len(ct) != 1 {
@@ -546,12 +564,6 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 		}, liberrors.ServerTransportHeaderInvalidError{Err: err}
 	}
 
-	if inTH.Protocol != headers.TransportProtocolTCP {
-		return &base.Response{
-			StatusCode: base.StatusUnsupportedTransport,
-		}, nil
-	}
-
 	trackID, path, query, err := setupGetTrackIDPathQuery(req.URL, inTH.Mode,
 		ss.announcedTracks, ss.setuppedPath, ss.setuppedQuery, ss.setuppedBaseURL)
 	if err != nil {
@@ -590,15 +602,14 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 		if inTH.Mode != nil && *inTH.Mode != headers.TransportModePlay {
 			return &base.Response{
 				StatusCode: base.StatusBadRequest,
-			}, liberrors.ServerTransportHeaderInvalidModeError{Mode: inTH.Mode}
+			}, liberrors.ServerTransportHeaderInvalidModeError{Mode: *inTH.Mode}
 		}
 
 	default: // record
-
 		if inTH.Mode == nil || *inTH.Mode != headers.TransportModeRecord {
 			return &base.Response{
 				StatusCode: base.StatusBadRequest,
-			}, liberrors.ServerTransportHeaderInvalidModeError{Mode: inTH.Mode}
+			}, liberrors.ServerTransportHeaderInvalidModeError{Mode: *inTH.Mode}
 		}
 	}
 
@@ -664,7 +675,6 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 
 	ss.tcpTracksByChannel[inTH.InterleavedIDs[0]] = trackID
 
-	th.Protocol = headers.TransportProtocolTCP
 	th.InterleavedIDs = inTH.InterleavedIDs
 
 	if ss.setuppedTracks == nil {
@@ -678,7 +688,12 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 	return res, err
 }
 
-func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Response, error) { //nolint:funlen
+func (ss *ServerSession) handlePlay( //nolint:funlen
+	sc *ServerConn,
+	req *base.Request,
+	path string,
+	query string,
+) (*base.Response, error) {
 	// play can be sent twice, allow calling it even if we're already playing
 	err := ss.checkState(map[ServerSessionState]struct{}{
 		ServerSessionStatePrePlay: {},
@@ -689,18 +704,6 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 			StatusCode: base.StatusBadRequest,
 		}, err
 	}
-
-	pathAndQuery, ok := req.URL.RTSPPathAndQuery()
-	if !ok {
-		return &base.Response{
-			StatusCode: base.StatusBadRequest,
-		}, liberrors.ErrServerInvalidPath
-	}
-
-	// path can end with a slash due to Content-Base, remove it
-	pathAndQuery = strings.TrimSuffix(pathAndQuery, "/")
-
-	path, query := url.PathSplitQuery(pathAndQuery)
 
 	if ss.State() == ServerSessionStatePrePlay &&
 		path != *ss.setuppedPath {
@@ -787,7 +790,12 @@ func (ss *ServerSession) handlePlay(sc *ServerConn, req *base.Request) (*base.Re
 	return res, err
 }
 
-func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.Response, error) { //nolint:funlen
+func (ss *ServerSession) handleRecord(
+	sc *ServerConn,
+	req *base.Request,
+	path string,
+	query string,
+) (*base.Response, error) {
 	err := ss.checkState(map[ServerSessionState]struct{}{
 		ServerSessionStatePreRecord: {},
 	})
@@ -802,18 +810,6 @@ func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.
 			StatusCode: base.StatusBadRequest,
 		}, liberrors.ErrServerNotAllAnnouncedTracksSetup
 	}
-
-	pathAndQuery, ok := req.URL.RTSPPathAndQuery()
-	if !ok {
-		return &base.Response{
-			StatusCode: base.StatusBadRequest,
-		}, liberrors.ErrServerInvalidPath
-	}
-
-	// path can end with a slash due to Content-Base, remove it
-	pathAndQuery = strings.TrimSuffix(pathAndQuery, "/")
-
-	path, query := url.PathSplitQuery(pathAndQuery)
 
 	if path != *ss.setuppedPath {
 		return &base.Response{
@@ -854,7 +850,12 @@ func (ss *ServerSession) handleRecord(sc *ServerConn, req *base.Request) (*base.
 	return res, err
 }
 
-func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.Response, error) { //nolint:funlen
+func (ss *ServerSession) handlePause( //nolint:funlen
+	sc *ServerConn,
+	req *base.Request,
+	path string,
+	query string,
+) (*base.Response, error) {
 	err := ss.checkState(map[ServerSessionState]struct{}{
 		ServerSessionStatePrePlay:   {},
 		ServerSessionStatePlay:      {},
@@ -866,18 +867,6 @@ func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.R
 			StatusCode: base.StatusBadRequest,
 		}, err
 	}
-
-	pathAndQuery, ok := req.URL.RTSPPathAndQuery()
-	if !ok {
-		return &base.Response{
-			StatusCode: base.StatusBadRequest,
-		}, liberrors.ErrServerInvalidPath
-	}
-
-	// path can end with a slash due to Content-Base, remove it
-	pathAndQuery = strings.TrimSuffix(pathAndQuery, "/")
-
-	path, query := url.PathSplitQuery(pathAndQuery)
 
 	res, err := ss.s.Handler.OnPause(&ServerHandlerOnPauseCtx{
 		Session: ss,
@@ -912,7 +901,7 @@ func (ss *ServerSession) handlePause(sc *ServerConn, req *base.Request) (*base.R
 		ss.tcpConn.readFunc = ss.tcpConn.readFuncStandard
 		err = errSwitchReadFunc
 
-		err := ss.tcpConn.conn.SetReadDeadline(time.Time{})
+		err := ss.tcpConn.nconn.SetReadDeadline(time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -940,12 +929,11 @@ func (ss *ServerSession) runWriter() {
 	buf := make([]byte, maxPacketSize+4)
 
 	writeFunc := func(trackID int, payload []byte) {
-		f := rtpFrames[trackID]
-		f.Payload = payload
-		n, _ := f.MarshalTo(buf)
+		fr := rtpFrames[trackID]
+		fr.Payload = payload
 
-		ss.tcpConn.conn.SetWriteDeadline(time.Now().Add(ss.s.WriteTimeout)) //nolint:errcheck
-		ss.tcpConn.conn.Write(buf[:n])                                      //nolint:errcheck
+		ss.tcpConn.nconn.SetWriteDeadline(time.Now().Add(ss.s.WriteTimeout)) //nolint:errcheck
+		ss.tcpConn.conn.WriteInterleavedFrame(fr, buf)                       //nolint:errcheck
 	}
 
 	for {

@@ -19,7 +19,6 @@ var casesTransport = []struct {
 		base.HeaderValue{`RTP/AVP/TCP;interleaved=0-1`},
 		base.HeaderValue{`RTP/AVP/TCP;interleaved=0-1`},
 		Transport{
-			Protocol:       TransportProtocolTCP,
 			InterleavedIDs: &[2]int{0, 1},
 		},
 	},
@@ -28,26 +27,11 @@ var casesTransport = []struct {
 		base.HeaderValue{`RTP/AVP/TCP;interleaved=0-1;ssrc=     D93FF`},
 		base.HeaderValue{`RTP/AVP/TCP;interleaved=0-1;ssrc=000D93FF`},
 		Transport{
-			Protocol:       TransportProtocolTCP,
 			InterleavedIDs: &[2]int{0, 1},
 			SSRC: func() *uint32 {
 				v := uint32(0xD93FF)
 				return &v
 			}(),
-		},
-	},
-	{
-		"empty source",
-		base.HeaderValue{`RTP/AVP/UDP;unicast;source=;client_port=32560-32561;server_port=3046-3047;ssrc=45dcb578`},
-		base.HeaderValue{`RTP/AVP/TCP;client_port=32560-32561;server_port=3046-3047;ssrc=45DCB578`},
-		Transport{
-			Protocol: TransportProtocolUDP,
-			SSRC: func() *uint32 {
-				v := uint32(0x45dcb578)
-				return &v
-			}(),
-			ClientPorts: &[2]int{32560, 32561},
-			ServerPorts: &[2]int{3046, 3047},
 		},
 	},
 }
@@ -133,16 +117,6 @@ func TestTransportUnmarshalErrors(t *testing.T) {
 			"invalid server port",
 			base.HeaderValue{`RTP/AVP;unicast;server_port=aa-14187`},
 			"invalid ports (aa-14187)",
-		},
-		{
-			"invalid ssrc 1",
-			base.HeaderValue{`RTP/AVP;unicast;ssrc=zzz`},
-			"encoding/hex: invalid byte: U+007A 'z'",
-		},
-		{
-			"invalid ssrc 2",
-			base.HeaderValue{`RTP/AVP;unicast;ssrc=030A0B0C0D0E0F`},
-			"invalid SSRC",
 		},
 		{
 			"invalid mode",

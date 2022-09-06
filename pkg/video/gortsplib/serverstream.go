@@ -158,19 +158,14 @@ func (st *ServerStream) WritePacketRTP(trackID int, pkt *rtp.Packet, ptsEqualsDT
 	track := st.stTracks[trackID]
 	now := time.Now()
 
-	if !track.firstPacketSent ||
-		ptsEqualsDTS ||
-		pkt.Header.SequenceNumber > track.lastSequenceNumber ||
-		(track.lastSequenceNumber-pkt.Header.SequenceNumber) > 0xFFF {
-		if !track.firstPacketSent || ptsEqualsDTS {
-			track.lastTimeRTP = pkt.Header.Timestamp
-			track.lastTimeNTP = now
-		}
-
+	if !track.firstPacketSent || ptsEqualsDTS {
 		track.firstPacketSent = true
-		track.lastSequenceNumber = pkt.Header.SequenceNumber
-		track.lastSSRC = pkt.Header.SSRC
+		track.lastTimeRTP = pkt.Header.Timestamp
+		track.lastTimeNTP = now
 	}
+
+	track.lastSequenceNumber = pkt.Header.SequenceNumber
+	track.lastSSRC = pkt.Header.SSRC
 
 	// send unicast
 	for r := range st.readersUnicast {

@@ -17,16 +17,6 @@ var ErrServerSessionNotFound = errors.New("session not found")
 // ErrServerCSeqMissing CSeq is missing.
 var ErrServerCSeqMissing = errors.New("CSeq is missing")
 
-// ServerUnhandledRequestError is an error that can be returned by a server.
-type ServerUnhandledRequestError struct {
-	Request *base.Request
-}
-
-// Error implements the error interface.
-func (e ServerUnhandledRequestError) Error() string {
-	return fmt.Sprintf("unhandled request: %v %v", e.Request.Method, e.Request.URL)
-}
-
 // ServerInvalidStateError is an error that can be returned by a server.
 type ServerInvalidStateError struct {
 	AllowedList []fmt.Stringer
@@ -87,7 +77,7 @@ func (e ServerTrackAlreadySetupError) Error() string {
 
 // ServerTransportHeaderInvalidModeError is an error that can be returned by a server.
 type ServerTransportHeaderInvalidModeError struct {
-	Mode *headers.TransportMode
+	Mode headers.TransportMode
 }
 
 // Error implements the error interface.

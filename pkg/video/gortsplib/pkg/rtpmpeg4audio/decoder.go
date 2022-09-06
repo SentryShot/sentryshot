@@ -1,11 +1,11 @@
-package rtpaac
+package rtpmpeg4audio
 
 import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"nvr/pkg/video/gortsplib/pkg/aac"
 	"nvr/pkg/video/gortsplib/pkg/bits"
+	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 	"nvr/pkg/video/gortsplib/pkg/rtptimedec"
 	"time"
 
@@ -29,12 +29,12 @@ type Decoder struct {
 	// The number of bits on which the AU-Index-delta field is encoded in any non-first AU-header.
 	IndexDeltaLength int
 
-	timeDecoder       *rtptimedec.Decoder
-	firstPacketParsed bool
-	adtsMode          bool
-	fragmentedMode    bool
-	fragmentedParts   [][]byte
-	fragmentedSize    int
+	timeDecoder     *rtptimedec.Decoder
+	firstAUParsed   bool
+	adtsMode        bool
+	fragmentedMode  bool
+	fragmentedParts [][]byte
+	fragmentedSize  int
 }
 
 // Init initializes the decoder.
@@ -59,12 +59,13 @@ type AUsizeToBigError struct {
 }
 
 func (e AUsizeToBigError) Error() string {
-	return fmt.Sprintf("AU size (%d) is too big (maximum is %d)", e.AUsize, aac.MaxAccessUnitSize)
+	return fmt.Sprintf("AU size (%d) is too big (maximum is %d)",
+		e.AUsize, mpeg4audio.MaxAccessUnitSize)
 }
 
 // Decode decodes AUs from a RTP/AAC packet.
 // It returns the AUs and the PTS of the first AU.
-// The PTS of subsequent AUs can be calculated by adding time.Second*aac.SamplesPerAccessUnit/clockRate.
+// The PTS of subsequent AUs can be calculated by adding time.Second*mpeg4audio.SamplesPerAccessUnit/clockRate.
 func (d *Decoder) Decode(pkt *rtp.Packet) ([][]byte, time.Duration, error) {
 	if len(pkt.Payload) < 2 {
 		d.fragmentedParts = d.fragmentedParts[:0]
@@ -90,30 +91,6 @@ func (d *Decoder) Decode(pkt *rtp.Packet) ([][]byte, time.Duration, error) {
 	}
 	payload = payload[pos:]
 
-	if d.adtsMode {
-		if len(dataLens) != 1 {
-			return nil, 0, ErrADTSmultipleAU
-		}
-
-		if len(payload) < int(dataLens[0]) {
-			return nil, 0, ErrShortPayload
-		}
-
-		au := payload[:dataLens[0]]
-
-		var pkts aac.ADTSPackets
-		err := pkts.Unmarshal(au)
-		if err != nil {
-			return nil, 0, fmt.Errorf("unable to decode ADTS: %w", err)
-		}
-
-		if len(pkts) != 1 {
-			return nil, 0, ErrMultipleADTS
-		}
-
-		return [][]byte{pkts[0].AU}, d.timeDecoder.Decode(pkt.Timestamp), nil
-	}
-
 	if d.fragmentedMode {
 		return d.decodeFragmented(dataLens, payload, pkt)
 	}
@@ -136,7 +113,7 @@ func (d *Decoder) decodeFragmented(
 	}
 
 	d.fragmentedSize += int(dataLens[0])
-	if d.fragmentedSize > aac.MaxAccessUnitSize {
+	if d.fragmentedSize > mpeg4audio.MaxAccessUnitSize {
 		d.fragmentedParts = d.fragmentedParts[:0]
 		d.fragmentedMode = false
 		return nil, 0, AUsizeToBigError{AUsize: d.fragmentedSize}
@@ -153,19 +130,26 @@ func (d *Decoder) decodeFragmented(
 	for _, p := range d.fragmentedParts {
 		n += copy(ret[n:], p)
 	}
+	aus := [][]byte{ret}
 
-	d.firstPacketParsed = true
 	d.fragmentedParts = d.fragmentedParts[:0]
 	d.fragmentedMode = false
-	return [][]byte{ret}, d.timeDecoder.Decode(pkt.Timestamp), nil
+
+	var err error
+	aus, err = d.finalize(aus)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return aus, d.timeDecoder.Decode(pkt.Timestamp), nil
 }
 
-func (d *Decoder) decodeUnfragmented( //nolint:gocognit
+func (d *Decoder) decodeUnfragmented(
 	dataLens []uint64,
 	payload []byte,
 	pkt *rtp.Packet,
 ) ([][]byte, time.Duration, error) {
-	if pkt.Header.Marker { //nolint:nestif
+	if pkt.Header.Marker {
 		// AUs
 		aus := make([][]byte, len(dataLens))
 		for i, dataLen := range dataLens {
@@ -177,21 +161,12 @@ func (d *Decoder) decodeUnfragmented( //nolint:gocognit
 			payload = payload[dataLen:]
 		}
 
-		// some cameras wrap AUs with ADTS.
-		if !d.firstPacketParsed {
-			if len(aus) == 1 && len(aus[0]) >= 2 {
-				if aus[0][0] == 0xFF && (aus[0][1]&0xF0) == 0xF0 {
-					var pkts aac.ADTSPackets
-					err := pkts.Unmarshal(aus[0])
-					if err == nil && len(pkts) == 1 {
-						d.adtsMode = true
-						aus[0] = pkts[0].AU
-					}
-				}
-			}
+		var err error
+		aus, err = d.finalize(aus)
+		if err != nil {
+			return nil, 0, err
 		}
 
-		d.firstPacketParsed = true
 		return aus, d.timeDecoder.Decode(pkt.Timestamp), nil
 	}
 
@@ -203,7 +178,6 @@ func (d *Decoder) decodeUnfragmented( //nolint:gocognit
 		return nil, 0, ErrShortPayload
 	}
 
-	d.firstPacketParsed = true
 	d.fragmentedSize = int(dataLens[0])
 	d.fragmentedParts = append(d.fragmentedParts, payload[:dataLens[0]])
 	d.fragmentedMode = true
@@ -267,4 +241,40 @@ func (d *Decoder) readAUHeaders(buf []byte, headersLen int) ([]uint64, error) {
 	}
 
 	return dataLens, nil
+}
+
+func (d *Decoder) finalize(aus [][]byte) ([][]byte, error) {
+	// some cameras wrap AUs into ADTS
+	if !d.firstAUParsed { //nolint:nestif
+		d.firstAUParsed = true
+
+		if len(aus) == 1 && len(aus[0]) >= 2 {
+			if aus[0][0] == 0xFF && (aus[0][1]&0xF0) == 0xF0 {
+				var pkts mpeg4audio.ADTSPackets
+				err := pkts.Unmarshal(aus[0])
+				if err == nil && len(pkts) == 1 {
+					d.adtsMode = true
+					aus[0] = pkts[0].AU
+				}
+			}
+		}
+	} else if d.adtsMode {
+		if len(aus) != 1 {
+			return nil, ErrADTSmultipleAU
+		}
+
+		var pkts mpeg4audio.ADTSPackets
+		err := pkts.Unmarshal(aus[0])
+		if err != nil {
+			return nil, fmt.Errorf("unable to decode ADTS: %w", err)
+		}
+
+		if len(pkts) != 1 {
+			return nil, ErrMultipleADTS
+		}
+
+		aus[0] = pkts[0].AU
+	}
+
+	return aus, nil
 }

@@ -166,7 +166,7 @@ func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 							EntryCount: 1,
 						},
 						Children: []mp4.Boxes{
-							{Box: &mp4.Url{
+							{Box: &mp4.URL{
 								FullBox: mp4.FullBox{
 									Flags: [3]byte{0, 0, 1},
 								},
@@ -246,7 +246,7 @@ func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 					{
 						Box: &mp4.Dref{EntryCount: 1},
 						Children: []mp4.Boxes{
-							{Box: &mp4.Url{
+							{Box: &mp4.URL{
 								FullBox: mp4.FullBox{
 									Flags: [3]byte{0, 0, 1},
 								},

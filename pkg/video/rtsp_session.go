@@ -9,11 +9,16 @@ import (
 	"sync"
 )
 
+type rtspSessionPathManager interface {
+	publisherAdd(req pathPublisherAddReq) pathPublisherAddRes
+	readerAdd(req pathReaderAddReq) pathReaderAddRes
+}
+
 type rtspSession struct {
 	id          string
 	ss          *gortsplib.ServerSession
 	author      *gortsplib.ServerConn
-	pathManager *pathManager
+	pathManager rtspSessionPathManager
 	logger      *log.Logger
 
 	path            *path
@@ -27,7 +32,7 @@ func newRTSPSession(
 	id string,
 	ss *gortsplib.ServerSession,
 	sc *gortsplib.ServerConn,
-	pathManager *pathManager,
+	pathManager rtspSessionPathManager,
 	logger *log.Logger,
 ) *rtspSession {
 	s := &rtspSession{
@@ -57,15 +62,15 @@ func (s *rtspSession) logf(level log.Level, conf PathConf, format string, a ...i
 	sendLogf(s.logger, conf, level, "RTSP:", "S:%s %s", s.id, msg)
 }
 
-// onClose is called by rtspServer.
+// close is called by rtspServer.
 func (s *rtspSession) onClose(conf PathConf, err error) {
 	switch s.ss.State() {
 	case gortsplib.ServerSessionStatePrePlay, gortsplib.ServerSessionStatePlay:
-		s.path.onReaderRemove(pathReaderRemoveReq{author: s})
+		s.path.readerRemove(pathReaderRemoveReq{author: s})
 		s.path = nil
 
 	case gortsplib.ServerSessionStatePreRecord, gortsplib.ServerSessionStateRecord:
-		s.path.onPublisherRemove(pathPublisherRemoveReq{author: s})
+		s.path.publisherRemove(pathPublisherRemoveReq{author: s})
 		s.path = nil
 	}
 
@@ -81,7 +86,7 @@ var (
 
 // onAnnounce is called by rtspServer.
 func (s *rtspSession) onAnnounce(ctx *gortsplib.ServerHandlerOnAnnounceCtx) (*base.Response, error) {
-	res := s.pathManager.onPublisherAnnounce(pathPublisherAnnounceReq{
+	res := s.pathManager.publisherAdd(pathPublisherAddReq{
 		author:   s,
 		pathName: ctx.Path,
 	})
@@ -121,7 +126,7 @@ func (s *rtspSession) onSetup(ctx *gortsplib.ServerHandlerOnSetupCtx,
 	}
 
 	// play
-	res := s.pathManager.onReaderSetupPlay(pathReaderSetupPlayReq{
+	res := s.pathManager.readerAdd(pathReaderAddReq{
 		author:   s,
 		pathName: ctx.Path,
 	})
@@ -159,7 +164,7 @@ func (s *rtspSession) onPlay() (*base.Response, error) {
 	h := make(base.Header)
 
 	if s.ss.State() == gortsplib.ServerSessionStatePrePlay {
-		s.path.onReaderPlay(pathReaderPlayReq{author: s})
+		s.path.readerStart(pathReaderStartReq{author: s})
 
 		s.stateMutex.Lock()
 		s.state = gortsplib.ServerSessionStatePlay
@@ -174,7 +179,7 @@ func (s *rtspSession) onPlay() (*base.Response, error) {
 
 // onRecord is called by rtspServer.
 func (s *rtspSession) onRecord() (*base.Response, error) {
-	res := s.path.onPublisherRecord(pathPublisherRecordReq{
+	res := s.path.publisherStart(pathPublisherStartReq{
 		author: s,
 		tracks: s.announcedTracks,
 	})
@@ -199,14 +204,14 @@ func (s *rtspSession) onRecord() (*base.Response, error) {
 func (s *rtspSession) onPause() (*base.Response, error) {
 	switch s.ss.State() { //nolint:exhaustive
 	case gortsplib.ServerSessionStatePlay:
-		s.path.onReaderPause(pathReaderPauseReq{author: s})
+		s.path.readerStop(pathReaderStopReq{author: s})
 
 		s.stateMutex.Lock()
 		s.state = gortsplib.ServerSessionStatePrePlay
 		s.stateMutex.Unlock()
 
 	case gortsplib.ServerSessionStateRecord:
-		s.path.onPublisherPause(pathPublisherPauseReq{author: s})
+		s.path.publisherStop(pathPublisherStopReq{author: s})
 
 		s.stateMutex.Lock()
 		s.state = gortsplib.ServerSessionStatePreRecord
@@ -225,8 +230,8 @@ func formatTracksLen(tracksLen int) string {
 	return fmt.Sprintf("%d tracks", tracksLen)
 }
 
-// onReaderAccepted implements reader.
-func (s *rtspSession) onReaderAccepted() {
+// readerAccepted implements reader.
+func (s *rtspSession) readerAccepted() {
 	tracksLen := len(s.ss.SetuppedTracks())
 
 	s.logf(log.LevelDebug,
@@ -236,13 +241,13 @@ func (s *rtspSession) onReaderAccepted() {
 	)
 }
 
-// onReaderData implements reader.
-func (s *rtspSession) onReaderData(*data) {
+// readerData implements reader.
+func (s *rtspSession) readerData(*data) {
 	// packets are routed to the session by gortsplib.ServerStream.
 }
 
-// onPublisherAccepted implements publisher.
-func (s *rtspSession) onPublisherAccepted(tracksLen int) {
+// publisherAccepted implements publisher.
+func (s *rtspSession) publisherAccepted(tracksLen int) {
 	s.logf(
 		log.LevelDebug,
 		*s.path.conf,
@@ -256,15 +261,15 @@ func (s *rtspSession) onPacketRTP(ctx *gortsplib.ServerHandlerOnPacketRTPCtx) {
 	if ctx.H264NALUs != nil {
 		s.stream.writeData(&data{
 			trackID:      ctx.TrackID,
-			rtp:          ctx.Packet,
+			rtpPacket:    ctx.Packet,
 			ptsEqualsDTS: ctx.PTSEqualsDTS,
-			h264NALUs:    append([][]byte(nil), ctx.H264NALUs...),
-			h264PTS:      ctx.H264PTS,
+			h264NALUs:    ctx.H264NALUs,
+			pts:          ctx.H264PTS,
 		})
 	} else {
 		s.stream.writeData(&data{
 			trackID:      ctx.TrackID,
-			rtp:          ctx.Packet,
+			rtpPacket:    ctx.Packet,
 			ptsEqualsDTS: ctx.PTSEqualsDTS,
 		})
 	}

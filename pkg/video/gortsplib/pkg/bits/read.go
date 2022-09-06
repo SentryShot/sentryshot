@@ -46,10 +46,11 @@ func ReadBits(buf []byte, pos *int, n int) (uint64, error) {
 
 // ReadGolombUnsigned reads an unsigned golomb-encoded value.
 func ReadGolombUnsigned(buf []byte, pos *int) (uint32, error) {
+	buflen := len(buf)
 	leadingZeroBits := uint32(0)
 
 	for {
-		if (len(buf)*8 - *pos) == 0 {
+		if (buflen*8 - *pos) == 0 {
 			return 0, ErrNotEnoughBits
 		}
 
@@ -65,7 +66,7 @@ func ReadGolombUnsigned(buf []byte, pos *int) (uint32, error) {
 		}
 	}
 
-	if (len(buf)*8 - *pos) < int(leadingZeroBits) {
+	if (buflen*8 - *pos) < int(leadingZeroBits) {
 		return 0, ErrNotEnoughBits
 	}
 

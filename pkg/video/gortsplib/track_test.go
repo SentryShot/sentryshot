@@ -3,7 +3,7 @@ package gortsplib
 import (
 	"testing"
 
-	"nvr/pkg/video/gortsplib/pkg/aac"
+	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 	"nvr/pkg/video/gortsplib/pkg/url"
 
 	psdp "github.com/pion/sdp/v3"
@@ -17,7 +17,7 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 		track Track
 	}{
 		{
-			"aac",
+			"mpeg4audio",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -40,9 +40,9 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 					},
 				},
 			},
-			&TrackAAC{
+			&TrackMPEG4Audio{
 				PayloadType: 96,
-				Config: &aac.MPEG4AudioConfig{
+				Config: &mpeg4audio.Config{
 					Type:         2,
 					SampleRate:   48000,
 					ChannelCount: 2,
@@ -53,7 +53,7 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 			},
 		},
 		{
-			"aac uppercase",
+			"mpeg4audio uppercase",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -71,9 +71,9 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 					},
 				},
 			},
-			&TrackAAC{
+			&TrackMPEG4Audio{
 				PayloadType: 96,
-				Config: &aac.MPEG4AudioConfig{
+				Config: &mpeg4audio.Config{
 					Type:         2,
 					SampleRate:   48000,
 					ChannelCount: 2,
@@ -84,7 +84,7 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 			},
 		},
 		{
-			"aac vlc rtsp server",
+			"mpeg4audio vlc rtsp server",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -102,9 +102,9 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 					},
 				},
 			},
-			&TrackAAC{
+			&TrackMPEG4Audio{
 				PayloadType: 96,
-				Config: &aac.MPEG4AudioConfig{
+				Config: &mpeg4audio.Config{
 					Type:         2,
 					SampleRate:   48000,
 					ChannelCount: 2,
@@ -115,7 +115,7 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 			},
 		},
 		{
-			"aac without indexLength",
+			"mpeg4audio without indexLength",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -137,9 +137,9 @@ func TestTrackNewFromMediaDescription(t *testing.T) {
 					},
 				},
 			},
-			&TrackAAC{
+			&TrackMPEG4Audio{
 				PayloadType: 96,
-				Config: &aac.MPEG4AudioConfig{
+				Config: &mpeg4audio.Config{
 					Type:         2,
 					SampleRate:   48000,
 					ChannelCount: 2,
@@ -412,7 +412,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"unable to get clock rate: strconv.ParseInt: parsing \"aa\": invalid syntax",
 		},
 		{
-			"aac missing fmtp",
+			"mpeg4audio missing fmtp",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -429,7 +429,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"fmtp attribute is missing",
 		},
 		{
-			"aac invalid fmtp",
+			"mpeg4audio invalid fmtp",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -450,7 +450,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"invalid fmtp (96)",
 		},
 		{
-			"aac fmtp without key",
+			"mpeg4audio fmtp without key",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -471,7 +471,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"invalid fmtp (96 profile-level-id)",
 		},
 		{
-			"aac missing config",
+			"mpeg4audio missing config",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -492,7 +492,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"config is missing (96 profile-level-id=1)",
 		},
 		{
-			"aac invalid config 1",
+			"mpeg4audio invalid config 1",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -514,7 +514,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 		},
 
 		{
-			"aac invalid config 2",
+			"mpeg4audio invalid config 2",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",
@@ -535,7 +535,7 @@ func TestTrackNewFromMediaDescriptionErrors(t *testing.T) {
 			"invalid AAC config (aa)",
 		},
 		{
-			"aac missing sizelength",
+			"mpeg4audio missing sizelength",
 			&psdp.MediaDescription{
 				MediaName: psdp.MediaName{
 					Media:   "audio",

@@ -1,11 +1,11 @@
 package gortsplib
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"net"
 	"nvr/pkg/video/gortsplib/pkg/base"
+	"nvr/pkg/video/gortsplib/pkg/conn"
 	"nvr/pkg/video/gortsplib/pkg/liberrors"
 	"nvr/pkg/video/gortsplib/pkg/url"
 	"strings"
@@ -26,13 +26,13 @@ type readReq struct {
 
 // ServerConn is a server-side RTSP connection.
 type ServerConn struct {
-	s    *Server
-	conn net.Conn
+	s     *Server
+	nconn net.Conn
 
 	ctx        context.Context
 	ctxCancel  func()
 	remoteAddr *net.TCPAddr
-	br         *bufio.Reader
+	conn       *conn.Conn
 	session    *ServerSession
 	readFunc   func(readRequest chan readReq) error
 
@@ -45,15 +45,15 @@ type ServerConn struct {
 
 func newServerConn(
 	s *Server,
-	conn net.Conn,
+	nconn net.Conn,
 ) *ServerConn {
 	ctx, ctxCancel := context.WithCancel(s.ctx)
 	sc := &ServerConn{ //nolint:forcetypeassert
 		s:             s,
-		conn:          conn,
+		nconn:         nconn,
 		ctx:           ctx,
 		ctxCancel:     ctxCancel,
-		remoteAddr:    conn.RemoteAddr().(*net.TCPAddr),
+		remoteAddr:    nconn.RemoteAddr().(*net.TCPAddr),
 		sessionRemove: make(chan *ServerSession),
 		done:          make(chan struct{}),
 	}
@@ -74,7 +74,7 @@ func (sc *ServerConn) Close() error {
 
 // NetConn returns the underlying net.Conn.
 func (sc *ServerConn) NetConn() net.Conn {
-	return sc.conn
+	return sc.nconn
 }
 
 func (sc *ServerConn) ip() net.IP {
@@ -89,7 +89,7 @@ func (sc *ServerConn) run() {
 	defer sc.s.wg.Done()
 	defer close(sc.done)
 
-	sc.br = bufio.NewReaderSize(sc.conn, tcpReadBufferSize)
+	sc.conn = conn.NewConn(sc.nconn)
 
 	readRequest := make(chan readReq)
 	readErr := make(chan error)
@@ -118,7 +118,7 @@ func (sc *ServerConn) run() {
 
 	sc.ctxCancel()
 
-	sc.conn.Close()
+	sc.nconn.Close()
 	<-readDone
 
 	if sc.session != nil {
@@ -161,19 +161,17 @@ func (sc *ServerConn) runReader(readRequest chan readReq, readErr chan error, re
 
 func (sc *ServerConn) readFuncStandard(readRequest chan readReq) error {
 	// reset deadline
-	sc.conn.SetReadDeadline(time.Time{}) //nolint:errcheck
-
-	var req base.Request
+	sc.nconn.SetReadDeadline(time.Time{}) //nolint:errcheck
 
 	for {
-		err := req.Read(sc.br)
+		req, err := sc.conn.ReadRequest()
 		if err != nil {
 			return err
 		}
 
 		cres := make(chan error)
 		select {
-		case readRequest <- readReq{req: &req, res: cres}:
+		case readRequest <- readReq{req: req, res: cres}:
 			err = <-cres
 			if err != nil {
 				return err
@@ -187,7 +185,7 @@ func (sc *ServerConn) readFuncStandard(readRequest chan readReq) error {
 
 func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:funlen
 	// reset deadline
-	sc.conn.SetReadDeadline(time.Time{}) //nolint:errcheck
+	sc.nconn.SetReadDeadline(time.Time{}) //nolint:errcheck
 
 	select {
 	case sc.session.startWriter <- struct{}{}:
@@ -228,26 +226,23 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 		}
 	}
 
-	var req base.Request
-	var frame base.InterleavedFrame
-
 	for {
 		if sc.session.state == ServerSessionStateRecord {
-			sc.conn.SetReadDeadline(time.Now().Add(sc.s.ReadTimeout)) //nolint:errcheck
+			sc.nconn.SetReadDeadline(time.Now().Add(sc.s.ReadTimeout)) //nolint:errcheck
 		}
 
-		what, err := base.ReadInterleavedFrameOrRequest(&frame, tcpMaxFramePayloadSize, &req, sc.br)
+		what, err := sc.conn.ReadInterleavedFrameOrRequest()
 		if err != nil {
 			return err
 		}
 
-		switch what.(type) {
+		switch twhat := what.(type) {
 		case *base.InterleavedFrame:
-			channel := frame.Channel
+			channel := twhat.Channel
 
 			// forward frame only if it has been set up
 			if trackID, ok := sc.session.tcpTracksByChannel[channel]; ok {
-				err := processFunc(trackID, frame.Payload)
+				err := processFunc(trackID, twhat.Payload)
 				if err != nil {
 					return err
 				}
@@ -256,7 +251,7 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 		case *base.Request:
 			cres := make(chan error)
 			select {
-			case readRequest <- readReq{req: &req, res: cres}:
+			case readRequest <- readReq{req: twhat, res: cres}:
 				err := <-cres
 				if err != nil {
 					return err
@@ -289,8 +284,6 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 
 	sxID := getSessionID(req.Header)
 
-	h := sc.s.Handler
-
 	switch req.Method {
 	case base.Options:
 		if sxID != "" {
@@ -314,6 +307,7 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 
 		path, query := url.PathSplitQuery(pathAndQuery)
 
+		h := sc.s.Handler
 		res, stream, err := h.OnDescribe(&ServerHandlerOnDescribeCtx{
 			Conn:    sc,
 			Request: req,
@@ -364,8 +358,8 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 	}
 
 	return &base.Response{
-		StatusCode: base.StatusBadRequest,
-	}, liberrors.ServerUnhandledRequestError{Request: req}
+		StatusCode: base.StatusNotImplemented,
+	}, nil
 }
 
 func (sc *ServerConn) handleRequestOuter(req *base.Request) error {
@@ -383,10 +377,8 @@ func (sc *ServerConn) handleRequestOuter(req *base.Request) error {
 	// add server
 	res.Header["Server"] = base.HeaderValue{"gortsplib"}
 
-	byts, _ := res.Marshal()
-
-	sc.conn.SetWriteDeadline(time.Now().Add(sc.s.WriteTimeout)) //nolint:errcheck
-	sc.conn.Write(byts)                                         //nolint:errcheck
+	sc.nconn.SetWriteDeadline(time.Now().Add(sc.s.WriteTimeout)) //nolint:errcheck
+	sc.conn.WriteResponse(res)                                   //nolint:errcheck
 
 	return err
 }

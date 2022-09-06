@@ -2,7 +2,6 @@ package hls
 
 import (
 	"bytes"
-	"nvr/pkg/video/gortsplib/pkg/aac"
 	"nvr/pkg/video/gortsplib/pkg/h264"
 	"time"
 )
@@ -47,7 +46,7 @@ type segmenter struct {
 	partDuration       time.Duration
 	segmentMaxSize     uint64
 	videoTrackExist    func() bool
-	videoSps           videoSpsFunc
+	videoSps           videoSPSFunc
 	audioTrackExist    func() bool
 	audioClockRate     audioClockRateFunc
 	onSegmentFinalized func(*Segment)
@@ -67,15 +66,14 @@ type segmenter struct {
 	adjustedPartDuration  time.Duration
 }
 
-type videoSpsFunc func() []byte
+type videoSPSFunc func() []byte
 
 func newSegmenter(
-	segmentCount int,
 	segmentDuration time.Duration,
 	partDuration time.Duration,
 	segmentMaxSize uint64,
 	videoTrackExist func() bool,
-	videoSps videoSpsFunc,
+	videoSps videoSPSFunc,
 	audioTrackExist func() bool,
 	audioClockRate audioClockRateFunc,
 	onSegmentFinalized func(*Segment),
@@ -91,7 +89,7 @@ func newSegmenter(
 		audioClockRate:     audioClockRate,
 		onSegmentFinalized: onSegmentFinalized,
 		onPartFinalized:    onPartFinalized,
-		nextSegmentID:      uint64(segmentCount),
+		nextSegmentID:      7, // Required by iOS.
 		sampleDurations:    make(map[time.Duration]struct{}),
 	}
 }
@@ -124,7 +122,7 @@ func (m *segmenter) adjustPartDuration(du time.Duration) {
 	}
 }
 
-func (m *segmenter) writeH264(pts time.Duration, nalus [][]byte) error {
+func (m *segmenter) writeH264(now time.Time, pts time.Duration, nalus [][]byte) error {
 	idrPresent := false
 	nonIDRPresent := false
 
@@ -154,7 +152,7 @@ func (m *segmenter) writeH264(pts time.Duration, nalus [][]byte) error {
 
 		m.videoFirstIDRReceived = true
 		m.videoDTSExtractor = h264.NewDTSExtractor()
-		m.videoSPS = append([]byte(nil), m.videoSps()...)
+		m.videoSPS = m.videoSps()
 
 		var err error
 		dts, err = m.videoDTSExtractor.Extract(nalus, dts)
@@ -176,7 +174,7 @@ func (m *segmenter) writeH264(pts time.Duration, nalus [][]byte) error {
 		dts -= m.startDTS
 	}
 
-	return m.writeH264Entry(&VideoSample{
+	return m.writeH264Entry(now, &VideoSample{
 		Pts:        pts,
 		Dts:        dts,
 		Avcc:       avcc,
@@ -184,14 +182,13 @@ func (m *segmenter) writeH264(pts time.Duration, nalus [][]byte) error {
 	})
 }
 
-func (m *segmenter) writeH264Entry(sample *VideoSample) error { //nolint:funlen
+func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { //nolint:funlen
 	sample, m.nextVideoSample = m.nextVideoSample, sample
 	if sample == nil {
 		return nil
 	}
 	sample.Next = m.nextVideoSample
 
-	now := time.Now()
 	if m.currentSegment == nil {
 		// create first segment
 		m.currentSegment = newSegment(
@@ -244,7 +241,7 @@ func (m *segmenter) writeH264Entry(sample *VideoSample) error { //nolint:funlen
 
 		// if SPS changed, reset adjusted part duration
 		if spsChanged {
-			m.videoSPS = append([]byte(nil), sps...)
+			m.videoSPS = sps
 			m.firstSegmentFinalized = false
 			m.sampleDurations = make(map[time.Duration]struct{})
 		}
@@ -253,21 +250,14 @@ func (m *segmenter) writeH264Entry(sample *VideoSample) error { //nolint:funlen
 	return nil
 }
 
-func (m *segmenter) writeAAC(pts time.Duration, aus [][]byte) error {
-	for i, au := range aus {
-		err := m.writeAACEntry(&AudioSample{
-			Pts: pts + time.Duration(i)*aac.SamplesPerAccessUnit*
-				time.Second/time.Duration(m.audioClockRate()),
-			Au: au,
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+func (m *segmenter) writeAAC(now time.Time, pts time.Duration, au []byte) error {
+	return m.writeAACEntry(now, &AudioSample{
+		Pts: pts,
+		Au:  au,
+	})
 }
 
-func (m *segmenter) writeAACEntry(sample *AudioSample) error { //nolint:funlen
+func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //nolint:funlen
 	if m.videoTrackExist() {
 		// wait for the video track
 		if !m.videoFirstIDRReceived {
@@ -284,8 +274,6 @@ func (m *segmenter) writeAACEntry(sample *AudioSample) error { //nolint:funlen
 		return nil
 	}
 	sample.Next = m.nextAudioSample
-
-	now := time.Now()
 
 	if !m.videoTrackExist() {
 		if m.currentSegment == nil {

@@ -34,32 +34,20 @@ type Cleaner struct {
 	h264Encoder *rtph264.Encoder
 }
 
-// New allocates a Processor.
+// New allocates a Cleaner.
 func New(isH264 bool) *Cleaner {
 	p := &Cleaner{isH264: isH264}
+
 	if isH264 {
 		p.h264Decoder = &rtph264.Decoder{}
 		p.h264Decoder.Init()
 	}
+
 	return p
 }
 
-func (p *Cleaner) processH264(pkt *rtp.Packet) ([]*Output, error) {
-	// decode
-	nalus, pts, err := p.h264Decoder.DecodeUntilMarker(pkt)
-	if err != nil {
-		if errors.Is(err, rtph264.ErrNonStartingPacketAndNoPrevious) ||
-			errors.Is(err, rtph264.ErrMorePacketsNeeded) {
-			return []*Output{{
-				Packet:       pkt,
-				PTSEqualsDTS: false,
-			}}, nil
-		}
-		return nil, err
-	}
-	ptsEqualsDTS := h264.IDRPresent(nalus)
-
-	// re-encode if packets use non-standard sizes
+func (p *Cleaner) processH264(pkt *rtp.Packet) ([]*Output, error) { //nolint:funlen
+	// check if we need to re-encode.
 	if p.h264Encoder == nil && pkt.MarshalSize() > maxPacketSize {
 		v1 := pkt.SSRC
 		v2 := pkt.SequenceNumber
@@ -73,6 +61,29 @@ func (p *Cleaner) processH264(pkt *rtp.Packet) ([]*Output, error) {
 		p.h264Encoder.Init()
 	}
 
+	// decode
+	nalus, pts, err := p.h264Decoder.DecodeUntilMarker(pkt)
+	if err != nil {
+		// ignore decode errors, except for the case in which the
+		// encoder is active
+		if p.h264Encoder == nil {
+			return []*Output{{
+				Packet:       pkt,
+				PTSEqualsDTS: false,
+			}}, nil
+		}
+
+		if errors.Is(err, rtph264.ErrNonStartingPacketAndNoPrevious) ||
+			errors.Is(err, rtph264.ErrMorePacketsNeeded) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	ptsEqualsDTS := h264.IDRPresent(nalus)
+
+	// re-encode
 	if p.h264Encoder != nil {
 		packets, err := p.h264Encoder.Encode(nalus, pts)
 		if err != nil {
@@ -91,6 +102,8 @@ func (p *Cleaner) processH264(pkt *rtp.Packet) ([]*Output, error) {
 				output[i] = &Output{
 					Packet:       pkt,
 					PTSEqualsDTS: ptsEqualsDTS,
+					H264NALUs:    nalus,
+					H264PTS:      pts,
 				}
 			}
 		}
@@ -106,12 +119,12 @@ func (p *Cleaner) processH264(pkt *rtp.Packet) ([]*Output, error) {
 	}}, nil
 }
 
-// PayloadToBigError .
-type PayloadToBigError struct {
+// PayloadTooBigError .
+type PayloadTooBigError struct {
 	PayloadLen int
 }
 
-func (e PayloadToBigError) Error() string {
+func (e PayloadTooBigError) Error() string {
 	return fmt.Sprintf("payload size (%d) greater than maximum allowed (%d)",
 		e.PayloadLen, maxPacketSize)
 }
@@ -127,7 +140,7 @@ func (p *Cleaner) Process(pkt *rtp.Packet) ([]*Output, error) {
 	}
 
 	if pkt.MarshalSize() > maxPacketSize {
-		return nil, PayloadToBigError{PayloadLen: pkt.MarshalSize()}
+		return nil, PayloadTooBigError{PayloadLen: pkt.MarshalSize()}
 	}
 
 	return []*Output{{

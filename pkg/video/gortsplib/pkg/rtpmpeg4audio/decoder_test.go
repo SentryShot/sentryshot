@@ -1,11 +1,11 @@
-package rtpaac
+package rtpmpeg4audio
 
 import (
 	"bytes"
 	"testing"
 	"time"
 
-	"nvr/pkg/video/gortsplib/pkg/aac"
+	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 
 	"github.com/pion/rtp"
 	"github.com/stretchr/testify/require"
@@ -539,7 +539,7 @@ func TestDecode(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, expPTS, pts)
 				aus = append(aus, addAUs...)
-				expPTS += time.Duration(len(aus)) * aac.SamplesPerAccessUnit * time.Second / 48000
+				expPTS += time.Duration(len(aus)) * mpeg4audio.SamplesPerAccessUnit * time.Second / 48000
 
 				// test input integrity
 				require.Equal(t, clone, pkt)

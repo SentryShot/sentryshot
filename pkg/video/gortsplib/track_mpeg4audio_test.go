@@ -3,16 +3,32 @@ package gortsplib
 import (
 	"testing"
 
-	"nvr/pkg/video/gortsplib/pkg/aac"
+	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 
 	psdp "github.com/pion/sdp/v3"
 	"github.com/stretchr/testify/require"
 )
 
-func TestTrackAACClone(t *testing.T) {
-	track := &TrackAAC{
+func TestTrackMPEG4AudioAttributes(t *testing.T) {
+	track := &TrackMPEG4Audio{
 		PayloadType: 96,
-		Config: &aac.MPEG4AudioConfig{
+		Config: &mpeg4audio.Config{
+			Type:         2,
+			SampleRate:   48000,
+			ChannelCount: 2,
+		},
+		SizeLength:       13,
+		IndexLength:      3,
+		IndexDeltaLength: 3,
+	}
+	require.Equal(t, 48000, track.ClockRate())
+	require.Equal(t, "", track.GetControl())
+}
+
+func TestTrackMPEG4AudioClone(t *testing.T) {
+	track := &TrackMPEG4Audio{
+		PayloadType: 96,
+		Config: &mpeg4audio.Config{
 			Type:         2,
 			SampleRate:   48000,
 			ChannelCount: 2,
@@ -27,10 +43,10 @@ func TestTrackAACClone(t *testing.T) {
 	require.Equal(t, track, clone)
 }
 
-func TestTrackAACMediaDescription(t *testing.T) {
-	track := &TrackAAC{
+func TestTrackMPEG4AudioMediaDescription(t *testing.T) {
+	track := &TrackMPEG4Audio{
 		PayloadType: 96,
-		Config: &aac.MPEG4AudioConfig{
+		Config: &mpeg4audio.Config{
 			Type:         2,
 			SampleRate:   48000,
 			ChannelCount: 2,

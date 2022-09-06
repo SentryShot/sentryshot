@@ -49,6 +49,7 @@ type Segment struct {
 	genPartID       func() uint64
 	onPartFinalized func(*MuxerPart)
 
+	name             string
 	size             uint64
 	Parts            []*MuxerPart
 	currentPart      *MuxerPart
@@ -76,6 +77,7 @@ func newSegment(
 		audioClockRate:  audioClockRate,
 		genPartID:       genPartID,
 		onPartFinalized: onPartFinalized,
+		name:            "seg" + strconv.FormatUint(id, 10),
 	}
 
 	s.currentPart = newPart(
@@ -86,10 +88,6 @@ func newSegment(
 	)
 
 	return s
-}
-
-func (s *Segment) name() string {
-	return "seg" + strconv.FormatUint(s.ID, 10)
 }
 
 func (s *Segment) reader() io.Reader {

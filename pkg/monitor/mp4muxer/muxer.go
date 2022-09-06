@@ -423,7 +423,7 @@ func (m *muxer) generateVideoMinf() mp4.Boxes { //nolint:funlen
 					{
 						Box: &mp4.Dref{EntryCount: 1},
 						Children: []mp4.Boxes{
-							{Box: &mp4.Url{
+							{Box: &mp4.URL{
 								FullBox: mp4.FullBox{Flags: [3]byte{0, 0, 1}},
 							}},
 						},
@@ -514,7 +514,7 @@ func (m *muxer) generateAudioMinf() mp4.Boxes { //nolint:funlen
 					{
 						Box: &mp4.Dref{EntryCount: 1},
 						Children: []mp4.Boxes{
-							{Box: &mp4.Url{
+							{Box: &mp4.URL{
 								FullBox: mp4.FullBox{Flags: [3]byte{0, 0, 1}},
 							}},
 						},

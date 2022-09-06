@@ -1,7 +1,8 @@
 {
 	"run": {
 		"tests": false,
-		"timeout": "5m"
+		"timeout": "5m",
+		"go": "1.17"
 	},
 	"linters": {
 		"enable": [

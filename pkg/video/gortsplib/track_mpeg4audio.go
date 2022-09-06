@@ -4,17 +4,17 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"nvr/pkg/video/gortsplib/pkg/aac"
+	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 	"strconv"
 	"strings"
 
 	psdp "github.com/pion/sdp/v3"
 )
 
-// TrackAAC is an AAC track.
-type TrackAAC struct {
+// TrackMPEG4Audio is a MPEG-4 audio track.
+type TrackMPEG4Audio struct {
 	PayloadType      uint8
-	Config           *aac.MPEG4AudioConfig
+	Config           *mpeg4audio.Config
 	SizeLength       int
 	IndexLength      int
 	IndexDeltaLength int
@@ -34,11 +34,11 @@ var (
 	ErrACCindexDeltaLengthInvalid = errors.New("invalid AAC IndexDeltaLength")
 )
 
-func newTrackAACFromMediaDescription( //nolint:funlen
+func newTrackMPEG4AudioFromMediaDescription( //nolint:funlen
 	control string,
 	payloadType uint8,
 	md *psdp.MediaDescription,
-) (*TrackAAC, error) {
+) (*TrackMPEG4Audio, error) {
 	v, ok := md.Attribute("fmtp")
 	if !ok {
 		return nil, ErrAACfmtpMissing
@@ -49,7 +49,7 @@ func newTrackAACFromMediaDescription( //nolint:funlen
 		return nil, fmt.Errorf("%w (%v)", ErrACCfmtpInvalid, v)
 	}
 
-	t := &TrackAAC{
+	t := &TrackMPEG4Audio{
 		PayloadType: payloadType,
 		trackBase: trackBase{
 			control: control,
@@ -74,7 +74,7 @@ func newTrackAACFromMediaDescription( //nolint:funlen
 				return nil, fmt.Errorf("%w (%v)", ErrACCconfigInvalid, tmp[1])
 			}
 
-			t.Config = &aac.MPEG4AudioConfig{}
+			t.Config = &mpeg4audio.Config{}
 			err = t.Config.Unmarshal(enc)
 			if err != nil {
 				return nil, fmt.Errorf("%w (%v)", ErrACCconfigInvalid, tmp[1])
@@ -115,12 +115,12 @@ func newTrackAACFromMediaDescription( //nolint:funlen
 }
 
 // ClockRate returns the track clock rate.
-func (t *TrackAAC) ClockRate() int {
+func (t *TrackMPEG4Audio) ClockRate() int {
 	return t.Config.SampleRate
 }
 
-func (t *TrackAAC) clone() Track {
-	return &TrackAAC{
+func (t *TrackMPEG4Audio) clone() Track {
+	return &TrackMPEG4Audio{
 		PayloadType:      t.PayloadType,
 		Config:           t.Config,
 		SizeLength:       t.SizeLength,
@@ -131,13 +131,18 @@ func (t *TrackAAC) clone() Track {
 }
 
 // MediaDescription returns the track media description in SDP format.
-func (t *TrackAAC) MediaDescription() *psdp.MediaDescription {
+func (t *TrackMPEG4Audio) MediaDescription() *psdp.MediaDescription {
 	enc, err := t.Config.Marshal()
 	if err != nil {
 		return nil
 	}
 
 	typ := strconv.FormatInt(int64(t.PayloadType), 10)
+
+	sampleRate := t.Config.SampleRate
+	if t.Config.ExtensionSampleRate != 0 {
+		sampleRate = t.Config.ExtensionSampleRate
+	}
 
 	return &psdp.MediaDescription{
 		MediaName: psdp.MediaName{
@@ -148,7 +153,7 @@ func (t *TrackAAC) MediaDescription() *psdp.MediaDescription {
 		Attributes: []psdp.Attribute{
 			{
 				Key: "rtpmap",
-				Value: typ + " mpeg4-generic/" + strconv.FormatInt(int64(t.Config.SampleRate), 10) +
+				Value: typ + " mpeg4-generic/" + strconv.FormatInt(int64(sampleRate), 10) +
 					"/" + strconv.FormatInt(int64(t.Config.ChannelCount), 10),
 			},
 			{
