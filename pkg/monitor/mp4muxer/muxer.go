@@ -393,29 +393,24 @@ func (m *muxer) generateVideoMinf() mp4.Boxes { //nolint:funlen
 				},
 			},
 			{Box: &mp4.Stts{
-				EntryCount: uint32(len(m.videoStts)),
-				Entries:    m.videoStts,
+				Entries: m.videoStts,
 			}},
 			{Box: &mp4.Stss{
-				EntryCount:   uint32(len(m.videoStss)),
-				SampleNumber: m.videoStss,
+				SampleNumbers: m.videoStss,
 			}},
 			{Box: &mp4.Ctts{
-				FullBox:    mp4.FullBox{Version: 1},
-				EntryCount: uint32(len(m.videoCtts)),
-				Entries:    m.videoCtts,
+				FullBox: mp4.FullBox{Version: 1},
+				Entries: m.videoCtts,
 			}},
 			{Box: &mp4.Stsc{
-				EntryCount: uint32(len(m.videoStsc)),
-				Entries:    m.videoStsc,
+				Entries: m.videoStsc,
 			}},
 			{Box: &mp4.Stsz{
 				SampleCount: uint32(len(m.videoStsz)),
-				EntrySize:   m.videoStsz,
+				EntrySizes:  m.videoStsz,
 			}},
 			{Box: &mp4.Stco{
-				EntryCount:  uint32(len(m.videoStco)),
-				ChunkOffset: m.videoStco,
+				ChunkOffsets: m.videoStco,
 			}},
 		},
 	}
@@ -553,20 +548,17 @@ func (m *muxer) generateAudioMinf() mp4.Boxes { //nolint:funlen
 						},
 					},
 					{Box: &mp4.Stts{
-						EntryCount: uint32(len(m.audioStts)),
-						Entries:    m.audioStts,
+						Entries: m.audioStts,
 					}},
 					{Box: &mp4.Stsc{
-						EntryCount: uint32(len(m.audioStsc)),
-						Entries:    m.audioStsc,
+						Entries: m.audioStsc,
 					}},
 					{Box: &mp4.Stsz{
 						SampleCount: uint32(len(m.audioStsz)),
-						EntrySize:   m.audioStsz,
+						EntrySizes:  m.audioStsz,
 					}},
 					{Box: &mp4.Stco{
-						EntryCount:  uint32(len(m.audioStco)),
-						ChunkOffset: m.audioStco,
+						ChunkOffsets: m.audioStco,
 					}},
 				},
 			},

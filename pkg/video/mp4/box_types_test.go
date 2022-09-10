@@ -57,7 +57,6 @@ func TestBoxTypes(t *testing.T) {
 					Version: 0,
 					Flags:   [3]byte{0x00, 0x00, 0x00},
 				},
-				EntryCount: 2,
 				Entries: []CttsEntry{
 					{SampleCount: 0x01234567, SampleOffsetV0: 0x12345678},
 					{SampleCount: 0x89abcdef, SampleOffsetV0: 0x789abcde},
@@ -80,7 +79,6 @@ func TestBoxTypes(t *testing.T) {
 					Version: 1,
 					Flags:   [3]byte{0x00, 0x00, 0x00},
 				},
-				EntryCount: 2,
 				Entries: []CttsEntry{
 					{SampleCount: 0x01234567, SampleOffsetV1: 0x12345678},
 					{SampleCount: 0x89abcdef, SampleOffsetV1: -0x789abcde},
@@ -128,7 +126,6 @@ func TestBoxTypes(t *testing.T) {
 					Version: 0,
 					Flags:   [3]byte{0x00, 0x00, 0x00},
 				},
-				EntryCount: 2,
 				Entries: []ElstEntry{
 					{
 						SegmentDurationV0: 0x0100000a,
@@ -164,7 +161,6 @@ func TestBoxTypes(t *testing.T) {
 					Version: 1,
 					Flags:   [3]byte{0x00, 0x00, 0x00},
 				},
-				EntryCount: 2,
 				Entries: []ElstEntry{
 					{
 						SegmentDurationV1: 0x010000000000000a,
@@ -701,8 +697,7 @@ func TestBoxTypes(t *testing.T) {
 					Version: 0,
 					Flags:   [3]byte{0x00, 0x00, 0x00},
 				},
-				EntryCount:  2,
-				ChunkOffset: []uint32{0x01234567, 0x89abcdef},
+				ChunkOffsets: []uint32{0x01234567, 0x89abcdef},
 			},
 			bin: []byte{
 				0,                // version
@@ -719,7 +714,6 @@ func TestBoxTypes(t *testing.T) {
 					Version: 0,
 					Flags:   [3]byte{0x00, 0x00, 0x00},
 				},
-				EntryCount: 2,
 				Entries: []StscEntry{
 					{FirstChunk: 0x01234567, SamplesPerChunk: 0x23456789, SampleDescriptionIndex: 0x456789ab},
 					{FirstChunk: 0x6789abcd, SamplesPerChunk: 0x89abcdef, SampleDescriptionIndex: 0xabcdef01},
@@ -759,8 +753,7 @@ func TestBoxTypes(t *testing.T) {
 					Version: 0,
 					Flags:   [3]byte{0x00, 0x00, 0x00},
 				},
-				EntryCount:   2,
-				SampleNumber: []uint32{0x01234567, 0x89abcdef},
+				SampleNumbers: []uint32{0x01234567, 0x89abcdef},
 			},
 			bin: []byte{
 				0,                // version
@@ -779,7 +772,7 @@ func TestBoxTypes(t *testing.T) {
 				},
 				SampleSize:  0x01234567,
 				SampleCount: 2,
-				EntrySize:   []uint32{},
+				EntrySizes:  []uint32{},
 			},
 			bin: []byte{
 				0,                // version
@@ -796,7 +789,7 @@ func TestBoxTypes(t *testing.T) {
 					Flags:   [3]byte{0x00, 0x00, 0x00},
 				},
 				SampleCount: 2,
-				EntrySize:   []uint32{0x01234567, 0x23456789},
+				EntrySizes:  []uint32{0x01234567, 0x23456789},
 			},
 			bin: []byte{
 				0,                // version
@@ -814,7 +807,6 @@ func TestBoxTypes(t *testing.T) {
 					Version: 0,
 					Flags:   [3]byte{0x00, 0x00, 0x00},
 				},
-				EntryCount: 2,
 				Entries: []SttsEntry{
 					{SampleCount: 0x01234567, SampleDelta: 0x23456789},
 					{SampleCount: 0x456789ab, SampleDelta: 0x6789abcd},
@@ -1024,8 +1016,7 @@ func TestBoxTypes(t *testing.T) {
 					Version: 0,
 					Flags:   [3]byte{0x00, 0x01, 0x01},
 				},
-				SampleCount: 3,
-				DataOffset:  50,
+				DataOffset: 50,
 				Entries: []TrunEntry{
 					{SampleDuration: 100},
 					{SampleDuration: 101},
@@ -1049,7 +1040,6 @@ func TestBoxTypes(t *testing.T) {
 					Version: 0,
 					Flags:   [3]byte{0x00, 0x02, 0x04},
 				},
-				SampleCount:      3,
 				FirstSampleFlags: 0x02468ace,
 				Entries: []TrunEntry{
 					{SampleSize: 100},
@@ -1074,7 +1064,6 @@ func TestBoxTypes(t *testing.T) {
 					Version: 0,
 					Flags:   [3]byte{0x00, 0x0c, 0x00},
 				},
-				SampleCount: 3,
 				Entries: []TrunEntry{
 					{SampleFlags: 100, SampleCompositionTimeOffsetV0: 200},
 					{SampleFlags: 101, SampleCompositionTimeOffsetV0: 201},
@@ -1100,7 +1089,6 @@ func TestBoxTypes(t *testing.T) {
 					Version: 1,
 					Flags:   [3]byte{0x00, 0x08, 0x00},
 				},
-				SampleCount: 3,
 				Entries: []TrunEntry{
 					{SampleCompositionTimeOffsetV1: 200},
 					{SampleCompositionTimeOffsetV1: 201},

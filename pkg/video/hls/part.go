@@ -94,8 +94,7 @@ func generateVideoTraf( //nolint:funlen
 			Version: 1,
 			Flags:   [3]byte{0, byte(flags >> 8), byte(flags)},
 		},
-		SampleCount: uint32(len(videoSamples)),
-		DataOffset:  dataOffset,
+		DataOffset: dataOffset,
 	}
 
 	trun.Entries = make([]mp4.TrunEntry, len(videoSamples))
@@ -163,9 +162,8 @@ func generateAudioTraf(
 			Version: 0,
 			Flags:   [3]byte{0, byte(flags >> 8), byte(flags)},
 		},
-		SampleCount: uint32(len(audioSamples)),
-		DataOffset:  dataOffset,
-		Entries:     nil,
+		DataOffset: dataOffset,
+		Entries:    nil,
 	}
 
 	trun.Entries = make([]mp4.TrunEntry, len(audioSamples))

@@ -76,8 +76,7 @@ func TypeCtts() BoxType { return [4]byte{'c', 't', 't', 's'} }
 // Ctts is ISOBMFF ctts box type.
 type Ctts struct {
 	FullBox
-	EntryCount uint32
-	Entries    []CttsEntry
+	Entries []CttsEntry
 }
 
 // CttsEntry .
@@ -101,7 +100,7 @@ func (b *Ctts) Marshal(w *bitio.Writer) error {
 	if err != nil {
 		return err
 	}
-	w.TryWriteUint32(b.EntryCount)
+	w.TryWriteUint32(uint32(len(b.Entries))) // Entry count.
 	for _, entry := range b.Entries {
 		w.TryWriteUint32(entry.SampleCount)
 		if b.FullBox.Version == 0 {
@@ -220,8 +219,7 @@ func TypeElts() BoxType { return [4]byte{'e', 'l', 't', 's'} }
 // Elst is ISOBMFF elst box type.
 type Elst struct {
 	FullBox
-	EntryCount uint32
-	Entries    []ElstEntry
+	Entries []ElstEntry
 }
 
 // ElstEntry .
@@ -251,7 +249,7 @@ func (b *Elst) Marshal(w *bitio.Writer) error {
 	if err != nil {
 		return err
 	}
-	w.TryWriteUint32(b.EntryCount)
+	w.TryWriteUint32(uint32(len(b.Entries))) // Entry count.
 	for _, entry := range b.Entries {
 		if b.FullBox.Version == 0 {
 			w.TryWriteUint32(entry.SegmentDurationV0)
@@ -958,8 +956,7 @@ func TypeStco() BoxType { return [4]byte{'s', 't', 'c', 'o'} }
 // Stco is ISOBMFF stco box type.
 type Stco struct {
 	FullBox
-	EntryCount  uint32
-	ChunkOffset []uint32
+	ChunkOffsets []uint32
 }
 
 // Type returns the BoxType.
@@ -967,7 +964,7 @@ func (*Stco) Type() BoxType { return TypeStco() }
 
 // Size returns the marshaled size in bytes.
 func (b *Stco) Size() int {
-	return 8 + len(b.ChunkOffset)*4
+	return 8 + len(b.ChunkOffsets)*4
 }
 
 // Marshal box to writer.
@@ -976,8 +973,8 @@ func (b *Stco) Marshal(w *bitio.Writer) error {
 	if err != nil {
 		return err
 	}
-	w.TryWriteUint32(b.EntryCount)
-	for _, offset := range b.ChunkOffset {
+	w.TryWriteUint32(uint32(len(b.ChunkOffsets))) // Entry count.
+	for _, offset := range b.ChunkOffsets {
 		w.TryWriteUint32(offset)
 	}
 	return w.TryError
@@ -1006,8 +1003,7 @@ func (b *StscEntry) MarshalField(w *bitio.Writer) error {
 // Stsc is ISOBMFF stsc box type.
 type Stsc struct {
 	FullBox
-	EntryCount uint32
-	Entries    []StscEntry
+	Entries []StscEntry
 }
 
 // Type returns the BoxType.
@@ -1024,7 +1020,7 @@ func (b *Stsc) Marshal(w *bitio.Writer) error {
 	if err != nil {
 		return err
 	}
-	err = w.WriteUint32(b.EntryCount)
+	err = w.WriteUint32(uint32(len(b.Entries))) // Entry count.
 	if err != nil {
 		return err
 	}
@@ -1073,8 +1069,7 @@ func TypeStss() BoxType { return [4]byte{'s', 't', 's', 's'} }
 // Stss is ISOBMFF stss box type.
 type Stss struct {
 	FullBox
-	EntryCount   uint32
-	SampleNumber []uint32
+	SampleNumbers []uint32
 }
 
 // Type returns the BoxType.
@@ -1082,7 +1077,7 @@ func (*Stss) Type() BoxType { return TypeStss() }
 
 // Size returns the marshaled size in bytes.
 func (b *Stss) Size() int {
-	return 8 + len(b.SampleNumber)*4
+	return 8 + len(b.SampleNumbers)*4
 }
 
 // Marshal is never called.
@@ -1091,11 +1086,11 @@ func (b *Stss) Marshal(w *bitio.Writer) error {
 	if err != nil {
 		return err
 	}
-	err = w.WriteUint32(b.EntryCount)
+	err = w.WriteUint32(uint32(len(b.SampleNumbers))) // Entry count.
 	if err != nil {
 		return err
 	}
-	for _, number := range b.SampleNumber {
+	for _, number := range b.SampleNumbers {
 		err := w.WriteUint32(number)
 		if err != nil {
 			return err
@@ -1114,7 +1109,7 @@ type Stsz struct {
 	FullBox
 	SampleSize  uint32
 	SampleCount uint32
-	EntrySize   []uint32
+	EntrySizes  []uint32
 }
 
 // Type returns the BoxType.
@@ -1122,7 +1117,7 @@ func (*Stsz) Type() BoxType { return TypeStsz() }
 
 // Size returns the marshaled size in bytes.
 func (b *Stsz) Size() int {
-	return 12 + len(b.EntrySize)*4
+	return 12 + len(b.EntrySizes)*4
 }
 
 // Marshal box to writer.
@@ -1133,7 +1128,7 @@ func (b *Stsz) Marshal(w *bitio.Writer) error {
 	}
 	w.TryWriteUint32(b.SampleSize)
 	w.TryWriteUint32(b.SampleCount)
-	for _, entry := range b.EntrySize {
+	for _, entry := range b.EntrySizes {
 		w.TryWriteUint32(entry)
 	}
 	return w.TryError
@@ -1147,8 +1142,7 @@ func TypeStts() BoxType { return [4]byte{'s', 't', 't', 's'} }
 // Stts is ISOBMFF stts box type.
 type Stts struct {
 	FullBox
-	EntryCount uint32
-	Entries    []SttsEntry
+	Entries []SttsEntry
 }
 
 // SttsEntry .
@@ -1178,7 +1172,7 @@ func (b *Stts) Marshal(w *bitio.Writer) error {
 	if err != nil {
 		return err
 	}
-	err = w.WriteUint32(b.EntryCount)
+	err = w.WriteUint32(uint32(len(b.Entries))) // Entry count.
 	if err != nil {
 		return err
 	}
@@ -1517,7 +1511,6 @@ func TypeTrun() BoxType { return [4]byte{'t', 'r', 'u', 'n'} }
 // Trun is ISOBMFF trun box type.
 type Trun struct {
 	FullBox
-	SampleCount uint32
 
 	// optional fields
 	DataOffset       int32
@@ -1549,7 +1542,7 @@ func (b *Trun) Marshal(w *bitio.Writer) error {
 	if err != nil {
 		return err
 	}
-	w.TryWriteUint32(b.SampleCount)
+	w.TryWriteUint32(uint32(len(b.Entries))) // Entry count.
 	if b.FullBox.CheckFlag(TrunDataOffsetPresent) {
 		w.TryWriteUint32(uint32(b.DataOffset))
 	}
