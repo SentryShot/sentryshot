@@ -2,6 +2,7 @@ package mp4muxer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"nvr/pkg/video/hls"
@@ -16,15 +17,13 @@ const (
 )
 
 type muxer struct {
-	file    io.WriteSeeker
-	w       *bitio.Writer
-	hlsChan chan []*hls.Segment
-	info    hls.StreamInfo
+	file io.WriteSeeker
+	w    *bitio.Writer
+	info hls.StreamInfo
 
 	startTime time.Time
 	endTime   time.Time
 	duration  time.Duration
-	stopTime  time.Time
 
 	pos        uint32
 	mdatOffset uint32
@@ -49,63 +48,71 @@ type muxer struct {
 	dtsShift    int64
 }
 
+type nextSegmentFunc func(uint64) (*hls.Segment, error)
+
 // WriteVideo writes a mp4 video.
 func WriteVideo(
 	ctx context.Context,
 	file io.WriteSeeker,
-	hlsChan chan []*hls.Segment,
+	nextSegment nextSegmentFunc,
 	firstSegment *hls.Segment,
 	info hls.StreamInfo,
 	maxDuration time.Duration,
 ) (uint64, *time.Time, error) {
 	bw := bitio.NewByteWriter(file)
 	m := &muxer{
-		file:    file,
-		w:       bitio.NewWriter(bw),
-		hlsChan: hlsChan,
-		info:    info,
+		file: file,
+		w:    bitio.NewWriter(bw),
+		info: info,
 
 		startTime: firstSegment.StartTime,
-		stopTime:  firstSegment.StartTime.Add(maxDuration),
 
 		firstSample: true,
-		prevSeg:     firstSegment.ID,
 	}
+	stopTime := firstSegment.StartTime.Add(maxDuration)
 
 	if err := m.writeFtypAndMdat(); err != nil {
 		return 0, nil, err
 	}
 
-	err := m.parseSegment(firstSegment)
-	if err != nil {
+	if err := m.parseSegment(firstSegment); err != nil {
 		return 0, nil, err
 	}
+	m.prevSeg = firstSegment.ID
 
 	for {
-		select {
-		case <-ctx.Done():
-			if err := m.writeMetadata(); err != nil {
-				return 0, nil, fmt.Errorf("write metadata: %w", err)
-			}
-			return m.prevSeg, &m.endTime, nil
+		if ctx.Err() != nil {
+			return m.finalize()
+		}
 
-		case segs := <-m.hlsChan:
-			for _, seg := range segs {
-				if seg.ID <= m.prevSeg {
-					continue
-				}
-				if err := m.parseSegment(seg); err != nil {
-					return 0, nil, err
-				}
-				if seg.StartTime.After(m.stopTime) {
-					if err := m.writeMetadata(); err != nil {
-						return 0, nil, fmt.Errorf("write metadata: %w", err)
-					}
-					return m.prevSeg, &m.endTime, nil
-				}
-			}
+		seg, err := nextSegment(m.prevSeg)
+		if err != nil {
+			return m.finalize()
+		}
+
+		if seg.ID != m.prevSeg+1 {
+			return 0, nil, fmt.Errorf("%w: expected: %v got %v",
+				ErrSkippedSegment, m.prevSeg+1, seg.ID)
+		}
+
+		if err := m.parseSegment(seg); err != nil {
+			return 0, nil, err
+		}
+
+		if seg.StartTime.After(stopTime) {
+			return m.finalize()
 		}
 	}
+}
+
+// ErrSkippedSegment skipped segment.
+var ErrSkippedSegment = errors.New("skipped segment")
+
+func (m *muxer) finalize() (uint64, *time.Time, error) {
+	if err := m.writeMetadata(); err != nil {
+		return 0, nil, fmt.Errorf("write metadata: %w", err)
+	}
+	return m.prevSeg, &m.endTime, nil
 }
 
 func (m *muxer) writeFtypAndMdat() error {
@@ -156,7 +163,7 @@ func (m *muxer) parseSegment(seg *hls.Segment) error {
 func (m *muxer) writeVideoSample(sample *hls.VideoSample) error {
 	pts := hls.DurationGoToMp4(sample.Pts, hls.VideoTimescale)
 	dts := hls.DurationGoToMp4(sample.Dts, hls.VideoTimescale)
-	nextDts := hls.DurationGoToMp4(sample.Next.Dts, hls.VideoTimescale)
+	nextDts := hls.DurationGoToMp4(sample.NextDts, hls.VideoTimescale)
 
 	if m.firstSample {
 		m.dtsShift = pts - dts

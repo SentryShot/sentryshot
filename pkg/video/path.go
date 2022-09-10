@@ -7,7 +7,6 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/url"
-	"nvr/pkg/video/hls"
 	"regexp"
 	"sync"
 	"time"
@@ -535,19 +534,19 @@ func (pa *path) readerStop(req pathReaderStopReq) {
 }
 
 func (pa *path) hlsSegmentCount() int {
-	return pa.conf.HLSsegmentCount
+	return pa.conf.HLSSegmentCount
 }
 
 func (pa *path) hlsSegmentDuration() time.Duration {
-	return pa.conf.HLSsegmentDuration
+	return pa.conf.HLSSegmentDuration
 }
 
 func (pa *path) hlsPartDuration() time.Duration {
-	return pa.conf.HLSpartDuration
+	return pa.conf.HLSPartDuration
 }
 
 func (pa *path) hlsSegmentMaxSize() uint64 {
-	return pa.conf.HLSsegmentMaxSize
+	return pa.conf.HLSSegmentMaxSize
 }
 
 // Errors.
@@ -583,23 +582,15 @@ func isValidPathName(name string) error {
 
 // PathConf is a path configuration.
 type PathConf struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-
 	MonitorID string
 	IsSub     bool
 
 	DisablePublisherOverride bool
 
-	HLSsegmentCount    int
-	HLSsegmentDuration time.Duration
-	HLSpartDuration    time.Duration
-	HLSsegmentMaxSize  uint64
-
-	streamInfo            hls.StreamInfoFunc
-	onHlsSegmentFinalized hls.OnSegmentFinalizedFunc
-	subSegments           chan chan []*hls.Segment
-	unsubSegments         chan chan []*hls.Segment
+	HLSSegmentCount    int
+	HLSSegmentDuration time.Duration
+	HLSPartDuration    time.Duration
+	HLSSegmentMaxSize  uint64
 }
 
 // Errors.
@@ -611,9 +602,9 @@ var (
 )
 
 const (
-	defaultHLSsegmentCount    = 3
-	defaultHLSsegmentDuration = 900 * time.Millisecond
-	defaultHLSpartDuration    = 300 * time.Millisecond
+	defaultHLSSegmentCount    = 3
+	defaultHLSSegmentDuration = 900 * time.Millisecond
+	defaultHLSPartDuration    = 300 * time.Millisecond
 )
 
 var mb = uint64(1000000)
@@ -634,88 +625,18 @@ func (pconf *PathConf) CheckAndFillMissing(name string) error {
 		return fmt.Errorf("%w: %s (%v)", ErrPathInvalidName, name, err)
 	}
 
-	if pconf.HLSsegmentCount == 0 {
-		pconf.HLSsegmentCount = defaultHLSsegmentCount
+	if pconf.HLSSegmentCount == 0 {
+		pconf.HLSSegmentCount = defaultHLSSegmentCount
 	}
-	if pconf.HLSsegmentDuration == 0 {
-		pconf.HLSsegmentDuration = defaultHLSsegmentDuration
+	if pconf.HLSSegmentDuration == 0 {
+		pconf.HLSSegmentDuration = defaultHLSSegmentDuration
 	}
-	if pconf.HLSpartDuration == 0 {
-		pconf.HLSpartDuration = defaultHLSpartDuration
+	if pconf.HLSPartDuration == 0 {
+		pconf.HLSPartDuration = defaultHLSPartDuration
 	}
-	if pconf.HLSsegmentMaxSize == 0 {
-		pconf.HLSsegmentMaxSize = defaultHLSsegmentMaxSize
+	if pconf.HLSSegmentMaxSize == 0 {
+		pconf.HLSSegmentMaxSize = defaultHLSsegmentMaxSize
 	}
 
 	return nil
-}
-
-func (pconf *PathConf) start(ctx context.Context, wg *sync.WaitGroup) {
-	pconf.ctx, pconf.cancel = context.WithCancel(ctx)
-
-	onFinalized := make(chan []hls.SegmentOrGap)
-	pconf.onHlsSegmentFinalized = func(segments []hls.SegmentOrGap) {
-		select {
-		case onFinalized <- segments:
-		case <-pconf.ctx.Done():
-		}
-	}
-
-	subscribers := make(map[chan []*hls.Segment]struct{})
-	pconf.subSegments = make(chan chan []*hls.Segment)
-	pconf.unsubSegments = make(chan chan []*hls.Segment)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-pconf.ctx.Done():
-				if len(subscribers) == 0 {
-					return
-				}
-
-			case sub := <-pconf.subSegments:
-				subscribers[sub] = struct{}{}
-
-			case sub := <-pconf.unsubSegments:
-				close(sub)
-				delete(subscribers, sub)
-
-			case segments := <-onFinalized:
-				var segs []*hls.Segment
-				for _, seg := range segments {
-					if s, ok := seg.(*hls.Segment); ok {
-						segs = append(segs, s)
-					}
-				}
-				for listener := range subscribers {
-					select {
-					case listener <- segs:
-					default:
-					}
-				}
-			}
-		}
-	}()
-}
-
-// SubscibeToHlsSegmentFinalizedFunc .
-type SubscibeToHlsSegmentFinalizedFunc func() (chan []*hls.Segment, CancelFunc, error)
-
-func (pconf *PathConf) subscibeToHlsSegmentFinalized() (chan []*hls.Segment, CancelFunc, error) {
-	subscriber := make(chan []*hls.Segment)
-
-	select {
-	case <-pconf.ctx.Done():
-		return nil, nil, context.Canceled
-
-	case pconf.subSegments <- subscriber:
-	}
-
-	cancelFunc := func() {
-		pconf.unsubSegments <- subscriber
-	}
-
-	return subscriber, cancelFunc, nil
 }

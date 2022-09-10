@@ -187,7 +187,11 @@ func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { /
 	if sample == nil {
 		return nil
 	}
-	sample.Next = m.nextVideoSample
+
+	next := m.nextVideoSample
+	sample.nextPts = next.Pts
+	sample.NextDts = next.Dts
+	sample.nextIdrPresent = next.IdrPresent
 
 	if m.currentSegment == nil {
 		// create first segment
@@ -211,15 +215,15 @@ func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { /
 		return err
 	}
 
-	if !sample.Next.IdrPresent {
+	if !sample.nextIdrPresent {
 		return nil
 	}
 	// switch segment
 	sps := m.videoSps()
 	spsChanged := !bytes.Equal(m.videoSPS, sps)
 
-	if (sample.Next.Dts-m.currentSegment.startDTS) >= m.segmentDuration || spsChanged {
-		err := m.currentSegment.finalize(sample.Next)
+	if (sample.NextDts-m.currentSegment.startDTS) >= m.segmentDuration || spsChanged {
+		err := m.currentSegment.finalize(next)
 		if err != nil {
 			return err
 		}
@@ -230,7 +234,7 @@ func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { /
 		m.currentSegment = newSegment(
 			m.genSegmentID(),
 			now,
-			sample.Next.Pts,
+			sample.nextPts,
 			m.segmentMaxSize,
 			m.videoTrackExist,
 			m.audioTrackExist,
@@ -273,7 +277,8 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 	if sample == nil {
 		return nil
 	}
-	sample.Next = m.nextAudioSample
+	// sample.Next = m.nextAudioSample
+	sample.NextPts = m.nextAudioSample.Pts
 
 	if !m.videoTrackExist() {
 		if m.currentSegment == nil {
@@ -304,7 +309,7 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 
 	// switch segment
 	if !m.videoTrackExist() &&
-		(sample.Next.Pts-m.currentSegment.startDTS) >= m.segmentDuration {
+		(sample.NextPts-m.currentSegment.startDTS) >= m.segmentDuration {
 		err := m.currentSegment.finalize(nil)
 		if err != nil {
 			return nil
@@ -316,7 +321,7 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 		m.currentSegment = newSegment(
 			m.genSegmentID(),
 			now,
-			sample.Next.Pts,
+			sample.NextPts,
 			m.segmentMaxSize,
 			m.videoTrackExist,
 			m.audioTrackExist,

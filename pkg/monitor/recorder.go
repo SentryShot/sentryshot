@@ -24,7 +24,6 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/monitor/mp4muxer"
 	"nvr/pkg/storage"
-	"nvr/pkg/video/hls"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -177,15 +176,14 @@ func runRecordingProcess(ctx context.Context, r *Recorder) error { //nolint:funl
 		return fmt.Errorf("parse timestamp offset %w", err)
 	}
 
-	hlsChan, cancel, err := r.input.SubsribeToHlsSegmentFinalized()
+	muxer, err := r.input.HLSMuxer()
 	if err != nil {
-		return fmt.Errorf("subcribe: %w", err)
+		return fmt.Errorf("get muxer: %w", err)
 	}
-	defer cancel()
 
-	firstSegment, err := getFirstSegment(ctx, r.prevSeg, hlsChan)
+	firstSegment, err := muxer.NextSegment(r.prevSeg)
 	if err != nil {
-		return fmt.Errorf("start timestamp: %w", err)
+		return fmt.Errorf("first segment: %w", err)
 	}
 
 	offset := 0 + time.Duration(timestampOffsetInt)*time.Millisecond
@@ -225,7 +223,7 @@ func runRecordingProcess(ctx context.Context, r *Recorder) error { //nolint:funl
 	}
 
 	prevSeg, endTime, err := mp4muxer.WriteVideo(
-		ctx, file, hlsChan, firstSegment, *info, videoLength)
+		ctx, file, muxer.NextSegment, firstSegment, *info, videoLength)
 	if err != nil {
 		return fmt.Errorf("write video: %w", err)
 	}
@@ -237,27 +235,6 @@ func runRecordingProcess(ctx context.Context, r *Recorder) error { //nolint:funl
 		return fmt.Errorf("crashed: %w", err)
 	}
 	return nil
-}
-
-func getFirstSegment(
-	ctx context.Context,
-	prevSeg uint64,
-	hlsChan chan []*hls.Segment,
-) (*hls.Segment, error) {
-	var segments []*hls.Segment
-	for {
-		select {
-		case segments = <-hlsChan:
-		case <-ctx.Done():
-			return nil, context.Canceled
-		}
-
-		for _, seg := range segments {
-			if seg.ID > prevSeg {
-				return seg, nil
-			}
-		}
-	}
 }
 
 func (r *Recorder) saveRecording(

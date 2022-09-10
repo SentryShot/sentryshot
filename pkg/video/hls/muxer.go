@@ -45,7 +45,6 @@ func NewMuxer(
 	segmentDuration time.Duration,
 	partDuration time.Duration,
 	segmentMaxSize uint64,
-	onSegmentFinalized OnSegmentFinalizedFunc,
 	logf logFunc,
 	videoTrackExist func() bool,
 	videoSps videoSPSFunc,
@@ -53,7 +52,7 @@ func NewMuxer(
 	audioClockRate audioClockRateFunc,
 	streamInfo StreamInfoFunc,
 ) *Muxer {
-	playlist := newPlaylist(ctx, segmentCount, onSegmentFinalized)
+	playlist := newPlaylist(ctx, segmentCount)
 	go playlist.start()
 
 	m := &Muxer{
@@ -70,7 +69,7 @@ func NewMuxer(
 		videoSps,
 		audioTrackExist,
 		audioClockRate,
-		m.playlist.segmentFinalized,
+		m.playlist.onSegmentFinalized,
 		m.playlist.partFinalized,
 	)
 	return m
@@ -157,6 +156,22 @@ func (m *Muxer) File(
 	return m.playlist.file(name, msn, part, skip)
 }
 
+// StreamInfo return information about the stream.
+func (m *Muxer) StreamInfo() (*StreamInfo, error) {
+	return m.streamInfo()
+}
+
+// WaitForSegFinalized blocks until a new segment has been finalized.
+func (m *Muxer) WaitForSegFinalized() {
+	m.playlist.waitForSegFinalized()
+}
+
+// NextSegment returns the first segment with a ID greater than prevID.
+// Will wait for new segments if the next segment isn't cached.
+func (m *Muxer) NextSegment(prevID uint64) (*Segment, error) {
+	return m.playlist.nextSegment(prevID)
+}
+
 // VideoTimescale the number of time units that pass per second.
 const VideoTimescale = 90000
 
@@ -166,21 +181,25 @@ type VideoSample struct {
 	Dts        time.Duration
 	Avcc       []byte
 	IdrPresent bool
-	Next       *VideoSample
+
+	nextPts        time.Duration
+	NextDts        time.Duration
+	nextIdrPresent bool
 }
 
 func (s VideoSample) duration() time.Duration {
-	return s.Next.Dts - s.Dts
+	return s.NextDts - s.Dts
 }
 
 // AudioSample .
 type AudioSample struct {
-	Au   []byte
-	Pts  time.Duration
-	Next *AudioSample
+	Au  []byte
+	Pts time.Duration
+
+	NextPts time.Duration
 }
 
 // Duration sample duration.
 func (s AudioSample) Duration() time.Duration {
-	return s.Next.Pts - s.Pts
+	return s.NextPts - s.Pts
 }

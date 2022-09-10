@@ -534,12 +534,12 @@ func TestGenInputArgs(t *testing.T) {
 func TestInputStreamInfo(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		mockStreamInfo := &hls.StreamInfo{}
-		streamInfo := func() (*hls.StreamInfo, error) {
-			return mockStreamInfo, nil
-		}
+		muxer := newMockMuxerFunc(&mockMuxer{
+			streamInfo: mockStreamInfo,
+		})
 		i := &InputProcess{
 			serverPath: video.ServerPath{
-				StreamInfo: streamInfo,
+				HLSMuxer: muxer,
 			},
 		}
 		actual, err := i.StreamInfo(context.Background())
@@ -548,12 +548,12 @@ func TestInputStreamInfo(t *testing.T) {
 	})
 	t.Run("error", func(t *testing.T) {
 		mockError := errors.New("mock")
-		streamInfo := func() (*hls.StreamInfo, error) {
-			return nil, mockError
-		}
+		muxer := newMockMuxerFunc(&mockMuxer{
+			streamInfoErr: mockError,
+		})
 		i := &InputProcess{
 			serverPath: video.ServerPath{
-				StreamInfo: streamInfo,
+				HLSMuxer: muxer,
 			},
 		}
 		actual, err := i.StreamInfo(context.Background())
@@ -575,12 +575,10 @@ func TestInputStreamInfo(t *testing.T) {
 		logf := func(_ log.Level, format string, a ...interface{}) {
 			logs <- fmt.Sprintf(format, a...)
 		}
-		streamInfo := func() (*hls.StreamInfo, error) {
-			return nil, nil
-		}
+		muxer := newMockMuxerFunc(&mockMuxer{})
 		i := &InputProcess{
 			serverPath: video.ServerPath{
-				StreamInfo: streamInfo,
+				HLSMuxer: muxer,
 			},
 			logf: logf,
 		}

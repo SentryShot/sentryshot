@@ -2,23 +2,26 @@ package watchdog
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"nvr/pkg/log"
-	"nvr/pkg/video"
-	"nvr/pkg/video/hls"
 
 	"github.com/stretchr/testify/require"
 )
 
-func newTestWatchdog(t *testing.T) (watchdog, chan string) {
-	subFunc := func() (chan []*hls.Segment, video.CancelFunc, error) {
-		return make(chan []*hls.Segment), func() {}, nil
-	}
+type mockMuxer struct{}
 
+func (m *mockMuxer) WaitForSegFinalized() {}
+
+func newMockMuxer(err error) func() (muxer, error) {
+	return func() (muxer, error) {
+		return &mockMuxer{}, err
+	}
+}
+
+func newTestWatchdog(t *testing.T) (watchdog, chan string) {
 	logs := make(chan string)
 	logFunc := func(_ log.Level, format string, a ...interface{}) {
 		logs <- fmt.Sprintf(format, a...)
@@ -26,7 +29,7 @@ func newTestWatchdog(t *testing.T) (watchdog, chan string) {
 
 	d := watchdog{
 		interval: 10 * time.Millisecond,
-		subFunc:  subFunc,
+		muxer:    newMockMuxer(nil),
 		onFreeze: func() {},
 		logf:     logFunc,
 	}
@@ -56,13 +59,5 @@ func TestWatchdog(t *testing.T) {
 
 		d, _ := newTestWatchdog(t)
 		d.start(ctx)
-	})
-	t.Run("subErr", func(t *testing.T) {
-		d, logs := newTestWatchdog(t)
-		d.subFunc = func() (chan []*hls.Segment, video.CancelFunc, error) {
-			return make(chan []*hls.Segment), func() {}, errors.New("mock")
-		}
-		go d.start(context.Background())
-		require.Equal(t, "could not subscribe", <-logs)
 	})
 }

@@ -48,8 +48,7 @@ func TestNewPath(t *testing.T) {
 
 	actual, cancel2, err := p.NewPath("mypath", c)
 	require.NoError(t, err)
-	actual.StreamInfo = nil
-	actual.SubscribeToHlsSegmentFinalized = nil
+	actual.HLSMuxer = nil
 
 	expected := ServerPath{
 		HlsAddress:   "http://127.0.0.1:8888/hls/mypath/index.m3u8",

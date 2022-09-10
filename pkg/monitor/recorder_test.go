@@ -61,9 +61,12 @@ func newTestRecorder(t *testing.T) *Recorder {
 
 			serverPath: video.ServerPath{
 				HlsAddress: "hls.m3u8",
-				StreamInfo: mockStreamInfo,
-
-				SubscribeToHlsSegmentFinalized: mockSegmentFinalize,
+				HLSMuxer: newMockMuxerFunc(
+					&mockMuxer{
+						streamInfo: &hls.StreamInfo{
+							VideoSPS: []byte{0, 0, 0},
+						},
+					}),
 			},
 
 			logf: logf,
@@ -80,30 +83,32 @@ func newTestRecorder(t *testing.T) *Recorder {
 	}
 }
 
-func mockSegmentFinalize() (chan []*hls.Segment, video.CancelFunc, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancelFunc := func() {
-		cancel()
-	}
-	sub := make(chan []*hls.Segment)
-	go func() {
-		for i := 0; i >= 0; i++ {
-			select {
-			case <-ctx.Done():
-				return
-			case sub <- []*hls.Segment{{
-				ID:        uint64(i),
-				StartTime: time.Unix(1*int64(i), 0),
-			}}:
-			}
-		}
-	}()
-	return sub, cancelFunc, nil
+type mockMuxer struct {
+	streamInfo    *hls.StreamInfo
+	streamInfoErr error
+	segCount      int
 }
 
-func mockStreamInfo() (*hls.StreamInfo, error) {
-	return &hls.StreamInfo{VideoSPS: []byte{0, 0, 0}}, nil
+func newMockMuxerFunc(muxer *mockMuxer) func() (video.IHLSMuxer, error) {
+	return func() (video.IHLSMuxer, error) {
+		return muxer, nil
+	}
 }
+
+func (m *mockMuxer) StreamInfo() (*hls.StreamInfo, error) {
+	return m.streamInfo, m.streamInfoErr
+}
+
+func (m *mockMuxer) NextSegment(prevID uint64) (*hls.Segment, error) {
+	seg := &hls.Segment{
+		ID:        uint64(m.segCount),
+		StartTime: time.Unix(1*int64(m.segCount), 0),
+	}
+	m.segCount++
+	return seg, nil
+}
+
+func (m *mockMuxer) WaitForSegFinalized() {}
 
 func TestStartRecorder(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {

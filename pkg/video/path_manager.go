@@ -14,7 +14,7 @@ import (
 type pathManagerHLSServer interface {
 	pathSourceReady(pa *path)
 	pathSourceNotReady(pa *path)
-	streamInfo(string) (*hls.StreamInfo, error)
+	MuxerByPathName(string) (*hls.Muxer, error)
 }
 
 type pathManager struct {
@@ -73,14 +73,11 @@ func (pm *pathManager) run() { //nolint:funlen,gocognit
 		case req := <-pm.chAddPath:
 			newPathConfs := pm.pathConfs
 			if _, exist := newPathConfs[req.name]; exist {
-				req.ret <- ErrPathExist
+				req.ret <- addPathRes{err: ErrPathExist}
 				continue
 			}
-			req.config.streamInfo = func() (*hls.StreamInfo, error) {
-				return pm.hlsServer.streamInfo(req.name)
-			}
 
-			newPathConfs[req.name] = req.config
+			newPathConfs[req.name] = &req.config
 
 			// add confs
 			for pathConfName, pathConf := range newPathConfs {
@@ -95,15 +92,14 @@ func (pm *pathManager) run() { //nolint:funlen,gocognit
 					pm.createPath(pathConfName, pathConf, pathConfName)
 				}
 			}
-			req.ret <- nil
+
+			hlsMuxer := func() (IHLSMuxer, error) {
+				return pm.hlsServer.MuxerByPathName(req.name)
+			}
+
+			req.ret <- addPathRes{hlsMuxer: hlsMuxer}
 
 		case name := <-pm.chRemovePath:
-			pconf, exist := pm.pathConfs[name]
-			if !exist {
-				continue
-			}
-			pconf.cancel()
-
 			// remove confs
 			delete(pm.pathConfs, name)
 
@@ -218,20 +214,23 @@ func (pm *pathManager) findPathConf(name string) (string, *PathConf, error) {
 
 type addPathReq struct {
 	name   string
-	config *PathConf
-	ret    chan error
+	config PathConf
+	ret    chan addPathRes
+}
+
+type addPathRes struct {
+	hlsMuxer HlsMuxerFunc
+	err      error
 }
 
 // AddPath add path to pathManager.
-func (pm *pathManager) AddPath(name string, newConf *PathConf) error {
+func (pm *pathManager) AddPath(name string, newConf PathConf) (HlsMuxerFunc, error) {
 	err := newConf.CheckAndFillMissing(name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	newConf.start(pm.ctx, pm.wg)
-
-	ret := make(chan error)
+	ret := make(chan addPathRes)
 	defer close(ret)
 
 	req := addPathReq{
@@ -241,9 +240,10 @@ func (pm *pathManager) AddPath(name string, newConf *PathConf) error {
 	}
 	select {
 	case <-pm.ctx.Done():
-		return context.Canceled
+		return nil, context.Canceled
 	case pm.chAddPath <- req:
-		return <-ret
+		res := <-ret
+		return res.hlsMuxer, res.err
 	}
 }
 

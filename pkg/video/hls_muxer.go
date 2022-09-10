@@ -25,10 +25,11 @@ type hlsMuxerRequest struct {
 
 type (
 	readerAddFunc  func(req pathReaderAddReq) pathReaderAddRes
-	muxerCloseFunc func(*hlsMuxer)
+	muxerCloseFunc func(*HLSMuxer)
 )
 
-type hlsMuxer struct {
+// HLSMuxer .
+type HLSMuxer struct {
 	wg              *sync.WaitGroup
 	readBufferCount int
 	pathName        string
@@ -43,7 +44,6 @@ type hlsMuxer struct {
 	lastRequestTime *int64
 	muxer           *hls.Muxer
 	requests        []*hlsMuxerRequest
-	streamInfo      hls.StreamInfoFunc
 
 	// in
 	chRequest chan *hlsMuxerRequest
@@ -58,12 +58,12 @@ func newHLSMuxer(
 	readerAdd readerAddFunc,
 	muxerClose muxerCloseFunc,
 	logger *log.Logger,
-) *hlsMuxer {
+) *HLSMuxer {
 	ctx, ctxCancel := context.WithCancel(parentCtx)
 
 	now := time.Now().Unix()
 
-	m := &hlsMuxer{
+	m := &HLSMuxer{
 		readBufferCount: readBufferCount,
 		wg:              wg,
 		pathName:        pathName,
@@ -86,18 +86,18 @@ func newHLSMuxer(
 	return m
 }
 
-func (m *hlsMuxer) close() {
+func (m *HLSMuxer) close() {
 	m.ctxCancel()
 }
 
-func (m *hlsMuxer) logf(format string, a ...interface{}) {
+func (m *HLSMuxer) logf(format string, a ...interface{}) {
 	if m.path == nil {
 		return
 	}
 	sendLogf(m.logger, *m.path.conf, log.LevelError, "HLS:", format, a...)
 }
 
-func (m *hlsMuxer) run() {
+func (m *HLSMuxer) run() {
 	defer m.wg.Done()
 
 	innerCtx, innerCtxCancel := context.WithCancel(context.Background())
@@ -159,7 +159,7 @@ var (
 	ErrNoTracks      = errors.New("the stream doesn't contain an H264 track or an AAC track")
 )
 
-func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) error { //nolint:funlen
+func (m *HLSMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) error { //nolint:funlen
 	res := m.readerAdd(pathReaderAddReq{
 		author:   m,
 		pathName: m.pathName,
@@ -216,7 +216,7 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 	}
 	videoTrackExist := func() bool { return videoTrack != nil }
 	audioTrackExist := func() bool { return audioTrack != nil }
-	m.streamInfo = getStreamInfo(videoTrack, videoTrackID, audioTrack, audioTrackID)
+	streamInfo := getStreamInfo(videoTrack, videoTrackID, audioTrack, audioTrackID)
 
 	ctx, cancel := context.WithCancel(m.ctx)
 	defer cancel()
@@ -227,13 +227,12 @@ func (m *hlsMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 		m.path.hlsSegmentDuration(),
 		m.path.hlsPartDuration(),
 		m.path.hlsSegmentMaxSize(),
-		m.path.conf.onHlsSegmentFinalized,
 		muxerLogFunc,
 		videoTrackExist,
 		videoTrack.SafeSPS,
 		audioTrackExist,
 		audioTrack.ClockRate,
-		m.streamInfo,
+		streamInfo,
 	)
 
 	innerReady <- struct{}{}
@@ -311,7 +310,7 @@ func getStreamInfo(
 	}
 }
 
-func (m *hlsMuxer) runInnerst( //nolint:gocognit
+func (m *HLSMuxer) runInnerst( //nolint:gocognit
 	videoTrack *gortsplib.TrackH264,
 	videoTrackID int,
 	audioTrack *gortsplib.TrackMPEG4Audio,
@@ -367,7 +366,7 @@ func (m *hlsMuxer) runInnerst( //nolint:gocognit
 	}
 }
 
-func (m *hlsMuxer) handleRequest(req *hlsMuxerRequest) func() *hls.MuxerFileResponse {
+func (m *HLSMuxer) handleRequest(req *hlsMuxerRequest) func() *hls.MuxerFileResponse {
 	atomic.StoreInt64(m.lastRequestTime, time.Now().Unix())
 
 	p := req.req.URL.Query()
@@ -396,7 +395,7 @@ func (m *hlsMuxer) handleRequest(req *hlsMuxerRequest) func() *hls.MuxerFileResp
 }
 
 // onRequest is called by hlsserver.Server (forwarded from ServeHTTP).
-func (m *hlsMuxer) onRequest(req *hlsMuxerRequest) {
+func (m *HLSMuxer) onRequest(req *hlsMuxerRequest) {
 	select {
 	case m.chRequest <- req:
 	case <-m.ctx.Done():
@@ -407,10 +406,10 @@ func (m *hlsMuxer) onRequest(req *hlsMuxerRequest) {
 }
 
 // readerAccepted implements reader.
-func (m *hlsMuxer) readerAccepted() {
+func (m *HLSMuxer) readerAccepted() {
 }
 
 // readerData implements reader.
-func (m *hlsMuxer) readerData(data *data) {
+func (m *HLSMuxer) readerData(data *data) {
 	m.ringBuffer.Push(data)
 }

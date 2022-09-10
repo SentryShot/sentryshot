@@ -14,11 +14,6 @@ import (
 	"time"
 )
 
-type streamInfoRequest struct {
-	pathName string
-	res      chan hls.StreamInfoFunc
-}
-
 type hlsServerPathManager interface {
 	hlsServerSet(s pathManagerHLSServer)
 	readerAdd(req pathReaderAddReq) pathReaderAddRes
@@ -32,14 +27,16 @@ type hlsServer struct {
 	ctx       context.Context
 	ctxCancel func()
 	wg        *sync.WaitGroup
-	muxers    map[string]*hlsMuxer
+	muxers    map[string]*HLSMuxer
+
+	muxerByPathNameOnHold map[string]chan *HLSMuxer
 
 	// in
 	chPathSourceReady    chan *path
 	chPathSourceNotReady chan *path
 	chRequest            chan *hlsMuxerRequest
-	chStreamInfo         chan *streamInfoRequest
-	chMuxerClose         chan *hlsMuxer
+	chMuxerbyPathName    chan muxerByPathNameRequest
+	chMuxerClose         chan *HLSMuxer
 }
 
 func newHLSServer(
@@ -49,16 +46,17 @@ func newHLSServer(
 	logger *log.Logger,
 ) *hlsServer {
 	s := &hlsServer{
-		readBufferCount:      readBufferCount,
-		pathManager:          pathManager,
-		logger:               logger,
-		wg:                   wg,
-		muxers:               make(map[string]*hlsMuxer),
-		chPathSourceReady:    make(chan *path),
-		chPathSourceNotReady: make(chan *path),
-		chRequest:            make(chan *hlsMuxerRequest),
-		chStreamInfo:         make(chan *streamInfoRequest),
-		chMuxerClose:         make(chan *hlsMuxer),
+		readBufferCount:       readBufferCount,
+		pathManager:           pathManager,
+		logger:                logger,
+		wg:                    wg,
+		muxers:                make(map[string]*HLSMuxer),
+		muxerByPathNameOnHold: make(map[string]chan *HLSMuxer),
+		chPathSourceReady:     make(chan *path),
+		chPathSourceNotReady:  make(chan *path),
+		chRequest:             make(chan *hlsMuxerRequest),
+		chMuxerbyPathName:     make(chan muxerByPathNameRequest),
+		chMuxerClose:          make(chan *HLSMuxer),
 	}
 	s.pathManager.hlsServerSet(s)
 	return s
@@ -122,6 +120,12 @@ func (s *hlsServer) run() {
 outer:
 	for {
 		select {
+		case <-s.ctx.Done():
+			for _, res := range s.muxerByPathNameOnHold {
+				close(res)
+			}
+			break outer
+
 		case pa := <-s.chPathSourceReady: // TODO: just pass name.
 			s.findOrCreateMuxer(pa.Name(), nil)
 
@@ -134,22 +138,19 @@ outer:
 		case req := <-s.chRequest:
 			s.findOrCreateMuxer(req.path, req)
 
-		case req := <-s.chStreamInfo:
+		case req := <-s.chMuxerbyPathName:
 			m, exist := s.muxers[req.pathName]
-			if !exist || m.streamInfo == nil {
-				req.res <- nil
-			} else {
-				req.res <- m.streamInfo
+			if exist {
+				req.res <- m
+				continue
 			}
+			s.muxerByPathNameOnHold[req.pathName] = req.res
 
 		case c := <-s.chMuxerClose:
 			if c2, ok := s.muxers[c.pathName]; !ok || c2 != c {
 				continue
 			}
 			delete(s.muxers, c.pathName)
-
-		case <-s.ctx.Done():
-			break outer
 		}
 	}
 
@@ -241,6 +242,12 @@ func (s *hlsServer) findOrCreateMuxer(pathName string, req *hlsMuxerRequest) {
 			s.muxerClose,
 			s.logger)
 		s.muxers[pathName] = m
+
+		res, exist := s.muxerByPathNameOnHold[pathName]
+		if exist {
+			res <- m
+			delete(s.muxerByPathNameOnHold, pathName)
+		}
 	} else if req != nil {
 		m.onRequest(req)
 	}
@@ -262,36 +269,34 @@ func (s *hlsServer) pathSourceNotReady(pa *path) {
 	}
 }
 
-// streamInfo returns stream information from muxer pathName.
-func (s *hlsServer) streamInfo(pathName string) (*hls.StreamInfo, error) {
-	res := make(chan hls.StreamInfoFunc)
-	req := &streamInfoRequest{
-		pathName: pathName,
-		res:      res,
-	}
-
-	select {
-	case s.chStreamInfo <- req:
-	case <-s.ctx.Done():
-		return nil, context.Canceled
-	}
-
-	select {
-	case streamInfo := <-res:
-		if streamInfo == nil {
-			return nil, nil
-		}
-		return streamInfo()
-
-	case <-s.ctx.Done():
-		return nil, context.Canceled
-	}
-}
-
 // muxerClose is called by hlsMuxer.
-func (s *hlsServer) muxerClose(c *hlsMuxer) {
+func (s *hlsServer) muxerClose(c *HLSMuxer) {
 	select {
 	case s.chMuxerClose <- c:
 	case <-s.ctx.Done():
+	}
+}
+
+type muxerByPathNameRequest struct {
+	pathName string
+	res      chan *HLSMuxer
+}
+
+// MuxerByPathName .
+func (s *hlsServer) MuxerByPathName(pathName string) (*hls.Muxer, error) {
+	muxerByPathNameRes := make(chan *HLSMuxer)
+	muxerByPathNameReq := muxerByPathNameRequest{
+		pathName: pathName,
+		res:      muxerByPathNameRes,
+	}
+	select {
+	case <-s.ctx.Done():
+		return nil, context.Canceled
+	case s.chMuxerbyPathName <- muxerByPathNameReq:
+		res := <-muxerByPathNameRes
+		if res == nil {
+			return nil, context.Canceled
+		}
+		return res.muxer, nil
 	}
 }

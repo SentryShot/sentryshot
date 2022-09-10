@@ -19,31 +19,29 @@ func TestWriteVideo(t *testing.T) {
 		Dts:        80000,
 		Avcc:       []byte{0x4, 0x5},
 		IdrPresent: true,
-		Next:       &hls.VideoSample{},
 	}
 	videoSample2 := &hls.VideoSample{
-		Pts:  50000,
-		Dts:  60000,
-		Avcc: []byte{0x2, 0x3},
-		Next: videoSample3,
+		Pts:     50000,
+		Dts:     60000,
+		Avcc:    []byte{0x2, 0x3},
+		NextDts: videoSample3.Dts,
 	}
 	videoSample1 := &hls.VideoSample{
 		Pts:        30000,
 		Dts:        40000,
 		Avcc:       []byte{0x0, 0x1},
 		IdrPresent: true,
-		Next:       videoSample2,
+		NextDts:    videoSample2.Dts,
 	}
 
 	audioSample2 := &hls.AudioSample{
-		Au:   []byte{0x8, 0x9},
-		Pts:  20000,
-		Next: &hls.AudioSample{},
+		Au:  []byte{0x8, 0x9},
+		Pts: 20000,
 	}
 	audioSample1 := &hls.AudioSample{
-		Au:   []byte{0x6, 0x7},
-		Pts:  10000,
-		Next: audioSample2,
+		Au:      []byte{0x6, 0x7},
+		Pts:     10000,
+		NextPts: audioSample2.Pts,
 	}
 
 	sps := []byte{
@@ -57,10 +55,7 @@ func TestWriteVideo(t *testing.T) {
 	err := spsp.Unmarshal(sps)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	buf := &mockFile{}
-	hlsChan := make(chan []*hls.Segment)
 	info := hls.StreamInfo{
 		VideoTrackExist: true,
 		VideoSPS:        sps,
@@ -82,37 +77,43 @@ func TestWriteVideo(t *testing.T) {
 			},
 		},
 	}
+	secondSegment := &hls.Segment{
+		StartTime:        time.Unix(0, int64(2*time.Hour)),
+		RenderedDuration: 1 * time.Hour,
 
-	go func() {
-		secondSegment := &hls.Segment{
-			StartTime:        time.Unix(0, int64(2*time.Hour)),
-			RenderedDuration: 1 * time.Hour,
-
-			ID: 2,
-			Parts: []*hls.MuxerPart{
-				{
-					VideoSamples: []*hls.VideoSample{videoSample2},
-					AudioSamples: []*hls.AudioSample{},
-				},
+		ID: 2,
+		Parts: []*hls.MuxerPart{
+			{
+				VideoSamples: []*hls.VideoSample{videoSample2},
+				AudioSamples: []*hls.AudioSample{},
 			},
-		}
-		thirdSegment := &hls.Segment{
-			StartTime:        time.Unix(0, int64(3*time.Hour)),
-			RenderedDuration: 1 * time.Hour,
+		},
+	}
+	thirdSegment := &hls.Segment{
+		StartTime:        time.Unix(0, int64(3*time.Hour)),
+		RenderedDuration: 1 * time.Hour,
 
-			ID: 3,
-			Parts: []*hls.MuxerPart{
-				{
-					VideoSamples: []*hls.VideoSample{videoSample3},
-					AudioSamples: []*hls.AudioSample{audioSample2},
-				},
+		ID: 3,
+		Parts: []*hls.MuxerPart{
+			{
+				VideoSamples: []*hls.VideoSample{videoSample3},
+				AudioSamples: []*hls.AudioSample{audioSample2},
 			},
-		}
-		hlsChan <- []*hls.Segment{firstSegment, secondSegment, thirdSegment}
-		cancel()
-	}()
+		},
+	}
 
-	prevSeg, endTime, err := WriteVideo(ctx, buf, hlsChan, firstSegment, info, 1*time.Hour)
+	nextSegment := func(prevID uint64) (*hls.Segment, error) {
+		switch prevID {
+		case 1:
+			return secondSegment, nil
+		case 2:
+			return thirdSegment, nil
+		}
+		return nil, context.Canceled
+	}
+
+	prevSeg, endTime, err := WriteVideo(
+		context.Background(), buf, nextSegment, firstSegment, info, 1*time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, uint64(3), prevSeg)
 	require.Equal(t, time.Unix(14400, 0), *endTime)

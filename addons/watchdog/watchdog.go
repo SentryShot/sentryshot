@@ -9,7 +9,6 @@ import (
 	"nvr"
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
-	"nvr/pkg/video"
 	"time"
 )
 
@@ -29,8 +28,12 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 		i.Log.Level(level).Src("watchdog").Monitor(monitorID).Msgf(format, a...)
 	}
 
+	muxer := func() (muxer, error) {
+		return i.HLSMuxer()
+	}
+
 	d := &watchdog{
-		subFunc:  i.SubsribeToHlsSegmentFinalized,
+		muxer:    muxer,
 		interval: defaultInterval,
 		onFreeze: i.Cancel,
 		logf:     logf,
@@ -38,37 +41,55 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 	go d.start(ctx)
 }
 
+type muxer interface {
+	WaitForSegFinalized()
+}
+
 type watchdog struct {
-	subFunc  video.SubscibeToHlsSegmentFinalizedFunc
+	muxer    func() (muxer, error)
 	interval time.Duration
 	onFreeze func()
 	logf     func(log.Level, string, ...interface{})
 }
 
 func (d *watchdog) start(ctx context.Context) {
-	sub, cancel, err := d.subFunc()
-	if err != nil {
-		d.onFreeze()
-		d.logf(log.LevelError, "could not subscribe")
+	// Warmup.
+	select {
+	case <-time.After(d.interval):
+	case <-ctx.Done():
 		return
 	}
-	defer cancel()
 
-	watch := func() {
-		select {
-		case <-time.After(d.interval):
-			// Function didn't return in time.
-			d.logf(log.LevelError, "possible freeze detected, restarting..")
-			d.onFreeze()
-		case <-sub:
-		case <-ctx.Done():
+	keepAlive := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-time.After(1 * time.Second):
+			case <-ctx.Done():
+				return
+			}
+
+			muxer, err := d.muxer()
+			if err != nil {
+				d.logf(log.LevelError, "could not get muxer")
+				continue
+			}
+
+			muxer.WaitForSegFinalized()
+			select {
+			case <-ctx.Done():
+				return
+			case keepAlive <- struct{}{}:
+			}
 		}
-	}
+	}()
 
 	for {
 		select {
 		case <-time.After(d.interval):
-			go watch()
+			d.logf(log.LevelError, "possible freeze detected, restarting..")
+			d.onFreeze()
+		case <-keepAlive:
 		case <-ctx.Done():
 			return
 		}

@@ -469,8 +469,12 @@ func (i *InputProcess) StreamInfo(ctx context.Context) (*hls.StreamInfo, error) 
 		if ctx.Err() != nil {
 			return nil, context.Canceled
 		}
+		muxer, err := i.serverPath.HLSMuxer()
+		if err != nil {
+			return nil, fmt.Errorf("get muxer: %w", err)
+		}
 		// Returns nil if the stream isn't available yet.
-		info, err := i.serverPath.StreamInfo()
+		info, err := muxer.StreamInfo()
 		if err != nil {
 			return nil, err
 		}
@@ -487,11 +491,9 @@ func (i *InputProcess) StreamInfo(ctx context.Context) (*hls.StreamInfo, error) 
 	}
 }
 
-// SubsribeToHlsSegmentFinalized .
-func (i *InputProcess) SubsribeToHlsSegmentFinalized() (
-	chan []*hls.Segment, video.CancelFunc, error,
-) {
-	return i.serverPath.SubscribeToHlsSegmentFinalized()
+// HLSMuxer returns the HLS muxer for this input.
+func (i *InputProcess) HLSMuxer() (video.IHLSMuxer, error) {
+	return i.serverPath.HLSMuxer()
 }
 
 // ProcessName name of process "main" or "sub".

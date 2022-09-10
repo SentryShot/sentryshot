@@ -82,10 +82,10 @@ type playlist struct {
 	nextSegmentParts   []*MuxerPart
 	nextPartID         uint64
 
-	onSegmentFinalizedHook OnSegmentFinalizedFunc
-
-	pendingPlaylists map[blockingPlaylistRequest]struct{}
-	pendingParts     map[blockingPartRequest]struct{}
+	playlistsOnHold    map[blockingPlaylistRequest]struct{}
+	partsOnHold        map[blockingPartRequest]struct{}
+	segFinalOnHold     map[chan struct{}]struct{}
+	nextSegmentsOnHold map[nextSegmentRequest]struct{}
 
 	chPlaylist         chan playlistRequest
 	chSegment          chan segmentRequest
@@ -93,29 +93,30 @@ type playlist struct {
 	chPartFinalized    chan partFinalizedRequest
 	chBlockingPlaylist chan blockingPlaylistRequest
 	chBlockingPart     chan blockingPartRequest
+	chWaitForSegFinal  chan chan struct{}
+	chNextSegment      chan nextSegmentRequest
 }
 
-func newPlaylist(
-	ctx context.Context,
-	segmentCount int,
-	onSegmentFinalized OnSegmentFinalizedFunc,
-) *playlist {
+func newPlaylist(ctx context.Context, segmentCount int) *playlist {
 	return &playlist{
 		ctx:            ctx,
 		segmentCount:   segmentCount,
 		segmentsByName: make(map[string]*Segment),
 		partsByName:    make(map[string]*MuxerPart),
 
-		onSegmentFinalizedHook: onSegmentFinalized,
+		playlistsOnHold:    make(map[blockingPlaylistRequest]struct{}),
+		partsOnHold:        make(map[blockingPartRequest]struct{}),
+		segFinalOnHold:     make(map[chan struct{}]struct{}),
+		nextSegmentsOnHold: make(map[nextSegmentRequest]struct{}),
 
 		chPlaylist:         make(chan playlistRequest),
 		chSegment:          make(chan segmentRequest),
 		chSegmentFinalized: make(chan segmentFinalizedRequest),
 		chPartFinalized:    make(chan partFinalizedRequest),
-		pendingPlaylists:   make(map[blockingPlaylistRequest]struct{}),
 		chBlockingPlaylist: make(chan blockingPlaylistRequest),
-		pendingParts:       make(map[blockingPartRequest]struct{}),
 		chBlockingPart:     make(chan blockingPartRequest),
+		chWaitForSegFinal:  make(chan chan struct{}),
+		chNextSegment:      make(chan nextSegmentRequest),
 	}
 }
 
@@ -156,41 +157,7 @@ func (p *playlist) start() { //nolint:funlen,gocognit
 			}
 
 		case req := <-p.chSegmentFinalized:
-			segment := req.segment
-
-			// add initial gaps, required by iOS.
-			if len(p.segments) == 0 {
-				for i := 0; i < 7; i++ {
-					p.segments = append(p.segments, &Gap{
-						renderedDuration: segment.RenderedDuration,
-					})
-				}
-			}
-
-			p.segmentsByName[segment.name] = segment
-			p.segments = append(p.segments, segment)
-			p.nextSegmentID = segment.ID + 1
-			p.nextSegmentParts = p.nextSegmentParts[:0]
-
-			if len(p.segments) > p.segmentCount {
-				toDelete := p.segments[0]
-
-				if toDeleteSeg, ok := toDelete.(*Segment); ok {
-					for _, part := range toDeleteSeg.Parts {
-						delete(p.partsByName, part.name())
-					}
-					p.parts = p.parts[len(toDeleteSeg.Parts):]
-
-					delete(p.segmentsByName, toDeleteSeg.name)
-				}
-
-				p.segments[0] = nil
-				p.segments = p.segments[1:]
-				p.segmentDeleteCount++
-			}
-
-			p.onSegmentFinalizedHook(p.segments)
-			p.checkPending()
+			p.segmentFinalized(req.segment)
 			close(req.done)
 
 		case req := <-p.chPartFinalized:
@@ -215,7 +182,7 @@ func (p *playlist) start() { //nolint:funlen,gocognit
 			}
 
 			if !p.hasContent() || !p.hasPart(req.msnint, req.partint) {
-				p.pendingPlaylists[req] = struct{}{}
+				p.playlistsOnHold[req] = struct{}{}
 				continue
 			}
 			req.res <- &MuxerFileResponse{
@@ -242,18 +209,40 @@ func (p *playlist) start() { //nolint:funlen,gocognit
 
 			if req.partName == partName(p.nextPartID) {
 				req.partID = p.nextPartID
-				p.pendingParts[req] = struct{}{}
+				p.partsOnHold[req] = struct{}{}
 				continue
 			}
 
 			req.res <- &MuxerFileResponse{Status: http.StatusNotFound}
+
+		case res := <-p.chWaitForSegFinal:
+			p.segFinalOnHold[res] = struct{}{}
+
+		case req := <-p.chNextSegment:
+			seg := func() *Segment {
+				for _, s := range p.segments {
+					seg, ok := s.(*Segment)
+					if !ok {
+						continue
+					}
+					if seg.ID > req.prevID {
+						return seg
+					}
+				}
+				return nil
+			}()
+			if seg != nil {
+				req.res <- seg
+			} else {
+				p.nextSegmentsOnHold[req] = struct{}{}
+			}
 		}
 	}
 }
 
 func (p *playlist) checkPending() {
 	if p.hasContent() {
-		for req := range p.pendingPlaylists {
+		for req := range p.playlistsOnHold {
 			if !p.hasPart(req.msnint, req.partint) {
 				return
 			}
@@ -264,10 +253,10 @@ func (p *playlist) checkPending() {
 				},
 				Body: bytes.NewReader(p.fullPlaylist(req.isDeltaUpdate)),
 			}
-			delete(p.pendingPlaylists, req)
+			delete(p.playlistsOnHold, req)
 		}
 	}
-	for req := range p.pendingParts {
+	for req := range p.partsOnHold {
 		if p.nextPartID <= req.partID {
 			return
 		}
@@ -279,20 +268,26 @@ func (p *playlist) checkPending() {
 			},
 			Body: part.reader(),
 		}
-		delete(p.pendingParts, req)
+		delete(p.partsOnHold, req)
 	}
 }
 
 func (p *playlist) cleanup() {
-	for req := range p.pendingPlaylists {
+	for req := range p.playlistsOnHold {
 		req.res <- &MuxerFileResponse{
 			Status: http.StatusInternalServerError,
 		}
 	}
-	for req := range p.pendingParts {
+	for req := range p.partsOnHold {
 		req.res <- &MuxerFileResponse{
 			Status: http.StatusInternalServerError,
 		}
+	}
+	for done := range p.segFinalOnHold {
+		close(done)
+	}
+	for req := range p.nextSegmentsOnHold {
+		close(req.res)
 	}
 }
 
@@ -605,7 +600,7 @@ type segmentFinalizedRequest struct {
 	done    chan struct{}
 }
 
-func (p *playlist) segmentFinalized(segment *Segment) {
+func (p *playlist) onSegmentFinalized(segment *Segment) {
 	done := make(chan struct{})
 	req := segmentFinalizedRequest{
 		segment: segment,
@@ -616,6 +611,57 @@ func (p *playlist) segmentFinalized(segment *Segment) {
 	case p.chSegmentFinalized <- req:
 		<-done
 	}
+}
+
+func (p *playlist) segmentFinalized(segment *Segment) {
+	// add initial gaps, required by iOS.
+	if len(p.segments) == 0 {
+		for i := 0; i < 7; i++ {
+			p.segments = append(p.segments, &Gap{
+				renderedDuration: segment.RenderedDuration,
+			})
+		}
+	}
+
+	p.segmentsByName[segment.name] = segment
+	p.segments = append(p.segments, segment)
+	p.nextSegmentID = segment.ID + 1
+	p.nextSegmentParts = p.nextSegmentParts[:0]
+
+	if len(p.segments) > p.segmentCount {
+		toDelete := p.segments[0]
+
+		if toDeleteSeg, ok := toDelete.(*Segment); ok {
+			for _, part := range toDeleteSeg.Parts {
+				delete(p.partsByName, part.name())
+			}
+
+			// Free memory!
+			for i := 0; i < len(toDeleteSeg.Parts); i++ {
+				p.parts[i] = nil
+			}
+			p.parts = p.parts[len(toDeleteSeg.Parts):]
+
+			delete(p.segmentsByName, toDeleteSeg.name)
+		}
+
+		p.segments[0] = nil // Free memory!
+		p.segments = p.segments[1:]
+		p.segmentDeleteCount++
+	}
+
+	for done := range p.segFinalOnHold {
+		close(done)
+		delete(p.segFinalOnHold, done)
+	}
+	for req := range p.nextSegmentsOnHold {
+		if segment.ID > req.prevID {
+			req.res <- segment
+			delete(p.nextSegmentsOnHold, req)
+		}
+	}
+
+	p.checkPending()
 }
 
 type partFinalizedRequest struct {
@@ -633,5 +679,37 @@ func (p *playlist) partFinalized(part *MuxerPart) {
 	case <-p.ctx.Done():
 	case p.chPartFinalized <- req:
 		<-done
+	}
+}
+
+func (p *playlist) waitForSegFinalized() {
+	res := make(chan struct{})
+	select {
+	case <-p.ctx.Done():
+	case p.chWaitForSegFinal <- res:
+		<-res
+	}
+}
+
+type nextSegmentRequest struct {
+	prevID uint64
+	res    chan *Segment
+}
+
+func (p *playlist) nextSegment(prevID uint64) (*Segment, error) {
+	nextSegmentRes := make(chan *Segment)
+	nextSegmentReq := nextSegmentRequest{
+		prevID: prevID,
+		res:    nextSegmentRes,
+	}
+	select {
+	case <-p.ctx.Done():
+		return nil, context.Canceled
+	case p.chNextSegment <- nextSegmentReq:
+		res := <-nextSegmentRes
+		if res == nil {
+			return nil, context.Canceled
+		}
+		return res, nil
 	}
 }

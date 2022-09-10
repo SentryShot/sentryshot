@@ -63,19 +63,27 @@ func (s *Server) Start(ctx context.Context) error {
 // CancelFunc .
 type CancelFunc func()
 
+// HlsMuxerFunc .
+type HlsMuxerFunc func() (IHLSMuxer, error)
+
+// IHLSMuxer HLS muxer interface.
+type IHLSMuxer interface {
+	StreamInfo() (*hls.StreamInfo, error)
+	WaitForSegFinalized()
+	NextSegment(prevID uint64) (*hls.Segment, error)
+}
+
 // ServerPath .
 type ServerPath struct {
 	HlsAddress   string
 	RtspAddress  string
 	RtspProtocol string
-	StreamInfo   hls.StreamInfoFunc
-
-	SubscribeToHlsSegmentFinalized SubscibeToHlsSegmentFinalizedFunc
+	HLSMuxer     HlsMuxerFunc
 }
 
 // NewPath add path.
 func (s *Server) NewPath(name string, newConf PathConf) (*ServerPath, CancelFunc, error) {
-	err := s.pathManager.AddPath(name, &newConf)
+	hlsMuxer, err := s.pathManager.AddPath(name, newConf)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -88,9 +96,7 @@ func (s *Server) NewPath(name string, newConf PathConf) (*ServerPath, CancelFunc
 		HlsAddress:   "http://" + s.hlsAddress + "/hls/" + name + "/index.m3u8",
 		RtspAddress:  "rtsp://" + s.rtspAddress + "/" + name,
 		RtspProtocol: "tcp",
-		StreamInfo:   newConf.streamInfo,
-
-		SubscribeToHlsSegmentFinalized: newConf.subscibeToHlsSegmentFinalized,
+		HLSMuxer:     hlsMuxer,
 	}, cancelFunc, nil
 }
 
