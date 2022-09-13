@@ -34,8 +34,8 @@ import (
 
 // Manager handles storage interactions.
 type Manager struct {
-	path    string
-	general *ConfigGeneral
+	storageDir string
+	general    *ConfigGeneral
 
 	usage     func(string) int64
 	removeAll func(string) error
@@ -44,10 +44,10 @@ type Manager struct {
 }
 
 // NewManager returns new manager.
-func NewManager(path string, general *ConfigGeneral, log *log.Logger) *Manager {
+func NewManager(storageDir string, general *ConfigGeneral, log *log.Logger) *Manager {
 	return &Manager{
-		path:    path,
-		general: general,
+		storageDir: storageDir,
+		general:    general,
 
 		usage:     diskUsage,
 		removeAll: os.RemoveAll,
@@ -111,7 +111,7 @@ func diskUsage(path string) int64 {
 
 // Usage return DiskUsage.
 func (s *Manager) Usage() (DiskUsage, error) {
-	used := s.usage(s.path)
+	used := s.usage(s.storageDir)
 
 	diskSpace := s.general.Get()["diskSpace"]
 	if diskSpace == "0" || diskSpace == "" {
@@ -189,7 +189,7 @@ func (s *Manager) purge() error {
 
 // RecordingsDir Returns path to recordings diectory.
 func (s *Manager) RecordingsDir() string {
-	return filepath.Join(s.path, "recordings")
+	return filepath.Join(s.storageDir, "recordings")
 }
 
 // PurgeLoop runs Purge on an interval until context is canceled.

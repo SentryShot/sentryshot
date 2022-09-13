@@ -27,6 +27,7 @@ import (
 	"nvr/pkg/storage"
 	"nvr/pkg/web/auth"
 	"nvr/web/static"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -44,18 +45,6 @@ func Static() http.Handler {
 		w.Header().Set("Cache-Control", "no-cache")
 
 		h := http.StripPrefix("/static/", http.FileServer(http.FS(static.Static)))
-		h.ServeHTTP(w, r)
-	})
-}
-
-// Storage serves files from `web/static`.
-func Storage(path string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
-			return
-		}
-		h := http.StripPrefix("/storage/", http.FileServer(http.Dir(path)))
 		h.ServeHTTP(w, r)
 	})
 }
@@ -408,8 +397,51 @@ func GroupDelete(m *group.Manager) http.Handler {
 	})
 }
 
-// RecordingQuery handles recording queries.
-// TODO: Replace api with: time, limit, reverse, monitors[].
+// RecordingThumbnail serves thumbnail by exact recording ID.
+func RecordingThumbnail(recordingsDir string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		recID := r.URL.Path[25:] // Trim "/api/recording/thumbnail/"
+		recPath, err := storage.RecordingIDToPath(recID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		thumbPath := filepath.Join(recordingsDir, recPath+".jpeg")
+
+		// ServeFile will sanitize ".."
+		http.ServeFile(w, r, thumbPath)
+	})
+}
+
+// RecordingVideo serves video by exact recording ID.
+func RecordingVideo(recordingsDir string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		recID := r.URL.Path[21:] // Trim "/api/recording/video/"
+		recPath, err := storage.RecordingIDToPath(recID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		videoPath := filepath.Join(recordingsDir, recPath+".mp4")
+
+		// ServeFile will sanitize ".."
+		http.ServeFile(w, r, videoPath)
+	})
+}
+
+// RecordingQuery handles recording query.
 func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //nolint:funlen
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -429,13 +461,13 @@ func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //
 			return
 		}
 
-		before := query.Get("before")
-		if before == "" {
-			http.Error(w, "before missing", http.StatusBadRequest)
+		time := query.Get("time")
+		if time == "" {
+			http.Error(w, "time missing", http.StatusBadRequest)
 			return
 		}
-		if len(before) < 19 {
-			http.Error(w, "before to short", http.StatusBadRequest)
+		if len(time) < 19 {
+			http.Error(w, "time value to short", http.StatusBadRequest)
 			return
 		}
 		reverse := query.Get("reverse")
@@ -453,11 +485,11 @@ func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //
 		}
 
 		q := &storage.CrawlerQuery{
-			Time:     before,
-			Limit:    limitInt,
-			Reverse:  reverse == "true",
-			Monitors: monitors,
-			Data:     data,
+			Time:        time,
+			Limit:       limitInt,
+			Reverse:     reverse == "true",
+			Monitors:    monitors,
+			IncludeData: data,
 		}
 
 		recordings, err := crawler.RecordingByQuery(q)

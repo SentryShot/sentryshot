@@ -40,7 +40,8 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 		for (const rec of Object.values(recordings)) {
 			let d = {}; // Recording data.
 			d.id = rec.id;
-			d.path = toAbsolutePath(rec.path);
+			d.videoPath = toAbsolutePath(`api/recording/video/${d.id}`);
+			d.thumbPath = toAbsolutePath(`api/recording/thumbnail/${d.id}`);
 			d.name = await monitorNameByID(d.id.slice(20));
 			d.timeZone = timeZone;
 
@@ -49,7 +50,7 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 				d.end = Date.parse(rec.data.end);
 				d.events = rec.data.events;
 			} else {
-				d.start = Date.parse(idToISOstring(d.id, d.path));
+				d.start = Date.parse(idToISOstring(d.id));
 			}
 
 			const player = newPlayer(d);
@@ -76,7 +77,7 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 
 		const parameters = new URLSearchParams({
 			limit: limit,
-			before: current,
+			time: current,
 			monitors: selectedMonitors.join(","),
 			data: true,
 		});

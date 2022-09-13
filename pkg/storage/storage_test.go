@@ -55,7 +55,7 @@ func TestUsage(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := Manager{
-				path: "testdata",
+				storageDir: "testdata",
 				general: &ConfigGeneral{
 					Config: map[string]string{
 						"diskSpace": tc.space,
@@ -75,7 +75,7 @@ func TestUsage(t *testing.T) {
 
 	t.Run("diskSpaceZero", func(t *testing.T) {
 		s := Manager{
-			path: "testdata",
+			storageDir: "testdata",
 			general: &ConfigGeneral{
 				Config: map[string]string{},
 			},
@@ -154,9 +154,9 @@ func TestPurge(t *testing.T) {
 			},
 			"ok": {
 				&Manager{
-					path:    "testdata",
-					general: diskSpace1,
-					usage:   highUsage,
+					storageDir: "testdata",
+					general:    diskSpace1,
+					usage:      highUsage,
 					removeAll: func(string) error {
 						return nil
 					},
@@ -165,9 +165,9 @@ func TestPurge(t *testing.T) {
 			},
 			"removeAllErr": {
 				&Manager{
-					path:    "testdata",
-					general: diskSpace1,
-					usage:   highUsage,
+					storageDir: "testdata",
+					general:    diskSpace1,
+					usage:      highUsage,
 					removeAll: func(string) error {
 						return errors.New("")
 					},
@@ -195,7 +195,7 @@ func TestPurge(t *testing.T) {
 		require.NoError(t, err)
 
 		m := &Manager{
-			path: tempDir,
+			storageDir: tempDir,
 			general: &ConfigGeneral{
 				Config: map[string]string{
 					"diskSpace": "1",
@@ -221,9 +221,9 @@ func TestPurge(t *testing.T) {
 func TestPurgeLoop(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		m := &Manager{
-			path:    "testdata",
-			general: diskSpace1,
-			usage:   highUsage,
+			storageDir: "testdata",
+			general:    diskSpace1,
+			usage:      highUsage,
 			removeAll: func(_ string) error {
 				return nil
 			},
@@ -239,10 +239,10 @@ func TestPurgeLoop(t *testing.T) {
 		feed, cancel2 := logger.Subscribe()
 
 		m := &Manager{
-			path:    "testdata",
-			general: diskSpaceErr,
-			usage:   highUsage,
-			log:     logger,
+			storageDir: "testdata",
+			general:    diskSpaceErr,
+			usage:      highUsage,
+			log:        logger,
 		}
 		ctx, cancel3 := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel3()

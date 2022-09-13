@@ -122,7 +122,23 @@ Delete a monitor by id.
 
 ## Recording
 
-### GET /api/recording/query?limit=1&before=2025-12-28_23-59-59&reverse=true&monitors=m1,m2&data=true
+### GET /api/recording/thumbnail/\<recording-id>
+
+##### Auth: user
+
+Thumbnail by exact recording ID.
+
+<br>
+
+### GET /api/recording/video/\<recording-id>
+
+##### Auth: user
+
+Video by exact recording ID.
+
+<br>
+
+### GET /api/recording/query?limit=1&time=2025-12-28_23-59-59&reverse=true&monitors=m1,m2&data=true
 
 ##### Auth: user
 
@@ -134,7 +150,6 @@ example response: data=false
 [
   {
     "id":"YYYY-MM-DD_hh-mm-ss_id",
-    "path":"storage/recordings/YYYY/MM/DD/id/YYYY-MM-DD_hh-mm-ss_id",
     "data": null
   }
 ]
@@ -145,7 +160,6 @@ example response: data=true
 ```
 [{
   "id":"YYYY-MM-DD_hh-mm-ss_id",
-  "path":"storage/recordings/YYYY/MM/DD/id/YYYY-MM-DD_hh-mm-ss_id",
   "data": {
     "start": "YYYY-MM-DDThh:mm:ss.000000000Z",
     "end": "YYYY-MM-DDThh:mm:ss.000000000Z",
@@ -159,7 +173,7 @@ example response: data=true
             }
         }],
         "duration": 000000000
-}]}}}
+}]}}]
 ```
 
 <br>

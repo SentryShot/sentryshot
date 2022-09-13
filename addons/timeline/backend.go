@@ -19,13 +19,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"nvr"
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
+	"nvr/pkg/web/auth"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -34,6 +37,39 @@ func init() {
 	nvr.RegisterLogSource([]string{"timeline"})
 	nvr.RegisterMonitorRecSavedHook(onRecSaved)
 	nvr.RegisterMigrationMonitorHook(migrate)
+
+	var a auth.Authenticator
+	nvr.RegisterAuthHook(func(auth auth.Authenticator) {
+		a = auth
+	})
+	var env storage.ConfigEnv
+	nvr.RegisterEnvHook(func(e storage.ConfigEnv) {
+		env = e
+	})
+	nvr.RegisterMuxHook(func(mux *http.ServeMux) {
+		mux.Handle("/api/recording/timeline/", a.User(handleTimeline(env.RecordingsDir())))
+	})
+}
+
+func handleTimeline(recordingsDir string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		recID := r.URL.Path[24:] // Trim "/api/recording/timeline/"
+		timelinePath, err := storage.RecordingIDToPath(recID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		path := filepath.Join(recordingsDir, timelinePath+".timeline")
+
+		// ServeFile will sanitize ".."
+		http.ServeFile(w, r, path)
+	})
 }
 
 func onRecSaved(r *monitor.Recorder, recPath string, recData storage.RecordingData) {
@@ -42,8 +78,8 @@ func onRecSaved(r *monitor.Recorder, recPath string, recData storage.RecordingDa
 		r.Log.Level(level).Src("timeline").Monitor(id).Msgf(format, a...)
 	}
 
-	tempPath := recPath + "_timeline_tmp.mp4"
-	timelinePath := recPath + "_timeline.mp4"
+	tempPath := recPath + ".timeline_tmp"
+	timelinePath := recPath + ".timeline"
 	opts := argOpts{
 		logLevel:   r.Config.LogLevel(),
 		inputPath:  recPath + ".mp4",
@@ -114,7 +150,8 @@ func genArgs(opts argOpts, c config) []string {
 
 	args = append(args, filters)
 
-	args = append(args, "-movflags", "empty_moov+default_base_moof+frag_keyframe", opts.outputPath)
+	args = append(args, "-movflags", "empty_moov+default_base_moof+frag_keyframe")
+	args = append(args, "-f", "mp4", opts.outputPath)
 
 	return args
 }

@@ -7,12 +7,11 @@ import (
 	"time"
 )
 
-// Recording contains identifier, path and optionally data.
+// Recording contains identifier and optionally data.
 // `.mp4`, `.jpeg` or `.json` can be appended to the
 // path to get the video, thumbnail or data file.
 type Recording struct {
 	ID   string         `json:"id"`
-	Path string         `json:"path"`
 	Data *RecordingData `json:"data"`
 }
 

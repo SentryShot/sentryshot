@@ -189,36 +189,13 @@ func TestRecordingByQuery(t *testing.T) {
 		)
 		require.Error(t, err)
 	})
-	t.Run("paths", func(t *testing.T) {
-		paths := []string{
-			"testdata/recordings",
-			"./testdata/recordings",
-			"./testdata/recordings/",
-		}
-		for _, path := range paths {
-			t.Run(path, func(t *testing.T) {
-				c := NewCrawler(path)
-				query := &CrawlerQuery{
-					Time:  "2003-01-01_1_m1",
-					Limit: 1,
-				}
-				recordings, _ := c.RecordingByQuery(query)
-				var path string
-				if len(recordings) != 0 {
-					path = recordings[0].Path
-				}
-				expected := "storage/recordings/2002/01/01/m1/2002-01-01_1_m1"
-				require.Equal(t, path, expected)
-			})
-		}
-	})
 	t.Run("data", func(t *testing.T) {
 		c := NewCrawler("./testdata/recordings")
 		rec, err := c.RecordingByQuery(
 			&CrawlerQuery{
-				Time:  "9999-01-01",
-				Limit: 1,
-				Data:  true,
+				Time:        "9999-01-01",
+				Limit:       1,
+				IncludeData: true,
 			},
 		)
 		require.NoError(t, err)
@@ -238,12 +215,27 @@ func TestRecordingByQuery(t *testing.T) {
 		c := NewCrawler("./testdata/recordings")
 		rec, err := c.RecordingByQuery(
 			&CrawlerQuery{
-				Time:  "2002-01-01",
-				Limit: 1,
-				Data:  true,
+				Time:        "2002-01-01",
+				Limit:       1,
+				IncludeData: true,
 			},
 		)
 		require.NoError(t, err)
 		require.Nil(t, rec[0].Data)
+	})
+}
+
+func TestRecordingIDToPath(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		id := "2001-02-03_04-05-06_x"
+		actual, err := RecordingIDToPath(id)
+		require.NoError(t, err)
+
+		expected := "2001/02/03/x/2001-02-03_04-05-06_x"
+		require.Equal(t, expected, actual)
+	})
+	t.Run("err", func(t *testing.T) {
+		_, err := RecordingIDToPath("")
+		require.ErrorIs(t, err, ErrInvalidRecordingID)
 	})
 }

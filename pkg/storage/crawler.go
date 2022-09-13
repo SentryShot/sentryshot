@@ -47,21 +47,25 @@ type CrawlerQuery struct {
 	Limit    int
 	Reverse  bool
 	Monitors []string
-	Data     bool // If data should be read from file and included.
-	cache    queryCache
+
+	// If event data should be read from file and included.
+	IncludeData bool
+
+	// Query scoped cache to avoid reading the same directory twice.
+	cache queryCache
 }
 
 type queryCache map[string][]dir
 
 // Crawler crawls through storage looking for recordings.
 type Crawler struct {
-	path string
+	recordingsDir string
 }
 
 // NewCrawler creates new crawler.
-func NewCrawler(path string) *Crawler {
+func NewCrawler(recordingsDir string) *Crawler {
 	return &Crawler{
-		path: filepath.Clean(path),
+		recordingsDir: filepath.Clean(recordingsDir),
 	}
 }
 
@@ -102,14 +106,14 @@ func (c *Crawler) RecordingByQuery(q *CrawlerQuery) ([]Recording, error) {
 			return recordings, nil
 		}
 
-		recordings = append(recordings, c.newRecording(file.path, q.Data))
+		recordings = append(recordings, c.newRecording(file.path, q.IncludeData))
 	}
 	return recordings, nil
 }
 
 // Removes storageDir from input and replaces it with "storage".
 func (c *Crawler) cleanPath(input string) string {
-	storageDirLen := len(filepath.Clean(c.path))
+	storageDirLen := len(c.recordingsDir)
 	return "storage/recordings" + input[storageDirLen:]
 }
 
@@ -125,7 +129,7 @@ func (c *Crawler) findVideo(q *CrawlerQuery) (*dir, error) {
 	}
 
 	root := &dir{
-		path:  c.path,
+		path:  c.recordingsDir,
 		depth: 0,
 		query: q,
 	}
@@ -174,17 +178,13 @@ func (c *Crawler) findVideo(q *CrawlerQuery) (*dir, error) {
 	return current.sibling()
 }
 
-func (c *Crawler) newRecording(rawPath string, data bool) Recording {
+func (c *Crawler) newRecording(rawPath string, includeData bool) Recording {
 	path := c.cleanPath(rawPath)
-	var d *RecordingData
-	if data {
-		d = readDataFile(rawPath + ".json")
+	rec := Recording{ID: filepath.Base(path)}
+	if includeData {
+		rec.Data = readDataFile(rawPath + ".json")
 	}
-	return Recording{
-		ID:   filepath.Base(path),
-		Path: path,
-		Data: d,
-	}
+	return rec
 }
 
 func readDataFile(path string) *RecordingData {
@@ -420,4 +420,26 @@ func (d *dir) sibling() (*dir, error) {
 		}
 	}
 	return nil, fmt.Errorf("%v: %w", d.path, ErrNoSibling)
+}
+
+// ErrInvalidRecordingID invalid recording ID.
+var ErrInvalidRecordingID = errors.New("invalid recording ID")
+
+// RecordingIDToPath converts recording ID to path.
+func RecordingIDToPath(id string) (string, error) {
+	if len(id) < 20 {
+		return "", ErrInvalidRecordingID
+	}
+	if id[4] != '-' || id[7] != '-' ||
+		id[10] != '_' || id[13] != '-' ||
+		id[16] != '-' || id[19] != '_' {
+		return "", fmt.Errorf("%w: %v", ErrInvalidRecordingID, id)
+	}
+
+	year := id[0:4]
+	month := id[5:7]
+	day := id[8:10]
+	monitorID := id[20:]
+
+	return filepath.Join(year, month, day, monitorID, id), nil
 }

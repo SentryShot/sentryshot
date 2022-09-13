@@ -40,16 +40,18 @@ const events = [
 describe("newPlayer", () => {
 	const data = {
 		id: "A",
-		path: "B",
-		name: "C",
+		thumbPath: "B",
+		videoPath: "C",
+		name: "D",
 		start: Date.parse("2001-06-02T00:00:01.000000Z"),
 		timeZone: "gmt",
 	};
 
 	const dataWithEvents = {
 		id: "A",
-		path: "B",
-		name: "C",
+		thumbPath: "B",
+		videoPath: "C",
+		name: "D",
 		start: Date.parse("2001-06-02T00:00:00.000000Z"),
 		end: Date.parse("2001-06-02T00:10:00.000000Z"),
 		timeZone: "gmt",
@@ -77,11 +79,11 @@ describe("newPlayer", () => {
 		});
 		const thumbnailHTML = `
 				<div id="recA" class="grid-item-container">
-					<img class="grid-item" src="B.jpeg">
+					<img class="grid-item" src="B">
 					<div class="player-overlay-top player-top-bar">
 						<span class="player-menu-text js-date">2001-06-02</span>
 						<span class="player-menu-text js-time">00:00:00</span>
-						<span class="player-menu-text">C</span>
+						<span class="player-menu-text">D</span>
 					</div>
 					<svg class="player-timeline" viewBox="00100100" preserveAspectRatio="none">
 						<rect x="10" width="10" y="0" height="100"></rect>
@@ -96,7 +98,7 @@ describe("newPlayer", () => {
 		const videoHTML = `
 				<div id="recA" class="grid-item-container js-loaded">
 					<video class="grid-item" disablepictureinpicture="">
-						<source src="B.mp4" type="video/mp4">
+						<source src="C" type="video/mp4">
 					</video>
 					<svg 
 						class="player-detections"
@@ -129,7 +131,7 @@ describe("newPlayer", () => {
 							<img src="static/icons/feather/more-vertical.svg">
 						</button>
 						<div class="player-options-popup">
-							<a download="" href="B.mp4"class="player-options-btn">
+							<a download="" href="C"class="player-options-btn">
 								<img src="static/icons/feather/download.svg">
 							</a>
 							<button class="player-options-btn js-fullscreen">
@@ -141,7 +143,7 @@ describe("newPlayer", () => {
 						<div class="player-top-bar">
 							<span class="player-menu-text js-date">2001-06-02</span>
 							<span class="player-menu-text js-time">00:00:00</span>
-							<span class="player-menu-text">C</span>
+							<span class="player-menu-text">D</span>
 						</div>
 					</div>
 				</div>`.replace(/\s/g, "");

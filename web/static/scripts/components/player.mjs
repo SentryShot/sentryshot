@@ -107,8 +107,9 @@ function newPlayer(data) {
 			<span class="player-menu-text js-date">${dateString}</span>
 			<span class="player-menu-text js-time">${timeString}</span>
 			<span class="player-menu-text">${d.name}</span>`;
+
 	const thumbHTML = `
-		<img class="grid-item" src="${d.path}.jpeg" />
+		<img class="grid-item" src="${d.thumbPath}" />
 		<div class="player-overlay-top player-top-bar">
 			${topOverlayHTML}
 		</div>
@@ -119,7 +120,7 @@ function newPlayer(data) {
 			class="grid-item"
 			disablePictureInPicture
 		>
-			<source src="${d.path}.mp4" type="video/mp4" />
+			<source src="${d.videoPath}" type="video/mp4" />
 		</video>
 		${detectionRenderer.html}
 		<input class="player-overlay-checkbox" id="${elementID}-overlay-checkbox" type="checkbox">
@@ -138,7 +139,7 @@ function newPlayer(data) {
 				<img src="static/icons/feather/more-vertical.svg">
 			</button>
 			<div class="player-options-popup">
-				<a download href="${d.path}.mp4" class="player-options-btn">
+				<a download href="${d.videoPath}" class="player-options-btn">
 					<img src="static/icons/feather/download.svg">
 				</a>
 				<button class="player-options-btn js-fullscreen">

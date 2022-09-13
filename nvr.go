@@ -206,7 +206,6 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/debug", a.Admin(t.Render("debug.tpl")))
 
 	mux.Handle("/static/", a.User(web.Static()))
-	mux.Handle("/storage/", a.User(web.Storage(env.StorageDir)))
 	mux.Handle("/hls/", a.User(videoServer.HandleHLS()))
 
 	mux.Handle("/api/system/time-zone", a.User(web.TimeZone(timeZone)))
@@ -230,7 +229,10 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/api/group/set", a.Admin(a.CSRF(web.GroupSet(groupManager))))
 	mux.Handle("/api/group/delete", a.Admin(a.CSRF(web.GroupDelete(groupManager))))
 
+	mux.Handle("/api/recording/thumbnail/", a.User(web.RecordingThumbnail(env.RecordingsDir())))
+	mux.Handle("/api/recording/video/", a.User(web.RecordingVideo(env.RecordingsDir())))
 	mux.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler, logger)))
+
 	mux.Handle("/api/log/feed", a.Admin(web.LogFeed(logger, a)))
 	mux.Handle("/api/log/query", a.Admin(web.LogQuery(logDB)))
 	mux.Handle("/api/log/sources", a.Admin(web.LogSources(logger)))

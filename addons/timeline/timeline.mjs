@@ -179,8 +179,7 @@ async function newPlayer(element) {
 	};
 
 	const fetchSegment = async (rec) => {
-		const url = rec.path + "_timeline.mp4";
-		const response = await fetch(url);
+		const response = await fetch(rec.path);
 		if (response.status !== 200) {
 			return;
 		}
@@ -359,7 +358,7 @@ function newTimeline(element, player, timezone) {
 		const limit = 5;
 		const parameters = new URLSearchParams({
 			limit: limit,
-			before: current,
+			time: current,
 			monitors: [monitors[0]],
 			data: true,
 		});
@@ -381,7 +380,7 @@ function newTimeline(element, player, timezone) {
 				continue;
 			}
 
-			rec.path = toAbsolutePath(rec.path);
+			rec.path = toAbsolutePath(`api/recording/timeline/${rec.id}`);
 
 			rec.start = new Date(Date.parse(rec.data.start));
 			rec.end = new Date(Date.parse(rec.data.end));

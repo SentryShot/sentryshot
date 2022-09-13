@@ -97,7 +97,7 @@ describe("newViewer", () => {
 		window.fetch = (r) => {
 			if (
 				r ===
-				"api/recording/query?limit=&before=2000-01-02_03-04-05&monitors=&data=true"
+				"api/recording/query?limit=&time=2000-01-02_03-04-05&monitors=&data=true"
 			) {
 				ok = true;
 			}

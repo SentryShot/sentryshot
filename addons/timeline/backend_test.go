@@ -45,7 +45,8 @@ func TestGenArgs(t *testing.T) {
 			"-c:v", "libx264", "-x264-params", "keyint=4",
 			"-preset", "veryfast", "-tune", "fastdecode", "-crf", "18",
 			"-vsync", "vfr", "-vf", "mpdecimate,fps=0.0167,mpdecimate",
-			"-movflags", "empty_moov+default_base_moof+frag_keyframe", "4",
+			"-movflags", "empty_moov+default_base_moof+frag_keyframe",
+			"-f", "mp4", "4",
 		}
 		require.Equal(t, actual, expected)
 	})
@@ -69,7 +70,8 @@ func TestGenArgs(t *testing.T) {
 			"-c:v", "libx264", "-x264-params", "keyint=4",
 			"-preset", "veryfast", "-tune", "fastdecode", "-crf", "51",
 			"-vsync", "vfr", "-vf", "mpdecimate,fps=1.0000,mpdecimate,scale='iw/2:ih/2'",
-			"-movflags", "empty_moov+default_base_moof+frag_keyframe", "4",
+			"-movflags", "empty_moov+default_base_moof+frag_keyframe",
+			"-f", "mp4", "4",
 		}
 		require.Equal(t, actual, expected)
 	})
@@ -89,7 +91,8 @@ func TestGenArgs(t *testing.T) {
 			"-c:v", "libx264", "-x264-params", "keyint=4",
 			"-preset", "veryfast", "-tune", "fastdecode", "-crf", "27",
 			"-vsync", "vfr", "-vf", "mpdecimate,fps=6,mpdecimate,scale='iw/8:ih/8'",
-			"-movflags", "empty_moov+default_base_moof+frag_keyframe", "4",
+			"-movflags", "empty_moov+default_base_moof+frag_keyframe",
+			"-f", "mp4", "4",
 		}
 		require.Equal(t, actual, expected)
 	})
