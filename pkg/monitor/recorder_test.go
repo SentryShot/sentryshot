@@ -36,6 +36,7 @@ import (
 )
 
 func newTestRecorder(t *testing.T) *Recorder {
+	t.Helper()
 	tempDir := t.TempDir()
 	t.Cleanup(func() {
 		os.Remove(tempDir)
@@ -299,26 +300,6 @@ func createTempDir(t *testing.T, r *Recorder) {
 }
 
 func TestRunRecordingProcess(t *testing.T) {
-	t.Run("finished", func(t *testing.T) {
-		logs := make(chan string)
-		logf := func(level log.Level, format string, a ...interface{}) {
-			logs <- fmt.Sprintf(format, a...)
-		}
-
-		r := newTestRecorder(t)
-		r.logf = logf
-		r.NewProcess = ffmock.NewProcessNil
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		go func() {
-			runRecordingProcess(ctx, r)
-		}()
-
-		<-logs
-		<-logs
-		require.Equal(t, "recording finished", <-logs)
-	})
 	t.Run("saveRecordingAsync", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -330,6 +311,13 @@ func TestRunRecordingProcess(t *testing.T) {
 		}
 		err := runRecordingProcess(ctx, r)
 		require.NoError(t, err)
+	})
+	t.Run("crashed", func(t *testing.T) {
+		r := newTestRecorder(t)
+		r.Env.StorageDir = "/dev/null"
+
+		err := runRecordingProcess(context.Background(), r)
+		require.Error(t, err)
 	})
 	t.Run("mkdirErr", func(t *testing.T) {
 		r := newTestRecorder(t)
@@ -351,6 +339,67 @@ func TestRunRecordingProcess(t *testing.T) {
 
 		err := runRecordingProcess(context.Background(), r)
 		require.ErrorIs(t, err, strconv.ErrSyntax)
+	})
+}
+
+func TestWriteThumbnail(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		r := newTestRecorder(t)
+
+		logs := make(chan string)
+		r.logf = func(level log.Level, format string, a ...interface{}) {
+			logs <- fmt.Sprintf(format, a...)
+		}
+
+		segment := &hls.Segment{
+			Parts: []*hls.MuxerPart{{
+				VideoSamples: []*hls.VideoSample{{
+					IdrPresent: true,
+				}},
+			}},
+		}
+		info := hls.StreamInfo{
+			VideoSPS: []byte{0, 0, 0},
+		}
+
+		done := make(chan struct{})
+		go func() {
+			r.writeThumbnail(os.TempDir(), segment, info)
+			close(done)
+		}()
+
+		require.Equal(t, "generating thumbnail:", (<-logs)[:21])
+		<-done
+	})
+	t.Run("processErr", func(t *testing.T) {
+		r := newTestRecorder(t)
+		r.NewProcess = ffmock.NewProcessErr
+
+		logs := make(chan string)
+		r.logf = func(level log.Level, format string, a ...interface{}) {
+			logs <- fmt.Sprintf(format, a...)
+		}
+
+		segment := &hls.Segment{
+			Parts: []*hls.MuxerPart{{
+				VideoSamples: []*hls.VideoSample{{
+					IdrPresent: true,
+				}},
+			}},
+		}
+		info := hls.StreamInfo{
+			VideoSPS: []byte{0, 0, 0},
+		}
+
+		done := make(chan struct{})
+		go func() {
+			r.writeThumbnail(os.TempDir(), segment, info)
+			close(done)
+		}()
+
+		require.Equal(t, "generating thumbnail:", (<-logs)[:21])
+		require.Equal(t, "error: mock", (<-logs)[78:])
+		<-done
 	})
 }
 
@@ -388,8 +437,7 @@ func TestSaveRecording(t *testing.T) {
 		tempdir := r.Env.TempDir
 		filePath := tempdir + "file"
 
-		err := r.saveRec(filePath, start, end)
-		require.NoError(t, err)
+		r.saveRecording(filePath, start, end)
 
 		b, err := os.ReadFile(filePath + ".json")
 		require.NoError(t, err)
@@ -404,18 +452,5 @@ func TestSaveRecording(t *testing.T) {
 			`"polygon":[[5,6],[7,8]]}}],"duration":11}]}`
 
 		require.Equal(t, actual, expected)
-	})
-	t.Run("genThumbnailErr", func(t *testing.T) {
-		r := newTestRecorder(t)
-		r.NewProcess = ffmock.NewProcessErr
-
-		err := r.saveRec("", time.Time{}, time.Time{})
-		require.Error(t, err)
-	})
-	t.Run("writeFileErr", func(t *testing.T) {
-		r := newTestRecorder(t)
-
-		err := r.saveRec("/dev/null/", time.Time{}, time.Time{})
-		require.Error(t, err)
 	})
 }

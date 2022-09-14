@@ -332,7 +332,7 @@ func (m *muxer) generateVideoTrak() mp4.Boxes {
 	return trak
 }
 
-func (m *muxer) generateVideoMinf() mp4.Boxes { //nolint:funlen
+func (m *muxer) generateVideoMinf() mp4.Boxes {
 	/*
 	   minf
 	   - vmhd
@@ -341,57 +341,17 @@ func (m *muxer) generateVideoMinf() mp4.Boxes { //nolint:funlen
 	       - url
 	     - stbl
 	       - stsd
-	         - avc1
-	           - avcC
 	       - stts
+	       - stss
+	       - ctts
 	       - stsc
+	       - stsz
 	       - stco
 	*/
 	stbl := mp4.Boxes{
 		Box: &mp4.Stbl{},
 		Children: []mp4.Boxes{
-			{
-				Box: &mp4.Stsd{EntryCount: 1},
-				Children: []mp4.Boxes{
-					{
-						Box: &mp4.Avc1{
-							SampleEntry: mp4.SampleEntry{
-								DataReferenceIndex: 1,
-							},
-							Width:           uint16(m.info.VideoWidth),
-							Height:          uint16(m.info.VideoHeight),
-							Horizresolution: 4718592,
-							Vertresolution:  4718592,
-							FrameCount:      1,
-							Depth:           24,
-							PreDefined3:     -1,
-						},
-						Children: []mp4.Boxes{
-							{Box: &mp4.AvcC{
-								ConfigurationVersion:       1,
-								Profile:                    m.info.VideoSPSP.ProfileIdc,
-								ProfileCompatibility:       m.info.VideoSPS[2],
-								Level:                      m.info.VideoSPSP.LevelIdc,
-								LengthSizeMinusOne:         3,
-								NumOfSequenceParameterSets: 1,
-								SequenceParameterSets: []mp4.AVCParameterSet{
-									{
-										Length:  uint16(len(m.info.VideoSPS)),
-										NALUnit: m.info.VideoSPS,
-									},
-								},
-								NumOfPictureParameterSets: 1,
-								PictureParameterSets: []mp4.AVCParameterSet{
-									{
-										Length:  uint16(len(m.info.VideoPPS)),
-										NALUnit: m.info.VideoPPS,
-									},
-								},
-							}},
-						},
-					},
-				},
-			},
+			generateVideoStsd(m.info),
 			{Box: &mp4.Stts{
 				Entries: m.videoStts,
 			}},
@@ -437,6 +397,53 @@ func (m *muxer) generateVideoMinf() mp4.Boxes { //nolint:funlen
 	}
 
 	return minf
+}
+
+func generateVideoStsd(info hls.StreamInfo) mp4.Boxes {
+	/*
+	   - stsd
+	     - avc1
+	       - avcC
+	*/
+
+	stsd := mp4.Boxes{
+		Box: &mp4.Stsd{EntryCount: 1},
+		Children: []mp4.Boxes{
+			{
+				Box: &mp4.Avc1{
+					SampleEntry: mp4.SampleEntry{
+						DataReferenceIndex: 1,
+					},
+					Width:           uint16(info.VideoWidth),
+					Height:          uint16(info.VideoHeight),
+					Horizresolution: 4718592,
+					Vertresolution:  4718592,
+					FrameCount:      1,
+					Depth:           24,
+					PreDefined3:     -1,
+				},
+				Children: []mp4.Boxes{
+					{Box: &mp4.AvcC{
+						ConfigurationVersion:       1,
+						Profile:                    info.VideoSPSP.ProfileIdc,
+						ProfileCompatibility:       info.VideoSPS[2],
+						Level:                      info.VideoSPSP.LevelIdc,
+						LengthSizeMinusOne:         3,
+						NumOfSequenceParameterSets: 1,
+						SequenceParameterSets: []mp4.AVCParameterSet{
+							{NALUnit: info.VideoSPS},
+						},
+						NumOfPictureParameterSets: 1,
+						PictureParameterSets: []mp4.AVCParameterSet{
+							{NALUnit: info.VideoPPS},
+						},
+					}},
+				},
+			},
+		},
+	}
+
+	return stsd
 }
 
 func (m *muxer) generateAudioTrak() mp4.Boxes {

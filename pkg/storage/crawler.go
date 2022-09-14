@@ -37,9 +37,8 @@ import (
 //             ├── YYYY-MM-DD_hh-mm-ss_monitor2.mp4   // Video.
 //             └── YYYY-MM-DD_hh-mm-ss_monitor2.json  // Event data.
 //
-// Thumbnail is only generated If video was saved successfully.
-// The job of these functions are to on-request
-// find and return recording paths.
+// Event data is only generated If video was saved successfully.
+// The job of these functions are to on-request find and return recording IDs.
 
 // CrawlerQuery query of recordings for crawler to find.
 type CrawlerQuery struct {
@@ -258,7 +257,7 @@ func (d *dir) children() ([]dir, error) {
 // ErrUnexpectedDir unexpected directory.
 var ErrUnexpectedDir = errors.New("unexpected directory")
 
-// findAllThumbnails finds all jpeg files beloning to
+// findAllThumbnails finds all json files beloning to
 // selected monitors in decending directories.
 // Only called by `children()`.
 func (d *dir) findAllThumbnails() ([]dir, error) {
@@ -281,13 +280,13 @@ func (d *dir) findAllThumbnails() ([]dir, error) {
 			if file.IsDir() {
 				return nil, fmt.Errorf("%v: %w", path, ErrUnexpectedDir)
 			}
-			if !strings.Contains(file.Name(), ".jpeg") {
+			if !strings.Contains(file.Name(), ".json") {
 				continue
 			}
 			thumbPath := filepath.Join(path, file.Name())
 			thumbnails = append(thumbnails, dir{
-				name:   strings.TrimSuffix(file.Name(), ".jpeg"),
-				path:   strings.TrimSuffix(thumbPath, ".jpeg"),
+				name:   strings.TrimSuffix(file.Name(), ".json"),
+				path:   strings.TrimSuffix(thumbPath, ".json"),
 				parent: d,
 				depth:  d.depth + 2,
 				query:  d.query,

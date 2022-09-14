@@ -383,7 +383,7 @@ func (sc *ServerConn) handleRequestOuter(req *base.Request) error {
 	return err
 }
 
-func (sc *ServerConn) handleRequestInSession( //nolint:funlen
+func (sc *ServerConn) handleRequestInSession(
 	sxID string,
 	req *base.Request,
 	create bool,

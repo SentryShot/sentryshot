@@ -55,7 +55,7 @@ func DurationGoToMp4(v time.Duration, timescale time.Duration) int64 {
 	return int64(math.Round(float64(v*timescale) / float64(time.Millisecond)))
 }
 
-func generateVideoTraf( //nolint:funlen
+func generateVideoTraf(
 	trackID int,
 	videoSamples []*VideoSample,
 	dataOffset int32,

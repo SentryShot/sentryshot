@@ -790,7 +790,6 @@ const (
 
 // AVCParameterSet .
 type AVCParameterSet struct {
-	Length  uint16
 	NALUnit []byte
 }
 
@@ -801,7 +800,7 @@ func (b *AVCParameterSet) FieldSize() int {
 
 // MarshalField box to writer.
 func (b *AVCParameterSet) MarshalField(w *bitio.Writer) error {
-	w.TryWriteUint16(b.Length)
+	w.TryWriteUint16(uint16(len(b.NALUnit)))
 	w.TryWrite(b.NALUnit)
 	return w.TryError
 }

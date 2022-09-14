@@ -52,7 +52,9 @@
 		]
 	},
 	"linters-settings": {
-		"funlen": {},
+		"funlen": {
+			"lines": 65
+		},
 		"gocritic": {
 			"disabled-checks": ["commentFormatting"]
 		}

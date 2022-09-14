@@ -121,14 +121,12 @@ func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 								NumOfSequenceParameterSets: 1,
 								SequenceParameterSets: []mp4.AVCParameterSet{
 									{
-										Length:  uint16(len(info.VideoSPS)),
 										NALUnit: info.VideoSPS,
 									},
 								},
 								NumOfPictureParameterSets: 1,
 								PictureParameterSets: []mp4.AVCParameterSet{
 									{
-										Length:  uint16(len(info.VideoPPS)),
 										NALUnit: info.VideoPPS,
 									},
 								},
@@ -351,7 +349,7 @@ func initGenerateMvex(info StreamInfo) mp4.Boxes {
 	return mvex
 }
 
-func generateInit(info StreamInfo) ([]byte, error) { //nolint:funlen
+func generateInit(info StreamInfo) ([]byte, error) {
 	/*
 	   - ftyp
 	   - moov

@@ -295,7 +295,7 @@ func (ss *ServerSession) run() {
 	})
 }
 
-func (ss *ServerSession) runInner() error { //nolint:funlen,gocognit
+func (ss *ServerSession) runInner() error { //nolint:gocognit
 	for {
 		select {
 		case req := <-ss.request:
@@ -850,7 +850,7 @@ func (ss *ServerSession) handleRecord(
 	return res, err
 }
 
-func (ss *ServerSession) handlePause( //nolint:funlen
+func (ss *ServerSession) handlePause(
 	sc *ServerConn,
 	req *base.Request,
 	path string,

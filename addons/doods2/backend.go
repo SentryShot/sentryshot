@@ -306,7 +306,7 @@ func (i *instance) generateMask(m mask) (string, error) {
 	return maskPath, nil
 }
 
-func generateFFmpegArgs( //nolint:funlen
+func generateFFmpegArgs(
 	out outputs,
 	c config,
 	rtspProtocol string,

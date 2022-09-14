@@ -16,6 +16,7 @@
 package monitor
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,7 @@ import (
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
+	"nvr/pkg/video/hls"
 	"nvr/pkg/video/mp4muxer"
 	"os"
 	"os/exec"
@@ -138,13 +140,13 @@ func (r *Recorder) start(ctx context.Context) { //nolint:funlen
 
 		case err := <-onRecExit:
 			if recCtx.Err() != nil {
-				// Recording process was canceled and exited.
+				// Recording was canceled and stopped.
 				recStopped()
 				continue
 			}
 
 			if err != nil && !errors.Is(err, context.Canceled) {
-				// Recording process crached. Wait a second and start it again.
+				// Recording crached. Wait a second and start it again.
 				r.logf(log.LevelError, "recording process: %v", err)
 				go func() {
 					select {
@@ -157,7 +159,7 @@ func (r *Recorder) start(ctx context.Context) { //nolint:funlen
 				continue
 			}
 
-			// Recording process reached videoLength and exited normally.
+			// Recording reached videoLength and stopped normally.
 			// The trigger is still active so start it again.
 			go startRecording()
 		}
@@ -211,16 +213,18 @@ func runRecordingProcess(ctx context.Context, r *Recorder) error { //nolint:funl
 
 	r.logf(log.LevelInfo, "starting recording: %v", filePath)
 
+	info, err := r.input.StreamInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("stream info: %w", err)
+	}
+
+	go r.writeThumbnail(filePath, firstSegment, *info)
+
 	file, err := os.OpenFile(filePath+".mp4", os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("create video file: %w", err)
 	}
 	defer file.Close()
-
-	info, err := r.input.StreamInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("stream info: %w", err)
-	}
 
 	prevSeg, endTime, err := mp4muxer.WriteVideo(
 		ctx, file, muxer.NextSegment, firstSegment, *info, videoLength)
@@ -231,54 +235,42 @@ func runRecordingProcess(ctx context.Context, r *Recorder) error { //nolint:funl
 
 	go r.saveRecording(filePath, startTime, *endTime)
 
-	if err != nil {
-		return fmt.Errorf("crashed: %w", err)
-	}
 	return nil
 }
 
-func (r *Recorder) saveRecording(
+// The first h264 frame in firstSegment is wrapped in a mp4
+// container and piped into FFmpeg and then converted to jpeg.
+func (r *Recorder) writeThumbnail(
 	filePath string,
-	startTime time.Time,
-	endTime time.Time,
+	firstSegment *hls.Segment,
+	info hls.StreamInfo,
 ) {
-	err := r.saveRec(filePath, startTime, endTime)
+	videoBuffer := &bytes.Buffer{}
+	err := mp4muxer.WriteThumbnailVideo(videoBuffer, firstSegment, info)
 	if err != nil {
-		r.logf(log.LevelError, "could not save recording: %v", err)
-	} else {
-		r.logf(log.LevelInfo, "recording finished")
-	}
-}
-
-func (r *Recorder) saveRec(
-	filePath string,
-	startTime time.Time,
-	endTime time.Time,
-) error {
-	videoPath := filePath + ".mp4"
-	thumbPath := filePath + ".jpeg"
-	dataPath := filePath + ".json"
-
-	r.logf(log.LevelInfo, "saving recording: %v", videoPath)
-
-	abort := func() {
-		os.Remove(videoPath)
-		os.Remove(thumbPath)
+		r.logf(log.LevelError, "write thumbnail video: %v", err)
+		return
 	}
 
 	r.MonitorLock.Lock()
-	logLevel := log.FFmpegLevel(r.Config.LogLevel())
-	args := "-n -threads 1 -loglevel " + r.Config.LogLevel() +
-		" -i " + videoPath + // Input.
-		" -frames:v 1 " + thumbPath // Output.
+	logLevel := r.Config.LogLevel()
 	r.MonitorLock.Unlock()
+
+	thumbPath := filePath + ".jpeg"
+	args := "-n -threads 1 -loglevel " + logLevel +
+		" -i -" + // Input.
+		" -frames:v 1 " + thumbPath // Output.
+
+	r.logf(log.LevelInfo, "generating thumbnail: %v", args)
 
 	r.hooks.RecSave(r, &args)
 
 	cmd := exec.Command(r.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
+	cmd.Stdin = videoBuffer
 
+	ffLogLevel := log.FFmpegLevel(logLevel)
 	logFunc := func(msg string) {
-		r.logf(logLevel, "thumbnail process: %v", msg)
+		r.logf(ffLogLevel, "thumbnail process: %v", msg)
 	}
 	process := r.NewProcess(cmd).
 		StdoutLogger(logFunc).
@@ -287,9 +279,16 @@ func (r *Recorder) saveRec(
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := process.Start(ctx); err != nil {
-		abort()
-		return fmt.Errorf("generate thumbnail, args: %v error: %w", args, err)
+		r.logf(log.LevelError, "generate thumbnail, args: %v error: %v", args, err)
 	}
+}
+
+func (r *Recorder) saveRecording(
+	filePath string,
+	startTime time.Time,
+	endTime time.Time,
+) {
+	r.logf(log.LevelInfo, "saving recording: %v", filePath)
 
 	r.eventsLock.Lock()
 	events := r.events.QueryAndPrune(startTime, endTime)
@@ -300,13 +299,19 @@ func (r *Recorder) saveRec(
 		End:    endTime,
 		Events: events,
 	}
-	json, _ := json.MarshalIndent(data, "", "    ")
+	json, err := json.MarshalIndent(data, "", "    ")
+	if err != nil {
+		r.logf(log.LevelError, "marshal event data: %w", err)
+		return
+	}
+
+	dataPath := filePath + ".json"
 	if err := os.WriteFile(dataPath, json, 0o600); err != nil {
-		return fmt.Errorf("write events file: %w", err)
+		r.logf(log.LevelError, "write event data: %w", err)
+		return
 	}
 
 	go r.hooks.RecSaved(r, filePath, data)
-	return nil
 }
 
 func (r *Recorder) sendEvent(event storage.Event) error {

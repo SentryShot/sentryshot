@@ -70,7 +70,7 @@ func (s *SessionDescription) unmarshalSessionName(value string) {
 	s.SessionName = psdp.SessionName(value)
 }
 
-func (s *SessionDescription) unmarshalOrigin(value string) error { //nolint:funlen
+func (s *SessionDescription) unmarshalOrigin(value string) error {
 	// special case for live reporter app
 	if value[:3] == "-0 " {
 		value = "- 0 " + value[3:]

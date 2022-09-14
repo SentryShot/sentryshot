@@ -543,13 +543,13 @@ func TestBoxTypes(t *testing.T) {
 				Reserved2:                  0x7,
 				NumOfSequenceParameterSets: 2,
 				SequenceParameterSets: []AVCParameterSet{
-					{Length: 2, NALUnit: []byte{0x12, 0x34}},
-					{Length: 3, NALUnit: []byte{0x12, 0x34, 0x56}},
+					{NALUnit: []byte{0x12, 0x34}},
+					{NALUnit: []byte{0x12, 0x34, 0x56}},
 				},
 				NumOfPictureParameterSets: 2,
 				PictureParameterSets: []AVCParameterSet{
-					{Length: 2, NALUnit: []byte{0xab, 0xcd}},
-					{Length: 3, NALUnit: []byte{0xab, 0xcd, 0xef}},
+					{NALUnit: []byte{0xab, 0xcd}},
+					{NALUnit: []byte{0xab, 0xcd, 0xef}},
 				},
 			},
 			bin: []byte{
@@ -582,13 +582,13 @@ func TestBoxTypes(t *testing.T) {
 				Reserved2:                  0x7,
 				NumOfSequenceParameterSets: 2,
 				SequenceParameterSets: []AVCParameterSet{
-					{Length: 2, NALUnit: []byte{0x12, 0x34}},
-					{Length: 3, NALUnit: []byte{0x12, 0x34, 0x56}},
+					{NALUnit: []byte{0x12, 0x34}},
+					{NALUnit: []byte{0x12, 0x34, 0x56}},
 				},
 				NumOfPictureParameterSets: 2,
 				PictureParameterSets: []AVCParameterSet{
-					{Length: 2, NALUnit: []byte{0xab, 0xcd}},
-					{Length: 3, NALUnit: []byte{0xab, 0xcd, 0xef}},
+					{NALUnit: []byte{0xab, 0xcd}},
+					{NALUnit: []byte{0xab, 0xcd, 0xef}},
 				},
 			},
 			bin: []byte{
@@ -621,13 +621,13 @@ func TestBoxTypes(t *testing.T) {
 				Reserved2:                  0x7,
 				NumOfSequenceParameterSets: 2,
 				SequenceParameterSets: []AVCParameterSet{
-					{Length: 2, NALUnit: []byte{0x12, 0x34}},
-					{Length: 3, NALUnit: []byte{0x12, 0x34, 0x56}},
+					{NALUnit: []byte{0x12, 0x34}},
+					{NALUnit: []byte{0x12, 0x34, 0x56}},
 				},
 				NumOfPictureParameterSets: 2,
 				PictureParameterSets: []AVCParameterSet{
-					{Length: 2, NALUnit: []byte{0xab, 0xcd}},
-					{Length: 3, NALUnit: []byte{0xab, 0xcd, 0xef}},
+					{NALUnit: []byte{0xab, 0xcd}},
+					{NALUnit: []byte{0xab, 0xcd, 0xef}},
 				},
 				HighProfileFieldsEnabled:     true,
 				Reserved3:                    0x3f,
@@ -638,8 +638,8 @@ func TestBoxTypes(t *testing.T) {
 				BitDepthChromaMinus8:         0x3,
 				NumOfSequenceParameterSetExt: 2,
 				SequenceParameterSetsExt: []AVCParameterSet{
-					{Length: 2, NALUnit: []byte{0x12, 0x34}},
-					{Length: 3, NALUnit: []byte{0x12, 0x34, 0x56}},
+					{NALUnit: []byte{0x12, 0x34}},
+					{NALUnit: []byte{0x12, 0x34, 0x56}},
 				},
 			},
 			bin: []byte{
