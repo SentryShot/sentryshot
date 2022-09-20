@@ -56,7 +56,7 @@ func WriteThumbnailVideo(
 
 	mdatOffset := 610 + uint32(len(info.VideoPPS)+len(info.VideoSPS))
 	stco := []uint32{mdatOffset + 8}
-	stsz := []uint32{uint32(len(sample.Avcc))}
+	stsz := []uint32{uint32(len(sample.AVCC))}
 	moov := mp4.Boxes{
 		Box: &mp4.Moov{},
 		Children: []mp4.Boxes{
@@ -74,7 +74,7 @@ func WriteThumbnailVideo(
 		return fmt.Errorf("marshal moov: %w", err)
 	}
 
-	_, err = mp4.WriteSingleBox(w, &mp4.Mdat{Data: sample.Avcc})
+	_, err = mp4.WriteSingleBox(w, &mp4.Mdat{Data: sample.AVCC})
 	if err != nil {
 		return fmt.Errorf("write mdat: %w", err)
 	}

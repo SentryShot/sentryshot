@@ -216,7 +216,7 @@ func (m *HLSMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 	}
 	videoTrackExist := func() bool { return videoTrack != nil }
 	audioTrackExist := func() bool { return audioTrack != nil }
-	streamInfo := getStreamInfo(videoTrack, videoTrackID, audioTrack, audioTrackID)
+	streamInfo := getStreamInfo(videoTrack, audioTrack)
 
 	ctx, cancel := context.WithCancel(m.ctx)
 	defer cancel()
@@ -272,9 +272,7 @@ func (m *HLSMuxer) runInner(innerCtx context.Context, innerReady chan struct{}) 
 // Creates a functions that returns the stream info.
 func getStreamInfo(
 	videoTrack *gortsplib.TrackH264,
-	videoTrackID int,
 	audioTrack *gortsplib.TrackMPEG4Audio,
-	audioTrackID int,
 ) hls.StreamInfoFunc {
 	return func() (*hls.StreamInfo, error) {
 		info := hls.StreamInfo{
@@ -283,7 +281,6 @@ func getStreamInfo(
 		}
 
 		if info.VideoTrackExist {
-			info.VideoTrackID = videoTrackID
 			info.VideoSPS = videoTrack.SafeSPS()
 			info.VideoPPS = videoTrack.SafePPS()
 			err := info.VideoSPSP.Unmarshal(info.VideoSPS)
@@ -295,7 +292,6 @@ func getStreamInfo(
 		}
 
 		if info.AudioTrackExist {
-			info.AudioTrackID = audioTrackID
 			var err error
 			info.AudioTrackConfig, err = audioTrack.Config.Marshal()
 			if err != nil {

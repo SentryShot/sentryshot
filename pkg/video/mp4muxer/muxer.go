@@ -21,9 +21,8 @@ type muxer struct {
 	w    *bitio.Writer
 	info hls.StreamInfo
 
-	startTime time.Time
-	endTime   time.Time
-	duration  time.Duration
+	startTime int64
+	endTime   int64
 
 	pos        uint32
 	mdatOffset uint32
@@ -65,7 +64,7 @@ func WriteVideo(
 		w:    bitio.NewWriter(bw),
 		info: info,
 
-		startTime: firstSegment.StartTime,
+		startTime: firstSegment.StartTime.UnixNano(),
 
 		firstSample: true,
 	}
@@ -112,7 +111,8 @@ func (m *muxer) finalize() (uint64, *time.Time, error) {
 	if err := m.writeMetadata(); err != nil {
 		return 0, nil, fmt.Errorf("write metadata: %w", err)
 	}
-	return m.prevSeg, &m.endTime, nil
+	endTime := time.Unix(0, m.endTime)
+	return m.prevSeg, &endTime, nil
 }
 
 func (m *muxer) writeFtypAndMdat() error {
@@ -156,14 +156,14 @@ func (m *muxer) parseSegment(seg *hls.Segment) error {
 		}
 	}
 	m.prevSeg = seg.ID
-	m.endTime = seg.StartTime.Add(seg.RenderedDuration)
+	m.endTime = seg.StartTime.Add(seg.RenderedDuration).UnixNano()
 	return nil
 }
 
 func (m *muxer) writeVideoSample(sample *hls.VideoSample) error {
-	pts := hls.DurationGoToMp4(sample.Pts, hls.VideoTimescale)
-	dts := hls.DurationGoToMp4(sample.Dts, hls.VideoTimescale)
-	nextDts := hls.DurationGoToMp4(sample.NextDts, hls.VideoTimescale)
+	pts := hls.NanoToTimescale(sample.PTS-m.startTime, hls.VideoTimescale)
+	dts := hls.NanoToTimescale(sample.DTS-m.startTime, hls.VideoTimescale)
+	nextDts := hls.NanoToTimescale(sample.NextDTS-m.startTime, hls.VideoTimescale)
 
 	if m.firstSample {
 		m.dtsShift = pts - dts
@@ -203,7 +203,7 @@ func (m *muxer) writeVideoSample(sample *hls.VideoSample) error {
 		m.prevChunkAudio = false
 	}
 
-	n, err := m.w.Write(sample.Avcc)
+	n, err := m.w.Write(sample.AVCC)
 	if err != nil {
 		return fmt.Errorf("write video sample: %w", err)
 	}
@@ -218,7 +218,7 @@ func (m *muxer) writeVideoSample(sample *hls.VideoSample) error {
 }
 
 func (m *muxer) writeAudioSample(sample *hls.AudioSample) error {
-	delta := hls.DurationGoToMp4(sample.Duration(), hls.VideoTimescale)
+	delta := hls.NanoToTimescale(int64(sample.Duration()), int64(m.info.AudioClockRate))
 	if len(m.audioStts) > 0 && m.audioStts[len(m.audioStts)-1].SampleDelta == uint32(delta) {
 		m.audioStts[len(m.audioStts)-1].SampleCount++
 	} else {
@@ -241,7 +241,7 @@ func (m *muxer) writeAudioSample(sample *hls.AudioSample) error {
 		m.prevChunkAudio = true
 	}
 
-	n, err := m.w.Write(sample.Au)
+	n, err := m.w.Write(sample.AU)
 	if err != nil {
 		return fmt.Errorf("write audio sample: %w", err)
 	}
@@ -261,21 +261,21 @@ func (m *muxer) writeMetadata() error {
 	   - trak (audio)
 	*/
 
-	m.duration = m.endTime.Sub(m.startTime)
+	duration := time.Duration(m.endTime - m.startTime)
 
 	moov := mp4.Boxes{
 		Box: &mp4.Moov{},
 		Children: []mp4.Boxes{
 			{Box: &mp4.Mvhd{
 				Timescale:   1000,
-				DurationV0:  uint32(m.duration.Milliseconds()),
+				DurationV0:  uint32(duration.Milliseconds()),
 				Rate:        65536,
 				Volume:      256,
 				Matrix:      [9]int32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
 				NextTrackID: videoTrackID + 1,
 			}},
-			m.generateVideoTrak(),
-			m.generateAudioTrak(),
+			m.generateVideoTrak(duration),
+			m.generateAudioTrak(duration),
 		},
 	}
 	if err := moov.Marshal(m.w); err != nil {
@@ -290,7 +290,7 @@ func (m *muxer) writeMetadata() error {
 	return m.w.WriteUint32(mdatSize)
 }
 
-func (m *muxer) generateVideoTrak() mp4.Boxes {
+func (m *muxer) generateVideoTrak(duration time.Duration) mp4.Boxes {
 	/*
 	   trak
 	   - tkhd
@@ -307,7 +307,7 @@ func (m *muxer) generateVideoTrak() mp4.Boxes {
 					Flags: [3]byte{0, 0, 3},
 				},
 				TrackID:    videoTrackID,
-				DurationV0: uint32(m.duration.Milliseconds()),
+				DurationV0: uint32(duration.Milliseconds()),
 				Width:      uint32(m.info.VideoWidth * 65536),
 				Height:     uint32(m.info.VideoHeight * 65536),
 				Matrix:     [9]int32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
@@ -316,9 +316,10 @@ func (m *muxer) generateVideoTrak() mp4.Boxes {
 				Box: &mp4.Mdia{},
 				Children: []mp4.Boxes{
 					{Box: &mp4.Mdhd{
-						Timescale:  hls.VideoTimescale, // the number of time units that pass per second
-						Language:   [3]byte{'u', 'n', 'd'},
-						DurationV0: uint32(hls.DurationGoToMp4(m.duration, hls.VideoTimescale)),
+						Timescale: hls.VideoTimescale, // the number of time units that pass per second
+						Language:  [3]byte{'u', 'n', 'd'},
+						DurationV0: uint32(
+							hls.NanoToTimescale(int64(duration), hls.VideoTimescale)),
 					}},
 					{Box: &mp4.Hdlr{
 						HandlerType: [4]byte{'v', 'i', 'd', 'e'},
@@ -446,7 +447,7 @@ func generateVideoStsd(info hls.StreamInfo) mp4.Boxes {
 	return stsd
 }
 
-func (m *muxer) generateAudioTrak() mp4.Boxes {
+func (m *muxer) generateAudioTrak(duration time.Duration) mp4.Boxes {
 	if !m.info.AudioTrackExist {
 		return mp4.Boxes{Box: &mp4.Free{}}
 	}
@@ -466,7 +467,7 @@ func (m *muxer) generateAudioTrak() mp4.Boxes {
 				FullBox: mp4.FullBox{
 					Flags: [3]byte{0, 0, 3},
 				},
-				DurationV0:     uint32(m.duration.Milliseconds()),
+				DurationV0:     uint32(duration.Milliseconds()),
 				TrackID:        audioTrackID,
 				AlternateGroup: 1,
 				Volume:         256,
@@ -479,9 +480,9 @@ func (m *muxer) generateAudioTrak() mp4.Boxes {
 						Timescale: uint32(m.info.AudioClockRate),
 						Language:  [3]byte{'u', 'n', 'd'},
 						DurationV0: uint32(
-							hls.DurationGoToMp4(
-								m.duration,
-								time.Duration(m.info.AudioClockRate),
+							hls.NanoToTimescale(
+								int64(duration),
+								int64(m.info.AudioClockRate),
 							)),
 					}},
 					{Box: &mp4.Hdlr{

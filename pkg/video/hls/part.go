@@ -3,8 +3,8 @@ package hls
 import (
 	"bytes"
 	"io"
-	"log"
 	"math"
+	"math/big"
 	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 	"nvr/pkg/video/mp4"
 	"nvr/pkg/video/mp4/bitio"
@@ -22,40 +22,43 @@ func (*myMdat) Type() mp4.BoxType { return mp4.TypeMdat() }
 func (b *myMdat) Size() int {
 	var total int
 	for _, e := range b.videoSamples {
-		total += len(e.Avcc)
+		total += len(e.AVCC)
 	}
 	for _, e := range b.audioSamples {
-		total += len(e.Au)
+		total += len(e.AU)
 	}
 	return total
 }
 
 func (b *myMdat) Marshal(w *bitio.Writer) error {
 	for _, e := range b.videoSamples {
-		if _, err := w.Write(e.Avcc); err != nil {
+		if _, err := w.Write(e.AVCC); err != nil {
 			return err
 		}
 	}
 	for _, e := range b.audioSamples {
-		if _, err := w.Write(e.Au); err != nil {
+		if _, err := w.Write(e.AU); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-const _3000Days = 3000 * (time.Hour * 24)
+// NanoToTimescale converts value in nanoseconds into a different timescale.
+func NanoToTimescale(value int64, timescale int64) int64 {
+	multiplied := new(big.Float).Mul(
+		big.NewFloat(float64(value)),
+		big.NewFloat(float64(timescale)),
+	)
+	second := big.NewFloat(1000000000)
 
-// DurationGoToMp4 this function will overflow if the input is greater than 3000 days.
-func DurationGoToMp4(v time.Duration, timescale time.Duration) int64 {
-	if v > _3000Days {
-		log.Fatal("You win!")
-	}
-	v /= 1000
-	return int64(math.Round(float64(v*timescale) / float64(time.Millisecond)))
+	divided := new(big.Float).Quo(multiplied, second)
+	out, _ := divided.Float64()
+	return int64(math.Round(out))
 }
 
-func generateVideoTraf(
+func generateVideoTraf( //nolint:funlen
+	muxerStartTime int64,
 	trackID int,
 	videoSamples []*VideoSample,
 	dataOffset int32,
@@ -80,7 +83,8 @@ func generateVideoTraf(
 		},
 		// sum of decode durations of all earlier samples
 		BaseMediaDecodeTimeV1: uint64(
-			DurationGoToMp4(videoSamples[0].Dts, VideoTimescale)),
+			NanoToTimescale(
+				videoSamples[0].DTS-muxerStartTime, VideoTimescale)),
 	}
 
 	flags := 0
@@ -99,17 +103,18 @@ func generateVideoTraf(
 
 	trun.Entries = make([]mp4.TrunEntry, len(videoSamples))
 	for i, e := range videoSamples {
-		off := e.Pts - e.Dts
+		off := e.PTS - e.DTS
 
 		flags := uint32(0)
 		if !e.IdrPresent {
 			flags |= 1 << 16 // sample_is_non_sync_sample
 		}
 		trun.Entries[i] = mp4.TrunEntry{
-			SampleDuration:                uint32(DurationGoToMp4(e.duration(), VideoTimescale)),
-			SampleSize:                    uint32(len(e.Avcc)),
+			SampleDuration: uint32(
+				NanoToTimescale(int64(e.duration()), VideoTimescale)),
+			SampleSize:                    uint32(len(e.AVCC)),
 			SampleFlags:                   flags,
-			SampleCompositionTimeOffsetV1: int32(DurationGoToMp4(off, VideoTimescale)),
+			SampleCompositionTimeOffsetV1: int32(NanoToTimescale(off, VideoTimescale)),
 		}
 	}
 
@@ -124,6 +129,7 @@ func generateVideoTraf(
 }
 
 func generateAudioTraf(
+	muxerStartTime int64,
 	trackID int,
 	audioClockRate int,
 	audioSamples []*AudioSample,
@@ -148,8 +154,8 @@ func generateAudioTraf(
 			Version: 1,
 		},
 		BaseMediaDecodeTimeV1: uint64(
-			DurationGoToMp4(audioSamples[0].Pts,
-				time.Duration(audioClockRate))),
+			NanoToTimescale(
+				audioSamples[0].PTS-muxerStartTime, int64(audioClockRate))),
 	}
 
 	flags := 0
@@ -169,8 +175,9 @@ func generateAudioTraf(
 	trun.Entries = make([]mp4.TrunEntry, len(audioSamples))
 	for i, e := range audioSamples {
 		trun.Entries[i] = mp4.TrunEntry{
-			SampleDuration: uint32(DurationGoToMp4(e.Duration(), time.Duration(audioClockRate))),
-			SampleSize:     uint32(len(e.Au)),
+			SampleDuration: uint32(
+				NanoToTimescale(int64(e.Duration()), int64(audioClockRate))),
+			SampleSize: uint32(len(e.AU)),
 		}
 	}
 
@@ -185,6 +192,7 @@ func generateAudioTraf(
 }
 
 func generatePart( //nolint:funlen
+	muxerStartTime int64,
 	audioTrackExist bool,
 	audioClockRate func() int,
 	videoSamples []*VideoSample,
@@ -226,24 +234,29 @@ func generatePart( //nolint:funlen
 
 	trackID := 1
 	videoDataOffset := int32(mdatOffset + 8)
-	traf := generateVideoTraf(trackID, videoSamples, videoDataOffset)
+	traf := generateVideoTraf(
+		muxerStartTime,
+		trackID,
+		videoSamples,
+		videoDataOffset)
 	moof.Children = append(moof.Children, traf)
 	trackID++
 
 	dataSize := 0
 	for _, e := range videoSamples {
-		dataSize += len(e.Avcc)
+		dataSize += len(e.AVCC)
 	}
 	videoDataSize := dataSize
 	if audioTrackExist {
 		for _, e := range audioSamples {
-			dataSize += len(e.Au)
+			dataSize += len(e.AU)
 		}
 	}
 
 	if audioTrackExist && len(audioSamples) != 0 {
 		audioDataOffset := int32(mdatOffset + 8 + videoDataSize)
 		traf := generateAudioTraf(
+			muxerStartTime,
 			trackID,
 			audioClockRate(),
 			audioSamples,
@@ -283,6 +296,7 @@ type MuxerPart struct {
 	videoTrackExist func() bool
 	audioTrackExist func() bool
 	audioClockRate  audioClockRateFunc
+	muxerStartTime  int64
 	id              uint64
 
 	isIndependent    bool
@@ -298,12 +312,14 @@ func newPart(
 	videoTrackExist func() bool,
 	audioTrackExist func() bool,
 	audioClockRate audioClockRateFunc,
+	muxerStartTime int64,
 	id uint64,
 ) *MuxerPart {
 	p := &MuxerPart{
 		videoTrackExist: videoTrackExist,
 		audioTrackExist: audioTrackExist,
 		audioClockRate:  audioClockRate,
+		muxerStartTime:  muxerStartTime,
 		id:              id,
 	}
 
@@ -342,6 +358,7 @@ func (p *MuxerPart) finalize() error {
 	if len(p.VideoSamples) > 0 || len(p.AudioSamples) > 0 {
 		var err error
 		p.renderedContent, err = generatePart(
+			p.muxerStartTime,
 			p.audioTrackExist(),
 			p.audioClockRate,
 			p.VideoSamples,

@@ -53,6 +53,7 @@ type segmenter struct {
 	onPartFinalized    func(*MuxerPart)
 
 	startDTS              time.Duration
+	muxerStartTime        int64
 	videoFirstIDRReceived bool
 	videoDTSExtractor     *h264.DTSExtractor
 	nextSegmentID         uint64
@@ -69,6 +70,7 @@ type segmenter struct {
 type videoSPSFunc func() []byte
 
 func newSegmenter(
+	muxerStartTime int64,
 	segmentDuration time.Duration,
 	partDuration time.Duration,
 	segmentMaxSize uint64,
@@ -89,6 +91,7 @@ func newSegmenter(
 		audioClockRate:     audioClockRate,
 		onSegmentFinalized: onSegmentFinalized,
 		onPartFinalized:    onPartFinalized,
+		muxerStartTime:     muxerStartTime,
 		nextSegmentID:      7, // Required by iOS.
 		sampleDurations:    make(map[time.Duration]struct{}),
 	}
@@ -175,9 +178,9 @@ func (m *segmenter) writeH264(now time.Time, pts time.Duration, nalus [][]byte) 
 	}
 
 	return m.writeH264Entry(now, &VideoSample{
-		Pts:        pts,
-		Dts:        dts,
-		Avcc:       avcc,
+		PTS:        m.muxerStartTime + int64(pts),
+		DTS:        m.muxerStartTime + int64(dts),
+		AVCC:       avcc,
 		IdrPresent: idrPresent,
 	})
 }
@@ -189,16 +192,15 @@ func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { /
 	}
 
 	next := m.nextVideoSample
-	sample.nextPts = next.Pts
-	sample.NextDts = next.Dts
-	sample.nextIdrPresent = next.IdrPresent
+	sample.NextDTS = next.DTS
 
 	if m.currentSegment == nil {
 		// create first segment
 		m.currentSegment = newSegment(
 			m.genSegmentID(),
 			now,
-			sample.Dts,
+			time.Duration(sample.DTS-m.muxerStartTime),
+			m.muxerStartTime,
 			m.segmentMaxSize,
 			m.videoTrackExist,
 			m.audioTrackExist,
@@ -215,14 +217,15 @@ func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { /
 		return err
 	}
 
-	if !sample.nextIdrPresent {
+	if !next.IdrPresent {
 		return nil
 	}
 	// switch segment
 	sps := m.videoSps()
 	spsChanged := !bytes.Equal(m.videoSPS, sps)
 
-	if (sample.NextDts-m.currentSegment.startDTS) >= m.segmentDuration || spsChanged {
+	if (time.Duration(sample.NextDTS-m.muxerStartTime)-
+		m.currentSegment.startDTS) >= m.segmentDuration || spsChanged {
 		err := m.currentSegment.finalize(next)
 		if err != nil {
 			return err
@@ -234,7 +237,8 @@ func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { /
 		m.currentSegment = newSegment(
 			m.genSegmentID(),
 			now,
-			sample.nextPts,
+			time.Duration(next.PTS-m.muxerStartTime),
+			m.muxerStartTime,
 			m.segmentMaxSize,
 			m.videoTrackExist,
 			m.audioTrackExist,
@@ -256,8 +260,8 @@ func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { /
 
 func (m *segmenter) writeAAC(now time.Time, pts time.Duration, au []byte) error {
 	return m.writeAACEntry(now, &AudioSample{
-		Pts: pts,
-		Au:  au,
+		PTS: int64(pts),
+		AU:  au,
 	})
 }
 
@@ -268,8 +272,10 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 			return nil
 		}
 
-		sample.Pts -= m.startDTS
+		sample.PTS -= int64(m.startDTS)
 	}
+
+	sample.PTS += m.muxerStartTime
 
 	// put samples into a queue in order to
 	// allow to compute the sample duration
@@ -277,8 +283,7 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 	if sample == nil {
 		return nil
 	}
-	// sample.Next = m.nextAudioSample
-	sample.NextPts = m.nextAudioSample.Pts
+	sample.NextPTS = m.nextAudioSample.PTS
 
 	if !m.videoTrackExist() {
 		if m.currentSegment == nil {
@@ -286,7 +291,8 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 			m.currentSegment = newSegment(
 				m.genSegmentID(),
 				now,
-				sample.Pts,
+				time.Duration(sample.PTS),
+				m.muxerStartTime,
 				m.segmentMaxSize,
 				m.videoTrackExist,
 				m.audioTrackExist,
@@ -309,7 +315,8 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 
 	// switch segment
 	if !m.videoTrackExist() &&
-		(sample.NextPts-m.currentSegment.startDTS) >= m.segmentDuration {
+		(time.Duration(sample.NextPTS-m.muxerStartTime)-
+			m.currentSegment.startDTS) >= m.segmentDuration {
 		err := m.currentSegment.finalize(nil)
 		if err != nil {
 			return nil
@@ -321,7 +328,8 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 		m.currentSegment = newSegment(
 			m.genSegmentID(),
 			now,
-			sample.NextPts,
+			time.Duration(sample.NextPTS),
+			m.muxerStartTime,
 			m.segmentMaxSize,
 			m.videoTrackExist,
 			m.audioTrackExist,

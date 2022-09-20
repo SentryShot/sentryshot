@@ -13,15 +13,15 @@ import (
 
 func TestWriteThumbnailVideo(t *testing.T) {
 	videoSample1 := &hls.VideoSample{
-		Pts:        30000,
-		Dts:        40000,
-		Avcc:       []byte{0x0, 0x1},
+		PTS:        30000,
+		DTS:        40000,
+		AVCC:       []byte{0x0, 0x1},
 		IdrPresent: true,
-		NextDts:    60000,
+		NextDTS:    60000,
 	}
 	audioSample1 := &hls.AudioSample{
-		Au:  []byte{0x6, 0x7},
-		Pts: 10000,
+		AU:  []byte{0x6, 0x7},
+		PTS: 10000,
 	}
 
 	sps := []byte{

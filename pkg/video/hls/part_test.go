@@ -11,10 +11,15 @@ import (
 func TestGeneratePart(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		actual, err := generatePart(
+			0,
 			false,
 			func() int { return 0 },
-
-			[]*VideoSample{{Avcc: []byte{}}},
+			[]*VideoSample{{
+				PTS:     0,
+				DTS:     0,
+				AVCC:    []byte{},
+				NextDTS: 0,
+			}},
 			[]*AudioSample{},
 		)
 		require.NoError(t, err)
@@ -44,10 +49,15 @@ func TestGeneratePart(t *testing.T) {
 	})
 	t.Run("videoSample", func(t *testing.T) {
 		actual, err := generatePart(
+			0,
 			false,
 			func() int { return 0 },
-
-			[]*VideoSample{{Avcc: []byte{'a', 'b', 'c', 'd'}}},
+			[]*VideoSample{{
+				PTS:     0,
+				DTS:     0,
+				AVCC:    []byte{'a', 'b', 'c', 'd'},
+				NextDTS: 0,
+			}},
 			[]*AudioSample{},
 		)
 		require.NoError(t, err)
@@ -78,11 +88,20 @@ func TestGeneratePart(t *testing.T) {
 	})
 	t.Run("audioSample", func(t *testing.T) {
 		actual, err := generatePart(
+			0,
 			true,
 			func() int { return 0 },
-
-			[]*VideoSample{{Avcc: []byte{}}},
-			[]*AudioSample{{Au: []byte{'a', 'b', 'c', 'd'}}},
+			[]*VideoSample{{
+				PTS:     0,
+				DTS:     0,
+				AVCC:    []byte{},
+				NextDTS: 0,
+			}},
+			[]*AudioSample{{
+				PTS:     0,
+				NextPTS: 0,
+				AU:      []byte{'a', 'b', 'c', 'd'},
+			}},
 		)
 		require.NoError(t, err)
 		expected := []byte{
@@ -124,11 +143,20 @@ func TestGeneratePart(t *testing.T) {
 	})
 	t.Run("videoAndAudioSample", func(t *testing.T) {
 		actual, err := generatePart(
+			0,
 			true,
 			func() int { return 0 },
-
-			[]*VideoSample{{Avcc: []byte{'a', 'b', 'c', 'd'}}},
-			[]*AudioSample{{Au: []byte{'e', 'f', 'g', 'h'}}},
+			[]*VideoSample{{
+				PTS:     0,
+				DTS:     0,
+				AVCC:    []byte{'a', 'b', 'c', 'd'},
+				NextDTS: 0,
+			}},
+			[]*AudioSample{{
+				PTS:     0,
+				NextPTS: 0,
+				AU:      []byte{'e', 'f', 'g', 'h'},
+			}},
 		)
 		require.NoError(t, err)
 		expected := []byte{
@@ -171,16 +199,29 @@ func TestGeneratePart(t *testing.T) {
 	})
 	t.Run("multipleVideoSample", func(t *testing.T) {
 		actual, err := generatePart(
+			0,
 			true,
 			func() int { return 0 },
-
 			[]*VideoSample{
 				{
-					Avcc:       []byte{'a', 'b', 'c', 'd'},
+					PTS:        0,
+					DTS:        0,
+					AVCC:       []byte{'a', 'b', 'c', 'd'},
 					IdrPresent: true,
+					NextDTS:    0,
 				},
-				{Avcc: []byte{'e', 'f', 'g', 'h'}},
-				{Avcc: []byte{'i', 'j', 'k', 'l'}},
+				{
+					PTS:     0,
+					DTS:     0,
+					AVCC:    []byte{'e', 'f', 'g', 'h'},
+					NextDTS: 0,
+				},
+				{
+					PTS:     0,
+					DTS:     0,
+					AVCC:    []byte{'i', 'j', 'k', 'l'},
+					NextDTS: 0,
+				},
 			},
 			[]*AudioSample{},
 		)
@@ -219,27 +260,33 @@ func TestGeneratePart(t *testing.T) {
 		require.Equal(t, expected, actual)
 	})
 	t.Run("real", func(t *testing.T) {
+		muxerStartTime := int64(time.Hour)
 		videoSample2 := &VideoSample{
-			Avcc: []byte{'e', 'f', 'g', 'h'},
-			Dts:  666666667,
+			PTS:     muxerStartTime + 700000000,
+			DTS:     muxerStartTime + 800000000,
+			AVCC:    []byte{'e', 'f', 'g', 'h'},
+			NextDTS: muxerStartTime + 900000000,
 		}
 		videoSample1 := &VideoSample{
-			Avcc:       []byte{'a', 'b', 'c', 'd'},
-			Dts:        666666667,
+			PTS:        muxerStartTime + 600000000,
+			DTS:        muxerStartTime + 666666667,
+			AVCC:       []byte{'a', 'b', 'c', 'd'},
 			IdrPresent: true,
+			NextDTS:    muxerStartTime + 800000000,
 		}
 
 		actual, err := generatePart(
+			muxerStartTime,
 			true,
 			func() int { return 44100 },
-
 			[]*VideoSample{
 				videoSample1,
 				videoSample2,
 			},
 			[]*AudioSample{{
-				Au:  []byte{'i', 'j', 'k', 'l'},
-				Pts: 2024263038,
+				AU:      []byte{'i', 'j', 'k', 'l'},
+				PTS:     muxerStartTime + 700000000,
+				NextPTS: muxerStartTime + 800000000,
 			}},
 		)
 		require.NoError(t, err)
@@ -259,26 +306,26 @@ func TestGeneratePart(t *testing.T) {
 			1, 0, 0xf, 1, // FullBox.
 			0, 0, 0, 2, // Sample count.
 			0, 0, 0, 0xc8, // Data offset.
-			0xff, 0xff, 0x15, 0xa0, // Entry1 sample duration.
+			0, 0, 0x2e, 0xe0, // Entry1 sample duration.
 			0, 0, 0, 4, // Entry1 sample size.
 			0, 0, 0, 0, // Entry1 sample flags.
-			0xff, 0xff, 0x15, 0xa0, // 1 Entry SampleCompositionTimeOffset
-			0xff, 0xff, 0x15, 0xa0, // 2 Entry sample duration.
+			0xff, 0xff, 0xe8, 0x90, // 1 Entry SampleCompositionTimeOffset
+			0, 0, 0x23, 0x28, // 2 Entry sample duration.
 			0, 0, 0, 4, // 2 Entry sample size.
 			0, 1, 0, 0, // 2 Entry sample flags.
-			0xff, 0xff, 0x15, 0xa0, // Entry2 SampleCompositionTimeOffset
+			0xff, 0xff, 0xdc, 0xd8, // Entry2 SampleCompositionTimeOffset
 			0, 0, 0, 0x48, 't', 'r', 'a', 'f', // Audio traf.
 			0, 0, 0, 0x10, 't', 'f', 'h', 'd', // Audio tfhd.
 			0, 2, 0, 0, // Track id.
 			0, 0, 0, 2, // Sample size.
 			0, 0, 0, 0x14, 't', 'f', 'd', 't', // Audio tfdt.
 			1, 0, 0, 0, // Track id.
-			0, 0, 0, 0, 0, 1, 0x5c, 0xb6, // BaseMediaDecodeTime.
+			0, 0, 0, 0, 0, 0, 0x78, 0x96, // BaseMediaDecodeTime.
 			0, 0, 0, 0x1c, 't', 'r', 'u', 'n', // Audio trun.
 			0, 0, 3, 1, // FullBox.
 			0, 0, 0, 1, // Sample count.
 			0, 0, 0, 0xd0, // Data offset.
-			0xff, 0xfe, 0xa3, 0x4a, // Entry sample duration.
+			0, 0, 0x11, 0x3a, // Entry sample duration.
 			0, 0, 0, 4, // Entry sample size.
 			0, 0, 0, 0x14, 'm', 'd', 'a', 't',
 			'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', // Samples
@@ -289,8 +336,8 @@ func TestGeneratePart(t *testing.T) {
 
 func TestDurationGoToMp4(t *testing.T) {
 	cases := []struct {
-		input    time.Duration
-		scale    time.Duration
+		input    int64
+		scale    int64
 		expected int64
 	}{
 		{
@@ -328,10 +375,15 @@ func TestDurationGoToMp4(t *testing.T) {
 			scale:    VideoTimescale,
 			expected: 9000000000000,
 		},
+		{
+			input:    1000000000000000000, // 30000 days.
+			scale:    VideoTimescale,
+			expected: 90000000000000,
+		},
 	}
 	for i, tc := range cases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			require.Equal(t, tc.expected, DurationGoToMp4(tc.input, tc.scale))
+			require.Equal(t, tc.expected, NanoToTimescale(tc.input, tc.scale))
 		})
 	}
 }

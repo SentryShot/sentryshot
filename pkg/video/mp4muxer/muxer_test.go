@@ -14,34 +14,37 @@ import (
 )
 
 func TestWriteVideo(t *testing.T) {
+	startTime := 1 * int64(time.Hour)
 	videoSample3 := &hls.VideoSample{
-		Pts:        70000,
-		Dts:        80000,
-		Avcc:       []byte{0x4, 0x5},
+		PTS:        startTime + 70000,
+		DTS:        startTime + 80000,
+		AVCC:       []byte{0x4, 0x5},
 		IdrPresent: true,
+		NextDTS:    startTime,
 	}
 	videoSample2 := &hls.VideoSample{
-		Pts:     50000,
-		Dts:     60000,
-		Avcc:    []byte{0x2, 0x3},
-		NextDts: videoSample3.Dts,
+		PTS:     startTime + 50000,
+		DTS:     startTime + 60000,
+		AVCC:    []byte{0x2, 0x3},
+		NextDTS: videoSample3.DTS,
 	}
 	videoSample1 := &hls.VideoSample{
-		Pts:        30000,
-		Dts:        40000,
-		Avcc:       []byte{0x0, 0x1},
+		PTS:        startTime + 30000,
+		DTS:        startTime + 40000,
+		AVCC:       []byte{0x0, 0x1},
 		IdrPresent: true,
-		NextDts:    videoSample2.Dts,
+		NextDTS:    videoSample2.DTS,
 	}
 
 	audioSample2 := &hls.AudioSample{
-		Au:  []byte{0x8, 0x9},
-		Pts: 20000,
+		AU:      []byte{0x8, 0x9},
+		PTS:     startTime + 20000,
+		NextPTS: startTime,
 	}
 	audioSample1 := &hls.AudioSample{
-		Au:      []byte{0x6, 0x7},
-		Pts:     10000,
-		NextPts: audioSample2.Pts,
+		AU:      []byte{0x6, 0x7},
+		PTS:     startTime + 10000,
+		NextPTS: audioSample2.PTS,
 	}
 
 	sps := []byte{
@@ -66,7 +69,7 @@ func TestWriteVideo(t *testing.T) {
 	}
 
 	firstSegment := &hls.Segment{
-		StartTime:        time.Unix(0, int64(1*time.Hour)),
+		StartTime:        time.Unix(0, startTime),
 		RenderedDuration: 1 * time.Hour,
 
 		ID: 1,
@@ -129,7 +132,7 @@ func TestWriteVideo(t *testing.T) {
 		0x2, 0x3, // Video sample 2.
 		0x4, 0x5, // Video sample 3.
 		0x8, 0x9, // Audio sample 2.
-		0, 0, 4, 0xb3, 'm', 'o', 'o', 'v',
+		0, 0, 4, 0xab, 'm', 'o', 'o', 'v',
 		0, 0, 0, 0x6c, 'm', 'v', 'h', 'd',
 		0, 0, 0, 0, // Fullbox.
 		0, 0, 0, 0, // Creation time.
@@ -284,7 +287,7 @@ func TestWriteVideo(t *testing.T) {
 		0, 0, 0, 0x20, // Chunk offset2.
 
 		/* Audio trak */
-		0, 0, 1, 0xe2, 't', 'r', 'a', 'k',
+		0, 0, 1, 0xda, 't', 'r', 'a', 'k',
 		0, 0, 0, 0x5c, 't', 'k', 'h', 'd',
 		0, 0, 0, 3, // FullBox.
 		0, 0, 0, 0, // Creation time.
@@ -308,7 +311,7 @@ func TestWriteVideo(t *testing.T) {
 		0x40, 0, 0, 0, // 9.
 		0, 0, 0, 0, // Width.
 		0, 0, 0, 0, // Height
-		0, 0, 1, 0x7e, 'm', 'd', 'i', 'a',
+		0, 0, 1, 0x76, 'm', 'd', 'i', 'a',
 		0, 0, 0, 0x20, 'm', 'd', 'h', 'd',
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 0, // Creation time.
@@ -325,7 +328,7 @@ func TestWriteVideo(t *testing.T) {
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		'S', 'o', 'u', 'n', 'd', 'H', 'a', 'n', 'd', 'l', 'e', 'r', 0,
-		0, 0, 1, 0x29, 'm', 'i', 'n', 'f',
+		0, 0, 1, 0x21, 'm', 'i', 'n', 'f',
 		0, 0, 0, 0x14, 'v', 'm', 'h', 'd',
 		0, 0, 0, 0, // FullBox.
 		0, 0, // Graphics mode.
@@ -336,7 +339,7 @@ func TestWriteVideo(t *testing.T) {
 		0, 0, 0, 1, // Entry count.
 		0, 0, 0, 0xc, 'u', 'r', 'l', ' ',
 		0, 0, 0, 1, // FullBox.
-		0, 0, 0, 0xe9, 's', 't', 'b', 'l',
+		0, 0, 0, 0xe1, 's', 't', 'b', 'l',
 		0, 0, 0, 0x65, 's', 't', 's', 'd',
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 1, // Entry count.
@@ -358,13 +361,11 @@ func TestWriteVideo(t *testing.T) {
 		0xf7, 0x39, 0, 1,
 		0xf7, 0x39, 5, 0x80,
 		0x80, 0x80, 0, 6, 0x80, 0x80, 0x80, 1, 2,
-		0, 0, 0, 0x20, 's', 't', 't', 's',
+		0, 0, 0, 0x18, 's', 't', 't', 's',
 		0, 0, 0, 0, // FullBox.
-		0, 0, 0, 2, // Entry count.
-		0, 0, 0, 1, // Entry1 sample count.
-		0, 0, 0, 1, // Entry1 sample delta.
-		0, 0, 0, 1, // Entry2 sample count.
-		0xff, 0xff, 0xff, 0xfe, // Entry2 sample delta.
+		0, 0, 0, 1, // Entry count.
+		0, 0, 0, 2, // Entry1 sample count.
+		0, 0, 0, 0, // Entry1 sample delta.
 		0, 0, 0, 0x28, 's', 't', 's', 'c',
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 2, // Entry count.

@@ -40,8 +40,9 @@ func (mbr *partsReader) Read(p []byte) (int, error) {
 // Segment .
 type Segment struct {
 	ID              uint64
-	StartTime       time.Time
+	StartTime       time.Time // Segment start time.
 	startDTS        time.Duration
+	muxerStartTime  int64
 	segmentMaxSize  uint64
 	videoTrackExist func() bool
 	audioTrackExist func() bool
@@ -60,6 +61,7 @@ func newSegment(
 	id uint64,
 	startTime time.Time,
 	startDTS time.Duration,
+	muxerStartTime int64,
 	segmentMaxSize uint64,
 	videoTrackExist func() bool,
 	audioTrackExist func() bool,
@@ -71,6 +73,7 @@ func newSegment(
 		ID:              id,
 		StartTime:       startTime,
 		startDTS:        startDTS,
+		muxerStartTime:  muxerStartTime,
 		segmentMaxSize:  segmentMaxSize,
 		videoTrackExist: videoTrackExist,
 		audioTrackExist: audioTrackExist,
@@ -84,6 +87,7 @@ func newSegment(
 		s.videoTrackExist,
 		s.audioTrackExist,
 		s.audioClockRate,
+		s.muxerStartTime,
 		s.genPartID(),
 	)
 
@@ -111,7 +115,8 @@ func (s *Segment) finalize(nextVideoSample *VideoSample) error {
 	s.currentPart = nil
 
 	if s.videoTrackExist() {
-		s.RenderedDuration = nextVideoSample.Dts - s.startDTS
+		s.RenderedDuration = time.Duration(
+			nextVideoSample.DTS-s.muxerStartTime) - s.startDTS
 	} else {
 		s.RenderedDuration = 0
 		for _, pa := range s.Parts {
@@ -125,7 +130,7 @@ func (s *Segment) finalize(nextVideoSample *VideoSample) error {
 var ErrMaximumSegmentSize = errors.New("reached maximum segment size")
 
 func (s *Segment) writeH264(sample *VideoSample, adjustedPartDuration time.Duration) error {
-	size := uint64(len(sample.Avcc))
+	size := uint64(len(sample.AVCC))
 
 	if (s.size + size) > s.segmentMaxSize {
 		return ErrMaximumSegmentSize
@@ -148,6 +153,7 @@ func (s *Segment) writeH264(sample *VideoSample, adjustedPartDuration time.Durat
 			s.videoTrackExist,
 			s.audioTrackExist,
 			s.audioClockRate,
+			s.muxerStartTime,
 			s.genPartID(),
 		)
 	}
@@ -156,7 +162,7 @@ func (s *Segment) writeH264(sample *VideoSample, adjustedPartDuration time.Durat
 }
 
 func (s *Segment) writeAAC(sample *AudioSample, adjustedPartDuration time.Duration) error {
-	size := uint64(len(sample.Au))
+	size := uint64(len(sample.AU))
 
 	if (s.size + size) > s.segmentMaxSize {
 		return ErrMaximumSegmentSize
@@ -180,6 +186,7 @@ func (s *Segment) writeAAC(sample *AudioSample, adjustedPartDuration time.Durati
 			s.videoTrackExist,
 			s.audioTrackExist,
 			s.audioClockRate,
+			s.muxerStartTime,
 			s.genPartID(),
 		)
 	}

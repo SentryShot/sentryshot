@@ -62,6 +62,7 @@ func NewMuxer(
 	}
 
 	m.segmenter = newSegmenter(
+		time.Now().UnixNano(),
 		segmentDuration,
 		partDuration,
 		segmentMaxSize,
@@ -175,31 +176,29 @@ func (m *Muxer) NextSegment(prevID uint64) (*Segment, error) {
 // VideoTimescale the number of time units that pass per second.
 const VideoTimescale = 90000
 
-// VideoSample .
+// VideoSample Timestamps are in UnixNano.
 type VideoSample struct {
-	Pts        time.Duration
-	Dts        time.Duration
-	Avcc       []byte
+	PTS        int64
+	DTS        int64
+	AVCC       []byte
 	IdrPresent bool
 
-	nextPts        time.Duration
-	NextDts        time.Duration
-	nextIdrPresent bool
+	NextDTS int64
 }
 
 func (s VideoSample) duration() time.Duration {
-	return s.NextDts - s.Dts
+	return time.Duration(s.NextDTS - s.DTS)
 }
 
-// AudioSample .
+// AudioSample Timestamps are in UnixNano.
 type AudioSample struct {
-	Au  []byte
-	Pts time.Duration
+	AU  []byte
+	PTS int64
 
-	NextPts time.Duration
+	NextPTS int64
 }
 
 // Duration sample duration.
 func (s AudioSample) Duration() time.Duration {
-	return s.NextPts - s.Pts
+	return time.Duration(s.NextPTS - s.PTS)
 }
