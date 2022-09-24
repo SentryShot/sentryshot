@@ -458,9 +458,9 @@ func RecordingVideo(logger *log.Logger, recordingsDir string) http.Handler {
 			logger.Error().Src("app").Msgf("video request: %v", err)
 			http.Error(w, "see logs for details", http.StatusInternalServerError)
 		}
+
 		defer video.Close()
-		// ServerContent() does a unnecessary seek and poke.
-		http.ServeContent(w, r, "", video.ModTime(), video)
+		ServeMP4Content(w, r, video.ModTime(), video.Size(), video)
 	})
 }
 

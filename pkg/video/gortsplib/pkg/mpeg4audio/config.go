@@ -210,7 +210,7 @@ func (c Config) Marshal() ([]byte, error) {
 	}
 	bits.WriteBits(buf, &pos, uint64(channelConfig), 4)
 
-	if c.Type == ObjectTypeSBR { //nolint:nestif
+	if c.Type == ObjectTypeSBR {
 		sampleRateIndex, ok := reverseSampleRates[c.ExtensionSampleRate]
 		if !ok {
 			bits.WriteBits(buf, &pos, uint64(0x0F), 4)

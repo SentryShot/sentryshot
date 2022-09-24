@@ -92,7 +92,7 @@ func (r *VideoReader) Read(p []byte) (int, error) {
 	pLen := int64(len(p))
 
 	// Read starts within meta.
-	if r.i <= r.metaSize { //nolint:nestif
+	if r.i <= r.metaSize {
 		_, err := r.meta.Seek(r.i, io.SeekStart)
 		if err != nil {
 			return 0, err
@@ -166,4 +166,9 @@ func (r *VideoReader) Close() error {
 // ModTime video modification time.
 func (r *VideoReader) ModTime() time.Time {
 	return r.modTime
+}
+
+// Size of video.
+func (r *VideoReader) Size() int64 {
+	return r.metaSize + r.mdatSize
 }

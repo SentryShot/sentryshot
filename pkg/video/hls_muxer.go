@@ -321,7 +321,7 @@ func (m *HLSMuxer) runInnerst( //nolint:gocognit
 		}
 		data := item.(*data) //nolint:forcetypeassert
 
-		if videoTrack != nil && data.trackID == videoTrackID { //nolint:nestif
+		if videoTrack != nil && data.trackID == videoTrackID {
 			if data.h264NALUs == nil {
 				continue
 			}

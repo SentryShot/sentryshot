@@ -232,7 +232,7 @@ func (d *DTSExtractor) extractInnerst(
 	nalus [][]byte,
 	pts time.Duration,
 ) (time.Duration, int32, error) {
-	if d.spsp.PicOrderCntType != 2 && d.spsp.VUI != nil && //nolint:nestif
+	if d.spsp.PicOrderCntType != 2 && d.spsp.VUI != nil &&
 		d.spsp.VUI.TimingInfo != nil && d.spsp.VUI.BitstreamRestriction != nil {
 		return d.computeFromPOC(idrPresent, nalus, pts)
 	} else if d.spsp.VUI != nil && d.spsp.VUI.TimingInfo != nil && d.spsp.VUI.NalHRD != nil {

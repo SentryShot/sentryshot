@@ -211,7 +211,7 @@ func (d *Decoder) readAUHeaders(buf []byte, headersLen int) ([]uint64, error) {
 		}
 		headersLen -= d.SizeLength
 
-		if !firstRead { //nolint:nestif
+		if !firstRead {
 			firstRead = true
 			if d.IndexLength > 0 {
 				auIndex, err := bits.ReadBits(buf, &pos, d.IndexLength)

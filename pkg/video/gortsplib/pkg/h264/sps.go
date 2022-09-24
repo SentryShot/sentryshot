@@ -715,7 +715,7 @@ func (s *SPS) unmarshalSeqScalingMatrix(buf []byte, pos *int) error {
 			return err
 		}
 
-		if seqScalingListPresentFlag { //nolint:nestif
+		if seqScalingListPresentFlag {
 			if i < 6 {
 				scalingList, useDefaultScalingMatrixFlag, err := readScalingList(buf, pos, 16)
 				if err != nil {

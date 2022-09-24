@@ -55,6 +55,9 @@
 		"funlen": {
 			"lines": 65
 		},
+		"nestif": {
+			"min-complexity": 9
+		},
 		"gocritic": {
 			"disabled-checks": ["commentFormatting"]
 		}
