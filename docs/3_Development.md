@@ -34,7 +34,8 @@
 │   ├── storage
 │   │   ├── crawler.go   # Finds recordings.
 │   │   ├── storage.go
-│   │   └── types.go
+│   │   ├── types.go
+│   │   └── video.go
 │   ├── system/
 │   ├── video/ # Internal Video server.
 │   └── web

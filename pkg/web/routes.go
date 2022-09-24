@@ -27,6 +27,7 @@ import (
 	"nvr/pkg/storage"
 	"nvr/pkg/web/auth"
 	"nvr/web/static"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -420,7 +421,7 @@ func RecordingThumbnail(recordingsDir string) http.Handler {
 }
 
 // RecordingVideo serves video by exact recording ID.
-func RecordingVideo(recordingsDir string) http.Handler {
+func RecordingVideo(logger *log.Logger, recordingsDir string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -433,13 +434,49 @@ func RecordingVideo(recordingsDir string) http.Handler {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		path := filepath.Join(recordingsDir, recPath)
+		// Sanitize path.
+		if containsDotDot(path) {
+			http.Error(w, "invalid recording ID", http.StatusBadRequest)
+			return
+		}
 
-		videoPath := filepath.Join(recordingsDir, recPath+".mp4")
+		mp4Path := path + ".mp4"
 
-		// ServeFile will sanitize ".."
-		http.ServeFile(w, r, videoPath)
+		_, err = os.Stat(mp4Path)
+		if err == nil { // File exist.
+			http.ServeFile(w, r, mp4Path)
+			return
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "stat mp4 file", http.StatusInternalServerError)
+			return
+		}
+
+		video, err := storage.NewVideoReader(path)
+		if err != nil {
+			logger.Error().Src("app").Msgf("video request: %v", err)
+			http.Error(w, "see logs for details", http.StatusInternalServerError)
+		}
+		defer video.Close()
+		// ServerContent() does a unnecessary seek and poke.
+		http.ServeContent(w, r, "", video.ModTime(), video)
 	})
 }
+
+func containsDotDot(v string) bool {
+	if !strings.Contains(v, "..") {
+		return false
+	}
+	for _, ent := range strings.FieldsFunc(v, isSlashRune) {
+		if ent == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+func isSlashRune(r rune) bool { return r == '/' || r == '\\' }
 
 // RecordingQuery handles recording query.
 func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //nolint:funlen

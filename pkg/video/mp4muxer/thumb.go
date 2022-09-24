@@ -15,9 +15,9 @@ var (
 	ErrSampleInvalid = errors.New("sample invalid")
 )
 
-// WriteThumbnailVideo writes a mp4 video with a single
+// GenerateThumbnailVideo generates a mp4 video with a single
 // frame that will be converted to jpeg by FFmpeg.
-func WriteThumbnailVideo(
+func GenerateThumbnailVideo(
 	out io.Writer,
 	segment *hls.Segment,
 	info hls.StreamInfo,

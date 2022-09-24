@@ -78,23 +78,37 @@ func onRecSaved(r *monitor.Recorder, recPath string, recData storage.RecordingDa
 		r.Log.Level(level).Src("timeline").Monitor(id).Msgf(format, a...)
 	}
 
-	tempPath := recPath + ".timeline_tmp"
-	timelinePath := recPath + ".timeline"
-	opts := argOpts{
-		logLevel:   r.Config.LogLevel(),
-		inputPath:  recPath + ".mp4",
-		outputPath: tempPath,
+	err := recSaved(r, logf, recPath, recData)
+	if err != nil {
+		logf(log.LevelError, err.Error())
 	}
+}
 
+func recSaved(
+	r *monitor.Recorder,
+	logf log.Func,
+	recPath string,
+	recData storage.RecordingData,
+) error {
 	config, err := parseConfig(*r.Config)
 	if err != nil {
-		logf(log.LevelError, "could not parse config: %w")
+		return fmt.Errorf("could not parse config: %w", err)
 	}
 
-	args := genArgs(opts, *config)
+	video, err := storage.NewVideoReader(recPath)
+	if err != nil {
+		return fmt.Errorf("video reader: %w", err)
+	}
+	defer video.Close()
 
-	logf(log.LevelInfo, "generating video: %v", strings.Join(args, " "))
+	tempPath := recPath + ".timeline_tmp"
+	timelinePath := recPath + ".timeline"
+
+	args := genArgs(r.Config.LogLevel(), tempPath, *config)
+
+	logf(log.LevelInfo, "generating: %v", strings.Join(args, " "))
 	cmd := exec.Command(r.Env.FFmpegBin, args...)
+	cmd.Stdin = video
 
 	logFunc := func(msg string) {
 		logf(log.FFmpegLevel(r.Config.LogLevel()), "process: %v", msg)
@@ -109,24 +123,20 @@ func onRecSaved(r *monitor.Recorder, recPath string, recData storage.RecordingDa
 	defer cancel()
 
 	if err := process.Start(ctx); err != nil {
-		logf(log.LevelError, "could not generate video: %v", args)
-		return
+		return fmt.Errorf("could not generate video: %w %v", err, args)
 	}
 
 	if err := os.Rename(tempPath, timelinePath); err != nil {
-		logf(log.LevelError, "could not rename temp file: %v", err)
+		return fmt.Errorf("could not rename temp file: %w", err)
 	}
-}
+	logf(log.LevelInfo, "done: %v", filepath.Base(timelinePath))
 
-type argOpts struct {
-	logLevel   string
-	inputPath  string
-	outputPath string
+	return nil
 }
 
 const defaultScale = "8"
 
-func genArgs(opts argOpts, c config) []string {
+func genArgs(logLevel string, outputPath string, c config) []string {
 	scale := ffmpeg.ParseScaleString(c.scale)
 	if scale == "" {
 		scale = defaultScale
@@ -135,9 +145,9 @@ func genArgs(opts argOpts, c config) []string {
 	fps := parseFrameRate(c.frameRate)
 
 	args := []string{
-		"-n", "-loglevel", opts.logLevel,
+		"-n", "-loglevel", logLevel,
 		"-threads", "1", "-discard", "nokey",
-		"-i", opts.inputPath, "-an",
+		"-i", "-", "-an",
 		"-c:v", "libx264", "-x264-params", "keyint=4",
 		"-preset", "veryfast", "-tune", "fastdecode", "-crf", crf,
 		"-vsync", "vfr", "-vf",
@@ -151,7 +161,7 @@ func genArgs(opts argOpts, c config) []string {
 	args = append(args, filters)
 
 	args = append(args, "-movflags", "empty_moov+default_base_moof+frag_keyframe")
-	args = append(args, "-f", "mp4", opts.outputPath)
+	args = append(args, "-f", "mp4", outputPath)
 
 	return args
 }

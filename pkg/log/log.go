@@ -27,6 +27,9 @@ import (
 	"golang.org/x/text/language"
 )
 
+// Func logging function.
+type Func func(level Level, format string, a ...interface{})
+
 // Level defines log level.
 type Level uint8
 

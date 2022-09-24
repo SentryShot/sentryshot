@@ -294,7 +294,7 @@ func (s *hlsServer) MuxerByPathName(pathName string) (*hls.Muxer, error) {
 		return nil, context.Canceled
 	case s.chMuxerbyPathName <- muxerByPathNameReq:
 		res := <-muxerByPathNameRes
-		if res == nil {
+		if res == nil || res.muxer == nil {
 			return nil, context.Canceled
 		}
 		return res.muxer, nil

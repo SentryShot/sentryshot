@@ -364,11 +364,12 @@ func TestWriteThumbnail(t *testing.T) {
 
 		done := make(chan struct{})
 		go func() {
-			r.writeThumbnail(os.TempDir(), segment, info)
+			r.generateThumbnail(os.TempDir(), segment, info)
 			close(done)
 		}()
 
 		require.Equal(t, "generating thumbnail:", (<-logs)[:21])
+		require.Equal(t, "thumbnail generated: tmp.jpeg", (<-logs))
 		<-done
 	})
 	t.Run("processErr", func(t *testing.T) {
@@ -393,7 +394,7 @@ func TestWriteThumbnail(t *testing.T) {
 
 		done := make(chan struct{})
 		go func() {
-			r.writeThumbnail(os.TempDir(), segment, info)
+			r.generateThumbnail(os.TempDir(), segment, info)
 			close(done)
 		}()
 

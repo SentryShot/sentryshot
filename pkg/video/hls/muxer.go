@@ -176,6 +176,11 @@ func (m *Muxer) NextSegment(prevID uint64) (*Segment, error) {
 // VideoTimescale the number of time units that pass per second.
 const VideoTimescale = 90000
 
+// Sample .
+type Sample interface {
+	private()
+}
+
 // VideoSample Timestamps are in UnixNano.
 type VideoSample struct {
 	PTS        int64
@@ -190,6 +195,8 @@ func (s VideoSample) duration() time.Duration {
 	return time.Duration(s.NextDTS - s.DTS)
 }
 
+func (VideoSample) private() {}
+
 // AudioSample Timestamps are in UnixNano.
 type AudioSample struct {
 	AU  []byte
@@ -202,3 +209,5 @@ type AudioSample struct {
 func (s AudioSample) Duration() time.Duration {
 	return time.Duration(s.NextPTS - s.PTS)
 }
+
+func (AudioSample) private() {}

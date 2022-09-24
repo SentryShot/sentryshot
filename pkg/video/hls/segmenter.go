@@ -283,6 +283,7 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 	if sample == nil {
 		return nil
 	}
+
 	sample.NextPTS = m.nextAudioSample.PTS
 
 	if !m.videoTrackExist() {

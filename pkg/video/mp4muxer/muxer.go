@@ -1,32 +1,25 @@
 package mp4muxer
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"io"
+	"nvr/pkg/video/customformat"
 	"nvr/pkg/video/hls"
 	"nvr/pkg/video/mp4"
 	"nvr/pkg/video/mp4/bitio"
 	"time"
 )
 
-const (
-	videoTrackID = 0
-	audioTrackID = 1
-)
-
 type muxer struct {
-	file io.WriteSeeker
-	w    *bitio.Writer
 	info hls.StreamInfo
+	out  *bitio.Writer
 
 	startTime int64
 	endTime   int64
 
-	pos        uint32
-	mdatOffset uint32
-	prevSeg    uint64
+	firstSample bool
+	dtsShift    int64
+	mdatPos     uint32
 
 	videoStts []mp4.SttsEntry
 	videoStss []uint32
@@ -42,80 +35,24 @@ type muxer struct {
 
 	prevChunkVideo bool
 	prevChunkAudio bool
-
-	firstSample bool
-	dtsShift    int64
 }
 
-type nextSegmentFunc func(uint64) (*hls.Segment, error)
-
-// WriteVideo writes a mp4 video.
-func WriteVideo(
-	ctx context.Context,
-	file io.WriteSeeker,
-	nextSegment nextSegmentFunc,
-	firstSegment *hls.Segment,
+// GenerateMP4 generates mp4 from samples.
+func GenerateMP4(
+	out io.Writer,
+	startTime int64,
+	samples []customformat.Sample,
 	info hls.StreamInfo,
-	maxDuration time.Duration,
-) (uint64, *time.Time, error) {
-	bw := bitio.NewByteWriter(file)
+) (int64, error) {
+	bw := bitio.NewByteWriter(out)
 	m := &muxer{
-		file: file,
-		w:    bitio.NewWriter(bw),
 		info: info,
+		out:  bitio.NewWriter(bw),
 
-		startTime: firstSegment.StartTime.UnixNano(),
-
+		startTime:   startTime,
 		firstSample: true,
 	}
-	stopTime := firstSegment.StartTime.Add(maxDuration)
 
-	if err := m.writeFtypAndMdat(); err != nil {
-		return 0, nil, err
-	}
-
-	if err := m.parseSegment(firstSegment); err != nil {
-		return 0, nil, err
-	}
-	m.prevSeg = firstSegment.ID
-
-	for {
-		if ctx.Err() != nil {
-			return m.finalize()
-		}
-
-		seg, err := nextSegment(m.prevSeg)
-		if err != nil {
-			return m.finalize()
-		}
-
-		if seg.ID != m.prevSeg+1 {
-			return 0, nil, fmt.Errorf("%w: expected: %v got %v",
-				ErrSkippedSegment, m.prevSeg+1, seg.ID)
-		}
-
-		if err := m.parseSegment(seg); err != nil {
-			return 0, nil, err
-		}
-
-		if seg.StartTime.After(stopTime) {
-			return m.finalize()
-		}
-	}
-}
-
-// ErrSkippedSegment skipped segment.
-var ErrSkippedSegment = errors.New("skipped segment")
-
-func (m *muxer) finalize() (uint64, *time.Time, error) {
-	if err := m.writeMetadata(); err != nil {
-		return 0, nil, fmt.Errorf("write metadata: %w", err)
-	}
-	endTime := time.Unix(0, m.endTime)
-	return m.prevSeg, &endTime, nil
-}
-
-func (m *muxer) writeFtypAndMdat() error {
 	ftyp := &mp4.Ftyp{
 		MajorBrand:   [4]byte{'i', 's', 'o', '4'},
 		MinorVersion: 512,
@@ -123,54 +60,27 @@ func (m *muxer) writeFtypAndMdat() error {
 			{CompatibleBrand: [4]byte{'i', 's', 'o', '4'}},
 		},
 	}
-	n, err := mp4.WriteSingleBox(m.w, ftyp)
+	_, err := mp4.WriteSingleBox(m.out, ftyp)
 	if err != nil {
-		return fmt.Errorf("write ftyp: %w", err)
+		return 0, fmt.Errorf("write ftyp: %w", err)
 	}
-	m.pos = uint32(n)
-	m.mdatOffset = m.pos
 
-	n, err = mp4.WriteSingleBox(m.w, &mp4.Mdat{})
-	if err != nil {
-		return fmt.Errorf("write mdat: %w", err)
-	}
-	m.pos += uint32(n)
-	return nil
-}
-
-func (m *muxer) parseSegment(seg *hls.Segment) error {
-	for _, part := range seg.Parts {
-		for _, sample := range part.VideoSamples {
-			err := m.writeVideoSample(sample)
-			if err != nil {
-				return err
-			}
+	for _, sample := range samples {
+		if sample.IsAudioSample {
+			m.writeAudioSample(sample)
+		} else {
+			m.writeVideoSample(sample)
 		}
 	}
-	for _, part := range seg.Parts {
-		for _, sample := range part.AudioSamples {
-			err := m.writeAudioSample(sample)
-			if err != nil {
-				return err
-			}
-		}
+
+	if err := m.writeMetadata(); err != nil {
+		return 0, fmt.Errorf("write metadata: %w", err)
 	}
-	m.prevSeg = seg.ID
-	m.endTime = seg.StartTime.Add(seg.RenderedDuration).UnixNano()
-	return nil
+	return int64(m.mdatPos), nil
 }
 
-func (m *muxer) writeVideoSample(sample *hls.VideoSample) error {
-	pts := hls.NanoToTimescale(sample.PTS-m.startTime, hls.VideoTimescale)
-	dts := hls.NanoToTimescale(sample.DTS-m.startTime, hls.VideoTimescale)
-	nextDts := hls.NanoToTimescale(sample.NextDTS-m.startTime, hls.VideoTimescale)
-
-	if m.firstSample {
-		m.dtsShift = pts - dts
-		m.firstSample = false
-	}
-
-	delta := nextDts - dts
+func (m *muxer) writeVideoSample(sample customformat.Sample) {
+	delta := hls.NanoToTimescale(sample.Next-sample.DTS, hls.VideoTimescale)
 	if len(m.videoStts) > 0 && m.videoStts[len(m.videoStts)-1].SampleDelta == uint32(delta) {
 		m.videoStts[len(m.videoStts)-1].SampleCount++
 	} else {
@@ -178,6 +88,14 @@ func (m *muxer) writeVideoSample(sample *hls.VideoSample) error {
 			SampleCount: 1,
 			SampleDelta: uint32(delta),
 		})
+	}
+
+	pts := hls.NanoToTimescale(sample.PTS-m.startTime, hls.VideoTimescale)
+	dts := hls.NanoToTimescale(sample.DTS-m.startTime, hls.VideoTimescale)
+
+	if m.firstSample {
+		m.dtsShift = pts - dts
+		m.firstSample = false
 	}
 
 	cts := pts - (dts + m.dtsShift)
@@ -193,7 +111,7 @@ func (m *muxer) writeVideoSample(sample *hls.VideoSample) error {
 	if m.prevChunkVideo {
 		m.videoStsc[len(m.videoStsc)-1].SamplesPerChunk++
 	} else {
-		m.videoStco = append(m.videoStco, m.pos)
+		m.videoStco = append(m.videoStco, m.mdatPos)
 		m.videoStsc = append(m.videoStsc, mp4.StscEntry{
 			FirstChunk:             uint32(len(m.videoStco)),
 			SamplesPerChunk:        1,
@@ -203,22 +121,18 @@ func (m *muxer) writeVideoSample(sample *hls.VideoSample) error {
 		m.prevChunkAudio = false
 	}
 
-	n, err := m.w.Write(sample.AVCC)
-	if err != nil {
-		return fmt.Errorf("write video sample: %w", err)
-	}
-	m.pos += uint32(n)
-	m.videoStsz = append(m.videoStsz, uint32(n))
+	m.mdatPos += sample.Size
+	m.videoStsz = append(m.videoStsz, sample.Size)
 
-	if sample.IdrPresent {
+	if sample.IsSyncSample {
 		m.videoStss = append(m.videoStss, uint32(len(m.videoStsz)))
 	}
 
-	return nil
+	m.endTime = sample.Next
 }
 
-func (m *muxer) writeAudioSample(sample *hls.AudioSample) error {
-	delta := hls.NanoToTimescale(int64(sample.Duration()), int64(m.info.AudioClockRate))
+func (m *muxer) writeAudioSample(sample customformat.Sample) {
+	delta := hls.NanoToTimescale(sample.Next-sample.PTS, int64(m.info.AudioClockRate))
 	if len(m.audioStts) > 0 && m.audioStts[len(m.audioStts)-1].SampleDelta == uint32(delta) {
 		m.audioStts[len(m.audioStts)-1].SampleCount++
 	} else {
@@ -231,7 +145,7 @@ func (m *muxer) writeAudioSample(sample *hls.AudioSample) error {
 	if m.prevChunkAudio {
 		m.audioStsc[len(m.audioStsc)-1].SamplesPerChunk++
 	} else {
-		m.audioStco = append(m.audioStco, m.pos)
+		m.audioStco = append(m.audioStco, m.mdatPos)
 		m.audioStsc = append(m.audioStsc, mp4.StscEntry{
 			FirstChunk:             uint32(len(m.audioStco)),
 			SamplesPerChunk:        1,
@@ -241,19 +155,16 @@ func (m *muxer) writeAudioSample(sample *hls.AudioSample) error {
 		m.prevChunkAudio = true
 	}
 
-	n, err := m.w.Write(sample.AU)
-	if err != nil {
-		return fmt.Errorf("write audio sample: %w", err)
-	}
-	m.pos += uint32(n)
-	m.audioStsz = append(m.audioStsz, uint32(n))
-
-	return nil
+	m.mdatPos += sample.Size
+	m.audioStsz = append(m.audioStsz, sample.Size)
 }
 
-func (m *muxer) writeMetadata() error {
-	mdatSize := m.pos - m.mdatOffset
+const (
+	videoTrackID = 0
+	audioTrackID = 1
+)
 
+func (m *muxer) writeMetadata() error {
 	/*
 	   moov
 	   - mvhd
@@ -278,16 +189,24 @@ func (m *muxer) writeMetadata() error {
 			m.generateAudioTrak(duration),
 		},
 	}
-	if err := moov.Marshal(m.w); err != nil {
-		return err
+
+	const ftypSize = 20
+	const mdatHeaderSize = 8
+	mdatOffset := uint32(ftypSize + moov.Size() + mdatHeaderSize)
+	for i := 0; i < len(m.videoStco); i++ {
+		m.videoStco[i] += mdatOffset
+	}
+	for i := 0; i < len(m.audioStco); i++ {
+		m.audioStco[i] += mdatOffset
 	}
 
-	// Seek to mdat offset and update size.
-	_, err := m.file.Seek(int64(m.mdatOffset), io.SeekStart)
-	if err != nil {
-		return err
+	if err := moov.Marshal(m.out); err != nil {
+		return fmt.Errorf("marshal moov: %w", err)
 	}
-	return m.w.WriteUint32(mdatSize)
+
+	m.out.TryWriteUint32(8 + m.mdatPos)
+	m.out.TryWrite([]byte{'m', 'd', 'a', 't'})
+	return m.out.TryError
 }
 
 func (m *muxer) generateVideoTrak(duration time.Duration) mp4.Boxes {
@@ -319,7 +238,10 @@ func (m *muxer) generateVideoTrak(duration time.Duration) mp4.Boxes {
 						Timescale: hls.VideoTimescale, // the number of time units that pass per second
 						Language:  [3]byte{'u', 'n', 'd'},
 						DurationV0: uint32(
-							hls.NanoToTimescale(int64(duration), hls.VideoTimescale)),
+							hls.NanoToTimescale(
+								int64(duration),
+								hls.VideoTimescale,
+							)),
 					}},
 					{Box: &mp4.Hdlr{
 						HandlerType: [4]byte{'v', 'i', 'd', 'e'},
@@ -480,10 +402,7 @@ func (m *muxer) generateAudioTrak(duration time.Duration) mp4.Boxes {
 						Timescale: uint32(m.info.AudioClockRate),
 						Language:  [3]byte{'u', 'n', 'd'},
 						DurationV0: uint32(
-							hls.NanoToTimescale(
-								int64(duration),
-								int64(m.info.AudioClockRate),
-							)),
+							hls.NanoToTimescale(int64(duration), int64(m.info.AudioClockRate))),
 					}},
 					{Box: &mp4.Hdlr{
 						HandlerType: [4]byte{'s', 'o', 'u', 'n'},

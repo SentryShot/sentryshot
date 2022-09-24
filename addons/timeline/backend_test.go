@@ -27,11 +27,8 @@ import (
 func TestGenArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		actual := genArgs(
-			argOpts{
-				logLevel:   "2",
-				inputPath:  "3",
-				outputPath: "4",
-			},
+			"2",
+			"4",
 			config{
 				scale:     "full",
 				quality:   "1",
@@ -41,7 +38,7 @@ func TestGenArgs(t *testing.T) {
 		expected := []string{
 			"-n", "-loglevel", "2",
 			"-threads", "1", "-discard", "nokey",
-			"-i", "3", "-an",
+			"-i", "-", "-an",
 			"-c:v", "libx264", "-x264-params", "keyint=4",
 			"-preset", "veryfast", "-tune", "fastdecode", "-crf", "18",
 			"-vsync", "vfr", "-vf", "mpdecimate,fps=0.0167,mpdecimate",
@@ -52,11 +49,8 @@ func TestGenArgs(t *testing.T) {
 	})
 	t.Run("maximal", func(t *testing.T) {
 		actual := genArgs(
-			argOpts{
-				logLevel:   "2",
-				inputPath:  "3",
-				outputPath: "4",
-			},
+			"2",
+			"4",
 			config{
 				scale:     "half",
 				quality:   "12",
@@ -66,7 +60,7 @@ func TestGenArgs(t *testing.T) {
 		expected := []string{
 			"-n", "-loglevel", "2",
 			"-threads", "1", "-discard", "nokey",
-			"-i", "3", "-an",
+			"-i", "-", "-an",
 			"-c:v", "libx264", "-x264-params", "keyint=4",
 			"-preset", "veryfast", "-tune", "fastdecode", "-crf", "51",
 			"-vsync", "vfr", "-vf", "mpdecimate,fps=1.0000,mpdecimate,scale='iw/2:ih/2'",
@@ -76,18 +70,11 @@ func TestGenArgs(t *testing.T) {
 		require.Equal(t, actual, expected)
 	})
 	t.Run("defaults", func(t *testing.T) {
-		actual := genArgs(
-			argOpts{
-				logLevel:   "2",
-				inputPath:  "3",
-				outputPath: "4",
-			},
-			config{},
-		)
+		actual := genArgs("2", "4", config{})
 		expected := []string{
 			"-n", "-loglevel", "2",
 			"-threads", "1", "-discard", "nokey",
-			"-i", "3", "-an",
+			"-i", "-", "-an",
 			"-c:v", "libx264", "-x264-params", "keyint=4",
 			"-preset", "veryfast", "-tune", "fastdecode", "-crf", "27",
 			"-vsync", "vfr", "-vf", "mpdecimate,fps=6,mpdecimate,scale='iw/8:ih/8'",

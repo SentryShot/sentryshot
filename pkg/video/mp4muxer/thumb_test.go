@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWriteThumbnailVideo(t *testing.T) {
+func TestGenerateThumbnailVideo(t *testing.T) {
 	videoSample1 := &hls.VideoSample{
 		PTS:        30000,
 		DTS:        40000,
@@ -58,7 +58,7 @@ func TestWriteThumbnailVideo(t *testing.T) {
 		},
 	}
 
-	err = WriteThumbnailVideo(buf, firstSegment, info)
+	err = GenerateThumbnailVideo(buf, firstSegment, info)
 	require.NoError(t, err)
 
 	expected := []byte{
@@ -203,14 +203,14 @@ func TestWriteThumbnailVideo(t *testing.T) {
 	require.Equal(t, expected, buf.Bytes())
 }
 
-func TestWriteThumbnailVideoErrors(t *testing.T) {
+func TestGenerateThumbnailVideoErrors(t *testing.T) {
 	t.Run("sampleMissing", func(t *testing.T) {
 		segment := &hls.Segment{
 			Parts: []*hls.MuxerPart{{
 				VideoSamples: []*hls.VideoSample{},
 			}},
 		}
-		err := WriteThumbnailVideo(nil, segment, hls.StreamInfo{})
+		err := GenerateThumbnailVideo(nil, segment, hls.StreamInfo{})
 		require.ErrorIs(t, err, ErrSampleMissing)
 	})
 	t.Run("sampleInvalid", func(t *testing.T) {
@@ -221,7 +221,7 @@ func TestWriteThumbnailVideoErrors(t *testing.T) {
 				}},
 			}},
 		}
-		err := WriteThumbnailVideo(nil, segment, hls.StreamInfo{})
+		err := GenerateThumbnailVideo(nil, segment, hls.StreamInfo{})
 		require.ErrorIs(t, err, ErrSampleInvalid)
 	})
 }

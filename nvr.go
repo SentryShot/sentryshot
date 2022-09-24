@@ -230,7 +230,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/api/group/delete", a.Admin(a.CSRF(web.GroupDelete(groupManager))))
 
 	mux.Handle("/api/recording/thumbnail/", a.User(web.RecordingThumbnail(env.RecordingsDir())))
-	mux.Handle("/api/recording/video/", a.User(web.RecordingVideo(env.RecordingsDir())))
+	mux.Handle("/api/recording/video/", a.User(web.RecordingVideo(logger, env.RecordingsDir())))
 	mux.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler, logger)))
 
 	mux.Handle("/api/log/feed", a.Admin(web.LogFeed(logger, a)))
