@@ -8,6 +8,7 @@ import (
 	"nvr/pkg/video/customformat"
 	"nvr/pkg/video/mp4muxer"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -26,15 +27,52 @@ type VideoReader struct {
 
 // NewVideoReader creates a video reader.
 // Caller must call Close() when done.
-func NewVideoReader(recordingPath string) (*VideoReader, error) {
+func NewVideoReader(recordingPath string, cache *VideoCache) (*VideoReader, error) {
 	metaPath := recordingPath + ".meta"
 	mdatPath := recordingPath + ".mdat"
 
+	var meta *videoMetadata
+	var err error
+	if cache != nil {
+		var exist bool
+		meta, exist = cache.get(recordingPath)
+		if !exist {
+			meta, err = readVideoMetadata(metaPath)
+			if err != nil {
+				return nil, err
+			}
+			cache.add(recordingPath, meta)
+		}
+	} else {
+		meta, err = readVideoMetadata(metaPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	mdat, err := os.Open(mdatPath)
+	if err != nil {
+		return nil, fmt.Errorf("open mdat file: %w", err)
+	}
+
+	return &VideoReader{
+		meta: bytes.NewReader(meta.buf),
+		mdat: mdat,
+
+		metaSize: int64(len(meta.buf)),
+		mdatSize: meta.mdatSize,
+
+		modTime: meta.modTime,
+	}, nil
+}
+
+func readVideoMetadata(metaPath string) (*videoMetadata, error) {
 	metaStat, err := os.Stat(metaPath)
 	if err != nil {
 		return nil, fmt.Errorf("stat meta file: %w", err)
 	}
 	metaSize := int(metaStat.Size())
+	modTime := metaStat.ModTime()
 
 	meta, err := os.Open(metaPath)
 	if err != nil {
@@ -42,44 +80,31 @@ func NewVideoReader(recordingPath string) (*VideoReader, error) {
 	}
 	defer meta.Close()
 
-	mdat, err := os.Open(mdatPath)
-	if err != nil {
-		return nil, fmt.Errorf("open mdat file: %w", err)
-	}
-
 	reader, header, err := customformat.NewReader(meta, metaSize)
 	if err != nil {
-		mdat.Close()
 		return nil, fmt.Errorf("new reader: %w", err)
 	}
 
 	info, err := header.ToStreamInfo()
 	if err != nil {
-		mdat.Close()
 		return nil, fmt.Errorf("stream info: %w", err)
 	}
 
 	samples, err := reader.ReadAllSamples()
 	if err != nil {
-		mdat.Close()
 		return nil, fmt.Errorf("read all samples: %w", err)
 	}
 
 	metaBuf := &bytes.Buffer{}
 	mdatSize, err := mp4muxer.GenerateMP4(metaBuf, header.StartTime, samples, *info)
 	if err != nil {
-		mdat.Close()
 		return nil, fmt.Errorf("generate meta: %w", err)
 	}
 
-	return &VideoReader{
-		meta: bytes.NewReader(metaBuf.Bytes()),
-		mdat: mdat,
-
-		metaSize: int64(metaBuf.Len()),
+	return &videoMetadata{
+		buf:      metaBuf.Bytes(),
 		mdatSize: mdatSize,
-
-		modTime: metaStat.ModTime(),
+		modTime:  modTime,
 	}, nil
 }
 
@@ -171,4 +196,75 @@ func (r *VideoReader) ModTime() time.Time {
 // Size of video.
 func (r *VideoReader) Size() int64 {
 	return r.metaSize + r.mdatSize
+}
+
+// VideoCache Caches the n most recent video readers.
+type VideoCache struct {
+	items map[string]*videoMetadata
+	age   int
+
+	maxSize int
+
+	mu sync.Mutex
+}
+
+type videoMetadata struct {
+	buf      []byte
+	mdatSize int64
+	modTime  time.Time
+
+	key string
+	age int
+}
+
+const videoCacheSize = 10
+
+// NewVideoCache creates a video cache.
+func NewVideoCache() *VideoCache {
+	return &VideoCache{
+		items:   map[string]*videoMetadata{},
+		maxSize: videoCacheSize,
+	}
+}
+
+// add item to the cache.
+func (c *VideoCache) add(key string, video *videoMetadata) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Ignore duplicate keys.
+	if _, exist := c.items[key]; exist {
+		return
+	}
+
+	c.age++
+	if len(c.items) >= c.maxSize {
+		// Delete the oldest item.
+		oldestItem := &videoMetadata{age: -1}
+		for _, item := range c.items {
+			if oldestItem.age == -1 || item.age < oldestItem.age {
+				oldestItem = item
+			}
+		}
+		delete(c.items, oldestItem.key)
+	}
+
+	video.key = key
+	video.age = c.age
+	c.items[key] = video
+}
+
+// get item by key and update its age if it exists.
+func (c *VideoCache) get(key string) (*videoMetadata, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, item := range c.items {
+		if item.key == key {
+			c.age++
+			item.age = c.age
+			return item, true
+		}
+	}
+	return nil, false
 }

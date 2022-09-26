@@ -40,11 +40,11 @@ func TestNewVideoReader(t *testing.T) {
 	err = os.WriteFile(mdatPath, []byte{0, 0, 0, 0}, 0o600)
 	require.NoError(t, err)
 
-	recording, err := NewVideoReader(path)
+	video, err := NewVideoReader(path, nil)
 	require.NoError(t, err)
-	defer recording.Close()
+	defer video.Close()
 
-	n, err := new(bytes.Buffer).ReadFrom(recording)
+	n, err := new(bytes.Buffer).ReadFrom(video)
 	require.NoError(t, err)
 	require.Greater(t, n, int64(1000))
 }
@@ -110,6 +110,46 @@ func TestVideoReader(t *testing.T) {
 	// Negative  position.
 	_, err = r.Seek(-1, io.SeekStart)
 	require.ErrorIs(t, err, errNegativePosition)
+}
+
+func TestVideoReaderCache(t *testing.T) {
+	cache := NewVideoCache()
+	cache.maxSize = 3
+
+	// Fill cache.
+	cache.add("A", &videoMetadata{})
+	cache.add("B", &videoMetadata{})
+	cache.add("C", &videoMetadata{})
+
+	// Add item and check if "A" was removed.
+	cache.add("D", &videoMetadata{})
+	_, exist := cache.get("A")
+	require.False(t, exist)
+
+	// Get "B" to make it the newest item.
+	cache.get("B")
+
+	// Add item and check if "C" was removed instead of "B".
+	e := &videoMetadata{}
+	cache.add("E", e)
+	_, exist = cache.get("C")
+	require.False(t, exist)
+
+	// Add item and check if "D" was removed instead of "B".
+	cache.add("F", &videoMetadata{})
+	_, exist = cache.get("D")
+	require.False(t, exist)
+
+	// Add item and check if "B" was removed.
+	cache.add("G", &videoMetadata{})
+	_, exist = cache.get("B")
+	require.False(t, exist)
+
+	// Check if duplicate keys are ignored.
+	cache.add("G", &videoMetadata{})
+	e2, exist := cache.get("E")
+	require.True(t, exist)
+	require.Equal(t, e, e2)
 }
 
 type mockReadSeekCloser struct {

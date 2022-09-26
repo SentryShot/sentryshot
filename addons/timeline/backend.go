@@ -95,7 +95,7 @@ func recSaved(
 		return fmt.Errorf("could not parse config: %w", err)
 	}
 
-	video, err := storage.NewVideoReader(recPath)
+	video, err := storage.NewVideoReader(recPath, nil)
 	if err != nil {
 		return fmt.Errorf("video reader: %w", err)
 	}

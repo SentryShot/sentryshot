@@ -422,6 +422,7 @@ func RecordingThumbnail(recordingsDir string) http.Handler {
 
 // RecordingVideo serves video by exact recording ID.
 func RecordingVideo(logger *log.Logger, recordingsDir string) http.Handler {
+	videoReaderCache := storage.NewVideoCache()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -453,13 +454,13 @@ func RecordingVideo(logger *log.Logger, recordingsDir string) http.Handler {
 			return
 		}
 
-		video, err := storage.NewVideoReader(path)
+		video, err := storage.NewVideoReader(path, videoReaderCache)
 		if err != nil {
 			logger.Error().Src("app").Msgf("video request: %v", err)
 			http.Error(w, "see logs for details", http.StatusInternalServerError)
 		}
-
 		defer video.Close()
+
 		ServeMP4Content(w, r, video.ModTime(), video.Size(), video)
 	})
 }
