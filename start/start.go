@@ -67,7 +67,11 @@ func start() error {
 	}
 
 	if !dirExist(envPath) {
-		return genConfigFile(envPath)
+		// Generate config and exit.
+		if err := genConfigFile(envPath); err != nil {
+			return fmt.Errorf("could not generate config file: %w", err)
+		}
+		return nil
 	}
 
 	envYAML, err := os.ReadFile(envPath)
@@ -223,6 +227,12 @@ func genConfigFile(envPath string) error {
 
 	err = os.WriteFile(envPath, b.Bytes(), 0o600)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf( //nolint:goerr113
+				"the specified directory doesn't exist '%v':"+
+					" please create it manually or use the './start/start.sh' script",
+				filepath.Dir(envPath))
+		}
 		return fmt.Errorf("could not write config file: %w", err)
 	}
 

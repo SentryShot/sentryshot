@@ -68,6 +68,7 @@ fi
 if [ "$env" = "" ]; then
 	env="$(pwd)/configs/env.yaml"
 	printf "env file not specified. Using \"%s\"\\n" "$env"
+	mkdir -p ./configs
 fi
 
 # Start program.

@@ -146,8 +146,8 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 
 	// Authentication.
 	if hooks.newAuthenticator == nil {
-		return nil, fmt.Errorf( //nolint:goerr113,stylecheck
-			"No authentication addon enabled. Please enable one in 'config/env.yaml'")
+		return nil, fmt.Errorf( //nolint:goerr113
+			"no authentication addon enabled, please enable one in '%v'", envPath)
 	}
 
 	a, err := hooks.newAuthenticator(*env, logger)
