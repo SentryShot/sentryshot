@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"nvr/pkg/log"
+	"nvr/pkg/storage"
 	"nvr/pkg/video/hls"
 	"strconv"
 	"sync"
@@ -22,10 +23,19 @@ type Server struct {
 const readBufferCount = 2048
 
 // NewServer allocates a server.
-func NewServer(log *log.Logger, wg *sync.WaitGroup, rtspPort int, hlsPort int) *Server {
-	// Only allow local connections.
-	rtspAddress := "127.0.0.1:" + strconv.Itoa(rtspPort)
-	hlsAddress := "127.0.0.1:" + strconv.Itoa(hlsPort)
+func NewServer(log *log.Logger, wg *sync.WaitGroup, env storage.ConfigEnv) *Server {
+	rtspAddress := func() string {
+		if env.RTSPPortExpose {
+			return ":" + strconv.Itoa(env.RTSPPort)
+		}
+		return "127.0.0.1:" + strconv.Itoa(env.RTSPPort)
+	}()
+	hlsAddress := func() string {
+		if env.HLSPortExpose {
+			return ":" + strconv.Itoa(env.HLSPort)
+		}
+		return "127.0.0.1:" + strconv.Itoa(env.HLSPort)
+	}()
 
 	pathManager := newPathManager(wg, log)
 	rtspServer := newRTSPServer(wg, rtspAddress, readBufferCount, pathManager, log)

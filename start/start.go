@@ -286,9 +286,15 @@ var configTemplate = `
 # Port app will be served on.
 port: 2020
 
-# Internal ports.
+# The RTSP and HLS ports use the loopback interface(127.0.0.1)
+# by default. You can expose them to LAN if you need
+# to access them remotely or from another container.
+# But keep in mind that they are completely unprotected.
 rtspPort: 2021
+rtspPortExpose: False
 hlsPort: 2022
+hlsPortExpose: False
+
 
 # Path to golang binary.
 goBin: {{ .goBin }}

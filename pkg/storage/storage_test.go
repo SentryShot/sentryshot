@@ -285,8 +285,8 @@ func newTestEnv(t *testing.T) (string, *ConfigEnv, func()) {
 
 	env := &ConfigEnv{
 		Port:       2020,
-		RTSPport:   2021,
-		HLSport:    2022,
+		RTSPPort:   2021,
+		HLSPort:    2022,
 		GoBin:      goBin,
 		FFmpegBin:  ffmpegBin,
 		StorageDir: filepath.Join(homeDir, "storage"),
@@ -316,8 +316,8 @@ func TestNewConfigEnv(t *testing.T) {
 
 		expected := ConfigEnv{
 			Port:       2020,
-			RTSPport:   2021,
-			HLSport:    2022,
+			RTSPPort:   2021,
+			HLSPort:    2022,
 			GoBin:      filepath.Join(homeDir, "go"),
 			FFmpegBin:  filepath.Join(homeDir, "ffmpeg"),
 			StorageDir: filepath.Join(homeDir, "storage"),

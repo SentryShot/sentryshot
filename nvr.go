@@ -122,7 +122,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	}
 
 	// Video server.
-	videoServer := video.NewServer(logger, wg, env.RTSPport, env.HLSport)
+	videoServer := video.NewServer(logger, wg, *env)
 
 	// Monitors.
 	monitorConfigDir := filepath.Join(env.ConfigDir, "monitors")

@@ -208,11 +208,13 @@ func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
 
 // ConfigEnv stores system configuration.
 type ConfigEnv struct {
-	Port      int    `yaml:"port"`
-	RTSPport  int    `yaml:"rtspPort"`
-	HLSport   int    `yaml:"hlsPort"`
-	GoBin     string `yaml:"goBin"`
-	FFmpegBin string `yaml:"ffmpegBin"`
+	Port           int    `yaml:"port"`
+	RTSPPort       int    `yaml:"rtspPort"`
+	RTSPPortExpose bool   `yaml:"rtspPortExpose"`
+	HLSPort        int    `yaml:"hlsPort"`
+	HLSPortExpose  bool   `yaml:"hlsPortExpose"`
+	GoBin          string `yaml:"goBin"`
+	FFmpegBin      string `yaml:"ffmpegBin"`
 
 	StorageDir string `yaml:"storageDir"`
 	TempDir    string
@@ -238,11 +240,11 @@ func NewConfigEnv(envPath string, envYAML []byte) (*ConfigEnv, error) {
 	if env.Port == 0 {
 		env.Port = 2020
 	}
-	if env.RTSPport == 0 {
-		env.RTSPport = 2021
+	if env.RTSPPort == 0 {
+		env.RTSPPort = 2021
 	}
-	if env.HLSport == 0 {
-		env.HLSport = 2022
+	if env.HLSPort == 0 {
+		env.HLSPort = 2022
 	}
 	if env.GoBin == "" {
 		env.GoBin = "/usr/bin/go"
