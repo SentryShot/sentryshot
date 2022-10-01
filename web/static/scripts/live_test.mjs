@@ -30,8 +30,8 @@ mockHls.Events = {
 
 const monitors = {
 	1: { enable: "false" },
-	2: { enable: "true", id: "2" },
-	3: { audioEnabled: "true", enable: "true", id: "3" },
+	2: { enable: "true", id: "2", name: "C" },
+	3: { audioEnabled: "true", enable: "true", id: "3", name: "B" },
 };
 
 describe("newViewer", () => {
@@ -46,14 +46,6 @@ describe("newViewer", () => {
 	};
 	test("rendering", () => {
 		const expected = `
-			<div id="js-video-2 "class="grid-item-container">
-				<video
-					class="grid-item"
-					muted=""
-					disablepictureinpicture=""
-					playsinline=""
-				></video>
-			</div>
 			<div id="js-video-3" class="grid-item-container">
 				<input
 					class="player-overlay-checkbox"
@@ -72,6 +64,14 @@ describe("newViewer", () => {
 						>
 					</button>
 				</div>
+				<video
+					class="grid-item"
+					muted=""
+					disablepictureinpicture=""
+					playsinline=""
+				></video>
+			</div>
+			<div id="js-video-2 "class="grid-item-container">
 				<video
 					class="grid-item"
 					muted=""

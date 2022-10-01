@@ -14,7 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import Hls from "./vendor/hls.mjs";
-import { $ } from "./libs/common.mjs";
+import { $, sortByName } from "./libs/common.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
 import { newFeed } from "./components/feed.mjs";
 
@@ -32,6 +32,7 @@ function newViewer($parent, monitors, hls) {
 		return false;
 	};
 
+	const sortedMonitors = sortByName(monitors);
 	let preferLowRes = false;
 	let feeds = [];
 
@@ -47,7 +48,7 @@ function newViewer($parent, monitors, hls) {
 				feed.destroy();
 			}
 			feeds = [];
-			for (const monitor of Object.values(monitors)) {
+			for (const monitor of Object.values(sortedMonitors)) {
 				if (!isMonitorSelected(monitor)) {
 					continue;
 				}
