@@ -20,7 +20,7 @@ Crop frame to focus the detector and increase accuracy.
 
 #### Mask
 
-Mask off areas you want the detector to ignore.
+Mask off areas you want the detector to ignore. The dark marked area will be ignored.
 
 #### Detector
 

@@ -494,26 +494,28 @@ function crop(hls, detectors) {
 			var feed;
 			const element = $parent.querySelector("#" + id);
 			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
+				const subInputEnabled =
+					monitorFields.subInput.value() !== "" ? "true" : "";
+				const monitor = {
+					id: monitorFields.id.value(),
+					audioEnabled: "false",
+					subInputEnabled: subInputEnabled,
+				};
+				feed = newFeed(monitor, true, hls);
+
 				if (!rendered) {
-					const subInputEnabled =
-						monitorFields.subInput.value() !== "" ? "true" : "";
-					const monitor = {
-						id: monitorFields.id.value(),
-						audioEnabled: "false",
-						subInputEnabled: subInputEnabled,
-					};
-					feed = newFeed(monitor, true, hls);
-
 					renderModal(element, feed);
+					modal.onClose(() => {
+						feed.destroy();
+					});
 					rendered = true;
+				} else {
+					// Update feed.
+					$feed.innerHTML = feed.html;
 				}
+
 				modal.open();
-
 				feed.init($modalContent);
-
-				modal.onClose(() => {
-					feed.destroy();
-				});
 			});
 		},
 	};
@@ -522,7 +524,7 @@ function crop(hls, detectors) {
 function mask(hls) {
 	let fields = {};
 	let value = {};
-	let $enable, $overlay, $points, $modalContent;
+	let $enable, $overlay, $points, $modalContent, $feed;
 
 	const modal = newModal("Mask");
 
@@ -553,6 +555,7 @@ function mask(hls) {
 
 		$modalContent = modal.init(element);
 		$modalContent.innerHTML = html;
+		$feed = $modalContent.querySelector(".js-feed");
 
 		$enable = $modalContent.querySelector(".js-enable .js-input");
 		$enable.addEventListener("change", () => {
@@ -691,25 +694,27 @@ function mask(hls) {
 			var feed;
 			const element = $parent.querySelector("#" + id);
 			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
+				const subInputEnabled = fields.subInput.value() !== "" ? "true" : "";
+				const monitor = {
+					id: fields.id.value(),
+					audioEnabled: "false",
+					subInputEnabled: subInputEnabled,
+				};
+				feed = newFeed(monitor, true, hls);
+
 				if (!rendered) {
-					const subInputEnabled = fields.subInput.value() !== "" ? "true" : "";
-					const monitor = {
-						id: fields.id.value(),
-						audioEnabled: "false",
-						subInputEnabled: subInputEnabled,
-					};
-					feed = newFeed(monitor, true, hls);
-
 					renderModal(element, feed);
+					modal.onClose(() => {
+						feed.destroy();
+					});
 					rendered = true;
+				} else {
+					// Update feed.
+					$feed.innerHTML = feed.html;
 				}
+
 				modal.open();
-
 				feed.init($modalContent);
-
-				modal.onClose(() => {
-					feed.destroy();
-				});
 			});
 		},
 	};
