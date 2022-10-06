@@ -213,7 +213,7 @@ function thresholds(detectors) {
 		isRendered = true;
 	};
 
-	const defaultThresh = 50;
+	const defaultThresh = 100;
 
 	const setValue = (detectorName) => {
 		// Get labels from detector.
@@ -654,9 +654,9 @@ function mask(hls) {
 		return {
 			enable: false,
 			area: [
-				[20, 20],
-				[80, 20],
-				[50, 50],
+				[50, 15],
+				[85, 15],
+				[85, 50],
 			],
 		};
 	};

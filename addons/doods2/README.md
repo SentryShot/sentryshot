@@ -12,7 +12,7 @@ Enable for this monitor.
 
 #### Thresholds
 
-Individual confidence thresholds for each object that can be detected.
+Individual confidence thresholds for each object that can be detected. A threshold of 100 means that it must 100% confident about the object before a event is triggered. 50 is a good starting point.
 
 #### Crop
 
@@ -32,7 +32,7 @@ Frames per second to send to detector, decimals are allowed.
 
 #### Trigger duration (sec)
 
-Recording trigger will be active for this duration in seconds.
+The number of seconds the recorder will be active for after a object is detected.
 
 #### Use sub stream
 
