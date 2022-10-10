@@ -126,25 +126,6 @@ func TestProcess(t *testing.T) {
 	})
 }
 
-func TestMakePipe(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "")
-		require.NoError(t, err)
-		defer os.RemoveAll(tempDir)
-
-		pipePath := tempDir + "/pipe.fifo"
-		err = MakePipe(pipePath)
-		require.NoError(t, err)
-
-		_, err = os.Stat(pipePath)
-		require.NoError(t, err)
-	})
-	t.Run("MkfifoErr", func(t *testing.T) {
-		err := MakePipe("")
-		require.Error(t, err)
-	})
-}
-
 func TestShellProcessNoOutput(t *testing.T) {}
 
 func fakeExecCommandNoOutput(...string) *exec.Cmd {
@@ -409,4 +390,21 @@ func TestFeedRateToDuration(t *testing.T) {
 			require.Equal(t, tc.expected, actual)
 		})
 	}
+}
+
+func TestParseTimestampOffset(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		actual, err := ParseTimestampOffset("500")
+		require.NoError(t, err)
+		require.Equal(t, 500*time.Millisecond, actual)
+	})
+	t.Run("empty", func(t *testing.T) {
+		actual, err := ParseTimestampOffset("")
+		require.NoError(t, err)
+		require.Equal(t, time.Duration(0), actual)
+	})
+	t.Run("error", func(t *testing.T) {
+		_, err := ParseTimestampOffset("x")
+		require.Error(t, err)
+	})
 }

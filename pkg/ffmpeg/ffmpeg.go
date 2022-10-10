@@ -25,8 +25,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -150,16 +150,6 @@ func (p process) Stop() {
 		p.cmd.Process.Signal(os.Kill) //nolint:errcheck
 		<-p.done
 	}
-}
-
-// MakePipe creates fifo pipe at specified location.
-func MakePipe(path string) error {
-	os.Remove(path)
-	err := syscall.Mkfifo(path, 0o600)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // FFMPEG stores ffmpeg binary location.
@@ -324,4 +314,16 @@ func ParseScaleString(scale string) string {
 func FeedRateToDuration(feedRate float64) time.Duration {
 	frameDuration := 1 / feedRate
 	return time.Duration(frameDuration * float64(time.Second))
+}
+
+// ParseTimestampOffset converts the timestampOffset string to duration.
+func ParseTimestampOffset(timestampOffsetStr string) (time.Duration, error) {
+	if timestampOffsetStr == "" {
+		return 0, nil
+	}
+	timestampOffsetFloat, err := strconv.Atoi(timestampOffsetStr)
+	if err != nil {
+		return 0, fmt.Errorf("parse timestamp offset %w", err)
+	}
+	return time.Duration(timestampOffsetFloat) * time.Millisecond, nil
 }

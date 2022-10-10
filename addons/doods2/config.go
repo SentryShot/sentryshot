@@ -59,8 +59,8 @@ type mask struct {
 	Area   ffmpeg.Polygon `json:"area"`
 }
 
-func parseConfig(conf monitor.Config) (*config, bool, error) { //nolint:funlen
-	rawConf, err := parseRawConfig(conf["doods"])
+func parseConfig(c monitor.Config) (*config, bool, error) { //nolint:funlen
+	rawConf, err := parseRawConfig(c["doods"])
 	if err != nil {
 		return nil, false, err
 	}
@@ -69,7 +69,7 @@ func parseConfig(conf monitor.Config) (*config, bool, error) { //nolint:funlen
 		return nil, false, nil
 	}
 
-	timestampOffset, err := parseTimestampOffset(conf["timestampOffset"])
+	timestampOffset, err := ffmpeg.ParseTimestampOffset(c["timestampOffset"])
 	if err != nil {
 		return nil, false, err
 	}
@@ -110,12 +110,12 @@ func parseConfig(conf monitor.Config) (*config, bool, error) { //nolint:funlen
 		return nil, false, err
 	}
 
-	useSubStream := conf.SubInputEnabled() && rawConf.UseSubStream == "true"
+	useSubStream := c.SubInputEnabled() && rawConf.UseSubStream == "true"
 
 	return &config{
-		monitorID:       conf.ID(),
-		hwaccel:         conf.Hwaccel(),
-		ffmpegLogLevel:  conf.LogLevel(),
+		monitorID:       c.ID(),
+		hwaccel:         c.Hwaccel(),
+		ffmpegLogLevel:  c.LogLevel(),
 		timestampOffset: timestampOffset,
 		thresholds:      thresholds,
 		cropX:           crop[0],
@@ -140,17 +140,6 @@ func parseRawConfig(rawDoods string) (rawConfigV1, error) {
 		return rawConfigV1{}, fmt.Errorf("unmarshal doods: %w", err)
 	}
 	return rawConf, nil
-}
-
-func parseTimestampOffset(rawTimestampOffset string) (time.Duration, error) {
-	if rawTimestampOffset == "" {
-		return 0, nil
-	}
-	timestampOffsetFloat, err := strconv.Atoi(rawTimestampOffset)
-	if err != nil {
-		return 0, fmt.Errorf("parse timestamp offset %w", err)
-	}
-	return time.Duration(timestampOffsetFloat) * time.Millisecond, nil
 }
 
 func parseThresholds(rawThresholds string) (thresholds, error) {

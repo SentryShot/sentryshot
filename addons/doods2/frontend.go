@@ -48,11 +48,11 @@ func modifyTemplates(pageFiles map[string]string) error {
 }
 
 func modifySettingsjs(tpl string) string {
-	importStatement := `import { doods } from "./doods.mjs"`
-
+	const importStatement = `import { doods } from "./doods.mjs"
+`
 	const target = "logLevel: fieldTemplate.select("
-	tpl = strings.ReplaceAll(tpl, target, "doods: doods(),"+target)
 
+	tpl = strings.ReplaceAll(tpl, target, "doods: doods(),"+target)
 	return importStatement + tpl
 }
 

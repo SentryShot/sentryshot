@@ -40,8 +40,6 @@ func init() {
 	nvr.RegisterMonitorInputProcessHook(onInputProcessStart)
 }
 
-type logFunc func(log.Level, string, ...interface{})
-
 func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]string) {
 	i.MonitorLock.Lock()
 	defer i.MonitorLock.Unlock()
@@ -83,7 +81,7 @@ func start(
 	ctx context.Context,
 	input *monitor.InputProcess,
 	config config,
-	logf logFunc,
+	logf log.Func,
 ) error {
 	detector, err := detectorByName(config.detectorName)
 	if err != nil {
@@ -134,7 +132,7 @@ func start(
 
 type instance struct {
 	c         config
-	logf      logFunc
+	logf      log.Func
 	sendEvent monitor.SendEventFunc
 
 	outputs       outputs
@@ -159,7 +157,7 @@ func newInstance(
 	sendRequest sendRequestFunc,
 	i *monitor.InputProcess,
 	c config,
-	logf logFunc,
+	logf log.Func,
 ) *instance {
 	return &instance{
 		c:         c,
@@ -314,12 +312,12 @@ func generateFFmpegArgs(
 	maskPath string,
 ) []string {
 	// Output minimal
-	// ffmpeg -i main.pipe -filter
+	// ffmpeg -rtsp_transport tcp -i rtsp://x -filter
 	//   'fps=fps=3,scale=320:260,pad=320:320:0:0,crop:300:300:10:10'
 	//   -f rawvideo -pix_fmt rgb24 -
 	//
 	// Output maximal
-	// ffmpeg -hwaccel x -i main.pipe -i mask.png -filter_complex
+	// ffmpeg -hwaccel x -rtsp_transport tcp -i rtsp://x -i mask.png -filter_complex
 	//   '[0:v]fps=fps=3,scale=320:260[bg];
 	//     [bg][1:v]overlay,pad=320:320:0:0,crop:300:300:10:10,hue=s=0'
 	//   -f rawvideo -pix_fmt rgb24 -

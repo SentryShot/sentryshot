@@ -14,7 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import Hls from "./static/scripts/vendor/hls.mjs";
-import { $, uniqueID } from "./static/scripts/libs/common.mjs";
+import { uniqueID } from "./static/scripts/libs/common.mjs";
 import {
 	newForm,
 	newField,
@@ -166,7 +166,7 @@ function thresholds(detectors) {
 					/>
 				</li>`,
 			value() {
-				return $(`#${id}`).value;
+				return document.querySelector(`#${id}`).value;
 			},
 			label() {
 				return label;
@@ -830,4 +830,4 @@ $style.innerHTML = `
 		background: var(--color1);
 	}`;
 
-$("head").append($style);
+document.querySelector("head").append($style);

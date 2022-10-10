@@ -15,167 +15,148 @@
 
 package motion
 
-/*
+import (
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"nvr"
+	"nvr/pkg/ffmpeg"
+	"nvr/pkg/log"
+	"nvr/pkg/monitor"
+	"nvr/pkg/storage"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+)
+
 func init() {
 	nvr.RegisterMonitorInputProcessHook(onInputProcessStart)
 	nvr.RegisterLogSource([]string{"motion"})
-	log.Fatal("motion addon is depricated")
 }
 
 func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]string) {
-	m := i.M
-	if m.Config["motionDetection"] != "true" {
-		return
-	}
-	if m.Config.SubInputEnabled() != i.IsSubInput() {
+	i.MonitorLock.Lock()
+	defer i.MonitorLock.Unlock()
+
+	if i.Config.SubInputEnabled() != i.IsSubInput() {
 		return
 	}
 
-	//*args += genArgs(m)
-
-	if err := onMonitorStart(ctx, m); err != nil {
-		m.Log.Error().
-			Src("motion").
-			Monitor(m.Config.ID()).
-			Msgf("failed to start %v", err)
+	id := i.Config.ID()
+	logf := func(level log.Level, format string, a ...interface{}) {
+		i.Log.Level(level).Src("motion").Monitor(id).Msgf(format, a...)
 	}
+
+	config, enable, err := parseConfig(*i.Config)
+	if err != nil {
+		logf(log.LevelError, "could not parse config: %v", err)
+		return
+	}
+	if !enable {
+		return
+	}
+
+	i.WG.Add(1)
+	go func() {
+		defer i.WG.Done()
+		// Wait for monitor to start.
+		select {
+		case <-time.After(10 * time.Second):
+		case <-ctx.Done():
+			return
+		}
+		if err := start(ctx, i, *config, logf); err != nil {
+			logf(log.LevelError, "failed to start %v", err)
+		}
+	}()
 }
 
-/*func genArgs(m *monitor.Monitor) string {
-	pipePath := filepath.Join(m.Env.SHMDir, "motion", m.Config.ID(), "main.fifo")
-
-	return " -c:v copy -map 0:v -f fifo -fifo_format mpegts" +
-		" -drop_pkts_on_overflow 1 -attempt_recovery 1" +
-		" -restart_with_keyframe 1 -recovery_wait_time 1 " + pipePath
-}*/ /*
-
-func onMonitorStart(ctx context.Context, m *monitor.Monitor) error {
-	if m.Config["motionDetection"] != "true" {
-		return nil
-	}
-
-	a := newAddon(m)
-
-	if err := os.MkdirAll(a.zonesDir(), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("could not make directory for zones: %w", err)
-	}
-
-	if err := ffmpeg.MakePipe(a.mainPipe()); err != nil {
-		return fmt.Errorf("could not make main pipe: %w", err)
-	}
-
-	var err error
-	a.zones, err = a.unmarshalZones()
+func start(
+	ctx context.Context,
+	i *monitor.InputProcess,
+	config config,
+	logf log.Func,
+) error {
+	ctx2, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	streamInfo, err := i.StreamInfo(ctx2)
 	if err != nil {
-		return fmt.Errorf("could not unmarshal zones: %w", err)
+		return fmt.Errorf("stream info: %w", err)
 	}
+	width := streamInfo.VideoWidth
+	height := streamInfo.VideoHeight
 
-	a.duration, err = ffmpeg.FeedRateToDuration(a.m.Config["motionFeedRate"])
+	d, err := newDetector(i, config, logf)
 	if err != nil {
-		return fmt.Errorf("could not parse duration: %w", err)
+		return err
 	}
 
-	scale := parseScale(m.Config["motionFrameScale"])
-	masks, err := a.generateMasks(a.zones, scale)
+	masks, err := generateMasks(
+		d.config.zones,
+		d.zonesDir,
+		width,
+		height,
+		config.scale,
+	)
 	if err != nil {
-		return fmt.Errorf("could not generate mask: %w", err)
+		return fmt.Errorf("generate mask: %w", err)
 	}
 
-	detectorArgs := a.generateDetectorArgs(masks, m.Config["hwaccel"], scale)
+	args := generateArgs(masks, config, i.RTSPprotocol(), i.RTSPaddress())
 
-	durationInt, err := strconv.Atoi(a.m.Config["motionDuration"])
-	if err != nil {
-		return fmt.Errorf("could not parse motionDuration: %w", err)
-	}
-	a.recDuration = time.Duration(durationInt) * time.Second
-
-	go a.startDetector(ctx, detectorArgs)
-
+	d.wg.Add(1)
+	go d.startDetector(ctx, args)
 	return nil
 }
 
-type (
-	area []ffmpeg.Point
-	zone struct {
-		Enable    bool    `json:"enable"`
-		Threshold float64 `json:"threshold"`
-		Area      area    `json:"area"`
+type detector struct {
+	sendEvent monitor.SendEventFunc
+	wg        *sync.WaitGroup
+	env       storage.ConfigEnv
+	logf      log.Func
+	config    config
+	zonesDir  string
+}
+
+func newDetector(i *monitor.InputProcess, conf config, logf log.Func) (*detector, error) {
+	zonesDir := filepath.Join(os.TempDir(), "motion", conf.monitorID)
+	err := os.MkdirAll(zonesDir, 0o700)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return nil, fmt.Errorf("make directory for zones: %w", err)
 	}
-)
 
-func (zone zone) calculatePolygon(w int, h int) ffmpeg.Polygon {
-	polygon := make(ffmpeg.Polygon, len(zone.Area))
-	for i, point := range zone.Area {
-		px := point[0]
-		py := point[1]
-		polygon[i] = [2]int{int(float32(w) * (float32(px) / 100)), int(float32(h) * (float32(py) / 100))}
-	}
-
-	return polygon
+	return &detector{
+		sendEvent: i.SendEvent,
+		wg:        i.WG,
+		env:       i.Env,
+		logf:      logf,
+		config:    conf,
+		zonesDir:  zonesDir,
+	}, nil
 }
 
-type addon struct {
-	m   *monitor.Monitor
-	env *storage.ConfigEnv
-
-	zones       []zone
-	duration    time.Duration
-	recDuration time.Duration
-}
-
-func newAddon(m *monitor.Monitor) addon {
-	return addon{
-		m:   m,
-		env: m.Env,
-	}
-}
-
-func (a addon) fifoDir() string {
-	return filepath.Join(a.env.SHMDir, "motion")
-}
-
-func (a addon) zonesDir() string {
-	return filepath.Join(a.fifoDir(), a.m.Config.ID())
-}
-
-func (a addon) mainPipe() string {
-	return filepath.Join(a.fifoDir(), a.m.Config.ID(), "main.fifo")
-}
-
-func (a addon) unmarshalZones() ([]zone, error) {
-	var zones []zone
-	err := json.Unmarshal([]byte(a.m.Config["motionZones"]), &zones)
-
-	return zones, err
-}
-
-func (zone zone) generateMask(w int, h int) image.Image {
-	polygon := zone.calculatePolygon(w, h)
-
-	return ffmpeg.CreateInvertedMask(w, h, polygon)
-}
-
-func (a addon) generateMasks(zones []zone, scale string) ([]string, error) {
+func generateMasks(
+	zones []zoneConfig,
+	zonesDir string,
+	width int,
+	height int,
+	scale int,
+) ([]string, error) {
 	masks := make([]string, 0, len(zones))
 	for i, zone := range zones {
 		if !zone.Enable {
 			continue
 		}
 
-		var size []string
-		// Broken.
-		/*if a.m.Config.SubInputEnabled() {
-			size = strings.Split(a.m.Config["size"], "x")
-		} else {
-			size = strings.Split(a.m.Config["size"], "x")
-		}*/ /*
-		w, _ := strconv.Atoi(size[0])
-		h, _ := strconv.Atoi(size[1])
-
-		s, _ := strconv.Atoi(scale)
-
-		mask := zone.generateMask(w/s, h/s)
-		maskPath := a.zonesDir() + "/zone" + strconv.Itoa(i) + ".png"
+		mask := zone.generateMask(width/scale, height/scale)
+		maskPath := zonesDir + "/zone" + strconv.Itoa(i) + ".png"
 		masks = append(masks, maskPath)
 		if err := ffmpeg.SaveImage(maskPath, mask); err != nil {
 			return nil, fmt.Errorf("could not save mask: %w", err)
@@ -184,7 +165,12 @@ func (a addon) generateMasks(zones []zone, scale string) ([]string, error) {
 	return masks, nil
 }
 
-func (a addon) generateDetectorArgs(masks []string, hwaccel string, scale string) []string {
+func generateArgs(
+	masks []string,
+	c config,
+	rtspProtocol string,
+	rtspAddress string,
+) []string {
 	var args []string
 
 	// Final command will look something like this.
@@ -194,22 +180,24 @@ func (a addon) generateDetectorArgs(masks []string, hwaccel string, scale string
 		[in2][2:v]overlay,metadata=add:key=id:value=1,select='gte(scene\,0)',metadata=print[out2]" \
 		-map "[out1]" -f null - \
 		-map "[out2]" -f null -
-*/ /*
+	*/
 
 	args = append(args, "-y")
 
-	if hwaccel != "" {
-		args = append(args, ffmpeg.ParseArgs("-hwaccel "+hwaccel)...)
+	if c.hwaccel != "" {
+		args = append(args, ffmpeg.ParseArgs("-hwaccel "+c.hwaccel)...)
 	}
 
-	args = append(args, "-i", a.mainPipe())
+	args = append(args, "-rtsp_transport", rtspProtocol, "-i", rtspAddress)
+
 	for _, mask := range masks {
 		args = append(args, "-i", mask)
 	}
 	args = append(args, "-filter_complex")
 
-	feedrate := a.m.Config["motionFeedRate"]
-	filter := "[0:v]fps=fps=" + feedrate + ",scale=iw/" + scale + ":ih/" + scale + ",split=" + strconv.Itoa(len(masks))
+	scale := strconv.Itoa(c.scale)
+	filter := "[0:v]fps=fps=" + c.feedRate +
+		",scale=iw/" + scale + ":ih/" + scale + ",split=" + strconv.Itoa(len(masks))
 
 	for i := range masks {
 		filter += "[in" + strconv.Itoa(i) + "]"
@@ -217,7 +205,6 @@ func (a addon) generateDetectorArgs(masks []string, hwaccel string, scale string
 
 	for index := range masks {
 		i := strconv.Itoa(index)
-
 		filter += ";[in" + i + "][" + strconv.Itoa(index+1)
 		filter += ":v]overlay"
 		filter += ",metadata=add:key=id:value=" + i
@@ -228,66 +215,59 @@ func (a addon) generateDetectorArgs(masks []string, hwaccel string, scale string
 
 	for index := range masks {
 		i := strconv.Itoa(index)
-
 		args = append(args, "-map", "[out"+i+"]", "-f", "null", "-")
 	}
 
 	return args
 }
 
-func (a addon) startDetector(ctx context.Context, args []string) {
-	a.m.WG.Add(1)
-
+func (d detector) startDetector(ctx context.Context, args []string) {
 	for {
 		if ctx.Err() != nil {
-			a.m.WG.Done()
-			a.m.Log.Info().
-				Src("motion").
-				Monitor(a.m.Config.ID()).
-				Msg("detector stopped")
+			d.wg.Done()
+			d.logf(log.LevelInfo, "detector stopped")
 
 			return
 		}
-		if err := a.detectorProcess(ctx, args); err != nil {
-			a.m.Log.Error().
-				Src("motion").
-				Monitor(a.m.Config.ID()).
-				Msg(err.Error())
-
-			time.Sleep(1 * time.Second)
+		if err := d.detectorProcess(ctx, args); err != nil {
+			d.logf(log.LevelError, "%v", err)
+			select {
+			case <-ctx.Done():
+			case <-time.After(1 * time.Second):
+			}
 		}
 	}
 }
 
-func (a addon) detectorProcess(ctx context.Context, args []string) error {
-	/*
-		cmd := exec.Command(a.env.FFmpegBin, args...)
-		process := ffmpeg.NewProcess(cmd)
-		process.SetPrefix("motion: process:")
-		process.SetStdoutLogger(a.m.Log)
+func (d detector) detectorProcess(ctx context.Context, args []string) error {
+	cmd := exec.Command(d.env.FFmpegBin, args...)
 
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			return fmt.Errorf("stderr: %w", err)
-		}
+	processLogFunc := func(msg string) {
+		d.logf(log.FFmpegLevel(d.config.logLevel), msg)
+	}
 
-		a.m.Log.Info().
-			Src("motion").
-			Monitor(a.m.Config.ID()).
-			Msgf("starting detector: %v", cmd)
+	process := ffmpeg.NewProcess(cmd).
+		StdoutLogger(processLogFunc)
 
-		go a.parseFFmpegOutput(stderr)
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("stderr: %w", err)
+	}
 
-		err = process.Start(ctx)
+	d.logf(log.LevelInfo, "starting detector: %v", args)
 
-		if err != nil {
-			return fmt.Errorf("detector crashed: %w", err)
-		}
-*/ /*
+	go d.parseFFmpegOutput(stderr)
+
+	err = process.Start(ctx)
+
+	if err != nil {
+		return fmt.Errorf("detector crashed: %w", err)
+	}
+
 	return nil
 }
 
-func (a addon) parseFFmpegOutput(stderr io.Reader) {
+func (d detector) parseFFmpegOutput(stderr io.Reader) {
 	output := bufio.NewScanner(stderr)
 	p := newParser()
 	for output.Scan() {
@@ -300,61 +280,25 @@ func (a addon) parseFFmpegOutput(stderr io.Reader) {
 		}
 
 		// m.Log.Println(id, score)
-		if a.zones[id].Threshold < score {
-			a.sendTrigger(id, score)
+		if d.config.zones[id].Threshold < score {
+			d.sendTrigger(id, score)
 		}
 	}
 }
 
-func (a addon) sendTrigger(id int, score float64) {
-	now := time.Now().Local()
-	timestamp := fmt.Sprintf("%v:%v:%v", now.Hour(), now.Minute(), now.Second())
+func (d detector) sendTrigger(id int, score float64) {
+	d.logf(log.LevelDebug, "trigger id:%v score:%.2f\n", id, score)
 
-	a.m.Log.Info().
-		Src("motion").
-		Monitor(a.m.Config.ID()).
-		Msgf("trigger id:%v score:%.2f time:%v\n", id, score, timestamp)
+	t := time.Now().Add(-d.config.timestampOffset)
 
-	a.m.Trigger <- storage.Event{
+	d.sendEvent(storage.Event{ //nolint:errcheck
 		Detections: []storage.Detection{
-			{
-				Score: score,
-			},
+			{Score: score},
 		},
-		Time:        time.Now(),
-		Duration:    a.duration,
-		RecDuration: a.recDuration,
-	}
-}
-
-/*
-func drainReader(r io.Reader) {
-	b := make([]byte, 1024)
-	for {
-		if _, err := r.Read(b); err != nil {
-			return
-		}
-	}
-}
-*/ /*
-
-func parseScale(scale string) string {
-	switch strings.ToLower(scale) {
-	case "full":
-		return "1"
-	case "half":
-		return "2"
-	case "third":
-		return "3"
-	case "quarter":
-		return "4"
-	case "sixth":
-		return "6"
-	case "eighth":
-		return "8"
-	default:
-		return "1"
-	}
+		Time:        t,
+		Duration:    d.config.duration,
+		RecDuration: d.config.recDuration,
+	})
 }
 
 type parser struct {
@@ -362,17 +306,14 @@ type parser struct {
 }
 
 func newParser() parser {
-	segment := ""
-	return parser{
-		segment: &segment,
-	}
+	return parser{segment: new(string)}
 }
 
 // Stitch several lines into a segment.
 /*	[Parsed_metadata_5 @ 0x] frame:35   pts:39      pts_time:19.504x
 	[Parsed_metadata_5 @ 0x] id=0
 	[Parsed_metadata_5 @ 0x] lavfi.scene_score=0.008761
-*/ /*
+*/
 func (p parser) parseLine(line string) (int, float64) {
 	*p.segment += "\n" + line
 	endOfSegment := strings.Contains(line, "lavfi.scene_score")
@@ -409,4 +350,3 @@ func parseSegment(segment string) (int, float64) {
 
 	return id, score * 100
 }
-*/
