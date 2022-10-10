@@ -44,8 +44,8 @@ type Segment struct {
 	startDTS        time.Duration
 	muxerStartTime  int64
 	segmentMaxSize  uint64
-	videoTrackExist func() bool
-	audioTrackExist func() bool
+	videoTrackExist bool
+	audioTrackExist bool
 	audioClockRate  audioClockRateFunc
 	genPartID       func() uint64
 	onPartFinalized func(*MuxerPart)
@@ -63,8 +63,8 @@ func newSegment(
 	startDTS time.Duration,
 	muxerStartTime int64,
 	segmentMaxSize uint64,
-	videoTrackExist func() bool,
-	audioTrackExist func() bool,
+	videoTrackExist bool,
+	audioTrackExist bool,
 	audioClockRate audioClockRateFunc,
 	genPartID func() uint64,
 	onPartFinalized func(*MuxerPart),
@@ -114,7 +114,7 @@ func (s *Segment) finalize(nextVideoSample *VideoSample) error {
 
 	s.currentPart = nil
 
-	if s.videoTrackExist() {
+	if s.videoTrackExist {
 		s.RenderedDuration = time.Duration(
 			nextVideoSample.DTS-s.muxerStartTime) - s.startDTS
 	} else {
@@ -173,8 +173,7 @@ func (s *Segment) writeAAC(sample *AudioSample, adjustedPartDuration time.Durati
 	s.size += size
 
 	// switch part
-	if s.videoTrackExist() &&
-		s.currentPart.duration() >= adjustedPartDuration {
+	if s.videoTrackExist && s.currentPart.duration() >= adjustedPartDuration {
 		if err := s.currentPart.finalize(); err != nil {
 			return err
 		}

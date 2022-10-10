@@ -415,7 +415,7 @@ type InputProcess struct {
 	newProcess         ffmpeg.NewProcessFunc
 }
 
-type newVideoServerPathFunc func(string, video.PathConf) (*video.ServerPath, video.CancelFunc, error)
+type newVideoServerPathFunc func(context.Context, string, video.PathConf) (*video.ServerPath, error)
 
 type runInputProcessFunc func(context.Context, *InputProcess) error
 
@@ -466,9 +466,6 @@ func (i *InputProcess) StreamInfo(ctx context.Context) (*hls.StreamInfo, error) 
 	// It may take a few seconds for the stream to
 	// become available after the monitor started.
 	for {
-		if ctx.Err() != nil {
-			return nil, context.Canceled
-		}
 		muxer, err := i.serverPath.HLSMuxer()
 		if err != nil {
 			return nil, fmt.Errorf("get muxer: %w", err)
@@ -479,9 +476,9 @@ func (i *InputProcess) StreamInfo(ctx context.Context) (*hls.StreamInfo, error) 
 			return nil, err
 		}
 		if info == nil {
-			i.logf(log.LevelDebug, "could not get stream info")
 			select {
 			case <-time.After(3 * time.Second):
+				i.logf(log.LevelDebug, "could not get stream info")
 				continue
 			case <-ctx.Done():
 				return nil, context.Canceled
@@ -547,21 +544,20 @@ func runInputProcess(ctx context.Context, i *InputProcess) error {
 	pathConf := video.PathConf{MonitorID: i.Config.ID(), IsSub: i.IsSubInput()}
 	i.MonitorLock.Unlock()
 
-	serverPath, cancel, err := i.newVideoServerPath(i.rtspPathName(), pathConf)
+	processCTX, cancel2 := context.WithCancel(ctx)
+	i.cancel = cancel2
+	defer cancel2()
+
+	serverPath, err := i.newVideoServerPath(processCTX, i.rtspPathName(), pathConf)
 	if err != nil {
 		return fmt.Errorf("add path to RTSP server: %w", err)
 	}
-	defer cancel()
 	i.serverPath = *serverPath
 
 	i.MonitorLock.Lock()
 	logLevel := log.FFmpegLevel(i.Config.LogLevel())
 	args := ffmpeg.ParseArgs(i.generateArgs())
 	i.MonitorLock.Unlock()
-
-	processCTX, cancel2 := context.WithCancel(ctx)
-	i.cancel = cancel2
-	defer cancel2()
 
 	i.hooks.StartInput(processCTX, i, &args)
 

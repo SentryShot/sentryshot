@@ -58,59 +58,54 @@ var (
 	ErrTrackPathError  = errors.New("can't setup tracks with different paths")
 )
 
-func setupGetTrackIDPathQuery(
+func setupGetTrackIDPath(
 	u *url.URL,
 	thMode *headers.TransportMode,
 	announcedTracks []*ServerSessionAnnouncedTrack,
 	setuppedPath *string,
-	setuppedQuery *string,
 	setuppedBaseURL *url.URL,
-) (int, string, string, error) {
-	pathAndQuery, ok := u.RTSPPathAndQuery()
+) (int, string, error) {
+	path, ok := u.RTSPPath()
 	if !ok {
-		return 0, "", "", liberrors.ErrServerInvalidPath
+		return 0, "", liberrors.ErrServerInvalidPath
 	}
 
 	if thMode != nil && *thMode != headers.TransportModePlay {
 		for trackID, track := range announcedTracks {
 			u2, _ := track.track.url(setuppedBaseURL)
 			if u2.String() == u.String() {
-				return trackID, *setuppedPath, *setuppedQuery, nil
+				return trackID, *setuppedPath, nil
 			}
 		}
 
-		return 0, "", "", fmt.Errorf("%w (%s)", ErrTrackInvalid, pathAndQuery)
+		return 0, "", fmt.Errorf("%w (%s)", ErrTrackInvalid, path)
 	}
 
-	i := stringsReverseIndex(pathAndQuery, "/trackID=")
+	i := stringsReverseIndex(path, "/trackID=")
 
 	// URL doesn't contain trackID - it's track zero
 	if i < 0 {
-		if !strings.HasSuffix(pathAndQuery, "/") {
-			return 0, "", "", ErrPathInvalid
+		if !strings.HasSuffix(path, "/") {
+			return 0, "", ErrPathInvalid
 		}
-		pathAndQuery = pathAndQuery[:len(pathAndQuery)-1]
-
-		path, query := url.PathSplitQuery(pathAndQuery)
+		path = path[:len(path)-1]
 
 		// we assume it's track 0
-		return 0, path, query, nil
+		return 0, path, nil
 	}
 
-	tmp, err := strconv.ParseInt(pathAndQuery[i+len("/trackID="):], 10, 64)
+	tmp, err := strconv.ParseInt(path[i+len("/trackID="):], 10, 64)
 	if err != nil || tmp < 0 {
-		return 0, "", "", fmt.Errorf("%w (%v)", ErrTrackParseError, pathAndQuery)
+		return 0, "", fmt.Errorf("%w (%v)", ErrTrackParseError, path)
 	}
 	trackID := int(tmp)
-	pathAndQuery = pathAndQuery[:i]
+	path = path[:i]
 
-	path, query := url.PathSplitQuery(pathAndQuery)
-
-	if setuppedPath != nil && (path != *setuppedPath || query != *setuppedQuery) {
-		return 0, "", "", ErrTrackPathError
+	if setuppedPath != nil && (path != *setuppedPath) {
+		return 0, "", ErrTrackPathError
 	}
 
-	return trackID, path, query, nil
+	return trackID, path, nil
 }
 
 // ServerSessionState is a state of a ServerSession.
@@ -169,7 +164,6 @@ type ServerSession struct {
 	setuppedBaseURL    *url.URL      // publish
 	setuppedStream     *ServerStream // read
 	setuppedPath       *string
-	setuppedQuery      *string
 	lastRequestTime    time.Time
 	tcpConn            *ServerConn
 	announcedTracks    []*ServerSessionAnnouncedTrack // publish
@@ -249,10 +243,7 @@ func (ss *ServerSession) checkState(allowed map[ServerSessionState]struct{}) err
 func (ss *ServerSession) run() {
 	defer ss.s.wg.Done()
 
-	ss.s.Handler.OnSessionOpen(&ServerHandlerOnSessionOpenCtx{
-		Session: ss,
-		Conn:    ss.author,
-	})
+	ss.s.Handler.OnSessionOpen(ss, ss.author)
 
 	err := ss.runInner()
 	ss.ctxCancel()
@@ -289,10 +280,7 @@ func (ss *ServerSession) run() {
 	case <-ss.s.ctx.Done():
 	}
 
-	ss.s.Handler.OnSessionClose(&ServerHandlerOnSessionCloseCtx{
-		Session: ss,
-		Error:   err,
-	})
+	ss.s.Handler.OnSessionClose(ss, err)
 }
 
 func (ss *ServerSession) runInner() error { //nolint:gocognit
@@ -373,10 +361,10 @@ func (ss *ServerSession) handleRequest( //nolint:funlen
 	}
 
 	var path string
-	var query string
 	switch req.Method {
-	case base.Announce, base.Play, base.Record, base.Pause, base.GetParameter, base.SetParameter:
-		pathAndQuery, ok := req.URL.RTSPPathAndQuery()
+	case base.Announce, base.Play, base.Record, base.GetParameter, base.SetParameter:
+		var ok bool
+		path, ok = req.URL.RTSPPath()
 		if !ok {
 			return &base.Response{
 				StatusCode: base.StatusBadRequest,
@@ -385,10 +373,8 @@ func (ss *ServerSession) handleRequest( //nolint:funlen
 
 		if req.Method != base.Announce {
 			// path can end with a slash due to Content-Base, remove it
-			pathAndQuery = strings.TrimSuffix(pathAndQuery, "/")
+			path = strings.TrimSuffix(path, "/")
 		}
-
-		path, query = url.PathSplitQuery(pathAndQuery)
 	}
 
 	switch req.Method {
@@ -396,19 +382,16 @@ func (ss *ServerSession) handleRequest( //nolint:funlen
 		return ss.handleOptions()
 
 	case base.Announce:
-		return ss.handleAnnounce(sc, req, path, query)
+		return ss.handleAnnounce(req, path)
 
 	case base.Setup:
-		return ss.handleSetup(sc, req)
+		return ss.handleSetup(req)
 
 	case base.Play:
-		return ss.handlePlay(sc, req, path, query)
+		return ss.handlePlay(sc, req, path)
 
 	case base.Record:
-		return ss.handleRecord(sc, req, path, query)
-
-	case base.Pause:
-		return ss.handlePause(sc, req, path, query)
+		return ss.handleRecord(sc, path)
 
 	case base.Teardown:
 		var err error
@@ -455,10 +438,8 @@ var (
 )
 
 func (ss *ServerSession) handleAnnounce( //nolint:funlen
-	sc *ServerConn,
 	req *base.Request,
 	path string,
-	query string,
 ) (*base.Response, error) {
 	err := ss.checkState(map[ServerSessionState]struct{}{
 		ServerSessionStateInitial: {},
@@ -498,7 +479,7 @@ func (ss *ServerSession) handleAnnounce( //nolint:funlen
 			}, ErrTrackGenURL
 		}
 
-		trackPath, ok := trackURL.RTSPPathAndQuery()
+		trackPath, ok := trackURL.RTSPPath()
 		if !ok {
 			return &base.Response{
 				StatusCode: base.StatusBadRequest,
@@ -513,15 +494,7 @@ func (ss *ServerSession) handleAnnounce( //nolint:funlen
 		}
 	}
 
-	res, err := ss.s.Handler.OnAnnounce(&ServerHandlerOnAnnounceCtx{
-		Server:  ss.s,
-		Session: ss,
-		Conn:    sc,
-		Request: req,
-		Path:    path,
-		Query:   query,
-		Tracks:  tracks,
-	})
+	res, err := ss.s.Handler.OnAnnounce(ss, path, tracks)
 
 	if res.StatusCode != base.StatusOK {
 		return res, err
@@ -529,7 +502,6 @@ func (ss *ServerSession) handleAnnounce( //nolint:funlen
 
 	ss.state = ServerSessionStatePreRecord
 	ss.setuppedPath = &path
-	ss.setuppedQuery = &query
 	ss.setuppedBaseURL = req.URL
 
 	ss.announcedTracks = make([]*ServerSessionAnnouncedTrack, len(tracks))
@@ -542,9 +514,7 @@ func (ss *ServerSession) handleAnnounce( //nolint:funlen
 	return res, err
 }
 
-func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
-	req *base.Request,
-) (*base.Response, error) {
+func (ss *ServerSession) handleSetup(req *base.Request) (*base.Response, error) { //nolint:funlen,gocognit
 	err := ss.checkState(map[ServerSessionState]struct{}{
 		ServerSessionStateInitial:   {},
 		ServerSessionStatePrePlay:   {},
@@ -564,8 +534,13 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 		}, liberrors.ServerTransportHeaderInvalidError{Err: err}
 	}
 
-	trackID, path, query, err := setupGetTrackIDPathQuery(req.URL, inTH.Mode,
-		ss.announcedTracks, ss.setuppedPath, ss.setuppedQuery, ss.setuppedBaseURL)
+	trackID, path, err := setupGetTrackIDPath(
+		req.URL,
+		inTH.Mode,
+		ss.announcedTracks,
+		ss.setuppedPath,
+		ss.setuppedBaseURL,
+	)
 	if err != nil {
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
@@ -613,15 +588,7 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 		}
 	}
 
-	res, stream, err := ss.s.Handler.OnSetup(&ServerHandlerOnSetupCtx{
-		Server:  ss.s,
-		Session: ss,
-		Conn:    sc,
-		Request: req,
-		Path:    path,
-		Query:   query,
-		TrackID: trackID,
-	})
+	res, stream, err := ss.s.Handler.OnSetup(ss, path, trackID)
 
 	// workaround to prevent a bug in rtspclientsink
 	// that makes impossible for the client to receive the response
@@ -648,7 +615,6 @@ func (ss *ServerSession) handleSetup(sc *ServerConn, //nolint:funlen,gocognit
 
 		ss.state = ServerSessionStatePrePlay
 		ss.setuppedPath = &path
-		ss.setuppedQuery = &query
 		ss.setuppedStream = stream
 	}
 
@@ -692,7 +658,6 @@ func (ss *ServerSession) handlePlay( //nolint:funlen
 	sc *ServerConn,
 	req *base.Request,
 	path string,
-	query string,
 ) (*base.Response, error) {
 	// play can be sent twice, allow calling it even if we're already playing
 	err := ss.checkState(map[ServerSessionState]struct{}{
@@ -719,13 +684,7 @@ func (ss *ServerSession) handlePlay( //nolint:funlen
 		ss.writeBuffer, _ = ringbuffer.New(uint64(ss.s.WriteBufferCount))
 	}
 
-	res, err := sc.s.Handler.OnPlay(&ServerHandlerOnPlayCtx{
-		Session: ss,
-		Conn:    sc,
-		Request: req,
-		Path:    path,
-		Query:   query,
-	})
+	res, err := sc.s.Handler.OnPlay(ss)
 
 	if res.StatusCode != base.StatusOK {
 		if ss.State() == ServerSessionStatePrePlay {
@@ -792,9 +751,7 @@ func (ss *ServerSession) handlePlay( //nolint:funlen
 
 func (ss *ServerSession) handleRecord(
 	sc *ServerConn,
-	req *base.Request,
 	path string,
-	query string,
 ) (*base.Response, error) {
 	err := ss.checkState(map[ServerSessionState]struct{}{
 		ServerSessionStatePreRecord: {},
@@ -822,13 +779,7 @@ func (ss *ServerSession) handleRecord(
 	// inside the callback.
 	ss.writeBuffer, _ = ringbuffer.New(uint64(8))
 
-	res, err := ss.s.Handler.OnRecord(&ServerHandlerOnRecordCtx{
-		Session: ss,
-		Conn:    sc,
-		Request: req,
-		Path:    path,
-		Query:   query,
-	})
+	res, err := ss.s.Handler.OnRecord(ss)
 
 	if res.StatusCode != base.StatusOK {
 		ss.writeBuffer = nil
@@ -847,73 +798,6 @@ func (ss *ServerSession) handleRecord(
 	err = errSwitchReadFunc
 
 	// runWriter() is called by conn after sending the response
-	return res, err
-}
-
-func (ss *ServerSession) handlePause(
-	sc *ServerConn,
-	req *base.Request,
-	path string,
-	query string,
-) (*base.Response, error) {
-	err := ss.checkState(map[ServerSessionState]struct{}{
-		ServerSessionStatePrePlay:   {},
-		ServerSessionStatePlay:      {},
-		ServerSessionStatePreRecord: {},
-		ServerSessionStateRecord:    {},
-	})
-	if err != nil {
-		return &base.Response{
-			StatusCode: base.StatusBadRequest,
-		}, err
-	}
-
-	res, err := ss.s.Handler.OnPause(&ServerHandlerOnPauseCtx{
-		Session: ss,
-		Conn:    sc,
-		Request: req,
-		Path:    path,
-		Query:   query,
-	})
-
-	if res.StatusCode != base.StatusOK {
-		return res, err
-	}
-
-	if ss.writerRunning {
-		ss.writeBuffer.Close()
-		<-ss.writerDone
-		ss.writerRunning = false
-	}
-
-	switch ss.state {
-	case ServerSessionStatePlay:
-		ss.setuppedStream.readerSetInactive(ss)
-
-		ss.state = ServerSessionStatePrePlay
-
-		ss.tcpConn.readFunc = ss.tcpConn.readFuncStandard
-		err = errSwitchReadFunc
-
-		ss.tcpConn = nil
-
-	case ServerSessionStateRecord:
-		ss.tcpConn.readFunc = ss.tcpConn.readFuncStandard
-		err = errSwitchReadFunc
-
-		err := ss.tcpConn.nconn.SetReadDeadline(time.Time{})
-		if err != nil {
-			return nil, err
-		}
-		ss.tcpConn = nil
-
-		for _, at := range ss.announcedTracks {
-			at.cleaner = nil
-		}
-
-		ss.state = ServerSessionStatePreRecord
-	}
-
 	return res, err
 }
 

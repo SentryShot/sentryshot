@@ -21,79 +21,84 @@ func writeReqReadRes(conn *conn.Conn, req base.Request) (*base.Response, error) 
 }
 
 type testServerHandler struct {
-	onConnClose    func(*ServerHandlerOnConnCloseCtx)
-	onSessionOpen  func(*ServerHandlerOnSessionOpenCtx)
-	onSessionClose func(*ServerHandlerOnSessionCloseCtx)
-	onDescribe     func(*ServerHandlerOnDescribeCtx) (*base.Response, *ServerStream, error)
-	onAnnounce     func(*ServerHandlerOnAnnounceCtx) (*base.Response, error)
-	onSetup        func(*ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error)
-	onPlay         func(*ServerHandlerOnPlayCtx) (*base.Response, error)
-	onRecord       func(*ServerHandlerOnRecordCtx) (*base.Response, error)
-	onPause        func(*ServerHandlerOnPauseCtx) (*base.Response, error)
-	onPacketRTP    func(*ServerHandlerOnPacketRTPCtx)
+	onConnClose    func(*ServerConn, error)
+	onSessionOpen  func(*ServerSession, *ServerConn)
+	onSessionClose func(*ServerSession, error)
+	onAnnounce     func(*ServerSession, string, Tracks) (*base.Response, error)
+	onSetup        func(*ServerSession, string, int) (*base.Response, *ServerStream, error)
+	onPlay         func(*ServerSession) (*base.Response, error)
+	onRecord       func(*ServerSession) (*base.Response, error)
+	onPacketRTP    func(*PacketRTPCtx)
 }
 
-func (sh *testServerHandler) OnConnClose(ctx *ServerHandlerOnConnCloseCtx) {
+func (sh *testServerHandler) OnConnClose(sc *ServerConn, err error) {
 	if sh.onConnClose != nil {
-		sh.onConnClose(ctx)
+		sh.onConnClose(sc, err)
 	}
 }
 
-func (sh *testServerHandler) OnSessionOpen(ctx *ServerHandlerOnSessionOpenCtx) {
+func (sh *testServerHandler) OnSessionOpen(
+	session *ServerSession,
+	conn *ServerConn,
+) {
 	if sh.onSessionOpen != nil {
-		sh.onSessionOpen(ctx)
+		sh.onSessionOpen(session, conn)
 	}
 }
 
-func (sh *testServerHandler) OnSessionClose(ctx *ServerHandlerOnSessionCloseCtx) {
+func (sh *testServerHandler) OnSessionClose(session *ServerSession, err error) {
 	if sh.onSessionClose != nil {
-		sh.onSessionClose(ctx)
+		sh.onSessionClose(session, err)
 	}
 }
 
-func (sh *testServerHandler) OnDescribe(ctx *ServerHandlerOnDescribeCtx) (*base.Response, *ServerStream, error) {
-	if sh.onDescribe != nil {
-		return sh.onDescribe(ctx)
-	}
+func (sh *testServerHandler) OnDescribe(
+	pathName string,
+) (*base.Response, *ServerStream, error) {
 	return nil, nil, fmt.Errorf("unimplemented")
 }
 
-func (sh *testServerHandler) OnAnnounce(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
+func (sh *testServerHandler) OnAnnounce(
+	session *ServerSession,
+	path string,
+	tracks Tracks,
+) (*base.Response, error) {
 	if sh.onAnnounce != nil {
-		return sh.onAnnounce(ctx)
+		return sh.onAnnounce(session, path, tracks)
 	}
 	return nil, fmt.Errorf("unimplemented")
 }
 
-func (sh *testServerHandler) OnSetup(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+func (sh *testServerHandler) OnSetup(
+	session *ServerSession,
+	path string,
+	trackID int,
+) (*base.Response, *ServerStream, error) {
 	if sh.onSetup != nil {
-		return sh.onSetup(ctx)
+		return sh.onSetup(session, path, trackID)
 	}
 	return nil, nil, fmt.Errorf("unimplemented")
 }
 
-func (sh *testServerHandler) OnPlay(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
+func (sh *testServerHandler) OnPlay(
+	session *ServerSession,
+) (*base.Response, error) {
 	if sh.onPlay != nil {
-		return sh.onPlay(ctx)
+		return sh.onPlay(session)
 	}
 	return nil, fmt.Errorf("unimplemented")
 }
 
-func (sh *testServerHandler) OnRecord(ctx *ServerHandlerOnRecordCtx) (*base.Response, error) {
+func (sh *testServerHandler) OnRecord(
+	session *ServerSession,
+) (*base.Response, error) {
 	if sh.onRecord != nil {
-		return sh.onRecord(ctx)
+		return sh.onRecord(session)
 	}
 	return nil, fmt.Errorf("unimplemented")
 }
 
-func (sh *testServerHandler) OnPause(ctx *ServerHandlerOnPauseCtx) (*base.Response, error) {
-	if sh.onPause != nil {
-		return sh.onPause(ctx)
-	}
-	return nil, fmt.Errorf("unimplemented")
-}
-
-func (sh *testServerHandler) OnPacketRTP(ctx *ServerHandlerOnPacketRTPCtx) {
+func (sh *testServerHandler) OnPacketRTP(ctx *PacketRTPCtx) {
 	if sh.onPacketRTP != nil {
 		sh.onPacketRTP(ctx)
 	}
@@ -143,8 +148,8 @@ func TestServerErrorCSeqMissing(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
-				require.EqualError(t, ctx.Error, "CSeq is missing")
+			onConnClose: func(_ *ServerConn, err error) {
+				require.EqualError(t, err, "CSeq is missing")
 				close(connClosed)
 			},
 		},
@@ -183,7 +188,7 @@ func TestServerErrorMethodNotImplemented(t *testing.T) {
 			defer stream.Close()
 			s := &Server{
 				Handler: &testServerHandler{
-					onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+					onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 						return &base.Response{
 							StatusCode: base.StatusOK,
 						}, stream, nil
@@ -269,17 +274,12 @@ func TestServerErrorTCPTwoConnOneSession(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, stream, nil
 			},
-			onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, nil
-			},
-			onPause: func(ctx *ServerHandlerOnPauseCtx) (*base.Response, error) {
+			onPlay: func(*ServerSession) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
@@ -365,17 +365,12 @@ func TestServerErrorTCPOneConnTwoSessions(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, stream, nil
 			},
-			onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, nil
-			},
-			onPause: func(ctx *ServerHandlerOnPauseCtx) (*base.Response, error) {
+			onPlay: func(*ServerSession) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
@@ -447,23 +442,17 @@ func TestServerErrorInvalidSession(t *testing.T) {
 	for _, method := range []base.Method{
 		base.Play,
 		base.Record,
-		base.Pause,
 		base.Teardown,
 	} {
 		t.Run(string(method), func(t *testing.T) {
 			s := &Server{
 				Handler: &testServerHandler{
-					onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
+					onPlay: func(*ServerSession) (*base.Response, error) {
 						return &base.Response{
 							StatusCode: base.StatusOK,
 						}, nil
 					},
-					onRecord: func(ctx *ServerHandlerOnRecordCtx) (*base.Response, error) {
-						return &base.Response{
-							StatusCode: base.StatusOK,
-						}, nil
-					},
-					onPause: func(ctx *ServerHandlerOnPauseCtx) (*base.Response, error) {
+					onRecord: func(*ServerSession) (*base.Response, error) {
 						return &base.Response{
 							StatusCode: base.StatusOK,
 						}, nil
@@ -500,14 +489,13 @@ func TestServerSessionClose(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onSessionOpen: func(ctx *ServerHandlerOnSessionOpenCtx) {
-				ctx.Session.Close()
-				ctx.Session.Close()
+			onSessionOpen: func(session *ServerSession, _ *ServerConn) {
+				session.Close()
 			},
-			onSessionClose: func(ctx *ServerHandlerOnSessionCloseCtx) {
+			onSessionClose: func(*ServerSession, error) {
 				close(sessionClosed)
 			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil, nil
@@ -562,10 +550,10 @@ func TestServerSessionAutoClose(t *testing.T) {
 
 			s := &Server{
 				Handler: &testServerHandler{
-					onSessionClose: func(ctx *ServerHandlerOnSessionCloseCtx) {
+					onSessionClose: func(*ServerSession, error) {
 						close(sessionClosed)
 					},
-					onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+					onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 						if ca == "200" {
 							return &base.Response{
 								StatusCode: base.StatusOK,

@@ -46,9 +46,9 @@ func NewMuxer(
 	partDuration time.Duration,
 	segmentMaxSize uint64,
 	logf logFunc,
-	videoTrackExist func() bool,
+	videoTrackExist bool,
 	videoSps videoSPSFunc,
-	audioTrackExist func() bool,
+	audioTrackExist bool,
 	audioClockRate audioClockRateFunc,
 	streamInfo StreamInfoFunc,
 ) *Muxer {

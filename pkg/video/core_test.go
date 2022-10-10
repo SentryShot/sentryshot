@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"nvr/pkg/log"
 
@@ -21,7 +22,7 @@ func newTestServer(t *testing.T) (*Server, cancelFunc) {
 		require.NoError(t, err)
 	}
 
-	pathManager := newPathManager(&wg, logger)
+	pathManager := newPathManager(&wg, logger, nil)
 
 	s := &Server{
 		rtspAddress: "127.0.0.1:8554",
@@ -29,8 +30,6 @@ func newTestServer(t *testing.T) (*Server, cancelFunc) {
 		pathManager: pathManager,
 		wg:          &wg,
 	}
-
-	s.pathManager.start(ctx)
 
 	cancelFunc := func() {
 		cancel()
@@ -46,7 +45,8 @@ func TestNewPath(t *testing.T) {
 
 	c := PathConf{MonitorID: "x"}
 
-	actual, cancel2, err := p.NewPath("mypath", c)
+	ctx, cancel2 := context.WithCancel(context.Background())
+	actual, err := p.NewPath(ctx, "mypath", c)
 	require.NoError(t, err)
 	actual.HLSMuxer = nil
 
@@ -58,7 +58,8 @@ func TestNewPath(t *testing.T) {
 	require.Equal(t, expected, *actual)
 
 	require.True(t, p.PathExist("mypath"))
-	cancel2()
 
+	cancel2()
+	time.Sleep(10 * time.Millisecond)
 	require.False(t, p.PathExist("mypath"))
 }

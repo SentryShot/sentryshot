@@ -293,8 +293,8 @@ func partName(id uint64) string {
 
 // MuxerPart fmp4 part.
 type MuxerPart struct {
-	videoTrackExist func() bool
-	audioTrackExist func() bool
+	videoTrackExist bool
+	audioTrackExist bool
 	audioClockRate  audioClockRateFunc
 	muxerStartTime  int64
 	id              uint64
@@ -309,8 +309,8 @@ type MuxerPart struct {
 type audioClockRateFunc func() int
 
 func newPart(
-	videoTrackExist func() bool,
-	audioTrackExist func() bool,
+	videoTrackExist bool,
+	audioTrackExist bool,
 	audioClockRate audioClockRateFunc,
 	muxerStartTime int64,
 	id uint64,
@@ -323,7 +323,7 @@ func newPart(
 		id:              id,
 	}
 
-	if !videoTrackExist() {
+	if !videoTrackExist {
 		p.isIndependent = true
 	}
 
@@ -339,7 +339,7 @@ func (p *MuxerPart) reader() io.Reader {
 }
 
 func (p *MuxerPart) duration() time.Duration {
-	if p.videoTrackExist() {
+	if p.videoTrackExist {
 		ret := time.Duration(0)
 		for _, e := range p.VideoSamples {
 			ret += e.duration()
@@ -359,7 +359,7 @@ func (p *MuxerPart) finalize() error {
 		var err error
 		p.renderedContent, err = generatePart(
 			p.muxerStartTime,
-			p.audioTrackExist(),
+			p.audioTrackExist,
 			p.audioClockRate,
 			p.VideoSamples,
 			p.AudioSamples)

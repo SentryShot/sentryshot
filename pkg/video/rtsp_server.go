@@ -83,7 +83,7 @@ func (s *rtspServer) run() {
 
 	select {
 	case err := <-serverErr:
-		s.logger.Error().Src("app").Msgf("rtps: server error: %s", err)
+		s.logger.Error().Src("app").Msgf("RTSP: server error: %s", err)
 		return
 
 	case <-s.ctx.Done():
@@ -93,12 +93,12 @@ func (s *rtspServer) run() {
 	}
 }
 
-func (s *rtspServer) newSessionID() (string, error) {
+func (s *rtspServer) newSessionID() string {
 	for {
 		b := make([]byte, 4)
 		_, err := rand.Read(b)
 		if err != nil {
-			return "", err
+			panic(err)
 		}
 
 		u := binary.LittleEndian.Uint32(b)
@@ -116,92 +116,100 @@ func (s *rtspServer) newSessionID() (string, error) {
 			return false
 		}()
 		if !alreadyPresent {
-			return id, nil
+			return id
 		}
 	}
 }
 
-// OnConnClose implements gortsplib.ServerHandlerOnConnClose.
-func (s *rtspServer) OnConnClose(ctx *gortsplib.ServerHandlerOnConnCloseCtx) {
+// OnConnClose implements gortsplib.ServerHandler.
+func (s *rtspServer) OnConnClose(*gortsplib.ServerConn, error) {
 }
 
-// OnSessionOpen implements gortsplib.ServerHandlerOnSessionOpen.
-func (s *rtspServer) OnSessionOpen(ctx *gortsplib.ServerHandlerOnSessionOpenCtx) {
+// OnSessionOpen implements gortsplib.ServerHandler.
+func (s *rtspServer) OnSessionOpen(
+	session *gortsplib.ServerSession,
+	conn *gortsplib.ServerConn,
+) {
 	s.mu.Lock()
 
-	id, _ := s.newSessionID()
+	id := s.newSessionID()
 
 	se := newRTSPSession(
 		id,
-		ctx.Session,
-		ctx.Conn,
+		session,
+		conn,
 		s.pathManager,
 		s.logger)
 
-	s.sessions[ctx.Session] = se
+	s.sessions[session] = se
 	s.mu.Unlock()
 }
 
-// OnSessionClose implements gortsplib.ServerHandlerOnSessionClose.
-func (s *rtspServer) OnSessionClose(ctx *gortsplib.ServerHandlerOnSessionCloseCtx) {
+// OnSessionClose implements gortsplib.ServerHandler.
+func (s *rtspServer) OnSessionClose(session *gortsplib.ServerSession, err error) {
 	s.mu.Lock()
-	se := s.sessions[ctx.Session]
-	delete(s.sessions, ctx.Session)
+	se := s.sessions[session]
+	delete(s.sessions, session)
 	s.mu.Unlock()
 
 	if se != nil {
-		se.onClose(*se.path.conf, ctx.Error)
+		se.onClose(*se.path.conf, err)
 	}
 }
 
-// OnDescribe implements gortsplib.ServerHandlerOnDescribe.
-func (s *rtspServer) OnDescribe(ctx *gortsplib.ServerHandlerOnDescribeCtx,
+// OnDescribe implements gortsplib.ServerHandler.
+func (s *rtspServer) OnDescribe(
+	pathName string,
 ) (*base.Response, *gortsplib.ServerStream, error) {
-	return s.pathManager.onDescribe(ctx)
+	return s.pathManager.onDescribe(pathName)
 }
 
-// OnAnnounce implements gortsplib.ServerHandlerOnAnnounce.
-func (s *rtspServer) OnAnnounce(ctx *gortsplib.ServerHandlerOnAnnounceCtx) (*base.Response, error) {
+// OnAnnounce implements gortsplib.ServerHandler.
+func (s *rtspServer) OnAnnounce(
+	session *gortsplib.ServerSession,
+	path string,
+	tracks gortsplib.Tracks,
+) (*base.Response, error) {
 	s.mu.RLock()
-	se := s.sessions[ctx.Session]
+	se := s.sessions[session]
 	s.mu.RUnlock()
-	return se.onAnnounce(ctx)
+	return se.onAnnounce(path, tracks)
 }
 
-// OnSetup implements gortsplib.ServerHandlerOnSetup.
-func (s *rtspServer) OnSetup(ctx *gortsplib.ServerHandlerOnSetupCtx) (*base.Response, *gortsplib.ServerStream, error) {
+// OnSetup implements gortsplib.ServerHandler.
+func (s *rtspServer) OnSetup(
+	session *gortsplib.ServerSession,
+	path string,
+	trackID int,
+) (*base.Response, *gortsplib.ServerStream, error) {
 	s.mu.RLock()
-	se := s.sessions[ctx.Session]
+	se := s.sessions[session]
 	s.mu.RUnlock()
-	return se.onSetup(ctx)
+	return se.onSetup(path, trackID)
 }
 
-// OnPlay implements gortsplib.ServerHandlerOnPlay.
-func (s *rtspServer) OnPlay(ctx *gortsplib.ServerHandlerOnPlayCtx) (*base.Response, error) {
+// OnPlay implements gortsplib.ServerHandler.
+func (s *rtspServer) OnPlay(
+	session *gortsplib.ServerSession,
+) (*base.Response, error) {
 	s.mu.RLock()
-	se := s.sessions[ctx.Session]
+	se := s.sessions[session]
 	s.mu.RUnlock()
 	return se.onPlay()
 }
 
-// OnRecord implements gortsplib.ServerHandlerOnRecord.
-func (s *rtspServer) OnRecord(ctx *gortsplib.ServerHandlerOnRecordCtx) (*base.Response, error) {
+// OnRecord implements gortsplib.ServerHandler.
+func (s *rtspServer) OnRecord(
+	session *gortsplib.ServerSession,
+) (*base.Response, error) {
 	s.mu.RLock()
-	se := s.sessions[ctx.Session]
+	se := s.sessions[session]
 	s.mu.RUnlock()
 	return se.onRecord()
 }
 
-// OnPause implements gortsplib.ServerHandlerOnPause.
-func (s *rtspServer) OnPause(ctx *gortsplib.ServerHandlerOnPauseCtx) (*base.Response, error) {
-	s.mu.RLock()
-	se := s.sessions[ctx.Session]
-	s.mu.RUnlock()
-	return se.onPause()
-}
-
-// OnPacketRTP implements gortsplib.ServerHandlerOnPacket.
-func (s *rtspServer) OnPacketRTP(ctx *gortsplib.ServerHandlerOnPacketRTPCtx) {
+// OnPacketRTP implements gortsplib.ServerHandler.
+func (s *rtspServer) OnPacketRTP(ctx *gortsplib.PacketRTPCtx) {
 	s.mu.RLock()
 	se := s.sessions[ctx.Session]
 	s.mu.RUnlock()

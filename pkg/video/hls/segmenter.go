@@ -45,9 +45,9 @@ type segmenter struct {
 	segmentDuration    time.Duration
 	partDuration       time.Duration
 	segmentMaxSize     uint64
-	videoTrackExist    func() bool
+	videoTrackExist    bool
 	videoSps           videoSPSFunc
-	audioTrackExist    func() bool
+	audioTrackExist    bool
 	audioClockRate     audioClockRateFunc
 	onSegmentFinalized func(*Segment)
 	onPartFinalized    func(*MuxerPart)
@@ -74,9 +74,9 @@ func newSegmenter(
 	segmentDuration time.Duration,
 	partDuration time.Duration,
 	segmentMaxSize uint64,
-	videoTrackExist func() bool,
+	videoTrackExist bool,
 	videoSps videoSPSFunc,
-	audioTrackExist func() bool,
+	audioTrackExist bool,
 	audioClockRate audioClockRateFunc,
 	onSegmentFinalized func(*Segment),
 	onPartFinalized func(*MuxerPart),
@@ -266,7 +266,7 @@ func (m *segmenter) writeAAC(now time.Time, pts time.Duration, au []byte) error 
 }
 
 func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //nolint:funlen
-	if m.videoTrackExist() {
+	if m.videoTrackExist {
 		// wait for the video track
 		if !m.videoFirstIDRReceived {
 			return nil
@@ -286,7 +286,7 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 
 	sample.NextPTS = m.nextAudioSample.PTS
 
-	if !m.videoTrackExist() {
+	if !m.videoTrackExist {
 		if m.currentSegment == nil {
 			// create first segment
 			m.currentSegment = newSegment(
@@ -315,7 +315,7 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 	}
 
 	// switch segment
-	if !m.videoTrackExist() &&
+	if !m.videoTrackExist &&
 		(time.Duration(sample.NextPTS-m.muxerStartTime)-
 			m.currentSegment.startDTS) >= m.segmentDuration {
 		err := m.currentSegment.finalize(nil)

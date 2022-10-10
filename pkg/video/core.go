@@ -37,9 +37,9 @@ func NewServer(log *log.Logger, wg *sync.WaitGroup, env storage.ConfigEnv) *Serv
 		return "127.0.0.1:" + strconv.Itoa(env.HLSPort)
 	}()
 
-	pathManager := newPathManager(wg, log)
+	hlsServer := newHLSServer(wg, readBufferCount, log)
+	pathManager := newPathManager(wg, log, hlsServer)
 	rtspServer := newRTSPServer(wg, rtspAddress, readBufferCount, pathManager, log)
-	hlsServer := newHLSServer(wg, readBufferCount, pathManager, log)
 
 	return &Server{
 		rtspAddress: rtspAddress,
@@ -55,8 +55,6 @@ func NewServer(log *log.Logger, wg *sync.WaitGroup, env storage.ConfigEnv) *Serv
 func (s *Server) Start(ctx context.Context) error {
 	ctx2, cancel := context.WithCancel(ctx)
 	_ = cancel
-
-	s.pathManager.start(ctx2)
 
 	if err := s.rtspServer.start(ctx2); err != nil {
 		cancel()
@@ -92,14 +90,10 @@ type ServerPath struct {
 }
 
 // NewPath add path.
-func (s *Server) NewPath(name string, newConf PathConf) (*ServerPath, CancelFunc, error) {
-	hlsMuxer, err := s.pathManager.AddPath(name, newConf)
+func (s *Server) NewPath(ctx context.Context, name string, newConf PathConf) (*ServerPath, error) {
+	hlsMuxer, err := s.pathManager.AddPath(ctx, name, newConf)
 	if err != nil {
-		return nil, nil, err
-	}
-
-	cancelFunc := func() {
-		s.pathManager.RemovePath(name)
+		return nil, err
 	}
 
 	return &ServerPath{
@@ -107,7 +101,7 @@ func (s *Server) NewPath(name string, newConf PathConf) (*ServerPath, CancelFunc
 		RtspAddress:  "rtsp://" + s.rtspAddress + "/" + name,
 		RtspProtocol: "tcp",
 		HLSMuxer:     hlsMuxer,
-	}, cancelFunc, nil
+	}, nil
 }
 
 // PathExist returns true if path exist.

@@ -82,8 +82,8 @@ func (u *URL) CloneWithoutCredentials() *URL {
 	})
 }
 
-// RTSPPathAndQuery returns the path and query of a RTSP URL.
-func (u *URL) RTSPPathAndQuery() (string, bool) {
+// RTSPPath returns the path and query of a RTSP URL.
+func (u *URL) RTSPPath() (string, bool) {
 	var pathAndQuery string
 	if u.RawPath != "" {
 		pathAndQuery = u.RawPath
@@ -100,5 +100,15 @@ func (u *URL) RTSPPathAndQuery() (string, bool) {
 	}
 	pathAndQuery = pathAndQuery[1:]
 
-	return pathAndQuery, true
+	path := removeQuery(pathAndQuery)
+
+	return path, true
+}
+
+func removeQuery(pathAndQuery string) string {
+	i := strings.Index(pathAndQuery, "?")
+	if i >= 0 {
+		return pathAndQuery[:i]
+	}
+	return pathAndQuery
 }

@@ -7,7 +7,6 @@ import (
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/gortsplib/pkg/conn"
 	"nvr/pkg/video/gortsplib/pkg/liberrors"
-	"nvr/pkg/video/gortsplib/pkg/url"
 	"strings"
 	"time"
 )
@@ -133,10 +132,7 @@ func (sc *ServerConn) run() {
 	case <-sc.s.ctx.Done():
 	}
 
-	sc.s.Handler.OnConnClose(&ServerHandlerOnConnCloseCtx{
-		Conn:  sc,
-		Error: err,
-	})
+	sc.s.Handler.OnConnClose(sc, err)
 }
 
 var errSwitchReadFunc = errors.New("switch read function")
@@ -213,7 +209,7 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 				return err
 			}
 			for _, entry := range out {
-				sc.s.Handler.OnPacketRTP(&ServerHandlerOnPacketRTPCtx{
+				sc.s.Handler.OnPacketRTP(&PacketRTPCtx{
 					Session:      sc.session,
 					TrackID:      trackID,
 					Packet:       entry.Packet,
@@ -270,7 +266,6 @@ var supportedMethods = []string{
 	string(base.Setup),
 	string(base.Play),
 	string(base.Record),
-	string(base.Pause),
 	string(base.Teardown),
 }
 
@@ -298,22 +293,15 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 		}, nil
 
 	case base.Describe:
-		pathAndQuery, ok := req.URL.RTSPPathAndQuery()
+		path, ok := req.URL.RTSPPath()
 		if !ok {
 			return &base.Response{
 				StatusCode: base.StatusBadRequest,
 			}, liberrors.ErrServerInvalidPath
 		}
 
-		path, query := url.PathSplitQuery(pathAndQuery)
-
 		h := sc.s.Handler
-		res, stream, err := h.OnDescribe(&ServerHandlerOnDescribeCtx{
-			Conn:    sc,
-			Request: req,
-			Path:    path,
-			Query:   query,
-		})
+		res, stream, err := h.OnDescribe(path)
 
 		if res.StatusCode == base.StatusOK {
 			if res.Header == nil {
@@ -342,11 +330,6 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 		}
 
 	case base.Record:
-		if sxID != "" {
-			return sc.handleRequestInSession(sxID, req, false)
-		}
-
-	case base.Pause:
 		if sxID != "" {
 			return sc.handleRequestInSession(sxID, req, false)
 		}

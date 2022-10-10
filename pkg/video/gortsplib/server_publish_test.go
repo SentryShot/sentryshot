@@ -139,11 +139,11 @@ func TestServerPublishErrorAnnounce(t *testing.T) {
 
 			s := &Server{
 				Handler: &testServerHandler{
-					onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
-						require.EqualError(t, ctx.Error, ca.err)
+					onConnClose: func(_ *ServerConn, err error) {
+						require.EqualError(t, err, ca.err)
 						close(connClosed)
 					},
-					onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
+					onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
 						return &base.Response{
 							StatusCode: base.StatusOK,
 						}, nil
@@ -223,18 +223,22 @@ func TestServerPublishSetupPath(t *testing.T) {
 		t.Run(ca.name, func(t *testing.T) {
 			s := &Server{
 				Handler: &testServerHandler{
-					onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
+					onAnnounce: func(_ *ServerSession, _ string, tracks Tracks) (*base.Response, error) {
 						// make sure that track URLs are not overridden by NewServerStream()
-						stream := NewServerStream(ctx.Tracks)
+						stream := NewServerStream(tracks)
 						defer stream.Close()
 
 						return &base.Response{
 							StatusCode: base.StatusOK,
 						}, nil
 					},
-					onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
-						require.Equal(t, ca.path, ctx.Path)
-						require.Equal(t, ca.trackID, ctx.TrackID)
+					onSetup: func(
+						_ *ServerSession,
+						path string,
+						trackID int,
+					) (*base.Response, *ServerStream, error) {
+						require.Equal(t, ca.path, path)
+						require.Equal(t, ca.trackID, trackID)
 						return &base.Response{
 							StatusCode: base.StatusOK,
 						}, nil, nil
@@ -316,15 +320,15 @@ func TestServerPublishErrorSetupDifferentPaths(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
-				serverErr <- ctx.Error
+			onConnClose: func(_ *ServerConn, err error) {
+				serverErr <- err
 			},
-			onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
+			onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
 			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil, nil
@@ -391,15 +395,15 @@ func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
-				serverErr <- ctx.Error
+			onConnClose: func(_ *ServerConn, err error) {
+				serverErr <- err
 			},
-			onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
+			onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
 			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil, nil
@@ -482,20 +486,20 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
-				serverErr <- ctx.Error
+			onConnClose: func(_ *ServerConn, err error) {
+				serverErr <- err
 			},
-			onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
+			onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
 			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil, nil
 			},
-			onRecord: func(ctx *ServerHandlerOnRecordCtx) (*base.Response, error) {
+			onRecord: func(*ServerSession) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
@@ -648,22 +652,22 @@ func mergeBytes(vals ...[]byte) []byte {
 func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 	s := &Server{
 		Handler: &testServerHandler{
-			onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
+			onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
 			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil, nil
 			},
-			onRecord: func(ctx *ServerHandlerOnRecordCtx) (*base.Response, error) {
+			onRecord: func(*ServerSession) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
 			},
-			onPacketRTP: func(ctx *ServerHandlerOnPacketRTPCtx) {
+			onPacketRTP: func(ctx *PacketRTPCtx) {
 				t.Error("should not happen")
 			},
 		},
@@ -713,23 +717,23 @@ func TestServerPublishTimeout(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
+			onConnClose: func(*ServerConn, error) {
 				close(connClosed)
 			},
-			onSessionClose: func(ctx *ServerHandlerOnSessionCloseCtx) {
+			onSessionClose: func(*ServerSession, error) {
 				close(sessionClosed)
 			},
-			onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
+			onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
 			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil, nil
 			},
-			onRecord: func(ctx *ServerHandlerOnRecordCtx) (*base.Response, error) {
+			onRecord: func(*ServerSession) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
@@ -819,23 +823,23 @@ func TestServerPublishWithoutTeardown(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
+			onConnClose: func(*ServerConn, error) {
 				close(connClosed)
 			},
-			onSessionClose: func(ctx *ServerHandlerOnSessionCloseCtx) {
+			onSessionClose: func(*ServerSession, error) {
 				close(sessionClosed)
 			},
-			onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
+			onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil
 			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil, nil
 			},
-			onRecord: func(ctx *ServerHandlerOnRecordCtx) (*base.Response, error) {
+			onRecord: func(*ServerSession) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil

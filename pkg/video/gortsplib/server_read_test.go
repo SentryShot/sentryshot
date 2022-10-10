@@ -52,12 +52,6 @@ func TestServerReadSetupPath(t *testing.T) {
 			2,
 		},
 		{
-			"with query",
-			"rtsp://localhost:8554/teststream?testing=123/trackID=4",
-			"teststream",
-			4,
-		},
-		{
 			// this is needed to support reading mpegts with ffmpeg
 			"without track id",
 			"rtsp://localhost:8554/teststream/",
@@ -76,12 +70,6 @@ func TestServerReadSetupPath(t *testing.T) {
 			"test/stream",
 			0,
 		},
-		{
-			"subpath with query",
-			"rtsp://localhost:8554/test/stream?testing=123/trackID=4",
-			"test/stream",
-			4,
-		},
 	} {
 		t.Run(ca.name, func(t *testing.T) {
 			track := &TrackH264{
@@ -95,9 +83,13 @@ func TestServerReadSetupPath(t *testing.T) {
 
 			s := &Server{
 				Handler: &testServerHandler{
-					onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
-						require.Equal(t, ca.path, ctx.Path)
-						require.Equal(t, ca.trackID, ctx.TrackID)
+					onSetup: func(
+						_ *ServerSession,
+						path string,
+						trackID int,
+					) (*base.Response, *ServerStream, error) {
+						require.Equal(t, ca.path, path)
+						require.Equal(t, ca.trackID, trackID)
 						return &base.Response{
 							StatusCode: base.StatusOK,
 						}, stream, nil
@@ -161,20 +153,20 @@ func TestServerReadSetupErrors(t *testing.T) {
 
 			s := &Server{
 				Handler: &testServerHandler{
-					onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
+					onConnClose: func(_ *ServerConn, err error) {
 						switch ca {
 						case "different paths":
-							require.EqualError(t, ctx.Error, "can't setup tracks with different paths")
+							require.EqualError(t, err, "can't setup tracks with different paths")
 
 						case "double setup":
-							require.EqualError(t, ctx.Error, "track 0 has already been setup")
+							require.EqualError(t, err, "track 0 has already been setup")
 
 						case "closed stream":
-							require.EqualError(t, ctx.Error, "stream is closed")
+							require.EqualError(t, err, "stream is closed")
 						}
 						close(connClosed)
 					},
-					onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+					onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 						return &base.Response{
 							StatusCode: base.StatusOK,
 						}, stream, nil
@@ -278,16 +270,16 @@ func TestServerReadTCPResponseBeforeFrames(t *testing.T) {
 	s := &Server{
 		RTSPAddress: "localhost:8554",
 		Handler: &testServerHandler{
-			onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
+			onConnClose: func(*ServerConn, error) {
 				close(writerTerminate)
 				<-writerDone
 			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, stream, nil
 			},
-			onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
+			onPlay: func(*ServerSession) (*base.Response, error) {
 				go func() {
 					defer close(writerDone)
 
@@ -360,252 +352,6 @@ func TestServerReadTCPResponseBeforeFrames(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestServerReadPlayPausePlay(t *testing.T) {
-	writerStarted := false
-	writerDone := make(chan struct{})
-	writerTerminate := make(chan struct{})
-
-	track := &TrackH264{
-		PayloadType: 96,
-		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
-		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
-	}
-
-	stream := NewServerStream(Tracks{track})
-	defer stream.Close()
-
-	s := &Server{
-		Handler: &testServerHandler{
-			onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
-				close(writerTerminate)
-				<-writerDone
-			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, stream, nil
-			},
-			onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
-				if !writerStarted {
-					writerStarted = true
-					go func() {
-						defer close(writerDone)
-
-						t := time.NewTicker(50 * time.Millisecond)
-						defer t.Stop()
-
-						for {
-							select {
-							case <-t.C:
-								stream.WritePacketRTP(0, &testRTPPacket, true)
-							case <-writerTerminate:
-								return
-							}
-						}
-					}()
-				}
-
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, nil
-			},
-			onPause: func(ctx *ServerHandlerOnPauseCtx) (*base.Response, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, nil
-			},
-		},
-		RTSPAddress: "localhost:8554",
-	}
-
-	err := s.Start()
-	require.NoError(t, err)
-	defer s.Close()
-
-	nconn, err := net.Dial("tcp", "localhost:8554")
-	require.NoError(t, err)
-	defer nconn.Close()
-	conn := conn.NewConn(nconn)
-
-	res, err := writeReqReadRes(conn, base.Request{
-		Method: base.Setup,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
-		Header: base.Header{
-			"CSeq": base.HeaderValue{"1"},
-			"Transport": headers.Transport{
-				Mode: func() *headers.TransportMode {
-					v := headers.TransportModePlay
-					return &v
-				}(),
-				InterleavedIDs: &[2]int{0, 1},
-			}.Marshal(),
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-
-	var sx headers.Session
-	err = sx.Unmarshal(res.Header["Session"])
-	require.NoError(t, err)
-
-	res, err = writeReqReadRes(conn, base.Request{
-		Method: base.Play,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream"),
-		Header: base.Header{
-			"CSeq":    base.HeaderValue{"2"},
-			"Session": base.HeaderValue{sx.Session},
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-
-	res, err = writeReqReadRes(conn, base.Request{
-		Method: base.Pause,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream"),
-		Header: base.Header{
-			"CSeq":    base.HeaderValue{"2"},
-			"Session": base.HeaderValue{sx.Session},
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-
-	res, err = writeReqReadRes(conn, base.Request{
-		Method: base.Play,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream"),
-		Header: base.Header{
-			"CSeq":    base.HeaderValue{"2"},
-			"Session": base.HeaderValue{sx.Session},
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-}
-
-func TestServerReadPlayPausePause(t *testing.T) {
-	writerDone := make(chan struct{})
-	writerTerminate := make(chan struct{})
-
-	track := &TrackH264{
-		PayloadType: 96,
-		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
-		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
-	}
-
-	stream := NewServerStream(Tracks{track})
-	defer stream.Close()
-
-	s := &Server{
-		Handler: &testServerHandler{
-			onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
-				close(writerTerminate)
-				<-writerDone
-			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, stream, nil
-			},
-			onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
-				go func() {
-					defer close(writerDone)
-
-					t := time.NewTicker(50 * time.Millisecond)
-					defer t.Stop()
-
-					for {
-						select {
-						case <-t.C:
-							stream.WritePacketRTP(0, &testRTPPacket, true)
-						case <-writerTerminate:
-							return
-						}
-					}
-				}()
-
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, nil
-			},
-			onPause: func(ctx *ServerHandlerOnPauseCtx) (*base.Response, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, nil
-			},
-		},
-		RTSPAddress: "localhost:8554",
-	}
-
-	err := s.Start()
-	require.NoError(t, err)
-	defer s.Close()
-
-	nconn, err := net.Dial("tcp", "localhost:8554")
-	require.NoError(t, err)
-	defer nconn.Close()
-	conn := conn.NewConn(nconn)
-
-	res, err := writeReqReadRes(conn, base.Request{
-		Method: base.Setup,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
-		Header: base.Header{
-			"CSeq": base.HeaderValue{"1"},
-			"Transport": headers.Transport{
-				Mode: func() *headers.TransportMode {
-					v := headers.TransportModePlay
-					return &v
-				}(),
-				InterleavedIDs: &[2]int{0, 1},
-			}.Marshal(),
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-
-	var sx headers.Session
-	err = sx.Unmarshal(res.Header["Session"])
-	require.NoError(t, err)
-
-	res, err = writeReqReadRes(conn, base.Request{
-		Method: base.Play,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream"),
-		Header: base.Header{
-			"CSeq":    base.HeaderValue{"2"},
-			"Session": base.HeaderValue{sx.Session},
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-
-	err = conn.WriteRequest(&base.Request{
-		Method: base.Pause,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream"),
-		Header: base.Header{
-			"CSeq":    base.HeaderValue{"2"},
-			"Session": base.HeaderValue{sx.Session},
-		},
-	})
-	require.NoError(t, err)
-
-	res, err = conn.ReadResponseIgnoreFrames()
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-
-	err = conn.WriteRequest(&base.Request{
-		Method: base.Pause,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream"),
-		Header: base.Header{
-			"CSeq":    base.HeaderValue{"2"},
-			"Session": base.HeaderValue{sx.Session},
-		},
-	})
-	require.NoError(t, err)
-
-	res, err = conn.ReadResponseIgnoreFrames()
-	require.NoError(t, err)
-	require.Equal(t, base.StatusOK, res.StatusCode)
-}
-
 func TestServerReadWithoutTeardown(t *testing.T) {
 	connClosed := make(chan struct{})
 	sessionClosed := make(chan struct{})
@@ -621,26 +367,20 @@ func TestServerReadWithoutTeardown(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onConnClose: func(ctx *ServerHandlerOnConnCloseCtx) {
+			onConnClose: func(*ServerConn, error) {
 				close(connClosed)
 			},
-			onSessionClose: func(ctx *ServerHandlerOnSessionCloseCtx) {
+			onSessionClose: func(*ServerSession, error) {
 				close(sessionClosed)
 			},
-			onAnnounce: func(ctx *ServerHandlerOnAnnounceCtx) (*base.Response, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, nil
+			onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
+				return &base.Response{StatusCode: base.StatusOK}, nil
 			},
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, stream, nil
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
+				return &base.Response{StatusCode: base.StatusOK}, stream, nil
 			},
-			onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, nil
+			onPlay: func(*ServerSession) (*base.Response, error) {
+				return &base.Response{StatusCode: base.StatusOK}, nil
 			},
 		},
 		ReadTimeout:    1 * time.Second,
@@ -789,12 +529,12 @@ func TestServerReadAdditionalInfos(t *testing.T) {
 
 	s := &Server{
 		Handler: &testServerHandler{
-			onSetup: func(ctx *ServerHandlerOnSetupCtx) (*base.Response, *ServerStream, error) {
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, stream, nil
 			},
-			onPlay: func(ctx *ServerHandlerOnPlayCtx) (*base.Response, error) {
+			onPlay: func(*ServerSession) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
 				}, nil

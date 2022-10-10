@@ -3,10 +3,12 @@ package video
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"nvr/pkg/log"
+	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/hls"
 	gopath "path"
 	"strings"
@@ -14,14 +16,8 @@ import (
 	"time"
 )
 
-type hlsServerPathManager interface {
-	hlsServerSet(s pathManagerHLSServer)
-	readerAdd(req pathReaderAddReq) pathReaderAddRes
-}
-
 type hlsServer struct {
 	readBufferCount int
-	pathManager     hlsServerPathManager
 	logger          *log.Logger
 
 	ctx       context.Context
@@ -29,11 +25,9 @@ type hlsServer struct {
 	wg        *sync.WaitGroup
 	muxers    map[string]*HLSMuxer
 
-	muxerByPathNameOnHold map[string]chan *HLSMuxer
-
 	// in
-	chPathSourceReady    chan *path
-	chPathSourceNotReady chan *path
+	chPathSourceReady    chan pathSourceReadyRequest
+	chPathSourceNotReady chan string
 	chRequest            chan *hlsMuxerRequest
 	chMuxerbyPathName    chan muxerByPathNameRequest
 	chMuxerClose         chan *HLSMuxer
@@ -42,24 +36,19 @@ type hlsServer struct {
 func newHLSServer(
 	wg *sync.WaitGroup,
 	readBufferCount int,
-	pathManager hlsServerPathManager,
 	logger *log.Logger,
 ) *hlsServer {
-	s := &hlsServer{
-		readBufferCount:       readBufferCount,
-		pathManager:           pathManager,
-		logger:                logger,
-		wg:                    wg,
-		muxers:                make(map[string]*HLSMuxer),
-		muxerByPathNameOnHold: make(map[string]chan *HLSMuxer),
-		chPathSourceReady:     make(chan *path),
-		chPathSourceNotReady:  make(chan *path),
-		chRequest:             make(chan *hlsMuxerRequest),
-		chMuxerbyPathName:     make(chan muxerByPathNameRequest),
-		chMuxerClose:          make(chan *HLSMuxer),
+	return &hlsServer{
+		readBufferCount:      readBufferCount,
+		logger:               logger,
+		wg:                   wg,
+		muxers:               make(map[string]*HLSMuxer),
+		chPathSourceReady:    make(chan pathSourceReadyRequest),
+		chPathSourceNotReady: make(chan string),
+		chRequest:            make(chan *hlsMuxerRequest),
+		chMuxerbyPathName:    make(chan muxerByPathNameRequest),
+		chMuxerClose:         make(chan *HLSMuxer),
 	}
-	s.pathManager.hlsServerSet(s)
-	return s
 }
 
 func (s *hlsServer) start(ctx context.Context, address string) error {
@@ -114,29 +103,53 @@ func (s *hlsServer) startServer(ln net.Listener) {
 	}()
 }
 
+// ErrMuxerAleadyExists muxer already exists.
+var ErrMuxerAleadyExists = errors.New("muxer already exists")
+
 func (s *hlsServer) run() {
 	defer s.wg.Done()
-
-outer:
 	for {
 		select {
 		case <-s.ctx.Done():
-			for _, res := range s.muxerByPathNameOnHold {
-				close(res)
+			s.ctxCancel()
+			return
+
+		case req := <-s.chPathSourceReady:
+			if _, exist := s.muxers[req.path.name]; exist {
+				req.res <- pathSourceReadyResponse{err: ErrMuxerAleadyExists}
 			}
-			break outer
 
-		case pa := <-s.chPathSourceReady: // TODO: just pass name.
-			s.findOrCreateMuxer(pa.Name(), nil)
+			m := newHLSMuxer(
+				s.ctx,
+				s.readBufferCount,
+				s.wg,
+				req.path,
+				s.muxerClose,
+				s.logger,
+			)
 
-		case pa := <-s.chPathSourceNotReady: // TODO: just pass name.
-			if c, exist := s.muxers[pa.Name()]; exist {
+			if err := m.start(req.tracks); err != nil {
+				req.res <- pathSourceReadyResponse{
+					err: fmt.Errorf("start hls muxer: %w", err),
+				}
+				continue
+			}
+			s.muxers[req.path.name] = m
+			req.res <- pathSourceReadyResponse{muxer: m}
+
+		case pathName := <-s.chPathSourceNotReady:
+			if c, exist := s.muxers[pathName]; exist {
 				c.close()
-				delete(s.muxers, pa.Name())
+				delete(s.muxers, pathName)
 			}
 
 		case req := <-s.chRequest:
-			s.findOrCreateMuxer(req.path, req)
+			m, exist := s.muxers[req.path]
+			if exist {
+				m.onRequest(req)
+				continue
+			}
+			req.res <- &hls.MuxerFileResponse{Status: http.StatusNotFound}
 
 		case req := <-s.chMuxerbyPathName:
 			m, exist := s.muxers[req.pathName]
@@ -144,17 +157,15 @@ outer:
 				req.res <- m
 				continue
 			}
-			s.muxerByPathNameOnHold[req.pathName] = req.res
+			req.res <- nil
 
 		case c := <-s.chMuxerClose:
-			if c2, ok := s.muxers[c.pathName]; !ok || c2 != c {
-				continue
+			_, exist := s.muxers[c.path.name]
+			if exist {
+				delete(s.muxers, c.path.name)
 			}
-			delete(s.muxers, c.pathName)
 		}
 	}
-
-	s.ctxCancel()
 }
 
 func (s *hlsServer) HandleRequest() http.HandlerFunc { //nolint:funlen
@@ -202,7 +213,7 @@ func (s *hlsServer) HandleRequest() http.HandlerFunc { //nolint:funlen
 
 		dir = strings.TrimSuffix(dir, "/")
 
-		cres := make(chan func() *hls.MuxerFileResponse)
+		cres := make(chan *hls.MuxerFileResponse)
 		hreq := &hlsMuxerRequest{
 			path: dir,
 			file: fname,
@@ -213,9 +224,7 @@ func (s *hlsServer) HandleRequest() http.HandlerFunc { //nolint:funlen
 		select {
 		case <-s.ctx.Done():
 		case s.chRequest <- hreq:
-			cb := <-cres
-
-			res := cb()
+			res := <-cres
 
 			for k, v := range res.Header {
 				w.Header().Set(k, v)
@@ -229,42 +238,38 @@ func (s *hlsServer) HandleRequest() http.HandlerFunc { //nolint:funlen
 	}
 }
 
-func (s *hlsServer) findOrCreateMuxer(pathName string, req *hlsMuxerRequest) {
-	m, exist := s.muxers[pathName]
-	if !exist {
-		m := newHLSMuxer(
-			s.ctx,
-			s.readBufferCount,
-			req,
-			s.wg,
-			pathName,
-			s.pathManager.readerAdd,
-			s.muxerClose,
-			s.logger)
-		s.muxers[pathName] = m
+type pathSourceReadyRequest struct {
+	path   *path
+	tracks gortsplib.Tracks
+	res    chan pathSourceReadyResponse
+}
 
-		res, exist := s.muxerByPathNameOnHold[pathName]
-		if exist {
-			res <- m
-			delete(s.muxerByPathNameOnHold, pathName)
-		}
-	} else if req != nil {
-		m.onRequest(req)
-	}
+type pathSourceReadyResponse struct {
+	muxer *HLSMuxer
+	err   error
 }
 
 // pathSourceReady is called by path manager.
-func (s *hlsServer) pathSourceReady(pa *path) {
+func (s *hlsServer) pathSourceReady(pa *path, tracks gortsplib.Tracks) (*HLSMuxer, error) {
+	pathSourceRes := make(chan pathSourceReadyResponse)
+	pathSourceReq := pathSourceReadyRequest{
+		path:   pa,
+		tracks: tracks,
+		res:    pathSourceRes,
+	}
 	select {
-	case s.chPathSourceReady <- pa:
+	case s.chPathSourceReady <- pathSourceReq:
+		res := <-pathSourceRes
+		return res.muxer, res.err
 	case <-s.ctx.Done():
+		return nil, context.Canceled
 	}
 }
 
 // pathSourceNotReady is called by pathManager.
-func (s *hlsServer) pathSourceNotReady(pa *path) {
+func (s *hlsServer) pathSourceNotReady(pathName string) {
 	select {
-	case s.chPathSourceNotReady <- pa:
+	case s.chPathSourceNotReady <- pathName:
 	case <-s.ctx.Done():
 	}
 }

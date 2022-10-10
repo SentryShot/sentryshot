@@ -351,12 +351,14 @@ func TestStopAllMonitors(t *testing.T) {
 }
 
 func mockNewVideoServerPath(
-	name string, _ video.PathConf) (*video.ServerPath, video.CancelFunc, error,
-) {
+	_ context.Context,
+	name string,
+	_ video.PathConf,
+) (*video.ServerPath, error) {
 	if name == "" {
-		return nil, nil, video.ErrEmptyPathName
+		return nil, video.ErrEmptyPathName
 	}
-	return &video.ServerPath{}, func() {}, nil
+	return &video.ServerPath{}, nil
 }
 
 func newTestInputProcess() *InputProcess {
@@ -546,7 +548,7 @@ func TestInputStreamInfo(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, mockStreamInfo, actual)
 	})
-	t.Run("error", func(t *testing.T) {
+	t.Run("getMuxerErr", func(t *testing.T) {
 		mockError := errors.New("mock")
 		muxer := newMockMuxerFunc(&mockMuxer{
 			streamInfoErr: mockError,
@@ -561,7 +563,12 @@ func TestInputStreamInfo(t *testing.T) {
 		require.Nil(t, actual)
 	})
 	t.Run("canceled", func(t *testing.T) {
-		i := &InputProcess{}
+		muxer := newMockMuxerFunc(&mockMuxer{})
+		i := &InputProcess{
+			serverPath: video.ServerPath{
+				HLSMuxer: muxer,
+			},
+		}
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -569,31 +576,6 @@ func TestInputStreamInfo(t *testing.T) {
 		actual, err := i.StreamInfo(ctx)
 		require.ErrorIs(t, err, context.Canceled)
 		require.Nil(t, actual)
-	})
-	t.Run("nilAndCanceled", func(t *testing.T) {
-		logs := make(chan string)
-		logf := func(_ log.Level, format string, a ...interface{}) {
-			logs <- fmt.Sprintf(format, a...)
-		}
-		muxer := newMockMuxerFunc(&mockMuxer{})
-		i := &InputProcess{
-			serverPath: video.ServerPath{
-				HLSMuxer: muxer,
-			},
-			logf: logf,
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		done := make(chan struct{})
-		go func() {
-			actual, err := i.StreamInfo(ctx)
-			require.ErrorIs(t, err, context.Canceled)
-			require.Nil(t, actual)
-			close(done)
-		}()
-		require.Equal(t, "could not get stream info", <-logs)
-		cancel()
-		<-done
 	})
 }
 
