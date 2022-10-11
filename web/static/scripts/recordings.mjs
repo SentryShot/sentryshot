@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, fetchGet, newMonitorNameByID } from "./libs/common.mjs";
+import { fetchGet, newMonitorNameByID } from "./libs/common.mjs";
 import { newPlayer } from "./components/player.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
 
@@ -182,7 +182,7 @@ function dateToID(d) {
 		const $grid = document.querySelector("#content-grid");
 		const viewer = await newViewer(monitorNameByID, $grid, timeZone);
 
-		const $options = $("#options-menu");
+		const $options = document.querySelector("#options-menu");
 		const buttons = [
 			newOptionsBtn.gridSize(),
 			newOptionsBtn.date(timeZone),

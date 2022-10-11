@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, newMonitorNameByID } from "./libs/common.mjs";
+import { newMonitorNameByID } from "./libs/common.mjs";
 import { newViewer } from "./recordings.mjs";
 
 describe("newViewer", () => {
@@ -46,7 +46,7 @@ describe("newViewer", () => {
 	const setup = async () => {
 		window.fetch = mockFetch;
 		document.body.innerHTML = "<div></div>";
-		const element = $("div");
+		const element = document.querySelector("div");
 
 		const viewer = await newViewer(monitorNameByID, element, "utc");
 		await viewer.reset();

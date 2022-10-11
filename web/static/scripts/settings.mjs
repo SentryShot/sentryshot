@@ -14,8 +14,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import {
-	$,
-	$$,
 	fetchGet,
 	fetchPost,
 	fetchPut,
@@ -68,10 +66,9 @@ function newRenderer($parent) {
 		init() {
 			for (const category of Object.values(categories)) {
 				category.init();
-				$(`#js-set-category-${category.name()}`).addEventListener(
-					"click",
-					category.open
-				);
+				document
+					.querySelector(`#js-set-category-${category.name()}`)
+					.addEventListener("click", category.open);
 			}
 		},
 	};
@@ -79,10 +76,10 @@ function newRenderer($parent) {
 
 const backIconPath = "static/icons/feather/arrow-left.svg";
 function closeAllCategories() {
-	for (const element of $$(".settings-category-wrapper")) {
+	for (const element of document.querySelectorAll(".settings-category-wrapper")) {
 		element.classList.remove("settings-category-selected");
 	}
-	for (const element of $$(".js-set-settings-category")) {
+	for (const element of document.querySelectorAll(".js-set-settings-category")) {
 		element.classList.remove("settings-nav-btn-selected");
 	}
 }
@@ -112,14 +109,16 @@ function newSimpleCategory(category, title) {
 				</div>`;
 		},
 		init() {
-			const $wrapper = $(`#js-settings-wrapper-${category}`);
+			const $wrapper = document.querySelector(`#js-settings-wrapper-${category}`);
 
-			const $navBtn = $(`#js-set-category-${category}`);
+			const $navBtn = document.querySelector(`#js-set-category-${category}`);
 
 			form.init($wrapper);
 
 			close = () => {
-				for (const element of $$(".js-set-settings-category")) {
+				for (const element of document.querySelectorAll(
+					".js-set-settings-category"
+				)) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
 				$wrapper.classList.remove("settings-category-selected");
@@ -148,7 +147,7 @@ function newCategory(category, title) {
 	let $wrapper, $subcategory, $title, form, open, close, $nav, onNav;
 
 	const closeSubcategory = () => {
-		for (const element of $$(`.settings-category-nav-item`)) {
+		for (const element of document.querySelectorAll(`.settings-category-nav-item`)) {
 			element.classList.remove("settings-sub-nav-btn-selected");
 		}
 		$subcategory.classList.remove("settings-subcategory-open");
@@ -213,16 +212,18 @@ function newCategory(category, title) {
 				</div>`;
 		},
 		init() {
-			$wrapper = $(`#js-settings-wrapper-${category}`);
+			$wrapper = document.querySelector(`#js-settings-wrapper-${category}`);
 			$nav = $wrapper.querySelector(".settings-category-nav");
 
-			const $navBtn = $(`#js-set-category-${category}`);
+			const $navBtn = document.querySelector(`#js-set-category-${category}`);
 
 			form.init($wrapper);
 
 			close = () => {
 				$wrapper.classList.remove("settings-category-selected");
-				for (const element of $$(".js-set-settings-category")) {
+				for (const element of document.querySelectorAll(
+					".js-set-settings-category"
+				)) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
 			};

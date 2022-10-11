@@ -24,7 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 </head>
 <body>
 	{{ template "sidebar" . }}
-	<div id="content">
+	<div class="js-content" id="content">
 		<nav id="js-settings-navbar" class="settings-navbar">
 			<ul id="settings-navbar-nav"></ul>
 		</nav>

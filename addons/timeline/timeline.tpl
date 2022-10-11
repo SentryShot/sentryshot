@@ -30,7 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 <body>
 	{{ template "sidebar" . }}
 	<div id="content">
-		<div class="player">
+		<div class="js-player player">
 			<video class="js-video" muted="true"></video>
 		</div>
 		<div class="timeline js-timeline">

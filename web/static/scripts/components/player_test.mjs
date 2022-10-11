@@ -13,7 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $ } from "../libs/common.mjs";
 import { newPlayer, newDetectionRenderer } from "./player.mjs";
 
 const millisecond = 1000000;
@@ -63,7 +62,7 @@ describe("newPlayer", () => {
 		document.body.innerHTML = "<div></div>";
 		window.HTMLMediaElement.prototype.play = () => {};
 		let element, player;
-		element = $("div");
+		element = document.querySelector("div");
 
 		player = newPlayer(data);
 		element.innerHTML = player.html;
@@ -94,7 +93,7 @@ describe("newPlayer", () => {
 		const actual = element.innerHTML.replace(/\s/g, "");
 		expect(actual).toEqual(thumbnailHTML);
 
-		$("div img").click();
+		document.querySelector("div img").click();
 		const videoHTML = `
 				<div id="recA" class="grid-item-container js-loaded">
 					<video class="grid-item" disablepictureinpicture="">
@@ -161,9 +160,9 @@ describe("newPlayer", () => {
 		player.init(() => {
 			nclicks++;
 		});
-		$("div img").click();
-		$(".player-play-btn").click();
-		$(".player-play-btn").click();
+		document.querySelector("div img").click();
+		document.querySelector(".player-play-btn").click();
+		document.querySelector(".player-play-btn").click();
 
 		expect(nclicks).toBe(1);
 	});
@@ -175,7 +174,7 @@ describe("detectionRenderer", () => {
 		const d = newDetectionRenderer(start, events);
 
 		document.body.innerHTML = "<div></div>";
-		const element = $("div");
+		const element = document.querySelector("div");
 		element.innerHTML = d.html;
 		d.init(element.querySelector(".player-detections"));
 		return [d, element];

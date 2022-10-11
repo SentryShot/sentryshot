@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, uidReset } from "../libs/common.mjs";
+import { uidReset } from "../libs/common.mjs";
 import {
 	newForm,
 	newField,
@@ -96,7 +96,7 @@ describe("newForm", () => {
 			form.buttons()["save"].onClick(() => {
 				clicked = true;
 			});
-			$(".js-save-btn").click();
+			document.querySelector(".js-save-btn").click();
 
 			expect(clicked).toBe(true);
 		});
@@ -131,7 +131,7 @@ describe("newForm", () => {
 			form.buttons()["delete"].onClick(() => {
 				clicked = true;
 			});
-			$(".js-delete-btn").click();
+			document.querySelector(".js-delete-btn").click();
 
 			expect(clicked).toBe(true);
 		});
@@ -256,7 +256,8 @@ describe("fieldTemplate", () => {
 		expect(field.value()).toBe("");
 	};
 	const testOnChange = () => {
-		const [$input, $error] = $getInputAndError($("#js-uid1"));
+		const element = document.querySelector("#js-uid1");
+		const [$input, $error] = $getInputAndError(element);
 		const e = new Event("change");
 		$input.dispatchEvent(e);
 
@@ -426,12 +427,12 @@ describe("fieldTemplate", () => {
 		window.prompt = () => {
 			return "custom";
 		};
-		$("button").click();
+		document.querySelector("button").click();
 
 		expect(field.value()).toBe("custom");
 
-		const $input = $("#uid1");
-		const $error = $(".js-error");
+		const $input = document.querySelector("#uid1");
+		const $error = document.querySelector(".js-error");
 
 		const change = new Event("change");
 		$input.dispatchEvent(change);
@@ -480,7 +481,7 @@ describe("selectCustomField", () => {
 		window.prompt = () => {
 			return "custom";
 		};
-		$("button").click();
+		document.querySelector("button").click();
 
 		expect(field.value()).toBe("custom");
 	});
@@ -522,12 +523,16 @@ describe("passwordField", () => {
 			uidReset();
 			document.body.innerHTML = "<div></div>";
 			field = newPasswordField();
-			const $div = $("div");
+			const $div = document.querySelector("div");
 			$div.innerHTML = field.html;
 			field.init($div);
 
-			[$newInput, $newError] = $getInputAndError($("#js-uid1"));
-			[$repeatInput, $repeatError] = $getInputAndError($("#js-uid2"));
+			[$newInput, $newError] = $getInputAndError(
+				document.querySelector("#js-uid1")
+			);
+			[$repeatInput, $repeatError] = $getInputAndError(
+				document.querySelector("#js-uid2")
+			);
 		});
 		const change = new Event("change");
 

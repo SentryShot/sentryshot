@@ -27,7 +27,7 @@
 Settings that don't belong anywhere else.
 
 #### Disk space
-Maximum allowed storage space in Gigabytes.
+Maximum allowed storage space in GigaBytes. Recordings are delete automatically before this value is exceeded.
 
 #### Theme
 UI theme

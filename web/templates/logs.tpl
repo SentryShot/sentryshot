@@ -26,7 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 </head>
 <body>
 	{{ template "sidebar" . }}
-	<div id="content">
+	<div class="js-content" id="content">
 		<div class="log-sidebar js-sidebar"></div>
 		<div class="log-list-wrapper js-list">
 			<div id="log-menubar">

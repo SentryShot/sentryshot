@@ -1,4 +1,4 @@
-import { $, uidReset } from "./libs/common.mjs";
+import { uidReset } from "./libs/common.mjs";
 import { newFormater, newMultiSelect, newLogSelector } from "./logs.mjs";
 
 describe("logger", () => {
@@ -55,7 +55,7 @@ describe("MultiSelect", () => {
 	const setup = () => {
 		uidReset();
 		document.body.innerHTML = `<div></div>`;
-		const element = $("div");
+		const element = document.querySelector("div");
 		const field = newMultiSelect("test", ["a", "b", "c"], ["a", "b"]);
 		element.innerHTML = field.html;
 		field.init(element);
@@ -144,7 +144,7 @@ describe("logSelector", () => {
 				<div class="js-sidebar"></div>
 				<div class="js-back"></div>
 			</div>`;
-		const element = $("div");
+		const element = document.querySelector("div");
 
 		logSelector.init(element);
 
@@ -219,7 +219,7 @@ describe("logSelector", () => {
 					<div class="js-list"></div>
 					<div class="js-back"></div>
 				</div>`;
-			element = $("div");
+			element = document.querySelector("div");
 			logSelector.init(element);
 		});
 		test("initial", () => {

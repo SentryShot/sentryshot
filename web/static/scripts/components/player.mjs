@@ -13,7 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $ } from "../libs/common.mjs";
 import { fromUTC } from "../libs/time.mjs";
 
 function newPlayer(data) {
@@ -236,7 +235,7 @@ function newPlayer(data) {
 	return {
 		html: `<div id="${elementID}" class="grid-item-container">${thumbHTML}</div>`,
 		init(onLoad) {
-			const element = $(`#${elementID}`);
+			const element = document.querySelector(`#${elementID}`);
 
 			const reset = () => {
 				element.innerHTML = thumbHTML;

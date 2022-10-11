@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, fetchGet, uniqueID, newMonitorNameByID } from "./libs/common.mjs";
+import { fetchGet, uniqueID, newMonitorNameByID } from "./libs/common.mjs";
 import { fromUTC2 } from "./libs/time.mjs";
 import { newForm, fieldTemplate } from "./components/form.mjs";
 
@@ -330,7 +330,8 @@ async function init() {
 	};
 	const logSelector = newLogSelector(logger, formFields);
 
-	logSelector.init($("#content"));
+	const $content = document.querySelector(".js-content");
+	logSelector.init($content);
 
 	window.addEventListener("resize", logger.lazyLoadSavedLogs);
 	window.addEventListener("orientation", logger.lazyLoadSavedLogs);

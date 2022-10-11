@@ -13,11 +13,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, sortByName } from "../libs/common.mjs";
+import { sortByName } from "../libs/common.mjs";
 import { toUTC } from "../libs/time.mjs";
 
 function newOptionsMenu(buttons) {
-	$("#topbar-options-btn").style.visibility = "visible";
+	document.querySelector("#topbar-options-btn").style.visibility = "visible";
 
 	const html = () => {
 		let html = "";

@@ -14,7 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import Hls from "./vendor/hls.mjs";
-import { $, sortByName } from "./libs/common.mjs";
+import { sortByName } from "./libs/common.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
 import { newFeed } from "./components/feed.mjs";
 
@@ -114,7 +114,7 @@ function init() {
 	const $contentGrid = document.querySelector("#content-grid");
 	const viewer = newViewer($contentGrid, monitors, Hls);
 
-	const $options = $("#options-menu");
+	const $options = document.querySelector("#options-menu");
 	const buttons = [
 		newOptionsBtn.gridSize(),
 		resBtn(),

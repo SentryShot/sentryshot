@@ -13,12 +13,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $ } from "./static/scripts/libs/common.mjs";
 import { newSelectMonitorButton } from "./timeline.mjs";
 
 test("selectMonitor", () => {
 	document.body.innerHTML = `<div></div>`;
-	const element = $("div");
+	const element = document.querySelector("div");
 
 	const monitors = {
 		b: {
@@ -48,7 +47,7 @@ test("selectMonitor", () => {
 	localStorage.setItem("timeline-monitor", "b");
 	selectMonitor.init(element, content);
 
-	$("button").click();
+	document.querySelector("button").click();
 	expect(setMonitors).toEqual(["b"]);
 
 	const expected = `
@@ -60,14 +59,14 @@ test("selectMonitor", () => {
 				>m2</span>
 			</div>`.replace(/\s/g, "");
 
-	let actual = $(".modal-content").innerHTML.replace(/\s/g, "");
+	let actual = document.querySelector(".modal-content").innerHTML.replace(/\s/g, "");
 	expect(actual).toEqual(expected);
 
-	$("button").click();
+	document.querySelector("button").click();
 	expect(selectMonitor.isOpen()).toBe(true);
 
 	expect(resetCalled).toBe(false);
-	$(".monitor-selector-item[data='a']").click();
+	document.querySelector(".monitor-selector-item[data='a']").click();
 	expect(selectMonitor.isOpen()).toBe(false);
 	expect(resetCalled).toBe(true);
 	expect(setMonitors).toEqual(["a"]);

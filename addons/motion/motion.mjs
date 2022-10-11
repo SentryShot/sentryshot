@@ -409,7 +409,7 @@ function zones(hls) {
 			}
 		},
 		init($parent) {
-			const element = $parent.querySelector("#" + id);
+			const element = $parent.querySelector(`#${id}`);
 			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
 				const subInputEnabled = fields.subInput.value() !== "" ? "true" : "";
 				const monitor = {

@@ -13,7 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $ } from "../libs/common.mjs";
 import { newModal } from "./modal.mjs";
 
 test("newModal", () => {
@@ -38,13 +37,13 @@ test("newModal", () => {
 		<div class="modal-content">a</div>
 		`.replace(/\s/g, "");
 
-	let actual = $(".modal").innerHTML.replace(/\s/g, "");
+	let actual = document.querySelector(".modal").innerHTML.replace(/\s/g, "");
 	expect(actual).toEqual(expected);
 
 	expect(modal.isOpen()).toBe(true);
 	expect(onCloseCalled).toBe(false);
 
-	$(".modal-close-btn").click();
+	document.querySelector(".modal-close-btn").click();
 	expect(modal.isOpen()).toBe(false);
 	expect(onCloseCalled).toBe(true);
 });

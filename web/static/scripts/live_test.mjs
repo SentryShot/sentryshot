@@ -13,7 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $ } from "./libs/common.mjs";
 import { newViewer, resBtn } from "./live.mjs";
 
 class mockHls {
@@ -37,7 +36,7 @@ const monitors = {
 describe("newViewer", () => {
 	const setup = () => {
 		document.body.innerHTML = `<div id="content-grid"></div>`;
-		const element = $("#content-grid");
+		const element = document.querySelector("#content-grid");
 		const viewer = newViewer(element, monitors, mockHls);
 		viewer.setPreferLowRes(true);
 		viewer.setPreferLowRes(false);
@@ -87,7 +86,7 @@ describe("newViewer", () => {
 	});
 	test("muteButton", () => {
 		setup();
-		const element = $("#js-video-3");
+		const element = document.querySelector("#js-video-3");
 		const $video = element.querySelector("video");
 		const $muteBtn = element.querySelector(".js-mute-btn");
 		const $img = $muteBtn.querySelector("img");
@@ -112,12 +111,12 @@ describe("resBtn", () => {
 	};
 	test("ok", () => {
 		document.body.innerHTML = `<div></div>`;
-		const element = $("div");
+		const element = document.querySelector("div");
 
 		const res = resBtn();
 		element.innerHTML = res.html;
 
-		const $btn = $(".js-res");
+		const $btn = document.querySelector(".js-res");
 		expect($btn.textContent).toBe("X");
 
 		res.init(element, mockContent);
@@ -137,7 +136,7 @@ describe("resBtn", () => {
 	});
 	test("contentCalled", () => {
 		document.body.innerHTML = `<div></div>`;
-		const element = $("div");
+		const element = document.querySelector("div");
 
 		const res = resBtn();
 		element.innerHTML = res.html;
@@ -153,7 +152,7 @@ describe("resBtn", () => {
 		};
 
 		res.init(element, content);
-		$(".js-res").click();
+		document.querySelector(".js-res").click();
 		expect(preferLowCalled).toBe(true);
 		expect(resetCalled).toBe(true);
 	});

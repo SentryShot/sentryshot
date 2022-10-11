@@ -13,13 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-function $(query) {
-	return document.querySelector(query);
-}
-function $$(query) {
-	return document.querySelectorAll(query);
-}
-
 async function sendAlert(msg, response) {
 	alert(`${msg}: ${response.status}, ${await response.text()}`);
 }
@@ -113,8 +106,6 @@ function newMonitorNameByID(monitors) {
 }
 
 export {
-	$,
-	$$,
 	fetchGet,
 	fetchPost,
 	fetchPut,

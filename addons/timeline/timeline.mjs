@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, fetchGet, sortByName, uniqueID } from "./static/scripts/libs/common.mjs";
+import { fetchGet, sortByName, uniqueID } from "./static/scripts/libs/common.mjs";
 import { fromUTC2 } from "./static/scripts/libs/time.mjs";
 import { newModal } from "./static/scripts/components/modal.mjs";
 import { newOptionsMenu } from "./static/scripts/components/optionsMenu.mjs";
@@ -490,14 +490,16 @@ function newTimeline(element, player, timezone) {
 }
 
 async function newTimelineViewer() {
-	const player = await newPlayer($(".player"));
+	const $player = document.querySelector(".js-player");
+	const player = await newPlayer($player);
 
 	const monitors = Monitors; // eslint-disable-line no-undef
 	const timezone = TZ; // eslint-disable-line no-undef
-	const timeline = newTimeline($(".js-timeline"), player, timezone);
+	const $timeline = document.querySelector(".js-timeline");
+	const timeline = newTimeline($timeline, player, timezone);
 	timeline.setMonitors([Object.values(monitors)[0].id]);
 
-	const $options = $("#options-menu");
+	const $options = document.querySelector("#options-menu");
 	const buttons = [newSelectMonitorButton(monitors)];
 	const optionsMenu = newOptionsMenu(buttons);
 	$options.innerHTML = optionsMenu.html;

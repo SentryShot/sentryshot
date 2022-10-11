@@ -14,7 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /* eslint-disable no-unused-vars */
-import { $, $$, uniqueID } from "./static/scripts/libs/common.mjs";
+import { uniqueID } from "./static/scripts/libs/common.mjs";
 import { newModal } from "./static/scripts/components/modal.mjs";
 import {
 	newForm,
@@ -39,7 +39,7 @@ const CSRFtoken = "{{ .user.Token }}";
 const isAdmin = "{{ .user.IsAdmin }}";
 
 if (isAdmin === "true") {
-	const renderer = newRenderer($("#content"));
+	const renderer = newRenderer(document.querySelector(".js-content"));
 
 	const generalFields = {
 		diskSpace: fieldTemplate.text("Disk space (GB)", "5000"),

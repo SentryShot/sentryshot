@@ -15,13 +15,12 @@
 
 import { jest } from "@jest/globals";
 
-import { $ } from "../libs/common.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./optionsMenu.mjs";
 
 describe("optionsGridSize", () => {
 	const setup = (content, button) => {
 		document.body.innerHTML = `<div id="options-menu"></div>`;
-		const element = $("#options-menu");
+		const element = document.querySelector("#options-menu");
 
 		element.innerHTML = button.html;
 		button.init(element, content);
@@ -79,7 +78,7 @@ describe("optionsDate", () => {
 		jest.setSystemTime(Date.parse("2001-02-03T01:02:03+00:00"));
 
 		document.body.innerHTML = `<div></div>`;
-		const element = $("div");
+		const element = document.querySelector("div");
 
 		const date = newOptionsBtn.date("utc");
 		element.innerHTML = date.html;
@@ -89,9 +88,9 @@ describe("optionsDate", () => {
 	};
 	test("monthBtn", () => {
 		setup();
-		const $month = $(".js-month");
-		const $prevMonth = $(".js-prev-month");
-		const $nextMonth = $(".js-next-month");
+		const $month = document.querySelector(".js-month");
+		const $prevMonth = document.querySelector(".js-prev-month");
+		const $nextMonth = document.querySelector(".js-next-month");
 
 		expect($month.textContent).toBe("2001 February");
 		$prevMonth.click();
@@ -102,7 +101,7 @@ describe("optionsDate", () => {
 	});
 	test("dayBtn", () => {
 		setup();
-		const $calendar = $(".js-calendar");
+		const $calendar = document.querySelector(".js-calendar");
 
 		const pad = (n) => {
 			return n < 10 ? " " + n : n;
@@ -127,7 +126,7 @@ describe("optionsDate", () => {
 		};
 
 		$calendar.children[0].click();
-		$(".date-picker-calendar").click();
+		document.querySelector(".date-picker-calendar").click();
 
 		// prettier-ignore
 		expect(domState()).toEqual([
@@ -144,8 +143,8 @@ describe("optionsDate", () => {
 			}
 		}
 
-		$(".js-next-month").click();
-		$(".js-next-month").click();
+		document.querySelector(".js-next-month").click();
+		document.querySelector(".js-next-month").click();
 
 		// prettier-ignore
 		expect(domState()).toEqual([
@@ -158,9 +157,9 @@ describe("optionsDate", () => {
 	});
 	test("hourBtn", () => {
 		setup();
-		const $hour = $(".js-hour");
-		const $nextHour = $(".js-next-hour");
-		const $prevHour = $(".js-prev-hour");
+		const $hour = document.querySelector(".js-hour");
+		const $nextHour = document.querySelector(".js-next-hour");
+		const $prevHour = document.querySelector(".js-prev-hour");
 
 		expect($hour.value).toBe("01");
 		$prevHour.click();
@@ -172,9 +171,9 @@ describe("optionsDate", () => {
 	});
 	test("minuteBtn", () => {
 		setup();
-		const $minute = $(".js-minute");
-		const $nextMinute = $(".js-next-minute");
-		const $prevMinute = $(".js-prev-minute");
+		const $minute = document.querySelector(".js-minute");
+		const $nextMinute = document.querySelector(".js-next-minute");
+		const $prevMinute = document.querySelector(".js-prev-minute");
 
 		expect($minute.value).toBe("02");
 		$prevMinute.click();
@@ -195,20 +194,20 @@ describe("optionsDate", () => {
 		const [date, element] = setup();
 		date.init(element, content);
 
-		$(".js-next-month").click();
-		$(".js-apply").click();
+		document.querySelector(".js-next-month").click();
+		document.querySelector(".js-apply").click();
 		expect(month).toBe(3);
 
-		$(".js-reset").click();
+		document.querySelector(".js-reset").click();
 		expect(month).toBe(1);
 	});
 	test("popup", () => {
 		setup();
-		const $popup = $(".options-popup");
+		const $popup = document.querySelector(".options-popup");
 		expect($popup.classList.contains("options-popup-open")).toBe(false);
-		$(".js-date").click();
+		document.querySelector(".js-date").click();
 		expect($popup.classList.contains("options-popup-open")).toBe(true);
-		$(".js-date").click();
+		document.querySelector(".js-date").click();
 		expect($popup.classList.contains("options-popup-open")).toBe(false);
 	});
 });
@@ -216,7 +215,7 @@ describe("optionsDate", () => {
 describe("optionsGroup", () => {
 	const setup = () => {
 		document.body.innerHTML = `<div></div>`;
-		const element = $("div");
+		const element = document.querySelector("div");
 
 		const groups = {
 			a: {
@@ -243,16 +242,16 @@ describe("optionsGroup", () => {
 			<span class="select-one-label">Groups</span>
 			<span class="select-one-item" data="group1">group1</span>
 			<span class="select-one-item" data="group2">group2</span>`.replace(/\s/g, "");
-		const $picker = $(".select-one");
+		const $picker = document.querySelector(".select-one");
 
 		let actual = $picker.innerHTML.replace(/\s/g, "");
 		expect(actual).toEqual(expected);
 
-		$(".select-one-label").click();
+		document.querySelector(".select-one-label").click();
 		actual = $picker.innerHTML.replace(/\s/g, "");
 		expect(actual).toEqual(expected);
 
-		const $group1 = $(".select-one-item[data='group1']");
+		const $group1 = document.querySelector(".select-one-item[data='group1']");
 		expect($group1.classList.contains("select-one-item-selected")).toBe(false);
 		$group1.click();
 		expect($group1.classList.contains("select-one-item-selected")).toBe(true);
@@ -270,7 +269,7 @@ describe("optionsGroup", () => {
 			},
 		};
 		group.init(element, content);
-		const $group1 = $(".select-one-item[data='group1']");
+		const $group1 = document.querySelector(".select-one-item[data='group1']");
 		$group1.click();
 
 		expect(setMonitorsCalled).toBe(true);
@@ -278,11 +277,11 @@ describe("optionsGroup", () => {
 	});
 	test("popup", () => {
 		setup();
-		const $popup = $(".options-popup");
+		const $popup = document.querySelector(".options-popup");
 		expect($popup.classList.contains("options-popup-open")).toBe(false);
-		$(".js-group").click();
+		document.querySelector(".js-group").click();
 		expect($popup.classList.contains("options-popup-open")).toBe(true);
-		$(".js-group").click();
+		document.querySelector(".js-group").click();
 		expect($popup.classList.contains("options-popup-open")).toBe(false);
 	});
 	test("noGroups", () => {
@@ -296,7 +295,7 @@ describe("newOptionsMenu", () => {
 		document.body.innerHTML = `
 			<button id="topbar-options-btn"></button>
 			<div id="options-menu"></div>`;
-		const element = $("#options-menu");
+		const element = document.querySelector("#options-menu");
 
 		const mockButtons = [
 			{
@@ -328,7 +327,7 @@ describe("newOptionsMenu", () => {
 		document.body.innerHTML = `
 			<button id="topbar-options-btn"></button>
 			<div id="options-menu"></div>`;
-		const element = $("#options-menu");
+		const element = document.querySelector("#options-menu");
 
 		let initCalled = false;
 		let resetCalled = false;

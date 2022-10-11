@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { $, uniqueID } from "../libs/common.mjs";
+import { uniqueID } from "../libs/common.mjs";
 
 /*
  * A form field can have the following methods.
@@ -189,7 +189,7 @@ function newField(inputRules, options, values) {
 	return {
 		html: newHTMLfield(options, id, label, placeholder),
 		init() {
-			element = $(`#js-${id}`);
+			element = document.querySelector(`#js-${id}`);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
 				if (errorField) {
@@ -361,7 +361,7 @@ function newSelectCustomField(inputRules, options, values) {
 		}
 
 		let customValue = true;
-		for (const option of $("#" + id).options) {
+		for (const option of document.querySelector(`#${id}`).options) {
 			if (option.value === input) {
 				customValue = false;
 			}
@@ -396,7 +396,7 @@ function newSelectCustomField(inputRules, options, values) {
 			);
 		})(),
 		init() {
-			const element = $(`#js-${id}`);
+			const element = document.querySelector(`#js-${id}`);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
 				if (inputRules > 0) {
