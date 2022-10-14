@@ -13,93 +13,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { fetchGet, sortByName, uniqueID } from "./static/scripts/libs/common.mjs";
+import { fetchGet } from "./static/scripts/libs/common.mjs";
 import { fromUTC2 } from "./static/scripts/libs/time.mjs";
-import { newModal } from "./static/scripts/components/modal.mjs";
-import { newOptionsMenu } from "./static/scripts/components/optionsMenu.mjs";
-
-function newSelectMonitorButton(monitors) {
-	const alias = "timeline-monitor";
-
-	var IDs = [];
-	const renderMonitors = () => {
-		let html = "";
-		for (const m of sortByName(monitors)) {
-			IDs.push(m.id);
-			html += `
-				<span
-					class="monitor-selector-item"
-					data="${m.id}"
-				>${m.name}
-				</span>`;
-		}
-		return `<div class="monitor-selector">${html}</div>`;
-	};
-
-	let modal;
-	let isRendered = false;
-	const render = ($parent, content) => {
-		if (isRendered) {
-			return;
-		}
-		modal = newModal("Monitor");
-		$parent.insertAdjacentHTML("beforeend", modal.html);
-		const $modalContent = modal.init($parent);
-		$modalContent.innerHTML = renderMonitors();
-		const $selector = $modalContent.querySelector(".monitor-selector");
-
-		const saved = localStorage.getItem(alias);
-		if (IDs.includes(saved)) {
-			content.setMonitors([saved]);
-			$selector
-				.querySelector(`.monitor-selector-item[data="${saved}"]`)
-				.classList.add("monitor-selector-item-selected");
-		}
-
-		$selector.addEventListener("click", (event) => {
-			if (!event.target.classList.contains("monitor-selector-item")) {
-				return;
-			}
-
-			// Clear selection.
-			const fields = $selector.querySelectorAll(".monitor-selector-item");
-			for (const field of fields) {
-				field.classList.remove("monitor-selector-item-selected");
-			}
-
-			event.target.classList.add("monitor-selector-item-selected");
-
-			const selected = event.target.attributes["data"].value;
-			localStorage.setItem(alias, selected);
-
-			content.setMonitors([selected]);
-			content.reset();
-
-			modal.close();
-		});
-
-		isRendered = true;
-	};
-
-	const id = uniqueID();
-
-	return {
-		html: `
-			<button id="${id}" class="options-menu-btn">
-				<img class="icon" src="static/icons/feather/video.svg">
-			</button>`,
-		init($parent, content) {
-			$parent.querySelector("#" + id).addEventListener("click", () => {
-				render($parent, content);
-				modal.open();
-			});
-		},
-		// Testing.
-		isOpen() {
-			return modal.isOpen();
-		},
-	};
-}
+import {
+	newOptionsMenu,
+	newOptionsBtn,
+} from "./static/scripts/components/optionsMenu.mjs";
 
 async function newPlayer(element) {
 	const $video = element.querySelector(".js-video");
@@ -500,7 +419,7 @@ async function newTimelineViewer() {
 	timeline.setMonitors([Object.values(monitors)[0].id]);
 
 	const $options = document.querySelector("#options-menu");
-	const buttons = [newSelectMonitorButton(monitors)];
+	const buttons = [newOptionsBtn.monitor(monitors, true)];
 	const optionsMenu = newOptionsMenu(buttons);
 	$options.innerHTML = optionsMenu.html;
 	optionsMenu.init($options, timeline);
@@ -513,4 +432,4 @@ async function newTimelineViewer() {
 	};
 }
 
-export { newTimelineViewer, newSelectMonitorButton };
+export { newTimelineViewer };

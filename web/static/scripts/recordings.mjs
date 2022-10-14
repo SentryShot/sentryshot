@@ -186,7 +186,8 @@ function dateToID(d) {
 		const buttons = [
 			newOptionsBtn.gridSize(),
 			newOptionsBtn.date(timeZone),
-			newOptionsBtn.group(monitors, groups),
+			newOptionsBtn.monitor(monitors),
+			newOptionsBtn.group(groups),
 		];
 		const optionsMenu = newOptionsMenu(buttons);
 		$options.innerHTML = optionsMenu.html;

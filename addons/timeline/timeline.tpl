@@ -122,23 +122,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 		background: var(--color-red);
 	}
 
-	.monitor-selector {
-		display: flex;
-		flex-wrap: wrap;
-	}
-
-	.monitor-selector-item {
-		padding: 0.1rem 0.2rem;
-		color: var(--color-text);
-		font-size: 0.8rem;
-		border-width: 0.01rem;
-		border-style: solid;
-		border-color: var(--color1);
-	}
-	.monitor-selector-item-selected {
-		background: var(--color1-hover);
-	}
-
 	/* Mobile Landscape mode. */
 	@media (min-aspect-ratio: 3/2) {
 		#content {

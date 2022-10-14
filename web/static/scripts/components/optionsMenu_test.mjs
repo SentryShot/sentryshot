@@ -212,6 +212,64 @@ describe("optionsDate", () => {
 	});
 });
 
+test("optionsMonitor", () => {
+	document.body.innerHTML = `<div></div>`;
+	const element = document.querySelector("div");
+
+	const monitors = {
+		b: {
+			id: "b",
+			name: "m2",
+		},
+		a: {
+			id: "a",
+			name: "m1",
+		},
+	};
+
+	let setMonitors;
+	let resetCalled = false;
+	const content = {
+		setMonitors(m) {
+			setMonitors = m;
+		},
+		reset() {
+			resetCalled = true;
+		},
+	};
+
+	const selectMonitor = newOptionsBtn.monitor(monitors, true);
+	element.innerHTML = selectMonitor.html;
+
+	localStorage.setItem("selected-monitor", "b");
+	selectMonitor.init(element, content);
+	expect(setMonitors).toEqual(["b"]);
+
+	document.querySelector("button").click();
+
+	const expected = `
+			<div class="select-monitor">
+				<span class="select-monitor-item" data="a">m1</span>
+				<span
+					class="select-monitor-item select-monitor-item-selected"
+					data="b"
+				>m2</span>
+			</div>`.replace(/\s/g, "");
+
+	let actual = document.querySelector(".modal-content").innerHTML.replace(/\s/g, "");
+	expect(actual).toEqual(expected);
+
+	document.querySelector("button").click();
+	expect(selectMonitor.isOpen()).toBe(true);
+
+	expect(resetCalled).toBe(false);
+	document.querySelector(".select-monitor-item[data='a']").click();
+	expect(selectMonitor.isOpen()).toBe(false);
+	expect(resetCalled).toBe(true);
+	expect(setMonitors).toEqual(["a"]);
+	expect(localStorage.getItem("selected-monitor")).toBe("a");
+});
+
 describe("optionsGroup", () => {
 	const setup = () => {
 		document.body.innerHTML = `<div></div>`;
@@ -230,7 +288,7 @@ describe("optionsGroup", () => {
 			},
 		};
 
-		const group = newOptionsBtn.group({}, groups);
+		const group = newOptionsBtn.group(groups);
 		element.innerHTML = group.html;
 		group.init(element, { setMonitors() {}, reset() {} });
 

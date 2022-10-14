@@ -13,8 +13,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { sortByName } from "../libs/common.mjs";
+import { sortByName, uniqueID } from "../libs/common.mjs";
 import { toUTC } from "../libs/time.mjs";
+import { newModal } from "../components/modal.mjs";
 
 function newOptionsMenu(buttons) {
 	document.querySelector("#topbar-options-btn").style.visibility = "visible";
@@ -94,11 +95,14 @@ const newOptionsBtn = {
 			},
 		};
 	},
-	group(monitors, groups) {
+	monitor(monitors, remember) {
+		return newSelectMonitor(monitors, remember);
+	},
+	group(groups) {
 		if (Object.keys(groups).length === 0) {
 			return;
 		}
-		const groupPicker = newGroupPicker(monitors, groups);
+		const groupPicker = newGroupPicker(groups);
 		const icon = "static/icons/feather/group.svg";
 		const popup = newOptionsPopup("group", icon, groupPicker.html);
 
@@ -408,7 +412,99 @@ function newDatePicker(timeZone) {
 	};
 }
 
-function newGroupPicker(monitors, groups) {
+function newSelectMonitor(monitors, remember) {
+	const alias = "selected-monitor";
+
+	var IDs = [];
+	for (const m of sortByName(monitors)) {
+		IDs.push(m.id);
+	}
+
+	const renderMonitors = () => {
+		let html = "";
+		for (const m of sortByName(monitors)) {
+			html += `
+				<span
+					class="select-monitor-item"
+					data="${m.id}"
+				>${m.name}
+				</span>`;
+		}
+		return `<div class="select-monitor">${html}</div>`;
+	};
+
+	let modal;
+	let isRendered = false;
+	const render = ($parent, content) => {
+		if (isRendered) {
+			return;
+		}
+		modal = newModal("Monitor");
+		$parent.insertAdjacentHTML("beforeend", modal.html);
+		const $modalContent = modal.init($parent);
+		$modalContent.innerHTML = renderMonitors();
+		const $selector = $modalContent.querySelector(".select-monitor");
+
+		const saved = localStorage.getItem(alias);
+		if (remember && IDs.includes(saved)) {
+			$selector
+				.querySelector(`.select-monitor-item[data="${saved}"]`)
+				.classList.add("select-monitor-item-selected");
+		}
+
+		$selector.addEventListener("click", (event) => {
+			if (!event.target.classList.contains("select-monitor-item")) {
+				return;
+			}
+
+			// Clear selection.
+			const fields = $selector.querySelectorAll(".select-monitor-item");
+			for (const field of fields) {
+				field.classList.remove("select-monitor-item-selected");
+			}
+
+			event.target.classList.add("select-monitor-item-selected");
+
+			const selected = event.target.attributes["data"].value;
+			if (remember) {
+				localStorage.setItem(alias, selected);
+			}
+
+			content.setMonitors([selected]);
+			content.reset();
+
+			modal.close();
+		});
+
+		isRendered = true;
+	};
+
+	const elementID = uniqueID();
+
+	return {
+		html: `
+			<button id="${elementID}" class="options-menu-btn">
+				<img class="icon" src="static/icons/feather/video.svg">
+			</button>`,
+		init($parent, content) {
+			const saved = localStorage.getItem(alias);
+			if (remember && IDs.includes(saved)) {
+				content.setMonitors([saved]);
+			}
+
+			$parent.querySelector(`#${elementID}`).addEventListener("click", () => {
+				render($parent, content);
+				modal.open();
+			});
+		},
+		// Testing.
+		isOpen() {
+			return modal.isOpen();
+		},
+	};
+}
+
+function newGroupPicker(groups) {
 	let options = [];
 	let nameToID = {};
 	for (const group of sortByName(groups)) {
