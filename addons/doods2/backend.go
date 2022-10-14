@@ -88,9 +88,9 @@ func start(
 		return fmt.Errorf("get detector: %w", err)
 	}
 
-	ctx2, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	streamInfo, err := input.StreamInfo(ctx2)
+	infoCtx, infoCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer infoCancel()
+	streamInfo, err := input.StreamInfo(infoCtx)
 	if err != nil {
 		return fmt.Errorf("stream info: %w", err)
 	}
@@ -125,13 +125,15 @@ func start(
 	)
 
 	i.wg.Add(1)
-	go i.startFFmpeg(ctx)
+	go i.startProcess(ctx)
 
 	return nil
 }
 
 type instance struct {
 	c         config
+	wg        *sync.WaitGroup
+	env       storage.ConfigEnv
 	logf      log.Func
 	sendEvent monitor.SendEventFunc
 
@@ -139,17 +141,12 @@ type instance struct {
 	ffArgs        []string
 	reverseValues reverseValues
 
-	env storage.ConfigEnv
-	wg  *sync.WaitGroup
+	newProcess  ffmpeg.NewProcessFunc
+	startReader startReaderFunc
+	sendRequest sendRequestFunc
+	encoder     png.Encoder
 
-	newProcess    ffmpeg.NewProcessFunc
-	runFFmpeg     runFFmpegFunc
-	startInstance startInstanceFunc
-	runInstance   runInstanceFunc
-	sendRequest   sendRequestFunc
-	encoder       png.Encoder
-
-	// watchdogTimer restart process if it stops outputting frames.
+	// watchdogTimer restarts process if it stops outputting frames.
 	watchdogTimer *time.Timer
 }
 
@@ -162,16 +159,13 @@ func newInstance(
 	return &instance{
 		c:         c,
 		wg:        i.WG,
+		env:       i.Env,
 		logf:      logf,
 		sendEvent: i.SendEvent,
 
-		env: i.Env,
-
-		newProcess:    ffmpeg.NewProcess,
-		runFFmpeg:     runFFmpeg,
-		startInstance: startInstance,
-		runInstance:   runInstance,
-		sendRequest:   sendRequest,
+		newProcess:  ffmpeg.NewProcess,
+		startReader: startReader,
+		sendRequest: sendRequest,
 
 		encoder: png.Encoder{
 			CompressionLevel: png.BestSpeed,
@@ -370,24 +364,28 @@ func generateFFmpegArgs(
 	return args
 }
 
-func (i instance) startFFmpeg(ctx context.Context) {
+func (i *instance) startProcess(parentCtx context.Context) {
 	defer i.wg.Done()
 
 	for {
-		if ctx.Err() != nil {
-			i.logf(log.LevelInfo, "process stopped")
-			return
+		ctx, cancel := context.WithCancel(parentCtx)
+		err := i.runProcess(ctx, cancel)
+		if err != nil {
+			i.logf(log.LevelError, "detector crashed: %v", err)
+		} else {
+			i.logf(log.LevelInfo, "detector stopped")
 		}
-		if err := i.runFFmpeg(ctx, i); err != nil {
-			i.logf(log.LevelError, "process crashed: %v", err)
-			time.Sleep(3 * time.Second)
+		cancel()
+
+		select {
+		case <-parentCtx.Done():
+			return
+		case <-time.After(3 * time.Second):
 		}
 	}
 }
 
-type runFFmpegFunc func(context.Context, instance) error
-
-func runFFmpeg(ctx context.Context, i instance) error {
+func (i *instance) runProcess(ctx context.Context, cancel context.CancelFunc) error {
 	cmd := exec.Command(i.env.FFmpegBin, i.ffArgs...)
 
 	processLogFunc := func(msg string) {
@@ -402,52 +400,51 @@ func runFFmpeg(ctx context.Context, i instance) error {
 		return fmt.Errorf("could not get stderr pipe: %w", err)
 	}
 
-	ctx2, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	i.watchdogTimer = time.AfterFunc(10*time.Second, func() {
 		if ctx.Err() != nil {
 			return
 		}
 		i.logf(log.LevelError, "watchdog: process stopped outputting frames, restarting")
-		process.Stop()
+		cancel()
 	})
 
 	i.wg.Add(1)
-	go i.startInstance(ctx2, i, stdout)
+	go i.startReader(ctx, cancel, i, stdout)
 
 	i.logf(log.LevelInfo, "starting process: %v", cmd)
 
 	err = process.Start(ctx) // Blocks until process exists.
 	if err != nil && !errors.Is(err, context.Canceled) {
-		return fmt.Errorf("detector crashed: %w", err)
+		return fmt.Errorf("process crashed: %w", err)
 	}
 	return nil
 }
 
-type startInstanceFunc func(context.Context, instance, io.Reader)
+type startReaderFunc func(
+	context.Context,
+	context.CancelFunc,
+	*instance,
+	io.Reader,
+)
 
-func startInstance(ctx context.Context, i instance, stdout io.Reader) {
-	for {
-		if ctx.Err() != nil {
-			i.logf(log.LevelInfo, "instance stopped")
-			i.wg.Done()
-			return
-		}
-		err := i.runInstance(ctx, i, stdout)
-		if err != nil && !errors.Is(err, context.Canceled) {
-			i.logf(log.LevelError, "instance crashed: %v", err)
-			select {
-			case <-ctx.Done():
-			case <-time.After(3 * time.Second):
-			}
-		}
+func startReader(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	i *instance,
+	stdout io.Reader,
+) {
+	defer i.wg.Done()
+
+	err := i.runReader(ctx, stdout)
+	if err != nil && !errors.Is(err, io.EOF) {
+		i.logf(log.LevelError, "instance crashed: %v", err)
+	} else {
+		i.logf(log.LevelInfo, "instance stopped")
 	}
+	cancel()
 }
 
-type runInstanceFunc func(context.Context, instance, io.Reader) error
-
-func runInstance(ctx context.Context, i instance, stdout io.Reader) error {
+func (i *instance) runReader(ctx context.Context, stdout io.Reader) error {
 	eventDuration := ffmpeg.FeedRateToDuration(i.c.feedRate)
 
 	img := NewRGB24(image.Rect(0, 0, i.outputs.width, i.outputs.height))
@@ -456,14 +453,8 @@ func runInstance(ctx context.Context, i instance, stdout io.Reader) error {
 	outputBuffer := []byte{}
 
 	for {
-		if ctx.Err() != nil {
-			return context.Canceled
-		}
 		if _, err := io.ReadAtLeast(stdout, inputBuffer, i.outputs.frameSize); err != nil {
-			if errors.Is(err, io.EOF) {
-				return nil
-			}
-			return fmt.Errorf("could not read from stdout: %w", err)
+			return fmt.Errorf("read stdout: %w", err)
 		}
 		t := time.Now().Add(-i.c.timestampOffset)
 		i.watchdogTimer.Reset(10 * time.Second)
@@ -471,7 +462,7 @@ func runInstance(ctx context.Context, i instance, stdout io.Reader) error {
 		img.Pix = inputBuffer
 		b := bytes.NewBuffer(tmpBuffer)
 		if err := i.encoder.Encode(b, img); err != nil {
-			return fmt.Errorf("could not encode frame: %w", err)
+			return fmt.Errorf("encode frame: %w", err)
 		}
 		outputBuffer = b.Bytes()
 
@@ -486,7 +477,7 @@ func runInstance(ctx context.Context, i instance, stdout io.Reader) error {
 		defer cancel()
 		detections, err := i.sendRequest(ctx2, request)
 		if err != nil {
-			return fmt.Errorf("could not send frame: %w", err)
+			return fmt.Errorf("send frame: %w", err)
 		}
 
 		parsed := parseDetections(i.reverseValues, *detections)
@@ -504,7 +495,7 @@ func runInstance(ctx context.Context, i instance, stdout io.Reader) error {
 			RecDuration: i.c.recDuration,
 		})
 		if err != nil {
-			i.logf(log.LevelError, "could not send event: %v", err)
+			return fmt.Errorf("send event: %w", err)
 		}
 	}
 }

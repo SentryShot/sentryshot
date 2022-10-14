@@ -214,8 +214,8 @@ func TestGenerateArgs(t *testing.T) {
 	})
 }
 
-func newTestInstance(logs chan string) instance {
-	return instance{
+func newTestInstance(logs chan string) *instance {
+	return &instance{
 		env: storage.ConfigEnv{},
 		c: config{
 			feedRate:    2,
@@ -242,52 +242,52 @@ func newTestInstance(logs chan string) instance {
 			CompressionLevel: png.NoCompression,
 		},
 		newProcess:    ffmock.NewProcess,
-		runFFmpeg:     mockRunFFmpeg,
-		startInstance: mockStartInstance,
-		runInstance:   mockRunInstance,
+		startReader:   mockStartReader,
+		sendRequest:   mockSendRequest,
+		sendEvent:     mockSendEvent,
 		watchdogTimer: time.NewTimer(0),
 	}
 }
 
-func mockRunFFmpeg(context.Context, instance) error    { return nil }
-func mockRunFFmpegErr(context.Context, instance) error { return errors.New("mock") }
-
-func TestStartFFmpeg(t *testing.T) {
+func TestStartProcess(t *testing.T) {
 	t.Run("crashed", func(t *testing.T) {
 		logs := make(chan string)
 		i := newTestInstance(logs)
-		i.runFFmpeg = mockRunFFmpegErr
+		i.newProcess = ffmock.NewProcessErr
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
 		i.wg.Add(1)
-		go i.startFFmpeg(ctx)
+		go i.startProcess(ctx)
 
-		require.Equal(t, "process crashed: mock", <-logs)
+		require.Equal(t, "starting process: ", <-logs)
+		require.Equal(t, "detector crashed: process crashed: mock", <-logs)
 	})
 	t.Run("canceled", func(t *testing.T) {
+		logs := make(chan string)
+		i := newTestInstance(logs)
+		i.newProcess = ffmock.NewProcessNil
+
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		i := instance{
-			wg:   &sync.WaitGroup{},
-			logf: func(log.Level, string, ...interface{}) {},
-		}
 		i.wg.Add(1)
-		i.startFFmpeg(ctx)
-		i.wg.Wait()
+		go i.startProcess(ctx)
+
+		require.Equal(t, "starting process: ", <-logs)
+		require.Equal(t, "detector stopped", <-logs)
 	})
 }
 
-func TestRunFFmpeg(t *testing.T) {
+func TestRunProcess(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		i := newTestInstance(nil)
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
-		err := runFFmpeg(ctx, i)
+		err := i.runProcess(ctx, func() {})
 		require.NoError(t, err)
 	})
 	t.Run("crashed", func(t *testing.T) {
@@ -297,22 +297,22 @@ func TestRunFFmpeg(t *testing.T) {
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
-		err := runFFmpeg(ctx, i)
+		err := i.runProcess(ctx, func() {})
 		require.ErrorIs(t, err, ffmock.ErrMock)
 	})
 	t.Run("startClientCalled", func(t *testing.T) {
 		startReaderCalled := make(chan struct{})
-		mockStartReader := func(context.Context, instance, io.Reader) {
+		mockStartReader := func(context.Context, context.CancelFunc, *instance, io.Reader) {
 			go close(startReaderCalled)
 		}
 
 		i := newTestInstance(nil)
-		i.startInstance = mockStartReader
+		i.startReader = mockStartReader
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		defer cancel2()
 
-		err := runFFmpeg(ctx, i)
+		err := i.runProcess(ctx, func() {})
 		require.NoError(t, err)
 
 		<-startReaderCalled
@@ -330,44 +330,67 @@ var imgFeed = func() *bytes.Reader {
 
 var framePNG = "[137 80 78 71 13 10 26 10 0 0 0 13 73 72 68 82 0 0 0 2 0 0 0 2 16 2 0 0 0 173 68 70 48 0 0 0 42 73 68 65 84 120 1 0 26 0 229 255 0 255 255 0 0 0 0 0 0 255 255 0 0 0 0 0 0 0 255 255 128 128 128 128 128 128 1 0 0 255 255 107 57 8 251 44 117 64 132 0 0 0 0 73 69 78 68 174 66 96 130]"
 
-func mockStartInstance(context.Context, instance, io.Reader) {}
-
-func mockRunInstance(context.Context, instance, io.Reader) error {
-	return nil
-}
+func mockStartReader(context.Context, context.CancelFunc, *instance, io.Reader) {}
 
 func mockRunInstanceErr(context.Context, instance, io.Reader) error {
 	return errors.New("mock")
 }
 
-func TestStartInstance(t *testing.T) {
-	t.Run("canceled", func(t *testing.T) {
+func TestStartReader(t *testing.T) {
+	t.Run("crashed", func(t *testing.T) {
+		canceled := make(chan struct{})
+		cancel := func() {
+			close(canceled)
+		}
+
 		logs := make(chan string)
+		mockSendRequest := func(context.Context, detectRequest) (*detections, error) {
+			return nil, errors.New("mock")
+		}
+
 		i := newTestInstance(logs)
+		i.sendRequest = mockSendRequest
+
+		i.wg.Add(1)
+		go startReader(context.Background(), cancel, i, imgFeed())
+
+		require.Equal(t, "instance crashed: send frame: mock", <-logs)
+		<-canceled
+		i.wg.Wait()
+	})
+	t.Run("canceled", func(t *testing.T) {
+		canceled := make(chan struct{})
+		cancel := func() {
+			close(canceled)
+		}
+
+		logs := make(chan string)
+		mockSendRequest := func(context.Context, detectRequest) (*detections, error) {
+			return &detections{}, nil
+		}
+
+		i := newTestInstance(logs)
+		i.sendRequest = mockSendRequest
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		cancel2()
 
 		i.wg.Add(1)
-		go startInstance(ctx, i, imgFeed())
+		go startReader(ctx, cancel, i, imgFeed())
 
 		require.Equal(t, "instance stopped", <-logs)
-	})
-	t.Run("crashed", func(t *testing.T) {
-		logs := make(chan string)
-		i := newTestInstance(logs)
-
-		i.runInstance = mockRunInstanceErr
-
-		ctx, cancel2 := context.WithCancel(context.Background())
-		defer cancel2()
-
-		i.wg.Add(1)
-		go startInstance(ctx, i, imgFeed())
-
-		require.Equal(t, "instance crashed: mock", <-logs)
+		<-canceled
+		i.wg.Wait()
 	})
 }
+
+func mockSendRequest(context.Context, detectRequest) (*detections, error) {
+	return &detections{
+		{Confidence: 100},
+	}, nil
+}
+
+func mockSendEvent(storage.Event) error { return nil }
 
 func TestRunInstance(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
@@ -395,7 +418,7 @@ func TestRunInstance(t *testing.T) {
 		i.sendRequest = mockSendRequest
 		i.sendEvent = mockSendEvent
 
-		runInstance(ctx, i, imgFeed())
+		i.runReader(ctx, imgFeed())
 
 		require.Equal(t, firstRequest, secondRequest)
 		require.Equal(t, firstRequest, framePNG)
@@ -413,28 +436,34 @@ func TestRunInstance(t *testing.T) {
 		}
 		require.Equal(t, expected, actual)
 	})
-	t.Run("canceled", func(t *testing.T) {
+	t.Run("EOF", func(t *testing.T) {
 		i := newTestInstance(nil)
 
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-
-		err := runInstance(ctx, i, imgFeed())
-		require.ErrorIs(t, err, context.Canceled)
+		err := i.runReader(context.Background(), imgFeed())
+		require.ErrorIs(t, err, io.EOF)
 	})
 	t.Run("sendFrameErr", func(t *testing.T) {
+		mockErr := errors.New("mock")
 		mockSendRequestErr := func(context.Context, detectRequest) (*detections, error) {
-			return nil, errors.New("mock")
+			return nil, mockErr
 		}
 
 		i := newTestInstance(nil)
 		i.sendRequest = mockSendRequestErr
 
-		ctx, cancel2 := context.WithCancel(context.Background())
-		defer cancel2()
+		err := i.runReader(context.Background(), imgFeed())
+		require.ErrorIs(t, err, mockErr)
+	})
+	t.Run("sendEventErr", func(t *testing.T) {
+		mockErr := errors.New("mock")
+		mockSendEvent := func(storage.Event) error {
+			return mockErr
+		}
+		i := newTestInstance(nil)
+		i.sendEvent = mockSendEvent
 
-		err := runInstance(ctx, i, imgFeed())
-		require.Error(t, err)
+		err := i.runReader(context.Background(), imgFeed())
+		require.ErrorIs(t, err, mockErr)
 	})
 }
 
