@@ -21,13 +21,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	log2 "log"
+	stdlog "log"
 	"net/http"
 	"nvr"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -56,7 +57,7 @@ func onEnv(env storage.ConfigEnv) {
 	var err error
 	addon.doodsIP, err = readConfig(configPath)
 	if err != nil {
-		log2.Fatalf("doods: config: %v, %v\n", err, configPath)
+		stdlog.Fatalf("doods: config: %v, %v\n", err, configPath)
 		return
 	}
 
@@ -71,18 +72,14 @@ func onEnv(env storage.ConfigEnv) {
 	}
 }
 
-func onAppRun(ctx context.Context) error {
-	client := newClient(ctx, addon.doodsIP)
-	client.onError = func(err error) {
-		addon.log.Error().Src("doods").Msg(err.Error())
+func onAppRun(ctx context.Context, wg *sync.WaitGroup) error {
+	logf := func(level log.Level, format string, a ...interface{}) {
+		addon.log.Level(level).Src("doods").Msgf(format, a...)
 	}
-	fmt.Printf("starting doods client: %v\n", client.url)
-	if err := client.dial(); err != nil {
-		return err
-	}
-	go client.start()
 
+	client := newClient(ctx, wg, logf, addon.doodsIP)
 	addon.sendRequest = client.sendRequest
+	go client.start()
 
 	return nil
 }
@@ -200,9 +197,10 @@ type (
 )
 
 type detectResponse struct {
-	ID         string     `json:"id"`
-	Detections detections `json:"detections"`
-	Error      string     `json:"error"`
+	ID          string     `json:"id"`
+	Detections  detections `json:"detections"`
+	ServerError string     `json:"error"`
+	err         error
 }
 
 // Detection .
@@ -215,71 +213,78 @@ type Detection struct {
 	Confidence float32 `json:"confidence"`
 }
 
-func newClient(ctx context.Context, doodsIP string) *client {
-	return &client{
-		ctx:     ctx,
-		url:     "ws://" + doodsIP + "/detect",
-		timeout: 1000 * time.Millisecond,
-
-		pendingRequests: make(map[string]responseChan),
-		requestChan:     make(chan clientRequest),
-		closedChan:      make(chan struct{}),
-	}
-}
-
 type client struct {
-	ctx     context.Context
-	url     string
-	timeout time.Duration
+	wg         *sync.WaitGroup
+	ctx        context.Context
+	logf       log.Func
+	url        string
+	warmup     time.Duration
+	timeout    time.Duration
+	retrySleep time.Duration
 
-	conn            *websocket.Conn
-	pendingRequests map[string]responseChan
+	pendingRequests map[string]chan detectResponse
 	requestChan     chan clientRequest
 	responseChan    chan detectResponse
-	closedChan      chan struct{}
-
-	onError func(err error)
 }
 
-func (c *client) dial() error {
-	ctx2, cancel := context.WithTimeout(c.ctx, c.timeout)
-	defer cancel()
+func newClient(
+	ctx context.Context,
+	wg *sync.WaitGroup,
+	logf log.Func,
+	doodsIP string,
+) *client {
+	return &client{
+		wg:         wg,
+		ctx:        ctx,
+		logf:       logf,
+		url:        "ws://" + doodsIP + "/detect",
+		warmup:     1 * time.Second,
+		timeout:    1000 * time.Millisecond,
+		retrySleep: 3 * time.Second,
 
-	var err error
-	c.conn, _, err = websocket.DefaultDialer.DialContext(ctx2, c.url, nil) //nolint: bodyclose
-	if err != nil {
-		return fmt.Errorf("connect: %v %w", c.url, err)
+		pendingRequests: make(map[string]chan detectResponse),
+		requestChan:     make(chan clientRequest),
+		responseChan:    make(chan detectResponse),
 	}
-	return nil
-}
-
-func (c *client) reconnect() {
-	c.conn.Close()
-
-	// Clear pending requests.
-	for id, ret := range c.pendingRequests {
-		close(ret)
-		delete(c.pendingRequests, id)
-	}
-	for {
-		if err := c.dial(); err != nil {
-			if c.onError != nil {
-				c.onError(err)
-			}
-			select {
-			case <-time.After(c.timeout):
-			case <-c.ctx.Done():
-				return
-			}
-			continue
-		}
-		break
-	}
-	c.startReader()
 }
 
 func (c *client) start() {
-	c.startReader()
+	time.Sleep(c.warmup)
+	c.logf(log.LevelError, "starting client: %v", c.url)
+
+	defer c.wg.Done()
+	for {
+		err := c.run()
+		if err != nil {
+			c.logf(log.LevelError, "client crashed: %v", err)
+		} else {
+			c.logf(log.LevelError, "client stopped")
+		}
+
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-time.After(c.retrySleep):
+		}
+	}
+}
+
+func (c *client) run() error {
+	dialCtx, cancel2 := context.WithTimeout(c.ctx, c.timeout)
+	defer cancel2()
+
+	conn, _, err := websocket.DefaultDialer.DialContext(dialCtx, c.url, nil) //nolint:bodyclose
+	if err != nil {
+		return fmt.Errorf("connect: %v %w", c.url, err)
+	}
+	go c.startReader(conn)
+
+	cleanup := func() {
+		conn.Close()
+		for _, ret := range c.pendingRequests {
+			ret <- detectResponse{err: context.Canceled}
+		}
+	}
 
 	count := 0
 	for {
@@ -287,62 +292,50 @@ func (c *client) start() {
 		case r := <-c.requestChan:
 			count++
 			r.request.ID = strconv.Itoa(count)
-			for {
-				if err := c.conn.WriteJSON(r.request); err != nil {
-					if c.ctx.Err() != nil {
-						close(r.response)
-						break
-					}
-					if c.onError != nil {
-						c.onError(err)
-					}
-					<-c.closedChan
-					c.reconnect()
-					continue
-				}
-				c.pendingRequests[r.request.ID] = r.response
-				break
+
+			if err := conn.WriteJSON(r.request); err != nil {
+				cleanup()
+				<-c.responseChan
+				return err
 			}
+			c.pendingRequests[r.request.ID] = r.response
+			break
 
 		case response := <-c.responseChan:
+			if response.err != nil {
+				cleanup()
+				return fmt.Errorf("read json: %w", response.err)
+			}
+
+			if response.ServerError != "" {
+				c.logf(log.LevelError, "server: %v", err)
+			}
+
 			if response.ID == "" {
-				return
+				continue
 			}
 
 			c.pendingRequests[response.ID] <- response
 			delete(c.pendingRequests, response.ID)
 
-		case <-c.closedChan:
-			c.reconnect()
-
 		case <-c.ctx.Done():
-			for _, ret := range c.pendingRequests {
-				close(ret)
-			}
-			return
+			cleanup()
+			<-c.responseChan
+			return nil
 		}
 	}
 }
 
-func (c *client) startReader() {
-	c.responseChan = make(chan detectResponse)
-	go func() {
-		for {
-			var response detectResponse
-			if err := c.conn.ReadJSON(&response); err != nil {
-				// Reset on all read errors to avoid leaking pending requests.
-				if c.onError != nil {
-					c.onError(err)
-				}
-				if c.ctx.Err() != nil {
-					return
-				}
-				c.closedChan <- struct{}{}
-				return
-			}
-			c.responseChan <- response
+func (c *client) startReader(conn *websocket.Conn) {
+	var response detectResponse
+	for {
+		err := conn.ReadJSON(&response)
+		if err != nil {
+			c.responseChan <- detectResponse{err: err}
+			return
 		}
-	}()
+		c.responseChan <- response
+	}
 }
 
 type sendRequestFunc func(context.Context, detectRequest) (*detections, error)
@@ -350,13 +343,15 @@ type sendRequestFunc func(context.Context, detectRequest) (*detections, error)
 var errDoods = errors.New("doods error")
 
 func (c *client) sendRequest(ctx context.Context, request detectRequest) (*detections, error) {
-	res := make(responseChan)
+	res := make(chan detectResponse)
 	req := clientRequest{
 		request:  request,
 		response: res,
 	}
 
 	select {
+	case <-ctx.Done():
+		return nil, context.Canceled
 	case <-c.ctx.Done():
 		return nil, context.Canceled
 	case c.requestChan <- req:
@@ -366,12 +361,12 @@ func (c *client) sendRequest(ctx context.Context, request detectRequest) (*detec
 	case <-ctx.Done():
 		go func() { <-res }()
 		return nil, context.Canceled
-	case response, ok := <-res:
-		if !ok {
-			return nil, context.Canceled
+	case response := <-res:
+		if response.err != nil {
+			return nil, response.err
 		}
-		if response.Error != "" {
-			return nil, fmt.Errorf("%w: %v", errDoods, response.Error)
+		if response.ServerError != "" {
+			return nil, fmt.Errorf("%w: %v", errDoods, response.ServerError)
 		}
 		return &response.Detections, nil
 	}
@@ -379,10 +374,8 @@ func (c *client) sendRequest(ctx context.Context, request detectRequest) (*detec
 
 type clientRequest struct {
 	request  detectRequest
-	response responseChan
+	response chan detectResponse
 }
-
-type responseChan chan detectResponse
 
 func dirExist(path string) bool {
 	if _, err := os.Stat(path); err != nil {

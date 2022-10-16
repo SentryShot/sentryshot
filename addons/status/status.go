@@ -52,7 +52,7 @@ func init() {
 		addon.auth = a
 	})
 
-	nvr.RegisterAppRunHook(func(ctx context.Context) error {
+	nvr.RegisterAppRunHook(func(ctx context.Context, _ *sync.WaitGroup) error {
 		addon.sys = newSystem(addon.storage.Usage, addon.log)
 		go addon.sys.StatusLoop(ctx)
 		return nil

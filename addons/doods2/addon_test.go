@@ -18,13 +18,17 @@ package doods
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"nvr/pkg/log"
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
@@ -164,19 +168,19 @@ func TestDetectorByName(t *testing.T) {
 	})
 }
 
+func logf(log.Level, string, ...interface{}) {}
+
 func TestClient(t *testing.T) {
 	t.Run("singleRequest", func(t *testing.T) {
 		ts, cancel := newTestServer(t)
 		defer cancel()
 
-		ctx, cancel2 := context.WithCancel(context.Background())
-		defer cancel2()
+		client, wg, cancel2 := ts.newTestClient()
 
-		client := newClient(ctx, ts.ip)
-		err := client.dial()
-		require.NoError(t, err)
-
+		wg.Add(1)
 		go client.start()
+
+		go func() { ts.respond("") }()
 
 		d, err := client.sendRequest(
 			context.Background(),
@@ -184,105 +188,136 @@ func TestClient(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.Equal(t, d, &detections{Detection{Label: "1"}})
+
+		cancel2()
+		wg.Wait()
 	})
-	t.Run("readReconnect", func(t *testing.T) {
+	t.Run("crashed", func(t *testing.T) {
 		ts, cancel := newTestServer(t)
 		defer cancel()
 
-		ctx, cancel2 := context.WithCancel(context.Background())
-		defer cancel2()
+		client, wg, cancel2 := ts.newTestClient()
+		client.logf = func(_ log.Level, format string, a ...interface{}) {
+			fmt.Println("err", fmt.Sprintf(format, a...))
+		}
 
-		client := newClient(ctx, ts.ip)
-		err := client.dial()
-		require.NoError(t, err)
-
+		wg.Add(1)
 		go client.start()
 
 		ts.closeConn()
 		time.Sleep(10 * time.Millisecond)
 
+		go func() { ts.respond("") }()
+
 		d, err := client.sendRequest(
 			context.Background(),
 			detectRequest{DetectorName: "1"},
 		)
 		require.NoError(t, err)
 		require.Equal(t, d, &detections{Detection{Label: "1"}})
+
+		cancel2()
+		wg.Wait()
 	})
-	t.Run("canceled", func(t *testing.T) {
+}
+
+func TestSendRequest(t *testing.T) {
+	t.Run("canceledRequest", func(t *testing.T) {
 		ctx, cancel2 := context.WithCancel(context.Background())
 		cancel2()
 
-		client := &client{ctx: ctx}
-
-		_, err := client.sendRequest(context.Background(), detectRequest{})
+		c := client{ctx: context.Background()}
+		_, err := c.sendRequest(ctx, detectRequest{})
 		require.ErrorIs(t, err, context.Canceled)
 	})
-	t.Run("canceled2", func(t *testing.T) {
+	t.Run("canceledClient", func(t *testing.T) {
+		ctx, cancel2 := context.WithCancel(context.Background())
+		cancel2()
+
+		c := client{ctx: ctx}
+		_, err := c.sendRequest(context.Background(), detectRequest{})
+		require.ErrorIs(t, err, context.Canceled)
+	})
+	t.Run("canceledRequest2", func(t *testing.T) {
 		ts, cancel := newTestServer(t)
 		defer cancel()
 
-		ctx, cancel2 := context.WithCancel(context.Background())
-		defer cancel2()
+		client, wg, cancel2 := ts.newTestClient()
 
-		client := newClient(ctx, ts.ip)
-		err := client.dial()
-		require.NoError(t, err)
-
+		wg.Add(1)
 		go client.start()
 
-		ts.sendPause()
-		defer ts.sendUnpause()
+		ctx, cancel3 := context.WithCancel(context.Background())
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			cancel3()
+		}()
+
+		_, err := client.sendRequest(ctx, detectRequest{})
+		require.ErrorIs(t, err, context.Canceled)
+		cancel2()
+		wg.Wait()
+	})
+	t.Run("canceledClient2", func(t *testing.T) {
+		ts, cancel := newTestServer(t)
+		defer cancel()
+
+		client, wg, cancel2 := ts.newTestClient()
+
+		wg.Add(1)
+		go client.start()
 
 		go func() {
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 			cancel2()
 		}()
 
-		_, err = client.sendRequest(context.Background(), detectRequest{})
+		_, err := client.sendRequest(context.Background(), detectRequest{})
 		require.ErrorIs(t, err, context.Canceled)
+		wg.Wait()
 	})
-	t.Run("canceled3", func(t *testing.T) {
+	t.Run("serverErr", func(t *testing.T) {
 		ts, cancel := newTestServer(t)
 		defer cancel()
 
-		ctx, cancel2 := context.WithCancel(context.Background())
-		defer cancel2()
+		client, wg, cancel2 := ts.newTestClient()
 
-		client := newClient(ctx, ts.ip)
-		err := client.dial()
-		require.NoError(t, err)
-
+		wg.Add(1)
 		go client.start()
 
-		ts.sendPause()
-		defer ts.sendUnpause()
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			ts.respond("error")
+		}()
 
-		ctx2, cancel3 := context.WithCancel(context.Background())
-		cancel3()
+		_, err := client.sendRequest(context.Background(), detectRequest{})
+		require.ErrorIs(t, err, errDoods)
 
-		_, err = client.sendRequest(ctx2, detectRequest{})
-		require.ErrorIs(t, err, context.Canceled)
+		cancel2()
+		wg.Wait()
 	})
 }
 
 type cancelFunc func()
 
+type testServer struct {
+	ip string
+
+	closeConn func()
+	respond   func(serverError string)
+}
+
 func newTestServer(t *testing.T) (*testServer, cancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	upgrader := websocket.Upgrader{}
 	requestChan := make(chan detectRequest, 10)
 	closeChan := make(chan struct{})
-	sendPause := make(chan struct{})
-	sendUnpause := make(chan struct{})
+	chRespond := make(chan string)
 
 	detect := func(w http.ResponseWriter, r *http.Request) {
-		if ctx.Err() != nil {
-			return
-		}
 		ctx2, cancel2 := context.WithCancel(ctx)
 
-		conn, err := upgrader.Upgrade(w, r, nil)
+		conn, err := new(websocket.Upgrader).Upgrade(w, r, nil)
 		require.NoError(t, err)
 
 		// Reciver.
@@ -301,14 +336,15 @@ func newTestServer(t *testing.T) (*testServer, cancelFunc) {
 		go func() {
 			for {
 				select {
-				case <-sendPause:
-					<-sendUnpause
 				case request := <-requestChan:
+					serverError := <-chRespond
+
 					response := detectResponse{
 						ID: request.ID,
 						Detections: detections{
 							Detection{Label: request.DetectorName},
 						},
+						ServerError: serverError,
 					}
 					conn.WriteJSON(response)
 				case <-closeChan:
@@ -327,25 +363,34 @@ func newTestServer(t *testing.T) (*testServer, cancelFunc) {
 	server := httptest.NewServer(mux)
 	cancelFunc := func() {
 		cancel()
-		time.Sleep(10 * time.Millisecond)
 		server.Close()
 	}
 
 	ip := strings.TrimPrefix(server.URL, "http://")
 	ts := &testServer{
-		ip:          ip,
-		closeConn:   func() { closeChan <- struct{}{} },
-		sendPause:   func() { sendPause <- struct{}{} },
-		sendUnpause: func() { sendUnpause <- struct{}{} },
+		ip:        ip,
+		closeConn: func() { closeChan <- struct{}{} },
+		respond:   func(serverError string) { chRespond <- serverError },
 	}
 
 	return ts, cancelFunc
 }
 
-type testServer struct {
-	ip string
+func (ts *testServer) newTestClient() (*client, *sync.WaitGroup, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := sync.WaitGroup{}
+	c := &client{
+		wg:         &wg,
+		ctx:        ctx,
+		logf:       logf,
+		url:        "ws://" + ts.ip + "/detect",
+		warmup:     0,
+		timeout:    1000 * time.Millisecond,
+		retrySleep: 0,
 
-	closeConn   func()
-	sendPause   func()
-	sendUnpause func()
+		pendingRequests: make(map[string]chan detectResponse),
+		requestChan:     make(chan clientRequest),
+		responseChan:    make(chan detectResponse),
+	}
+	return c, &wg, cancel
 }

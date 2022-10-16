@@ -24,6 +24,7 @@ import (
 	"nvr/pkg/storage"
 	"nvr/pkg/web"
 	"nvr/pkg/web/auth"
+	"sync"
 )
 
 type (
@@ -33,7 +34,7 @@ type (
 	templaterHook func(*web.Templater)
 	storageHook   func(*storage.Manager)
 	muxHook       func(*http.ServeMux)
-	appRunHook    func(context.Context) error
+	appRunHook    func(context.Context, *sync.WaitGroup) error
 )
 
 type hookList struct {
@@ -190,9 +191,9 @@ func (h *hookList) mux(mux *http.ServeMux) {
 	}
 }
 
-func (h *hookList) appRun(ctx context.Context) error {
+func (h *hookList) appRun(ctx context.Context, wg *sync.WaitGroup) error {
 	for _, hook := range h.onAppRun {
-		if err := hook(ctx); err != nil {
+		if err := hook(ctx, wg); err != nil {
 			return err
 		}
 	}

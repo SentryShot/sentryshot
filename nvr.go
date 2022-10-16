@@ -62,7 +62,7 @@ func Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if err := hooks.appRun(ctx); err != nil {
+	if err := hooks.appRun(ctx, wg); err != nil {
 		cancel()
 		return err
 	}
