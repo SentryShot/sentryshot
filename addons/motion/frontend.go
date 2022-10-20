@@ -19,22 +19,9 @@ import (
 	_ "embed"
 	"fmt"
 	"net/http"
-	"nvr"
-	"nvr/pkg/web/auth"
 	"os"
 	"strings"
 )
-
-func init() {
-	var a auth.Authenticator
-	nvr.RegisterAuthHook(func(auth auth.Authenticator) {
-		a = auth
-	})
-	nvr.RegisterTplHook(modifyTemplates)
-	nvr.RegisterMuxHook(func(mux *http.ServeMux) {
-		mux.Handle("/motion.mjs", a.Admin(serveMotionMjs()))
-	})
-}
 
 func modifyTemplates(pageFiles map[string]string) error {
 	js, exists := pageFiles["settings.js"]

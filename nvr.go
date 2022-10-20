@@ -29,6 +29,7 @@ import (
 	"nvr/pkg/system"
 	"nvr/pkg/video"
 	"nvr/pkg/web"
+	"nvr/pkg/web/auth"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -62,11 +63,6 @@ func Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if err := hooks.appRun(ctx, wg); err != nil {
-		cancel()
-		return err
-	}
-
 	fatal := make(chan error, 1)
 	go func() { fatal <- app.run(ctx) }()
 
@@ -75,14 +71,14 @@ func Run() error {
 
 	select {
 	case err = <-fatal:
-		app.log.Info().Src("app").Msgf("fatal error: %v", err)
+		app.Logger.Info().Src("app").Msgf("fatal error: %v", err)
 	case signal := <-stop:
-		app.log.Info().Msg("") // New line.
-		app.log.Info().Src("app").Msgf("received %v, stopping", signal)
+		app.Logger.Info().Msg("") // New line.
+		app.Logger.Info().Src("app").Msgf("received %v, stopping", signal)
 	}
 
 	app.monitorManager.StopAll()
-	app.log.Info().Src("app").Msg("Monitors stopped.")
+	app.Logger.Info().Src("app").Msg("Monitors stopped.")
 
 	cancel()
 	wg.Wait()
@@ -107,12 +103,10 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get environment config: %w", err)
 	}
-	hooks.env(*env)
 
 	// Logs.
 	logDBpath := filepath.Join(env.StorageDir, "logs.db")
 	logger := log.NewLogger(wg, hooks.logSource)
-	hooks.log(logger)
 
 	logDB := log.NewDB(logDBpath, wg)
 
@@ -154,11 +148,9 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create authenticator: %w", err)
 	}
-	hooks.auth(a)
 
 	// Storage.
 	storageManager := storage.NewManager(env.StorageDir, general, logger)
-	hooks.storage(storageManager)
 	crawler := storage.NewCrawler(storageManager.RecordingsDir())
 
 	// Time zone.
@@ -172,7 +164,6 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	hooks.templater(t)
 
 	t.RegisterTemplateDataFuncs(
 		func(data template.FuncMap, _ string) {
@@ -236,70 +227,80 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/api/log/feed", a.Admin(web.LogFeed(logger, a)))
 	mux.Handle("/api/log/query", a.Admin(web.LogQuery(logDB)))
 	mux.Handle("/api/log/sources", a.Admin(web.LogSources(logger)))
-	hooks.mux(mux)
-
-	// Main server.
-	address := ":" + strconv.Itoa(env.Port)
-	server := &http.Server{Addr: address, Handler: mux}
 
 	return &App{
-		log:            logger,
+		WG:             wg,
+		Logger:         logger,
 		logDB:          logDB,
-		env:            *env,
+		Env:            *env,
 		monitorManager: monitorManager,
-		storage:        storageManager,
+		Auth:           a,
+		Storage:        storageManager,
 		videoServer:    videoServer,
-		server:         server,
+		Templater:      t,
+		Mux:            mux,
 	}, nil
 }
 
 // App is the main application struct.
 type App struct {
-	log            *log.Logger
+	WG             *sync.WaitGroup
+	Logger         *log.Logger
 	logDB          *log.DB
-	env            storage.ConfigEnv
+	Env            storage.ConfigEnv
 	monitorManager *monitor.Manager
-	storage        *storage.Manager
+	Auth           auth.Authenticator
+	Storage        *storage.Manager
 	videoServer    *video.Server
+	Templater      *web.Templater
+	Mux            *http.ServeMux
 	server         *http.Server
 }
 
-func (a *App) run(ctx context.Context) error {
-	if err := a.log.Start(ctx); err != nil {
+func (app *App) run(ctx context.Context) error {
+	// Main server.
+	address := ":" + strconv.Itoa(app.Env.Port)
+	app.server = &http.Server{Addr: address, Handler: app.Mux}
+
+	if err := app.Logger.Start(ctx); err != nil {
 		return fmt.Errorf("could not start logger: %w", err)
 	}
 
-	go a.log.LogToStdout(ctx)
+	go app.Logger.LogToStdout(ctx)
 
-	if err := a.logDB.Init(ctx); err != nil {
+	if err := app.logDB.Init(ctx); err != nil {
 		// Continue even if log database is corrupt.
 		time.Sleep(10 * time.Millisecond)
-		a.log.Error().Src("app").Msgf("could not initialize log database: %v", err)
+		app.Logger.Error().Src("app").Msgf("could not initialize log database: %v", err)
 	} else {
-		go a.logDB.SaveLogs(ctx, a.log)
+		go app.logDB.SaveLogs(ctx, app.Logger)
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	a.log.Info().Src("app").Msg("Starting..")
+	if err := hooks.appRun(ctx, app); err != nil {
+		return err
+	}
 
-	if err := a.env.PrepareEnvironment(); err != nil {
+	app.Logger.Info().Src("app").Msg("Starting..")
+
+	if err := app.Env.PrepareEnvironment(); err != nil {
 		return fmt.Errorf("could not prepare environment: %w", err)
 	}
 
-	if err := a.videoServer.Start(ctx); err != nil {
+	if err := app.videoServer.Start(ctx); err != nil {
 		return fmt.Errorf("could not start video server: %w", err)
 	}
 
 	// Start monitors.
-	for _, monitor := range a.monitorManager.Monitors {
+	for _, monitor := range app.monitorManager.Monitors {
 		if err := monitor.Start(); err != nil {
-			a.monitorManager.StopAll()
+			app.monitorManager.StopAll()
 			return fmt.Errorf("could not start monitor: %w", err)
 		}
 	}
 
-	go a.storage.PurgeLoop(ctx, 10*time.Minute)
+	go app.Storage.PurgeLoop(ctx, 10*time.Minute)
 
-	a.log.Info().Src("app").Msgf("Serving app on port %v", a.env.Port)
-	return a.server.ListenAndServe()
+	app.Logger.Info().Src("app").Msgf("Serving app on port %v", app.Env.Port)
+	return app.server.ListenAndServe()
 }

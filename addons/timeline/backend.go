@@ -25,7 +25,6 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
-	"nvr/pkg/web/auth"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,16 +37,23 @@ func init() {
 	nvr.RegisterMonitorRecSavedHook(onRecSaved)
 	nvr.RegisterMigrationMonitorHook(migrate)
 
-	var a auth.Authenticator
-	nvr.RegisterAuthHook(func(auth auth.Authenticator) {
-		a = auth
-	})
-	var env storage.ConfigEnv
-	nvr.RegisterEnvHook(func(e storage.ConfigEnv) {
-		env = e
-	})
-	nvr.RegisterMuxHook(func(mux *http.ServeMux) {
-		mux.Handle("/api/recording/timeline/", a.User(handleTimeline(env.RecordingsDir())))
+	nvr.RegisterTplSubHook(modifySubTemplates)
+	nvr.RegisterTplHook(modifyTemplates)
+
+	nvr.RegisterAppRunHook(func(_ context.Context, app *nvr.App) error {
+		app.Mux.Handle(
+			"/api/recording/timeline/",
+			app.Auth.User(handleTimeline(app.Env.RecordingsDir())),
+		)
+		app.Mux.Handle(
+			"/timeline",
+			app.Auth.User(app.Templater.Render("timeline.tpl")),
+		)
+		app.Mux.Handle(
+			"/timeline.mjs",
+			app.Auth.User(serveTimelineMjs()),
+		)
+		return nil
 	})
 }
 

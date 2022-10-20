@@ -19,31 +19,9 @@ import (
 	_ "embed"
 	"fmt"
 	"net/http"
-	"nvr"
-	"nvr/pkg/web"
-	"nvr/pkg/web/auth"
 	"os"
 	"strings"
 )
-
-func init() {
-	var addon struct {
-		a auth.Authenticator
-		t *web.Templater
-	}
-	nvr.RegisterTplSubHook(modifySubTemplates)
-	nvr.RegisterTplHook(modifyTemplates)
-	nvr.RegisterAuthHook(func(a auth.Authenticator) {
-		addon.a = a
-	})
-	nvr.RegisterTemplaterHook(func(t *web.Templater) {
-		addon.t = t
-	})
-	nvr.RegisterMuxHook(func(mux *http.ServeMux) {
-		mux.Handle("/timeline", addon.a.User(addon.t.Render("timeline.tpl")))
-		mux.Handle("/timeline.mjs", addon.a.User(serveTimelineMjs()))
-	})
-}
 
 func modifySubTemplates(subFiles map[string]string) error {
 	tpl, exists := subFiles["sidebar.tpl"]

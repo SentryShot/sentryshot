@@ -18,33 +18,16 @@ package nvr
 import (
 	"context"
 	stdLog "log"
-	"net/http"
-	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
 	"nvr/pkg/web"
 	"nvr/pkg/web/auth"
-	"sync"
 )
 
-type (
-	envHook       func(storage.ConfigEnv)
-	logHook       func(*log.Logger)
-	authHook      func(auth.Authenticator)
-	templaterHook func(*web.Templater)
-	storageHook   func(*storage.Manager)
-	muxHook       func(*http.ServeMux)
-	appRunHook    func(context.Context, *sync.WaitGroup) error
-)
+type appRunHook func(context.Context, *App) error
 
 type hookList struct {
 	newAuthenticator    auth.NewAuthenticatorFunc
-	onAuth              []authHook
-	onEnv               []envHook
-	onLog               []logHook
-	onTemplater         []templaterHook
-	onStorage           []storageHook
-	onMux               []muxHook
 	onAppRun            []appRunHook
 	template            []web.TemplateHook
 	templateSub         []web.TemplateHook
@@ -66,36 +49,6 @@ func SetAuthenticator(a auth.NewAuthenticatorFunc) {
 		stdLog.Fatalf("\n\nERROR: Only a single autentication addon is allowed.\n\n")
 	}
 	hooks.newAuthenticator = a
-}
-
-// RegisterAuthHook is used to grab the authenticator.
-func RegisterAuthHook(h authHook) {
-	hooks.onAuth = append(hooks.onAuth, h)
-}
-
-// RegisterEnvHook registers hook that's called when environment config is loaded.
-func RegisterEnvHook(h envHook) {
-	hooks.onEnv = append(hooks.onEnv, h)
-}
-
-// RegisterLogHook is used to grab the logger.
-func RegisterLogHook(h logHook) {
-	hooks.onLog = append(hooks.onLog, h)
-}
-
-// RegisterTemplaterHook is used to grab the templater.
-func RegisterTemplaterHook(h templaterHook) {
-	hooks.onTemplater = append(hooks.onTemplater, h)
-}
-
-// RegisterStorageHook is used to grab the storage manager.
-func RegisterStorageHook(h storageHook) {
-	hooks.onStorage = append(hooks.onStorage, h)
-}
-
-// RegisterMuxHook registers hook used to modifiy routes.
-func RegisterMuxHook(h muxHook) {
-	hooks.onMux = append(hooks.onMux, h)
 }
 
 // RegisterAppRunHook registers hook that's called when app runs.
@@ -155,45 +108,9 @@ func RegisterLogSource(s []string) {
 	hooks.logSource = append(hooks.logSource, s...)
 }
 
-func (h *hookList) env(env storage.ConfigEnv) {
-	for _, hook := range h.onEnv {
-		hook(env)
-	}
-}
-
-func (h *hookList) log(log *log.Logger) {
-	for _, hook := range h.onLog {
-		hook(log)
-	}
-}
-
-func (h *hookList) auth(a auth.Authenticator) {
-	for _, hook := range h.onAuth {
-		hook(a)
-	}
-}
-
-func (h *hookList) templater(t *web.Templater) {
-	for _, hook := range h.onTemplater {
-		hook(t)
-	}
-}
-
-func (h *hookList) storage(s *storage.Manager) {
-	for _, hook := range h.onStorage {
-		hook(s)
-	}
-}
-
-func (h *hookList) mux(mux *http.ServeMux) {
-	for _, hook := range h.onMux {
-		hook(mux)
-	}
-}
-
-func (h *hookList) appRun(ctx context.Context, wg *sync.WaitGroup) error {
+func (h *hookList) appRun(ctx context.Context, app *App) error {
 	for _, hook := range h.onAppRun {
-		if err := hook(ctx, wg); err != nil {
+		if err := hook(ctx, app); err != nil {
 			return err
 		}
 	}

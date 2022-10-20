@@ -23,7 +23,6 @@ import (
 	"nvr"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
-	"nvr/pkg/web/auth"
 	"strings"
 	"sync"
 	"time"
@@ -33,33 +32,16 @@ import (
 )
 
 func init() {
-	var addon struct {
-		log     *log.Logger
-		storage *storage.Manager
-		auth    auth.Authenticator
-		sys     *system
-	}
+	var sys *system
 
-	nvr.RegisterLogHook(func(l *log.Logger) {
-		addon.log = l
-	})
-
-	nvr.RegisterStorageHook(func(s *storage.Manager) {
-		addon.storage = s
-	})
-
-	nvr.RegisterAuthHook(func(a auth.Authenticator) {
-		addon.auth = a
-	})
-
-	nvr.RegisterAppRunHook(func(ctx context.Context, _ *sync.WaitGroup) error {
-		addon.sys = newSystem(addon.storage.Usage, addon.log)
-		go addon.sys.StatusLoop(ctx)
+	nvr.RegisterAppRunHook(func(ctx context.Context, app *nvr.App) error {
+		sys := newSystem(app.Storage.Usage, app.Logger)
+		go sys.StatusLoop(ctx)
 		return nil
 	})
 
 	nvr.RegisterTplDataHook(func(data template.FuncMap, _ string) {
-		data["status"] = addon.sys.getStatus()
+		data["status"] = sys.getStatus()
 	})
 
 	nvr.RegisterTplSubHook(modifySubTemplate)
@@ -142,6 +124,10 @@ func (s *system) StatusLoop(ctx context.Context) {
 }
 
 func (s *system) getStatus() status {
+	if s == nil {
+		return status{}
+	}
+
 	defer s.mu.Unlock()
 	s.mu.Lock()
 	return s.status

@@ -44,12 +44,16 @@ var addon = struct {
 }{}
 
 func init() {
-	nvr.RegisterEnvHook(onEnv)
-	nvr.RegisterLogHook(func(log *log.Logger) {
-		addon.log = log
-	})
 	nvr.RegisterLogSource([]string{"doods"})
-	nvr.RegisterAppRunHook(onAppRun)
+
+	nvr.RegisterAppRunHook(func(ctx context.Context, app *nvr.App) error {
+		addon.log = app.Logger
+		onEnv(app.Env)
+		app.Mux.Handle("/doods.mjs", app.Auth.Admin(serveDoodsMjs()))
+		onAppRun(ctx, app.WG)
+		return nil
+	})
+	nvr.RegisterTplHook(modifyTemplates)
 }
 
 func onEnv(env storage.ConfigEnv) {
@@ -72,7 +76,7 @@ func onEnv(env storage.ConfigEnv) {
 	}
 }
 
-func onAppRun(ctx context.Context, wg *sync.WaitGroup) error {
+func onAppRun(ctx context.Context, wg *sync.WaitGroup) {
 	logf := func(level log.Level, format string, a ...interface{}) {
 		addon.log.Level(level).Src("doods").Msgf(format, a...)
 	}
@@ -80,8 +84,6 @@ func onAppRun(ctx context.Context, wg *sync.WaitGroup) error {
 	client := newClient(ctx, wg, logf, addon.doodsIP)
 	addon.sendRequest = client.sendRequest
 	go client.start()
-
-	return nil
 }
 
 // Config doods global configuration.
@@ -250,7 +252,7 @@ func newClient(
 
 func (c *client) start() {
 	time.Sleep(c.warmup)
-	c.logf(log.LevelError, "starting client: %v", c.url)
+	c.logf(log.LevelInfo, "starting client: %v", c.url)
 
 	defer c.wg.Done()
 	for {
@@ -258,7 +260,7 @@ func (c *client) start() {
 		if err != nil {
 			c.logf(log.LevelError, "client crashed: %v", err)
 		} else {
-			c.logf(log.LevelError, "client stopped")
+			c.logf(log.LevelInfo, "client stopped")
 		}
 
 		select {
