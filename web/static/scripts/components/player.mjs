@@ -222,7 +222,7 @@ function newPlayer(data) {
 			$popup.classList.toggle("player-options-show");
 		});
 		$fullscreen.addEventListener("click", () => {
-			if (document.fullscreen) {
+			if (document.fullscreenElement) {
 				$fullscreenImg.src = iconMaximizePath;
 				document.exitFullscreen();
 			} else {

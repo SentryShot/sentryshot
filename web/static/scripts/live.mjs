@@ -16,7 +16,7 @@
 import Hls from "./vendor/hls.mjs";
 import { sortByName } from "./libs/common.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
-import { newFeed } from "./components/feed.mjs";
+import { newFeed, newFeedBtn } from "./components/feed.mjs";
 
 function newViewer($parent, monitors, hls) {
 	let selectedMonitors = [];
@@ -55,7 +55,14 @@ function newViewer($parent, monitors, hls) {
 				if (monitor["enable"] !== "true") {
 					continue;
 				}
-				feeds.push(newFeed(monitor, preferLowRes, hls));
+
+				const recordingsPath = toAbsolutePath("recordings");
+				const buttons = [
+					newFeedBtn.recordings(recordingsPath, monitor["id"]),
+					newFeedBtn.fullscreen(),
+					newFeedBtn.mute(monitor),
+				];
+				feeds.push(newFeed(hls, monitor, preferLowRes, buttons));
 			}
 
 			let html = "";
@@ -69,6 +76,10 @@ function newViewer($parent, monitors, hls) {
 			}
 		},
 	};
+}
+
+function toAbsolutePath(input) {
+	return window.location.href.replace("live", input);
 }
 
 const preferLowResByDefault = false;

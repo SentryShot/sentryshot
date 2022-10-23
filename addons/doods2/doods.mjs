@@ -501,7 +501,7 @@ function crop(hls, detectors) {
 					audioEnabled: "false",
 					subInputEnabled: subInputEnabled,
 				};
-				feed = newFeed(monitor, true, hls);
+				feed = newFeed(hls, monitor, true);
 
 				if (!rendered) {
 					renderModal(element, feed);
@@ -700,7 +700,7 @@ function mask(hls) {
 					audioEnabled: "false",
 					subInputEnabled: subInputEnabled,
 				};
-				feed = newFeed(monitor, true, hls);
+				feed = newFeed(hls, monitor, true);
 
 				if (!rendered) {
 					renderModal(element, feed);

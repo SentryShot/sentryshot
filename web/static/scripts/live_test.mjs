@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { newViewer, resBtn } from "./live.mjs";
+import { resBtn } from "./live.mjs";
 
 class mockHls {
 	constructor() {}
@@ -26,83 +26,6 @@ class mockHls {
 mockHls.Events = {
 	MEDIA_ATTACHED() {},
 };
-
-const monitors = {
-	1: { enable: "false" },
-	2: { enable: "true", id: "2", name: "C" },
-	3: { audioEnabled: "true", enable: "true", id: "3", name: "B" },
-};
-
-describe("newViewer", () => {
-	const setup = () => {
-		document.body.innerHTML = `<div id="content-grid"></div>`;
-		const element = document.querySelector("#content-grid");
-		const viewer = newViewer(element, monitors, mockHls);
-		viewer.setPreferLowRes(true);
-		viewer.setPreferLowRes(false);
-		viewer.reset();
-		return element;
-	};
-	test("rendering", () => {
-		const expected = `
-			<div id="js-video-3" class="grid-item-container">
-				<input
-					class="player-overlay-checkbox"
-					id="3-player-checkbox"
-					type="checkbox"
-				>
-				<label 
-					class="player-overlay-selector"
-					for="3-player-checkbox"
-				></label>
-				<div class="player-overlay live-player-menu">
-					<button class="live-player-btn js-mute-btn">
-						<img
-							class="icon"
-							src="static/icons/feather/volume-x.svg"
-						>
-					</button>
-				</div>
-				<video
-					class="grid-item"
-					muted=""
-					disablepictureinpicture=""
-					playsinline=""
-				></video>
-			</div>
-			<div id="js-video-2 "class="grid-item-container">
-				<video
-					class="grid-item"
-					muted=""
-					disablepictureinpicture=""
-					playsinline=""
-				></video>
-			</div>`.replace(/\s/g, "");
-
-		const element = setup();
-		const actual = element.innerHTML.replace(/\s/g, "");
-
-		expect(actual).toEqual(expected);
-	});
-	test("muteButton", () => {
-		setup();
-		const element = document.querySelector("#js-video-3");
-		const $video = element.querySelector("video");
-		const $muteBtn = element.querySelector(".js-mute-btn");
-		const $img = $muteBtn.querySelector("img");
-
-		expect($video.muted).toBe(true);
-		expect($img.src).toBe("http://localhost/static/icons/feather/volume-x.svg");
-
-		$muteBtn.click();
-		expect($video.muted).toBe(false);
-		expect($img.src).toBe("http://localhost/static/icons/feather/volume.svg");
-
-		$muteBtn.click();
-		expect($video.muted).toBe(true);
-		expect($img.src).toBe("http://localhost/static/icons/feather/volume-x.svg");
-	});
-});
 
 describe("resBtn", () => {
 	const mockContent = {

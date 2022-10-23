@@ -37,30 +37,5 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 	#nav-link-live {
 		background: var(--color1-hover);
 	}
-
-	.live-player-btn {
-		padding: 0.1rem;
-		font-size: 0;
-		background: var(--color2);
-		border: none;
-		border-radius: 15%;
-	}
-
-	.live-player-btn img {
-		height: 0.9rem;
-	}
-
-	.live-player-btn::-moz-focus-inner {
-		border: 0;
-	}
-
-	.live-player-btn:hover {
-		background: var(--color2-hover);
-	}
-
-	.live-player-menu {
-		bottom: 0;
-		margin-bottom: 10%;
-	}
 </style>
 {{ template "html2" }}

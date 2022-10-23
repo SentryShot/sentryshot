@@ -13,17 +13,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { uniqueID } from "../libs/common.mjs";
+
 const hlsConfig = {
 	maxDelaySec: 2,
 	maxRecoveryAttempts: -1,
 };
 
-const iconMutedPath = "static/icons/feather/volume-x.svg";
-const iconUnmutedPath = "static/icons/feather/volume.svg";
-
-function newFeed(monitor, preferLowRes, Hls) {
+function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 	const id = monitor["id"];
-	const audioEnabled = monitor["audioEnabled"] === "true";
 	const subInputEnabled = monitor["subInputEnabled"] === "true";
 
 	let res = "";
@@ -34,13 +32,47 @@ function newFeed(monitor, preferLowRes, Hls) {
 	const stream = `hls/${id}${res}/stream.m3u8`;
 	const index = `hls/${id}${res}/index.m3u8`;
 
+	let html = "";
+	for (const button of buttons) {
+		html += button.html;
+	}
+
 	let hls;
+	const elementID = uniqueID();
+	const checkboxID = uniqueID();
 
 	return {
-		html: feedHTML(id, audioEnabled),
+		html: `
+			<div id="${elementID}" class="grid-item-container">
+				<input
+					class="js-checkbox player-overlay-checkbox"
+					id="${checkboxID}"
+					type="checkbox"
+				/>
+				<label
+					class="player-overlay-selector"
+					for="${checkboxID}"
+				></label>
+				<div class="js-overlay player-overlay feed-menu">
+					${html}
+				</div>
+				<video
+					class="grid-item"
+					muted
+					disablepictureinpicture
+					playsinline
+				></video>
+			</div>`,
 		init($parent) {
-			const element = $parent.querySelector(`#js-video-${id}`);
+			const element = $parent.querySelector(`#${elementID}`);
+			const $overlay = $parent.querySelector(`.js-overlay`);
 			const $video = element.querySelector("video");
+
+			for (const button of buttons) {
+				if (button.init) {
+					button.init($overlay, $video);
+				}
+			}
 
 			try {
 				if (Hls.isSupported()) {
@@ -64,24 +96,6 @@ function newFeed(monitor, preferLowRes, Hls) {
 			} catch (error) {
 				alert(`error: ${error}`);
 			}
-
-			if (audioEnabled) {
-				const $muteBtn = element.querySelector(".js-mute-btn");
-				const $img = $muteBtn.querySelector("img");
-
-				const $overlayCheckbox = element.querySelector("input");
-				$muteBtn.addEventListener("click", () => {
-					if ($video.muted) {
-						$video.muted = false;
-						$img.src = iconUnmutedPath;
-					} else {
-						$video.muted = true;
-						$img.src = iconMutedPath;
-					}
-					$overlayCheckbox.checked = false;
-				});
-				$video.muted = true;
-			}
 		},
 		destroy() {
 			hls.destroy();
@@ -89,31 +103,88 @@ function newFeed(monitor, preferLowRes, Hls) {
 	};
 }
 
-function feedHTML(id, audioEnabled) {
-	let overlayHTML = "";
+const newFeedBtn = {
+	mute: newMuteBtn,
+	fullscreen: newFullscreenBtn,
+	recordings: newRecordingsBtn,
+};
+
+const iconMutedPath = "static/icons/feather/volume-x.svg";
+const iconUnmutedPath = "static/icons/feather/volume.svg";
+
+function newMuteBtn(monitor) {
+	const audioEnabled = monitor["audioEnabled"] === "true";
+
+	let html = "";
 	if (audioEnabled) {
-		overlayHTML = `
-			<input
-				class="player-overlay-checkbox"
-				id="${id}-player-checkbox"
-				type="checkbox"
-			/>
-			<label
-				class="player-overlay-selector"
-				for="${id}-player-checkbox"
-			></label>
-			<div class="player-overlay live-player-menu">
-				<button class="live-player-btn js-mute-btn">
-					<img class="icon" src="${iconMutedPath}"/>
-				</button>
-			</div>`;
+		html = `
+			<button class="js-mute-btn feed-btn">
+				<img class="feed-btn-img icon" src="${iconUnmutedPath}"/>
+			</button>`;
 	}
 
-	return `
-		<div id="js-video-${id}" class="grid-item-container">
-			${overlayHTML}
-			<video class="grid-item" muted disablepictureinpicture playsinline></video>
-		</div>`;
+	return {
+		html: html,
+		init($parent, $video) {
+			if (audioEnabled) {
+				const $muteBtn = $parent.querySelector(".js-mute-btn");
+				const $img = $muteBtn.querySelector("img");
+
+				$muteBtn.addEventListener("click", () => {
+					if ($video.muted) {
+						$video.muted = false;
+						$img.src = iconMutedPath;
+					} else {
+						$video.muted = true;
+						$img.src = iconUnmutedPath;
+					}
+				});
+				$video.muted = true;
+			}
+		},
+	};
 }
 
-export { newFeed };
+const iconMaximizePath = "static/icons/feather/maximize.svg";
+const iconMinimizePath = "static/icons/feather/minimize.svg";
+
+function newFullscreenBtn() {
+	return {
+		html: `
+			<button class="js-fullscreen-btn feed-btn">
+				<img class="feed-btn-img icon" src="${iconMaximizePath}"/>
+			</button>`,
+		init($parent) {
+			const element = $parent.parentElement;
+			const $btn = $parent.querySelector(".js-fullscreen-btn");
+			const $img = $btn.querySelector("img");
+
+			$btn.addEventListener("click", () => {
+				if (document.fullscreenElement) {
+					$img.src = iconMaximizePath;
+					document.exitFullscreen();
+				} else {
+					$img.src = iconMinimizePath;
+					element.requestFullscreen();
+				}
+			});
+		},
+	};
+}
+
+const iconRecordingsPath = "static/icons/feather/film.svg";
+
+function newRecordingsBtn(path, id) {
+	return {
+		html: `
+			<a href="${path}#monitors=${id}" class="feed-btn">
+				<img
+					class="feed-btn-img icon"
+					style="height: 0.65rem;"
+					src="${iconRecordingsPath}"/
+				>
+			</a>`,
+	};
+}
+
+export { newFeed, newFeedBtn };
