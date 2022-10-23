@@ -105,6 +105,29 @@ function newMonitorNameByID(monitors) {
 	};
 }
 
+function setHashParam(key, value) {
+	let url = new URL("http://dummy.com");
+	url.search = window.location.hash.slice(1);
+	url.searchParams.set(key, value);
+	window.location.hash = url.search.slice(1).replace("%2C", ",");
+}
+
+function getHashParam(key) {
+	const hash = window.location.hash;
+	if (!hash) {
+		return "";
+	}
+
+	let url = new URL("http://dummy.com");
+	url.search = hash.slice(1);
+
+	const value = url.searchParams.get(key);
+	if (!value) {
+		return "";
+	}
+	return value;
+}
+
 export {
 	fetchGet,
 	fetchPost,
@@ -114,4 +137,6 @@ export {
 	uniqueID,
 	uidReset,
 	newMonitorNameByID,
+	setHashParam,
+	getHashParam,
 };

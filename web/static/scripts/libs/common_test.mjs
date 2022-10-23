@@ -13,7 +13,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { fetchGet, fetchPost, fetchPut, fetchDelete } from "./common.mjs";
+import {
+	fetchGet,
+	fetchPost,
+	fetchPut,
+	fetchDelete,
+	setHashParam,
+	getHashParam,
+} from "./common.mjs";
 
 async function testFetchError(fetch) {
 	let alerted = false;
@@ -134,4 +141,26 @@ test("fetchDelete", async () => {
 	expect(response).toEqual(expected);
 
 	testFetchError(fetchDelete);
+});
+
+describe("hashParam", () => {
+	test("empty", async () => {
+		expect(window.location.hash).toBe("");
+		expect(getHashParam("test")).toBe("");
+	});
+	test("simple", async () => {
+		setHashParam("test", "a");
+		expect(window.location.hash).toBe("#test=a");
+		expect(getHashParam("test")).toBe("a");
+	});
+	test("noValue", async () => {
+		setHashParam("test", "");
+		expect(window.location.hash).toBe("#test=");
+		expect(getHashParam("test")).toBe("");
+	});
+	test("comma", async () => {
+		setHashParam("test", "a,b");
+		expect(window.location.hash).toBe("#test=a,b");
+		expect(getHashParam("test")).toBe("a,b");
+	});
 });

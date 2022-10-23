@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { fetchGet, newMonitorNameByID } from "./libs/common.mjs";
+import { fetchGet, newMonitorNameByID, getHashParam } from "./libs/common.mjs";
 import { newPlayer } from "./components/player.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
 
@@ -138,8 +138,7 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 }
 
 function toAbsolutePath(input) {
-	const path = window.location.href.replace("recordings", "");
-	return path + input;
+	return window.location.href.replace("recordings", input);
 }
 
 function idToISOstring(id) {
@@ -167,40 +166,37 @@ function dateToID(d) {
 }
 
 // Init.
-(async () => {
-	try {
-		if (fetch === undefined) {
-			return;
-		}
+async function init() {
+	const hashMonitors = getHashParam("monitors").split(",");
 
-		const timeZone = TZ; // eslint-disable-line no-undef
-		const groups = Groups; // eslint-disable-line no-undef
-		const monitors = Monitors; // eslint-disable-line no-undef
+	const timeZone = TZ; // eslint-disable-line no-undef
+	const groups = Groups; // eslint-disable-line no-undef
+	const monitors = Monitors; // eslint-disable-line no-undef
 
-		const monitorNameByID = newMonitorNameByID(monitors);
+	const monitorNameByID = newMonitorNameByID(monitors);
 
-		const $grid = document.querySelector("#content-grid");
-		const viewer = await newViewer(monitorNameByID, $grid, timeZone);
-
-		const $options = document.querySelector("#options-menu");
-		const buttons = [
-			newOptionsBtn.gridSize(),
-			newOptionsBtn.date(timeZone),
-			newOptionsBtn.monitor(monitors),
-			newOptionsBtn.group(groups),
-		];
-		const optionsMenu = newOptionsMenu(buttons);
-		$options.innerHTML = optionsMenu.html;
-		optionsMenu.init($options, viewer);
-
-		window.addEventListener("resize", viewer.lazyLoadRecordings);
-		window.addEventListener("orientation", viewer.lazyLoadRecordings);
-		document
-			.querySelector("#content-grid-wrapper")
-			.addEventListener("scroll", viewer.lazyLoadRecordings);
-	} catch (error) {
-		return error;
+	const $grid = document.querySelector("#content-grid");
+	const viewer = await newViewer(monitorNameByID, $grid, timeZone);
+	if (hashMonitors) {
+		viewer.setMonitors(hashMonitors);
 	}
-})();
 
-export { newViewer };
+	const $options = document.querySelector("#options-menu");
+	const buttons = [
+		newOptionsBtn.gridSize(),
+		newOptionsBtn.date(timeZone),
+		newOptionsBtn.monitor(monitors),
+		newOptionsBtn.group(groups),
+	];
+	const optionsMenu = newOptionsMenu(buttons);
+	$options.innerHTML = optionsMenu.html;
+	optionsMenu.init($options, viewer);
+
+	window.addEventListener("resize", viewer.lazyLoadRecordings);
+	window.addEventListener("orientation", viewer.lazyLoadRecordings);
+	document
+		.querySelector("#content-grid-wrapper")
+		.addEventListener("scroll", viewer.lazyLoadRecordings);
+}
+
+export { init, newViewer };

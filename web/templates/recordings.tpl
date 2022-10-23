@@ -19,7 +19,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 {{ template "html" }}
 <head>
 	{{ template "meta" . }}
-	<script type="module" src="static/scripts/recordings.mjs" defer></script>
+	<script type="module" defer>
+		import { init } from "./static/scripts/recordings.mjs";
+		init();
+	</script>
 </head>
 <body>
 	{{ template "sidebar" . }}
