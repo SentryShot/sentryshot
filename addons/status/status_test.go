@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"nvr/pkg/log"
 	"nvr/pkg/storage"
 
 	"github.com/shirou/gopsutil/v3/mem"
@@ -49,12 +50,12 @@ func mockCPUErr(_ context.Context, _ time.Duration, _ bool) ([]float64, error) {
 	return nil, errors.New("")
 }
 
-func mockRAMerr() (*mem.VirtualMemoryStat, error) {
+func mockRAMErr() (*mem.VirtualMemoryStat, error) {
 	return &mem.VirtualMemoryStat{}, errors.New("")
 }
 
 func mockDiskErr() (storage.DiskUsage, error) {
-	return storage.DiskUsage{}, errors.New("")
+	return storage.DiskUsage{}, errors.New("mock")
 }
 
 func TestUpdate(t *testing.T) {
@@ -65,10 +66,9 @@ func TestUpdate(t *testing.T) {
 		expectedError bool
 		expectedValue string
 	}{
-		"cpuErr":  {mockCPUErr, mockRAM, mockDisk, true, "{0 0 0 }"},
-		"ramErr":  {mockCPU, mockRAMerr, mockDisk, true, "{0 0 0 }"},
-		"diskErr": {mockCPU, mockRAM, mockDiskErr, true, "{0 0 0 }"},
-		"ok":      {mockCPU, mockRAM, mockDisk, false, "{11 22 33 44}"},
+		"cpuErr": {mockCPUErr, mockRAM, mockDisk, true, "{0 0 0 }"},
+		"ramErr": {mockCPU, mockRAMErr, mockDisk, true, "{0 0 0 }"},
+		"ok":     {mockCPU, mockRAM, mockDisk, false, "{11 22 0 }"},
 	}
 
 	for name, tc := range cases {
@@ -82,7 +82,7 @@ func TestUpdate(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.TODO(), 100*time.Millisecond)
 			defer cancel()
 
-			actualError := s.update(ctx)
+			actualError := s.updateCPUAndRAM(ctx)
 			gotError := actualError != nil
 			require.Equal(t, gotError, tc.expectedError)
 
@@ -90,6 +90,48 @@ func TestUpdate(t *testing.T) {
 			require.Equal(t, actualValue, tc.expectedValue)
 		})
 	}
+}
+
+func TestUpdateCPUAndRAM(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s := system{cpu: mockCPU, ram: mockRAM}
+
+		err := s.updateCPUAndRAM(context.Background())
+		require.NoError(t, err)
+
+		expected := status{
+			CPUUsage: 11,
+			RAMUsage: 22,
+		}
+		require.Equal(t, expected, s.status)
+	})
+	t.Run("cpuErr", func(t *testing.T) {
+		s := system{cpu: mockCPUErr, ram: mockRAM}
+
+		err := s.updateCPUAndRAM(context.Background())
+		require.Error(t, err)
+	})
+	t.Run("diskErr", func(t *testing.T) {
+		s := system{cpu: mockCPU, ram: mockRAMErr}
+
+		err := s.updateCPUAndRAM(context.Background())
+		require.Error(t, err)
+	})
+}
+
+func TestUpdateDiskError(t *testing.T) {
+	logs := make(chan string)
+	logf := func(_ log.Level, format string, a ...interface{}) {
+		logs <- fmt.Sprintf(format, a...)
+	}
+	s := system{
+		disk:           mockDiskErr,
+		isUpdatingDisk: true,
+		logf:           logf,
+	}
+
+	go s.updateDisk()
+	require.Equal(t, "could not update disk usage: mock", <-logs)
 }
 
 func TestLoop(t *testing.T) {

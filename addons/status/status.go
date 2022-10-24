@@ -35,7 +35,7 @@ func init() {
 	var sys *system
 
 	nvr.RegisterAppRunHook(func(ctx context.Context, app *nvr.App) error {
-		sys := newSystem(app.Storage.Usage, app.Logger)
+		sys = newSystem(app.Storage.Usage, app.Logger)
 		go sys.StatusLoop(ctx)
 		return nil
 	})
@@ -65,27 +65,36 @@ type system struct {
 	ram  ramFunc
 	disk diskFunc
 
-	status   status
-	duration time.Duration
+	status         status
+	prevDiskUpdate time.Time
+	isUpdatingDisk bool
 
-	log *log.Logger
-	mu  sync.Mutex
+	interval     time.Duration
+	diskCooldown time.Duration
+
+	logf log.Func
+	mu   sync.Mutex
 }
 
-func newSystem(disk diskFunc, log *log.Logger) *system {
+func newSystem(disk diskFunc, logger *log.Logger) *system {
+	logf := func(level log.Level, format string, a ...interface{}) {
+		logger.Level(level).Src("app").Msgf(format, a...)
+	}
+
 	return &system{
 		cpu:  cpu.PercentWithContext,
 		ram:  mem.VirtualMemory,
 		disk: disk,
 
-		duration: 10 * time.Second,
+		interval:     10 * time.Second,
+		diskCooldown: 5 * time.Minute,
 
-		log: log,
+		logf: logf,
 	}
 }
 
-func (s *system) update(ctx context.Context) error {
-	cpuUsage, err := s.cpu(ctx, s.duration, false)
+func (s *system) updateCPUAndRAM(ctx context.Context) error {
+	cpuUsage, err := s.cpu(ctx, s.interval, false)
 	if err != nil {
 		return fmt.Errorf("get cpu usage %w", err)
 	}
@@ -93,21 +102,31 @@ func (s *system) update(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("get ram usage %w", err)
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.status.CPUUsage = int(cpuUsage[0])
+	s.status.RAMUsage = int(ramUsage.UsedPercent)
+
+	return nil
+}
+
+func (s *system) updateDisk() {
 	diskUsage, err := s.disk()
 	if err != nil {
-		return fmt.Errorf("get disk usage %w", err)
+		s.logf(log.LevelError, "could not update disk usage: %v", err)
+		return
 	}
 
 	s.mu.Lock()
-	s.status = status{
-		CPUUsage:           int(cpuUsage[0]),
-		RAMUsage:           int(ramUsage.UsedPercent),
-		DiskUsage:          diskUsage.Percent,
-		DiskUsageFormatted: diskUsage.Formatted,
-	}
-	s.mu.Unlock()
+	defer s.mu.Unlock()
 
-	return nil
+	s.status.DiskUsage = diskUsage.Percent
+	s.status.DiskUsageFormatted = diskUsage.Formatted
+
+	s.isUpdatingDisk = false
+	s.prevDiskUpdate = time.Now()
 }
 
 // StatusLoop updates system status until context is canceled.
@@ -116,20 +135,23 @@ func (s *system) StatusLoop(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		err := s.update(ctx)
+		err := s.updateCPUAndRAM(ctx)
 		if err != nil && !errors.Is(err, context.Canceled) {
-			s.log.Error().Src("app").Msgf("could not update system status: %v", err)
+			s.logf(log.LevelError, "could not update system status: %v", err)
 		}
 	}
 }
 
 func (s *system) getStatus() status {
-	if s == nil {
-		return status{}
-	}
-
 	defer s.mu.Unlock()
 	s.mu.Lock()
+
+	nextDiskUpdate := s.prevDiskUpdate.Add(s.diskCooldown)
+	if !s.isUpdatingDisk && time.Now().After(nextDiskUpdate) {
+		s.isUpdatingDisk = true
+		go s.updateDisk()
+	}
+
 	return s.status
 }
 
@@ -145,6 +167,17 @@ func (s *system) getStatus() status {
 		}
 	})
 }*/
+
+func modifySubTemplate(pageFiles map[string]string) error {
+	const target = "</aside>"
+
+	pageFiles["sidebar.tpl"] = strings.ReplaceAll(
+		pageFiles["sidebar.tpl"],
+		target,
+		sidebarHTML+target,
+	)
+	return nil
+}
 
 const sidebarHTML = `
 	<style>
@@ -231,14 +264,3 @@ const sidebarHTML = `
 			</div>
 		</li>
 	</ul>`
-
-func modifySubTemplate(pageFiles map[string]string) error {
-	const target = "</aside>"
-
-	pageFiles["sidebar.tpl"] = strings.ReplaceAll(
-		pageFiles["sidebar.tpl"],
-		target,
-		sidebarHTML+target,
-	)
-	return nil
-}
