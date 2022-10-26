@@ -69,16 +69,17 @@ func (pa *path) close() {
 		r.close()
 		delete(pa.readers, r)
 	}
-	if pa.stream != nil {
-		pa.stream.close()
-		pa.stream = nil
-	}
 	if pa.sourceReady {
 		pa.hlsServer.pathSourceNotReady(pa.name)
 		pa.sourceReady = false
 	}
 	if pa.source != nil {
 		pa.source.close()
+	}
+	// Close source before stream.
+	if pa.stream != nil {
+		pa.stream.close()
+		pa.stream = nil
 	}
 
 	pa.canceled = true
