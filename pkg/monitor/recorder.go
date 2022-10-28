@@ -45,7 +45,7 @@ type Recorder struct {
 	eventChan  chan storage.Event
 
 	logf       logFunc
-	runProcess runRecordingProcessFunc
+	runSession runRecordingFunc
 	NewProcess ffmpeg.NewProcessFunc
 
 	input *InputProcess
@@ -54,6 +54,7 @@ type Recorder struct {
 	wg    *sync.WaitGroup
 	hooks Hooks
 
+	sleep   time.Duration
 	prevSeg uint64
 }
 
@@ -70,7 +71,7 @@ func newRecorder(m *Monitor) *Recorder {
 		eventChan:   make(chan storage.Event),
 
 		logf:       logf,
-		runProcess: runRecordingProcess,
+		runSession: runRecording,
 		NewProcess: ffmpeg.NewProcess,
 
 		input: m.mainInput,
@@ -78,37 +79,31 @@ func newRecorder(m *Monitor) *Recorder {
 		Log:   m.Log,
 		wg:    m.WG,
 		hooks: m.hooks,
+
+		sleep: 3 * time.Second,
 	}
 }
 
-func (r *Recorder) start(ctx context.Context) { //nolint:funlen
-	var recCtx context.Context
-	recCancel := func() {}
+func (r *Recorder) start(ctx context.Context) {
+	defer r.wg.Done()
+
+	var sessionCtx context.Context
+	var cancelSession context.CancelFunc
 	isRecording := false
 	triggerTimer := &time.Timer{}
-	onRecExit := make(chan error)
-
-	startRecording := func() {
-		onRecExit <- r.runProcess(recCtx, r)
-	}
-
-	recStopped := func() {
-		triggerTimer.Stop()
-		isRecording = false
-		r.logf(log.LevelInfo, "recording stopped")
-	}
+	var onSessionExit chan struct{}
 
 	var timerEnd time.Time
 	for {
 		select {
 		case <-ctx.Done():
-			recCancel()
-			if isRecording {
-				// Recording was active and is now canceled. Clean up.
-				<-onRecExit
-				recStopped()
+			if cancelSession != nil {
+				cancelSession()
 			}
-			r.wg.Done()
+			if isRecording {
+				// Wait for session to exit.
+				<-onSessionExit
+			}
 			return
 
 		case event := <-r.eventChan: // Incomming events.
@@ -123,53 +118,62 @@ func (r *Recorder) start(ctx context.Context) { //nolint:funlen
 			}
 
 			if isRecording {
-				// Update timer.
-				triggerTimer.Stop()
+				r.logf(log.LevelDebug, "new event, already recording, updating timer")
 				triggerTimer = time.NewTimer(time.Until(timerEnd))
 				continue
 			}
 
-			// Start new recording.
-			triggerTimer = time.NewTimer(time.Until(timerEnd))
-			recCtx, recCancel = context.WithCancel(ctx)
+			r.logf(log.LevelDebug, "starting recording session")
 			isRecording = true
-			go startRecording()
+			triggerTimer = time.NewTimer(time.Until(timerEnd))
+			onSessionExit = make(chan struct{})
+			sessionCtx, cancelSession = context.WithCancel(ctx)
+			go func() {
+				r.runRecordingSession(sessionCtx)
+				close(onSessionExit)
+			}()
 
 		case <-triggerTimer.C:
-			r.logf(log.LevelInfo, "trigger reached end, stopping recording")
-			recCancel()
+			r.logf(log.LevelDebug, "timer reached end, canceling session")
+			cancelSession()
 
-		case err := <-onRecExit:
-			if recCtx.Err() != nil {
-				// Recording was canceled and stopped.
-				recStopped()
-				continue
-			}
-
-			if err != nil && !errors.Is(err, context.Canceled) {
-				// Recording crached. Wait a second and start it again.
-				r.logf(log.LevelError, "recording process: %v", err)
-				go func() {
-					select {
-					case <-ctx.Done():
-						onRecExit <- nil
-					case <-time.After(1 * time.Second):
-						go startRecording()
-					}
-				}()
-				continue
-			}
-
-			// Recording reached videoLength and stopped normally.
-			// The trigger is still active so start it again.
-			go startRecording()
+		case <-onSessionExit:
+			// Recording was canceled and stopped.
+			isRecording = false
+			continue
 		}
 	}
 }
 
-type runRecordingProcessFunc func(context.Context, *Recorder) error
+func (r *Recorder) runRecordingSession(ctx context.Context) {
+	defer r.logf(log.LevelDebug, "session stopped")
+	for {
+		err := r.runSession(ctx, r)
+		if err != nil {
+			r.logf(log.LevelError, "recording crashed: %v", err)
+			select {
+			case <-ctx.Done():
+				// Session is canceled.
+				return
+			case <-time.After(r.sleep):
+				r.logf(log.LevelDebug, "recovering after crash")
+			}
+		} else {
+			r.logf(log.LevelInfo, "recording finished")
+			if ctx.Err() != nil {
+				// Session is canceled.
+				return
+			}
+			// Recoding reached videoLength and exited normally. The timer
+			// is still active, so continue the loop and start another one.
+			continue
+		}
+	}
+}
 
-func runRecordingProcess(ctx context.Context, r *Recorder) error {
+type runRecordingFunc func(context.Context, *Recorder) error
+
+func runRecording(ctx context.Context, r *Recorder) error {
 	r.MonitorLock.Lock()
 	monitorID := r.Config.ID()
 	videoLengthStr := r.Config.videoLength()
@@ -341,7 +345,7 @@ func (r *Recorder) generateThumbnail(
 		" -i -" + // Input.
 		" -frames:v 1 " + thumbPath // Output.
 
-	r.logf(log.LevelInfo, "generating thumbnail: %v", args)
+	r.logf(log.LevelInfo, "generating thumbnail: %v", thumbPath)
 
 	r.hooks.RecSave(r, &args)
 
@@ -362,7 +366,7 @@ func (r *Recorder) generateThumbnail(
 		r.logf(log.LevelError, "generate thumbnail, args: %v error: %v", args, err)
 		return
 	}
-	r.logf(log.LevelInfo, "thumbnail generated: %v", filepath.Base(thumbPath))
+	r.logf(log.LevelDebug, "thumbnail generated: %v", filepath.Base(thumbPath))
 }
 
 func (r *Recorder) saveRecording(
@@ -389,7 +393,7 @@ func (r *Recorder) saveRecording(
 
 	dataPath := filePath + ".json"
 	if err := os.WriteFile(dataPath, json, 0o600); err != nil {
-		r.logf(log.LevelError, "write event data: %w", err)
+		r.logf(log.LevelError, "write event data: %v", err)
 		return
 	}
 

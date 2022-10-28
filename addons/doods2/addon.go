@@ -83,6 +83,8 @@ func onAppRun(ctx context.Context, wg *sync.WaitGroup) {
 
 	client := newClient(ctx, wg, logf, addon.doodsIP)
 	addon.sendRequest = client.sendRequest
+
+	wg.Add(1)
 	go client.start()
 }
 

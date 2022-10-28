@@ -17,6 +17,7 @@ package monitor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -54,7 +55,7 @@ func newTestRecorder(t *testing.T) *Recorder {
 		eventChan:   make(chan storage.Event),
 
 		logf:       logf,
-		runProcess: runRecordingProcess,
+		runSession: runRecording,
 		NewProcess: ffmock.NewProcess,
 
 		input: &InputProcess{
@@ -113,10 +114,10 @@ func (m *mockMuxer) WaitForSegFinalized() {}
 
 func TestStartRecorder(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
-		onRunProcess := make(chan struct{})
+		onRunRecording := make(chan struct{})
 		onCanceled := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
-			close(onRunProcess)
+		mockRunRecording := func(ctx context.Context, _ *Recorder) error {
+			close(onRunRecording)
 			<-ctx.Done()
 			close(onCanceled)
 			return nil
@@ -126,8 +127,9 @@ func TestStartRecorder(t *testing.T) {
 		defer cancel()
 
 		r := newTestRecorder(t)
+		r.sleep = 1 * time.Hour
 		r.wg.Add(1)
-		r.runProcess = mockRunRecordingProcess
+		r.runSession = mockRunRecording
 		go r.start(ctx)
 
 		err := r.sendEvent(storage.Event{
@@ -136,13 +138,13 @@ func TestStartRecorder(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		<-onRunProcess
+		<-onRunRecording
 		<-onCanceled
 	})
 	t.Run("timeoutUpdate", func(t *testing.T) {
-		onRunProcess := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
-			close(onRunProcess)
+		onRunRecording := make(chan struct{})
+		mockRunRecording := func(ctx context.Context, _ *Recorder) error {
+			close(onRunRecording)
 			<-ctx.Done()
 			return nil
 		}
@@ -152,19 +154,19 @@ func TestStartRecorder(t *testing.T) {
 
 		r := newTestRecorder(t)
 		r.wg.Add(1)
-		r.runProcess = mockRunRecordingProcess
+		r.runSession = mockRunRecording
 		go r.start(ctx)
 
 		now := time.Now()
 		r.eventChan <- storage.Event{Time: now, RecDuration: 20 * time.Millisecond}
 		r.eventChan <- storage.Event{Time: now, RecDuration: 60 * time.Millisecond}
 
-		<-onRunProcess
+		<-onRunRecording
 	})
 	t.Run("recordingCheck", func(t *testing.T) {
-		onRunProcess := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
-			close(onRunProcess)
+		onRunRecording := make(chan struct{})
+		mockRunRecording := func(ctx context.Context, _ *Recorder) error {
+			close(onRunRecording)
 			<-ctx.Done()
 			return nil
 		}
@@ -174,7 +176,7 @@ func TestStartRecorder(t *testing.T) {
 
 		r := newTestRecorder(t)
 		r.wg.Add(1)
-		r.runProcess = mockRunRecordingProcess
+		r.runSession = mockRunRecording
 		go r.start(ctx)
 
 		now := time.Now()
@@ -182,12 +184,12 @@ func TestStartRecorder(t *testing.T) {
 		r.eventChan <- storage.Event{Time: now, RecDuration: 11 * time.Millisecond}
 		r.eventChan <- storage.Event{Time: now, RecDuration: 0 * time.Millisecond}
 
-		<-onRunProcess
+		<-onRunRecording
 	})
 	// Only update timeout if new time is after current time.
 	t.Run("updateTimeout", func(t *testing.T) {
 		onCancel := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
+		mockRunRecording := func(ctx context.Context, _ *Recorder) error {
 			<-ctx.Done()
 			close(onCancel)
 			return nil
@@ -198,7 +200,7 @@ func TestStartRecorder(t *testing.T) {
 
 		r := newTestRecorder(t)
 		r.wg.Add(1)
-		r.runProcess = mockRunRecordingProcess
+		r.runSession = mockRunRecording
 		go r.start(ctx)
 
 		now := time.Now()
@@ -212,10 +214,10 @@ func TestStartRecorder(t *testing.T) {
 		}
 	})
 	t.Run("normalExit", func(t *testing.T) {
-		onRunProcess := make(chan struct{})
+		onRunRecording := make(chan struct{})
 		exitProcess := make(chan error)
-		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
-			onRunProcess <- struct{}{}
+		mockRunRecording := func(ctx context.Context, _ *Recorder) error {
+			onRunRecording <- struct{}{}
 			return <-exitProcess
 		}
 
@@ -223,33 +225,42 @@ func TestStartRecorder(t *testing.T) {
 		defer cancel()
 
 		r := newTestRecorder(t)
+		r.sleep = 1 * time.Hour
 		r.wg.Add(1)
-		r.runProcess = mockRunRecordingProcess
+		r.runSession = mockRunRecording
 		go r.start(ctx)
 
 		now := time.Now()
 		r.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Hour}
 
-		<-onRunProcess
+		<-onRunRecording
 		exitProcess <- nil
-		<-onRunProcess
+		<-onRunRecording
 		exitProcess <- nil
-		<-onRunProcess
-		close(onRunProcess)
+		<-onRunRecording
+		close(onRunRecording)
 		exitProcess <- ffmock.ErrMock
 	})
 	t.Run("canceled", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		r := newTestRecorder(t)
+		r.wg.Add(1)
+		r.start(ctx)
+	})
+	t.Run("canceled2", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		mockRunRecordingProcess := func(context.Context, *Recorder) error {
+		mockRunRecording := func(context.Context, *Recorder) error {
 			cancel()
 			return nil
 		}
 
 		r := newTestRecorder(t)
 		r.wg.Add(1)
-		r.runProcess = mockRunRecordingProcess
+		r.runSession = mockRunRecording
 		go r.start(ctx)
 
 		now := time.Now()
@@ -257,7 +268,7 @@ func TestStartRecorder(t *testing.T) {
 	})
 	t.Run("canceledRecording", func(t *testing.T) {
 		onCancel := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
+		mockRunRecording := func(ctx context.Context, _ *Recorder) error {
 			<-ctx.Done()
 			close(onCancel)
 			return nil
@@ -268,18 +279,18 @@ func TestStartRecorder(t *testing.T) {
 
 		r := newTestRecorder(t)
 		r.wg.Add(1)
-		r.runProcess = mockRunRecordingProcess
+		r.runSession = mockRunRecording
 		go r.start(ctx)
 
 		now := time.Now()
 		r.eventChan <- storage.Event{Time: now, RecDuration: 0}
 		<-onCancel
 	})
-	t.Run("crashed", func(t *testing.T) {
-		onRunProcess := make(chan struct{})
-		mockRunRecordingProcess := func(ctx context.Context, _ *Recorder) error {
-			close(onRunProcess)
-			return ffmock.ErrMock
+	t.Run("crashAndRestart", func(t *testing.T) {
+		onRunRecording := make(chan struct{})
+		mockRunRecording := func(ctx context.Context, _ *Recorder) error {
+			onRunRecording <- struct{}{}
+			return errors.New("mock")
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -287,19 +298,21 @@ func TestStartRecorder(t *testing.T) {
 
 		r := newTestRecorder(t)
 		r.wg.Add(1)
-		r.runProcess = mockRunRecordingProcess
+		r.runSession = mockRunRecording
 		go r.start(ctx)
 
 		now := time.Now()
 		r.eventChan <- storage.Event{Time: now, RecDuration: 1 * time.Hour}
-		<-onRunProcess
+		<-onRunRecording
+		<-onRunRecording
+		<-onRunRecording
 	})
 }
 
 func createTempDir(t *testing.T, r *Recorder) {
 }
 
-func TestRunRecordingProcess(t *testing.T) {
+func TestRunRecording(t *testing.T) {
 	t.Run("saveRecordingAsync", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -309,35 +322,35 @@ func TestRunRecordingProcess(t *testing.T) {
 		r.hooks.RecSave = func(*Recorder, *string) {
 			<-ctx.Done()
 		}
-		err := runRecordingProcess(ctx, r)
+		err := runRecording(ctx, r)
 		require.NoError(t, err)
 	})
 	t.Run("crashed", func(t *testing.T) {
 		r := newTestRecorder(t)
 		r.Env.StorageDir = "/dev/null"
 
-		err := runRecordingProcess(context.Background(), r)
+		err := runRecording(context.Background(), r)
 		require.Error(t, err)
 	})
 	t.Run("mkdirErr", func(t *testing.T) {
 		r := newTestRecorder(t)
 		r.Env.StorageDir = "/dev/null"
 
-		err := runRecordingProcess(context.Background(), r)
+		err := runRecording(context.Background(), r)
 		require.Error(t, err)
 	})
 	t.Run("genArgsErr", func(t *testing.T) {
 		r := newTestRecorder(t)
 		(*r.Config)["videoLength"] = ""
 
-		err := runRecordingProcess(context.Background(), r)
+		err := runRecording(context.Background(), r)
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 	t.Run("parseOffsetErr", func(t *testing.T) {
 		r := newTestRecorder(t)
 		(*r.Config)["timestampOffset"] = ""
 
-		err := runRecordingProcess(context.Background(), r)
+		err := runRecording(context.Background(), r)
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 }

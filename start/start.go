@@ -33,7 +33,7 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // ErrPathNotAbsolute path is not absolute.
