@@ -102,19 +102,22 @@ func (m *HLSMuxer) run(tracks gortsplib.Tracks) error {
 
 	m.wg.Add(1)
 	go func() {
-		defer func() {
+		defer m.wg.Done()
+
+		cleanup := func() {
+			m.ctxCancel()
 			m.muxerClose(m)
 
 			// This will disconnect FFmpeg and restart the input process.
 			m.path.close()
 
-			m.wg.Done()
-		}()
+			m.ringBuffer.Close()
+		}
 
 		for {
 			select {
 			case <-m.ctx.Done():
-				m.ringBuffer.Close()
+				cleanup()
 				<-innerErr
 				return
 
@@ -122,8 +125,7 @@ func (m *HLSMuxer) run(tracks gortsplib.Tracks) error {
 				req.res <- m.handleRequest(req)
 
 			case err := <-innerErr:
-				m.ctxCancel()
-				m.ringBuffer.Close()
+				cleanup()
 				if !errors.Is(err, context.Canceled) {
 					m.logf("closed: %v", err)
 				}

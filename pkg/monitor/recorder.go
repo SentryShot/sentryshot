@@ -91,7 +91,7 @@ func (r *Recorder) start(ctx context.Context) {
 	var cancelSession context.CancelFunc
 	isRecording := false
 	triggerTimer := &time.Timer{}
-	var onSessionExit chan struct{}
+	onSessionExit := make(chan struct{})
 
 	var timerEnd time.Time
 	for {
@@ -126,11 +126,10 @@ func (r *Recorder) start(ctx context.Context) {
 			r.logf(log.LevelDebug, "starting recording session")
 			isRecording = true
 			triggerTimer = time.NewTimer(time.Until(timerEnd))
-			onSessionExit = make(chan struct{})
 			sessionCtx, cancelSession = context.WithCancel(ctx)
 			go func() {
 				r.runRecordingSession(sessionCtx)
-				close(onSessionExit)
+				onSessionExit <- struct{}{}
 			}()
 
 		case <-triggerTimer.C:
