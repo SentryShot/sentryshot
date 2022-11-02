@@ -225,7 +225,7 @@ func (p *playlist) start() { //nolint:funlen,gocognit
 					if !ok {
 						continue
 					}
-					if seg.ID > req.prevID {
+					if req.prevID < seg.ID || req.prevID >= p.nextSegmentID {
 						return seg
 					}
 				}
