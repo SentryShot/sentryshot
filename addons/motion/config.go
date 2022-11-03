@@ -3,7 +3,6 @@ package motion
 import (
 	"encoding/json"
 	"fmt"
-	"image"
 	"nvr/pkg/ffmpeg"
 	"nvr/pkg/monitor"
 	"strconv"
@@ -105,28 +104,12 @@ func parseScale(scale string) int {
 	}
 }
 
+type area []ffmpeg.Point
+
 type zoneConfig struct {
-	Enable    bool           `json:"enable"`
-	Preview   bool           `json:"preview"`
-	Threshold float64        `json:"threshold"`
-	Area      []ffmpeg.Point `json:"area"`
-}
-
-func (z zoneConfig) generateMask(w int, h int) image.Image {
-	polygon := z.calculatePolygon(w, h)
-
-	return ffmpeg.CreateInvertedMask(w, h, polygon)
-}
-
-func (z zoneConfig) calculatePolygon(w int, h int) ffmpeg.Polygon {
-	polygon := make(ffmpeg.Polygon, len(z.Area))
-	for i, point := range z.Area {
-		px := point[0]
-		py := point[1]
-		polygon[i] = [2]int{
-			int(float32(w) * (float32(px) / 100)),
-			int(float32(h) * (float32(py) / 100)),
-		}
-	}
-	return polygon
+	Enable       bool    `json:"enable"`
+	Sensitivity  float64 `json:"sensitivity"`
+	ThresholdMin float64 `json:"thresholdMin"`
+	ThresholdMax float64 `json:"thresholdMax"`
+	Area         area    `json:"area"`
 }

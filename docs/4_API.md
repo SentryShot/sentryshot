@@ -1,3 +1,4 @@
+-	[Re-streaming](#re-streaming)
 -   [REST API](#rest-api)
 	-   [System](#system)
 	-   [General](#general)
@@ -7,6 +8,36 @@
 	-   [Logs](#logs)
 -   [Websockets API](#websockets-api)
 	-   [Logs](#logs)
+
+# Re-streaming
+
+## RTSP
+
+### Main rtsp\://127.0.0.1:2021/\<monitor-id\>
+
+### Sub rtsp\://127.0.0.1:2021/\<monitor-id\>\_sub
+
+##### example:
+
+	ffplay -rtsp_transport tcp rtsp://127.0.0.1:2021/myMonitor
+	ffplay -rtsp_transport tcp rtsp://127.0.0.1:2021/myMonitor_sub
+
+Remember to expose the ports if you're using Docker.
+
+## HLS
+
+### Main http\://127.0.0.1:2022/hls/<monitor-id\>/stream.m3u8
+
+### Sub http\://127.0.0.1:2022/hls/<monitor-id\>\_sub/stream.m3u8
+
+##### example:
+
+	ffplay http://127.0.0.1:2022/hls/myMonitor/stream.m3u8
+	   vlc http://127.0.0.1:2022/hls/myMonitor_sub/stream.m3u8
+
+
+<br>
+<br>
 
 # REST API
 

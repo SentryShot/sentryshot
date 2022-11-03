@@ -16,7 +16,6 @@
 package motion
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -37,9 +36,10 @@ func TestParseConfig(t *testing.T) {
 			"zones":[
 				{
 					"enable": true,
-					"preview": true,
-					"threshold": 7,
-					"area":[[8,9],[10,11],[12,13]]
+					"sensitivity": 7,
+					"thresholdMin": 8,
+					"thresholdMax": 9,
+					"area":[[10,11],[12,13],[14,15]]
 				}
 			]
 		}`
@@ -65,10 +65,11 @@ func TestParseConfig(t *testing.T) {
 			recDuration:     6 * time.Second,
 			scale:           1,
 			zones: []zoneConfig{{
-				Enable:    true,
-				Preview:   true,
-				Threshold: 7,
-				Area:      []ffmpeg.Point{{8, 9}, {10, 11}, {12, 13}},
+				Enable:       true,
+				Sensitivity:  7,
+				ThresholdMin: 8,
+				ThresholdMax: 9,
+				Area:         []ffmpeg.Point{{10, 11}, {12, 13}, {14, 15}},
 			}},
 		}
 		require.Equal(t, expected, *actual)
@@ -106,7 +107,6 @@ func TestParseConfig(t *testing.T) {
 	for name, conf := range cases {
 		t.Run(name, func(t *testing.T) {
 			_, enable, err := parseConfig(conf)
-			fmt.Println(err)
 			require.Error(t, err)
 			require.False(t, enable)
 		})

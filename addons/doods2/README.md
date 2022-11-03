@@ -12,7 +12,7 @@ Enable for this monitor.
 
 #### Thresholds
 
-Individual confidence thresholds for each object that can be detected. A threshold of 100 means that it must 100% confident about the object before a event is triggered. 50 is a good starting point.
+Individual confidence thresholds for each object that can be detected. A threshold of 100 means that it must be 100% confident about the object before a event is triggered. 50 is a good starting point.
 
 #### Crop
 

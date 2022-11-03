@@ -117,7 +117,16 @@ function _motion(hls) {
 }
 
 function zones(hls) {
-	let modal, $modalContent, $enable, $threshold, $preview, $feed, $feedOverlay, $points;
+	let modal,
+		$modalContent,
+		$enable,
+		$sensitivity,
+		$thresholdMin,
+		$thresholdMax,
+		$preview,
+		$feed,
+		$feedOverlay,
+		$points;
 
 	const renderModal = (element, feed) => {
 		const html = `
@@ -148,15 +157,35 @@ function zones(hls) {
 				</div>
 			</li>
 			<li class="form-field">
-				<label for="motion-modal-threshold" class="form-field-label">Threshold</label>
+				<label for="motion-modal-sensitivity" class="form-field-label">Sensitivity</label>
 				<input
-					id="motion-modal-threshold"
-					class="js-threshold settings-input-text"
+					id="motion-modal-sensitivity"
+					class="js-sensitivity settings-input-text"
 					type="number"
 					min="0"
 					max="100"
 					step="any"
 				/>
+			</li>
+			<li class="form-field">
+				<label class="form-field-label">Threshold Min-Max</label>
+				<div style="display: flex; width: 100%;">
+					<input
+						class="js-threshold-min settings-input-text"
+						style="margin-right: 1rem;"
+						type="number"
+						min="0"
+						max="100"
+						step="any"
+					/>
+					<input
+						class="js-threshold-max settings-input-text"
+						type="number"
+						min="0"
+						max="100"
+						step="any"
+					/>
+				</div>
 			</li>
 			<li class="form-field">
 				<label class="form-field-label" for="modal-preview">Preview</label>
@@ -166,8 +195,8 @@ function zones(hls) {
 						<option>false</option>
 					</select>
 				</div>
-				<div class="js-feed" style="position: relative; margin-top: 0.2rem;">
-					${feed.html}
+				<div style="position: relative; margin-top: 0.2rem;">
+					<div class="js-feed">${feed.html}</div>
 					<div
 						class="js-feed-overlay"
 						style="position: absolute; height: 100%; width: 100%; top: 0;"
@@ -189,11 +218,20 @@ function zones(hls) {
 			selectedZone.enable = $enable.value === "true";
 		});
 
-		$threshold = $modalContent.querySelector(".js-threshold");
-		$threshold.addEventListener("change", () => {
-			const threshold = Number.parseFloat($threshold.value);
-			if (!(threshold > 100)) {
-				selectedZone.threshold = threshold;
+		$sensitivity = $modalContent.querySelector(".js-sensitivity");
+
+		$thresholdMin = $modalContent.querySelector(".js-threshold-min");
+		$thresholdMin.addEventListener("change", () => {
+			const threshold = Number.parseFloat($thresholdMin.value);
+			if (threshold >= 0 && threshold <= 100) {
+				selectedZone.thresholdMin = threshold;
+			}
+		});
+		$thresholdMax = $modalContent.querySelector(".js-threshold-max");
+		$thresholdMax.addEventListener("change", () => {
+			const threshold = Number.parseFloat($thresholdMax.value);
+			if (threshold >= 0 && threshold <= 100) {
+				selectedZone.thresholdMax = threshold;
 			}
 		});
 
@@ -243,7 +281,9 @@ function zones(hls) {
 		selectedZone = zones[zoneIndex];
 
 		$enable.value = selectedZone.enable.toString();
-		$threshold.value = selectedZone.threshold.toString();
+		$sensitivity.value = selectedZone.sensitivity.toString();
+		$thresholdMin.value = selectedZone.thresholdMin.toString();
+		$thresholdMax.value = selectedZone.thresholdMax.toString();
 		$preview.value = selectedZone.preview.toString();
 
 		renderPoints(selectedZone);
@@ -366,7 +406,9 @@ function zones(hls) {
 		return {
 			enable: true,
 			preview: true,
-			threshold: 0.1,
+			sensitivity: 8,
+			thresholdMin: 10,
+			thresholdMax: 100,
 			area: [
 				[50, 15],
 				[85, 15],
@@ -417,7 +459,7 @@ function zones(hls) {
 					audioEnabled: "false",
 					subInputEnabled: subInputEnabled,
 				};
-				feed = newFeed(monitor, true, hls);
+				feed = newFeed(hls, monitor, true);
 
 				if (!rendered) {
 					renderModal(element, feed);
@@ -439,7 +481,6 @@ function zones(hls) {
 
 // CSS.
 let $style = document.createElement("style");
-$style.type = "text/css";
 $style.innerHTML = `
 	.motion-modal-point {
 		display: flex;

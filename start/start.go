@@ -320,8 +320,12 @@ addons: # Uncomment to enable.
   #- nvr/addons/auth/none
 
   # Object detection. https://github.com/snowzach/doods2
-  # Documentation is located at ../addons/doods2/README.md
+  # Documentation ../addons/doods2/README.md
   #- nvr/addons/doods2
+
+  # Motion detection.
+  # Documentation ../addons/motion/README.md
+  #- nvr/addons/motion
 
   # Thumbnail downscaling.
   # Downscale video thumbnails to improve loading times and data usage.

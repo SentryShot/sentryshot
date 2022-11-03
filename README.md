@@ -23,7 +23,9 @@ Use [Issues](https://gitlab.com/osnvr/os-nvr/-/issues) for bug reports, feature 
 - [Installation](./docs/1_Installation.md)
 - [Configuration](./docs/2_Configuration.md)
 - [Development](./docs/3_Development.md)
+- [API](./docs/4_API.md)
 - [Object Detection](./addons/doods2/README.md)
+- [Motion Detection](./addons/motion/README.md)
 - [Timeline viewer](./addons/timeline/README.md)
 
 <br>
@@ -31,9 +33,10 @@ Use [Issues](https://gitlab.com/osnvr/os-nvr/-/issues) for bug reports, feature 
 ## Similar projects
 
 - [ZoneMinder](https://github.com/ZoneMinder/ZoneMinder)
-- [Moonfire NVR](https://github.com/scottlamb/moonfire-nvr)
-- [Frigate](https://github.com/blakeblackshear/frigate)
+- [Moonfire](https://github.com/scottlamb/moonfire-nvr)
 - [Motion](https://github.com/Motion-Project/motion)[Eye](https://github.com/ccrisan/motioneye/)[OS](https://github.com/ccrisan/motioneyeos)
+- [Viseron](https://github.com/roflcoopter/viseron)
+- [camera.ui](https://github.com/SeydX/camera.ui)
 
 ## Related projects
 
