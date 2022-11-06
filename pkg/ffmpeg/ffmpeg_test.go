@@ -26,8 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"nvr/pkg/log"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,14 +63,11 @@ func TestProcess(t *testing.T) {
 	t.Run("startWithLogger", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
-			logger := log.NewMockLogger()
-			logger.Start(ctx)
-			feed, cancel2 := logger.Subscribe()
-
+			logs := make(chan string)
 			logFunc := func(msg string) {
-				logger.FFmpegLevel("info").
-					Msgf("test %v", msg)
+				logs <- fmt.Sprintf("test %v", msg)
 			}
 
 			p := NewProcess(fakeExecCommand()).
@@ -83,22 +78,19 @@ func TestProcess(t *testing.T) {
 			err := p.Start(ctx)
 			require.NoError(t, err)
 
-			compareOutput := func(input log.Log) {
+			compareOutput := func(input string) {
 				output1 := "test stdout: out"
 				output2 := "test stderr: err"
 				switch {
-				case input.Msg == output1:
-				case input.Msg == output2:
+				case input == output1:
+				case input == output2:
 				default:
-					t.Fatalf("outputs doesn't match: '%v'", input.Msg)
+					t.Fatalf("outputs doesn't match: '%v'", input)
 				}
 			}
 
-			compareOutput(<-feed)
-			compareOutput(<-feed)
-			cancel2()
-
-			cancel()
+			compareOutput(<-logs)
+			compareOutput(<-logs)
 		})
 	})
 	_, pw, err := os.Pipe()

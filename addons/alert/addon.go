@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"nvr"
+	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
 	"strconv"
@@ -66,7 +67,12 @@ func (a *alerter) onEvent(r *monitor.Recorder, event *storage.Event) {
 
 		err := a.processEvent(r, event, id, rawConfig)
 		if err != nil {
-			r.Log.Error().Src("alert").Monitor(id).Msgf("%v", err)
+			r.Logger.Log(log.Entry{
+				Level:     log.LevelError,
+				Src:       "alert",
+				MonitorID: id,
+				Msg:       err.Error(),
+			})
 		}
 	}()
 }
@@ -157,8 +163,10 @@ func logAlert(r *monitor.Recorder, event *storage.Event, _ []byte) {
 
 	d := bestDetection(*event)
 
-	r.Log.Info().
-		Src("alert").
-		Monitor(id).
-		Msgf("label:%v score:%v", d.Label, d.Score)
+	r.Logger.Log(log.Entry{
+		Level:     log.LevelInfo,
+		Src:       "alert",
+		MonitorID: id,
+		Msg:       fmt.Sprintf("label:%v score:%v", d.Label, d.Score),
+	})
 }

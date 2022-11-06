@@ -65,7 +65,7 @@ type Hooks struct {
 type Manager struct {
 	Monitors    monitors
 	env         storage.ConfigEnv
-	log         *log.Logger
+	logger      *log.Logger
 	videoServer *video.Server
 	path        string
 	hooks       Hooks
@@ -91,7 +91,7 @@ func NewManager(
 
 	manager := &Manager{
 		env:         env,
-		log:         log,
+		logger:      log,
 		videoServer: videoServer,
 		path:        configPath,
 		hooks:       *hooks,
@@ -259,7 +259,7 @@ type Monitor struct {
 	Lock   sync.Mutex
 
 	Env         storage.ConfigEnv
-	Log         *log.Logger
+	Logger      *log.Logger
 	videoServer *video.Server
 
 	mainInput *InputProcess
@@ -279,13 +279,19 @@ type (
 )
 
 func (m *Manager) newMonitor(config Config) *Monitor {
+	monitorID := config.ID()
 	logf := func(level log.Level, format string, a ...interface{}) {
-		m.log.Level(level).Src("monitor").Monitor(config.ID()).Msgf(format, a...)
+		m.logger.Log(log.Entry{
+			Level:     level,
+			Src:       "monitor",
+			MonitorID: monitorID,
+			Msg:       fmt.Sprintf(format, a...),
+		})
 	}
 
 	monitor := &Monitor{
 		Env:         m.env,
-		Log:         m.log,
+		Logger:      m.logger,
 		videoServer: m.videoServer,
 		Config:      &config,
 
@@ -405,7 +411,7 @@ type InputProcess struct {
 
 	hooks     Hooks
 	Env       storage.ConfigEnv
-	Log       *log.Logger
+	Logger    *log.Logger
 	WG        *sync.WaitGroup
 	SendEvent SendEventFunc
 
@@ -428,7 +434,7 @@ func newInputProcess(m *Monitor, isSubInput bool) *InputProcess {
 
 		hooks:     m.hooks,
 		Env:       m.Env,
-		Log:       m.Log,
+		Logger:    m.Logger,
 		WG:        m.WG,
 		SendEvent: m.SendEvent,
 

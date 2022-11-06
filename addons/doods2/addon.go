@@ -40,14 +40,14 @@ var addon = struct {
 
 	sendRequest sendRequestFunc
 
-	log *log.Logger
+	logger *log.Logger
 }{}
 
 func init() {
 	nvr.RegisterLogSource([]string{"doods"})
 
 	nvr.RegisterAppRunHook(func(ctx context.Context, app *nvr.App) error {
-		addon.log = app.Logger
+		addon.logger = app.Logger
 		onEnv(app.Env)
 		app.Mux.Handle("/doods.mjs", app.Auth.Admin(serveDoodsMjs()))
 		onAppRun(ctx, app.WG)
@@ -78,7 +78,11 @@ func onEnv(env storage.ConfigEnv) {
 
 func onAppRun(ctx context.Context, wg *sync.WaitGroup) {
 	logf := func(level log.Level, format string, a ...interface{}) {
-		addon.log.Level(level).Src("doods").Msgf(format, a...)
+		addon.logger.Log(log.Entry{
+			Level: level,
+			Src:   "doods",
+			Msg:   fmt.Sprintf(format, a...),
+		})
 	}
 
 	client := newClient(ctx, wg, logf, addon.doodsIP)

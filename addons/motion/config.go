@@ -31,8 +31,13 @@ type rawConfigV0 struct {
 }
 
 func parseConfig(c monitor.Config) (*config, bool, error) {
+	motion := c["motion"]
+	if motion == "" {
+		return nil, false, nil
+	}
+
 	var rawConf rawConfigV0
-	err := json.Unmarshal([]byte(c["motion"]), &rawConf)
+	err := json.Unmarshal([]byte(motion), &rawConf)
 	if err != nil {
 		return nil, false, fmt.Errorf("unmarshal config: %w", err)
 	}

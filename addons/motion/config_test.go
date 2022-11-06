@@ -74,6 +74,13 @@ func TestParseConfig(t *testing.T) {
 		}
 		require.Equal(t, expected, *actual)
 	})
+	t.Run("empty", func(t *testing.T) {
+		c := monitor.Config{}
+		actual, enable, err := parseConfig(c)
+		require.NoError(t, err)
+		require.Nil(t, actual)
+		require.False(t, enable)
+	})
 	t.Run("disabled", func(t *testing.T) {
 		motion := `
 		{

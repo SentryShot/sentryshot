@@ -18,6 +18,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
@@ -89,7 +90,7 @@ type Authenticator interface {
 }
 
 // LogFailedLogin finds and logs the ip.
-func LogFailedLogin(log *log.Logger, r *http.Request, username string) {
+func LogFailedLogin(logger *log.Logger, r *http.Request, username string) {
 	ip := ""
 	realIP := r.Header.Get("X-Real-Ip")
 	if realIP != "" {
@@ -104,14 +105,18 @@ func LogFailedLogin(log *log.Logger, r *http.Request, username string) {
 		ip += "addr:" + remoteAddr
 	}
 
-	log.Info().Src("auth").Msgf("failed login: username: %v %v\n", username, ip)
+	logger.Log(log.Entry{
+		Level: log.LevelInfo,
+		Src:   "auth",
+		Msg:   fmt.Sprintf("failed login: username: %v %v\n", username, ip),
+	})
 }
 
 // GenToken generates a CSRF-token.
 func GenToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		stdLog.Fatal("failed to generate random token")
+		stdLog.Fatalf("failed to generate random token: %v", err)
 	}
 	return hex.EncodeToString(b)
 }

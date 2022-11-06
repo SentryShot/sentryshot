@@ -96,8 +96,8 @@ func (logDB *DB) Init(ctx context.Context) error {
 }
 
 // SaveLogs saves logs from the logger into the database.
-func (logDB *DB) SaveLogs(ctx context.Context, l *Logger) {
-	feed, cancel := l.Subscribe()
+func (logDB *DB) SaveLogs(ctx context.Context, logger *Logger) {
+	feed, cancel := logger.Subscribe()
 	defer cancel()
 
 	logDB.saveWG.Add(1)
@@ -109,15 +109,19 @@ func (logDB *DB) SaveLogs(ctx context.Context, l *Logger) {
 		case log := <-feed:
 			if err := logDB.saveLog(log); err != nil {
 				fmt.Fprintf(os.Stderr, "could not save log: %v %v", log.Msg, err)
-				l.Error().Src("app").Msgf("could not save log: '%v' %v", log.Msg, err)
+				logger.Log(Entry{
+					Level: LevelError,
+					Src:   "app",
+					Msg:   fmt.Sprintf("could not save log: '%v' %v", log.Msg, err),
+				})
 			}
 		}
 	}
 }
 
-func (logDB *DB) saveLog(log Log) error {
-	key := encodeKey(uint64(log.Time))
-	value := encodeValue(log)
+func (logDB *DB) saveLog(entry Entry) error {
+	key := encodeKey(uint64(entry.Time))
+	value := encodeValue(entry)
 
 	return logDB.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(dbAPIversion))
@@ -146,14 +150,14 @@ type Query struct {
 }
 
 // Query logs in database.
-func (logDB *DB) Query(q Query) (*[]Log, error) {
-	var logs []Log
+func (logDB *DB) Query(q Query) (*[]Entry, error) {
+	var logs []Entry
 
 	err := logDB.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(dbAPIversion))
 		c := b.Cursor()
 
-		var log Log
+		var log Entry
 		filterLog := func(rawLog []byte) error {
 			if err := json.Unmarshal(rawLog, &log); err != nil {
 				return fmt.Errorf("unmarshal log: %w", err)
@@ -165,7 +169,7 @@ func (logDB *DB) Query(q Query) (*[]Log, error) {
 			if !StringInStrings(log.Src, q.Sources) {
 				return nil
 			}
-			if !StringInStrings(log.Monitor, q.Monitors) {
+			if !StringInStrings(log.MonitorID, q.Monitors) {
 				return nil
 			}
 
@@ -237,7 +241,7 @@ func encodeKey(key uint64) []byte {
 	return output
 }
 
-func encodeValue(log Log) []byte {
+func encodeValue(log Entry) []byte {
 	value, _ := json.Marshal(log)
 	return value
 }

@@ -40,8 +40,11 @@ func sendLogf(
 		}
 		return "main"
 	}()
-	logger.Level(level).
-		Src("monitor").
-		Monitor(conf.MonitorID).
-		Msgf("%v %v: %v", prefix, processName, fmt.Sprintf(format, a...))
+	msg := fmt.Sprintf("%v %v: %v", prefix, processName, fmt.Sprintf(format, a...))
+	logger.Log(log.Entry{
+		Level:     level,
+		Src:       "monitor",
+		MonitorID: conf.MonitorID,
+		Msg:       msg,
+	})
 }

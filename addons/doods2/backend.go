@@ -46,7 +46,12 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 
 	id := i.Config.ID()
 	logf := func(level log.Level, format string, a ...interface{}) {
-		i.Log.Level(level).Src("doods").Monitor(id).Msgf(format, a...)
+		i.Logger.Log(log.Entry{
+			Level:     level,
+			Src:       "doods",
+			MonitorID: id,
+			Msg:       fmt.Sprintf(format, a...),
+		})
 	}
 
 	config, enable, err := parseConfig(*i.Config)

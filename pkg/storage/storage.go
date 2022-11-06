@@ -40,11 +40,11 @@ type Manager struct {
 	usage     func(string) int64
 	removeAll func(string) error
 
-	log *log.Logger
+	logger log.ILogger
 }
 
 // NewManager returns new manager.
-func NewManager(storageDir string, general *ConfigGeneral, log *log.Logger) *Manager {
+func NewManager(storageDir string, general *ConfigGeneral, log log.ILogger) *Manager {
 	return &Manager{
 		storageDir: storageDir,
 		general:    general,
@@ -52,7 +52,7 @@ func NewManager(storageDir string, general *ConfigGeneral, log *log.Logger) *Man
 		usage:     diskUsage,
 		removeAll: os.RemoveAll,
 
-		log: log,
+		logger: log,
 	}
 }
 
@@ -200,7 +200,11 @@ func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
 			return
 		case <-time.After(duration):
 			if err := s.purge(); err != nil {
-				s.log.Error().Src("app").Msgf("could not purge storage: %v", err)
+				s.logger.Log(log.Entry{
+					Level: log.LevelError,
+					Src:   "app",
+					Msg:   fmt.Sprintf("could not purge storage: %v", err),
+				})
 			}
 		}
 	}

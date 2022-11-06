@@ -58,9 +58,11 @@ func (s *hlsServer) start(ctx context.Context, address string) error {
 	if err != nil {
 		return err
 	}
-	s.logger.Info().
-		Src("app").
-		Msgf("HLS: listener opened on %v", address)
+	s.logger.Log(log.Entry{
+		Level: log.LevelInfo,
+		Src:   "app",
+		Msg:   fmt.Sprintf("HLS: listener opened on %v", address),
+	})
 
 	s.wg.Add(2)
 	s.startServer(ln)
@@ -84,10 +86,11 @@ func (s *hlsServer) startServer(ln net.Listener) {
 		for {
 			err := server.Serve(ln)
 			if !errors.Is(err, http.ErrServerClosed) {
-				s.logger.Error().
-					Src("app").
-					Msgf("hls: server stopped: %v\nrestarting..", err)
-
+				s.logger.Log(log.Entry{
+					Level: log.LevelError,
+					Src:   "app",
+					Msg:   fmt.Sprintf("hls: server stopped: %v\nrestarting..", err),
+				})
 				time.Sleep(3 * time.Second)
 			}
 			if s.ctx.Err() != nil {

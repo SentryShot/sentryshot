@@ -44,31 +44,31 @@ func newTestDB(t *testing.T) (*DB, func()) {
 
 func TestQuery(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		msg1 := Log{
-			Level:   LevelError,
-			Time:    4000,
-			Src:     "s1",
-			Monitor: "m1",
-			Msg:     "msg1",
+		msg1 := Entry{
+			Level:     LevelError,
+			Src:       "s1",
+			MonitorID: "m1",
+			Msg:       "msg1",
+			Time:      4000,
 		}
-		msg2 := Log{
+		msg2 := Entry{
 			Level: LevelWarning,
-			Time:  3000,
 			Src:   "s1",
 			Msg:   "msg2",
+			Time:  3000,
 		}
-		msg3 := Log{
-			Level:   LevelInfo,
-			Time:    2000,
-			Src:     "s2",
-			Monitor: "m2",
-			Msg:     "msg3",
+		msg3 := Entry{
+			Level:     LevelInfo,
+			Src:       "s2",
+			MonitorID: "m2",
+			Msg:       "msg3",
+			Time:      2000,
 		}
 		/*msg4 := Log{
 			Level: LevelDebug,
-			Time:  1000,
 			Src:   "s2",
 			Msg:   "msg4",
+			Time:  1000,
 		}*/
 
 		logDB, cancel := newTestDB(t)
@@ -82,114 +82,100 @@ func TestQuery(t *testing.T) {
 		// logDB.saveLog(msg4)
 		time.Sleep(10 * time.Millisecond)
 
-		cases := []struct {
-			name     string
+		cases := map[string]struct {
 			input    Query
-			expected *[]Log
+			expected *[]Entry
 		}{
-			{
-				name: "singleLevel",
+			"singleLevel": {
 				input: Query{
 					Levels:  []Level{LevelWarning},
 					Sources: []string{"s1"},
 				},
-				expected: &[]Log{msg2},
+				expected: &[]Entry{msg2},
 			},
-			{
-				name: "multipleLevels",
+			"multipleLevels": {
 				input: Query{
 					Levels:  []Level{LevelError, LevelWarning},
 					Sources: []string{"s1"},
 				},
-				expected: &[]Log{msg1, msg2},
+				expected: &[]Entry{msg1, msg2},
 			},
-			{
-				name: "singleSource",
+			"singleSource": {
 				input: Query{
 					Levels:  []Level{LevelError, LevelInfo},
 					Sources: []string{"s1"},
 				},
-				expected: &[]Log{msg1},
+				expected: &[]Entry{msg1},
 			},
-			{
-				name: "multipleSources",
+			"multipleSources": {
 				input: Query{
 					Levels:  []Level{LevelError, LevelInfo},
 					Sources: []string{"s1", "s2"},
 				},
-				expected: &[]Log{msg1, msg3},
+				expected: &[]Entry{msg1, msg3},
 			},
-			{
-				name: "singleMonitor",
+			"singleMonitor": {
 				input: Query{
 					Levels:   []Level{LevelError, LevelInfo},
 					Sources:  []string{"s1", "s2"},
 					Monitors: []string{"m1"},
 				},
-				expected: &[]Log{msg1},
+				expected: &[]Entry{msg1},
 			},
-			{
-				name: "multipleMonitors",
+			"multipleMonitors": {
 				input: Query{
 					Levels:   []Level{LevelError, LevelInfo},
 					Sources:  []string{"s1", "s2"},
 					Monitors: []string{"m1", "m2"},
 				},
-				expected: &[]Log{msg1, msg3},
+				expected: &[]Entry{msg1, msg3},
 			},
-			{
-				name: "all",
+			"all": {
 				input: Query{
 					Levels:  []Level{LevelError, LevelWarning, LevelInfo, LevelDebug},
 					Sources: []string{"s1", "s2"},
 				},
-				expected: &[]Log{msg1, msg2, msg3},
+				expected: &[]Entry{msg1, msg2, msg3},
 			},
-			{
-				name:     "none",
+			"none": {
 				input:    Query{},
-				expected: &[]Log{msg1, msg2, msg3},
+				expected: &[]Entry{msg1, msg2, msg3},
 			},
-			{
-				name: "limit",
+			"limit": {
 				input: Query{
 					Levels:  []Level{LevelError, LevelWarning, LevelInfo, LevelDebug},
 					Sources: []string{"s1", "s2"},
 					Limit:   2,
 				},
-				expected: &[]Log{msg1, msg2},
+				expected: &[]Entry{msg1, msg2},
 			},
-			{
-				name: "limit2",
+			"limit2": {
 				input: Query{
 					Levels: []Level{LevelInfo},
 					Limit:  1,
 				},
-				expected: &[]Log{msg3},
+				expected: &[]Entry{msg3},
 			},
-
-			{
-				name: "exactTime",
+			"exactTime": {
 				input: Query{
 					Levels:  []Level{LevelError, LevelWarning, LevelInfo, LevelDebug},
 					Sources: []string{"s1", "s2"},
 					Time:    4000,
 				},
-				expected: &[]Log{msg2, msg3},
+				expected: &[]Entry{msg2, msg3},
 			},
-			{
-				name: "time",
+			"time": {
 				input: Query{
 					Levels:  []Level{LevelError, LevelWarning, LevelInfo, LevelDebug},
 					Sources: []string{"s1", "s2"},
 					Time:    3500,
 				},
-				expected: &[]Log{msg2, msg3},
+				expected: &[]Entry{msg2, msg3},
 			},
 		}
 
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
+		for name, tc := range cases {
+			t.Run(name, func(t *testing.T) {
 				logs, err := logDB.Query(tc.input)
 				require.NoError(t, err)
 
@@ -213,7 +199,7 @@ func TestQuery(t *testing.T) {
 
 		err = logDB.db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(dbAPIversion))
-			return b.Put([]byte("valid"), []byte(encodeValue(Log{})))
+			return b.Put([]byte("valid"), []byte(encodeValue(Entry{})))
 		})
 		require.NoError(t, err)
 
@@ -235,11 +221,11 @@ func TestDB(t *testing.T) {
 			return nil
 		})
 
-		logDB.saveLog(Log{Time: 1})
-		logDB.saveLog(Log{Time: 2})
-		logDB.saveLog(Log{Time: 3})
-		logDB.saveLog(Log{Time: 4})
-		logDB.saveLog(Log{Time: 5})
+		logDB.saveLog(Entry{Time: 1})
+		logDB.saveLog(Entry{Time: 2})
+		logDB.saveLog(Entry{Time: 3})
+		logDB.saveLog(Entry{Time: 4})
+		logDB.saveLog(Entry{Time: 5})
 
 		logDB.db.View(func(tx *bolt.Tx) error {
 			keyN := tx.Bucket([]byte(dbAPIversion)).Stats().KeyN

@@ -46,7 +46,7 @@ type Authenticator struct {
 
 	hashCost int
 
-	log *log.Logger
+	logger *log.Logger
 
 	// hashLock limits concurrent hashing operations
 	// to mitigate denial of service attacks.
@@ -63,7 +63,7 @@ func NewBasicAuthenticator(env storage.ConfigEnv, logger *log.Logger) (auth.Auth
 		authCache: make(map[string]auth.ValidateResponse),
 
 		hashCost: auth.DefaultBcryptHashCost,
-		log:      logger,
+		logger:   logger,
 	}
 
 	file, err := os.ReadFile(path)
@@ -275,7 +275,7 @@ func (a *Authenticator) User(next http.Handler) http.Handler {
 		if !res.IsValid {
 			if r.Header.Get("Authorization") != "" {
 				username, _ := parseBasicAuth(r.Header.Get("Authorization"))
-				auth.LogFailedLogin(a.log, r, username)
+				auth.LogFailedLogin(a.logger, r, username)
 			}
 			w.Header().Set("WWW-Authenticate", `Basic realm=""`)
 			w.WriteHeader(http.StatusUnauthorized)
@@ -294,7 +294,7 @@ func (a *Authenticator) Admin(next http.Handler) http.Handler {
 		if !res.IsValid || !res.User.IsAdmin {
 			if r.Header.Get("Authorization") != "" {
 				username, _ := parseBasicAuth(r.Header.Get("Authorization"))
-				auth.LogFailedLogin(a.log, r, username)
+				auth.LogFailedLogin(a.logger, r, username)
 			}
 
 			w.Header().Set("WWW-Authenticate", `Basic realm="NVR"`)

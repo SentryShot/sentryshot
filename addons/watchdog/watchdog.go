@@ -25,7 +25,12 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 
 	logf := func(level log.Level, format string, a ...interface{}) {
 		format = fmt.Sprintf("%v process: %s", processName, format)
-		i.Log.Level(level).Src("watchdog").Monitor(monitorID).Msgf(format, a...)
+		i.Logger.Log(log.Entry{
+			Level:     level,
+			Src:       "watchdog",
+			MonitorID: monitorID,
+			Msg:       fmt.Sprintf(format, a...),
+		})
 	}
 
 	muxer := func() (muxer, error) {

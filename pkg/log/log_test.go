@@ -17,80 +17,95 @@ package log
 
 import (
 	"context"
-	"os"
-	"os/exec"
+	"io"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-func newTestLogger(t *testing.T) (context.Context, func(), *Logger) {
-	logger := NewMockLogger()
+func newTestLogger(t *testing.T) (func(), *Logger) {
+	logger := &Logger{
+		feed:  make(chan Entry),
+		sub:   make(chan chan Entry),
+		unsub: make(chan chan Entry),
+		wg:    &sync.WaitGroup{},
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	logger.Start(ctx)
 
-	return ctx, cancel, logger
+	return cancel, logger
+}
+
+func TestLoggerMSG(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		cancel, logger := newTestLogger(t)
+		defer cancel()
+
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			logger.Log(Entry{
+				Level: LevelInfo, Src: "s1", MonitorID: "m1", Msg: "1",
+			})
+			logger.Log(Entry{
+				Level: LevelWarning, Src: "s2", MonitorID: "m2", Msg: "2",
+			})
+			logger.Log(Entry{
+				Level: LevelError, Src: "s3", MonitorID: "m3", Msg: "3",
+			})
+			logger.Log(Entry{
+				Level: LevelDebug, Src: "s4", MonitorID: "m4", Msg: "4",
+			})
+		}()
+
+		feed, cancel2 := logger.Subscribe()
+		defer cancel2()
+
+		actual := []Entry{<-feed, <-feed, <-feed, <-feed}
+		for i := 0; i < len(actual); i++ {
+			actual[i].Time = 0
+		}
+
+		expected := []Entry{
+			{Level: LevelInfo, Src: "s1", MonitorID: "m1", Msg: "1"},
+			{Level: LevelWarning, Src: "s2", MonitorID: "m2", Msg: "2"},
+			{Level: LevelError, Src: "s3", MonitorID: "m3", Msg: "3"},
+			{Level: LevelDebug, Src: "s4", MonitorID: "m4", Msg: "4"},
+		}
+
+		require.Equal(t, actual, expected)
+	})
+
+	panics := map[string]Entry{
+		"levelPanic": {
+			Src: "src",
+			Msg: "msg",
+		},
+		"srcPanic": {
+			Level: LevelDebug,
+			Msg:   "msg",
+		},
+		"msgPanic": {
+			Level: LevelDebug,
+			Src:   "src",
+		},
+	}
+	for name, log := range panics {
+		t.Run(name, func(t *testing.T) {
+			cancel, logger := newTestLogger(t)
+			defer cancel()
+			require.Panics(t, func() {
+				logger.Log(log)
+			})
+		})
+	}
 }
 
 func TestLogger(t *testing.T) {
-	t.Run("msg", func(t *testing.T) {
-		_, cancel, logger := newTestLogger(t)
-		defer cancel()
-
-		go func() {
-			time.Sleep(10 * time.Millisecond)
-			logger.Info().Src("s1").Monitor("m1").Time(time.Unix(0, 1000)).Msg("1")
-			logger.Warn().Src("s2").Monitor("m2").Time(time.Unix(0, 2000)).Msg("2")
-			logger.Error().Src("s3").Monitor("m3").Time(time.Unix(0, 3000)).Msg("3")
-			logger.Debug().Src("s4").Monitor("m4").Time(time.Unix(0, 4000)).Msg("4")
-		}()
-
-		feed, cancel2 := logger.Subscribe()
-		defer cancel2()
-
-		actual := []Log{<-feed, <-feed, <-feed, <-feed}
-
-		expected := []Log{
-			{Level: LevelInfo, Src: "s1", Monitor: "m1", Msg: "1", Time: 1},
-			{Level: LevelWarning, Src: "s2", Monitor: "m2", Msg: "2", Time: 2},
-			{Level: LevelError, Src: "s3", Monitor: "m3", Msg: "3", Time: 3},
-			{Level: LevelDebug, Src: "s4", Monitor: "m4", Msg: "4", Time: 4},
-		}
-
-		require.Equal(t, actual, expected)
-	})
-	t.Run("ffmpegLevel", func(t *testing.T) {
-		_, cancel, logger := newTestLogger(t)
-		defer cancel()
-
-		go func() {
-			time.Sleep(10 * time.Millisecond)
-			logger.FFmpegLevel("fatal").Time(time.Unix(0, 1000)).Msg("")
-			logger.FFmpegLevel("error").Time(time.Unix(0, 2000)).Msg("")
-			logger.FFmpegLevel("warning").Time(time.Unix(0, 3000)).Msg("")
-			logger.FFmpegLevel("info").Time(time.Unix(0, 4000)).Msg("")
-			logger.FFmpegLevel("debug").Time(time.Unix(0, 5000)).Msg("")
-		}()
-
-		feed, cancel2 := logger.Subscribe()
-		defer cancel2()
-
-		actual := []Log{<-feed, <-feed, <-feed, <-feed, <-feed}
-
-		expected := []Log{
-			{Level: LevelError, Time: 1},
-			{Level: LevelError, Time: 2},
-			{Level: LevelWarning, Time: 3},
-			{Level: LevelInfo, Time: 4},
-			{Level: LevelDebug, Time: 5},
-		}
-
-		require.Equal(t, actual, expected)
-	})
 	t.Run("canceled", func(t *testing.T) {
-		_, cancel, logger := newTestLogger(t)
+		cancel, logger := newTestLogger(t)
 		cancel()
 		time.Sleep(10 * time.Millisecond)
 
@@ -102,7 +117,7 @@ func TestLogger(t *testing.T) {
 		cancel2()
 	})
 	t.Run("closeChannels", func(t *testing.T) {
-		_, cancel, logger := newTestLogger(t)
+		cancel, logger := newTestLogger(t)
 
 		feed1, cancel2 := logger.Subscribe()
 
@@ -113,7 +128,7 @@ func TestLogger(t *testing.T) {
 		require.False(t, ok)
 	})
 	t.Run("unsubBeforePrint", func(t *testing.T) {
-		_, cancel, logger := newTestLogger(t)
+		cancel, logger := newTestLogger(t)
 		defer cancel()
 
 		feed1, cancel1 := logger.Subscribe()
@@ -121,7 +136,7 @@ func TestLogger(t *testing.T) {
 		cancel2()
 
 		msg := "test"
-		logger.Info().Msg(msg)
+		logger.Log(Entry{Level: LevelInfo, Src: "test", Msg: msg})
 		actual1 := <-feed1
 		actual2 := <-feed2
 		cancel1()
@@ -130,52 +145,64 @@ func TestLogger(t *testing.T) {
 		require.Equal(t, actual2.Msg, "")
 	})
 	t.Run("unsubAfterPrint", func(t *testing.T) {
-		_, cancel, logger := newTestLogger(t)
+		cancel, logger := newTestLogger(t)
 		defer cancel()
 
 		feed, cancel2 := logger.Subscribe()
 
-		go func() { logger.Info().Msg("test") }()
-		go func() { logger.Info().Msg("test") }()
-		go func() { logger.Info().Msg("test") }()
+		newTestEntry := func() Entry {
+			return Entry{Level: LevelInfo, Src: ".", Msg: "test"}
+		}
+
+		go func() { logger.Log(newTestEntry()) }()
+		go func() { logger.Log(newTestEntry()) }()
+		go func() { logger.Log(newTestEntry()) }()
 		time.Sleep(10 * time.Microsecond)
 		cancel2()
 
 		actual := <-feed
 		require.Equal(t, actual.Msg, "")
 	})
-	t.Run("logToStdout", func(t *testing.T) {
-		cs := []string{"-test.run=TestLogToStdout"}
-		cmd := exec.Command(os.Args[0], cs...)
-		cmd.Env = []string{"GO_TEST_PROCESS=1"}
+	t.Run("logToWriter", func(t *testing.T) {
+		cancel, logger := newTestLogger(t)
+		defer cancel()
 
-		output, err := cmd.CombinedOutput()
-		require.NoError(t, err)
+		ctx, cancel2 := context.WithCancel(context.Background())
+		defer cancel2()
 
-		actual := string(output)
-		expected := `[ERROR] test
-[WARNING] test
-[INFO] test
-[DEBUG] test
-`
-		require.Equal(t, actual, expected)
+		newTestEntry := func(level Level) Entry {
+			return Entry{Level: level, Src: "src", Msg: "msg"}
+		}
+
+		w, writes := newMockWriter()
+
+		go logger.LogToWriter(ctx, w)
+		time.Sleep(100 * time.Millisecond)
+
+		go logger.Log(newTestEntry(LevelError))
+		require.Equal(t, "[ERROR] Src: msg\n", <-writes)
+
+		go logger.Log(newTestEntry(LevelWarning))
+		require.Equal(t, "[WARNING] Src: msg\n", <-writes)
+
+		go logger.Log(newTestEntry(LevelInfo))
+		require.Equal(t, "[INFO] Src: msg\n", <-writes)
+
+		go logger.Log(newTestEntry(LevelDebug))
+		require.Equal(t, "[DEBUG] Src: msg\n", <-writes)
 	})
 }
 
-func TestLogToStdout(t *testing.T) {
-	if os.Getenv("GO_TEST_PROCESS") != "1" {
-		return
-	}
-	ctx, cancel, logger := newTestLogger(t)
-	defer cancel()
+type mockWriter struct {
+	writes chan string
+}
 
-	go logger.LogToStdout(ctx)
-	time.Sleep(1 * time.Millisecond)
-	logger.Error().Msg("test")
-	logger.Warn().Msg("test")
-	logger.Info().Msg("test")
-	logger.Debug().Msg("test")
-	time.Sleep(5 * time.Millisecond)
+func newMockWriter() (io.Writer, chan string) {
+	writes := make(chan string)
+	return &mockWriter{writes: writes}, writes
+}
 
-	os.Exit(0)
+func (w *mockWriter) Write(p []byte) (int, error) {
+	w.writes <- string(p)
+	return len(p), nil
 }

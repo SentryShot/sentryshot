@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"nvr/pkg/log"
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/base"
@@ -66,7 +67,11 @@ func (s *rtspServer) start(ctx context.Context) error {
 		return err
 	}
 
-	s.logger.Info().Src("app").Msgf("RTSP: listener opened on %v", s.address)
+	s.logger.Log(log.Entry{
+		Level: log.LevelInfo,
+		Src:   "app",
+		Msg:   fmt.Sprintf("RTSP: listener opened on %v", s.address),
+	})
 	s.wg.Add(1)
 	go s.run()
 
@@ -83,7 +88,11 @@ func (s *rtspServer) run() {
 
 	select {
 	case err := <-serverErr:
-		s.logger.Error().Src("app").Msgf("RTSP: server error: %s", err)
+		s.logger.Log(log.Entry{
+			Level: log.LevelError,
+			Src:   "app",
+			Msg:   fmt.Sprintf("RTSP: server error: %s", err),
+		})
 		return
 
 	case <-s.ctx.Done():

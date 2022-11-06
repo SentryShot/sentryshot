@@ -48,11 +48,11 @@ type Recorder struct {
 	runSession runRecordingFunc
 	NewProcess ffmpeg.NewProcessFunc
 
-	input *InputProcess
-	Env   storage.ConfigEnv
-	Log   *log.Logger
-	wg    *sync.WaitGroup
-	hooks Hooks
+	input  *InputProcess
+	Env    storage.ConfigEnv
+	Logger *log.Logger
+	wg     *sync.WaitGroup
+	hooks  Hooks
 
 	sleep   time.Duration
 	prevSeg uint64
@@ -61,7 +61,12 @@ type Recorder struct {
 func newRecorder(m *Monitor) *Recorder {
 	monitorID := m.Config.ID()
 	logf := func(level log.Level, format string, a ...interface{}) {
-		m.Log.Level(level).Src("recorder").Monitor(monitorID).Msgf(format, a...)
+		m.Logger.Log(log.Entry{
+			Level:     level,
+			Src:       "recorder",
+			MonitorID: monitorID,
+			Msg:       fmt.Sprintf(format, a...),
+		})
 	}
 	return &Recorder{
 		Config:      m.Config,
@@ -74,11 +79,11 @@ func newRecorder(m *Monitor) *Recorder {
 		runSession: runRecording,
 		NewProcess: ffmpeg.NewProcess,
 
-		input: m.mainInput,
-		Env:   m.Env,
-		Log:   m.Log,
-		wg:    m.WG,
-		hooks: m.hooks,
+		input:  m.mainInput,
+		Env:    m.Env,
+		Logger: m.Logger,
+		wg:     m.WG,
+		hooks:  m.hooks,
 
 		sleep: 3 * time.Second,
 	}

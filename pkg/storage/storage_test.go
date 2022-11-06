@@ -233,27 +233,22 @@ func TestPurgeLoop(t *testing.T) {
 		m.PurgeLoop(ctx, 0)
 	})
 	t.Run("error", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		logger := log.NewMockLogger()
-		logger.Start(ctx)
-		feed, cancel2 := logger.Subscribe()
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		logger, logs := log.NewMockLogger()
 
 		m := &Manager{
 			storageDir: "testdata",
 			general:    diskSpaceErr,
 			usage:      highUsage,
-			log:        logger,
+			logger:     logger,
 		}
-		ctx, cancel3 := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		defer cancel3()
+
 		go m.PurgeLoop(ctx, 0)
 
-		actual := <-feed
-		cancel2()
-		cancel()
-
 		expected := `could not purge storage: strconv.ParseFloat: parsing "nil": invalid syntax`
-		require.Equal(t, actual.Msg, expected)
+		require.Equal(t, expected, <-logs)
 	})
 }
 

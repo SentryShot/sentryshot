@@ -72,7 +72,7 @@ func newTestAuth(t *testing.T) (string, *Authenticator, func()) {
 		authCache: make(map[string]auth.ValidateResponse),
 
 		hashCost: bcrypt.MinCost,
-		log:      &log.Logger{},
+		logger:   &log.Logger{},
 	}
 	return tempDir, &auth, cancelFunc
 }

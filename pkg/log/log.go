@@ -20,6 +20,8 @@ package log
 import (
 	"context"
 	"fmt"
+	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,7 +35,7 @@ type Func func(level Level, format string, a ...interface{})
 // Level defines log level.
 type Level uint8
 
-// Logging constants, matching ffmpeg.
+// Logging constants matching FFmpeg.
 const (
 	LevelError   Level = 16
 	LevelWarning Level = 24
@@ -44,88 +46,43 @@ const (
 // UnixMillisecond .
 type UnixMillisecond uint64
 
-// Event defines log event.
-type Event struct {
-	level   Level
-	time    UnixMillisecond // Timestamp.
-	src     string          // Source.
-	monitor string          // Source monitor id.
-
-	logger *Logger
+// Entry defines log entry.
+type Entry struct {
+	Level     Level
+	Msg       string          // Message
+	Src       string          // Source.
+	MonitorID string          // Source monitor id.
+	Time      UnixMillisecond // Timestamp. Do not set manually.
 }
 
-// Log defines log entry.
-type Log struct {
-	Level   Level
-	Time    UnixMillisecond // Timestamp.
-	Msg     string          // Message
-	Src     string          // Source.
-	Monitor string          // Source monitor id.
+// GetTime entry timestamp as time.GetTime.
+func (e Entry) GetTime() time.Time {
+	return time.Unix(0, int64(e.Time*1000))
 }
 
-// Level starts a new message with provided level.
-// You must call Msg on the returned event in order to send the event.
-func (l *Logger) Level(level Level) *Event {
-	return &Event{
-		level:  level,
-		time:   UnixMillisecond(time.Now().UnixNano() / 1000),
-		logger: l,
+func (e Entry) String() string {
+	var b strings.Builder
+
+	switch e.Level {
+	case LevelError:
+		b.WriteString("[ERROR] ")
+	case LevelWarning:
+		b.WriteString("[WARNING] ")
+	case LevelInfo:
+		b.WriteString("[INFO] ")
+	case LevelDebug:
+		b.WriteString("[DEBUG] ")
 	}
-}
 
-// GetTime as time.Time.
-func (l Log) GetTime() time.Time {
-	return time.Unix(0, int64(l.Time*1000))
-}
-
-// Error starts a new message with error level.
-// You must call Msg on the returned event in order to send the event.
-func (l *Logger) Error() *Event {
-	return &Event{
-		level:  LevelError,
-		time:   UnixMillisecond(time.Now().UnixNano() / 1000),
-		logger: l,
+	if e.MonitorID != "" {
+		b.WriteString(e.MonitorID + ": ")
 	}
-}
 
-// Warn starts a new message with warn level.
-// You must call Msg on the returned event in order to send the event.
-func (l *Logger) Warn() *Event {
-	return &Event{
-		level:  LevelWarning,
-		time:   UnixMillisecond(time.Now().UnixNano() / 1000),
-		logger: l,
-	}
-}
+	srcTitle := cases.Title(language.Und).String(e.Src)
+	b.WriteString(srcTitle + ": ")
 
-// Info starts a new message with info level.
-// You must call Msg on the returned event in order to send the event.
-func (l *Logger) Info() *Event {
-	return &Event{
-		level:  LevelInfo,
-		time:   UnixMillisecond(time.Now().UnixNano() / 1000),
-		logger: l,
-	}
-}
-
-// Debug starts a new message with debug level.
-// You must call Msg on the returned event in order to send the event.
-func (l *Logger) Debug() *Event {
-	return &Event{
-		level:  LevelDebug,
-		time:   UnixMillisecond(time.Now().UnixNano() / 1000),
-		logger: l,
-	}
-}
-
-// FFmpegLevel start a new message with converted ffmpeg log level.
-// You must call Msg on the returned event in order to send the event.
-func (l *Logger) FFmpegLevel(logLevel string) *Event {
-	return &Event{
-		level:  FFmpegLevel(logLevel),
-		time:   UnixMillisecond(time.Now().UnixNano() / 1000),
-		logger: l,
-	}
+	b.WriteString(e.Msg)
+	return b.String()
 }
 
 // FFmpegLevel converts ffmpeg log level to Level.
@@ -144,83 +101,53 @@ func FFmpegLevel(logLevel string) Level {
 	return LevelDebug
 }
 
-// Src sets event source.
-func (e *Event) Src(source string) *Event {
-	e.src = source
-	return e
+// ILogger Logger interface.
+type ILogger interface {
+	Log(log Entry)
 }
 
-// Monitor sets event monitor.
-func (e *Event) Monitor(monitorID string) *Event {
-	e.monitor = monitorID
-	return e
-}
+// Logger .
+type Logger struct {
+	feed  chan Entry      // feed of logs.
+	sub   chan chan Entry // subscribe requests.
+	unsub chan chan Entry // unsubscribe requests.
 
-// Time sets event time.
-func (e *Event) Time(t time.Time) *Event {
-	e.time = UnixMillisecond(t.UnixNano() / 1000)
-	return e
+	wg      *sync.WaitGroup
+	Ctx     context.Context
+	sources []string
 }
-
-// Msg sends the *Event with msg added as the message field.
-func (e *Event) Msg(msg string) {
-	log := Log{
-		Time:    e.time,
-		Level:   e.level,
-		Msg:     msg,
-		Src:     e.src,
-		Monitor: e.monitor,
-	}
-	select {
-	case <-e.logger.Ctx.Done():
-	case e.logger.feed <- log:
-	}
-}
-
-// Msgf sends the event with formatted msg added as the message field.
-func (e *Event) Msgf(format string, v ...interface{}) {
-	e.Msg(fmt.Sprintf(format, v...))
-}
-
-// Feed defines feed of logs.
-type (
-	Feed    <-chan Log
-	logFeed chan Log
-)
 
 var defaultSources = []string{"app", "auth", "monitor", "recorder"}
 
 // NewLogger starts and returns Logger.
 func NewLogger(wg *sync.WaitGroup, addonSources []string) *Logger {
 	return &Logger{
-		feed:  make(logFeed),
-		sub:   make(chan logFeed),
-		unsub: make(chan logFeed),
+		feed:  make(chan Entry),
+		sub:   make(chan chan Entry),
+		unsub: make(chan chan Entry),
 
 		wg:      wg,
 		sources: append(defaultSources, addonSources...),
 	}
 }
 
-// NewMockLogger used for testing.
-func NewMockLogger() *Logger {
-	return &Logger{
-		feed:  make(logFeed),
-		sub:   make(chan logFeed),
-		unsub: make(chan logFeed),
-		wg:    &sync.WaitGroup{},
+// Log to logger.
+func (l *Logger) Log(log Entry) {
+	if log.Level == 0 {
+		panic(fmt.Sprintf("log level cannot be 0: %v", log))
 	}
-}
+	if log.Src == "" {
+		panic(fmt.Sprintf("log source cannot be empty: %v", log))
+	}
+	// MonitorID can be empty.
+	if log.Msg == "" {
+		panic(fmt.Sprintf("log message cannot be empty: %v", log))
+	}
 
-// Logger .
-type Logger struct {
-	feed  logFeed      // feed of logs.
-	sub   chan logFeed // subscribe requests.
-	unsub chan logFeed // unsubscribe requests.
-
-	wg      *sync.WaitGroup
-	Ctx     context.Context
-	sources []string
+	select {
+	case <-l.Ctx.Done():
+	case l.feed <- log:
+	}
 }
 
 // Sources Returns log sources.
@@ -234,7 +161,7 @@ func (l *Logger) Start(ctx context.Context) error {
 
 	l.wg.Add(1)
 	go func() {
-		subs := map[logFeed]struct{}{}
+		subs := map[chan Entry]struct{}{}
 		for {
 			select {
 			case <-ctx.Done():
@@ -266,8 +193,8 @@ func (l *Logger) Start(ctx context.Context) error {
 type CancelFunc func()
 
 // Subscribe returns a new chan with log feed and a CancelFunc.
-func (l *Logger) Subscribe() (<-chan Log, CancelFunc) {
-	feed := make(logFeed)
+func (l *Logger) Subscribe() (<-chan Entry, CancelFunc) {
+	feed := make(chan Entry)
 
 	select {
 	case <-l.Ctx.Done():
@@ -282,7 +209,7 @@ func (l *Logger) Subscribe() (<-chan Log, CancelFunc) {
 	return feed, cancel
 }
 
-func (l *Logger) unSubscribe(feed logFeed) {
+func (l *Logger) unSubscribe(feed chan Entry) {
 	// Read feed until unsub request is accepted.
 	for {
 		select {
@@ -293,16 +220,16 @@ func (l *Logger) unSubscribe(feed logFeed) {
 	}
 }
 
-// LogToStdout prints log feed to Stdout.
-func (l *Logger) LogToStdout(ctx context.Context) {
+// LogToWriter prints log feed to writer.
+func (l *Logger) LogToWriter(ctx context.Context, out io.Writer) {
 	feed, cancel := l.Subscribe()
 	defer cancel()
 
 	l.wg.Add(1)
 	for {
 		select {
-		case log := <-feed:
-			printLog(log)
+		case entry := <-feed:
+			fmt.Fprintln(out, entry)
 		case <-ctx.Done():
 			l.wg.Done()
 			return
@@ -310,28 +237,14 @@ func (l *Logger) LogToStdout(ctx context.Context) {
 	}
 }
 
-func printLog(log Log) {
-	var output string
+type mockLogger chan string
 
-	switch log.Level {
-	case LevelError:
-		output += "[ERROR] "
-	case LevelWarning:
-		output += "[WARNING] "
-	case LevelInfo:
-		output += "[INFO] "
-	case LevelDebug:
-		output += "[DEBUG] "
-	}
+func (logger *mockLogger) Log(log Entry) {
+	*logger <- log.Msg
+}
 
-	if log.Monitor != "" {
-		output += log.Monitor + ": "
-	}
-	if log.Src != "" {
-		srcTitle := cases.Title(language.Und).String(log.Src)
-		output += srcTitle + ": "
-	}
-
-	output += log.Msg
-	fmt.Println(output)
+// NewMockLogger creates a ILogger used for testing.
+func NewMockLogger() (ILogger, chan string) {
+	logger := make(mockLogger)
+	return &logger, logger
 }

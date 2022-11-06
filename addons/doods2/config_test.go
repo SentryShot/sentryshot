@@ -92,15 +92,17 @@ func TestParseConfig(t *testing.T) {
 		}
 		require.Equal(t, expected, *actual)
 	})
-	t.Run("disabled", func(t *testing.T) {
-		doods := `
-		{
-			"enable":       "false",
-			"detectorName": "x"
-		}`
+	t.Run("empty", func(t *testing.T) {
 		c := monitor.Config{
-			"doods": doods,
+			"doods": "",
 		}
+		actual, enable, err := parseConfig(c)
+		require.NoError(t, err)
+		require.Nil(t, actual)
+		require.False(t, enable)
+	})
+	t.Run("disabled", func(t *testing.T) {
+		c := monitor.Config{}
 		actual, enable, err := parseConfig(c)
 		require.NoError(t, err)
 		require.Nil(t, actual)
@@ -137,7 +139,7 @@ func TestParseConfig(t *testing.T) {
 		expected := thresholds{"a": 1, "b": 2}
 		require.Equal(t, expected, actual)
 	})
-	t.Run("empty", func(t *testing.T) {
+	t.Run("empty2", func(t *testing.T) {
 		doods := `
 		{
 			"enable": "true"

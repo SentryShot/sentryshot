@@ -21,7 +21,7 @@ type path struct {
 	conf      *PathConf
 	wg        *sync.WaitGroup
 	hlsServer pathHLSServer
-	logger    *log.Logger
+	logger    log.ILogger
 
 	source      closer
 	sourceReady bool
@@ -38,7 +38,7 @@ func newPath(
 	conf *PathConf,
 	wg *sync.WaitGroup,
 	hlsServer pathHLSServer,
-	logger *log.Logger,
+	logger log.ILogger,
 ) *path {
 	pa := &path{
 		name:      name,

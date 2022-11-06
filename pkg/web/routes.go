@@ -456,7 +456,11 @@ func RecordingVideo(logger *log.Logger, recordingsDir string) http.Handler {
 
 		video, err := storage.NewVideoReader(path, videoReaderCache)
 		if err != nil {
-			logger.Error().Src("app").Msgf("video request: %v", err)
+			logger.Log(log.Entry{
+				Level: log.LevelError,
+				Src:   "app",
+				Msg:   fmt.Sprintf("video request: %v", err),
+			})
 			http.Error(w, "see logs for details", http.StatusInternalServerError)
 		}
 		defer video.Close()
@@ -480,7 +484,7 @@ func containsDotDot(v string) bool {
 func isSlashRune(r rune) bool { return r == '/' || r == '\\' }
 
 // RecordingQuery handles recording query.
-func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //nolint:funlen
+func RecordingQuery(crawler *storage.Crawler, logger *log.Logger) http.Handler { //nolint:funlen
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -532,9 +536,11 @@ func RecordingQuery(crawler *storage.Crawler, log *log.Logger) http.Handler { //
 
 		recordings, err := crawler.RecordingByQuery(q)
 		if err != nil {
-			log.Error().Src("storage").
-				Msgf("crawler: could not process recording query: %v", err)
-
+			logger.Log(log.Entry{
+				Level: log.LevelError,
+				Src:   "app",
+				Msg:   fmt.Sprintf("crawler: could not process recording query: %v", err),
+			})
 			http.Error(w, "could not process recording query", http.StatusInternalServerError)
 			return
 		}
@@ -598,7 +604,7 @@ func LogFeed(logger *log.Logger, a auth.Authenticator) http.Handler { //nolint:f
 		defer cancel()
 
 		for {
-			var l log.Log
+			var l log.Entry
 			select {
 			case l = <-feed:
 			case <-logger.Ctx.Done():

@@ -18,7 +18,7 @@ type pathManagerHLSServer interface {
 
 type pathManager struct {
 	wg  *sync.WaitGroup
-	log *log.Logger
+	log log.ILogger
 	mu  sync.Mutex
 
 	hlsServer pathManagerHLSServer
@@ -28,7 +28,7 @@ type pathManager struct {
 
 func newPathManager(
 	wg *sync.WaitGroup,
-	log *log.Logger,
+	log log.ILogger,
 	hlsServer pathManagerHLSServer,
 ) *pathManager {
 	return &pathManager{

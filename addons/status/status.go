@@ -78,7 +78,11 @@ type system struct {
 
 func newSystem(disk diskFunc, logger *log.Logger) *system {
 	logf := func(level log.Level, format string, a ...interface{}) {
-		logger.Level(level).Src("app").Msgf(format, a...)
+		logger.Log(log.Entry{
+			Level: level,
+			Src:   "app",
+			Msg:   fmt.Sprintf(format, a...),
+		})
 	}
 
 	return &system{

@@ -14,14 +14,9 @@ import (
 type cancelFunc func()
 
 func newTestServer(t *testing.T) (*Server, cancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
-	logger := log.NewMockLogger()
-	if err := logger.Start(ctx); err != nil {
-		require.NoError(t, err)
-	}
-
+	logger, _ := log.NewMockLogger()
 	pathManager := newPathManager(&wg, logger, nil)
 
 	s := &Server{
@@ -32,7 +27,6 @@ func newTestServer(t *testing.T) (*Server, cancelFunc) {
 	}
 
 	cancelFunc := func() {
-		cancel()
 		wg.Wait()
 	}
 

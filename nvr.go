@@ -71,14 +71,14 @@ func Run() error {
 
 	select {
 	case err = <-fatal:
-		app.Logger.Info().Src("app").Msgf("fatal error: %v", err)
+		app.logf(log.LevelError, "fatal error: %v", err)
 	case signal := <-stop:
-		app.Logger.Info().Msg("") // New line.
-		app.Logger.Info().Src("app").Msgf("received %v, stopping", signal)
+		fmt.Println("") // New line.
+		app.logf(log.LevelInfo, "received %v, stopping", signal)
 	}
 
 	app.monitorManager.StopAll()
-	app.Logger.Info().Src("app").Msg("Monitors stopped.")
+	app.logf(log.LevelInfo, "Monitors stopped.")
 
 	cancel()
 	wg.Wait()
@@ -266,12 +266,16 @@ func (app *App) run(ctx context.Context) error {
 		return fmt.Errorf("could not start logger: %w", err)
 	}
 
-	go app.Logger.LogToStdout(ctx)
+	go app.Logger.LogToWriter(ctx, os.Stdout)
 
 	if err := app.logDB.Init(ctx); err != nil {
 		// Continue even if log database is corrupt.
 		time.Sleep(10 * time.Millisecond)
-		app.Logger.Error().Src("app").Msgf("could not initialize log database: %v", err)
+		app.Logger.Log(log.Entry{
+			Level: log.LevelError,
+			Src:   "app",
+			Msg:   fmt.Sprintf("could not initialize log database: %v", err),
+		})
 	} else {
 		go app.logDB.SaveLogs(ctx, app.Logger)
 		time.Sleep(10 * time.Millisecond)
@@ -281,7 +285,7 @@ func (app *App) run(ctx context.Context) error {
 		return err
 	}
 
-	app.Logger.Info().Src("app").Msg("Starting..")
+	app.logf(log.LevelInfo, "Starting..")
 
 	if err := app.Env.PrepareEnvironment(); err != nil {
 		return fmt.Errorf("could not prepare environment: %w", err)
@@ -301,6 +305,14 @@ func (app *App) run(ctx context.Context) error {
 
 	go app.Storage.PurgeLoop(ctx, 10*time.Minute)
 
-	app.Logger.Info().Src("app").Msgf("Serving app on port %v", app.Env.Port)
+	app.logf(log.LevelInfo, "Serving app on port %v", app.Env.Port)
 	return app.server.ListenAndServe()
+}
+
+func (app *App) logf(level log.Level, format string, a ...interface{}) {
+	app.Logger.Log(log.Entry{
+		Level: level,
+		Src:   "app",
+		Msg:   fmt.Sprintf(format, a...),
+	})
 }
