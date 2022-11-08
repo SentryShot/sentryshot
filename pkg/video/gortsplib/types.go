@@ -10,7 +10,7 @@ import (
 // ServerHandler is the interface implemented by all the server handlers.
 type ServerHandler interface {
 	OnConnClose(*ServerConn, error)
-	OnSessionOpen(*ServerSession, *ServerConn)
+	OnSessionOpen(*ServerSession, *ServerConn, string)
 	OnSessionClose(*ServerSession, error)
 	OnDescribe(pathName string) (*base.Response, *ServerStream, error)
 	OnAnnounce(*ServerSession, string, Tracks) (*base.Response, error)

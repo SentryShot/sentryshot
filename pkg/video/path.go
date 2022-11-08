@@ -16,6 +16,10 @@ type pathHLSServer interface {
 	pathSourceNotReady(pathName string)
 }
 
+type closer interface {
+	close()
+}
+
 type path struct {
 	name      string
 	conf      *PathConf
@@ -56,6 +60,22 @@ func newPath(
 	}()
 
 	return pa
+}
+
+func (pa *path) logf(level log.Level, format string, a ...interface{}) {
+	processName := func() string {
+		if pa.conf.IsSub {
+			return "sub"
+		}
+		return "main"
+	}()
+	msg := fmt.Sprintf("%v: %v", processName, fmt.Sprintf(format, a...))
+	pa.logger.Log(log.Entry{
+		Level:     level,
+		Src:       "monitor",
+		MonitorID: pa.conf.MonitorID,
+		Msg:       msg,
+	})
 }
 
 func (pa *path) close() {

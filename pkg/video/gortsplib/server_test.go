@@ -22,7 +22,7 @@ func writeReqReadRes(conn *conn.Conn, req base.Request) (*base.Response, error) 
 
 type testServerHandler struct {
 	onConnClose    func(*ServerConn, error)
-	onSessionOpen  func(*ServerSession, *ServerConn)
+	onSessionOpen  func(*ServerSession, *ServerConn, string)
 	onSessionClose func(*ServerSession, error)
 	onAnnounce     func(*ServerSession, string, Tracks) (*base.Response, error)
 	onSetup        func(*ServerSession, string, int) (*base.Response, *ServerStream, error)
@@ -40,9 +40,10 @@ func (sh *testServerHandler) OnConnClose(sc *ServerConn, err error) {
 func (sh *testServerHandler) OnSessionOpen(
 	session *ServerSession,
 	conn *ServerConn,
+	name string,
 ) {
 	if sh.onSessionOpen != nil {
-		sh.onSessionOpen(session, conn)
+		sh.onSessionOpen(session, conn, name)
 	}
 }
 
@@ -106,8 +107,8 @@ func (sh *testServerHandler) OnPacketRTP(ctx *PacketRTPCtx) {
 
 func TestServerClose(t *testing.T) {
 	s := &Server{
-		Handler:     &testServerHandler{},
-		RTSPAddress: "localhost:8554",
+		handler:     &testServerHandler{},
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -118,8 +119,8 @@ func TestServerClose(t *testing.T) {
 
 func TestServerCSeq(t *testing.T) {
 	s := &Server{
-		RTSPAddress: "localhost:8554",
-		Handler:     &testServerHandler{},
+		rtspAddress: "localhost:8554",
+		handler:     &testServerHandler{},
 	}
 	err := s.Start()
 	require.NoError(t, err)
@@ -147,13 +148,13 @@ func TestServerErrorCSeqMissing(t *testing.T) {
 	connClosed := make(chan struct{})
 
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onConnClose: func(_ *ServerConn, err error) {
 				require.EqualError(t, err, "CSeq is missing")
 				close(connClosed)
 			},
 		},
-		RTSPAddress: "localhost:8554",
+		rtspAddress: "localhost:8554",
 	}
 	err := s.Start()
 	require.NoError(t, err)
@@ -187,14 +188,14 @@ func TestServerErrorMethodNotImplemented(t *testing.T) {
 			stream := NewServerStream(Tracks{track})
 			defer stream.Close()
 			s := &Server{
-				Handler: &testServerHandler{
+				handler: &testServerHandler{
 					onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 						return &base.Response{
 							StatusCode: base.StatusOK,
 						}, stream, nil
 					},
 				},
-				RTSPAddress: "localhost:8554",
+				rtspAddress: "localhost:8554",
 			}
 
 			err := s.Start()
@@ -273,7 +274,7 @@ func TestServerErrorTCPTwoConnOneSession(t *testing.T) {
 	defer stream.Close()
 
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
@@ -285,7 +286,7 @@ func TestServerErrorTCPTwoConnOneSession(t *testing.T) {
 				}, nil
 			},
 		},
-		RTSPAddress: "localhost:8554",
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -364,7 +365,7 @@ func TestServerErrorTCPOneConnTwoSessions(t *testing.T) {
 	defer stream.Close()
 
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
@@ -376,7 +377,7 @@ func TestServerErrorTCPOneConnTwoSessions(t *testing.T) {
 				}, nil
 			},
 		},
-		RTSPAddress: "localhost:8554",
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -446,7 +447,7 @@ func TestServerErrorInvalidSession(t *testing.T) {
 	} {
 		t.Run(string(method), func(t *testing.T) {
 			s := &Server{
-				Handler: &testServerHandler{
+				handler: &testServerHandler{
 					onPlay: func(*ServerSession) (*base.Response, error) {
 						return &base.Response{
 							StatusCode: base.StatusOK,
@@ -458,7 +459,7 @@ func TestServerErrorInvalidSession(t *testing.T) {
 						}, nil
 					},
 				},
-				RTSPAddress: "localhost:8554",
+				rtspAddress: "localhost:8554",
 			}
 
 			err := s.Start()
@@ -488,8 +489,9 @@ func TestServerSessionClose(t *testing.T) {
 	sessionClosed := make(chan struct{})
 
 	s := &Server{
-		Handler: &testServerHandler{
-			onSessionOpen: func(session *ServerSession, _ *ServerConn) {
+		handler: &testServerHandler{
+			onSessionOpen: func(session *ServerSession, _ *ServerConn, name string) {
+				require.Equal(t, "teststream", name)
 				session.Close()
 			},
 			onSessionClose: func(*ServerSession, error) {
@@ -501,7 +503,7 @@ func TestServerSessionClose(t *testing.T) {
 				}, nil, nil
 			},
 		},
-		RTSPAddress: "localhost:8554",
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -514,7 +516,7 @@ func TestServerSessionClose(t *testing.T) {
 
 	byts, _ := base.Request{
 		Method: base.Setup,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
+		URL:    mustParseURL("rtsp://localhost:8554/teststream"),
 		Header: base.Header{
 			"CSeq": base.HeaderValue{"1"},
 			"Transport": headers.Transport{
@@ -549,7 +551,7 @@ func TestServerSessionAutoClose(t *testing.T) {
 			defer stream.Close()
 
 			s := &Server{
-				Handler: &testServerHandler{
+				handler: &testServerHandler{
 					onSessionClose: func(*ServerSession, error) {
 						close(sessionClosed)
 					},
@@ -565,7 +567,7 @@ func TestServerSessionAutoClose(t *testing.T) {
 						}, nil, fmt.Errorf("error")
 					},
 				},
-				RTSPAddress: "localhost:8554",
+				rtspAddress: "localhost:8554",
 			}
 
 			err := s.Start()

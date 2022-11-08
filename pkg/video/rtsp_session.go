@@ -1,6 +1,7 @@
 package video
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"nvr/pkg/log"
@@ -19,9 +20,9 @@ type rtspSession struct {
 	ss          *gortsplib.ServerSession
 	author      *gortsplib.ServerConn
 	pathManager rtspSessionPathManager
-	logger      *log.Logger
 
 	path            *path
+	pathLogf        log.Func
 	state           gortsplib.ServerSessionState
 	stateMutex      sync.Mutex
 	announcedTracks gortsplib.Tracks // publish
@@ -33,15 +34,14 @@ func newRTSPSession(
 	ss *gortsplib.ServerSession,
 	sc *gortsplib.ServerConn,
 	pathManager rtspSessionPathManager,
-	logger *log.Logger,
+	pathLogf log.Func,
 ) *rtspSession {
 	s := &rtspSession{
 		id:          id,
 		ss:          ss,
 		author:      sc,
 		pathManager: pathManager,
-		logger:      logger,
-		path:        &path{conf: &PathConf{}},
+		pathLogf:    pathLogf,
 	}
 
 	return s
@@ -57,13 +57,24 @@ func (s *rtspSession) ID() string {
 	return s.id
 }
 
-func (s *rtspSession) logf(level log.Level, conf PathConf, format string, a ...interface{}) {
-	msg := fmt.Sprintf(format, a...)
-	sendLogf(s.logger, conf, level, "RTSP:", "S:%s %s", s.id, msg)
+func (s *rtspSession) logf(level log.Level, format string, a ...interface{}) {
+	if s.pathLogf != nil {
+		msg := fmt.Sprintf(format, a...)
+		s.pathLogf(level, "RTSP: S:%s %s", s.id, msg)
+	}
 }
 
-// close is called by rtspServer.
-func (s *rtspSession) onClose(conf PathConf, err error) {
+// onConnClose is called by rtspServer.
+func (s *rtspSession) onConnClose(err error) {
+	if err != nil && !errors.Is(err, context.Canceled) {
+		s.logf(log.LevelError, "closed: %v", err)
+	} else {
+		s.logf(log.LevelDebug, "closed")
+	}
+}
+
+// onClose is called by rtspServer.
+func (s *rtspSession) onClose(err error) {
 	switch s.ss.State() {
 	case gortsplib.ServerSessionStatePrePlay, gortsplib.ServerSessionStatePlay:
 		s.path.readerRemove(s)
@@ -74,7 +85,13 @@ func (s *rtspSession) onClose(conf PathConf, err error) {
 		s.path = nil
 	}
 
-	s.logf(log.LevelDebug, conf, "destroyed (%v)", err)
+	if s.pathLogf != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
+			s.logf(log.LevelError, "destroyed: %v", err)
+		} else {
+			s.logf(log.LevelDebug, "destroyed")
+		}
+	}
 }
 
 // Errors .

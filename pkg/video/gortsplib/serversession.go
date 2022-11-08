@@ -183,6 +183,7 @@ func newServerSession(
 	s *Server,
 	secretID string,
 	author *ServerConn,
+	name string,
 ) *ServerSession {
 	ctx, ctxCancel := context.WithCancel(s.ctx)
 
@@ -200,7 +201,7 @@ func newServerSession(
 	}
 
 	s.wg.Add(1)
-	go ss.run()
+	go ss.run(name)
 
 	return ss
 }
@@ -240,10 +241,10 @@ func (ss *ServerSession) checkState(allowed map[ServerSessionState]struct{}) err
 	return liberrors.ServerInvalidStateError{AllowedList: allowedList, State: ss.state}
 }
 
-func (ss *ServerSession) run() {
+func (ss *ServerSession) run(name string) {
 	defer ss.s.wg.Done()
 
-	ss.s.Handler.OnSessionOpen(ss, ss.author)
+	ss.s.handler.OnSessionOpen(ss, ss.author, name)
 
 	err := ss.runInner()
 	ss.ctxCancel()
@@ -280,7 +281,7 @@ func (ss *ServerSession) run() {
 	case <-ss.s.ctx.Done():
 	}
 
-	ss.s.Handler.OnSessionClose(ss, err)
+	ss.s.handler.OnSessionClose(ss, err)
 }
 
 func (ss *ServerSession) runInner() error { //nolint:gocognit
@@ -332,7 +333,7 @@ func (ss *ServerSession) runInner() error { //nolint:gocognit
 			delete(ss.conns, sc)
 
 			if len(ss.conns) == 0 {
-				return liberrors.ErrServerSessionNotInUse
+				return context.Canceled
 			}
 
 		case <-ss.startWriter:
@@ -345,7 +346,7 @@ func (ss *ServerSession) runInner() error { //nolint:gocognit
 			}
 
 		case <-ss.ctx.Done():
-			return liberrors.ErrServerTerminated
+			return context.Canceled
 		}
 	}
 }
@@ -494,7 +495,7 @@ func (ss *ServerSession) handleAnnounce( //nolint:funlen
 		}
 	}
 
-	res, err := ss.s.Handler.OnAnnounce(ss, path, tracks)
+	res, err := ss.s.handler.OnAnnounce(ss, path, tracks)
 
 	if res.StatusCode != base.StatusOK {
 		return res, err
@@ -588,7 +589,7 @@ func (ss *ServerSession) handleSetup(req *base.Request) (*base.Response, error) 
 		}
 	}
 
-	res, stream, err := ss.s.Handler.OnSetup(ss, path, trackID)
+	res, stream, err := ss.s.handler.OnSetup(ss, path, trackID)
 
 	// workaround to prevent a bug in rtspclientsink
 	// that makes impossible for the client to receive the response
@@ -681,10 +682,10 @@ func (ss *ServerSession) handlePlay( //nolint:funlen
 	// in this way it's possible to call ServerSession.WritePacket*()
 	// inside the callback.
 	if ss.state != ServerSessionStatePlay {
-		ss.writeBuffer, _ = ringbuffer.New(uint64(ss.s.WriteBufferCount))
+		ss.writeBuffer, _ = ringbuffer.New(uint64(ss.s.writeBufferCount))
 	}
 
-	res, err := sc.s.Handler.OnPlay(ss)
+	res, err := sc.s.handler.OnPlay(ss)
 
 	if res.StatusCode != base.StatusOK {
 		if ss.State() == ServerSessionStatePrePlay {
@@ -703,7 +704,7 @@ func (ss *ServerSession) handlePlay( //nolint:funlen
 	ss.tcpConn.readFunc = ss.tcpConn.readFuncTCP
 	err = errSwitchReadFunc
 
-	ss.writeBuffer, _ = ringbuffer.New(uint64(ss.s.ReadBufferCount))
+	ss.writeBuffer, _ = ringbuffer.New(uint64(ss.s.readBufferCount))
 	// runWriter() is called by ServerConn after the response has been sent
 
 	ss.setuppedStream.readerSetActive(ss)
@@ -779,7 +780,7 @@ func (ss *ServerSession) handleRecord(
 	// inside the callback.
 	ss.writeBuffer, _ = ringbuffer.New(uint64(8))
 
-	res, err := ss.s.Handler.OnRecord(ss)
+	res, err := ss.s.handler.OnRecord(ss)
 
 	if res.StatusCode != base.StatusOK {
 		ss.writeBuffer = nil
@@ -816,7 +817,7 @@ func (ss *ServerSession) runWriter() {
 		fr := rtpFrames[trackID]
 		fr.Payload = payload
 
-		ss.tcpConn.nconn.SetWriteDeadline(time.Now().Add(ss.s.WriteTimeout)) //nolint:errcheck
+		ss.tcpConn.nconn.SetWriteDeadline(time.Now().Add(ss.s.writeTimeout)) //nolint:errcheck
 		ss.tcpConn.conn.WriteInterleavedFrame(fr, buf)                       //nolint:errcheck
 	}
 

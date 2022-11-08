@@ -169,3 +169,14 @@ func (pm *pathManager) readerAdd(
 	}
 	return path.readerAdd(session)
 }
+
+func (pm *pathManager) pathLogfByName(name string) log.Func {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	path, exist := pm.paths[name]
+	if exist {
+		return path.logf
+	}
+	return nil
+}

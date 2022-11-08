@@ -76,6 +76,10 @@ func (sc *ServerConn) NetConn() net.Conn {
 	return sc.nconn
 }
 
+func (sc *ServerConn) Session() *ServerSession {
+	return sc.session
+}
+
 func (sc *ServerConn) ip() net.IP {
 	return sc.remoteAddr.IP
 }
@@ -110,7 +114,7 @@ func (sc *ServerConn) run() {
 				}
 
 			case <-sc.ctx.Done():
-				return liberrors.ErrServerTerminated
+				return context.Canceled
 			}
 		}
 	}()
@@ -132,7 +136,7 @@ func (sc *ServerConn) run() {
 	case <-sc.s.ctx.Done():
 	}
 
-	sc.s.Handler.OnConnClose(sc, err)
+	sc.s.handler.OnConnClose(sc, err)
 }
 
 var errSwitchReadFunc = errors.New("switch read function")
@@ -174,7 +178,7 @@ func (sc *ServerConn) readFuncStandard(readRequest chan readReq) error {
 			}
 
 		case <-sc.ctx.Done():
-			return liberrors.ErrServerTerminated
+			return context.Canceled
 		}
 	}
 }
@@ -195,7 +199,7 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 			return nil
 		}
 	} else {
-		tcpRTPPacketBuffer := newRTPPacketMultiBuffer(uint64(sc.s.ReadBufferCount))
+		tcpRTPPacketBuffer := newRTPPacketMultiBuffer(uint64(sc.s.readBufferCount))
 
 		processFunc = func(trackID int, payload []byte) error {
 			pkt := tcpRTPPacketBuffer.next()
@@ -209,7 +213,7 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 				return err
 			}
 			for _, entry := range out {
-				sc.s.Handler.OnPacketRTP(&PacketRTPCtx{
+				sc.s.handler.OnPacketRTP(&PacketRTPCtx{
 					Session:      sc.session,
 					TrackID:      trackID,
 					Packet:       entry.Packet,
@@ -224,7 +228,7 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 
 	for {
 		if sc.session.state == ServerSessionStateRecord {
-			sc.nconn.SetReadDeadline(time.Now().Add(sc.s.ReadTimeout)) //nolint:errcheck
+			sc.nconn.SetReadDeadline(time.Now().Add(sc.s.readTimeout)) //nolint:errcheck
 		}
 
 		what, err := sc.conn.ReadInterleavedFrameOrRequest()
@@ -254,7 +258,7 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 				}
 
 			case <-sc.ctx.Done():
-				return liberrors.ErrServerTerminated
+				return context.Canceled
 			}
 		}
 	}
@@ -300,7 +304,7 @@ func (sc *ServerConn) handleRequest(req *base.Request) (*base.Response, error) {
 			}, liberrors.ErrServerInvalidPath
 		}
 
-		h := sc.s.Handler
+		h := sc.s.handler
 		res, stream, err := h.OnDescribe(path)
 
 		if res.StatusCode == base.StatusOK {
@@ -360,7 +364,7 @@ func (sc *ServerConn) handleRequestOuter(req *base.Request) error {
 	// add server
 	res.Header["Server"] = base.HeaderValue{"gortsplib"}
 
-	sc.nconn.SetWriteDeadline(time.Now().Add(sc.s.WriteTimeout)) //nolint:errcheck
+	sc.nconn.SetWriteDeadline(time.Now().Add(sc.s.writeTimeout)) //nolint:errcheck
 	sc.conn.WriteResponse(res)                                   //nolint:errcheck
 
 	return err
@@ -404,7 +408,7 @@ func (sc *ServerConn) handleRequestInSession(
 		case <-sc.session.ctx.Done():
 			return &base.Response{
 				StatusCode: base.StatusBadRequest,
-			}, liberrors.ErrServerTerminated
+			}, context.Canceled
 		}
 	}
 
@@ -428,6 +432,6 @@ func (sc *ServerConn) handleRequestInSession(
 	case <-sc.s.ctx.Done():
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
-		}, liberrors.ErrServerTerminated
+		}, context.Canceled
 	}
 }

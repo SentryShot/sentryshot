@@ -47,14 +47,14 @@ func newRTSPServer(
 		sessions:    make(map[*gortsplib.ServerSession]*rtspSession),
 	}
 
-	s.srv = &gortsplib.Server{
-		Handler:          s,
-		ReadTimeout:      readTimeout,
-		WriteTimeout:     writeTimeout,
-		ReadBufferCount:  readBufferCount,
-		WriteBufferCount: readBufferCount,
-		RTSPAddress:      address,
-	}
+	s.srv = gortsplib.NewServer(
+		s,
+		readTimeout,
+		writeTimeout,
+		readBufferCount,
+		readBufferCount,
+		address,
+	)
 
 	return s
 }
@@ -131,16 +131,26 @@ func (s *rtspServer) newSessionID() string {
 }
 
 // OnConnClose implements gortsplib.ServerHandler.
-func (s *rtspServer) OnConnClose(*gortsplib.ServerConn, error) {
+func (s *rtspServer) OnConnClose(sc *gortsplib.ServerConn, err error) {
+	session := sc.Session()
+	s.mu.Lock()
+	se := s.sessions[session]
+	s.mu.Unlock()
+
+	if se != nil {
+		se.onConnClose(err)
+	}
 }
 
 // OnSessionOpen implements gortsplib.ServerHandler.
 func (s *rtspServer) OnSessionOpen(
 	session *gortsplib.ServerSession,
 	conn *gortsplib.ServerConn,
+	name string,
 ) {
 	s.mu.Lock()
 
+	pathLogf := s.pathManager.pathLogfByName(name)
 	id := s.newSessionID()
 
 	se := newRTSPSession(
@@ -148,7 +158,8 @@ func (s *rtspServer) OnSessionOpen(
 		session,
 		conn,
 		s.pathManager,
-		s.logger)
+		pathLogf,
+	)
 
 	s.sessions[session] = se
 	s.mu.Unlock()
@@ -162,7 +173,7 @@ func (s *rtspServer) OnSessionClose(session *gortsplib.ServerSession, err error)
 	s.mu.Unlock()
 
 	if se != nil {
-		se.onClose(*se.path.conf, err)
+		se.onClose(err)
 	}
 }
 

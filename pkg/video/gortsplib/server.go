@@ -45,46 +45,31 @@ type sessionRequestReq struct {
 
 // Server is a RTSP server.
 type Server struct {
-	//
-	// RTSP parameters (all optional except RTSPAddress)
-	//
-	// the RTSP address of the server, to accept connections and send and receive
+	// The RTSP address of the server, to accept connections and send and receive
 	// packets with the TCP transport.
-	RTSPAddress string
-	// timeout of read operations.
-	// It defaults to 10 seconds
-	ReadTimeout time.Duration
-	// timeout of write operations.
-	// It defaults to 10 seconds
-	WriteTimeout time.Duration
-	// read buffer count.
+	rtspAddress string
+
+	// Timeout of read operations.
+	readTimeout time.Duration
+
+	// Timeout of write operations.
+	writeTimeout time.Duration
+
+	// Read buffer count.
 	// If greater than 1, allows to pass buffers to routines different than the one
 	// that is reading frames.
-	// It also allows to buffer routed frames and mitigate network fluctuations
-	// that are particularly high when using UDP.
-	// It defaults to 256
-	ReadBufferCount int
-	// write buffer count.
+	// It also allows to buffer routed frames and mitigate network fluctuations.
+	readBufferCount int
+
+	// Write buffer count.
 	// It allows to queue packets before sending them.
-	// It defaults to 256.
-	WriteBufferCount int
+	writeBufferCount int
 
-	//
-	// handler (optional)
-	//
-	// an handler to handle server events.
-	Handler ServerHandler
+	handler ServerHandler
 
-	//
-	// system functions (all optional)
-	//
-	// function used to initialize the TCP listener.
-	// It defaults to net.Listen.
-	Listen func(network string, address string) (net.Listener, error)
-
-	//
-	// private
-	//
+	// Function used to initialize the TCP listener.
+	// It defaults to net.listen.
+	listen func(network string, address string) (net.Listener, error)
 
 	sessionTimeout    time.Duration
 	checkStreamPeriod time.Duration
@@ -103,6 +88,25 @@ type Server struct {
 	sessionClose   chan *ServerSession
 }
 
+// NewServer creates a new RTSP server.
+func NewServer(
+	handler ServerHandler,
+	readTimeout time.Duration,
+	writeTimeout time.Duration,
+	readBufferCount int,
+	writeBufferCount int,
+	address string,
+) *Server {
+	return &Server{
+		handler:          handler,
+		readTimeout:      readTimeout,
+		writeTimeout:     writeTimeout,
+		readBufferCount:  readBufferCount,
+		writeBufferCount: writeBufferCount,
+		rtspAddress:      address,
+	}
+}
+
 // Errors.
 var (
 	ErrServerMissingRTSPaddress = errors.New("RTSPAddress not provided")
@@ -112,25 +116,25 @@ var (
 // Start starts the server.
 func (s *Server) Start() error {
 	// RTSP parameters
-	if s.ReadTimeout == 0 {
-		s.ReadTimeout = 10 * time.Second
+	if s.readTimeout == 0 {
+		s.readTimeout = 10 * time.Second
 	}
-	if s.WriteTimeout == 0 {
-		s.WriteTimeout = 10 * time.Second
+	if s.writeTimeout == 0 {
+		s.writeTimeout = 10 * time.Second
 	}
-	if s.ReadBufferCount == 0 {
-		s.ReadBufferCount = 256
+	if s.readBufferCount == 0 {
+		s.readBufferCount = 256
 	}
-	if s.WriteBufferCount == 0 {
-		s.WriteBufferCount = 256
+	if s.writeBufferCount == 0 {
+		s.writeBufferCount = 256
 	}
-	if (s.WriteBufferCount & (s.WriteBufferCount - 1)) != 0 {
+	if (s.writeBufferCount & (s.writeBufferCount - 1)) != 0 {
 		return ErrWriteBufferSize
 	}
 
 	// system functions
-	if s.Listen == nil {
-		s.Listen = net.Listen
+	if s.listen == nil {
+		s.listen = net.Listen
 	}
 
 	// private
@@ -141,12 +145,12 @@ func (s *Server) Start() error {
 		s.checkStreamPeriod = 1 * time.Second
 	}
 
-	if s.RTSPAddress == "" {
+	if s.rtspAddress == "" {
 		return ErrServerMissingRTSPaddress
 	}
 
 	var err error
-	s.tcpListener, err = s.Listen("tcp", s.RTSPAddress)
+	s.tcpListener, err = s.listen("tcp", s.rtspAddress)
 	if err != nil {
 		return err
 	}
@@ -218,6 +222,7 @@ func (s *Server) run() { //nolint:funlen,gocognit
 				return err
 
 			case nconn := <-connNew:
+
 				sc := newServerConn(s, nconn)
 				s.conns[sc] = struct{}{}
 
@@ -248,7 +253,7 @@ func (s *Server) run() { //nolint:funlen,gocognit
 							res: &base.Response{
 								StatusCode: base.StatusBadRequest,
 							},
-							err: liberrors.ErrServerTerminated,
+							err: context.Canceled,
 						}
 					}
 				} else {
@@ -273,7 +278,18 @@ func (s *Server) run() { //nolint:funlen,gocognit
 						continue
 					}
 
-					ss := newServerSession(s, secretID, req.sc)
+					name, ok := req.req.URL.RTSPPath()
+					if !ok {
+						req.res <- sessionRequestRes{
+							res: &base.Response{
+								StatusCode: base.StatusBadRequest,
+							},
+							err: ErrServerInternalError,
+						}
+						continue
+					}
+
+					ss := newServerSession(s, secretID, req.sc, name)
 					s.sessions[secretID] = ss
 
 					select {
@@ -283,7 +299,7 @@ func (s *Server) run() { //nolint:funlen,gocognit
 							res: &base.Response{
 								StatusCode: base.StatusBadRequest,
 							},
-							err: liberrors.ErrServerTerminated,
+							err: context.Canceled,
 						}
 					}
 				}
@@ -296,7 +312,7 @@ func (s *Server) run() { //nolint:funlen,gocognit
 				ss.Close()
 
 			case <-s.ctx.Done():
-				return liberrors.ErrServerTerminated
+				return context.Canceled
 			}
 		}
 	}()

@@ -128,7 +128,6 @@ func (s *hlsServer) run() {
 				s.wg,
 				req.path,
 				s.muxerClose,
-				s.logger,
 			)
 
 			if err := m.start(req.tracks); err != nil {

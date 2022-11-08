@@ -22,8 +22,8 @@ type HLSMuxer struct {
 	wg              *sync.WaitGroup
 	readBufferCount int
 	path            *path
+	pathConf        PathConf
 	muxerClose      muxerCloseFunc
-	logger          *log.Logger
 
 	ctx        context.Context
 	ctxCancel  func()
@@ -40,7 +40,6 @@ func newHLSMuxer(
 	wg *sync.WaitGroup,
 	path *path,
 	muxerClose muxerCloseFunc,
-	logger *log.Logger,
 ) *HLSMuxer {
 	ctx, ctxCancel := context.WithCancel(parentCtx)
 
@@ -48,8 +47,8 @@ func newHLSMuxer(
 		readBufferCount: readBufferCount,
 		wg:              wg,
 		path:            path,
+		pathConf:        *path.conf,
 		muxerClose:      muxerClose,
-		logger:          logger,
 		ctx:             ctx,
 		ctxCancel:       ctxCancel,
 		chRequest:       make(chan *hlsMuxerRequest),
@@ -61,10 +60,7 @@ func (m *HLSMuxer) close() {
 }
 
 func (m *HLSMuxer) logf(format string, a ...interface{}) {
-	if m.path == nil {
-		return
-	}
-	sendLogf(m.logger, *m.path.conf, log.LevelError, "HLS:", format, a...)
+	m.path.logf(log.LevelError, "HLS: "+format, a...)
 }
 
 func (m *HLSMuxer) start(tracks gortsplib.Tracks) error {
@@ -189,7 +185,7 @@ func (m *HLSMuxer) createMuxer(
 	audioTrack *gortsplib.TrackMPEG4Audio,
 ) *hls.Muxer {
 	muxerLogFunc := func(level log.Level, format string, a ...interface{}) {
-		sendLogf(m.logger, *m.path.conf, level, "HLS:", format, a...)
+		m.path.logf(level, "HLS: "+format, a...)
 	}
 	videoTrackExist := videoTrack != nil
 	audioTrackExist := audioTrack != nil

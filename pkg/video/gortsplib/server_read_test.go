@@ -82,7 +82,7 @@ func TestServerReadSetupPath(t *testing.T) {
 			defer stream.Close()
 
 			s := &Server{
-				Handler: &testServerHandler{
+				handler: &testServerHandler{
 					onSetup: func(
 						_ *ServerSession,
 						path string,
@@ -95,7 +95,7 @@ func TestServerReadSetupPath(t *testing.T) {
 						}, stream, nil
 					},
 				},
-				RTSPAddress: "localhost:8554",
+				rtspAddress: "localhost:8554",
 			}
 
 			err := s.Start()
@@ -152,7 +152,7 @@ func TestServerReadSetupErrors(t *testing.T) {
 			}
 
 			s := &Server{
-				Handler: &testServerHandler{
+				handler: &testServerHandler{
 					onConnClose: func(_ *ServerConn, err error) {
 						switch ca {
 						case "different paths":
@@ -172,7 +172,7 @@ func TestServerReadSetupErrors(t *testing.T) {
 						}, stream, nil
 					},
 				},
-				RTSPAddress: "localhost:8554",
+				rtspAddress: "localhost:8554",
 			}
 
 			err := s.Start()
@@ -268,8 +268,8 @@ func TestServerReadTCPResponseBeforeFrames(t *testing.T) {
 	defer stream.Close()
 
 	s := &Server{
-		RTSPAddress: "localhost:8554",
-		Handler: &testServerHandler{
+		rtspAddress: "localhost:8554",
+		handler: &testServerHandler{
 			onConnClose: func(*ServerConn, error) {
 				close(writerTerminate)
 				<-writerDone
@@ -366,7 +366,7 @@ func TestServerReadWithoutTeardown(t *testing.T) {
 	defer stream.Close()
 
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onConnClose: func(*ServerConn, error) {
 				close(connClosed)
 			},
@@ -383,9 +383,9 @@ func TestServerReadWithoutTeardown(t *testing.T) {
 				return &base.Response{StatusCode: base.StatusOK}, nil
 			},
 		},
-		ReadTimeout:    1 * time.Second,
+		readTimeout:    1 * time.Second,
 		sessionTimeout: 1 * time.Second,
-		RTSPAddress:    "localhost:8554",
+		rtspAddress:    "localhost:8554",
 	}
 
 	err := s.Start()
@@ -528,7 +528,7 @@ func TestServerReadAdditionalInfos(t *testing.T) {
 	defer stream.Close()
 
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
@@ -540,7 +540,7 @@ func TestServerReadAdditionalInfos(t *testing.T) {
 				}, nil
 			},
 		},
-		RTSPAddress: "localhost:8554",
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()

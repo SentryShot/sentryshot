@@ -8,9 +8,6 @@ import (
 	"nvr/pkg/video/gortsplib/pkg/headers"
 )
 
-// ErrServerTerminated terminated.
-var ErrServerTerminated = errors.New("terminated")
-
 // ErrServerSessionNotFound session not found.
 var ErrServerSessionNotFound = errors.New("session not found")
 

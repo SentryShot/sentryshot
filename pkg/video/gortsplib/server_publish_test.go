@@ -138,7 +138,7 @@ func TestServerPublishErrorAnnounce(t *testing.T) {
 			connClosed := make(chan struct{})
 
 			s := &Server{
-				Handler: &testServerHandler{
+				handler: &testServerHandler{
 					onConnClose: func(_ *ServerConn, err error) {
 						require.EqualError(t, err, ca.err)
 						close(connClosed)
@@ -149,7 +149,7 @@ func TestServerPublishErrorAnnounce(t *testing.T) {
 						}, nil
 					},
 				},
-				RTSPAddress: "localhost:8554",
+				rtspAddress: "localhost:8554",
 			}
 
 			err := s.Start()
@@ -222,7 +222,7 @@ func TestServerPublishSetupPath(t *testing.T) {
 	} {
 		t.Run(ca.name, func(t *testing.T) {
 			s := &Server{
-				Handler: &testServerHandler{
+				handler: &testServerHandler{
 					onAnnounce: func(_ *ServerSession, _ string, tracks Tracks) (*base.Response, error) {
 						// make sure that track URLs are not overridden by NewServerStream()
 						stream := NewServerStream(tracks)
@@ -244,7 +244,7 @@ func TestServerPublishSetupPath(t *testing.T) {
 						}, nil, nil
 					},
 				},
-				RTSPAddress: "localhost:8554",
+				rtspAddress: "localhost:8554",
 			}
 
 			err := s.Start()
@@ -319,7 +319,7 @@ func TestServerPublishErrorSetupDifferentPaths(t *testing.T) {
 	serverErr := make(chan error)
 
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onConnClose: func(_ *ServerConn, err error) {
 				serverErr <- err
 			},
@@ -334,7 +334,7 @@ func TestServerPublishErrorSetupDifferentPaths(t *testing.T) {
 				}, nil, nil
 			},
 		},
-		RTSPAddress: "localhost:8554",
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -394,7 +394,7 @@ func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
 	serverErr := make(chan error)
 
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onConnClose: func(_ *ServerConn, err error) {
 				serverErr <- err
 			},
@@ -409,7 +409,7 @@ func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
 				}, nil, nil
 			},
 		},
-		RTSPAddress: "localhost:8554",
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -485,7 +485,7 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 	serverErr := make(chan error)
 
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onConnClose: func(_ *ServerConn, err error) {
 				serverErr <- err
 			},
@@ -505,7 +505,7 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 				}, nil
 			},
 		},
-		RTSPAddress: "localhost:8554",
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -651,7 +651,7 @@ func mergeBytes(vals ...[]byte) []byte {
 
 func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
@@ -671,7 +671,7 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 				t.Error("should not happen")
 			},
 		},
-		RTSPAddress: "localhost:8554",
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -716,7 +716,7 @@ func TestServerPublishTimeout(t *testing.T) {
 	sessionClosed := make(chan struct{})
 
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onConnClose: func(*ServerConn, error) {
 				close(connClosed)
 			},
@@ -739,8 +739,8 @@ func TestServerPublishTimeout(t *testing.T) {
 				}, nil
 			},
 		},
-		ReadTimeout: 2 * time.Millisecond,
-		RTSPAddress: "localhost:8554",
+		readTimeout: 2 * time.Millisecond,
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()
@@ -822,7 +822,7 @@ func TestServerPublishWithoutTeardown(t *testing.T) {
 	sessionClosed := make(chan struct{})
 
 	s := &Server{
-		Handler: &testServerHandler{
+		handler: &testServerHandler{
 			onConnClose: func(*ServerConn, error) {
 				close(connClosed)
 			},
@@ -845,8 +845,8 @@ func TestServerPublishWithoutTeardown(t *testing.T) {
 				}, nil
 			},
 		},
-		ReadTimeout: 20 * time.Millisecond,
-		RTSPAddress: "localhost:8554",
+		readTimeout: 20 * time.Millisecond,
+		rtspAddress: "localhost:8554",
 	}
 
 	err := s.Start()
