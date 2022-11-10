@@ -73,7 +73,7 @@ func newTestRecorder(t *testing.T) *Recorder {
 
 			logf: logf,
 
-			runInputProcess: mockRunInputProcess,
+			runInputProcess: stubRunInputProcess,
 			newProcess:      ffmock.NewProcess,
 		},
 		wg: &sync.WaitGroup{},
@@ -81,7 +81,7 @@ func newTestRecorder(t *testing.T) *Recorder {
 			TempDir:    tempDir,
 			StorageDir: tempDir,
 		},
-		hooks: mockHooks(),
+		hooks: stubHooks(),
 	}
 }
 

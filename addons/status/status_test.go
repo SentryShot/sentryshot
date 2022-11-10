@@ -29,33 +29,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mockCPU(_ context.Context, _ time.Duration, _ bool) ([]float64, error) {
+func stubCPU(_ context.Context, _ time.Duration, _ bool) ([]float64, error) {
 	return []float64{11}, nil
 }
 
-func mockRAM() (*mem.VirtualMemoryStat, error) {
+func stubRAM() (*mem.VirtualMemoryStat, error) {
 	return &mem.VirtualMemoryStat{
 		UsedPercent: 22.0,
 	}, nil
 }
 
-func mockDisk() (storage.DiskUsage, error) {
+func stubDisk() (storage.DiskUsage, error) {
 	return storage.DiskUsage{
 		Percent:   33,
 		Formatted: "44",
 	}, nil
 }
 
-func mockCPUErr(_ context.Context, _ time.Duration, _ bool) ([]float64, error) {
+func stubCPUErr(_ context.Context, _ time.Duration, _ bool) ([]float64, error) {
 	return nil, errors.New("")
 }
 
-func mockRAMErr() (*mem.VirtualMemoryStat, error) {
+func stubRAMErr() (*mem.VirtualMemoryStat, error) {
 	return &mem.VirtualMemoryStat{}, errors.New("")
 }
 
-func mockDiskErr() (storage.DiskUsage, error) {
-	return storage.DiskUsage{}, errors.New("mock")
+func stubDiskErr() (storage.DiskUsage, error) {
+	return storage.DiskUsage{}, errors.New("stub")
 }
 
 func TestUpdate(t *testing.T) {
@@ -66,9 +66,9 @@ func TestUpdate(t *testing.T) {
 		expectedError bool
 		expectedValue string
 	}{
-		"cpuErr": {mockCPUErr, mockRAM, mockDisk, true, "{0 0 0 }"},
-		"ramErr": {mockCPU, mockRAMErr, mockDisk, true, "{0 0 0 }"},
-		"ok":     {mockCPU, mockRAM, mockDisk, false, "{11 22 0 }"},
+		"cpuErr": {stubCPUErr, stubRAM, stubDisk, true, "{0 0 0 }"},
+		"ramErr": {stubCPU, stubRAMErr, stubDisk, true, "{0 0 0 }"},
+		"ok":     {stubCPU, stubRAM, stubDisk, false, "{11 22 0 }"},
 	}
 
 	for name, tc := range cases {
@@ -94,7 +94,7 @@ func TestUpdate(t *testing.T) {
 
 func TestUpdateCPUAndRAM(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		s := system{cpu: mockCPU, ram: mockRAM}
+		s := system{cpu: stubCPU, ram: stubRAM}
 
 		err := s.updateCPUAndRAM(context.Background())
 		require.NoError(t, err)
@@ -106,13 +106,13 @@ func TestUpdateCPUAndRAM(t *testing.T) {
 		require.Equal(t, expected, s.status)
 	})
 	t.Run("cpuErr", func(t *testing.T) {
-		s := system{cpu: mockCPUErr, ram: mockRAM}
+		s := system{cpu: stubCPUErr, ram: stubRAM}
 
 		err := s.updateCPUAndRAM(context.Background())
 		require.Error(t, err)
 	})
 	t.Run("diskErr", func(t *testing.T) {
-		s := system{cpu: mockCPU, ram: mockRAMErr}
+		s := system{cpu: stubCPU, ram: stubRAMErr}
 
 		err := s.updateCPUAndRAM(context.Background())
 		require.Error(t, err)
@@ -125,20 +125,20 @@ func TestUpdateDiskError(t *testing.T) {
 		logs <- fmt.Sprintf(format, a...)
 	}
 	s := system{
-		disk:           mockDiskErr,
+		disk:           stubDiskErr,
 		isUpdatingDisk: true,
 		logf:           logf,
 	}
 
 	go s.updateDisk()
-	require.Equal(t, "could not update disk usage: mock", <-logs)
+	require.Equal(t, "could not update disk usage: stub", <-logs)
 }
 
 func TestLoop(t *testing.T) {
 	s := system{
-		cpu:  mockCPU,
-		ram:  mockRAM,
-		disk: mockDisk,
+		cpu:  stubCPU,
+		ram:  stubRAM,
+		disk: stubDisk,
 	}
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 100*time.Millisecond)

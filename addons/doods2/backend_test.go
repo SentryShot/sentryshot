@@ -242,12 +242,18 @@ func newTestInstance(logs chan string) *instance {
 			CompressionLevel: png.NoCompression,
 		},
 		newProcess:    ffmock.NewProcess,
-		startReader:   mockStartReader,
-		sendRequest:   mockSendRequest,
-		sendEvent:     mockSendEvent,
+		startReader:   stubStartReader,
+		sendRequest:   stubSendRequest,
+		sendEvent:     stubSendEvent,
 		watchdogTimer: time.NewTimer(0),
 	}
 }
+
+func stubStartReader(context.Context, context.CancelFunc, *instance, io.Reader) {}
+func stubSendRequest(context.Context, detectRequest) (*detections, error) {
+	return &detections{{Confidence: 100}}, nil
+}
+func stubSendEvent(storage.Event) error { return nil }
 
 func TestStartProcess(t *testing.T) {
 	t.Run("crashed", func(t *testing.T) {
@@ -303,7 +309,7 @@ func TestRunProcess(t *testing.T) {
 	t.Run("startClientCalled", func(t *testing.T) {
 		startReaderCalled := make(chan struct{})
 		mockStartReader := func(context.Context, context.CancelFunc, *instance, io.Reader) {
-			go close(startReaderCalled)
+			close(startReaderCalled)
 		}
 
 		i := newTestInstance(nil)
@@ -330,12 +336,6 @@ var imgFeed = func() *bytes.Reader {
 
 var framePNG = "[137 80 78 71 13 10 26 10 0 0 0 13 73 72 68 82 0 0 0 2 0 0 0 2 16 2 0 0 0 173 68 70 48 0 0 0 42 73 68 65 84 120 1 0 26 0 229 255 0 255 255 0 0 0 0 0 0 255 255 0 0 0 0 0 0 0 255 255 128 128 128 128 128 128 1 0 0 255 255 107 57 8 251 44 117 64 132 0 0 0 0 73 69 78 68 174 66 96 130]"
 
-func mockStartReader(context.Context, context.CancelFunc, *instance, io.Reader) {}
-
-func mockRunInstanceErr(context.Context, instance, io.Reader) error {
-	return errors.New("mock")
-}
-
 func TestStartReader(t *testing.T) {
 	t.Run("crashed", func(t *testing.T) {
 		canceled := make(chan struct{})
@@ -344,12 +344,12 @@ func TestStartReader(t *testing.T) {
 		}
 
 		logs := make(chan string)
-		mockSendRequest := func(context.Context, detectRequest) (*detections, error) {
+		stubSendRequest := func(context.Context, detectRequest) (*detections, error) {
 			return nil, errors.New("mock")
 		}
 
 		i := newTestInstance(logs)
-		i.sendRequest = mockSendRequest
+		i.sendRequest = stubSendRequest
 
 		i.wg.Add(1)
 		go startReader(context.Background(), cancel, i, imgFeed())
@@ -365,12 +365,12 @@ func TestStartReader(t *testing.T) {
 		}
 
 		logs := make(chan string)
-		mockSendRequest := func(context.Context, detectRequest) (*detections, error) {
+		stubSendRequest := func(context.Context, detectRequest) (*detections, error) {
 			return &detections{}, nil
 		}
 
 		i := newTestInstance(logs)
-		i.sendRequest = mockSendRequest
+		i.sendRequest = stubSendRequest
 
 		ctx, cancel2 := context.WithCancel(context.Background())
 		cancel2()
@@ -384,19 +384,11 @@ func TestStartReader(t *testing.T) {
 	})
 }
 
-func mockSendRequest(context.Context, detectRequest) (*detections, error) {
-	return &detections{
-		{Confidence: 100},
-	}, nil
-}
-
-func mockSendEvent(storage.Event) error { return nil }
-
 func TestRunInstance(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		var firstRequest string
 		var secondRequest string
-		mockSendRequest := func(_ context.Context, request detectRequest) (*detections, error) {
+		spySendRequest := func(_ context.Context, request detectRequest) (*detections, error) {
 			if firstRequest == "" {
 				firstRequest = fmt.Sprint(*request.Data)
 			} else {
@@ -406,7 +398,7 @@ func TestRunInstance(t *testing.T) {
 		}
 
 		var event storage.Event
-		mockSendEvent := func(e storage.Event) error {
+		spySendEvent := func(e storage.Event) error {
 			event = e
 			return nil
 		}
@@ -415,8 +407,8 @@ func TestRunInstance(t *testing.T) {
 		defer cancel2()
 
 		i := newTestInstance(nil)
-		i.sendRequest = mockSendRequest
-		i.sendEvent = mockSendEvent
+		i.sendRequest = spySendRequest
+		i.sendEvent = spySendEvent
 
 		i.runReader(ctx, imgFeed())
 
@@ -443,27 +435,27 @@ func TestRunInstance(t *testing.T) {
 		require.ErrorIs(t, err, io.EOF)
 	})
 	t.Run("sendFrameErr", func(t *testing.T) {
-		mockErr := errors.New("mock")
-		mockSendRequestErr := func(context.Context, detectRequest) (*detections, error) {
-			return nil, mockErr
+		stubErr := errors.New("stub")
+		stubSendRequestErr := func(context.Context, detectRequest) (*detections, error) {
+			return nil, stubErr
 		}
 
 		i := newTestInstance(nil)
-		i.sendRequest = mockSendRequestErr
+		i.sendRequest = stubSendRequestErr
 
 		err := i.runReader(context.Background(), imgFeed())
-		require.ErrorIs(t, err, mockErr)
+		require.ErrorIs(t, err, stubErr)
 	})
 	t.Run("sendEventErr", func(t *testing.T) {
-		mockErr := errors.New("mock")
-		mockSendEvent := func(storage.Event) error {
-			return mockErr
+		stubErr := errors.New("stub")
+		stubSendEvent := func(storage.Event) error {
+			return stubErr
 		}
 		i := newTestInstance(nil)
-		i.sendEvent = mockSendEvent
+		i.sendEvent = stubSendEvent
 
 		err := i.runReader(context.Background(), imgFeed())
-		require.ErrorIs(t, err, mockErr)
+		require.ErrorIs(t, err, stubErr)
 	})
 }
 

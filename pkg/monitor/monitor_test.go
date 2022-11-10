@@ -181,16 +181,16 @@ func TestNewManager(t *testing.T) {
 		err := os.WriteFile(configDir+"/1.json", data, 0o600)
 		require.NoError(t, err)
 
-		mockErr := errors.New("mock")
+		stubErr := errors.New("stub")
 
 		_, err = NewManager(
 			configDir,
 			storage.ConfigEnv{},
 			&log.Logger{},
 			&video.Server{},
-			&Hooks{Migrate: func(Config) error { return mockErr }},
+			&Hooks{Migrate: func(Config) error { return stubErr }},
 		)
-		require.ErrorIs(t, err, mockErr)
+		require.ErrorIs(t, err, stubErr)
 	})
 }
 
@@ -350,7 +350,7 @@ func TestStopAllMonitors(t *testing.T) {
 	require.False(t, m.Monitors["2"].running)
 }
 
-func mockNewVideoServerPath(
+func stubNewVideoServerPath(
 	_ context.Context,
 	name string,
 	_ video.PathConf,
@@ -375,13 +375,27 @@ func newTestInputProcess() *InputProcess {
 		},
 
 		logf:  func(level log.Level, format string, a ...interface{}) {},
-		hooks: mockHooks(),
+		hooks: stubHooks(),
 		WG:    &sync.WaitGroup{},
 
-		newVideoServerPath: mockNewVideoServerPath,
-		runInputProcess:    mockRunInputProcess,
+		newVideoServerPath: stubNewVideoServerPath,
+		runInputProcess:    stubRunInputProcess,
 		newProcess:         ffmock.NewProcess,
 	}
+}
+
+func stubHooks() Hooks {
+	return Hooks{
+		Start:      func(context.Context, *Monitor) {},
+		StartInput: func(context.Context, *InputProcess, *[]string) {},
+		Event:      func(*Recorder, *storage.Event) {},
+		RecSave:    func(*Recorder, *string) {},
+		RecSaved:   func(*Recorder, string, storage.RecordingData) {},
+	}
+}
+
+func stubRunInputProcess(context.Context, *InputProcess) error {
+	return nil
 }
 
 func newTestMonitor(t *testing.T) *Monitor {
@@ -422,14 +436,6 @@ func TestStartMonitor(t *testing.T) {
 	})
 }
 
-func mockRunInputProcess(context.Context, *InputProcess) error {
-	return nil
-}
-
-func mockRunInputProcessErr(context.Context, *InputProcess) error {
-	return errors.New("mock")
-}
-
 func TestStartInputProcess(t *testing.T) {
 	t.Run("canceled", func(t *testing.T) {
 		logs := make(chan string)
@@ -451,17 +457,20 @@ func TestStartInputProcess(t *testing.T) {
 		logs := make(chan string)
 		defer close(logs)
 
+		stubRunInputProcess := func(context.Context, *InputProcess) error {
+			return errors.New("stub")
+		}
 		ctx, cancel := context.WithCancel(context.Background())
 
 		input := newTestInputProcess()
-		input.runInputProcess = mockRunInputProcessErr
+		input.runInputProcess = stubRunInputProcess
 		input.logf = func(level log.Level, format string, a ...interface{}) {
 			logs <- fmt.Sprintf(format, a...)
 		}
 		input.WG.Add(1)
 		go input.start(ctx)
 
-		require.Equal(t, "main process: crashed: mock", <-logs)
+		require.Equal(t, "main process: crashed: stub", <-logs)
 		cancel()
 		<-logs
 	})
@@ -480,16 +489,6 @@ func TestRunInputProcess(t *testing.T) {
 		err := runInputProcess(context.Background(), i)
 		require.ErrorIs(t, err, video.ErrEmptyPathName)
 	})
-}
-
-func mockHooks() Hooks {
-	return Hooks{
-		Start:      func(context.Context, *Monitor) {},
-		StartInput: func(context.Context, *InputProcess, *[]string) {},
-		Event:      func(*Recorder, *storage.Event) {},
-		RecSave:    func(*Recorder, *string) {},
-		RecSaved:   func(*Recorder, string, storage.RecordingData) {},
-	}
 }
 
 func TestGenInputArgs(t *testing.T) {

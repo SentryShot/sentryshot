@@ -11,13 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockMuxer struct{}
+type stubMuxer struct{}
 
-func (m *mockMuxer) WaitForSegFinalized() {}
+func (m *stubMuxer) WaitForSegFinalized() {}
 
-func newMockMuxer(err error) func() (muxer, error) {
+func newStubMuxer(err error) func() (muxer, error) {
 	return func() (muxer, error) {
-		return &mockMuxer{}, err
+		return &stubMuxer{}, err
 	}
 }
 
@@ -29,7 +29,7 @@ func newTestWatchdog(t *testing.T) (watchdog, chan string) {
 
 	d := watchdog{
 		interval: 10 * time.Millisecond,
-		muxer:    newMockMuxer(nil),
+		muxer:    newStubMuxer(nil),
 		onFreeze: func() {},
 		logf:     logFunc,
 	}

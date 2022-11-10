@@ -375,7 +375,7 @@ func (i *instance) startProcess(parentCtx context.Context) {
 	for {
 		ctx, cancel := context.WithCancel(parentCtx)
 		err := i.runProcess(ctx, cancel)
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			i.logf(log.LevelError, "detector crashed: %v", err)
 		} else {
 			i.logf(log.LevelInfo, "detector stopped")
