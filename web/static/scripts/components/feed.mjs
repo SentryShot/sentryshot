@@ -65,7 +65,7 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 			</div>`,
 		init($parent) {
 			const element = $parent.querySelector(`#${elementID}`);
-			const $overlay = $parent.querySelector(`.js-overlay`);
+			const $overlay = element.querySelector(`.js-overlay`);
 			const $video = element.querySelector("video");
 
 			for (const button of buttons) {

@@ -68,9 +68,15 @@ func onEnv(env storage.ConfigEnv) {
 	for {
 		addon.detectorList, err = newFetcher(addon.doodsIP).fetchDetectors()
 		if err != nil {
-			fmt.Printf("could not fetch detectors: %v %v\nretrying..\n", addon.doodsIP, err)
+			fmt.Printf("doods: could not fetch detectors: %v %v\n"+
+				"it can sometimes take a minute for doods to start\n"+
+				"retrying..\n", addon.doodsIP, err)
 			time.Sleep(3 * time.Second)
 			continue
+		}
+		fmt.Printf("doods: found %d detectors:\n", len(addon.detectorList))
+		for _, detector := range addon.detectorList {
+			fmt.Printf("  %v\n", detector.Name)
 		}
 		return
 	}

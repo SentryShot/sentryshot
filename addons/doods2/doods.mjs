@@ -308,7 +308,7 @@ function crop(hls, detectors) {
 	};
 
 	let value = [];
-	let $wrapper, $padding, $x, $y, $size, $modalContent, $feed;
+	let $wrapper, $padding, $x, $y, $size, $modalContent, $feed, $overlay;
 
 	const modal = newModal("Crop");
 
@@ -322,7 +322,7 @@ function crop(hls, detectors) {
 					</div>
 					<div class="js-preview-padding" style="background: white;"></div>
 					<svg
-						class="js-overlay doodsCrop-preview-overlay"
+						class="js-doods-overlay doodsCrop-preview-overlay"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
 						style="opacity: 0.7;"
@@ -380,7 +380,7 @@ function crop(hls, detectors) {
 		// eslint-disable-next-line compat/compat
 		new ResizeObserver(updatePadding).observe($feed);
 
-		const $overlay = $modalContent.querySelector(".js-overlay");
+		$overlay = $modalContent.querySelector(".js-doods-overlay");
 		$modalContent.querySelector(".js-options").addEventListener("change", () => {
 			$overlay.innerHTML = renderPreviewOverlay();
 		});
@@ -414,6 +414,13 @@ function crop(hls, detectors) {
 	};
 
 	const renderPreviewOverlay = () => {
+		if ($x.value < 0) {
+			$x.value = 0;
+		}
+		if ($y.value < 0) {
+			$y.value = 0;
+		}
+
 		const x = Number($x.value);
 		const y = Number($y.value);
 		let s = Number($size.value);
@@ -510,8 +517,9 @@ function crop(hls, detectors) {
 					});
 					rendered = true;
 				} else {
-					// Update feed.
+					// Update feed and preview.
 					$feed.innerHTML = feed.html;
+					$overlay.innerHTML = renderPreviewOverlay();
 				}
 
 				modal.open();
@@ -544,7 +552,7 @@ function mask(hls) {
 				<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
 					<div class="js-feed doodsCrop-preview-feed">${feed.html}</div>
 					<svg
-						class="js-overlay doodsMask-preview-overlay"
+						class="js-doods-overlay doodsMask-preview-overlay"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
 						style="opacity: 0.7;"
@@ -562,7 +570,7 @@ function mask(hls) {
 			value.enable = $enable.value == "true";
 		});
 
-		$overlay = $modalContent.querySelector(".js-overlay");
+		$overlay = $modalContent.querySelector(".js-doods-overlay");
 		$points = $modalContent.querySelector(".js-points");
 
 		renderValue();
