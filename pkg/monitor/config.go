@@ -15,33 +15,57 @@
 
 package monitor
 
+// RawConfigs map of RawConfig.
+type RawConfigs map[string]RawConfig
+
+// RawConfig raw config.
+type RawConfig map[string]string
+
 // Configs Monitor configurations.
-type Configs map[string]Config
+type Configs map[string]*Config
 
 // Config Monitor configuration.
-type Config map[string]string
+type Config struct {
+	v map[string]string
+}
+
+// NewConfig creates a new immutable monitor config.
+func NewConfig(c RawConfig) Config {
+	return Config{v: c}
+}
+
+// NewConfigPtr temp.
+func NewConfigPtr(c RawConfig) *Config {
+	conf := NewConfig(c)
+	return &conf
+}
+
+// Get config value by key.
+func (c Config) Get(key string) string {
+	return c.v[key]
+}
 
 func (c Config) enabled() bool {
-	return c["enable"] == "true"
+	return c.v["enable"] == "true"
 }
 
 // ID returns the monitor ID.
 func (c Config) ID() string {
-	return c["id"]
+	return c.v["id"]
 }
 
 // Name returns the monitor name.
 func (c Config) Name() string {
-	return c["name"]
+	return c.v["name"]
 }
 
 // InputOpts returns the monitor input options.
 func (c Config) InputOpts() string {
-	return c["inputOptions"]
+	return c.v["inputOptions"]
 }
 
 func (c Config) audioEnabled() bool {
-	switch c["audioEncoder"] {
+	switch c.v["audioEncoder"] {
 	case "":
 		return false
 	case "none":
@@ -52,22 +76,22 @@ func (c Config) audioEnabled() bool {
 
 // AudioEncoder returns the monitor audio encoder.
 func (c Config) AudioEncoder() string {
-	return c["audioEncoder"]
+	return c.v["audioEncoder"]
 }
 
 // VideoEncoder returns the monitor audio encoder.
 func (c Config) VideoEncoder() string {
-	return c["videoEncoder"]
+	return c.v["videoEncoder"]
 }
 
 // MainInput returns the main input url.
 func (c Config) MainInput() string {
-	return c["mainInput"]
+	return c.v["mainInput"]
 }
 
 // SubInput returns the sub input url.
 func (c Config) SubInput() string {
-	return c["subInput"]
+	return c.v["subInput"]
 }
 
 // SubInputEnabled if sub input is available.
@@ -77,24 +101,24 @@ func (c Config) SubInputEnabled() bool {
 
 // video length is seconds.
 func (c Config) videoLength() string {
-	return c["videoLength"]
+	return c.v["videoLength"]
 }
 
 func (c Config) alwaysRecord() bool {
-	return c["alwaysRecord"] == "true"
+	return c.v["alwaysRecord"] == "true"
 }
 
 // TimestampOffset returns the timestamp offset.
 func (c Config) TimestampOffset() string {
-	return c["timestampOffset"]
+	return c.v["timestampOffset"]
 }
 
 // LogLevel returns the ffmpeg log level.
 func (c Config) LogLevel() string {
-	return c["logLevel"]
+	return c.v["logLevel"]
 }
 
 // Hwaccel returns the ffmpeg hwaccel.
 func (c Config) Hwaccel() string {
-	return c["hwaccel"]
+	return c.v["hwaccel"]
 }

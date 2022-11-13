@@ -43,14 +43,14 @@ func TestParseConfig(t *testing.T) {
 				}
 			]
 		}`
-		c := monitor.Config{
+		c := monitor.NewConfig(monitor.RawConfig{
 			"id":              "1",
 			"logLevel":        "2",
 			"hwaccel":         "3",
 			"timestampOffset": "4",
 			"subInput":        "x",
 			"motion":          motion,
-		}
+		})
 		actual, enable, err := parseConfig(c)
 		require.NoError(t, err)
 		require.True(t, enable)
@@ -87,16 +87,16 @@ func TestParseConfig(t *testing.T) {
 			"enable":       "false",
 			"detectorName": "x"
 		}`
-		c := monitor.Config{
+		c := monitor.NewConfig(monitor.RawConfig{
 			"motion": motion,
-		}
+		})
 		actual, enable, err := parseConfig(c)
 		require.NoError(t, err)
 		require.Nil(t, actual)
 		require.False(t, enable)
 	})
 	// Errors.
-	cases := map[string]monitor.Config{
+	cases := map[string]monitor.RawConfig{
 		"motionErr": {
 			"motion": `{"enable": "true",}`,
 		},
@@ -113,7 +113,7 @@ func TestParseConfig(t *testing.T) {
 	}
 	for name, conf := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, enable, err := parseConfig(conf)
+			_, enable, err := parseConfig(monitor.NewConfig(conf))
 			require.Error(t, err)
 			require.False(t, enable)
 		})

@@ -76,6 +76,7 @@ func prepareDir(t *testing.T) string {
 }
 
 func newTestManager(t *testing.T) (string, *Manager) {
+	t.Helper()
 	configDir := prepareDir(t)
 
 	manager, err := NewManager(
@@ -83,29 +84,30 @@ func newTestManager(t *testing.T) (string, *Manager) {
 		storage.ConfigEnv{},
 		nil,
 		nil,
-		&Hooks{Migrate: func(Config) error { return nil }},
+		&Hooks{Migrate: func(RawConfig) error { return nil }},
 	)
 	require.NoError(t, err)
 
 	return configDir, manager
 }
 
-func readConfig(t *testing.T, path string) Config {
+func readConfig(t *testing.T, path string) RawConfig {
+	t.Helper()
 	file, err := os.ReadFile(path)
 	require.NoError(t, err)
 
-	var config Config
-	err = json.Unmarshal(file, &config)
+	var c RawConfig
+	err = json.Unmarshal(file, &c)
 	require.NoError(t, err)
 
-	return config
+	return c
 }
 
 func TestNewManager(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		configDir, manager := newTestManager(t)
 
-		config := readConfig(t, filepath.Join(configDir, "1.json"))
+		config := NewConfig(readConfig(t, filepath.Join(configDir, "1.json")))
 		require.Equal(t, config, *manager.Monitors["1"].Config)
 	})
 	t.Run("migration", func(t *testing.T) {
@@ -116,7 +118,7 @@ func TestNewManager(t *testing.T) {
 		err := os.WriteFile(configPath, data, 0o600)
 		require.NoError(t, err)
 
-		migrate := func(c Config) error {
+		migrate := func(c RawConfig) error {
 			delete(c, "test")
 			c["test2"] = "b"
 			return nil
@@ -132,7 +134,7 @@ func TestNewManager(t *testing.T) {
 		require.NoError(t, err)
 
 		actual := *manager.Monitors["x"].Config
-		expected := Config{"id": "x", "test2": "b"}
+		expected := NewConfig(RawConfig{"id": "x", "test2": "b"})
 		require.Equal(t, expected, actual)
 
 		actual2, err := os.ReadFile(configPath)
@@ -153,7 +155,7 @@ func TestNewManager(t *testing.T) {
 			storage.ConfigEnv{},
 			&log.Logger{},
 			&video.Server{},
-			&Hooks{Migrate: func(Config) error { return nil }},
+			&Hooks{Migrate: func(RawConfig) error { return nil }},
 		)
 		require.Error(t, err)
 	})
@@ -169,7 +171,7 @@ func TestNewManager(t *testing.T) {
 			storage.ConfigEnv{},
 			&log.Logger{},
 			&video.Server{},
-			&Hooks{Migrate: func(Config) error { return nil }},
+			&Hooks{Migrate: func(RawConfig) error { return nil }},
 		)
 		var e *json.SyntaxError
 		require.ErrorAs(t, err, &e)
@@ -188,7 +190,7 @@ func TestNewManager(t *testing.T) {
 			storage.ConfigEnv{},
 			&log.Logger{},
 			&video.Server{},
-			&Hooks{Migrate: func(Config) error { return stubErr }},
+			&Hooks{Migrate: func(RawConfig) error { return stubErr }},
 		)
 		require.ErrorIs(t, err, stubErr)
 	})
@@ -199,17 +201,17 @@ func TestMonitorSet(t *testing.T) {
 		configDir, manager := newTestManager(t)
 
 		config := *manager.Monitors["1"].Config
-		config["name"] = "new"
+		config.v["name"] = "new"
 
-		err := manager.MonitorSet("new", config)
+		err := manager.MonitorSet("new", config.v)
 		require.NoError(t, err)
 
 		newName := manager.Monitors["new"].Config.Name()
 		require.Equal(t, newName, "new")
 
 		// Check if changes were saved to file.
-		config = readConfig(t, configDir+"/new.json")
-		require.Equal(t, config, *manager.Monitors["new"].Config)
+		savedConfig := NewConfig(readConfig(t, configDir+"/new.json"))
+		require.Equal(t, *manager.Monitors["new"].Config, savedConfig)
 	})
 	t.Run("setOld", func(t *testing.T) {
 		configDir, manager := newTestManager(t)
@@ -220,7 +222,7 @@ func TestMonitorSet(t *testing.T) {
 		oldname := oldMonitor.Config.Name()
 		require.Equal(t, oldname, "one")
 
-		config := Config{"name": "two"}
+		config := RawConfig{"name": "two"}
 
 		err := manager.MonitorSet("1", config)
 		require.NoError(t, err)
@@ -236,14 +238,14 @@ func TestMonitorSet(t *testing.T) {
 		require.Equal(t, newName, "two")
 
 		// Check if changes were saved to file.
-		config = readConfig(t, configDir+"/1.json")
-		require.Equal(t, config, *manager.Monitors["1"].Config)
+		savedConfig := NewConfig(readConfig(t, configDir+"/1.json"))
+		require.Equal(t, *manager.Monitors["1"].Config, savedConfig)
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
 		_, manager := newTestManager(t)
 		manager.path = "/dev/null"
 
-		err := manager.MonitorSet("1", Config{})
+		err := manager.MonitorSet("1", RawConfig{})
 		require.Error(t, err)
 	})
 }
@@ -277,34 +279,34 @@ func TestMonitorList(t *testing.T) {
 	manager := Manager{
 		Monitors: monitors{
 			"x": &Monitor{
-				Config: &Config{
+				Config: NewConfigPtr(RawConfig{
 					"id":   "1",
 					"name": "2",
-				},
+				}),
 			},
 			"y": &Monitor{
-				Config: &Config{
+				Config: NewConfigPtr(RawConfig{
 					"id":           "3",
 					"name":         "4",
 					"enable":       "true",
 					"audioEncoder": "x",
 					"subInput":     "x",
 					"secret":       "x",
-				},
+				}),
 			},
 		},
 	}
 
 	actual := manager.MonitorsInfo()
-	expected := Configs{
-		"1": Config{
+	expected := RawConfigs{
+		"1": {
 			"audioEnabled":    "false",
 			"enable":          "false",
 			"id":              "1",
 			"name":            "2",
 			"subInputEnabled": "false",
 		},
-		"3": Config{
+		"3": {
 			"audioEnabled":    "true",
 			"enable":          "true",
 			"id":              "3",
@@ -313,15 +315,28 @@ func TestMonitorList(t *testing.T) {
 		},
 	}
 
-	require.Equal(t, actual, expected)
+	require.Equal(t, expected, actual)
 }
 
 func TestMonitorConfigs(t *testing.T) {
 	_, manager := newTestManager(t)
 
-	actual := fmt.Sprintf("%v", manager.MonitorConfigs())
-	expected := "map[1:map[audioEncoder:copy enable:false id:1 mainInput:x1 name:one]" +
-		" 2:map[enable:false id:2 name:two subInput:x2]]"
+	actual := manager.MonitorConfigs()
+	expected := RawConfigs{
+		"1": {
+			"audioEncoder": "copy",
+			"enable":       "false",
+			"id":           "1",
+			"mainInput":    "x1",
+			"name":         "one",
+		},
+		"2": {
+			"enable":   "false",
+			"id":       "2",
+			"name":     "two",
+			"subInput": "x2",
+		},
+	}
 
 	require.Equal(t, actual, expected)
 }
@@ -363,9 +378,9 @@ func stubNewVideoServerPath(
 
 func newTestInputProcess() *InputProcess {
 	return &InputProcess{
-		Config: &Config{
+		Config: NewConfigPtr(RawConfig{
 			"id": "test",
-		},
+		}),
 		MonitorLock: &sync.Mutex{},
 
 		isSubInput: false,
@@ -423,7 +438,7 @@ func TestStartMonitor(t *testing.T) {
 
 		m := newTestMonitor(t)
 		m.running = false
-		m.Config = &Config{"name": "test"}
+		m.Config = NewConfigPtr(RawConfig{"name": "test"})
 		m.logf = func(level log.Level, format string, a ...interface{}) {
 			logs <- fmt.Sprintf(format, a...)
 		}
@@ -485,7 +500,7 @@ func TestRunInputProcess(t *testing.T) {
 	})
 	t.Run("rtspPathErr", func(t *testing.T) {
 		i := newTestInputProcess()
-		(*i.Config)["id"] = ""
+		i.Config.v["id"] = ""
 		err := runInputProcess(context.Background(), i)
 		require.ErrorIs(t, err, video.ErrEmptyPathName)
 	})
@@ -494,12 +509,12 @@ func TestRunInputProcess(t *testing.T) {
 func TestGenInputArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		i := &InputProcess{
-			Config: &Config{
+			Config: NewConfigPtr(RawConfig{
 				"logLevel":     "1",
 				"mainInput":    "2",
 				"audioEncoder": "none",
 				"videoEncoder": "3",
-			},
+			}),
 			serverPath: video.ServerPath{
 				RtspProtocol: "4",
 				RtspAddress:  "5",
@@ -511,14 +526,14 @@ func TestGenInputArgs(t *testing.T) {
 	})
 	t.Run("maximal", func(t *testing.T) {
 		i := &InputProcess{
-			Config: &Config{
+			Config: NewConfigPtr(RawConfig{
 				"logLevel":     "1",
 				"hwaccel":      "2",
 				"inputOptions": "3",
 				"subInput":     "4",
 				"audioEncoder": "5",
 				"videoEncoder": "6",
-			},
+			}),
 			isSubInput: true,
 			serverPath: video.ServerPath{
 				HlsAddress:   "7",

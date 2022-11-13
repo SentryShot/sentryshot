@@ -233,7 +233,7 @@ type rawConfigV1 struct {
 
 func parseConfig(conf monitor.Config) (*config, error) {
 	var rawConf rawConfigV1
-	rawTimeline := conf["timeline"]
+	rawTimeline := conf.Get("timeline")
 	if rawTimeline != "" {
 		err := json.Unmarshal([]byte(rawTimeline), &rawConf)
 		if err != nil {
@@ -249,34 +249,34 @@ func parseConfig(conf monitor.Config) (*config, error) {
 
 const currentConfigVersion = 1
 
-func migrate(conf monitor.Config) error {
-	configVersion, _ := strconv.Atoi(conf["timelineConfigVersion"])
+func migrate(c monitor.RawConfig) error {
+	configVersion, _ := strconv.Atoi(c["timelineConfigVersion"])
 
 	if configVersion < 1 {
-		if err := migrateV0toV1(conf); err != nil {
+		if err := migrateV0toV1(c); err != nil {
 			return fmt.Errorf("timeline v0 to v1: %w", err)
 		}
 	}
 
-	conf["timelineConfigVersion"] = strconv.Itoa(currentConfigVersion)
+	c["timelineConfigVersion"] = strconv.Itoa(currentConfigVersion)
 	return nil
 }
 
-func migrateV0toV1(conf monitor.Config) error {
+func migrateV0toV1(c monitor.RawConfig) error {
 	config := rawConfigV1{
-		Scale:     conf["timelineScale"],
-		Quality:   conf["timelineQuality"],
-		FrameRate: conf["timelineFrameRate"],
+		Scale:     c["timelineScale"],
+		Quality:   c["timelineQuality"],
+		FrameRate: c["timelineFrameRate"],
 	}
 
-	delete(conf, "timelineScale")
-	delete(conf, "timelineQuality")
-	delete(conf, "timelineFrameRate")
+	delete(c, "timelineScale")
+	delete(c, "timelineQuality")
+	delete(c, "timelineFrameRate")
 
 	rawConfig, err := json.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("marshal raw config: %w", err)
 	}
-	conf["timeline"] = string(rawConfig)
+	c["timeline"] = string(rawConfig)
 	return nil
 }

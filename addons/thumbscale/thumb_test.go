@@ -34,9 +34,9 @@ func TestOnRecSave(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			r := &monitor.Recorder{
 				MonitorLock: &sync.Mutex{},
-				Config: &monitor.Config{
+				Config: monitor.NewConfigPtr(monitor.RawConfig{
 					"thumbScale": tc.input,
-				},
+				}),
 			}
 			args := " -frames"
 			onRecSave(r, &args)

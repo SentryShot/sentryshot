@@ -31,7 +31,7 @@ type rawConfigV0 struct {
 }
 
 func parseConfig(c monitor.Config) (*config, bool, error) {
-	motion := c["motion"]
+	motion := c.Get("motion")
 	if motion == "" {
 		return nil, false, nil
 	}
@@ -47,7 +47,7 @@ func parseConfig(c monitor.Config) (*config, bool, error) {
 		return nil, false, nil
 	}
 
-	timestampOffset, err := parseTimestampOffset(c["timestampOffset"])
+	timestampOffset, err := parseTimestampOffset(c.TimestampOffset())
 	if err != nil {
 		return nil, false, err
 	}

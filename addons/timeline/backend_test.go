@@ -92,10 +92,10 @@ func TestParseConfig(t *testing.T) {
 			"quality":   "2",
 			"frameRate": "3"
 		}`
-		c := monitor.Config{
+		c := monitor.NewConfig(monitor.RawConfig{
 			"timelineConfigVersion": "1",
 			"timeline":              timeline,
-		}
+		})
 		actual, err := parseConfig(c)
 		require.NoError(t, err)
 		expected := config{
@@ -106,16 +106,16 @@ func TestParseConfig(t *testing.T) {
 		require.Equal(t, expected, *actual)
 	})
 	t.Run("timelineErr", func(t *testing.T) {
-		c := monitor.Config{
+		c := monitor.NewConfig(monitor.RawConfig{
 			"timeline": "{",
-		}
+		})
 		_, err := parseConfig(c)
 		require.Error(t, err)
 	})
 }
 
 func TestMigrate(t *testing.T) {
-	c := monitor.Config{
+	c := map[string]string{
 		"timelineScale":     "1",
 		"timelineQuality":   "2",
 		"timelineFrameRate": "3",
@@ -129,7 +129,7 @@ func TestMigrate(t *testing.T) {
 		"quality":   "2",
 		"frameRate": "3"
 	}`), "")
-	expected := monitor.Config{
+	expected := map[string]string{
 		"timelineConfigVersion": "1",
 		"timeline":              timeline,
 	}
@@ -137,7 +137,7 @@ func TestMigrate(t *testing.T) {
 }
 
 func TestMigrateV0ToV1(t *testing.T) {
-	c := monitor.Config{
+	c := map[string]string{
 		"timelineScale":     "1",
 		"timelineQuality":   "2",
 		"timelineFrameRate": "3",
@@ -151,7 +151,7 @@ func TestMigrateV0ToV1(t *testing.T) {
 		"quality":   "2",
 		"frameRate": "3"
 	}`), "")
-	expected := monitor.Config{
+	expected := map[string]string{
 		"timelineConfigVersion": "1",
 		"timeline":              timeline,
 	}

@@ -167,7 +167,7 @@ func (h *hookList) monitor() *monitor.Hooks {
 			hook(r, recPath, recData)
 		}
 	}
-	migrateHook := func(conf monitor.Config) error {
+	migrateHook := func(conf monitor.RawConfig) error {
 		for _, hook := range h.migrationMonitor {
 			err := hook(conf)
 			if err != nil {

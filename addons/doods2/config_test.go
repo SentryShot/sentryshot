@@ -40,14 +40,14 @@ func TestParseConfig(t *testing.T) {
 			"duration":     "0.000000016",
 			"useSubStream": "true"
 		}`
-		c := monitor.Config{
+		c := monitor.NewConfig(monitor.RawConfig{
 			"id":              "1",
 			"hwaccel":         "2",
 			"logLevel":        "3",
 			"timestampOffset": "4",
 			"subInput":        "x",
 			"doods":           doods,
-		}
+		})
 		actual, enable, err := parseConfig(c)
 		require.NoError(t, err)
 		require.True(t, enable)
@@ -79,9 +79,9 @@ func TestParseConfig(t *testing.T) {
 			"detectorName": "gray_x",
 			"useSubStream": "true"
 		}`
-		c := monitor.Config{
+		c := monitor.NewConfig(monitor.RawConfig{
 			"doods": doods,
-		}
+		})
 		actual, enable, err := parseConfig(c)
 		require.NoError(t, err)
 		require.True(t, enable)
@@ -93,9 +93,9 @@ func TestParseConfig(t *testing.T) {
 		require.Equal(t, expected, *actual)
 	})
 	t.Run("empty", func(t *testing.T) {
-		c := monitor.Config{
+		c := monitor.NewConfig(monitor.RawConfig{
 			"doods": "",
-		}
+		})
 		actual, enable, err := parseConfig(c)
 		require.NoError(t, err)
 		require.Nil(t, actual)
@@ -114,9 +114,9 @@ func TestParseConfig(t *testing.T) {
 			"enable":       "true",
 			"thresholds": "nil"
 		}`
-		c := monitor.Config{
+		c := monitor.NewConfig(monitor.RawConfig{
 			"doods": doods,
-		}
+		})
 		_, enable, err := parseConfig(c)
 		var e *json.SyntaxError
 		require.ErrorAs(t, err, &e)
@@ -128,9 +128,9 @@ func TestParseConfig(t *testing.T) {
 			"enable":     "true",
 			"thresholds": "{\"a\":1,\"b\":2,\"c\":-1}"
 		}`
-		c := monitor.Config{
+		c := monitor.NewConfig(monitor.RawConfig{
 			"doods": doods,
-		}
+		})
 		config, enable, err := parseConfig(c)
 		require.NoError(t, err)
 		require.True(t, enable)
@@ -144,9 +144,9 @@ func TestParseConfig(t *testing.T) {
 		{
 			"enable": "true"
 		}`
-		c := monitor.Config{
+		c := monitor.NewConfig(monitor.RawConfig{
 			"doods": doods,
-		}
+		})
 		actual, enable, err := parseConfig(c)
 		require.NoError(t, err)
 		require.True(t, enable)
@@ -154,7 +154,7 @@ func TestParseConfig(t *testing.T) {
 	})
 
 	// Errors.
-	cases := map[string]monitor.Config{
+	cases := map[string]monitor.RawConfig{
 		"doodsErr": {
 			"doods": `{"enable": "true",}`,
 		},
@@ -177,7 +177,7 @@ func TestParseConfig(t *testing.T) {
 	}
 	for name, conf := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, enable, err := parseConfig(conf)
+			_, enable, err := parseConfig(monitor.NewConfig(conf))
 			require.Error(t, err)
 			require.False(t, enable)
 		})
@@ -298,7 +298,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestMigrate(t *testing.T) {
-	c := monitor.Config{
+	c := map[string]string{
 		"doodsEnable":       "true",
 		"doodsThresholds":   `{"1":2}`,
 		"doodsCrop":         "[3,4,5]",
@@ -322,7 +322,7 @@ func TestMigrate(t *testing.T) {
 		"duration":     "0.000000012",
 		"useSubStream": "true"
 	}`), "")
-	expected := monitor.Config{
+	expected := map[string]string{
 		"doodsConfigVersion": "1",
 		"doods":              doods,
 	}
@@ -330,7 +330,7 @@ func TestMigrate(t *testing.T) {
 }
 
 func TestMigrateV0ToV1(t *testing.T) {
-	c := monitor.Config{
+	c := map[string]string{
 		"doodsEnable":       "true",
 		"doodsThresholds":   `{"1":2}`,
 		"doodsCrop":         "[3,4,5]",
@@ -354,7 +354,7 @@ func TestMigrateV0ToV1(t *testing.T) {
 		"duration":     "0.000000012",
 		"useSubStream": "true"
 	}`), "")
-	expected := monitor.Config{
+	expected := map[string]string{
 		"doodsConfigVersion": "1",
 		"doods":              doods,
 	}

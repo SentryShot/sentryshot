@@ -45,10 +45,10 @@ func newTestRecorder(t *testing.T) *Recorder {
 
 	logf := func(level log.Level, format string, a ...interface{}) {}
 	return &Recorder{
-		Config: &Config{
+		Config: NewConfigPtr(map[string]string{
 			"timestampOffset": "0",
 			"videoLength":     "0.0003",
-		},
+		}),
 		MonitorLock: &sync.Mutex{},
 		events:      &storage.Events{},
 		eventsLock:  sync.Mutex{},
@@ -341,14 +341,14 @@ func TestRunRecording(t *testing.T) {
 	})
 	t.Run("genArgsErr", func(t *testing.T) {
 		r := newTestRecorder(t)
-		(*r.Config)["videoLength"] = ""
+		r.Config.v["videoLength"] = ""
 
 		err := runRecording(context.Background(), r)
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 	t.Run("parseOffsetErr", func(t *testing.T) {
 		r := newTestRecorder(t)
-		(*r.Config)["timestampOffset"] = ""
+		r.Config.v["timestampOffset"] = ""
 
 		err := runRecording(context.Background(), r)
 		require.ErrorIs(t, err, strconv.ErrSyntax)

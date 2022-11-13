@@ -60,7 +60,7 @@ type mask struct {
 }
 
 func parseConfig(c monitor.Config) (*config, bool, error) { //nolint:funlen
-	rawConf, err := parseRawConfig(c["doods"])
+	rawConf, err := parseRawConfig(c.Get("doods"))
 	if err != nil {
 		return nil, false, err
 	}
@@ -69,7 +69,7 @@ func parseConfig(c monitor.Config) (*config, bool, error) { //nolint:funlen
 		return nil, false, nil
 	}
 
-	timestampOffset, err := ffmpeg.ParseTimestampOffset(c["timestampOffset"])
+	timestampOffset, err := ffmpeg.ParseTimestampOffset(c.Get("timestampOffset"))
 	if err != nil {
 		return nil, false, err
 	}
@@ -228,44 +228,44 @@ func init() {
 
 const currentConfigVersion = 1
 
-func migrate(conf monitor.Config) error {
-	configVersion, _ := strconv.Atoi(conf["doodsConfigVersion"])
+func migrate(c monitor.RawConfig) error {
+	configVersion, _ := strconv.Atoi(c["doodsConfigVersion"])
 
 	if configVersion < 1 {
-		if err := migrateV0toV1(conf); err != nil {
+		if err := migrateV0toV1(c); err != nil {
 			return fmt.Errorf("doods v0 to v1: %w", err)
 		}
 	}
 
-	conf["doodsConfigVersion"] = strconv.Itoa(currentConfigVersion)
+	c["doodsConfigVersion"] = strconv.Itoa(currentConfigVersion)
 	return nil
 }
 
-func migrateV0toV1(conf monitor.Config) error {
+func migrateV0toV1(c monitor.RawConfig) error {
 	config := rawConfigV1{
-		Enable:       conf["doodsEnable"],
-		Thresholds:   conf["doodsThresholds"],
-		Crop:         conf["doodsCrop"],
-		Mask:         conf["doodsMask"],
-		DetectorName: conf["doodsDetectorName"],
-		FeedRate:     conf["doodsFeedRate"],
-		Duration:     conf["doodsDuration"],
-		UseSubStream: conf["doodsUseSubStream"],
+		Enable:       c["doodsEnable"],
+		Thresholds:   c["doodsThresholds"],
+		Crop:         c["doodsCrop"],
+		Mask:         c["doodsMask"],
+		DetectorName: c["doodsDetectorName"],
+		FeedRate:     c["doodsFeedRate"],
+		Duration:     c["doodsDuration"],
+		UseSubStream: c["doodsUseSubStream"],
 	}
 
-	delete(conf, "doodsEnable")
-	delete(conf, "doodsThresholds")
-	delete(conf, "doodsCrop")
-	delete(conf, "doodsMask")
-	delete(conf, "doodsDetectorName")
-	delete(conf, "doodsFeedRate")
-	delete(conf, "doodsDuration")
-	delete(conf, "doodsUseSubStream")
+	delete(c, "doodsEnable")
+	delete(c, "doodsThresholds")
+	delete(c, "doodsCrop")
+	delete(c, "doodsMask")
+	delete(c, "doodsDetectorName")
+	delete(c, "doodsFeedRate")
+	delete(c, "doodsDuration")
+	delete(c, "doodsUseSubStream")
 
 	rawConfig, err := json.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("marshal raw config: %w", err)
 	}
-	conf["doods"] = string(rawConfig)
+	c["doods"] = string(rawConfig)
 	return nil
 }

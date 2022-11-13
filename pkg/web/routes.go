@@ -185,7 +185,7 @@ func UserDelete(a auth.Authenticator) http.Handler {
 }
 
 // MonitorList returns a censored monitor list with ID, Name and CaptureAudio.
-func MonitorList(monitorList func() monitor.Configs) http.Handler {
+func MonitorList(monitorList func() monitor.RawConfigs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -250,7 +250,7 @@ func MonitorRestart(m *monitor.Manager) http.Handler {
 }
 
 // MonitorSet handler to set monitor configuration.
-func MonitorSet(c *monitor.Manager) http.Handler {
+func MonitorSet(m *monitor.Manager) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -263,18 +263,18 @@ func MonitorSet(c *monitor.Manager) http.Handler {
 			return
 		}
 
-		var m monitor.Config
-		if err = json.Unmarshal(body, &m); err != nil {
+		var c monitor.RawConfig
+		if err = json.Unmarshal(body, &c); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := checkIDandName(m); err != nil {
+		if err := checkIDandName(c); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		err = c.MonitorSet(m["id"], m)
+		err = m.MonitorSet(c["id"], c)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -343,7 +343,7 @@ func GroupSet(m *group.Manager) http.Handler {
 			return
 		}
 
-		if err := checkIDandName(g); err != nil {
+		if err := checkIDandNameGroup(g); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -361,7 +361,22 @@ var ErrEmptyValue = errors.New("value cannot be empty")
 // ErrContainsSpaces value cannot contain spaces.
 var ErrContainsSpaces = errors.New("value cannot contain spaces")
 
-func checkIDandName(input map[string]string) error {
+func checkIDandName(input monitor.RawConfig) error {
+	switch {
+	case input["id"] == "":
+		return fmt.Errorf("id: %w", ErrEmptyValue)
+	case containsSpaces(input["id"]):
+		return fmt.Errorf("id: %w", ErrContainsSpaces)
+	case input["name"] == "":
+		return fmt.Errorf("name: %w", ErrEmptyValue)
+	case containsSpaces(input["name"]):
+		return fmt.Errorf("name. %w", ErrContainsSpaces)
+	default:
+		return nil
+	}
+}
+
+func checkIDandNameGroup(input map[string]string) error {
 	switch {
 	case input["id"] == "":
 		return fmt.Errorf("id: %w", ErrEmptyValue)

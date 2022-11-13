@@ -62,7 +62,7 @@ func (a *alerter) onEvent(r *monitor.Recorder, event *storage.Event) {
 	go func() {
 		r.MonitorLock.Lock()
 		id := r.Config.ID()
-		rawConfig := (*r.Config)["alert"]
+		rawConfig := r.Config.Get("alert")
 		r.MonitorLock.Unlock()
 
 		err := a.processEvent(r, event, id, rawConfig)

@@ -10,10 +10,10 @@ import (
 	"sync"
 )
 
-// Config Monitor configuration.
+// Config Group configuration.
 type Config map[string]string
 
-// Configs Monitor configurations.
+// Configs Group configurations.
 type Configs map[string]Config
 
 // Group .

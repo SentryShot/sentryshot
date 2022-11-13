@@ -49,7 +49,7 @@ type RecSaveHook func(*Recorder, *string)
 type RecSavedHook func(*Recorder, string, storage.RecordingData)
 
 // MigationHook is called when each monitor config is loaded.
-type MigationHook func(Config) error
+type MigationHook func(RawConfig) error
 
 // Hooks monitor hooks.
 type Hooks struct {
@@ -99,16 +99,17 @@ func NewManager(
 
 	monitors := make(monitors)
 	for _, file := range configFiles {
-		var config Config
-		if err := json.Unmarshal(file, &config); err != nil {
+		var conf RawConfig
+		if err := json.Unmarshal(file, &conf); err != nil {
 			return nil, fmt.Errorf("unmarshal config: %w: %v", err, string(file))
 		}
-		if err := hooks.Migrate(config); err != nil {
+		if err := hooks.Migrate(conf); err != nil {
 			return nil, fmt.Errorf("migration failed: %w", err)
 		}
+		config := NewConfig(conf)
 
 		configPath := manager.configPath(config.ID())
-		migratedConf, _ := json.MarshalIndent(config, "", "    ")
+		migratedConf, _ := json.MarshalIndent(conf, "", "    ")
 		err := os.WriteFile(configPath, migratedConf, 0o600)
 		if err != nil {
 			return nil, fmt.Errorf("write migrated config: %w", err)
@@ -141,23 +142,24 @@ func readConfigs(path string) ([][]byte, error) {
 }
 
 // MonitorSet sets config for specified monitor.
-func (m *Manager) MonitorSet(id string, c Config) error {
+func (m *Manager) MonitorSet(id string, c RawConfig) error {
 	defer m.mu.Unlock()
 	m.mu.Lock()
 
+	conf := NewConfig(c)
 	monitor, exist := m.Monitors[id]
 	if exist {
 		monitor.Lock.Lock()
-		*monitor.Config = c
+		*monitor.Config = conf
 		monitor.Lock.Unlock()
 	} else {
-		monitor = m.newMonitor(c)
+		monitor = m.newMonitor(conf)
 		m.Monitors[id] = monitor
 	}
 
 	// Update file.
 	monitor.Lock.Lock()
-	config, _ := json.MarshalIndent(monitor.Config, "", "    ")
+	config, _ := json.MarshalIndent(c, "", "    ")
 
 	if err := os.WriteFile(m.configPath(id), config, 0o600); err != nil {
 		return err
@@ -194,8 +196,8 @@ func (m *Manager) MonitorDelete(id string) error {
 
 // MonitorsInfo returns common information about the monitors.
 // This will be accessesable by normal users.
-func (m *Manager) MonitorsInfo() Configs {
-	configs := make(map[string]Config)
+func (m *Manager) MonitorsInfo() RawConfigs {
+	configs := make(RawConfigs)
 	m.mu.Lock()
 	for _, monitor := range m.Monitors {
 		monitor.Lock.Lock()
@@ -217,7 +219,7 @@ func (m *Manager) MonitorsInfo() Configs {
 			subInputEnabled = "true"
 		}
 
-		configs[c.ID()] = Config{
+		configs[c.ID()] = RawConfig{
 			"id":              c.ID(),
 			"name":            c.Name(),
 			"enable":          enable,
@@ -234,13 +236,13 @@ func (m *Manager) configPath(id string) string {
 }
 
 // MonitorConfigs returns configurations for all monitors.
-func (m *Manager) MonitorConfigs() map[string]Config {
-	configs := make(map[string]Config)
+func (m *Manager) MonitorConfigs() RawConfigs {
+	configs := make(RawConfigs)
 
 	m.mu.Lock()
-	for _, monitor := range m.Monitors {
+	for id, monitor := range m.Monitors {
 		monitor.Lock.Lock()
-		configs[monitor.Config.ID()] = *monitor.Config
+		configs[id] = monitor.Config.v
 		monitor.Lock.Unlock()
 	}
 	m.mu.Unlock()
