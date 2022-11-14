@@ -16,7 +16,6 @@
 package thumbscale
 
 import (
-	"sync"
 	"testing"
 
 	"nvr/pkg/monitor"
@@ -33,8 +32,7 @@ func TestOnRecSave(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := &monitor.Recorder{
-				MonitorLock: &sync.Mutex{},
-				Config: monitor.NewConfigPtr(monitor.RawConfig{
+				Config: monitor.NewConfig(monitor.RawConfig{
 					"thumbScale": tc.input,
 				}),
 			}

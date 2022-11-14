@@ -184,14 +184,14 @@ func UserDelete(a auth.Authenticator) http.Handler {
 	})
 }
 
-// MonitorList returns a censored monitor list with ID, Name and CaptureAudio.
-func MonitorList(monitorList func() monitor.RawConfigs) http.Handler {
+// MonitorList returns a censored monitor list.
+func MonitorList(monitorInfo func() monitor.RawConfigs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
-		u, err := json.Marshal(monitorList())
+		u, err := json.Marshal(monitorInfo())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -236,15 +236,10 @@ func MonitorRestart(m *monitor.Manager) http.Handler {
 			return
 		}
 
-		monitor, exists := m.Monitors[id]
-		if !exists {
-			http.Error(w, "monitor does not exist", http.StatusBadRequest)
-			return
-		}
-
-		monitor.Stop()
-		if err := monitor.Start(); err != nil {
-			http.Error(w, "could not restart monitor: "+err.Error(), http.StatusInternalServerError)
+		err := m.RestartMonitor(id)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("could not restart monitor: %v", err),
+				http.StatusInternalServerError)
 		}
 	})
 }

@@ -45,14 +45,14 @@ func newTestRecorder(t *testing.T) *Recorder {
 
 	logf := func(level log.Level, format string, a ...interface{}) {}
 	return &Recorder{
-		Config: NewConfigPtr(map[string]string{
+		Config: NewConfig(RawConfig{
 			"timestampOffset": "0",
 			"videoLength":     "0.0003",
 		}),
-		MonitorLock: &sync.Mutex{},
-		events:      &storage.Events{},
-		eventsLock:  sync.Mutex{},
-		eventChan:   make(chan storage.Event),
+
+		events:     &storage.Events{},
+		eventsLock: sync.Mutex{},
+		eventChan:  make(chan storage.Event),
 
 		logf:       logf,
 		runSession: runRecording,

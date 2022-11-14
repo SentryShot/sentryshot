@@ -43,9 +43,6 @@ func init() {
 }
 
 func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]string) {
-	i.MonitorLock.Lock()
-	defer i.MonitorLock.Unlock()
-
 	if i.Config.SubInputEnabled() != i.IsSubInput() {
 		return
 	}
@@ -60,7 +57,7 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 		})
 	}
 
-	config, enable, err := parseConfig(*i.Config)
+	config, enable, err := parseConfig(i.Config)
 	if err != nil {
 		logf(log.LevelError, "could not parse config: %v", err)
 		return

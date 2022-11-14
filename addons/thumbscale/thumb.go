@@ -38,9 +38,6 @@ func modifySettingsjs(tpl string) string {
 }
 
 func onRecSave(r *monitor.Recorder, args *string) {
-	r.MonitorLock.Lock()
-	defer r.MonitorLock.Unlock()
-
 	scale := ffmpeg.ParseScaleString(r.Config.Get("thumbScale"))
 	if scale == "" || scale == "1" {
 		return

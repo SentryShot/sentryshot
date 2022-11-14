@@ -101,7 +101,7 @@ func recSaved(
 	recPath string,
 	recData storage.RecordingData,
 ) error {
-	config, err := parseConfig(*r.Config)
+	config, err := parseConfig(r.Config)
 	if err != nil {
 		return fmt.Errorf("could not parse config: %w", err)
 	}

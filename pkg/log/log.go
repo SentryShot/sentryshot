@@ -237,14 +237,21 @@ func (l *Logger) LogToWriter(ctx context.Context, out io.Writer) {
 	}
 }
 
-type mockLogger chan string
+type testLogger chan string
 
-func (logger *mockLogger) Log(log Entry) {
-	*logger <- log.Msg
+func (logger *testLogger) Log(log Entry) {
+	if *logger != nil {
+		*logger <- log.Msg
+	}
 }
 
 // NewMockLogger creates a ILogger used for testing.
 func NewMockLogger() (ILogger, chan string) {
-	logger := make(mockLogger)
+	logger := make(testLogger)
 	return &logger, logger
+}
+
+// NewDummyLogger creates a dummy logger.
+func NewDummyLogger() ILogger {
+	return new(testLogger)
 }

@@ -37,8 +37,7 @@ import (
 
 // Recorder creates and saves new recordings.
 type Recorder struct {
-	Config      *Config
-	MonitorLock *sync.Mutex
+	Config Config
 
 	events     *storage.Events
 	eventsLock sync.Mutex
@@ -50,7 +49,7 @@ type Recorder struct {
 
 	input  *InputProcess
 	Env    storage.ConfigEnv
-	Logger *log.Logger
+	Logger log.ILogger
 	wg     *sync.WaitGroup
 	hooks  Hooks
 
@@ -69,11 +68,11 @@ func newRecorder(m *Monitor) *Recorder {
 		})
 	}
 	return &Recorder{
-		Config:      m.Config,
-		MonitorLock: &m.Lock,
-		events:      &storage.Events{},
-		eventsLock:  sync.Mutex{},
-		eventChan:   make(chan storage.Event),
+		Config: m.Config,
+
+		events:     &storage.Events{},
+		eventsLock: sync.Mutex{},
+		eventChan:  make(chan storage.Event),
 
 		logf:       logf,
 		runSession: runRecording,
@@ -82,7 +81,7 @@ func newRecorder(m *Monitor) *Recorder {
 		input:  m.mainInput,
 		Env:    m.Env,
 		Logger: m.Logger,
-		wg:     m.WG,
+		wg:     &m.WG,
 		hooks:  m.hooks,
 
 		sleep: 3 * time.Second,
@@ -178,11 +177,7 @@ func (r *Recorder) runRecordingSession(ctx context.Context) {
 type runRecordingFunc func(context.Context, *Recorder) error
 
 func runRecording(ctx context.Context, r *Recorder) error {
-	r.MonitorLock.Lock()
-	monitorID := r.Config.ID()
-	videoLengthStr := r.Config.videoLength()
 	timestampOffsetInt, err := strconv.Atoi(r.Config.TimestampOffset())
-	r.MonitorLock.Unlock()
 	if err != nil {
 		return fmt.Errorf("parse timestamp offset %w", err)
 	}
@@ -200,6 +195,7 @@ func runRecording(ctx context.Context, r *Recorder) error {
 	offset := 0 + time.Duration(timestampOffsetInt)*time.Millisecond
 	startTime := firstSegment.StartTime.Add(-offset)
 
+	monitorID := r.Config.ID()
 	fileDir := filepath.Join(
 		r.Env.RecordingsDir(),
 		startTime.Format("2006/01/02/")+monitorID,
@@ -215,6 +211,7 @@ func runRecording(ctx context.Context, r *Recorder) error {
 		return fmt.Errorf("make directory for video: %w", err)
 	}
 
+	videoLengthStr := r.Config.videoLength()
 	videoLengthFloat, err := strconv.ParseFloat(videoLengthStr, 64)
 	if err != nil {
 		return fmt.Errorf("parse video length: %w", err)
@@ -340,12 +337,8 @@ func (r *Recorder) generateThumbnail(
 		return
 	}
 
-	r.MonitorLock.Lock()
-	logLevel := r.Config.LogLevel()
-	r.MonitorLock.Unlock()
-
 	thumbPath := filePath + ".jpeg"
-	args := "-n -threads 1 -loglevel " + logLevel +
+	args := "-n -threads 1 -loglevel " + r.Config.LogLevel() +
 		" -i -" + // Input.
 		" -frames:v 1 " + thumbPath // Output.
 
@@ -356,7 +349,7 @@ func (r *Recorder) generateThumbnail(
 	cmd := exec.Command(r.Env.FFmpegBin, ffmpeg.ParseArgs(args)...)
 	cmd.Stdin = videoBuffer
 
-	ffLogLevel := log.FFmpegLevel(logLevel)
+	ffLogLevel := log.FFmpegLevel(r.Config.LogLevel())
 	logFunc := func(msg string) {
 		r.logf(ffLogLevel, "thumbnail process: %v", msg)
 	}

@@ -60,10 +60,8 @@ type alerter struct {
 
 func (a *alerter) onEvent(r *monitor.Recorder, event *storage.Event) {
 	go func() {
-		r.MonitorLock.Lock()
 		id := r.Config.ID()
 		rawConfig := r.Config.Get("alert")
-		r.MonitorLock.Unlock()
 
 		err := a.processEvent(r, event, id, rawConfig)
 		if err != nil {
@@ -157,16 +155,12 @@ func bestDetection(e storage.Event) storage.Detection {
 }
 
 func logAlert(r *monitor.Recorder, event *storage.Event, _ []byte) {
-	r.MonitorLock.Lock()
-	id := r.Config.ID()
-	r.MonitorLock.Unlock()
-
+	monitorID := r.Config.ID()
 	d := bestDetection(*event)
-
 	r.Logger.Log(log.Entry{
 		Level:     log.LevelInfo,
 		Src:       "alert",
-		MonitorID: id,
+		MonitorID: monitorID,
 		Msg:       fmt.Sprintf("label:%v score:%v", d.Label, d.Score),
 	})
 }

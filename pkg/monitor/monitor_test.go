@@ -82,7 +82,7 @@ func newTestManager(t *testing.T) (string, *Manager) {
 	manager, err := NewManager(
 		configDir,
 		storage.ConfigEnv{},
-		nil,
+		log.NewDummyLogger(),
 		nil,
 		&Hooks{Migrate: func(RawConfig) error { return nil }},
 	)
@@ -107,8 +107,8 @@ func TestNewManager(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		configDir, manager := newTestManager(t)
 
-		config := NewConfig(readConfig(t, filepath.Join(configDir, "1.json")))
-		require.Equal(t, config, *manager.Monitors["1"].Config)
+		config := readConfig(t, filepath.Join(configDir, "1.json"))
+		require.Equal(t, config, manager.rawConfigs["1"])
 	})
 	t.Run("migration", func(t *testing.T) {
 		configDir := prepareDir(t)
@@ -133,8 +133,8 @@ func TestNewManager(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		actual := *manager.Monitors["x"].Config
-		expected := NewConfig(RawConfig{"id": "x", "test2": "b"})
+		actual := manager.rawConfigs["x"]
+		expected := RawConfig{"id": "x", "test2": "b"}
 		require.Equal(t, expected, actual)
 
 		actual2, err := os.ReadFile(configPath)
@@ -200,26 +200,25 @@ func TestMonitorSet(t *testing.T) {
 	t.Run("createNew", func(t *testing.T) {
 		configDir, manager := newTestManager(t)
 
-		config := *manager.Monitors["1"].Config
-		config.v["name"] = "new"
+		config := manager.rawConfigs["1"]
+		config["name"] = "new"
 
-		err := manager.MonitorSet("new", config.v)
+		err := manager.MonitorSet("new", config)
 		require.NoError(t, err)
 
-		newName := manager.Monitors["new"].Config.Name()
+		newName := manager.rawConfigs["new"]["name"]
 		require.Equal(t, newName, "new")
 
 		// Check if changes were saved to file.
-		savedConfig := NewConfig(readConfig(t, configDir+"/new.json"))
-		require.Equal(t, *manager.Monitors["new"].Config, savedConfig)
+		savedConfig := readConfig(t, configDir+"/new.json")
+		require.Equal(t, manager.rawConfigs["new"], savedConfig)
 	})
 	t.Run("setOld", func(t *testing.T) {
 		configDir, manager := newTestManager(t)
 
-		oldMonitor := manager.Monitors["1"]
-		oldMonitor.running = true
+		oldMonitor := manager.rawConfigs["1"]
 
-		oldname := oldMonitor.Config.Name()
+		oldname := oldMonitor["name"]
 		require.Equal(t, oldname, "one")
 
 		config := RawConfig{"name": "two"}
@@ -227,19 +226,12 @@ func TestMonitorSet(t *testing.T) {
 		err := manager.MonitorSet("1", config)
 		require.NoError(t, err)
 
-		running := manager.Monitors["1"].running
-		require.True(t, running, "old monitor was reset")
-
-		newName := manager.Monitors["1"].Config.Name()
-		require.Equal(t, newName, "two")
-
-		// Check if changes applied to mainInput.
-		newName = manager.Monitors["1"].mainInput.Config.Name()
+		newName := manager.rawConfigs["1"]["name"]
 		require.Equal(t, newName, "two")
 
 		// Check if changes were saved to file.
-		savedConfig := NewConfig(readConfig(t, configDir+"/1.json"))
-		require.Equal(t, *manager.Monitors["1"].Config, savedConfig)
+		savedConfig := readConfig(t, configDir+"/1.json")
+		require.Equal(t, manager.rawConfigs["1"], savedConfig)
 	})
 	t.Run("writeFileErr", func(t *testing.T) {
 		_, manager := newTestManager(t)
@@ -252,14 +244,14 @@ func TestMonitorSet(t *testing.T) {
 
 func TestMonitorDelete(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		_, manager := newTestManager(t)
-
-		require.NotNil(t, manager.Monitors["1"])
+		configDir, manager := newTestManager(t)
+		manager.runningMonitors["1"] = &Monitor{}
 
 		err := manager.MonitorDelete("1")
 		require.NoError(t, err)
 
-		require.Nil(t, manager.Monitors["1"])
+		require.Nil(t, manager.runningMonitors["1"])
+		require.NoFileExists(t, filepath.Join(configDir, "1.json"))
 	})
 	t.Run("existErr", func(t *testing.T) {
 		_, manager := newTestManager(t)
@@ -277,22 +269,18 @@ func TestMonitorDelete(t *testing.T) {
 
 func TestMonitorList(t *testing.T) {
 	manager := Manager{
-		Monitors: monitors{
-			"x": &Monitor{
-				Config: NewConfigPtr(RawConfig{
-					"id":   "1",
-					"name": "2",
-				}),
+		rawConfigs: RawConfigs{
+			"1": RawConfig{
+				"id":   "1",
+				"name": "2",
 			},
-			"y": &Monitor{
-				Config: NewConfigPtr(RawConfig{
-					"id":           "3",
-					"name":         "4",
-					"enable":       "true",
-					"audioEncoder": "x",
-					"subInput":     "x",
-					"secret":       "x",
-				}),
+			"2": RawConfig{
+				"id":           "3",
+				"name":         "4",
+				"enable":       "true",
+				"audioEncoder": "x",
+				"subInput":     "x",
+				"secret":       "x",
 			},
 		},
 	}
@@ -314,7 +302,6 @@ func TestMonitorList(t *testing.T) {
 			"subInputEnabled": "true",
 		},
 	}
-
 	require.Equal(t, expected, actual)
 }
 
@@ -341,28 +328,33 @@ func TestMonitorConfigs(t *testing.T) {
 	require.Equal(t, actual, expected)
 }
 
+func TestStartAllMonitors(t *testing.T) {
+	_, manager := newTestManager(t)
+	manager.StartMonitors()
+	manager.StopMonitors()
+}
+
 func TestStopAllMonitors(t *testing.T) {
-	runningMonitor := func() *Monitor {
-		return &Monitor{
-			running: true,
-			WG:      &sync.WaitGroup{},
-			cancel:  func() {},
-		}
-	}
-	m := Manager{
-		Monitors: map[string]*Monitor{
-			"1": runningMonitor(),
-			"2": runningMonitor(),
-		},
-	}
+	m := Manager{runningMonitors: map[string]*Monitor{
+		"1": {}, "2": {},
+	}}
+	m.StopMonitors()
+	require.Zero(t, len(m.runningMonitors))
+}
 
-	require.True(t, m.Monitors["1"].running)
-	require.True(t, m.Monitors["2"].running)
+func TestRestartMonitor(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		_, manager := newTestManager(t)
+		err := manager.RestartMonitor("1")
+		require.NoError(t, err)
 
-	m.StopAll()
-
-	require.False(t, m.Monitors["1"].running)
-	require.False(t, m.Monitors["2"].running)
+		require.NotNil(t, manager.runningMonitors["1"])
+		manager.StopMonitors()
+	})
+	t.Run("notExistErr", func(t *testing.T) {
+		err := new(Manager).RestartMonitor("x")
+		require.ErrorIs(t, err, ErrMonitorNotExist)
+	})
 }
 
 func stubNewVideoServerPath(
@@ -378,11 +370,9 @@ func stubNewVideoServerPath(
 
 func newTestInputProcess() *InputProcess {
 	return &InputProcess{
-		Config: NewConfigPtr(RawConfig{
+		Config: NewConfig(RawConfig{
 			"id": "test",
 		}),
-		MonitorLock: &sync.Mutex{},
-
 		isSubInput: false,
 
 		serverPath: video.ServerPath{
@@ -416,36 +406,24 @@ func stubRunInputProcess(context.Context, *InputProcess) error {
 func newTestMonitor(t *testing.T) *Monitor {
 	logf := func(level log.Level, format string, a ...interface{}) {}
 	return &Monitor{
-		running: true,
-		logf:    logf,
-		WG:      &sync.WaitGroup{},
-
+		ctx:       context.Background(),
+		logf:      logf,
 		mainInput: &InputProcess{},
 		subInput:  &InputProcess{},
 	}
 }
 
 func TestStartMonitor(t *testing.T) {
-	t.Run("runningErr", func(t *testing.T) {
-		m := Monitor{running: true}
-
-		err := m.Start()
-		require.ErrorIs(t, err, ErrRunning)
-	})
 	t.Run("disabled", func(t *testing.T) {
 		logs := make(chan string)
 		defer close(logs)
 
 		m := newTestMonitor(t)
-		m.running = false
-		m.Config = NewConfigPtr(RawConfig{"name": "test"})
+		m.Config = NewConfig(RawConfig{"name": "test"})
 		m.logf = func(level log.Level, format string, a ...interface{}) {
 			logs <- fmt.Sprintf(format, a...)
 		}
-
-		go func() {
-			m.Start()
-		}()
+		go m.start()
 
 		require.Equal(t, "disabled", <-logs)
 	})
@@ -509,7 +487,7 @@ func TestRunInputProcess(t *testing.T) {
 func TestGenInputArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		i := &InputProcess{
-			Config: NewConfigPtr(RawConfig{
+			Config: NewConfig(RawConfig{
 				"logLevel":     "1",
 				"mainInput":    "2",
 				"audioEncoder": "none",
@@ -526,7 +504,7 @@ func TestGenInputArgs(t *testing.T) {
 	})
 	t.Run("maximal", func(t *testing.T) {
 		i := &InputProcess{
-			Config: NewConfigPtr(RawConfig{
+			Config: NewConfig(RawConfig{
 				"logLevel":     "1",
 				"hwaccel":      "2",
 				"inputOptions": "3",
@@ -595,7 +573,9 @@ func TestInputStreamInfo(t *testing.T) {
 
 func TestSendEvent(t *testing.T) {
 	t.Run("canceled", func(t *testing.T) {
-		m := &Monitor{running: false}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		m := &Monitor{ctx: ctx}
 
 		err := m.SendEvent(storage.Event{})
 		require.ErrorIs(t, err, context.Canceled)

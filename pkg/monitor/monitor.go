@@ -28,6 +28,7 @@ import (
 	"nvr/pkg/video/hls"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -63,9 +64,11 @@ type Hooks struct {
 
 // Manager for the monitors.
 type Manager struct {
-	Monitors    monitors
+	rawConfigs      RawConfigs
+	runningMonitors monitors
+
 	env         storage.ConfigEnv
-	logger      *log.Logger
+	logger      log.ILogger
 	videoServer *video.Server
 	path        string
 	hooks       Hooks
@@ -76,7 +79,7 @@ type Manager struct {
 func NewManager(
 	configPath string,
 	env storage.ConfigEnv,
-	log *log.Logger,
+	logger log.ILogger,
 	videoServer *video.Server,
 	hooks *Hooks,
 ) (*Manager, error) {
@@ -84,47 +87,49 @@ func NewManager(
 		return nil, fmt.Errorf("create monitors directory: %w", err)
 	}
 
-	configFiles, err := readConfigs(configPath)
+	configFS := os.DirFS(configPath)
+	configFiles, err := readConfigs(configFS)
 	if err != nil {
-		return nil, fmt.Errorf("read configuration files: %w", err)
+		return nil, fmt.Errorf("read config files: %w", err)
 	}
 
-	manager := &Manager{
-		env:         env,
-		logger:      log,
-		videoServer: videoServer,
-		path:        configPath,
-		hooks:       *hooks,
-	}
-
-	monitors := make(monitors)
+	rawConfigs := make(RawConfigs)
 	for _, file := range configFiles {
-		var conf RawConfig
-		if err := json.Unmarshal(file, &conf); err != nil {
+		var rawConf RawConfig
+		if err := json.Unmarshal(file, &rawConf); err != nil {
 			return nil, fmt.Errorf("unmarshal config: %w: %v", err, string(file))
 		}
-		if err := hooks.Migrate(conf); err != nil {
+		if err := hooks.Migrate(rawConf); err != nil {
 			return nil, fmt.Errorf("migration failed: %w", err)
 		}
-		config := NewConfig(conf)
 
-		configPath := manager.configPath(config.ID())
-		migratedConf, _ := json.MarshalIndent(conf, "", "    ")
-		err := os.WriteFile(configPath, migratedConf, 0o600)
+		id := rawConf["id"]
+		configPath := monitorConfigPath(configPath, id)
+
+		jsonConf, _ := json.MarshalIndent(rawConf, "", "    ")
+		err := os.WriteFile(configPath, jsonConf, 0o600)
 		if err != nil {
 			return nil, fmt.Errorf("write migrated config: %w", err)
 		}
-		monitors[config.ID()] = manager.newMonitor(config)
-	}
-	manager.Monitors = monitors
 
-	return manager, nil
+		rawConfigs[id] = rawConf
+	}
+
+	return &Manager{
+		rawConfigs:      rawConfigs,
+		runningMonitors: make(monitors),
+
+		env:         env,
+		logger:      logger,
+		videoServer: videoServer,
+		path:        configPath,
+		hooks:       *hooks,
+	}, nil
 }
 
-func readConfigs(path string) ([][]byte, error) {
+func readConfigs(fileSystem fs.FS) ([][]byte, error) {
 	var files [][]byte
-	fileSystem := os.DirFS(path)
-	err := fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
+	walkFunc := func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -137,36 +142,77 @@ func readConfigs(path string) ([][]byte, error) {
 		}
 		files = append(files, file)
 		return nil
-	})
+	}
+	err := fs.WalkDir(fileSystem, ".", walkFunc)
 	return files, err
 }
 
-// MonitorSet sets config for specified monitor.
-func (m *Manager) MonitorSet(id string, c RawConfig) error {
-	defer m.mu.Unlock()
+func (m *Manager) unsafeStartMonitor(id string) {
+	rawConf := m.rawConfigs[id]
+	monitor := m.newMonitor(NewConfig(rawConf))
+	monitor.start()
+	m.runningMonitors[id] = monitor
+}
+
+func (m *Manager) unsafeStopMonitor(id string) {
+	m.runningMonitors[id].stop()
+	delete(m.runningMonitors, id)
+}
+
+// StartMonitors starts all monitors.
+func (m *Manager) StartMonitors() {
 	m.mu.Lock()
+	for id := range m.rawConfigs {
+		m.unsafeStartMonitor(id)
+	}
+	m.mu.Unlock()
+}
 
-	conf := NewConfig(c)
-	monitor, exist := m.Monitors[id]
-	if exist {
-		monitor.Lock.Lock()
-		*monitor.Config = conf
-		monitor.Lock.Unlock()
-	} else {
-		monitor = m.newMonitor(conf)
-		m.Monitors[id] = monitor
+// StopMonitors stops all monitors.
+func (m *Manager) StopMonitors() {
+	m.mu.Lock()
+	for id := range m.runningMonitors {
+		m.unsafeStopMonitor(id)
+	}
+	m.mu.Unlock()
+}
+
+// ErrMonitorNotExist monitor does not exist.
+var ErrMonitorNotExist = errors.New("monitor does not exist")
+
+// RestartMonitor restarts monitor by ID.
+func (m *Manager) RestartMonitor(id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exist := m.rawConfigs[id]; !exist {
+		return ErrMonitorNotExist
 	}
 
-	// Update file.
-	monitor.Lock.Lock()
-	config, _ := json.MarshalIndent(c, "", "    ")
+	if _, exist := m.runningMonitors[id]; exist {
+		m.unsafeStopMonitor(id)
+	}
+	m.unsafeStartMonitor(id)
+	return nil
+}
 
-	if err := os.WriteFile(m.configPath(id), config, 0o600); err != nil {
-		return err
+// MonitorSet sets config for specified monitor.
+// Changes are not applied until the montior restarts.
+func (m *Manager) MonitorSet(id string, rawConf RawConfig) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Write config to file.
+	configJSON, err := json.MarshalIndent(rawConf, "", "    ")
+	if err != nil {
+		return fmt.Errorf("marshal config file: %w", err)
+	}
+	err = os.WriteFile(m.configPath(id), configJSON, 0o600)
+	if err != nil {
+		return fmt.Errorf("write config file: %w", err)
 	}
 
-	monitor.Lock.Unlock()
-
+	m.rawConfigs[id] = rawConf
 	return nil
 }
 
@@ -177,15 +223,15 @@ var ErrNotExist = errors.New("monitor does not exist")
 func (m *Manager) MonitorDelete(id string) error {
 	defer m.mu.Unlock()
 	m.mu.Lock()
-	monitors := m.Monitors
 
-	monitor, exists := monitors[id]
+	monitor, exists := m.runningMonitors[id]
 	if !exists {
 		return ErrNotExist
 	}
-	monitor.Stop()
 
-	delete(m.Monitors, id)
+	monitor.stop()
+	delete(m.runningMonitors, id)
+	delete(m.rawConfigs, id)
 
 	if err := os.Remove(m.configPath(id)); err != nil {
 		return err
@@ -197,12 +243,12 @@ func (m *Manager) MonitorDelete(id string) error {
 // MonitorsInfo returns common information about the monitors.
 // This will be accessesable by normal users.
 func (m *Manager) MonitorsInfo() RawConfigs {
-	configs := make(RawConfigs)
 	m.mu.Lock()
-	for _, monitor := range m.Monitors {
-		monitor.Lock.Lock()
-		c := monitor.Config
-		monitor.Lock.Unlock()
+	defer m.mu.Unlock()
+
+	configs := make(RawConfigs)
+	for _, rawConf := range m.rawConfigs {
+		c := NewConfig(rawConf)
 
 		enable := "false"
 		if c.enabled() {
@@ -227,26 +273,26 @@ func (m *Manager) MonitorsInfo() RawConfigs {
 			"subInputEnabled": subInputEnabled,
 		}
 	}
-	m.mu.Unlock()
 	return configs
 }
 
 func (m *Manager) configPath(id string) string {
-	return m.path + "/" + id + ".json"
+	return monitorConfigPath(m.path, id)
+}
+
+func monitorConfigPath(path string, id string) string {
+	return filepath.Join(path, id+".json")
 }
 
 // MonitorConfigs returns configurations for all monitors.
 func (m *Manager) MonitorConfigs() RawConfigs {
-	configs := make(RawConfigs)
-
 	m.mu.Lock()
-	for id, monitor := range m.Monitors {
-		monitor.Lock.Lock()
-		configs[id] = monitor.Config.v
-		monitor.Lock.Unlock()
-	}
-	m.mu.Unlock()
+	defer m.mu.Unlock()
 
+	configs := make(RawConfigs)
+	for id, rawConf := range m.rawConfigs {
+		configs[id] = rawConf
+	}
 	return configs
 }
 
@@ -255,13 +301,11 @@ type monitors map[string]*Monitor
 
 // Monitor service.
 type Monitor struct {
-	running bool
-
-	Config *Config
-	Lock   sync.Mutex
+	Config Config
+	ctx    context.Context
 
 	Env         storage.ConfigEnv
-	Logger      *log.Logger
+	Logger      log.ILogger
 	videoServer *video.Server
 
 	mainInput *InputProcess
@@ -272,7 +316,7 @@ type Monitor struct {
 	NewProcess ffmpeg.NewProcessFunc
 	logf       logFunc
 
-	WG     *sync.WaitGroup
+	WG     sync.WaitGroup
 	cancel func()
 }
 
@@ -292,16 +336,14 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 	}
 
 	monitor := &Monitor{
+		Config:      config,
 		Env:         m.env,
 		Logger:      m.logger,
 		videoServer: m.videoServer,
-		Config:      &config,
 
 		hooks:      m.hooks,
 		NewProcess: ffmpeg.NewProcess,
 		logf:       logf,
-
-		WG: &sync.WaitGroup{},
 	}
 	monitor.mainInput = newInputProcess(monitor, false)
 	monitor.subInput = newInputProcess(monitor, true)
@@ -313,30 +355,21 @@ func (m *Manager) newMonitor(config Config) *Monitor {
 // ErrRunning monitor is already running.
 var ErrRunning = errors.New("monitor is aleady running")
 
-// Start monitor.
-func (m *Monitor) Start() error {
-	defer m.Lock.Unlock()
-	m.Lock.Lock()
-	if m.running {
-		return ErrRunning
-	}
-	m.running = true
-
+func (m *Monitor) start() {
 	if !m.Config.enabled() {
 		m.logf(log.LevelInfo, "disabled")
-		return nil
+		return
 	}
 
 	m.logf(log.LevelInfo, "starting")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	m.cancel = cancel
+	m.ctx, m.cancel = context.WithCancel(context.Background())
 
 	if m.Config.alwaysRecord() {
 		infinte := time.Duration(1<<63 - 62135596801)
 		go func() {
 			select {
-			case <-ctx.Done():
+			case <-m.ctx.Done():
 			case <-time.After(15 * time.Second):
 				err := m.SendEvent(storage.Event{
 					Time:        time.Now(),
@@ -349,20 +382,18 @@ func (m *Monitor) Start() error {
 		}()
 	}
 
-	m.hooks.Start(ctx, m)
+	m.hooks.Start(m.ctx, m)
 
 	m.WG.Add(1)
-	go m.mainInput.start(ctx)
+	go m.mainInput.start(m.ctx)
 
 	if m.Config.SubInputEnabled() {
 		m.WG.Add(1)
-		go m.subInput.start(ctx)
+		go m.subInput.start(m.ctx)
 	}
 
 	m.WG.Add(1)
-	go m.recorder.start(ctx)
-
-	return nil
+	go m.recorder.start(m.ctx)
 }
 
 // SendEventFunc send event signature.
@@ -370,50 +401,31 @@ type SendEventFunc func(storage.Event) error
 
 // SendEvent sends event to recorder.
 func (m *Monitor) SendEvent(event storage.Event) error {
-	m.Lock.Lock()
-	if !m.running {
-		m.Lock.Unlock()
+	if m.ctx.Err() != nil {
 		return context.Canceled
 	}
-	m.Lock.Unlock()
 	return m.recorder.sendEvent(event)
 }
 
 // Stop monitor.
-func (m *Monitor) Stop() {
-	m.Lock.Lock()
-	m.running = false
-	m.Lock.Unlock()
-
+func (m *Monitor) stop() {
 	if m.cancel != nil {
 		m.cancel()
 	}
 	m.WG.Wait()
 }
 
-// StopAll monitors.
-func (m *Manager) StopAll() {
-	m.mu.Lock()
-	for _, monitor := range m.Monitors {
-		monitor.Stop()
-	}
-	m.mu.Unlock()
-}
-
 // InputProcess monitor input process.
 type InputProcess struct {
-	Config      *Config
-	MonitorLock *sync.Mutex
-
+	Config     Config
 	serverPath video.ServerPath
-
 	isSubInput bool
 
 	cancel func()
 
 	hooks     Hooks
 	Env       storage.ConfigEnv
-	Logger    *log.Logger
+	Logger    log.ILogger
 	WG        *sync.WaitGroup
 	SendEvent SendEventFunc
 
@@ -429,15 +441,13 @@ type runInputProcessFunc func(context.Context, *InputProcess) error
 
 func newInputProcess(m *Monitor, isSubInput bool) *InputProcess {
 	i := &InputProcess{
-		Config:      m.Config,
-		MonitorLock: &m.Lock,
-
+		Config:     m.Config,
 		isSubInput: isSubInput,
 
 		hooks:     m.hooks,
 		Env:       m.Env,
 		Logger:    m.Logger,
-		WG:        m.WG,
+		WG:        &m.WG,
 		SendEvent: m.SendEvent,
 
 		logf:               m.logf,
@@ -548,24 +558,19 @@ func (i *InputProcess) start(ctx context.Context) {
 }
 
 func runInputProcess(ctx context.Context, i *InputProcess) error {
-	i.MonitorLock.Lock()
-	pathConf := video.PathConf{MonitorID: i.Config.ID(), IsSub: i.IsSubInput()}
-	i.MonitorLock.Unlock()
-
 	processCTX, cancel2 := context.WithCancel(ctx)
 	i.cancel = cancel2
 	defer cancel2()
 
+	pathConf := video.PathConf{MonitorID: i.Config.ID(), IsSub: i.IsSubInput()}
 	serverPath, err := i.newVideoServerPath(processCTX, i.rtspPathName(), pathConf)
 	if err != nil {
 		return fmt.Errorf("add path to RTSP server: %w", err)
 	}
 	i.serverPath = *serverPath
 
-	i.MonitorLock.Lock()
 	logLevel := log.FFmpegLevel(i.Config.LogLevel())
 	args := ffmpeg.ParseArgs(i.generateArgs())
-	i.MonitorLock.Unlock()
 
 	i.hooks.StartInput(processCTX, i, &args)
 

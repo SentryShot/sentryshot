@@ -22,7 +22,7 @@ type RawConfigs map[string]RawConfig
 type RawConfig map[string]string
 
 // Configs Monitor configurations.
-type Configs map[string]*Config
+type Configs map[string]Config
 
 // Config Monitor configuration.
 type Config struct {
@@ -32,12 +32,6 @@ type Config struct {
 // NewConfig creates a new immutable monitor config.
 func NewConfig(c RawConfig) Config {
 	return Config{v: c}
-}
-
-// NewConfigPtr temp.
-func NewConfigPtr(c RawConfig) *Config {
-	conf := NewConfig(c)
-	return &conf
 }
 
 // Get config value by key.

@@ -77,7 +77,7 @@ func Run() error {
 		app.logf(log.LevelInfo, "received %v, stopping", signal)
 	}
 
-	app.monitorManager.StopAll()
+	app.monitorManager.StopMonitors()
 	app.logf(log.LevelInfo, "Monitors stopped.")
 
 	cancel()
@@ -295,13 +295,7 @@ func (app *App) run(ctx context.Context) error {
 		return fmt.Errorf("could not start video server: %w", err)
 	}
 
-	// Start monitors.
-	for _, monitor := range app.monitorManager.Monitors {
-		if err := monitor.Start(); err != nil {
-			app.monitorManager.StopAll()
-			return fmt.Errorf("could not start monitor: %w", err)
-		}
-	}
+	app.monitorManager.StartMonitors()
 
 	go app.Storage.PurgeLoop(ctx, 10*time.Minute)
 
