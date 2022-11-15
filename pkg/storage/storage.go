@@ -34,10 +34,11 @@ import (
 
 // Manager handles storage interactions.
 type Manager struct {
-	storageDir string
-	general    *ConfigGeneral
+	storageDir   string
+	storageDirFS fs.FS
+	general      *ConfigGeneral
 
-	usage     func(string) int64
+	usage     func(fs.FS) int64
 	removeAll func(string) error
 
 	logger log.ILogger
@@ -46,8 +47,9 @@ type Manager struct {
 // NewManager returns new manager.
 func NewManager(storageDir string, general *ConfigGeneral, log log.ILogger) *Manager {
 	return &Manager{
-		storageDir: storageDir,
-		general:    general,
+		storageDir:   storageDir,
+		storageDirFS: os.DirFS(storageDir),
+		general:      general,
 
 		usage:     diskUsage,
 		removeAll: os.RemoveAll,
@@ -90,10 +92,8 @@ func formatDiskUsage(used float64) string {
 	}
 }
 
-func diskUsage(path string) int64 {
+func diskUsage(fileSystem fs.FS) int64 {
 	var used int64
-
-	fileSystem := os.DirFS(path)
 	fs.WalkDir(fileSystem, ".", func(_ string, d fs.DirEntry, err error) error { //nolint:errcheck
 		if err != nil || d.IsDir() {
 			return nil
@@ -111,7 +111,7 @@ func diskUsage(path string) int64 {
 
 // Usage return DiskUsage.
 func (s *Manager) Usage() (DiskUsage, error) {
-	used := s.usage(s.storageDir)
+	used := s.usage(s.storageDirFS)
 
 	diskSpace := s.general.Get()["diskSpace"]
 	if diskSpace == "0" || diskSpace == "" {
@@ -156,7 +156,7 @@ func (s *Manager) purge() error {
 	// Find the oldest day.
 	path := s.RecordingsDir()
 	for depth := 1; depth <= dayDepth; depth++ {
-		list, err := fs.ReadDir(os.DirFS(path), ".")
+		list, err := fs.ReadDir(s.storageDirFS, ".")
 		if err != nil {
 			return fmt.Errorf("read directory %v: %w", path, err)
 		}

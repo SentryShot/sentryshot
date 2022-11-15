@@ -17,64 +17,50 @@ package storage
 
 import (
 	"encoding/json"
-	"os"
-	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/stretchr/testify/require"
 )
 
-/* /testdata/
-├── 2000
-│   ├── 01
-│   │   ├── 01
-│   │   │   └── m1
-│   │   │       ├── 2000-01-01_1_m1.jpeg
-│   │   │       └── 2000-01-01_2_m1.jpeg
-│   │   └── 02
-│   │       └── m1
-│   │           └── 2000-01-02_1_m1.jpeg
-│   └── 02
-│       └── 01
-│           └── m1
-│               └── 2000-02-01_1_m1.jpeg
-├── 2001
-│   └── 01
-│       └── 01
-│           └── m1
-│               └── 2001-02-01_1_m1.jpeg
-├── 2002
-│   └── 01
-│       ├── 01
-│       │   └── m1
-│       │       └── 2002-01-01_1_m1.jpeg
-│       └── 02
-├── 2003
-│   └── 01
-│       └── 01
-│           ├── m1
-│           │   └── 2003-01-01_1_m1.jpeg
-│           └── m2
-│               └── 2003-01-01_1_m2.jpeg
-├── 2004
-│   └── 01
-│       └── 01
-│           ├── 2004-01-01_1_m1.jpeg
-│           └── 2004-01-01_2_m1.jpeg
-└── 2099
-    └── 01
-        └── 01
-            └── m1
-                ├── 2099-01-01_1_m1.jpeg
-                └── 2099-01-01_1_m1.json
+var crawlerTestFS = fstest.MapFS{
+	"2000/01/01/m1/2000-01-01_1_m1.json": {},
+	"2000/01/01/m1/2000-01-01_2_m1.json": {},
+	"2000/01/02/m1/2000-01-02_1_m1.json": {},
+	"2000/02/01/m1/2000-02-01_1_m1.json": {},
+	"2001/02/01/m1/2001-02-01_1_m1.json": {},
+	"2002/01/01/m1/2002-01-01_1_m1.json": {},
+	"2003/01/01/m1/2003-01-01_1_m1.json": {},
+	"2003/01/01/m2/2003-01-01_1_m2.json": {},
+	"2004/01/01/m1/2004-01-01_1_m1.json": {},
+	"2004/01/01/m1/2004-01-01_2_m1.json": {},
+	"2099/01/01/m1/2099-01-01_1_m1.json": {Data: crawlerTestData},
+}
 
+var crawlerTestData = []byte(`
+{
+	"start": "2099-02-02T02:02:02.000000000Z",
+	"end": "2099-02-02T02:02:04.000000000Z",
+	"events": [
+		{
+			"time": "2099-02-02T02:02:02.000000000Z",
+			"detections": [
+				{
+					"label": "a",
+					"score": 1,
+					"region": {
+						"rect": [2, 3, 4, 5]
+					}
+				}
+			],
+			"duration": 6
+		}
+	]
+}`)
 
-*/
 func TestRecordingByQuery(t *testing.T) {
 	t.Run("working", func(t *testing.T) {
-		c := NewCrawler("./testdata/recordings")
-
-		cases := map[string]struct{ time, expected string }{
+		cases := map[string]struct{ input, expected string }{
 			"noFiles":      {"0000-01-01", ""},
 			"EOF":          {"1999-01-01", ""},
 			"latest":       {"9999-01-01", "2099-01-01_1_m1"},
@@ -89,21 +75,19 @@ func TestRecordingByQuery(t *testing.T) {
 		for name, tc := range cases {
 			t.Run(name, func(t *testing.T) {
 				query := &CrawlerQuery{
-					Time:  tc.time,
+					Time:  tc.input,
 					Limit: 1,
 				}
-				recordings, _ := c.RecordingByQuery(query)
+				recordings, _ := NewCrawler(crawlerTestFS).RecordingByQuery(query)
 				var id string
 				if len(recordings) != 0 {
 					id = recordings[0].ID
 				}
-				require.Equal(t, id, tc.expected)
+				require.Equal(t, tc.expected, id)
 			})
 		}
 	})
 	t.Run("reverse", func(t *testing.T) {
-		c := NewCrawler("./testdata/recordings")
-
 		cases := map[string]struct{ time, expected string }{
 			"latest":       {"1111-01-01", "2000-01-01_1_m1"},
 			"next":         {"2000-01-01_1_m1", "2000-01-01_2_m1"},
@@ -120,7 +104,7 @@ func TestRecordingByQuery(t *testing.T) {
 					Limit:   1,
 					Reverse: true,
 				}
-				recordings, _ := c.RecordingByQuery(query)
+				recordings, _ := NewCrawler(crawlerTestFS).RecordingByQuery(query)
 				var id string
 				if len(recordings) != 0 {
 					id = recordings[0].ID
@@ -130,7 +114,7 @@ func TestRecordingByQuery(t *testing.T) {
 		}
 	})
 	t.Run("multiple", func(t *testing.T) {
-		c := NewCrawler("./testdata/recordings")
+		c := NewCrawler(crawlerTestFS)
 		recordings, _ := c.RecordingByQuery(
 			&CrawlerQuery{
 				Time:  "9999-01-01",
@@ -138,25 +122,23 @@ func TestRecordingByQuery(t *testing.T) {
 			},
 		)
 
-		var id string
+		var ids []string
 		for _, rec := range recordings {
-			id += "\n" + rec.ID
+			ids = append(ids, rec.ID)
 		}
 
-		expected := strings.ReplaceAll(`
-			2099-01-01_1_m1
-			2004-01-01_2_m1
-			2004-01-01_1_m1
-			2003-01-01_1_m2
-			2003-01-01_1_m1`,
-			"\t", "")
+		expected := []string{
+			"2099-01-01_1_m1",
+			"2004-01-01_2_m1",
+			"2004-01-01_1_m1",
+			"2003-01-01_1_m2",
+			"2003-01-01_1_m1",
+		}
 
-		require.Equal(t, id, expected)
+		require.Equal(t, expected, ids)
 	})
 	t.Run("monitors", func(t *testing.T) {
-		expected := "\n2003-01-01_1_m1"
-
-		c := NewCrawler("./testdata/recordings")
+		c := NewCrawler(crawlerTestFS)
 		recordings, _ := c.RecordingByQuery(
 			&CrawlerQuery{
 				Time:     "2003-02-01_1_m1",
@@ -164,16 +146,11 @@ func TestRecordingByQuery(t *testing.T) {
 				Monitors: []string{"m1"},
 			},
 		)
-
-		var id string
-		for _, rec := range recordings {
-			id += "\n" + rec.ID
-		}
-
-		require.Equal(t, id, expected)
+		require.Equal(t, "2003-01-01_1_m1", recordings[0].ID)
+		require.Equal(t, 1, len(recordings))
 	})
-	t.Run("emptyMonitorsPanic", func(t *testing.T) {
-		c := NewCrawler("./testdata/recordings")
+	t.Run("emptyMonitorsNoPanic", func(t *testing.T) {
+		c := NewCrawler(crawlerTestFS)
 		c.RecordingByQuery(
 			&CrawlerQuery{
 				Time:     "2003-02-01_1_m1",
@@ -183,14 +160,14 @@ func TestRecordingByQuery(t *testing.T) {
 		)
 	})
 	t.Run("invalidTimeErr", func(t *testing.T) {
-		c := NewCrawler("./testdata/recordings")
+		c := NewCrawler(crawlerTestFS)
 		_, err := c.RecordingByQuery(
 			&CrawlerQuery{Time: "", Limit: 1},
 		)
 		require.Error(t, err)
 	})
 	t.Run("data", func(t *testing.T) {
-		c := NewCrawler("./testdata/recordings")
+		c := NewCrawler(crawlerTestFS)
 		rec, err := c.RecordingByQuery(
 			&CrawlerQuery{
 				Time:        "9999-01-01",
@@ -200,11 +177,8 @@ func TestRecordingByQuery(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		data, err := os.ReadFile("./testdata/recordings/2099/01/01/m1/2099-01-01_1_m1.json")
-		require.NoError(t, err)
-
 		var expected RecordingData
-		if err := json.Unmarshal(data, &expected); err != nil {
+		if err := json.Unmarshal(crawlerTestData, &expected); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -212,7 +186,7 @@ func TestRecordingByQuery(t *testing.T) {
 		require.Equal(t, actual, expected)
 	})
 	t.Run("missingData", func(t *testing.T) {
-		c := NewCrawler("./testdata/recordings")
+		c := NewCrawler(crawlerTestFS)
 		rec, err := c.RecordingByQuery(
 			&CrawlerQuery{
 				Time:        "2002-01-01",

@@ -16,14 +16,17 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"nvr/pkg/log"
@@ -32,8 +35,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var recordingTestFS = fstest.MapFS{
+	"recordings": {Data: bytes.Repeat([]byte{0}, 302)},
+}
+
 func TestDiskUsage(t *testing.T) {
-	require.Equal(t, diskUsage("testdata"), int64(302))
+	usage := diskUsage(recordingTestFS)
+	require.Equal(t, int64(302), usage)
 }
 
 func TestUsage(t *testing.T) {
@@ -55,13 +63,12 @@ func TestUsage(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := Manager{
-				storageDir: "testdata",
 				general: &ConfigGeneral{
 					Config: map[string]string{
 						"diskSpace": tc.space,
 					},
 				},
-				usage: func(_ string) int64 {
+				usage: func(fs.FS) int64 {
 					return int64(tc.used)
 				},
 			}
@@ -75,11 +82,10 @@ func TestUsage(t *testing.T) {
 
 	t.Run("diskSpaceZero", func(t *testing.T) {
 		s := Manager{
-			storageDir: "testdata",
 			general: &ConfigGeneral{
 				Config: map[string]string{},
 			},
-			usage: func(_ string) int64 {
+			usage: func(fs.FS) int64 {
 				return int64(1000)
 			},
 		}
@@ -96,7 +102,7 @@ func TestUsage(t *testing.T) {
 					"diskSpace": "nil",
 				},
 			},
-			usage: func(_ string) int64 {
+			usage: func(fs.FS) int64 {
 				return 0
 			},
 		}
@@ -117,7 +123,7 @@ var diskSpaceErr = &ConfigGeneral{
 	},
 }
 
-var highUsage = func(_ string) int64 {
+var highUsage = func(fs.FS) int64 {
 	return 1000000000
 }
 
@@ -127,36 +133,31 @@ func TestPurge(t *testing.T) {
 			input     *Manager
 			expectErr bool
 		}{
-			"usage error": {
+			"usageErr": {
 				&Manager{
-					general: diskSpaceErr,
-					usage: func(string) int64 {
+					storageDirFS: recordingTestFS,
+					general:      diskSpaceErr,
+					usage: func(fs.FS) int64 {
 						return 1
 					},
 				},
 				true,
 			},
-			"below 99%": {
+			"below99%": {
 				&Manager{
-					general: diskSpace1,
-					usage: func(string) int64 {
+					storageDirFS: recordingTestFS,
+					general:      diskSpace1,
+					usage: func(fs.FS) int64 {
 						return 1
 					},
 				},
 				false,
 			},
-			"readDir error": {
-				&Manager{
-					general: diskSpace1,
-					usage:   highUsage,
-				},
-				true,
-			},
 			"ok": {
 				&Manager{
-					storageDir: "testdata",
-					general:    diskSpace1,
-					usage:      highUsage,
+					storageDirFS: recordingTestFS,
+					general:      diskSpace1,
+					usage:        highUsage,
 					removeAll: func(string) error {
 						return nil
 					},
@@ -165,9 +166,9 @@ func TestPurge(t *testing.T) {
 			},
 			"removeAllErr": {
 				&Manager{
-					storageDir: "testdata",
-					general:    diskSpace1,
-					usage:      highUsage,
+					storageDirFS: recordingTestFS,
+					general:      diskSpace1,
+					usage:        highUsage,
 					removeAll: func(string) error {
 						return errors.New("")
 					},
@@ -180,7 +181,7 @@ func TestPurge(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				err := tc.input.purge()
 				gotError := err != nil
-				require.Equal(t, tc.expectErr, gotError)
+				require.Equal(t, tc.expectErr, gotError, err)
 			})
 		}
 	})
@@ -195,7 +196,7 @@ func TestPurge(t *testing.T) {
 		require.NoError(t, err)
 
 		m := &Manager{
-			storageDir: tempDir,
+			storageDirFS: os.DirFS(tempDir),
 			general: &ConfigGeneral{
 				Config: map[string]string{
 					"diskSpace": "1",
@@ -221,12 +222,13 @@ func TestPurge(t *testing.T) {
 func TestPurgeLoop(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		m := &Manager{
-			storageDir: "testdata",
-			general:    diskSpace1,
-			usage:      highUsage,
+			storageDirFS: recordingTestFS,
+			general:      diskSpace1,
+			usage:        highUsage,
 			removeAll: func(_ string) error {
 				return nil
 			},
+			logger: log.NewDummyLogger(),
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
@@ -239,10 +241,9 @@ func TestPurgeLoop(t *testing.T) {
 		logger, logs := log.NewMockLogger()
 
 		m := &Manager{
-			storageDir: "testdata",
-			general:    diskSpaceErr,
-			usage:      highUsage,
-			logger:     logger,
+			general: diskSpaceErr,
+			usage:   highUsage,
+			logger:  logger,
 		}
 
 		go m.PurgeLoop(ctx, 0)

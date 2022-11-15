@@ -92,6 +92,21 @@ func Run() error {
 	return app.server.Shutdown(ctx2)
 }
 
+// App is the main application.
+type App struct {
+	WG             *sync.WaitGroup
+	Logger         *log.Logger
+	logDB          *log.DB
+	Env            storage.ConfigEnv
+	monitorManager *monitor.Manager
+	Auth           auth.Authenticator
+	Storage        *storage.Manager
+	videoServer    *video.Server
+	Templater      *web.Templater
+	Mux            *http.ServeMux
+	server         *http.Server
+}
+
 func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) { //nolint:funlen
 	// Environment config.
 	envYAML, err := os.ReadFile(envPath)
@@ -151,7 +166,7 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 
 	// Storage.
 	storageManager := storage.NewManager(env.StorageDir, general, logger)
-	crawler := storage.NewCrawler(storageManager.RecordingsDir())
+	crawler := storage.NewCrawler(os.DirFS(storageManager.RecordingsDir()))
 
 	// Time zone.
 	timeZone, err := system.TimeZone()
@@ -240,21 +255,6 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		Templater:      t,
 		Mux:            mux,
 	}, nil
-}
-
-// App is the main application struct.
-type App struct {
-	WG             *sync.WaitGroup
-	Logger         *log.Logger
-	logDB          *log.DB
-	Env            storage.ConfigEnv
-	monitorManager *monitor.Manager
-	Auth           auth.Authenticator
-	Storage        *storage.Manager
-	videoServer    *video.Server
-	Templater      *web.Templater
-	Mux            *http.ServeMux
-	server         *http.Server
 }
 
 func (app *App) run(ctx context.Context) error {

@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -58,14 +57,12 @@ type queryCache map[string][]dir
 
 // Crawler crawls through storage looking for recordings.
 type Crawler struct {
-	recordingsDir string
+	fs fs.FS
 }
 
 // NewCrawler creates new crawler.
-func NewCrawler(recordingsDir string) *Crawler {
-	return &Crawler{
-		recordingsDir: filepath.Clean(recordingsDir),
-	}
+func NewCrawler(fileSystem fs.FS) *Crawler {
+	return &Crawler{fs: fileSystem}
 }
 
 // ErrInvalidValue invalid value.
@@ -105,15 +102,32 @@ func (c *Crawler) RecordingByQuery(q *CrawlerQuery) ([]Recording, error) {
 			return recordings, nil
 		}
 
-		recordings = append(recordings, c.newRecording(file.path, q.IncludeData))
+		data := func() *RecordingData {
+			if q.IncludeData {
+				return readDataFile(file.fs)
+			}
+			return nil
+		}()
+
+		recordings = append(recordings, Recording{
+			ID:   filepath.Base(file.path),
+			Data: data,
+		})
 	}
 	return recordings, nil
 }
 
-// Removes storageDir from input and replaces it with "storage".
-func (c *Crawler) cleanPath(input string) string {
-	storageDirLen := len(c.recordingsDir)
-	return "storage/recordings" + input[storageDirLen:]
+func readDataFile(fileSystem fs.FS) *RecordingData {
+	rawData, err := fs.ReadFile(fileSystem, ".")
+	if err != nil {
+		return nil
+	}
+	var data RecordingData
+	err = json.Unmarshal(rawData, &data)
+	if err != nil {
+		return nil
+	}
+	return &data
 }
 
 func (c *Crawler) findVideo(q *CrawlerQuery) (*dir, error) {
@@ -128,7 +142,8 @@ func (c *Crawler) findVideo(q *CrawlerQuery) (*dir, error) {
 	}
 
 	root := &dir{
-		path:  c.recordingsDir,
+		fs:    c.fs,
+		path:  "",
 		depth: 0,
 		query: q,
 	}
@@ -177,28 +192,8 @@ func (c *Crawler) findVideo(q *CrawlerQuery) (*dir, error) {
 	return current.sibling()
 }
 
-func (c *Crawler) newRecording(rawPath string, includeData bool) Recording {
-	path := c.cleanPath(rawPath)
-	rec := Recording{ID: filepath.Base(path)}
-	if includeData {
-		rec.Data = readDataFile(rawPath + ".json")
-	}
-	return rec
-}
-
-func readDataFile(path string) *RecordingData {
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	var data RecordingData
-	if err := json.Unmarshal(file, &data); err != nil {
-		return nil
-	}
-	return &data
-}
-
 type dir struct {
+	fs     fs.FS
 	name   string
 	path   string
 	depth  int
@@ -220,7 +215,7 @@ func (d *dir) children() ([]dir, error) {
 	}
 
 	if d.depth == monitorDepth {
-		thumbnails, err := d.findAllThumbnails()
+		thumbnails, err := d.findAllFiles()
 		if err != nil {
 			return nil, err
 		}
@@ -233,22 +228,30 @@ func (d *dir) children() ([]dir, error) {
 		return cache[d.path], nil
 	}
 
-	files, err := fs.ReadDir(os.DirFS(d.path), ".")
+	files, err := fs.ReadDir(d.fs, ".")
 	if err != nil {
 		return nil, err
 	}
 
 	var children []dir
 	for _, file := range files {
-		if file.IsDir() {
-			children = append(children, dir{
-				name:   file.Name(),
-				path:   filepath.Join(d.path, file.Name()),
-				parent: d,
-				depth:  d.depth + 1,
-				query:  d.query,
-			})
+		if !file.IsDir() {
+			continue
 		}
+		path := filepath.Join(d.path, file.Name())
+		fileFS, err := fs.Sub(d.fs, file.Name())
+		if err != nil {
+			return nil, fmt.Errorf("child fs: %v: %w", path, err)
+		}
+
+		children = append(children, dir{
+			fs:     fileFS,
+			name:   file.Name(),
+			path:   path,
+			parent: d,
+			depth:  d.depth + 1,
+			query:  d.query,
+		})
 	}
 	cache[d.path] = children
 	return cache[d.path], nil
@@ -257,43 +260,57 @@ func (d *dir) children() ([]dir, error) {
 // ErrUnexpectedDir unexpected directory.
 var ErrUnexpectedDir = errors.New("unexpected directory")
 
-// findAllThumbnails finds all json files beloning to
+// findAllFiles finds all json files beloning to
 // selected monitors in decending directories.
 // Only called by `children()`.
-func (d *dir) findAllThumbnails() ([]dir, error) {
-	monitorDirs, err := fs.ReadDir(os.DirFS(d.path), ".")
+func (d *dir) findAllFiles() ([]dir, error) {
+	monitorDirs, err := fs.ReadDir(d.fs, ".")
 	if err != nil {
 		return nil, fmt.Errorf("read day directory: %v %w", d.path, err)
 	}
 
-	var thumbnails []dir
-	for _, m := range monitorDirs {
-		if len(d.query.Monitors) != 0 && !d.monitorSelected(m.Name()) {
+	var allFiles []dir
+	for _, entry := range monitorDirs {
+		if len(d.query.Monitors) != 0 && !d.monitorSelected(entry.Name()) {
 			continue
 		}
-		path := filepath.Join(d.path, m.Name())
-		files, err := fs.ReadDir(os.DirFS(path), ".")
+
+		monitorPath := filepath.Join(d.path, entry.Name())
+		monitorFS, err := fs.Sub(d.fs, entry.Name())
 		if err != nil {
-			return nil, fmt.Errorf("read monitor directory: %v: %w", path, err)
+			return nil, fmt.Errorf("monitor fs: %v: %w", monitorPath, err)
+		}
+
+		files, err := fs.ReadDir(monitorFS, ".")
+		if err != nil {
+			return nil, fmt.Errorf("read monitor directory: %v: %w", monitorPath, err)
 		}
 		for _, file := range files {
 			if file.IsDir() {
-				return nil, fmt.Errorf("%v: %w", path, ErrUnexpectedDir)
+				return nil, fmt.Errorf("%v: %w", monitorPath, ErrUnexpectedDir)
 			}
 			if !strings.Contains(file.Name(), ".json") {
 				continue
 			}
-			thumbPath := filepath.Join(path, file.Name())
-			thumbnails = append(thumbnails, dir{
+			jsonPath := filepath.Join(monitorPath, file.Name())
+			path := strings.TrimSuffix(jsonPath, ".json")
+
+			fileFS, err := fs.Sub(monitorFS, file.Name())
+			if err != nil {
+				return nil, fmt.Errorf("file fs: %v: %w", jsonPath, err)
+			}
+
+			allFiles = append(allFiles, dir{
+				fs:     fileFS,
 				name:   strings.TrimSuffix(file.Name(), ".json"),
-				path:   strings.TrimSuffix(thumbPath, ".json"),
+				path:   path,
 				parent: d,
 				depth:  d.depth + 2,
 				query:  d.query,
 			})
 		}
 	}
-	return thumbnails, nil
+	return allFiles, nil
 }
 
 func (d *dir) monitorSelected(monitor string) bool {
