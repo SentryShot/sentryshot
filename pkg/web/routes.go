@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"nvr/pkg/group"
 	"nvr/pkg/log"
@@ -34,6 +33,8 @@ import (
 
 	"github.com/gorilla/websocket"
 )
+
+const jsonContentType = "application/json"
 
 // Static serves files from `web/static`.
 func Static() http.Handler {
@@ -57,9 +58,11 @@ func TimeZone(timeZone string) http.Handler {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(timeZone); err != nil {
-			http.Error(w, "could not encode json", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", jsonContentType)
+		err := json.NewEncoder(w).Encode(timeZone)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	})
 }
@@ -72,13 +75,11 @@ func General(general *storage.ConfigGeneral) http.Handler {
 			return
 		}
 
-		j, err := json.Marshal(general.Get())
+		w.Header().Set("Content-Type", jsonContentType)
+		err := json.NewEncoder(w).Encode(general.Get())
 		if err != nil {
-			http.Error(w, "failed to marshal general config", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-		}
-		if _, err := w.Write(j); err != nil {
-			http.Error(w, "could not write data", http.StatusInternalServerError)
 		}
 	})
 }
@@ -91,14 +92,9 @@ func GeneralSet(general *storage.ConfigGeneral) http.Handler {
 			return
 		}
 
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "failed to read body", http.StatusBadRequest)
-			return
-		}
-
 		var config map[string]string
-		if err = json.Unmarshal(body, &config); err != nil {
+		err := json.NewDecoder(r.Body).Decode(&config)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -123,13 +119,12 @@ func Users(a auth.Authenticator) http.Handler {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
-		j, err := json.Marshal(a.UsersList())
+
+		w.Header().Set("Content-Type", jsonContentType)
+		err := json.NewEncoder(w).Encode(a.UsersList())
 		if err != nil {
-			http.Error(w, "failed to marshal user list", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-		}
-		if _, err := w.Write(j); err != nil {
-			http.Error(w, "could not write data", http.StatusInternalServerError)
 		}
 	})
 }
@@ -142,16 +137,10 @@ func UserSet(a auth.Authenticator) http.Handler {
 			return
 		}
 
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "failed to read body", http.StatusBadRequest)
-			return
-		}
-
 		var req auth.SetUserRequest
-		if err = json.Unmarshal(body, &req); err != nil {
-			http.Error(w, "unmarshal error: "+err.Error(), http.StatusBadRequest)
-			return
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
 
 		err = a.UserSet(req)
@@ -191,13 +180,11 @@ func MonitorList(monitorInfo func() monitor.RawConfigs) http.Handler {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
-		u, err := json.Marshal(monitorInfo())
+
+		w.Header().Set("Content-Type", jsonContentType)
+		err := json.NewEncoder(w).Encode(monitorInfo())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if _, err := w.Write(u); err != nil {
-			http.Error(w, "could not write data", http.StatusInternalServerError)
 			return
 		}
 	})
@@ -210,13 +197,11 @@ func MonitorConfigs(c *monitor.Manager) http.Handler {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
-		u, err := json.Marshal(c.MonitorConfigs())
+
+		w.Header().Set("Content-Type", jsonContentType)
+		err := json.NewEncoder(w).Encode(c.MonitorConfigs())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if _, err := w.Write(u); err != nil {
-			http.Error(w, "could not write data", http.StatusInternalServerError)
 			return
 		}
 	})
@@ -252,14 +237,9 @@ func MonitorSet(m *monitor.Manager) http.Handler {
 			return
 		}
 
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "failed to read body", http.StatusBadRequest)
-			return
-		}
-
 		var c monitor.RawConfig
-		if err = json.Unmarshal(body, &c); err != nil {
+		err := json.NewDecoder(r.Body).Decode(&c)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -306,13 +286,11 @@ func GroupConfigs(m *group.Manager) http.Handler {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
-		u, err := json.Marshal(m.Configs())
+
+		w.Header().Set("Content-Type", jsonContentType)
+		err := json.NewEncoder(w).Encode(m.Configs())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if _, err := w.Write(u); err != nil {
-			http.Error(w, "could not write data", http.StatusInternalServerError)
 			return
 		}
 	})
@@ -326,14 +304,9 @@ func GroupSet(m *group.Manager) http.Handler {
 			return
 		}
 
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "failed to read body", http.StatusBadRequest)
-			return
-		}
-
 		var g group.Config
-		if err = json.Unmarshal(body, &g); err != nil {
+		err := json.NewDecoder(r.Body).Decode(&g)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -555,14 +528,10 @@ func RecordingQuery(crawler *storage.Crawler, logger *log.Logger) http.Handler {
 			return
 		}
 
-		u, err := json.Marshal(recordings)
+		w.Header().Set("Content-Type", jsonContentType)
+		err = json.NewEncoder(w).Encode(recordings)
 		if err != nil {
-			http.Error(w, "could not marshal data", http.StatusInternalServerError)
-			return
-		}
-
-		if _, err := w.Write(u); err != nil {
-			http.Error(w, "could not write data", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	})
@@ -614,17 +583,17 @@ func LogFeed(logger *log.Logger, a auth.Authenticator) http.Handler { //nolint:f
 		defer cancel()
 
 		for {
-			var l log.Entry
+			var entry log.Entry
 			select {
-			case l = <-feed:
+			case entry = <-feed:
 			case <-logger.Ctx.Done():
 				return
 			}
 
-			if !log.LevelInLevels(l.Level, q.Levels) {
+			if !log.LevelInLevels(entry.Level, q.Levels) {
 				continue
 			}
-			if !log.StringInStrings(l.Src, q.Sources) {
+			if !log.StringInStrings(entry.Src, q.Sources) {
 				continue
 			}
 
@@ -634,12 +603,8 @@ func LogFeed(logger *log.Logger, a auth.Authenticator) http.Handler { //nolint:f
 				return
 			}
 
-			raw, err := json.Marshal(l)
-			if err != nil {
+			if err := c.WriteJSON(entry); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-
-			if err := c.WriteMessage(websocket.TextMessage, raw); err != nil {
 				return
 			}
 		}
@@ -707,14 +672,10 @@ func LogQuery(logDB *log.DB) http.Handler { //nolint:funlen
 			return
 		}
 
-		logsJSON, err := json.Marshal(logs)
+		w.Header().Set("Content-Type", jsonContentType)
+		err = json.NewEncoder(w).Encode(logs)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("could not marshal data: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		if _, err := w.Write(logsJSON); err != nil {
-			http.Error(w, fmt.Sprintf("could not write data: %v", err), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	})
@@ -728,14 +689,10 @@ func LogSources(l *log.Logger) http.Handler {
 			return
 		}
 
-		sources, err := json.Marshal(l.Sources())
+		w.Header().Set("Content-Type", jsonContentType)
+		err := json.NewEncoder(w).Encode(l.Sources())
 		if err != nil {
-			http.Error(w, fmt.Sprintf("could not marshal data: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		if _, err := w.Write(sources); err != nil {
-			http.Error(w, fmt.Sprintf("could not write data: %v", err), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	})
