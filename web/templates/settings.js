@@ -143,7 +143,18 @@ if (isAdmin === "true") {
 		id: {
 			value: "",
 		},
-		username: fieldTemplate.text("Username", "name"),
+		username: newField(
+			[inputRules.notEmpty, inputRules.noSpaces, inputRules.noUppercase],
+			{
+				errorField: true,
+				input: "text",
+			},
+			{
+				label: "Username",
+				placeholder: "name",
+				initial: "",
+			}
+		),
 		isAdmin: fieldTemplate.toggle("Admin"),
 		password: newPasswordField(),
 	};

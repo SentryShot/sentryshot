@@ -277,6 +277,7 @@ const inputRules = {
 	noSpaces: [/\s/, "cannot contain spaces"],
 	notEmpty: [/^s*$/, "cannot be empty"],
 	englishOnly: [/[^\dA-Za-z]/, "english charaters only"],
+	noUppercase: [/[^\da-z]/, "uppercase not allowed"],
 };
 
 /* Form field templates. */

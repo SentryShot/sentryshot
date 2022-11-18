@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/gorilla/websocket"
 )
@@ -141,6 +142,17 @@ func UserSet(a auth.Authenticator) http.Handler {
 		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+
+		for _, r := range req.Username {
+			if unicode.IsUpper(r) {
+				http.Error(
+					w,
+					fmt.Sprintf("username cannot contain uppercase letters: %q", string(r)),
+					http.StatusBadRequest,
+				)
+				return
+			}
 		}
 
 		err = a.UserSet(req)

@@ -161,6 +161,7 @@ func TestBasicAuthenticator(t *testing.T) {
 		}{
 			"okAdmin":   {"admin", "pass1", true, adminExpected},
 			"okUser":    {"user", "pass2", true, userExpected},
+			"uppercase": {"User", "pass2", true, userExpected},
 			"cache":     {"user", "pass2", true, userExpected},
 			"wrongPass": {"user", "wrongPass", false, auth.Account{}},
 			"nil":       {"nil", "", false, auth.Account{}},

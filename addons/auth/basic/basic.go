@@ -76,6 +76,11 @@ func NewBasicAuthenticator(env storage.ConfigEnv, logger *log.Logger) (auth.Auth
 		return nil, fmt.Errorf("unmarshal accounts: %w", err)
 	}
 
+	for id, account := range a.accounts {
+		account.Username = strings.ToLower(account.Username)
+		a.accounts[id] = account
+	}
+
 	a.resetTokens()
 
 	return &a, nil
@@ -94,6 +99,8 @@ func (a *Authenticator) ValidateRequest(r *http.Request) auth.ValidateResponse {
 	}
 
 	name, pass := parseBasicAuth(req)
+	name = strings.ToLower(name)
+
 	user, found := a.userByNameUnsafe(name)
 	a.mu.Unlock()
 
