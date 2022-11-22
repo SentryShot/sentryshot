@@ -248,7 +248,7 @@ func TestPurgeLoop(t *testing.T) {
 
 		go m.PurgeLoop(ctx, 0)
 
-		expected := `could not purge storage: strconv.ParseFloat: parsing "nil": invalid syntax`
+		expected := `could not purge storage: disk space: parse diskSpace: strconv.ParseFloat: parsing "nil": invalid syntax`
 		require.Equal(t, expected, <-logs)
 	})
 }

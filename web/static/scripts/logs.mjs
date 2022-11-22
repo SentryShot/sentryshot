@@ -60,13 +60,13 @@ function newLogger(formatLog) {
 	};
 
 	let lastLog = false;
-	let current = 10000000000000000; // Date in the future.
+	let currentTime = 0;
 	let levels, sources;
 	const loadSavedLogs = async () => {
 		const parameters = new URLSearchParams({
 			levels: levels,
 			sources: sources,
-			time: current,
+			time: currentTime,
 			limit: 20,
 		});
 		const logs = await fetchGet("api/log/query?" + parameters, "could not get logs");
@@ -78,7 +78,7 @@ function newLogger(formatLog) {
 		}
 
 		for (const log of logs) {
-			current = log.Time;
+			currentTime = log.Time;
 
 			const line = document.createElement("span");
 			line.textContent = formatLog(log);
@@ -113,7 +113,7 @@ function newLogger(formatLog) {
 				logStream.close();
 			}
 			lastLog = false;
-			current = 10000000000000000;
+			currentTime = 0;
 			$logList.innerHTML = "";
 			init();
 		},

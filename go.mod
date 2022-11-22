@@ -8,7 +8,6 @@ require (
 	github.com/pion/sdp/v3 v3.0.5
 	github.com/shirou/gopsutil/v3 v3.21.4
 	github.com/stretchr/testify v1.7.1
-	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
 	golang.org/x/text v0.3.7
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c

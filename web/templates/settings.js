@@ -48,9 +48,16 @@ if (isAdmin === "true") {
 	const general = newGeneral(CSRFtoken, generalFields);
 	renderer.addCategory(general);
 
+	const maxLength24 = [/^.{25}/, "maximum length is 24 characters"];
+
 	const monitorFields = {
 		id: newField(
-			[inputRules.noSpaces, inputRules.notEmpty, inputRules.englishOnly],
+			[
+				inputRules.noSpaces,
+				inputRules.notEmpty,
+				inputRules.englishOnly,
+				maxLength24,
+			],
 			{
 				errorField: true,
 				input: "text",

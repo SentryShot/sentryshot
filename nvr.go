@@ -96,7 +96,7 @@ func Run() error {
 type App struct {
 	WG             *sync.WaitGroup
 	Logger         *log.Logger
-	logDB          *log.DB
+	logStore       *log.Store
 	Env            storage.ConfigEnv
 	monitorManager *monitor.Manager
 	Auth           auth.Authenticator
@@ -119,15 +119,17 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		return nil, fmt.Errorf("could not get environment config: %w", err)
 	}
 
-	// Logs.
-	logDBpath := filepath.Join(env.StorageDir, "logs.db")
-	logger := log.NewLogger(wg, hooks.logSource)
-
-	logDB := log.NewDB(logDBpath, wg)
-
 	general, err := storage.NewConfigGeneral(env.ConfigDir)
 	if err != nil {
 		return nil, fmt.Errorf("could not get general config: %w", err)
+	}
+
+	// Logs.
+	logDir := filepath.Join(env.StorageDir, "logs")
+	logger := log.NewLogger(wg, hooks.logSource)
+	logStore, err := log.NewStore(logDir, wg, general.DiskSpace)
+	if err != nil {
+		return nil, fmt.Errorf("could not create log store: %w", err)
 	}
 
 	// Video server.
@@ -240,13 +242,13 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	mux.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler, logger)))
 
 	mux.Handle("/api/log/feed", a.Admin(web.LogFeed(logger, a)))
-	mux.Handle("/api/log/query", a.Admin(web.LogQuery(logDB)))
+	mux.Handle("/api/log/query", a.Admin(web.LogQuery(logStore)))
 	mux.Handle("/api/log/sources", a.Admin(web.LogSources(logger)))
 
 	return &App{
 		WG:             wg,
 		Logger:         logger,
-		logDB:          logDB,
+		logStore:       logStore,
 		Env:            *env,
 		monitorManager: monitorManager,
 		Auth:           a,
@@ -266,20 +268,10 @@ func (app *App) run(ctx context.Context) error {
 		return fmt.Errorf("could not start logger: %w", err)
 	}
 
-	go app.Logger.LogToWriter(ctx, os.Stdout)
-
-	if err := app.logDB.Init(ctx); err != nil {
-		// Continue even if log database is corrupt.
-		time.Sleep(10 * time.Millisecond)
-		app.Logger.Log(log.Entry{
-			Level: log.LevelError,
-			Src:   "app",
-			Msg:   fmt.Sprintf("could not initialize log database: %v", err),
-		})
-	} else {
-		go app.logDB.SaveLogs(ctx, app.Logger)
-		time.Sleep(10 * time.Millisecond)
-	}
+	app.Logger.LogToWriter(ctx, os.Stdout)
+	app.logStore.SaveLogs(ctx, app.Logger)
+	app.logStore.PurgeLoop(ctx, app.Logger)
+	time.Sleep(10 * time.Millisecond)
 
 	if err := hooks.appRun(ctx, app); err != nil {
 		return err

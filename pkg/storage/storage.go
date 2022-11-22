@@ -113,29 +113,27 @@ func diskUsage(fileSystem fs.FS) int64 {
 func (s *Manager) Usage() (DiskUsage, error) {
 	used := s.usage(s.storageDirFS)
 
-	diskSpace := s.general.Get()["diskSpace"]
-	if diskSpace == "0" || diskSpace == "" {
+	diskSpaceBytes, err := s.general.DiskSpace()
+	if err != nil {
+		return DiskUsage{}, fmt.Errorf("disk space: %w", err)
+	}
+
+	if diskSpaceBytes == 0 {
 		return DiskUsage{
 			Used:      int(used),
 			Formatted: formatDiskUsage(float64(used)),
 		}, nil
 	}
 
-	diskSpaceGB, err := strconv.ParseFloat(diskSpace, 64)
-	if err != nil {
-		return DiskUsage{}, err
-	}
-	diskSpaceByte := diskSpaceGB * gigabyte
-
 	var usedPercent int64
 	if used != 0 {
-		usedPercent = (used * 100) / int64(diskSpaceByte)
+		usedPercent = (used * 100) / diskSpaceBytes
 	}
 
 	return DiskUsage{
 		Used:      int(used),
 		Percent:   int(usedPercent),
-		Max:       int(diskSpaceGB),
+		Max:       int(diskSpaceBytes / int64(gigabyte)),
 		Formatted: formatDiskUsage(float64(used)),
 	}, nil
 }
@@ -380,6 +378,25 @@ func (general *ConfigGeneral) Set(newConfig map[string]string) error {
 
 	general.mu.Unlock()
 	return nil
+}
+
+// DiskSpace returns configured disk space in bytes.
+func (general *ConfigGeneral) DiskSpace() (int64, error) {
+	defer general.mu.Unlock()
+	general.mu.Lock()
+
+	diskSpace := general.Config["diskSpace"]
+	if diskSpace == "0" || diskSpace == "" {
+		return 0, nil
+	}
+
+	diskSpaceGB, err := strconv.ParseFloat(diskSpace, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse diskSpace: %w", err)
+	}
+	diskSpaceByte := diskSpaceGB * gigabyte
+
+	return int64(diskSpaceByte), nil
 }
 
 func dirExist(path string) bool {

@@ -335,22 +335,25 @@ func GroupSet(m *group.Manager) http.Handler {
 	})
 }
 
-// ErrEmptyValue value cannot be empty.
-var ErrEmptyValue = errors.New("value cannot be empty")
+// Errors.
+var (
+	ErrEmptyValue     = errors.New("value cannot be empty")
+	ErrContainsSpaces = errors.New("value cannot contain spaces")
+	ErrIDTooLong      = errors.New("id cannot be longer than 24 bytes")
+)
 
-// ErrContainsSpaces value cannot contain spaces.
-var ErrContainsSpaces = errors.New("value cannot contain spaces")
-
-func checkIDandName(input monitor.RawConfig) error {
+func checkIDandName(c monitor.RawConfig) error {
 	switch {
-	case input["id"] == "":
+	case c["id"] == "":
 		return fmt.Errorf("id: %w", ErrEmptyValue)
-	case containsSpaces(input["id"]):
+	case containsSpaces(c["id"]):
 		return fmt.Errorf("id: %w", ErrContainsSpaces)
-	case input["name"] == "":
+	case c["name"] == "":
 		return fmt.Errorf("name: %w", ErrEmptyValue)
-	case containsSpaces(input["name"]):
-		return fmt.Errorf("name. %w", ErrContainsSpaces)
+	case containsSpaces(c["name"]):
+		return fmt.Errorf("name: %w", ErrContainsSpaces)
+	case len(c["id"]) > 24:
+		return ErrIDTooLong
 	default:
 		return nil
 	}
@@ -624,7 +627,7 @@ func LogFeed(logger *log.Logger, a auth.Authenticator) http.Handler { //nolint:f
 }
 
 // LogQuery handles log queries.
-func LogQuery(logDB *log.DB) http.Handler { //nolint:funlen
+func LogQuery(logStore *log.Store) http.Handler { //nolint:funlen
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -674,11 +677,11 @@ func LogQuery(logDB *log.DB) http.Handler { //nolint:funlen
 		q := log.Query{
 			Levels:  levels,
 			Sources: sources,
-			Time:    log.UnixMillisecond(timeInt),
+			Time:    log.UnixMicro(timeInt),
 			Limit:   limitInt,
 		}
 
-		logs, err := logDB.Query(q)
+		logs, err := logStore.Query(q)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

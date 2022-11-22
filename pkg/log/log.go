@@ -43,16 +43,16 @@ const (
 	LevelDebug   Level = 48
 )
 
-// UnixMillisecond .
-type UnixMillisecond uint64
+// UnixMicro Unix micro second.
+type UnixMicro uint64
 
 // Entry defines log entry.
 type Entry struct {
 	Level     Level
-	Msg       string          // Message
-	Src       string          // Source.
-	MonitorID string          // Source monitor id.
-	Time      UnixMillisecond // Timestamp. Do not set manually.
+	Src       string    // Source.
+	MonitorID string    // Source monitor id.
+	Msg       string    // Message
+	Time      UnixMicro // Timestamp. Do not set manually.
 }
 
 // GetTime entry timestamp as time.GetTime.
@@ -144,6 +144,8 @@ func (l *Logger) Log(log Entry) {
 		panic(fmt.Sprintf("log message cannot be empty: %v", log))
 	}
 
+	log.Time = UnixMicro(time.Now().UnixMicro())
+
 	select {
 	case <-l.Ctx.Done():
 	case l.feed <- log:
@@ -222,19 +224,21 @@ func (l *Logger) unSubscribe(feed chan Entry) {
 
 // LogToWriter prints log feed to writer.
 func (l *Logger) LogToWriter(ctx context.Context, out io.Writer) {
-	feed, cancel := l.Subscribe()
-	defer cancel()
-
 	l.wg.Add(1)
-	for {
-		select {
-		case entry := <-feed:
-			fmt.Fprintln(out, entry)
-		case <-ctx.Done():
-			l.wg.Done()
-			return
+	go func() {
+		feed, cancel := l.Subscribe()
+		defer cancel()
+
+		for {
+			select {
+			case entry := <-feed:
+				fmt.Fprintln(out, entry)
+			case <-ctx.Done():
+				l.wg.Done()
+				return
+			}
 		}
-	}
+	}()
 }
 
 type testLogger chan string
