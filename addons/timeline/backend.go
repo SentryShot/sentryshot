@@ -41,15 +41,15 @@ func init() {
 	nvr.RegisterTplHook(modifyTemplates)
 
 	nvr.RegisterAppRunHook(func(_ context.Context, app *nvr.App) error {
-		app.Mux.Handle(
+		app.Router.Handle(
 			"/api/recording/timeline/",
 			app.Auth.User(handleTimeline(app.Env.RecordingsDir())),
 		)
-		app.Mux.Handle(
+		app.Router.Handle(
 			"/timeline",
 			app.Auth.User(app.Templater.Render("timeline.tpl")),
 		)
-		app.Mux.Handle(
+		app.Router.Handle(
 			"/timeline.mjs",
 			app.Auth.User(serveTimelineMjs()),
 		)

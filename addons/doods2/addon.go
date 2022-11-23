@@ -49,7 +49,7 @@ func init() {
 	nvr.RegisterAppRunHook(func(ctx context.Context, app *nvr.App) error {
 		addon.logger = app.Logger
 		onEnv(app.Env)
-		app.Mux.Handle("/doods.mjs", app.Auth.Admin(serveDoodsMjs()))
+		app.Router.Handle("/doods.mjs", app.Auth.Admin(serveDoodsMjs()))
 		onAppRun(ctx, app.WG)
 		return nil
 	})

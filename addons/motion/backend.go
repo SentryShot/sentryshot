@@ -37,7 +37,7 @@ func init() {
 
 	nvr.RegisterTplHook(modifyTemplates)
 	nvr.RegisterAppRunHook(func(_ context.Context, app *nvr.App) error {
-		app.Mux.Handle("/motion.mjs", app.Auth.Admin(serveMotionMjs()))
+		app.Router.Handle("/motion.mjs", app.Auth.Admin(serveMotionMjs()))
 		return nil
 	})
 }

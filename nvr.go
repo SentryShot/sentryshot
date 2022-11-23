@@ -103,7 +103,7 @@ type App struct {
 	Storage        *storage.Manager
 	videoServer    *video.Server
 	Templater      *web.Templater
-	Mux            *http.ServeMux
+	Router         *http.ServeMux
 	server         *http.Server
 }
 
@@ -204,46 +204,46 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	t.RegisterTemplateDataFuncs(hooks.templateData...)
 
 	// Routes.
-	mux := http.NewServeMux()
+	router := http.NewServeMux()
 
-	mux.Handle("/live", a.User(t.Render("live.tpl")))
-	mux.Handle("/recordings", a.User(t.Render("recordings.tpl")))
-	mux.Handle("/settings", a.User(t.Render("settings.tpl")))
-	mux.Handle("/settings.js", a.User(t.Render("settings.js")))
-	mux.Handle("/logs", a.Admin(t.Render("logs.tpl")))
-	mux.Handle("/debug", a.Admin(t.Render("debug.tpl")))
+	router.Handle("/live", a.User(t.Render("live.tpl")))
+	router.Handle("/recordings", a.User(t.Render("recordings.tpl")))
+	router.Handle("/settings", a.User(t.Render("settings.tpl")))
+	router.Handle("/settings.js", a.User(t.Render("settings.js")))
+	router.Handle("/logs", a.Admin(t.Render("logs.tpl")))
+	router.Handle("/debug", a.Admin(t.Render("debug.tpl")))
 
-	mux.Handle("/static/", a.User(web.Static()))
-	mux.Handle("/hls/", a.User(videoServer.HandleHLS()))
+	router.Handle("/static/", a.User(web.Static()))
+	router.Handle("/hls/", a.User(videoServer.HandleHLS()))
 
-	mux.Handle("/api/system/time-zone", a.User(web.TimeZone(timeZone)))
+	router.Handle("/api/system/time-zone", a.User(web.TimeZone(timeZone)))
 
-	mux.Handle("/api/general", a.Admin(web.General(general)))
-	mux.Handle("/api/general/set", a.Admin(a.CSRF(web.GeneralSet(general))))
+	router.Handle("/api/general", a.Admin(web.General(general)))
+	router.Handle("/api/general/set", a.Admin(a.CSRF(web.GeneralSet(general))))
 
-	mux.Handle("/api/users", a.Admin(web.Users(a)))
-	mux.Handle("/api/user/set", a.Admin(a.CSRF(web.UserSet(a))))
-	mux.Handle("/api/user/delete", a.Admin(a.CSRF(web.UserDelete(a))))
-	mux.Handle("/api/user/my-token", a.Admin(a.MyToken()))
-	mux.Handle("/logout", a.Logout())
+	router.Handle("/api/users", a.Admin(web.Users(a)))
+	router.Handle("/api/user/set", a.Admin(a.CSRF(web.UserSet(a))))
+	router.Handle("/api/user/delete", a.Admin(a.CSRF(web.UserDelete(a))))
+	router.Handle("/api/user/my-token", a.Admin(a.MyToken()))
+	router.Handle("/logout", a.Logout())
 
-	mux.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager.MonitorsInfo)))
-	mux.Handle("/api/monitor/configs", a.Admin(web.MonitorConfigs(monitorManager)))
-	mux.Handle("/api/monitor/restart", a.Admin(a.CSRF(web.MonitorRestart(monitorManager))))
-	mux.Handle("/api/monitor/set", a.Admin(a.CSRF(web.MonitorSet(monitorManager))))
-	mux.Handle("/api/monitor/delete", a.Admin(a.CSRF(web.MonitorDelete(monitorManager))))
+	router.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager.MonitorsInfo)))
+	router.Handle("/api/monitor/configs", a.Admin(web.MonitorConfigs(monitorManager)))
+	router.Handle("/api/monitor/restart", a.Admin(a.CSRF(web.MonitorRestart(monitorManager))))
+	router.Handle("/api/monitor/set", a.Admin(a.CSRF(web.MonitorSet(monitorManager))))
+	router.Handle("/api/monitor/delete", a.Admin(a.CSRF(web.MonitorDelete(monitorManager))))
 
-	mux.Handle("/api/group/configs", a.User(web.GroupConfigs(groupManager)))
-	mux.Handle("/api/group/set", a.Admin(a.CSRF(web.GroupSet(groupManager))))
-	mux.Handle("/api/group/delete", a.Admin(a.CSRF(web.GroupDelete(groupManager))))
+	router.Handle("/api/group/configs", a.User(web.GroupConfigs(groupManager)))
+	router.Handle("/api/group/set", a.Admin(a.CSRF(web.GroupSet(groupManager))))
+	router.Handle("/api/group/delete", a.Admin(a.CSRF(web.GroupDelete(groupManager))))
 
-	mux.Handle("/api/recording/thumbnail/", a.User(web.RecordingThumbnail(env.RecordingsDir())))
-	mux.Handle("/api/recording/video/", a.User(web.RecordingVideo(logger, env.RecordingsDir())))
-	mux.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler, logger)))
+	router.Handle("/api/recording/thumbnail/", a.User(web.RecordingThumbnail(env.RecordingsDir())))
+	router.Handle("/api/recording/video/", a.User(web.RecordingVideo(logger, env.RecordingsDir())))
+	router.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler, logger)))
 
-	mux.Handle("/api/log/feed", a.Admin(web.LogFeed(logger, a)))
-	mux.Handle("/api/log/query", a.Admin(web.LogQuery(logStore)))
-	mux.Handle("/api/log/sources", a.Admin(web.LogSources(logger)))
+	router.Handle("/api/log/feed", a.Admin(web.LogFeed(logger, a)))
+	router.Handle("/api/log/query", a.Admin(web.LogQuery(logStore)))
+	router.Handle("/api/log/sources", a.Admin(web.LogSources(logger)))
 
 	return &App{
 		WG:             wg,
@@ -255,14 +255,14 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 		Storage:        storageManager,
 		videoServer:    videoServer,
 		Templater:      t,
-		Mux:            mux,
+		Router:         router,
 	}, nil
 }
 
 func (app *App) run(ctx context.Context) error {
 	// Main server.
 	address := ":" + strconv.Itoa(app.Env.Port)
-	app.server = &http.Server{Addr: address, Handler: app.Mux}
+	app.server = &http.Server{Addr: address, Handler: app.Router}
 
 	if err := app.Logger.Start(ctx); err != nil {
 		return fmt.Errorf("could not start logger: %w", err)
