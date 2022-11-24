@@ -39,13 +39,6 @@ func stubRAM() (*mem.VirtualMemoryStat, error) {
 	}, nil
 }
 
-func stubDisk() (storage.DiskUsage, error) {
-	return storage.DiskUsage{
-		Percent:   33,
-		Formatted: "44",
-	}, nil
-}
-
 func stubCPUErr(_ context.Context, _ time.Duration, _ bool) ([]float64, error) {
 	return nil, errors.New("")
 }
@@ -54,29 +47,26 @@ func stubRAMErr() (*mem.VirtualMemoryStat, error) {
 	return &mem.VirtualMemoryStat{}, errors.New("")
 }
 
-func stubDiskErr() (storage.DiskUsage, error) {
-	return storage.DiskUsage{}, errors.New("stub")
-}
-
 func TestUpdate(t *testing.T) {
 	cases := map[string]struct {
 		cpu           cpuFunc
 		ram           ramFunc
-		disk          diskFunc
 		expectedError bool
 		expectedValue string
 	}{
-		"cpuErr": {stubCPUErr, stubRAM, stubDisk, true, "{0 0 0 }"},
-		"ramErr": {stubCPU, stubRAMErr, stubDisk, true, "{0 0 0 }"},
-		"ok":     {stubCPU, stubRAM, stubDisk, false, "{11 22 0 }"},
+		"cpuErr": {stubCPUErr, stubRAM, true, "{0 0 0 }"},
+		"ramErr": {stubCPU, stubRAMErr, true, "{0 0 0 }"},
+		"ok":     {stubCPU, stubRAM, false, "{11 22 0 }"},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := system{
-				cpu:  tc.cpu,
-				ram:  tc.ram,
-				disk: tc.disk,
+				cpu: tc.cpu,
+				ram: tc.ram,
+				diskCached: func() (storage.DiskUsage, time.Duration) {
+					return storage.DiskUsage{}, 0
+				},
 			}
 
 			ctx, cancel := context.WithTimeout(context.TODO(), 100*time.Millisecond)
@@ -119,30 +109,28 @@ func TestUpdateCPUAndRAM(t *testing.T) {
 	})
 }
 
+func stubDiskGet() (storage.DiskUsage, error) {
+	return storage.DiskUsage{
+		Percent:   33,
+		Formatted: "44",
+	}, nil
+}
+
 func TestUpdateDiskError(t *testing.T) {
 	logs := make(chan string)
 	logf := func(_ log.Level, format string, a ...interface{}) {
 		logs <- fmt.Sprintf(format, a...)
 	}
 	s := system{
-		disk:           stubDiskErr,
-		isUpdatingDisk: true,
-		logf:           logf,
+		diskCached: func() (storage.DiskUsage, time.Duration) {
+			return storage.DiskUsage{}, 1 * time.Hour
+		},
+		disk: func(time.Duration) (storage.DiskUsage, error) {
+			return storage.DiskUsage{}, errors.New("stub")
+		},
+		logf: logf,
 	}
 
-	go s.updateDisk()
-	require.Equal(t, "could not update disk usage: stub", <-logs)
-}
-
-func TestLoop(t *testing.T) {
-	s := system{
-		cpu:  stubCPU,
-		ram:  stubRAM,
-		disk: stubDisk,
-	}
-
-	ctx, cancel := context.WithTimeout(context.TODO(), 100*time.Millisecond)
-	defer cancel()
-
-	s.StatusLoop(ctx)
+	s.updateDiskUnsafe()
+	require.Equal(t, "could not get disk usage: stub", <-logs)
 }

@@ -35,7 +35,11 @@ func init() {
 	var sys *system
 
 	nvr.RegisterAppRunHook(func(ctx context.Context, app *nvr.App) error {
-		sys = newSystem(app.Storage.Usage, app.Logger)
+		sys = newSystem(
+			app.Storage.DiskUsageCached,
+			app.Storage.DiskUsage,
+			app.Logger,
+		)
 		go sys.StatusLoop(ctx)
 		return nil
 	})
@@ -55,28 +59,31 @@ type status struct {
 }
 
 type (
-	cpuFunc  func(context.Context, time.Duration, bool) ([]float64, error)
-	ramFunc  func() (*mem.VirtualMemoryStat, error)
-	diskFunc func() (storage.DiskUsage, error)
+	cpuFunc        func(context.Context, time.Duration, bool) ([]float64, error)
+	ramFunc        func() (*mem.VirtualMemoryStat, error)
+	diskCachedFunc func() (storage.DiskUsage, time.Duration)
+	diskFunc       func(time.Duration) (storage.DiskUsage, error)
 )
 
 type system struct {
-	cpu  cpuFunc
-	ram  ramFunc
-	disk diskFunc
+	cpu        cpuFunc
+	ram        ramFunc
+	diskCached diskCachedFunc
+	disk       diskFunc
 
-	status         status
-	prevDiskUpdate time.Time
-	isUpdatingDisk bool
+	status status
 
-	interval     time.Duration
-	diskCooldown time.Duration
+	interval time.Duration
 
 	logf log.Func
 	mu   sync.Mutex
 }
 
-func newSystem(disk diskFunc, logger *log.Logger) *system {
+func newSystem(
+	diskCached diskCachedFunc,
+	diskUpdate diskFunc,
+	logger *log.Logger,
+) *system {
 	logf := func(level log.Level, format string, a ...interface{}) {
 		logger.Log(log.Entry{
 			Level: level,
@@ -86,12 +93,12 @@ func newSystem(disk diskFunc, logger *log.Logger) *system {
 	}
 
 	return &system{
-		cpu:  cpu.PercentWithContext,
-		ram:  mem.VirtualMemory,
-		disk: disk,
+		cpu:        cpu.PercentWithContext,
+		ram:        mem.VirtualMemory,
+		diskCached: diskCached,
+		disk:       diskUpdate,
 
-		interval:     10 * time.Second,
-		diskCooldown: 5 * time.Minute,
+		interval: 10 * time.Second,
 
 		logf: logf,
 	}
@@ -108,29 +115,11 @@ func (s *system) updateCPUAndRAM(ctx context.Context) error {
 	}
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	s.status.CPUUsage = int(cpuUsage[0])
 	s.status.RAMUsage = int(ramUsage.UsedPercent)
+	s.mu.Unlock()
 
 	return nil
-}
-
-func (s *system) updateDisk() {
-	diskUsage, err := s.disk()
-	if err != nil {
-		s.logf(log.LevelError, "could not update disk usage: %v", err)
-		return
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.status.DiskUsage = diskUsage.Percent
-	s.status.DiskUsageFormatted = diskUsage.Formatted
-
-	s.isUpdatingDisk = false
-	s.prevDiskUpdate = time.Now()
 }
 
 // StatusLoop updates system status until context is canceled.
@@ -150,13 +139,26 @@ func (s *system) getStatus() status {
 	defer s.mu.Unlock()
 	s.mu.Lock()
 
-	nextDiskUpdate := s.prevDiskUpdate.Add(s.diskCooldown)
-	if !s.isUpdatingDisk && time.Now().After(nextDiskUpdate) {
-		s.isUpdatingDisk = true
-		go s.updateDisk()
-	}
+	s.updateDiskUnsafe()
 
 	return s.status
+}
+
+const maxAge = 2 * time.Minute
+
+func (s *system) updateDiskUnsafe() {
+	diskUsage, age := s.diskCached()
+	if age > maxAge {
+		go func() {
+			_, err := s.disk(maxAge)
+			if err != nil {
+				s.logf(log.LevelError, "could not get disk usage: %v", err)
+			}
+		}()
+	}
+
+	s.status.DiskUsage = diskUsage.Percent
+	s.status.DiskUsageFormatted = diskUsage.Formatted
 }
 
 /*func handleStatus(sys *system) http.Handler {

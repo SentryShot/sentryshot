@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -40,73 +39,115 @@ var recordingTestFS = fstest.MapFS{
 }
 
 func TestDiskUsage(t *testing.T) {
-	usage := diskUsage(recordingTestFS)
+	usage := diskUsageBytes(recordingTestFS)
 	require.Equal(t, int64(302), usage)
 }
 
-func TestUsage(t *testing.T) {
-	const mb int64 = 1000000
-	cases := map[string]struct {
-		used     float64 // Byte
-		space    string  // GB
-		expected string
-	}{
-		"formatMB":      {10 * megabyte, "0.1", "{10000000 10 0 10MB}"},
-		"formatGB2":     {2 * gigabyte, "10", "{2000000000 20 10 2.00GB}"},
-		"formatGB1":     {20 * gigabyte, "100", "{20000000000 20 100 20.0GB}"},
-		"formatGB0":     {200 * gigabyte, "1000", "{200000000000 20 1000 200GB}"},
-		"formatTB2":     {2 * terabyte, "10000", "{2000000000000 20 10000 2.00TB}"},
-		"formatTB1":     {20 * terabyte, "100000", "{20000000000000 20 100000 20.0TB}"},
-		"formatDefault": {200 * terabyte, "1000000", "{200000000000000 20 1000000 200TB}"},
+func TestDisk(t *testing.T) {
+	du := func(used int64, percent int, max int64, formatted string) DiskUsage {
+		return DiskUsage{
+			Used:      used,
+			Percent:   percent,
+			Max:       max,
+			Formatted: formatted,
+		}
 	}
 
+	cases := map[string]struct {
+		used     float64 // Bytes
+		space    string  // GB
+		expected DiskUsage
+	}{
+		"formatMB":      {11 * megabyte, "0.1", du(11000000, 11, 0, "11MB")},
+		"formatGB2":     {2345 * megabyte, "10", du(2345000000, 23, 10, "2.35GB")},
+		"formatGB1":     {22 * gigabyte, "100", du(22000000000, 22, 100, "22.0GB")},
+		"formatGB0":     {234 * gigabyte, "1000", du(234000000000, 23, 1000, "234GB")},
+		"formatTB2":     {2345 * gigabyte, "10000", du(2345000000000, 23, 10000, "2.35TB")},
+		"formatTB1":     {22 * terabyte, "100000", du(22000000000000, 22, 100000, "22.0TB")},
+		"formatDefault": {234 * terabyte, "1000000", du(234000000000000, 23, 1000000, "234TB")},
+	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			s := Manager{
+			d := &disk{
 				general: &ConfigGeneral{
 					Config: map[string]string{
 						"diskSpace": tc.space,
 					},
 				},
-				usage: func(fs.FS) int64 {
+				diskUsageBytes: func(fs.FS) int64 {
 					return int64(tc.used)
 				},
 			}
-			u, err := s.Usage()
+			actual, err := d.usage(0)
 			require.NoError(t, err)
-
-			actual := fmt.Sprintf("%v", u)
 			require.Equal(t, actual, tc.expected)
 		})
 	}
 
+	t.Run("cached", func(t *testing.T) {
+		usage := DiskUsage{Used: 1}
+		d := &disk{
+			cache:      usage,
+			lastUpdate: time.Now(),
+		}
+		actual, age := d.usageCached()
+		require.Equal(t, usage, actual)
+		require.Less(t, age, 1*time.Second)
+	})
+	t.Run("updatedDuringLock", func(t *testing.T) {
+		d := &disk{}
+		d.updateLock.Lock()
+
+		result := make(chan DiskUsage)
+		go func() {
+			usage, err := d.usage(1 * time.Hour)
+			require.NoError(t, err)
+			result <- usage
+		}()
+		time.Sleep(10 * time.Millisecond)
+
+		usage := DiskUsage{Used: 1}
+
+		d.cacheLock.Lock()
+		d.cache = usage
+		d.lastUpdate = time.Now()
+		d.cacheLock.Unlock()
+
+		d.updateLock.Unlock()
+		require.Equal(t, usage, <-result)
+	})
 	t.Run("diskSpaceZero", func(t *testing.T) {
-		s := Manager{
+		d := &disk{
 			general: &ConfigGeneral{
 				Config: map[string]string{},
 			},
-			usage: func(fs.FS) int64 {
+			diskUsageBytes: func(fs.FS) int64 {
 				return int64(1000)
 			},
 		}
-		u, err := s.Usage()
+		actual, err := d.usage(0)
 		require.NoError(t, err)
 
-		actual := fmt.Sprintf("%v", u)
-		require.Equal(t, actual, "{1000 0 0 0MB}")
+		expected := DiskUsage{
+			Used:      1000,
+			Percent:   0,
+			Max:       0,
+			Formatted: "0MB",
+		}
+		require.Equal(t, expected, actual)
 	})
 	t.Run("diskSpace error", func(t *testing.T) {
-		s := Manager{
+		d := &disk{
 			general: &ConfigGeneral{
 				Config: map[string]string{
 					"diskSpace": "nil",
 				},
 			},
-			usage: func(fs.FS) int64 {
+			diskUsageBytes: func(fs.FS) int64 {
 				return 0
 			},
 		}
-		_, err := s.Usage()
+		_, err := d.usage(0)
 		require.ErrorIs(t, err, strconv.ErrSyntax)
 	})
 }
@@ -128,63 +169,73 @@ var highUsage = func(fs.FS) int64 {
 }
 
 func TestPurge(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		cases := map[string]struct {
-			input     *Manager
-			expectErr bool
-		}{
-			"usageErr": {
-				&Manager{
+	cases := map[string]struct {
+		input     *Manager
+		expectErr bool
+	}{
+		"usageErr": {
+			&Manager{
+				storageDirFS: recordingTestFS,
+				disk: &disk{
 					storageDirFS: recordingTestFS,
 					general:      diskSpaceErr,
-					usage: func(fs.FS) int64 {
+					diskUsageBytes: func(fs.FS) int64 {
 						return 1
 					},
 				},
-				true,
 			},
-			"below99%": {
-				&Manager{
+			true,
+		},
+		"below99%": {
+			&Manager{
+				storageDirFS: recordingTestFS,
+				disk: &disk{
 					storageDirFS: recordingTestFS,
 					general:      diskSpace1,
-					usage: func(fs.FS) int64 {
+					diskUsageBytes: func(fs.FS) int64 {
 						return 1
 					},
 				},
-				false,
 			},
-			"ok": {
-				&Manager{
-					storageDirFS: recordingTestFS,
-					general:      diskSpace1,
-					usage:        highUsage,
-					removeAll: func(string) error {
-						return nil
-					},
+			false,
+		},
+		"ok": {
+			&Manager{
+				storageDirFS: recordingTestFS,
+				disk: &disk{
+					storageDirFS:   recordingTestFS,
+					general:        diskSpace1,
+					diskUsageBytes: highUsage,
 				},
-				false,
-			},
-			"removeAllErr": {
-				&Manager{
-					storageDirFS: recordingTestFS,
-					general:      diskSpace1,
-					usage:        highUsage,
-					removeAll: func(string) error {
-						return errors.New("")
-					},
+				removeAll: func(string) error {
+					return nil
 				},
-				true,
 			},
-		}
+			false,
+		},
+		"removeAllErr": {
+			&Manager{
+				storageDirFS: recordingTestFS,
+				disk: &disk{
+					storageDirFS:   recordingTestFS,
+					general:        diskSpace1,
+					diskUsageBytes: highUsage,
+				},
+				removeAll: func(string) error {
+					return errors.New("")
+				},
+			},
+			true,
+		},
+	}
 
-		for name, tc := range cases {
-			t.Run(name, func(t *testing.T) {
-				err := tc.input.purge()
-				gotError := err != nil
-				require.Equal(t, tc.expectErr, gotError, err)
-			})
-		}
-	})
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := tc.input.purge()
+			gotError := err != nil
+			require.Equal(t, tc.expectErr, gotError, err)
+		})
+	}
 
 	t.Run("removeAll", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
@@ -197,12 +248,15 @@ func TestPurge(t *testing.T) {
 
 		m := &Manager{
 			storageDirFS: os.DirFS(tempDir),
-			general: &ConfigGeneral{
-				Config: map[string]string{
-					"diskSpace": "1",
+			disk: &disk{
+				storageDirFS: os.DirFS(tempDir),
+				general: &ConfigGeneral{
+					Config: map[string]string{
+						"diskSpace": "1",
+					},
 				},
+				diskUsageBytes: highUsage,
 			},
-			usage:     highUsage,
 			removeAll: os.RemoveAll,
 		}
 		err = m.purge()
@@ -223,8 +277,11 @@ func TestPurgeLoop(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		m := &Manager{
 			storageDirFS: recordingTestFS,
-			general:      diskSpace1,
-			usage:        highUsage,
+			disk: &disk{
+				storageDirFS:   recordingTestFS,
+				general:        diskSpace1,
+				diskUsageBytes: highUsage,
+			},
 			removeAll: func(_ string) error {
 				return nil
 			},
@@ -241,14 +298,16 @@ func TestPurgeLoop(t *testing.T) {
 		logger, logs := log.NewMockLogger()
 
 		m := &Manager{
-			general: diskSpaceErr,
-			usage:   highUsage,
-			logger:  logger,
+			disk: &disk{
+				general:        diskSpaceErr,
+				diskUsageBytes: highUsage,
+			},
+			logger: logger,
 		}
 
 		go m.PurgeLoop(ctx, 0)
 
-		expected := `could not purge storage: disk space: parse diskSpace: strconv.ParseFloat: parsing "nil": invalid syntax`
+		expected := `could not purge storage: update disk usage: disk space: parse diskSpace: strconv.ParseFloat: parsing "nil": invalid syntax`
 		require.Equal(t, expected, <-logs)
 	})
 }

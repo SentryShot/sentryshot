@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	stdLog "log"
 	"nvr/pkg/log"
 	"os"
 	"path/filepath"
@@ -32,118 +31,51 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Manager handles storage interactions.
+// Manager storage manager.
 type Manager struct {
 	storageDir   string
 	storageDirFS fs.FS
-	general      *ConfigGeneral
-
-	usage     func(fs.FS) int64
-	removeAll func(string) error
+	disk         *disk
+	removeAll    func(string) error
 
 	logger log.ILogger
 }
 
 // NewManager returns new manager.
 func NewManager(storageDir string, general *ConfigGeneral, log log.ILogger) *Manager {
+	storageDirFS := os.DirFS(storageDir)
 	return &Manager{
 		storageDir:   storageDir,
-		storageDirFS: os.DirFS(storageDir),
-		general:      general,
-
-		usage:     diskUsage,
-		removeAll: os.RemoveAll,
+		storageDirFS: storageDirFS,
+		disk:         newDisk(general, storageDirFS),
+		removeAll:    os.RemoveAll,
 
 		logger: log,
 	}
 }
 
-// DiskUsage in Bytes.
-type DiskUsage struct {
-	Used      int
-	Percent   int
-	Max       int
-	Formatted string
+// RecordingsDir Returns path to recordings diectory.
+func (s *Manager) RecordingsDir() string {
+	return filepath.Join(s.storageDir, "recordings")
 }
 
-const (
-	kilobyte float64 = 1000
-	megabyte         = kilobyte * 1000
-	gigabyte         = megabyte * 1000
-	terabyte         = gigabyte * 1000
-)
-
-func formatDiskUsage(used float64) string {
-	switch {
-	case used < 1000*megabyte:
-		return fmt.Sprintf("%.0fMB", used/megabyte)
-	case used < 10*gigabyte:
-		return fmt.Sprintf("%.2fGB", used/gigabyte)
-	case used < 100*gigabyte:
-		return fmt.Sprintf("%.1fGB", used/gigabyte)
-	case used < 1000*gigabyte:
-		return fmt.Sprintf("%.0fGB", used/gigabyte)
-	case used < 10*terabyte:
-		return fmt.Sprintf("%.2fTB", used/terabyte)
-	case used < 100*terabyte:
-		return fmt.Sprintf("%.1fTB", used/terabyte)
-	default:
-		return fmt.Sprintf("%.0fTB", used/terabyte)
-	}
+// DiskUsageCached returns cached value and its age.
+func (s *Manager) DiskUsageCached() (DiskUsage, time.Duration) {
+	return s.disk.usageCached()
 }
 
-func diskUsage(fileSystem fs.FS) int64 {
-	var used int64
-	fs.WalkDir(fileSystem, ".", func(_ string, d fs.DirEntry, err error) error { //nolint:errcheck
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		info, err := d.Info()
-		if err != nil {
-			return nil
-		}
-		used += info.Size()
-
-		return nil
-	})
-	return used
-}
-
-// Usage return DiskUsage.
-func (s *Manager) Usage() (DiskUsage, error) {
-	used := s.usage(s.storageDirFS)
-
-	diskSpaceBytes, err := s.general.DiskSpace()
-	if err != nil {
-		return DiskUsage{}, fmt.Errorf("disk space: %w", err)
-	}
-
-	if diskSpaceBytes == 0 {
-		return DiskUsage{
-			Used:      int(used),
-			Formatted: formatDiskUsage(float64(used)),
-		}, nil
-	}
-
-	var usedPercent int64
-	if used != 0 {
-		usedPercent = (used * 100) / diskSpaceBytes
-	}
-
-	return DiskUsage{
-		Used:      int(used),
-		Percent:   int(usedPercent),
-		Max:       int(diskSpaceBytes / int64(gigabyte)),
-		Formatted: formatDiskUsage(float64(used)),
-	}, nil
+// DiskUsage returns cached value if witin maxAge.
+// Will update and return new value if the cached value is too old.
+func (s *Manager) DiskUsage(maxAge time.Duration) (DiskUsage, error) {
+	return s.disk.usage(maxAge)
 }
 
 // purge checks if disk usage is above 99%,
 // if true deletes all files from the oldest day.
 func (s *Manager) purge() error {
-	usage, err := s.Usage()
+	usage, err := s.DiskUsage(10 * time.Minute)
 	if err != nil {
-		return err
+		return fmt.Errorf("update disk usage: %w", err)
 	}
 	if usage.Percent < 99 {
 		return nil
@@ -185,11 +117,6 @@ func (s *Manager) purge() error {
 	return nil
 }
 
-// RecordingsDir Returns path to recordings diectory.
-func (s *Manager) RecordingsDir() string {
-	return filepath.Join(s.storageDir, "recordings")
-}
-
 // PurgeLoop runs Purge on an interval until context is canceled.
 func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
 	for {
@@ -206,6 +133,148 @@ func (s *Manager) PurgeLoop(ctx context.Context, duration time.Duration) {
 			}
 		}
 	}
+}
+
+// Only used to calculate and cache disk usage.
+type disk struct {
+	general        *ConfigGeneral
+	storageDirFS   fs.FS
+	diskUsageBytes func(fs.FS) int64
+
+	cache      DiskUsage
+	lastUpdate time.Time
+	cacheLock  sync.Mutex
+
+	updateLock sync.Mutex
+}
+
+func newDisk(general *ConfigGeneral, storageDirFS fs.FS) *disk {
+	return &disk{
+		general:        general,
+		diskUsageBytes: diskUsageBytes,
+		storageDirFS:   storageDirFS,
+	}
+}
+
+// DiskUsageGet returns cached value if witin maxAge.
+// Will update and return new value if the cached value is too old.
+func (d *disk) usageCached() (DiskUsage, time.Duration) {
+	d.cacheLock.Lock()
+	defer d.cacheLock.Unlock()
+
+	return d.cache, time.Since(d.lastUpdate)
+}
+
+// usage returns cached value if witin maxAge.
+// Will update and return new value if the cached value is too old.
+func (d *disk) usage(maxAge time.Duration) (DiskUsage, error) {
+	maxTime := time.Now().Add(-maxAge)
+
+	d.cacheLock.Lock()
+	if d.lastUpdate.After(maxTime) {
+		defer d.cacheLock.Unlock()
+		return d.cache, nil
+	}
+	d.cacheLock.Unlock()
+
+	// Cache is too old, acquire update lock and update it.
+	d.updateLock.Lock()
+	defer d.updateLock.Unlock()
+
+	// Check if it was updated while we were waiting for the update lock.
+	d.cacheLock.Lock()
+	if d.lastUpdate.After(maxTime) {
+		defer d.cacheLock.Unlock()
+		return d.cache, nil
+	}
+	// Still outdated.
+	d.cacheLock.Unlock()
+
+	updatedUsage, err := d.calculateDiskUsage()
+	if err != nil {
+		return DiskUsage{}, err
+	}
+
+	d.cacheLock.Lock()
+	d.cache = updatedUsage
+	d.lastUpdate = time.Now()
+	d.cacheLock.Unlock()
+
+	return updatedUsage, nil
+}
+
+func (d *disk) calculateDiskUsage() (DiskUsage, error) {
+	used := d.diskUsageBytes(d.storageDirFS)
+
+	diskSpaceBytes, err := d.general.DiskSpace()
+	if err != nil {
+		return DiskUsage{}, fmt.Errorf("disk space: %w", err)
+	}
+
+	percent := func() int {
+		if used == 0 || diskSpaceBytes == 0 {
+			return 0
+		}
+		return int((used * 100) / diskSpaceBytes)
+	}()
+
+	return DiskUsage{
+		Used:      used,
+		Percent:   percent,
+		Max:       diskSpaceBytes / int64(gigabyte),
+		Formatted: formatDiskUsage(float64(used)),
+	}, nil
+}
+
+// DiskUsage in Bytes.
+type DiskUsage struct {
+	Used      int64
+	Percent   int
+	Max       int64
+	Formatted string
+}
+
+const (
+	kilobyte float64 = 1000
+	megabyte         = kilobyte * 1000
+	gigabyte         = megabyte * 1000
+	terabyte         = gigabyte * 1000
+)
+
+func formatDiskUsage(used float64) string {
+	switch {
+	case used < 1000*megabyte:
+		return fmt.Sprintf("%.0fMB", used/megabyte)
+	case used < 10*gigabyte:
+		return fmt.Sprintf("%.2fGB", used/gigabyte)
+	case used < 100*gigabyte:
+		return fmt.Sprintf("%.1fGB", used/gigabyte)
+	case used < 1000*gigabyte:
+		return fmt.Sprintf("%.0fGB", used/gigabyte)
+	case used < 10*terabyte:
+		return fmt.Sprintf("%.2fTB", used/terabyte)
+	case used < 100*terabyte:
+		return fmt.Sprintf("%.1fTB", used/terabyte)
+	default:
+		return fmt.Sprintf("%.0fTB", used/terabyte)
+	}
+}
+
+func diskUsageBytes(fileSystem fs.FS) int64 {
+	var used int64
+	fs.WalkDir(fileSystem, ".", func(_ string, d fs.DirEntry, err error) error { //nolint:errcheck
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		used += info.Size()
+
+		return nil
+	})
+	return used
 }
 
 // ConfigEnv stores system configuration.
@@ -298,7 +367,7 @@ func (env ConfigEnv) PrepareEnvironment() error {
 
 	// Make sure env.TempDir isn't set to "/".
 	if len(env.TempDir) <= 4 {
-		stdLog.Fatalf("tempDir sanity check: %v", env.TempDir)
+		panic(fmt.Sprintf("tempDir sanity check: %v", env.TempDir))
 	}
 	err = os.RemoveAll(env.TempDir)
 	if err != nil {
