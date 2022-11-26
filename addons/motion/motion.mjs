@@ -83,7 +83,7 @@ function _motion(hls) {
 			<li id="${id}" class="form-field" style="display:flex;">
 				<label class="form-field-label">Motion detection</label>
 				<div>
-					<button class="settings-edit-btn" style="background: var(--color3);">
+					<button class="form-field-edit-btn" style="background: var(--color3);">
 						<img src="static/icons/feather/edit-3.svg"/>
 					</button>
 				</div>
@@ -107,11 +107,13 @@ function _motion(hls) {
 		},
 		init($parent) {
 			const element = $parent.querySelector("#" + id);
-			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
-				render(element);
-				update();
-				modal.open();
-			});
+			element
+				.querySelector(".form-field-edit-btn")
+				.addEventListener("click", () => {
+					render(element);
+					update();
+					modal.open();
+				});
 		},
 	};
 }
@@ -134,13 +136,13 @@ function zones(hls) {
 				<div class="form-field-select-container">
 					<select	class="js-zone-select form-field-select"></select>
 					<div
-						class="js-add-zone settings-edit-btn"
+						class="js-add-zone form-field-edit-btn"
 						style="background: var(--color2)"
 					>
 						<img src="static/icons/feather/plus.svg"/>
 					</div>
 					<div
-						class="js-remove-zone settings-edit-btn"
+						class="js-remove-zone form-field-edit-btn"
 						style="margin-left: 0.2rem; background: var(--color2)"
 					>
 						<img src="static/icons/feather/minus.svg"/>
@@ -363,13 +365,13 @@ function zones(hls) {
 		html += `
 				<div style="display: flex; column-gap: 0.2rem;">
 					<button
-						class="js-points-plus settings-edit-btn"
+						class="js-points-plus form-field-edit-btn"
 						style="margin: 0; background: var(--color2);"
 					>
 						<img src="static/icons/feather/plus.svg">
 					</button>
 					<button
-						class="js-points-minus settings-edit-btn red"
+						class="js-points-minus form-field-edit-btn red"
 						style="margin: 0; background: var(--color2);"
 					>
 						<img src="static/icons/feather/minus.svg">
@@ -434,7 +436,7 @@ function zones(hls) {
 					>Zones
 				</label>
 				<div style="width:auto">
-					<button class="settings-edit-btn color2">
+					<button class="form-field-edit-btn color2">
 						<img src="static/icons/feather/edit-3.svg"/>
 					</button>
 				</div>
@@ -452,29 +454,31 @@ function zones(hls) {
 		},
 		init($parent) {
 			const element = $parent.querySelector(`#${id}`);
-			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
-				const subInputEnabled = fields.subInput.value() !== "" ? "true" : "";
-				const monitor = {
-					id: fields.id.value(),
-					audioEnabled: "false",
-					subInputEnabled: subInputEnabled,
-				};
-				feed = newFeed(hls, monitor, true);
+			element
+				.querySelector(".form-field-edit-btn")
+				.addEventListener("click", () => {
+					const subInputEnabled = fields.subInput.value() !== "" ? "true" : "";
+					const monitor = {
+						id: fields.id.value(),
+						audioEnabled: "false",
+						subInputEnabled: subInputEnabled,
+					};
+					feed = newFeed(hls, monitor, true);
 
-				if (!rendered) {
-					renderModal(element, feed);
-					modal.onClose(() => {
-						feed.destroy();
-					});
-					rendered = true;
-				} else {
-					// Update feed.
-					$feed.innerHTML = feed.html;
-				}
+					if (!rendered) {
+						renderModal(element, feed);
+						modal.onClose(() => {
+							feed.destroy();
+						});
+						rendered = true;
+					} else {
+						// Update feed.
+						$feed.innerHTML = feed.html;
+					}
 
-				modal.open();
-				feed.init($modalContent);
-			});
+					modal.open();
+					feed.init($modalContent);
+				});
 		},
 	};
 }

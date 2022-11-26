@@ -868,7 +868,7 @@ function newSelectMonitor(id) {
 		html: `
 			<li id="${id}" class="form-field-flex">
 				<label class="form-field-label" for="${id}">Monitors</label>
-				<button class="settings-edit-btn color3">
+				<button class="form-field-edit-btn color3">
 					<img src="static/icons/feather/edit-3.svg"/>
 				</button>
 				${modal.html}
@@ -877,7 +877,7 @@ function newSelectMonitor(id) {
 			const element = $parent.querySelector(`#${id}`);
 
 			element
-				.querySelector(".settings-edit-btn")
+				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", async () => {
 					await render(element);
 					modal.open();

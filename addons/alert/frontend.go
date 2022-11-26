@@ -108,7 +108,7 @@ func modifySettingsjs(tpl string) string { //nolint:funlen
 				<li id="${id}" class="form-field" style="display:flex;">
 					<label class="form-field-label">Alert</label>
 					<div>
-						<button class="settings-edit-btn" style="background: var(--color3);">
+						<button class="form-field-edit-btn" style="background: var(--color3);">
 							<img src="static/icons/feather/edit-3.svg"/>
 						</button>
 					</div>
@@ -135,7 +135,7 @@ func modifySettingsjs(tpl string) string { //nolint:funlen
 			},
 			init($parent) {
 				const element = $parent.querySelector("#"+id)
-				element.querySelector(".settings-edit-btn").addEventListener("click", () => {
+				element.querySelector(".form-field-edit-btn").addEventListener("click", () => {
 					render(element)
 					update()
 					modal.open()

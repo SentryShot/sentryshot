@@ -187,7 +187,7 @@ describe("newField", () => {
 			<label for="uid1" class="form-field-label">a</label>
 			<input
 				id="uid1"
-				class="settings-input-text js-input"
+				class="js-input settings-input-text"
 				type="number"
 				placeholder="b"
 				min="2"
@@ -276,7 +276,7 @@ describe("fieldTemplate", () => {
 			<label for="uid1" class="form-field-label">1</label>
 			<input
 				id="uid1"
-				class="settings-input-text js-input"
+				class="js-input settings-input-text"
 				type="text"
 				placeholder="2"
 			/>
@@ -308,7 +308,7 @@ describe("fieldTemplate", () => {
 			<label for="uid1" class="form-field-label">1</label>
 			<input
 				id="uid1"
-				class="settings-input-text js-input"
+				class="js-input settings-input-text"
 				type="number"
 				placeholder="2"
 				min="0"
@@ -340,7 +340,7 @@ describe("fieldTemplate", () => {
 		<li id="js-uid1" class="form-field">
 			<label for="uid1" class="form-field-label">1</label>
 			<div class="form-field-select-container">
-				<select id="uid1" class="form-field-select js-input">
+				<select id="uid1" class="js-input form-field-select">
 					<option>true</option>
 					<option>false</option>
 				</select>
@@ -368,7 +368,7 @@ describe("fieldTemplate", () => {
 		<li id="js-uid1" class="form-field">
 			<label for="uid1" class="form-field-label">1</label>
 			<div class="form-field-select-container">
-				<select id="uid1" class="form-field-select js-input">
+				<select id="uid1" class="js-input form-field-select">
 					<option>a</option>
 					<option>b</option>
 					<option>c</option>
@@ -397,13 +397,16 @@ describe("fieldTemplate", () => {
 		<li id="js-uid1" class="form-field-error">
 			<label for="uid1" class="form-field-label">y</label>
 			<div class="form-field-select-container">
-				<select id="uid1" class="form-field-select js-input">
+				<select id="uid1" class="js-input form-field-select">
 					<option>a</option>
 					<option>b</option>
 					<option>c</option>
 				</select>
-				<button class="settings-edit-btncolor3">
-					<img src="static/icons/feather/edit-3.svg"/>
+				<button class="js-edit-btn form-field-edit-btn color3">
+					<img
+						class="form-field-edit-btn-img"
+						src="static/icons/feather/edit-3.svg"
+					/>
 				</button>
 				</div>
 			<span class="settings-error js-error"></span>
@@ -453,13 +456,16 @@ describe("selectCustomField", () => {
 		<li id="js-uid1" class="form-field">
 			<label for="uid1" class="form-field-label">d</label>
 			<div class="form-field-select-container">
-				<select id="uid1" class="form-field-select js-input">
+				<select id="uid1" class="js-input form-field-select">
 					<option>a</option>
 					<option>b</option>
 					<option>c</option>
 				</select>
-				<button class="settings-edit-btncolor3">
-					<img src="static/icons/feather/edit-3.svg"/>
+				<button class="js-edit-btn form-field-edit-btn color3">
+					<img
+						class="form-field-edit-btn-img"
+						src="static/icons/feather/edit-3.svg"
+					/>
 				</button>
 				</div>
 		</li>`.replace(/\s/g, "");
@@ -495,7 +501,7 @@ describe("passwordField", () => {
 				<label for="uid1" class="form-field-label">New password</label>
 				<input
 					id="uid1"
-					class="settings-input-text js-input"
+					class="js-input settings-input-text"
 					type="password"
 				/>
 				<span class="settings-error js-error"></span>
@@ -504,7 +510,7 @@ describe("passwordField", () => {
 				<label for="uid2" class="form-field-label">Repeat password</label>
 				<input
 					id="uid2"
-					class="settings-input-text js-input"
+					class="js-input settings-input-text"
 					type="password"
 				/>
 				<span class="settings-error js-error"></span>

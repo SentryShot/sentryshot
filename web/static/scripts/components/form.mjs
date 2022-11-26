@@ -233,7 +233,7 @@ function newHTMLfield(options, id, label, placeholder) {
 		body = `
 			<input
 				id="${id}"
-				class="settings-input-text js-input"
+				class="js-input settings-input-text"
 				type="${input}"
 				placeholder="${placeholder}"
 				${min}
@@ -243,16 +243,16 @@ function newHTMLfield(options, id, label, placeholder) {
 	} else if (select) {
 		let options = "";
 		for (const option of select) {
-			options += "\n<option>" + option + "</option>";
+			options += `\n<option>${option}</option>`;
 		}
 		body = `
 			<div class="form-field-select-container">
-				<select id="${id}" class="form-field-select js-input">${options}
+				<select id="${id}" class="js-input form-field-select">${options}
 				</select>
 				${
 					custom
-						? `<button class="settings-edit-btn color3">
-					<img src="static/icons/feather/edit-3.svg"/>
+						? `<button class="js-edit-btn form-field-edit-btn color3">
+					<img class="form-field-edit-btn-img" src="static/icons/feather/edit-3.svg"/>
 				</button>`
 						: ""
 				}
@@ -404,7 +404,7 @@ function newSelectCustomField(inputRules, options, values) {
 					$error.innerHTML = validate(value());
 				}
 			});
-			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
+			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const input = prompt("Custom value");
 				if (!isEmpty(input)) {
 					set(input);
@@ -428,7 +428,7 @@ function newPasswordField() {
 			<label for="${id}" class="form-field-label">${label}</label>
 			<input
 				id="${id}"
-				class="settings-input-text js-input"
+				class="js-input settings-input-text"
 				type="password"
 			/>
 			<span class="settings-error js-error"></span>

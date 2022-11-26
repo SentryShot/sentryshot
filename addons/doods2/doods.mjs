@@ -110,7 +110,7 @@ function _doods(hls, detectors) {
 				<li id="${id}" class="form-field" style="display:flex;">
 					<label class="form-field-label">DOODS</label>
 					<div>
-						<button class="settings-edit-btn" style="background: var(--color3);">
+						<button class="form-field-edit-btn" style="background: var(--color3);">
 							<img src="static/icons/feather/edit-3.svg"/>
 						</button>
 					</div>
@@ -134,11 +134,13 @@ function _doods(hls, detectors) {
 		},
 		init($parent) {
 			const element = $parent.querySelector("#" + id);
-			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
-				render(element);
-				update();
-				modal.open();
-			});
+			element
+				.querySelector(".form-field-edit-btn")
+				.addEventListener("click", () => {
+					render(element);
+					update();
+					modal.open();
+				});
 		},
 	};
 }
@@ -265,7 +267,7 @@ function thresholds(detectors) {
 			>
 				<label class="form-field-label">Thresholds</label>
 				<div style="width:auto">
-					<button class="settings-edit-btn color2">
+					<button class="form-field-edit-btn color2">
 						<img src="static/icons/feather/edit-3.svg"/>
 					</button>
 				</div>
@@ -283,17 +285,19 @@ function thresholds(detectors) {
 		},
 		init($parent) {
 			const element = $parent.querySelector("#" + id);
-			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
-				const detectorName = doodsFields.detectorName.value();
-				if (detectorName === "") {
-					alert("please select a detector");
-					return;
-				}
+			element
+				.querySelector(".form-field-edit-btn")
+				.addEventListener("click", () => {
+					const detectorName = doodsFields.detectorName.value();
+					if (detectorName === "") {
+						alert("please select a detector");
+						return;
+					}
 
-				render(element);
-				setValue(detectorName);
-				modal.open();
-			});
+					render(element);
+					setValue(detectorName);
+					modal.open();
+				});
 		},
 	};
 }
@@ -472,7 +476,7 @@ function crop(hls, detectors) {
 			>
 				<label class="form-field-label">Crop</label>
 				<div style="width:auto">
-					<button class="settings-edit-btn color2">
+					<button class="form-field-edit-btn color2">
 						<img src="static/icons/feather/edit-3.svg"/>
 					</button>
 				</div>
@@ -500,31 +504,33 @@ function crop(hls, detectors) {
 		init($parent) {
 			var feed;
 			const element = $parent.querySelector("#" + id);
-			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
-				const subInputEnabled =
-					monitorFields.subInput.value() !== "" ? "true" : "";
-				const monitor = {
-					id: monitorFields.id.value(),
-					audioEnabled: "false",
-					subInputEnabled: subInputEnabled,
-				};
-				feed = newFeed(hls, monitor, true);
+			element
+				.querySelector(".form-field-edit-btn")
+				.addEventListener("click", () => {
+					const subInputEnabled =
+						monitorFields.subInput.value() !== "" ? "true" : "";
+					const monitor = {
+						id: monitorFields.id.value(),
+						audioEnabled: "false",
+						subInputEnabled: subInputEnabled,
+					};
+					feed = newFeed(hls, monitor, true);
 
-				if (!rendered) {
-					renderModal(element, feed);
-					modal.onClose(() => {
-						feed.destroy();
-					});
-					rendered = true;
-				} else {
-					// Update feed and preview.
-					$feed.innerHTML = feed.html;
-					$overlay.innerHTML = renderPreviewOverlay();
-				}
+					if (!rendered) {
+						renderModal(element, feed);
+						modal.onClose(() => {
+							feed.destroy();
+						});
+						rendered = true;
+					} else {
+						// Update feed and preview.
+						$feed.innerHTML = feed.html;
+						$overlay.innerHTML = renderPreviewOverlay();
+					}
 
-				modal.open();
-				feed.init($modalContent);
-			});
+					modal.open();
+					feed.init($modalContent);
+				});
 		},
 	};
 }
@@ -618,13 +624,13 @@ function mask(hls) {
 		html += `
 			<div style="display: flex; column-gap: 0.2rem;">
 				<button
-					class="js-plus settings-edit-btn doodsMask-button"
+					class="js-plus form-field-edit-btn doodsMask-button"
 					style="margin: 0;"
 				>
 					<img src="static/icons/feather/plus.svg">
 				</button>
 				<button
-					class="js-minus settings-edit-btn doodsMask-button"
+					class="js-minus form-field-edit-btn doodsMask-button"
 					style="margin: 0;"
 				>
 					<img src="static/icons/feather/minus.svg">
@@ -681,7 +687,7 @@ function mask(hls) {
 			>
 				<label class="form-field-label">Mask</label>
 				<div style="width:auto">
-					<button class="settings-edit-btn color2">
+					<button class="form-field-edit-btn color2">
 						<img src="static/icons/feather/edit-3.svg"/>
 					</button>
 				</div>
@@ -701,29 +707,31 @@ function mask(hls) {
 		init($parent) {
 			var feed;
 			const element = $parent.querySelector("#" + id);
-			element.querySelector(".settings-edit-btn").addEventListener("click", () => {
-				const subInputEnabled = fields.subInput.value() !== "" ? "true" : "";
-				const monitor = {
-					id: fields.id.value(),
-					audioEnabled: "false",
-					subInputEnabled: subInputEnabled,
-				};
-				feed = newFeed(hls, monitor, true);
+			element
+				.querySelector(".form-field-edit-btn")
+				.addEventListener("click", () => {
+					const subInputEnabled = fields.subInput.value() !== "" ? "true" : "";
+					const monitor = {
+						id: fields.id.value(),
+						audioEnabled: "false",
+						subInputEnabled: subInputEnabled,
+					};
+					feed = newFeed(hls, monitor, true);
 
-				if (!rendered) {
-					renderModal(element, feed);
-					modal.onClose(() => {
-						feed.destroy();
-					});
-					rendered = true;
-				} else {
-					// Update feed.
-					$feed.innerHTML = feed.html;
-				}
+					if (!rendered) {
+						renderModal(element, feed);
+						modal.onClose(() => {
+							feed.destroy();
+						});
+						rendered = true;
+					} else {
+						// Update feed.
+						$feed.innerHTML = feed.html;
+					}
 
-				modal.open();
-				feed.init($modalContent);
-			});
+					modal.open();
+					feed.init($modalContent);
+				});
 		},
 	};
 }
