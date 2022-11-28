@@ -15,7 +15,7 @@
 
 import { jest } from "@jest/globals";
 
-import { newOptionsMenu, newOptionsBtn } from "./optionsMenu.mjs";
+import { newOptionsMenu, newOptionsBtn, newSelectMonitor } from "./optionsMenu.mjs";
 
 describe("optionsGridSize", () => {
 	const setup = (content, button) => {
@@ -238,33 +238,39 @@ test("optionsMonitor", () => {
 		},
 	};
 
-	const selectMonitor = newOptionsBtn.monitor(monitors, true);
+	let modalOnSelect;
+	let modalSetCalls = [];
+	let modalOpenCalled = false;
+	const mockModalSelect = (name, options, onSelect) => {
+		expect(name).toBe("Monitor");
+		expect(options).toEqual(["m1", "m2"]);
+		modalOnSelect = onSelect;
+		return {
+			init() {},
+			set(value) {
+				modalSetCalls.push(value);
+			},
+			open() {
+				modalOpenCalled = true;
+			},
+		};
+	};
+
+	const selectMonitor = newSelectMonitor(monitors, true, mockModalSelect);
 	element.innerHTML = selectMonitor.html;
 
 	localStorage.setItem("selected-monitor", "b");
+	expect(modalSetCalls).toEqual([]);
 	selectMonitor.init(element, content);
+	expect(modalSetCalls).toEqual(["m2"]);
 	expect(setMonitors).toEqual(["b"]);
 
+	expect(modalOpenCalled).toBe(false);
 	document.querySelector("button").click();
-
-	const expected = `
-			<div class="select-monitor">
-				<span class="select-monitor-item" data="a">m1</span>
-				<span
-					class="select-monitor-item select-monitor-item-selected"
-					data="b"
-				>m2</span>
-			</div>`.replace(/\s/g, "");
-
-	let actual = document.querySelector(".modal-content").innerHTML.replace(/\s/g, "");
-	expect(actual).toEqual(expected);
-
-	document.querySelector("button").click();
-	expect(selectMonitor.isOpen()).toBe(true);
+	expect(modalOpenCalled).toBe(true);
 
 	expect(resetCalled).toBe(false);
-	document.querySelector(".select-monitor-item[data='a']").click();
-	expect(selectMonitor.isOpen()).toBe(false);
+	modalOnSelect("m1");
 	expect(resetCalled).toBe(true);
 	expect(setMonitors).toEqual(["a"]);
 	expect(localStorage.getItem("selected-monitor")).toBe("a");

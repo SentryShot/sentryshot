@@ -15,7 +15,7 @@
 
 import { sortByName, uniqueID } from "../libs/common.mjs";
 import { toUTC } from "../libs/time.mjs";
-import { newModal } from "../components/modal.mjs";
+import { newModalSelect } from "../components/modal.mjs";
 
 function newOptionsMenu(buttons) {
 	document.querySelector("#topbar-options-btn").style.visibility = "visible";
@@ -412,94 +412,47 @@ function newDatePicker(timeZone) {
 	};
 }
 
-function newSelectMonitor(monitors, remember) {
-	const alias = "selected-monitor";
-
-	var IDs = [];
-	for (const m of sortByName(monitors)) {
-		IDs.push(m.id);
+function newSelectMonitor(monitors, remember, newModalSelect2 = newModalSelect) {
+	let monitorNames = [];
+	let monitorNameToID = {};
+	let monitorIDToName = {};
+	for (const { id, name } of sortByName(monitors)) {
+		monitorNames.push(name);
+		monitorNameToID[name] = id;
+		monitorIDToName[id] = name;
 	}
 
-	const renderMonitors = () => {
-		let html = "";
-		for (const m of sortByName(monitors)) {
-			html += `
-				<span
-					class="select-monitor-item"
-					data="${m.id}"
-				>${m.name}
-				</span>`;
-		}
-		return `<div class="select-monitor">${html}</div>`;
-	};
-
-	let modal;
-	let isRendered = false;
-	const render = ($parent, content) => {
-		if (isRendered) {
-			return;
-		}
-		modal = newModal("Monitor");
-		$parent.insertAdjacentHTML("beforeend", modal.html);
-		const $modalContent = modal.init($parent);
-		$modalContent.innerHTML = renderMonitors();
-		const $selector = $modalContent.querySelector(".select-monitor");
-
-		const saved = localStorage.getItem(alias);
-		if (remember && IDs.includes(saved)) {
-			$selector
-				.querySelector(`.select-monitor-item[data="${saved}"]`)
-				.classList.add("select-monitor-item-selected");
-		}
-
-		$selector.addEventListener("click", (event) => {
-			if (!event.target.classList.contains("select-monitor-item")) {
-				return;
-			}
-
-			// Clear selection.
-			const fields = $selector.querySelectorAll(".select-monitor-item");
-			for (const field of fields) {
-				field.classList.remove("select-monitor-item-selected");
-			}
-
-			event.target.classList.add("select-monitor-item-selected");
-
-			const selected = event.target.attributes["data"].value;
-			if (remember) {
-				localStorage.setItem(alias, selected);
-			}
-
-			content.setMonitors([selected]);
-			content.reset();
-
-			modal.close();
-		});
-
-		isRendered = true;
-	};
-
-	const elementID = uniqueID();
+	const alias = "selected-monitor";
+	const btnID = uniqueID();
 
 	return {
 		html: `
-			<button id="${elementID}" class="options-menu-btn">
+			<button id="${btnID}" class="options-menu-btn">
 				<img class="icon" src="static/icons/feather/video.svg">
 			</button>`,
 		init($parent, content) {
+			const onSelect = (selected) => {
+				const monitorID = monitorNameToID[selected];
+				if (remember) {
+					localStorage.setItem(alias, monitorID);
+				}
+
+				content.setMonitors([monitorID]);
+				content.reset();
+			};
+			const modal = newModalSelect2("Monitor", monitorNames, onSelect);
+
+			modal.init($parent);
+
 			const saved = localStorage.getItem(alias);
-			if (remember && IDs.includes(saved)) {
+			if (remember && monitorIDToName[saved]) {
 				content.setMonitors([saved]);
+				modal.set(monitorIDToName[saved]);
 			}
 
-			$parent.querySelector(`#${elementID}`).addEventListener("click", () => {
-				render($parent, content);
+			$parent.querySelector(`#${btnID}`).addEventListener("click", () => {
 				modal.open();
 			});
-		},
-		// Testing.
-		isOpen() {
-			return modal.isOpen();
 		},
 	};
 }
@@ -592,4 +545,4 @@ function pad(n) {
 	return n < 10 ? "0" + n : n;
 }
 
-export { newOptionsMenu, newOptionsBtn, newOptionsPopup, newSelectOne };
+export { newOptionsMenu, newOptionsBtn, newOptionsPopup, newSelectOne, newSelectMonitor };

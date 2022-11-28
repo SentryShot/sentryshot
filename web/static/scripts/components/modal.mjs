@@ -53,4 +53,77 @@ function newModal(label, content = "") {
 	};
 }
 
-export { newModal };
+function newModalSelect(name, options, onSelect) {
+	const renderOptions = () => {
+		let html = "";
+		for (const option of options) {
+			html += `
+				<span
+					data="${option}"
+					class="js-option modal-select-option"
+				>${option}</span>`;
+		}
+		return `<div class="js-selector modal-select">${html}</div>`;
+	};
+
+	let $parent, value, modal, $modalContent, $selector;
+	let isRendered = false;
+	const render = () => {
+		if (isRendered) {
+			return;
+		}
+		modal = newModal(name, renderOptions());
+		$parent.insertAdjacentHTML("beforeend", modal.html);
+		$modalContent = modal.init($parent);
+		$selector = $modalContent.querySelector(".js-selector");
+
+		$selector.addEventListener("click", (event) => {
+			if (!event.target.classList.contains("js-option")) {
+				return;
+			}
+
+			clearSelection();
+			event.target.classList.add("modal-select-option-selected");
+
+			const name = event.target.textContent;
+			value = name;
+			onSelect(name);
+			modal.close();
+		});
+		isRendered = true;
+	};
+
+	const clearSelection = () => {
+		const options = $selector.querySelectorAll(".modal-select-option");
+		for (const option of options) {
+			option.classList.remove("modal-select-option-selected");
+		}
+	};
+
+	return {
+		init(parent) {
+			$parent = parent;
+		},
+		open() {
+			render();
+			clearSelection();
+
+			// Highlight selected option.
+			const option = $modalContent.querySelector(`.js-option[data='${value}']`);
+			if (option) {
+				option.classList.add("modal-select-option-selected");
+			}
+
+			modal.open();
+		},
+		set(v) {
+			value = v;
+		},
+		// Testing.
+		isOpen() {
+			return modal.isOpen();
+		},
+	};
+}
+
+export { newModal, newModalSelect };

@@ -510,25 +510,6 @@ a:focus {
 	background: var(--color2);
 }
 
-/* Select monitor */
-.select-monitor {
-	display: flex;
-	flex-wrap: wrap;
-}
-
-.select-monitor-item {
-	padding: 0.1rem 0.2rem;
-	color: var(--color-text);
-	font-size: 0.8rem;
-	border-color: var(--color1);
-	border-style: solid;
-	border-width: 0.01rem;
-}
-
-.select-monitor-item-selected {
-	background: var(--color1-hover);
-}
-
 /* Sidebar. */
 
 #sidebar {
@@ -720,6 +701,25 @@ a:focus {
 .modal-content {
 	height: 100%;
 	overflow-y: auto;
+}
+
+/* Modal select */
+.modal-select {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.modal-select-option {
+	padding: 0.1rem 0.2rem;
+	color: var(--color-text);
+	font-size: 0.8rem;
+	border-color: var(--color1);
+	border-style: solid;
+	border-width: 0.01rem;
+}
+
+.modal-select-option-selected {
+	background: var(--color1-hover);
 }
 
 /* Depricated */
