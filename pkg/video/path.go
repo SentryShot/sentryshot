@@ -16,10 +16,6 @@ type pathHLSServer interface {
 	pathSourceNotReady(pathName string)
 }
 
-type closer interface {
-	close()
-}
-
 type path struct {
 	name      string
 	conf      *PathConf
@@ -27,10 +23,10 @@ type path struct {
 	hlsServer pathHLSServer
 	logger    log.ILogger
 
-	source      closer
+	source      *rtspSession
 	sourceReady bool
 	stream      *stream
-	readers     map[closer]struct{}
+	readers     map[*rtspSession]struct{}
 
 	mu       sync.Mutex
 	canceled bool
@@ -50,7 +46,7 @@ func newPath(
 		wg:        wg,
 		hlsServer: hlsServer,
 		logger:    logger,
-		readers:   make(map[closer]struct{}),
+		readers:   make(map[*rtspSession]struct{}),
 	}
 
 	pa.wg.Add(1)
@@ -85,10 +81,6 @@ func (pa *path) close() {
 		return
 	}
 
-	for r := range pa.readers {
-		r.close()
-		delete(pa.readers, r)
-	}
 	if pa.sourceReady {
 		pa.hlsServer.pathSourceNotReady(pa.name)
 		pa.sourceReady = false
@@ -96,10 +88,16 @@ func (pa *path) close() {
 	if pa.source != nil {
 		pa.source.close()
 	}
+
 	// Close source before stream.
 	if pa.stream != nil {
 		pa.stream.close()
 		pa.stream = nil
+	}
+
+	for r := range pa.readers {
+		r.close()
+		delete(pa.readers, r)
 	}
 
 	pa.canceled = true
@@ -155,22 +153,21 @@ func (pa *path) publisherStart(tracks gortsplib.Tracks) (*stream, error) {
 		return nil, err
 	}
 
-	pa.readers[hlsMuxer] = struct{}{}
 	pa.stream = newStream(tracks, hlsMuxer)
 	pa.sourceReady = true
 
 	return pa.stream, err
 }
 
-// readerRemove is called by a reader.
-func (pa *path) readerRemove(author closer) {
+// readerRemove is called by a rtsp session.
+func (pa *path) readerRemove(session *rtspSession) {
 	pa.mu.Lock()
 	defer pa.mu.Unlock()
 	if pa.canceled {
 		return
 	}
 
-	delete(pa.readers, author)
+	delete(pa.readers, session)
 }
 
 // readerAdd is called by a reader through pathManager.
@@ -189,15 +186,15 @@ func (pa *path) readerAdd(session *rtspSession) (*path, *stream, error) {
 	return nil, nil, fmt.Errorf("%w: (%s)", ErrPathNoOnePublishing, pa.name)
 }
 
-// readerStart is called by a reader.
-func (pa *path) readerStart(author closer) {
+// readerStart is called by a rtsp session.
+func (pa *path) readerStart(session *rtspSession) {
 	pa.mu.Lock()
 	defer pa.mu.Unlock()
 	if pa.canceled {
 		return
 	}
 
-	pa.readers[author] = struct{}{}
+	pa.readers[session] = struct{}{}
 }
 
 func (pa *path) hlsSegmentCount() int {

@@ -47,7 +47,7 @@ func newRTSPSession(
 	return s
 }
 
-// close closes a Session.
+// close closes the session.
 func (s *rtspSession) close() {
 	s.ss.Close()
 }

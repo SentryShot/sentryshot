@@ -44,7 +44,6 @@ func newStream(tracks gortsplib.Tracks, hlsMuxer *HLSMuxer) *stream {
 }
 
 func (s *stream) close() {
-	s.hlsMuxer = nil
 	s.rtspStream.Close()
 }
 
