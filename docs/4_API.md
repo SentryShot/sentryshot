@@ -210,29 +210,29 @@ example response: data=true
 <br>
 ## Logs
 
-### GET /api/log/query?levels=16,24&sources=app,monitor&time=10000000000000000&limit=2
+### GET /api/log/query?levels=16,24&sources=app,monitors=a,b&time=1234567890111222&limit=2
 
 ##### Auth: admin
 
-Query logs. Time is in Unix milliseconds.
+Query logs. Time is in Unix micro seconds.
 
 example response:
 
 ```
 [
   {
-    "Level":0,
-    "Time":0,
-    "Msg":"",
-    "Src":"",
-    "Monitor":""
+    "level":0,
+    "time":0,
+    "msg":"",
+    "src":"",
+    "monitorID":""
   },
   {
-    "Level":0,
-    "Time":0,
-    "Msg":"",
-    "Src":"",
-    "Monitor":""
+    "level":0,
+    "time":0,
+    "msg":"",
+    "src":"",
+    "monitorID":""
   }
 ]
 ```
@@ -261,7 +261,7 @@ curl doesn't support wss.
 
 ## Logs
 
-### /api/logs?levels=16,24&sources=app,monitor
+### /api/logs?levels=16,24&monitors=a,b&sources=app,monitor
 
 ##### Auth: admin
 

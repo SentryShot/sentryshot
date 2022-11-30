@@ -1,5 +1,10 @@
 import { uidReset } from "./libs/common.mjs";
-import { newFormater, newMultiSelect, newLogSelector } from "./logs.mjs";
+import {
+	newFormater,
+	newMultiSelect,
+	newMonitorPicker,
+	newLogSelector,
+} from "./logs.mjs";
 
 describe("logger", () => {
 	const monitorIDtoName = (input) => {
@@ -8,45 +13,45 @@ describe("logger", () => {
 	test("time", () => {
 		const format = newFormater(monitorIDtoName, "utc");
 		const log = {
-			Time: new Date("2001-02-03T04:05:06+00:00") * 1000,
-			Level: 16,
-			Src: "1",
-			Monitor: "2",
-			Msg: "3",
+			time: new Date("2001-02-03T04:05:06+00:00") * 1000,
+			level: 16,
+			src: "1",
+			monitorID: "2",
+			msg: "3",
 		};
 		expect(format(log)).toBe("[ERROR] 2001-02-03_04:05:06 1: m2: 3");
 	});
 	const newTestLog = () => {
 		return {
-			Time: 0,
-			Level: 16,
-			Src: "0",
-			Monitor: "0",
-			Msg: "0",
+			time: 0,
+			level: 16,
+			src: "0",
+			monitorID: "0",
+			msg: "0",
 		};
 	};
 	test("error", () => {
 		const format = newFormater(monitorIDtoName, "utc");
 		const log = newTestLog();
-		log.Level = 16;
+		log.level = 16;
 		expect(format(log)).toBe("[ERROR] 1970-01-01_00:00:00 0: m0: 0");
 	});
 	test("warning", () => {
 		const format = newFormater(monitorIDtoName, "utc");
 		const log = newTestLog();
-		log.Level = 24;
+		log.level = 24;
 		expect(format(log)).toBe("[WARNING] 1970-01-01_00:00:00 0: m0: 0");
 	});
 	test("info", () => {
 		const format = newFormater(monitorIDtoName, "utc");
 		const log = newTestLog();
-		log.Level = 32;
+		log.level = 32;
 		expect(format(log)).toBe("[INFO] 1970-01-01_00:00:00 0: m0: 0");
 	});
 	test("debug", () => {
 		const format = newFormater(monitorIDtoName, "utc");
 		const log = newTestLog();
-		log.Level = 48;
+		log.level = 48;
 		expect(format(log)).toBe("[DEBUG] 1970-01-01_00:00:00 0: m0: 0");
 	});
 });
@@ -118,12 +123,72 @@ describe("MultiSelect", () => {
 	});
 });
 
+test("monitorPicker", () => {
+	document.body.innerHTML = `<div></div>`;
+	const element = document.querySelector("div");
+
+	const monitors = {
+		b: {
+			id: "b",
+			name: "m2",
+		},
+		a: {
+			id: "a",
+			name: "m1",
+		},
+	};
+
+	let modalOnSelect;
+	let modalSetCalls = [];
+	let modalOpenCalled = false;
+	const mockModalSelect = (name, options, onSelect) => {
+		expect(name).toBe("Monitor");
+		expect(options).toEqual(["m1", "m2"]);
+		modalOnSelect = onSelect;
+		return {
+			init() {},
+			set(value) {
+				modalSetCalls.push(value);
+			},
+			open() {
+				modalOpenCalled = true;
+			},
+		};
+	};
+
+	const picker = newMonitorPicker(monitors, mockModalSelect);
+	element.innerHTML = picker.html;
+	picker.init(element);
+
+	// Open modal.
+	expect(modalOpenCalled).toBe(false);
+	document.querySelector("button").click();
+	expect(modalOpenCalled).toBe(true);
+
+	// Modal select.
+	expect(picker.value()).toBe("");
+	modalOnSelect("m1");
+	expect(picker.value()).toBe("a");
+
+	// Select.
+	expect(modalSetCalls).toEqual([]);
+	const $select = document.querySelector("select");
+	$select.value = "m2";
+	$select.dispatchEvent(new Event("change"));
+	expect(modalSetCalls).toEqual(["m2"]);
+
+	// Reset.
+	picker.set("");
+	expect(picker.value()).toBe("");
+});
+
 describe("logSelector", () => {
 	test("rendering", () => {
 		uidReset();
 		const logger = {
 			setLevel() {},
 			setSources() {},
+			setMonitors() {},
 			reset() {},
 		};
 		const fields = {
@@ -133,6 +198,10 @@ describe("logSelector", () => {
 			},
 			sources: {
 				html: "sourcesHTML",
+				value() {},
+			},
+			monitor: {
+				html: "monitorHTML",
 				value() {},
 			},
 		};
@@ -154,6 +223,7 @@ describe("logSelector", () => {
 				<ul class="form">
 					levelHTML
 					sourcesHTML
+					monitorHTML
 					<div class="form-button-wrapper"></div>
 				</ul>
 				<div>
@@ -174,8 +244,10 @@ describe("logSelector", () => {
 		let loggerReset,
 			levelValue,
 			sourcesValue,
+			monitorValue,
 			loggerLevel,
 			loggerSources,
+			loggerMonitors,
 			logSelector,
 			element;
 
@@ -196,6 +268,14 @@ describe("logSelector", () => {
 					sourcesValue = "2";
 				},
 			},
+			monitor: {
+				value() {
+					return monitorValue;
+				},
+				set() {
+					monitorValue = "3";
+				},
+			},
 		};
 		const logger = {
 			setLevel(input) {
@@ -203,6 +283,9 @@ describe("logSelector", () => {
 			},
 			setSources(input) {
 				loggerSources = input;
+			},
+			setMonitors(input) {
+				loggerMonitors = input;
 			},
 			reset() {
 				loggerReset = true;
@@ -225,8 +308,10 @@ describe("logSelector", () => {
 		test("initial", () => {
 			expect(levelValue).toBe("1");
 			expect(sourcesValue).toBe("2");
+			expect(monitorValue).toBe("3");
 			expect(loggerLevel).toBe("1");
 			expect(loggerSources).toBe("2");
+			expect(loggerMonitors).toEqual(["3"]);
 			expect(loggerReset).toBe(true);
 		});
 		test("reset", () => {
@@ -237,11 +322,13 @@ describe("logSelector", () => {
 			element.querySelector(".js-reset").click();
 			expect(loggerLevel).toBe("1");
 			expect(loggerSources).toBe("2");
+			expect(loggerMonitors).toEqual(["3"]);
 			expect(loggerReset).toBe(true);
 		});
 		test("apply", () => {
 			levelValue = "a";
 			sourcesValue = "b";
+			monitorValue = "c";
 			loggerReset = false;
 
 			const $list = element.querySelector(".js-list");
@@ -251,6 +338,7 @@ describe("logSelector", () => {
 			expect($list.classList.contains("log-list-open")).toBe(true);
 			expect(loggerLevel).toBe("a");
 			expect(loggerSources).toBe("b");
+			expect(loggerMonitors).toEqual(["c"]);
 			expect(loggerReset).toBe(true);
 
 			element.querySelector(".js-back").click();

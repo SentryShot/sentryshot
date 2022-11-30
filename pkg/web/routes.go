@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"nvr/pkg/group"
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
@@ -575,15 +576,13 @@ func LogFeed(logger *log.Logger, a auth.Authenticator) http.Handler { //nolint:f
 			}
 		}
 
-		sourcesCSV := query.Get("sources")
-		var sources []string
-		if sourcesCSV != "" {
-			sources = strings.Split(sourcesCSV, ",")
-		}
+		sources := parseCSVParam(query, "sources")
+		monitors := parseCSVParam(query, "monitors")
 
 		q := log.Query{
-			Levels:  levels,
-			Sources: sources,
+			Levels:   levels,
+			Sources:  sources,
+			Monitors: monitors,
 		}
 
 		upgrader := websocket.Upgrader{}
@@ -627,7 +626,7 @@ func LogFeed(logger *log.Logger, a auth.Authenticator) http.Handler { //nolint:f
 }
 
 // LogQuery handles log queries.
-func LogQuery(logStore *log.Store) http.Handler { //nolint:funlen
+func LogQuery(logStore *log.Store) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
@@ -661,11 +660,8 @@ func LogQuery(logStore *log.Store) http.Handler { //nolint:funlen
 			}
 		}
 
-		sourcesCSV := query.Get("sources")
-		var sources []string
-		if sourcesCSV != "" {
-			sources = strings.Split(sourcesCSV, ",")
-		}
+		sources := parseCSVParam(query, "sources")
+		monitors := parseCSVParam(query, "monitors")
 
 		time := query.Get("time")
 		timeInt, err := strconv.Atoi(time)
@@ -675,10 +671,11 @@ func LogQuery(logStore *log.Store) http.Handler { //nolint:funlen
 		}
 
 		q := log.Query{
-			Levels:  levels,
-			Sources: sources,
-			Time:    log.UnixMicro(timeInt),
-			Limit:   limitInt,
+			Levels:   levels,
+			Sources:  sources,
+			Monitors: monitors,
+			Time:     log.UnixMicro(timeInt),
+			Limit:    limitInt,
 		}
 
 		logs, err := logStore.Query(q)
@@ -694,6 +691,15 @@ func LogQuery(logStore *log.Store) http.Handler { //nolint:funlen
 			return
 		}
 	})
+}
+
+func parseCSVParam(query url.Values, key string) []string {
+	CSV := query.Get(key)
+	var monitors []string
+	if CSV != "" {
+		monitors = strings.Split(CSV, ",")
+	}
+	return monitors
 }
 
 // LogSources handles list of log sources.

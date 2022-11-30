@@ -13,9 +13,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { fetchGet, uniqueID, newMonitorNameByID } from "./libs/common.mjs";
+import { fetchGet, uniqueID, sortByName, newMonitorNameByID } from "./libs/common.mjs";
 import { fromUTC2 } from "./libs/time.mjs";
 import { newForm, fieldTemplate } from "./components/form.mjs";
+import { newModalSelect } from "./components/modal.mjs";
 
 // Log level constants.
 const LevelError = 16;
@@ -31,6 +32,7 @@ function newLogger(formatLog) {
 		const parameters = new URLSearchParams({
 			levels: levels,
 			sources: sources,
+			monitors: monitors,
 		});
 
 		// Use relative path.
@@ -61,11 +63,12 @@ function newLogger(formatLog) {
 
 	let lastLog = false;
 	let currentTime = 0;
-	let levels, sources;
+	let levels, sources, monitors;
 	const loadSavedLogs = async () => {
 		const parameters = new URLSearchParams({
 			levels: levels,
 			sources: sources,
+			monitors: monitors,
 			time: currentTime,
 			limit: 20,
 		});
@@ -78,7 +81,7 @@ function newLogger(formatLog) {
 		}
 
 		for (const log of logs) {
-			currentTime = log.Time;
+			currentTime = log.time;
 
 			const line = document.createElement("span");
 			line.textContent = formatLog(log);
@@ -139,6 +142,9 @@ function newLogger(formatLog) {
 		setSources(input) {
 			sources = input;
 		},
+		setMonitors(input) {
+			monitors = input;
+		},
 	};
 }
 
@@ -154,7 +160,7 @@ function newFormater(monitorNameByID, timeZone) {
 	return (log) => {
 		let output = "";
 
-		switch (log.Level) {
+		switch (log.level) {
 			case LevelError:
 				output += "[ERROR] ";
 				break;
@@ -169,17 +175,17 @@ function newFormater(monitorNameByID, timeZone) {
 				break;
 		}
 
-		output += unixToDateStr(log.Time) + " ";
+		output += unixToDateStr(log.time) + " ";
 
-		if (log.Src) {
-			output += log.Src + ": ";
+		if (log.src) {
+			output += log.src + ": ";
 		}
 
-		if (log.Monitor) {
-			output += monitorNameByID(log.Monitor) + ": ";
+		if (log.monitorID) {
+			output += monitorNameByID(log.monitorID) + ": ";
 		}
 
-		output += log.Msg;
+		output += log.msg;
 		return output;
 	};
 }
@@ -264,6 +270,75 @@ function newMultiSelect(label, values, initial) {
 	};
 }
 
+function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
+	let monitorNames = [];
+	let monitorNameToID = {};
+	for (const { id, name } of sortByName(monitors)) {
+		monitorNames.push(name);
+		monitorNameToID[name] = id;
+	}
+
+	let options = "<option></option>";
+	for (const name of monitorNames) {
+		options += `\n<option>${name}</option>`;
+	}
+
+	let $input;
+	const reset = () => {
+		$input.value = "";
+	};
+
+	const elementID = uniqueID();
+	const inputID = uniqueID();
+
+	return {
+		html: `
+			<li id="${elementID}" class="form-field">
+				<label for="${inputID}" class="form-field-label">Monitor</label>
+				<div class="form-field-select-container">
+					<select id="${inputID}" class="form-field-select">${options}</select>
+					<button class="js-edit-btn form-field-edit-btn color3">
+						<img
+							class="form-field-edit-btn-img"
+							src="static/icons/feather/video.svg"
+						/>
+					</button>
+				</div>
+			</li>`,
+		init($parent) {
+			const element = $parent.querySelector(`#${elementID}`);
+			$input = element.querySelector(`#${inputID}`);
+
+			const onSelect = (selected) => {
+				$input.value = selected;
+			};
+			const modal = newModalSelect2("Monitor", monitorNames, onSelect);
+			modal.init(element);
+
+			element.querySelector(`.js-edit-btn`).addEventListener("click", () => {
+				modal.open();
+			});
+			$input.addEventListener("change", (event) => {
+				modal.set(event.target.value);
+			});
+		},
+		value() {
+			const value = $input.value;
+			if (value == "") {
+				return "";
+			}
+			return monitorNameToID[$input.value];
+		},
+		set(input) {
+			if (input == "") {
+				reset();
+				return;
+			}
+			console.log("set not implemented");
+		},
+	};
+}
+
 function newLogSelector(logger, formFields) {
 	const form = newForm(formFields);
 
@@ -271,11 +346,12 @@ function newLogSelector(logger, formFields) {
 	const apply = () => {
 		logger.setLevel(form.fields["level"].value());
 		logger.setSources(form.fields["sources"].value());
+		logger.setMonitors([form.fields["monitor"].value()]);
 		logger.reset();
 	};
 
 	const html = `
-				${form.html()}
+		${form.html()}
 		<div>
 			<button class="form-button log-reset-btn js-reset">
 				<span>Reset</span>
@@ -326,6 +402,7 @@ async function init() {
 			["error", "warning", "info", "debug"],
 			"info"
 		),
+		monitor: newMonitorPicker(monitors),
 		sources: newMultiSelect("Sources", logSources, logSources),
 	};
 	const logSelector = newLogSelector(logger, formFields);
@@ -340,4 +417,4 @@ async function init() {
 		.addEventListener("scroll", logger.lazyLoadSavedLogs);
 }
 
-export { init, newFormater, newMultiSelect, newLogSelector };
+export { init, newFormater, newMultiSelect, newMonitorPicker, newLogSelector };

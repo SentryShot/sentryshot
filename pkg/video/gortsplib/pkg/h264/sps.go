@@ -528,8 +528,8 @@ func (s *SPS) Unmarshal(buf []byte) error { //nolint:funlen
 		return ErrSPSWrongForbiddenBit
 	}
 
-	if nalRefIdc != 3 {
-		return ErrSPSWrongForbiddenBit
+	if nalRefIdc == 0 {
+		return ErrSPSWrongNalRefIdc
 	}
 
 	if typ != NALUTypeSPS {

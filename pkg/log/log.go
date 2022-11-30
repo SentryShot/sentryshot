@@ -48,11 +48,11 @@ type UnixMicro uint64
 
 // Entry defines log entry.
 type Entry struct {
-	Level     Level
-	Src       string    // Source.
-	MonitorID string    // Source monitor id.
-	Msg       string    // Message
-	Time      UnixMicro // Timestamp. Do not set manually.
+	Level     Level     `json:"level"`
+	Src       string    `json:"src"`
+	MonitorID string    `json:"monitorID"`
+	Msg       string    `json:"msg"`
+	Time      UnixMicro `json:"time"` // Timestamp. Do not set manually.
 }
 
 // GetTime entry timestamp as time.GetTime.

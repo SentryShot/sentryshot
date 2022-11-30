@@ -361,12 +361,12 @@ func TestTimeToID(t *testing.T) {
 		input  UnixMicro
 		output string
 	}{
-		{0, "0000"},
-		{1000334455000111, "1000"},
-		{1122334455000111, "1122"},
-		{chunkDuration - 1, "0000"},
-		{chunkDuration, "0001"},
-		{chunkDuration + 1, "0001"},
+		{0, "00000"},
+		{1000334455000111, "10003"},
+		{1122334455000111, "11223"},
+		{chunkDuration - 1, "00000"},
+		{chunkDuration, "00001"},
+		{chunkDuration + 1, "00001"},
 	}
 	for _, tc := range cases {
 		t.Run(strconv.Itoa(int(tc.input)), func(t *testing.T) {
@@ -498,17 +498,17 @@ func TestPurge(t *testing.T) {
 			minDiskUsage: 0,
 		}
 
-		writeTestChunk(t, logDir, "0000")
-		writeTestChunk(t, logDir, "1111")
+		writeTestChunk(t, logDir, "00000")
+		writeTestChunk(t, logDir, "11111")
 
 		files := listFiles(t, logDir)
-		expected := []string{"0000.data", "0000.msg", "1111.data", "1111.msg"}
+		expected := []string{"00000.data", "00000.msg", "11111.data", "11111.msg"}
 		require.Equal(t, expected, files)
 
 		require.NoError(t, s.purge())
 
 		files = listFiles(t, logDir)
-		expected = []string{"1111.data", "1111.msg"}
+		expected = []string{"11111.data", "11111.msg"}
 		require.Equal(t, expected, files)
 	})
 	t.Run("diskSpace", func(t *testing.T) {
@@ -522,8 +522,8 @@ func TestPurge(t *testing.T) {
 			minDiskUsage: 0,
 		}
 
-		writeTestChunk(t, logDir, "0000")
-		writeTestChunk(t, logDir, "1111")
+		writeTestChunk(t, logDir, "00000")
+		writeTestChunk(t, logDir, "11111")
 		require.Equal(t, 2, chunkCount(t, logDir))
 
 		require.NoError(t, s.purge())
@@ -541,8 +541,8 @@ func TestPurge(t *testing.T) {
 			minDiskUsage: 100,
 		}
 
-		writeTestChunk(t, logDir, "0000")
-		writeTestChunk(t, logDir, "1111")
+		writeTestChunk(t, logDir, "00000")
+		writeTestChunk(t, logDir, "11111")
 		require.Equal(t, 2, chunkCount(t, logDir))
 
 		require.NoError(t, s.purge())
@@ -573,7 +573,7 @@ func TestPurge(t *testing.T) {
 			getDiskSpace: stubGetDiskSpace,
 			minDiskUsage: 0,
 		}
-		writeTestChunk(t, logDir, "0000")
+		writeTestChunk(t, logDir, "00000")
 
 		err := s.purge()
 		require.ErrorIs(t, err, stubError)

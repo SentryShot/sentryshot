@@ -51,11 +51,11 @@ import (
 
 // 166 minutes or 27.7 hours.
 const chunkDuration = 1000000 * second
-const second = 1000000
+const second = 100000
 
 const (
 	chunkAPIVersion   = 0
-	chunkIDLenght     = 4
+	chunkIDLenght     = 5
 	chunkHeaderLength = 1
 )
 
@@ -325,6 +325,9 @@ func (s *Store) purge() error {
 	chunks, err := s.listChunks()
 	if err != nil {
 		return fmt.Errorf("list chunks: %w", err)
+	}
+	if len(chunks) == 0 {
+		return nil
 	}
 
 	chunkToRemove := chunks[0]
