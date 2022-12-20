@@ -42,7 +42,7 @@ if (isAdmin === "true") {
 	const renderer = newRenderer(document.querySelector(".js-content"));
 
 	const generalFields = {
-		diskSpace: fieldTemplate.text("Disk space (GB)", "5000"),
+		diskSpace: fieldTemplate.text("Max disk usage (GB)", "5000"),
 		theme: fieldTemplate.select("Theme", ["default", "light"], "default"),
 	};
 	const general = newGeneral(CSRFtoken, generalFields);
