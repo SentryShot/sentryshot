@@ -35,17 +35,18 @@ import {
 	newSelectMonitor,
 } from "./static/scripts/settings.mjs";
 
-const CSRFtoken = "{{ .user.Token }}";
-const isAdmin = "{{ .user.IsAdmin }}";
+// Globals.
+const csrfToken = CSRFToken; // eslint-disable-line no-undef
+const isAdmin = IsAdmin; // eslint-disable-line no-undef
 
-if (isAdmin === "true") {
+if (isAdmin) {
 	const renderer = newRenderer(document.querySelector(".js-content"));
 
 	const generalFields = {
 		diskSpace: fieldTemplate.text("Max disk usage (GB)", "5000"),
 		theme: fieldTemplate.select("Theme", ["default", "light"], "default"),
 	};
-	const general = newGeneral(CSRFtoken, generalFields);
+	const general = newGeneral(csrfToken, generalFields);
 	renderer.addCategory(general);
 
 	const maxLength24 = [/^.{25}/, "maximum length is 24 characters"];
@@ -124,7 +125,7 @@ if (isAdmin === "true") {
 			"fatal"
 		),
 	};
-	const monitor = newMonitor(CSRFtoken, monitorFields);
+	const monitor = newMonitor(csrfToken, monitorFields);
 	renderer.addCategory(monitor);
 
 	const groupFields = {
@@ -143,7 +144,7 @@ if (isAdmin === "true") {
 		monitors: newSelectMonitor("settings-group-monitors"),
 	};
 
-	const group = newGroup(CSRFtoken, groupFields);
+	const group = newGroup(csrfToken, groupFields);
 	renderer.addCategory(group);
 
 	const userFields = {
@@ -165,7 +166,7 @@ if (isAdmin === "true") {
 		isAdmin: fieldTemplate.toggle("Admin"),
 		password: newPasswordField(),
 	};
-	const user = newUser(CSRFtoken, userFields);
+	const user = newUser(csrfToken, userFields);
 	renderer.addCategory(user);
 
 	renderer.render();

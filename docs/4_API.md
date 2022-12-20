@@ -111,6 +111,22 @@ CSRF-token of current user.
 
 ## Monitor
 
+### GET /api/monitor/configs
+
+##### Auth: admin
+
+Uncensored monitor configuration.
+
+<br>
+
+### DELETE /api/monitor/delete?id=x
+
+##### Auth: admin
+
+Delete a monitor by id.
+
+<br>
+
 ### GET /api/monitor/list
 
 ##### Auth: user
@@ -119,13 +135,6 @@ Censored monitor configuration.
 
 <br>
 
-### GET /api/monitor/configs
-
-##### Auth: admin
-
-Uncensored monitor configuration.
-
-<br>
 
 ### POST /api/monitor/restart?id=x
 
@@ -143,15 +152,15 @@ Set monitor.
 
 <br>
 
-### DELETE /api/monitor/delete?id=x
+## Recording
+
+### DELETE /api/recording/delete/\<recording-id>
 
 ##### Auth: admin
 
-Delete a monitor by id.
+Delete recording by id.
 
 <br>
-
-## Recording
 
 ### GET /api/recording/thumbnail/\<recording-id>
 

@@ -17,21 +17,17 @@ import { fetchGet, newMonitorNameByID, getHashParam } from "./libs/common.mjs";
 import { newPlayer } from "./components/player.mjs";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
 
-async function newViewer(monitorNameByID, $parent, timeZone) {
+async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 	let selectedMonitors = [];
 	let maxPlayingVideos = 2;
 
 	let playingVideos;
-	const resetVideos = () => {
+	const addPlayingVideo = (player) => {
 		while (playingVideos.length >= maxPlayingVideos) {
-			playingVideos[0]();
+			playingVideos[0].reset();
 			playingVideos.shift();
 		}
-	};
-
-	const onLoadVideo = (reset) => {
-		resetVideos();
-		playingVideos.push(reset);
+		playingVideos.push(player);
 	};
 
 	const renderRecordings = async (recordings) => {
@@ -42,6 +38,7 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 			d.id = rec.id;
 			d.videoPath = toAbsolutePath(`api/recording/video/${d.id}`);
 			d.thumbPath = toAbsolutePath(`api/recording/thumbnail/${d.id}`);
+			d.deletePath = toAbsolutePath(`api/recording/delete/${d.id}`);
 			d.name = await monitorNameByID(d.id.slice(20));
 			d.timeZone = timeZone;
 
@@ -53,7 +50,7 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 				d.start = Date.parse(idToISOstring(d.id));
 			}
 
-			const player = newPlayer(d);
+			const player = newPlayer(d, isAdmin, token);
 			players.push(player);
 
 			current = rec.id;
@@ -66,7 +63,10 @@ async function newViewer(monitorNameByID, $parent, timeZone) {
 		$parent.insertAdjacentHTML("beforeend", html);
 
 		for (const player of players) {
-			player.init(onLoadVideo);
+			const onVideoLoad = () => {
+				addPlayingVideo(player);
+			};
+			player.init(onVideoLoad);
 		}
 		return current;
 	};
@@ -172,11 +172,13 @@ async function init() {
 	const timeZone = TZ; // eslint-disable-line no-undef
 	const groups = Groups; // eslint-disable-line no-undef
 	const monitors = Monitors; // eslint-disable-line no-undef
+	const isAdmin = IsAdmin; // eslint-disable-line no-undef
+	const csrfToken = CSRFToken; // eslint-disable-line no-undef
 
 	const monitorNameByID = newMonitorNameByID(monitors);
 
 	const $grid = document.querySelector("#content-grid");
-	const viewer = await newViewer(monitorNameByID, $grid, timeZone);
+	const viewer = await newViewer(monitorNameByID, $grid, timeZone, isAdmin, csrfToken);
 	if (hashMonitors) {
 		viewer.setMonitors(hashMonitors);
 	}

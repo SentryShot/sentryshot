@@ -13,9 +13,11 @@
 	/>
 	<script>
 		// Global variables.
-		const TZ = "{{ .tz }}"
-		const Groups = JSON.parse("{{ .groups }}")
-		const Monitors = JSON.parse("{{ .monitors }}")
-		const LogSources = {{ .logSources }}
+		const TZ = "{{ .tz }}";
+		const Groups = JSON.parse("{{ .groups }}");
+		const Monitors = JSON.parse("{{ .monitors }}");
+		const LogSources = {{ .logSources }};
+		const IsAdmin = "{{ .user.IsAdmin }}" === "true";
+		const CSRFToken = "{{ .user.Token }}";
 	</script>
 {{ end }}

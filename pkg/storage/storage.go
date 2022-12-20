@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -473,6 +474,43 @@ func (general *ConfigGeneral) DiskSpace() (int64, error) {
 	diskSpaceByte := diskSpaceGB * gigabyte
 
 	return int64(diskSpaceByte), nil
+}
+
+// DeleteRecording delete a recording by ID.
+// Will return os.ErrNotExist if the recording doesn't exists.
+func DeleteRecording(recordingsDir, recID string) error {
+	// RecordingIDToPath will validate the ID.
+	recPath, err := RecordingIDToPath(recID)
+	if err != nil {
+		return fmt.Errorf("recording id to path: %q %w", recID, err)
+	}
+
+	fullRecPath := filepath.Join(recordingsDir, recPath)
+	recDir := filepath.Dir(fullRecPath)
+
+	var returnedError error
+	recordingExists := false
+	entries, err := fs.ReadDir(os.DirFS(recDir), ".")
+	if err != nil {
+		return fmt.Errorf("read directory: %q %w", recDir, err)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if !strings.HasPrefix(name, recID) {
+			continue
+		}
+		path := filepath.Join(recDir, name)
+		err := os.Remove(path)
+		if err != nil {
+			returnedError = fmt.Errorf("delete file: %q %w", path, err)
+		}
+		recordingExists = true
+	}
+
+	if !recordingExists {
+		return os.ErrNotExist
+	}
+	return returnedError
 }
 
 func dirExist(path string) bool {

@@ -227,16 +227,17 @@ func newApp(envPath string, wg *sync.WaitGroup, hooks *hookList) (*App, error) {
 	router.Handle("/api/user/my-token", a.Admin(a.MyToken()))
 	router.Handle("/logout", a.Logout())
 
-	router.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager.MonitorsInfo)))
 	router.Handle("/api/monitor/configs", a.Admin(web.MonitorConfigs(monitorManager)))
+	router.Handle("/api/monitor/delete", a.Admin(a.CSRF(web.MonitorDelete(monitorManager))))
+	router.Handle("/api/monitor/list", a.User(web.MonitorList(monitorManager.MonitorsInfo)))
 	router.Handle("/api/monitor/restart", a.Admin(a.CSRF(web.MonitorRestart(monitorManager))))
 	router.Handle("/api/monitor/set", a.Admin(a.CSRF(web.MonitorSet(monitorManager))))
-	router.Handle("/api/monitor/delete", a.Admin(a.CSRF(web.MonitorDelete(monitorManager))))
 
 	router.Handle("/api/group/configs", a.User(web.GroupConfigs(groupManager)))
 	router.Handle("/api/group/set", a.Admin(a.CSRF(web.GroupSet(groupManager))))
 	router.Handle("/api/group/delete", a.Admin(a.CSRF(web.GroupDelete(groupManager))))
 
+	router.Handle("/api/recording/delete/", a.Admin(a.CSRF(web.RecordingDelete(env.RecordingsDir()))))
 	router.Handle("/api/recording/thumbnail/", a.User(web.RecordingThumbnail(env.RecordingsDir())))
 	router.Handle("/api/recording/video/", a.User(web.RecordingVideo(logger, env.RecordingsDir())))
 	router.Handle("/api/recording/query", a.User(web.RecordingQuery(crawler, logger)))

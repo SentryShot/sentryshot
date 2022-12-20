@@ -662,3 +662,63 @@ func TestGeneral(t *testing.T) {
 		require.ErrorIs(t, err, os.ErrNotExist)
 	})
 }
+
+func TestDeleteRecording(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		recordingsDir := t.TempDir()
+		recDir := filepath.Join(recordingsDir, "2000", "01", "01", "m1")
+		recID := "2000-01-01_02-02-02_m1"
+		files := []string{
+			recID + ".jpeg",
+			recID + ".json",
+			recID + ".mp4",
+			recID + ".x",
+			"2000-01-01_02-02-02_x1.mp4",
+		}
+		require.NoError(t, os.MkdirAll(recDir, 0o700))
+		createFiles(t, recDir, files)
+		require.Equal(t, files, listDirectory(t, recDir))
+
+		err := DeleteRecording(recordingsDir, recID)
+		require.NoError(t, err)
+		require.Equal(t,
+			[]string{"2000-01-01_02-02-02_x1.mp4"},
+			listDirectory(t, recDir),
+		)
+	})
+	t.Run("invalidIDErr", func(t *testing.T) {
+		err := DeleteRecording(t.TempDir(), "invalid")
+		require.ErrorIs(t, err, ErrInvalidRecordingID)
+	})
+	t.Run("dirNotExistErr", func(t *testing.T) {
+		err := DeleteRecording(t.TempDir(), "2000-01-01_02-02-02_m1")
+		require.ErrorIs(t, err, os.ErrNotExist)
+	})
+	t.Run("recNotExistErr", func(t *testing.T) {
+		recordingsDir := t.TempDir()
+		recDir := filepath.Join(recordingsDir, "2000", "01", "01", "m1")
+		require.NoError(t, os.MkdirAll(recDir, 0o700))
+
+		err := DeleteRecording(recordingsDir, "2000-01-01_02-02-02_m1")
+		require.ErrorIs(t, err, os.ErrNotExist)
+	})
+}
+
+func createFiles(t *testing.T, dir string, paths []string) {
+	for _, path := range paths {
+		_, err := os.Create(filepath.Join(dir, path))
+		require.NoError(t, err)
+	}
+}
+
+func listDirectory(t *testing.T, path string) []string {
+	t.Helper()
+	entries, err := fs.ReadDir(os.DirFS(path), ".")
+	require.NoError(t, err)
+
+	var list []string
+	for _, entry := range entries {
+		list = append(list, entry.Name())
+	}
+	return list
+}

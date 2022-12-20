@@ -20,18 +20,9 @@ describe("newViewer", () => {
 	const monitorNameByID = newMonitorNameByID({});
 
 	const recordings = [
-		{
-			id: "1",
-			path: "a",
-		},
-		{
-			id: "2",
-			path: "b",
-		},
-		{
-			id: "3",
-			path: "c",
-		},
+		{ id: "1", path: "a" },
+		{ id: "2", path: "b" },
+		{ id: "3", path: "c" },
 	];
 
 	const mockFetch = () => {
@@ -43,18 +34,14 @@ describe("newViewer", () => {
 		};
 	};
 
-	const setup = async () => {
+	test("videoUnloading", async () => {
+		window.HTMLMediaElement.prototype.play = () => {};
 		window.fetch = mockFetch;
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
 
 		const viewer = await newViewer(monitorNameByID, element, "utc");
 		await viewer.reset();
-		return [viewer, element];
-	};
-
-	test("videoUnloading", async () => {
-		const [, element] = await setup();
 
 		const domState = () => {
 			const isThumbnail = [];
@@ -75,7 +62,6 @@ describe("newViewer", () => {
 		};
 
 		const clickVideo = (index) => {
-			console.log(element.children[index]);
 			element.children[index].querySelector("img").click();
 		};
 
@@ -91,21 +77,23 @@ describe("newViewer", () => {
 		expect(domState()).toEqual([true, false, false]);
 	});
 	test("setDate", async () => {
-		const [viewer] = await setup();
+		document.body.innerHTML = "<div></div>";
+		const element = document.querySelector("div");
+		const viewer = await newViewer(monitorNameByID, element, "utc");
+		await viewer.reset();
 
-		let ok = false;
+		let fetchCalled = false;
 		window.fetch = (r) => {
 			if (
 				r ===
 				"api/recording/query?limit=&time=2000-01-02_03-04-05&monitors=&data=true"
 			) {
-				ok = true;
+				fetchCalled = true;
 			}
 			return mockFetch();
 		};
 
-		await viewer.setDate(new Date("2000-01-02T03:04:05.000000"));
-
-		expect(ok).toBe(true);
+		viewer.setDate(new Date("2000-01-02T03:04:05.000000"));
+		expect(fetchCalled).toBe(true);
 	});
 });

@@ -397,6 +397,32 @@ func GroupDelete(m *group.Manager) http.Handler {
 	})
 }
 
+// RecordingDelete deletes a recording.
+func RecordingDelete(recordingsDir string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		recID := strings.TrimPrefix(r.URL.Path, "/api/recording/delete/")
+
+		err := storage.DeleteRecording(recordingsDir, recID)
+		if err != nil {
+			if errors.Is(err, storage.ErrInvalidRecordingID) {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if errors.Is(err, os.ErrNotExist) {
+				http.Error(w, "", http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})
+}
+
 // RecordingThumbnail serves thumbnail by exact recording ID.
 func RecordingThumbnail(recordingsDir string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -14,8 +14,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { fromUTC } from "../libs/time.mjs";
+import { fetchDelete } from "../libs/common.mjs";
 
-function newPlayer(data) {
+function newPlayer(data, isAdmin, token) {
 	const d = data;
 
 	const elementID = "rec" + d.id;
@@ -40,66 +41,6 @@ function newPlayer(data) {
 		return [`${YY}-${MM}-${DD}`, `${hh}:${mm}:${ss}`];
 	};
 
-	const timelineHTML = (d) => {
-		if (!d.start || !d.end || !d.events) {
-			return "";
-		}
-
-		// timeline resolution.
-		const res = 1000;
-		const multiplier = res / 100;
-
-		// Array of booleans representing events.
-		let timeline = Array.from({ length: res }).fill(false);
-
-		for (const e of d.events) {
-			const time = Date.parse(e.time);
-			const duration = e.duration / 1000000; // ns to ms
-			const offset = d.end - d.start;
-
-			const startTime = time - d.start;
-			const endTime = time + duration - d.start;
-
-			const start = Math.round((startTime / offset) * res);
-			const end = Math.round((endTime / offset) * res);
-
-			for (let i = start; i < end; i++) {
-				if (i >= res) {
-					continue;
-				}
-				timeline[i] = true;
-			}
-		}
-
-		let html = "";
-		for (let start = 0; start < res; start++) {
-			if (!timeline[start]) {
-				continue;
-			}
-			let end = res;
-			for (let e = start; e < res; e++) {
-				if (!timeline[e]) {
-					end = e;
-					break;
-				}
-			}
-			const x = start / multiplier;
-			const width = end / multiplier - x;
-
-			html += `<rect x="${x}" width="${width}" y="0" height="100"/>`;
-			start = end;
-		}
-
-		return `
-			<svg 
-				class="player-timeline"
-				viewBox="0 0 100 100"
-				preserveAspectRatio="none"
-			>
-			${html}
-			</svg>`;
-	};
-
 	const [dateString, timeString] = parseDate(start);
 
 	const topOverlayHTML = `
@@ -112,7 +53,7 @@ function newPlayer(data) {
 		<div class="player-overlay-top player-top-bar">
 			${topOverlayHTML}
 		</div>
-			${timelineHTML(d)}`;
+			${renderTimeline(d)}`;
 
 	const videoHTML = `
 		<video
@@ -130,18 +71,31 @@ function newPlayer(data) {
 			</button>
 		</div>
 		<div class="player-overlay player-overlay-bottom">
-			${timelineHTML(d)}
+			${renderTimeline(d)}
 			<progress class="player-progress" value="0" min="0">
 				<span class="player-progress-bar">
 			</progress>
 			<button class="player-options-open-btn">
-				<img src="static/icons/feather/more-vertical.svg">
+				<div class="player-options-open-btn-icon">
+					<img
+						class="player-options-open-btn-img"
+						src="static/icons/feather/more-vertical-slim.svg"
+					>
+				</div>
 			</button>
-			<div class="player-options-popup">
+			<div class="js-popup player-options-popup">
+				${
+					isAdmin
+						? `
+				<button class="js-delete player-options-btn">
+					<img src="static/icons/feather/trash-2.svg">
+				</button>`
+						: ""
+				}
 				<a download href="${d.videoPath}" class="player-options-btn">
 					<img src="static/icons/feather/download.svg">
 				</a>
-				<button class="player-options-btn js-fullscreen">
+				<button class="js-fullscreen player-options-btn">
 					<img src="${iconMaximizePath}">
 				</button>
 			</div>
@@ -155,7 +109,9 @@ function newPlayer(data) {
 	const loadVideo = (element) => {
 		element.innerHTML = videoHTML;
 		element.classList.add("js-loaded");
-		detectionRenderer.init(element.querySelector(".player-detections"));
+
+		const $detections = element.querySelector(".js-detections");
+		detectionRenderer.init($detections);
 
 		const $video = element.querySelector("video");
 
@@ -230,32 +186,108 @@ function newPlayer(data) {
 				element.requestFullscreen();
 			}
 		});
+
+		// Delete
+		if (isAdmin) {
+			const $delete = element.querySelector(".js-delete");
+			$delete.addEventListener("click", (event) => {
+				event.stopPropagation();
+				if (!confirm("delete?")) {
+					return;
+				}
+				fetchDelete(d.deletePath, token, "could not delete recording");
+
+				element.remove();
+			});
+		}
+	};
+
+	let element;
+	const reset = () => {
+		element.innerHTML = thumbHTML;
+		element.classList.remove("js-loaded");
 	};
 
 	return {
 		html: `<div id="${elementID}" class="grid-item-container">${thumbHTML}</div>`,
 		init(onLoad) {
-			const element = document.querySelector(`#${elementID}`);
-
-			const reset = () => {
-				element.innerHTML = thumbHTML;
-				element.classList.remove("js-loaded");
-			};
+			element = document.querySelector(`#${elementID}`);
 
 			// Load video.
 			element.addEventListener("click", () => {
 				if (element.classList.contains("js-loaded")) {
 					return;
 				}
-
 				if (onLoad) {
-					onLoad(reset);
+					onLoad();
 				}
-
 				loadVideo(element);
 			});
 		},
+		reset() {
+			reset();
+		},
 	};
+}
+
+function renderTimeline(d) {
+	if (!d.start || !d.end || !d.events) {
+		return "";
+	}
+
+	// timeline resolution.
+	const res = 1000;
+	const multiplier = res / 100;
+
+	// Array of booleans representing events.
+	let timeline = Array.from({ length: res }).fill(false);
+
+	for (const e of d.events) {
+		const time = Date.parse(e.time);
+		const duration = e.duration / 1000000; // ns to ms
+		const offset = d.end - d.start;
+
+		const startTime = time - d.start;
+		const endTime = time + duration - d.start;
+
+		const start = Math.round((startTime / offset) * res);
+		const end = Math.round((endTime / offset) * res);
+
+		for (let i = start; i < end; i++) {
+			if (i >= res) {
+				continue;
+			}
+			timeline[i] = true;
+		}
+	}
+
+	let svg = "";
+	for (let start = 0; start < res; start++) {
+		if (!timeline[start]) {
+			continue;
+		}
+		let end = res;
+		for (let e = start; e < res; e++) {
+			if (!timeline[e]) {
+				end = e;
+				break;
+			}
+		}
+		const x = start / multiplier;
+		const width = end / multiplier - x;
+
+		svg += `<rect x="${x}" width="${width}" y="0" height="100"/>`;
+		start = end;
+	}
+
+	return `
+		<svg
+			class="player-timeline"
+			viewBox="0 0 100 100"
+			preserveAspectRatio="none"
+		>
+		${svg}
+		</svg>`;
 }
 
 function newDetectionRenderer(start, events) {
@@ -286,7 +318,7 @@ function newDetectionRenderer(start, events) {
 			return "";
 		}
 		for (const d of detections) {
-			if (d.region.rect) {
+			if (d.region && d.region.rect) {
 				html += renderRect(d.region.rect, d.label, d.score);
 			}
 		}
@@ -298,7 +330,7 @@ function newDetectionRenderer(start, events) {
 	return {
 		html: `
 			<svg
-				class="player-detections"
+				class="js-detections player-detections"
 				viewBox="0 0 100 100"
 				preserveAspectRatio="none"
 			>
