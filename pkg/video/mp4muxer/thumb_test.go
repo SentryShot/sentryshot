@@ -86,7 +86,7 @@ func TestGenerateThumbnailVideo(t *testing.T) {
 		0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 1, // Next track ID.
+		0, 0, 0, 2, // Next track ID.
 
 		/* Video trak */
 		0, 0, 1, 0xf5, 't', 'r', 'a', 'k',
@@ -94,7 +94,7 @@ func TestGenerateThumbnailVideo(t *testing.T) {
 		0, 0, 0, 3, // Fullbox.
 		0, 0, 0, 0, // Creation time.
 		0, 0, 0, 0, // Modification time.
-		0, 0, 0, 0, // Track ID.
+		0, 0, 0, 1, // Track ID.
 		0, 0, 0, 0, // Reserved0.
 		0, 0, 0, 0, // Duration.
 		0, 0, 0, 0, 0, 0, 0, 0, // Reserved1.

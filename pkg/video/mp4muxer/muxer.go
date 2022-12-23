@@ -159,9 +159,13 @@ func (m *muxer) writeAudioSample(sample customformat.Sample) {
 	m.audioStsz = append(m.audioStsz, sample.Size)
 }
 
+// 14496-12_2015 8.3.2.3
+// track_ID is an integer that uniquely identifies this track
+// over the entire life‐time of this presentation.
+// Track IDs are never re‐used and cannot be zero.
 const (
-	videoTrackID = 0
-	audioTrackID = 1
+	videoTrackID = 1
+	audioTrackID = 2
 )
 
 func (m *muxer) writeMetadata() error {
