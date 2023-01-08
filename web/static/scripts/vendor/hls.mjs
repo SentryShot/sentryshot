@@ -202,9 +202,22 @@ class Hls {
     validatePlaylists(multiVariant, media);
     const mimeCodec = `video/mp4; codecs="${multiVariant.codecs}"`;
     const initURL = baseURL + media.init;
-    const player = new Player(abortSignal, fetcher, $video, initURL, mimeCodec, this.config.maxDelaySec);
+    const player = new Player(
+      abortSignal,
+      fetcher,
+      $video,
+      initURL,
+      mimeCodec,
+      this.config.maxDelaySec
+    );
     await player.init();
-    this.partFetcher = new PartFetcher(abortSignal, fetcher, player, baseURL, mediaURL);
+    this.partFetcher = new PartFetcher(
+      abortSignal,
+      fetcher,
+      player,
+      baseURL,
+      mediaURL
+    );
     await this.partFetcher.init(media);
   }
   destroy() {
@@ -236,7 +249,9 @@ function fillMissing(config) {
   return config;
 }
 const minHLSVersion = 9;
-const minVersionError = new Error(`HLS version must be greater or equal to ${minHLSVersion}`);
+const minVersionError = new Error(
+  `HLS version must be greater or equal to ${minHLSVersion}`
+);
 function validatePlaylist(playlist) {
   if (playlist.version < minHLSVersion) {
     throw minVersionError;
@@ -320,6 +335,9 @@ class Player {
     const updateEnd = this.waitForUpdateEnd();
     this.sourceBuffer.appendBuffer(buf);
     await updateEnd;
+    if (this.sourceBuffer.buffered.length === 0) {
+      return;
+    }
     if (this.$video.paused) {
       this.$video.play();
     }
@@ -398,7 +416,9 @@ class PartFetcher {
     }
   }
 }
-const noNextPartError = new Error("server returned playlist before part was available");
+const noNextPartError = new Error(
+  "server returned playlist before part was available"
+);
 function sleep(ms, signal) {
   if (signal.aborted) {
     return;
@@ -410,13 +430,17 @@ function sleep(ms, signal) {
       taskDone.abort();
     };
     const timeout = setTimeout(done, ms);
-    signal.addEventListener("abort", () => {
-      clearTimeout(timeout);
-      done();
-    }, {
-      once: true,
-      signal: taskDone.signal
-    });
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timeout);
+        done();
+      },
+      {
+        once: true,
+        signal: taskDone.signal
+      }
+    );
   });
 }
 export { Hls as default, failedAfterRecoveryError, minVersionError, missingCodecsError, missingMediaURIError, noNextPartError };
