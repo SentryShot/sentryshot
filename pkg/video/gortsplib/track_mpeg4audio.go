@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
+	"nvr/pkg/video/gortsplib/pkg/rtpmpeg4audio"
 	"strconv"
 	"strings"
 
@@ -119,17 +120,6 @@ func (t *TrackMPEG4Audio) ClockRate() int {
 	return t.Config.SampleRate
 }
 
-func (t *TrackMPEG4Audio) clone() Track {
-	return &TrackMPEG4Audio{
-		PayloadType:      t.PayloadType,
-		Config:           t.Config,
-		SizeLength:       t.SizeLength,
-		IndexLength:      t.IndexLength,
-		IndexDeltaLength: t.IndexDeltaLength,
-		trackBase:        t.trackBase,
-	}
-}
-
 // MediaDescription returns the track media description in SDP format.
 func (t *TrackMPEG4Audio) MediaDescription() *psdp.MediaDescription {
 	enc, err := t.Config.Marshal()
@@ -186,4 +176,40 @@ func (t *TrackMPEG4Audio) MediaDescription() *psdp.MediaDescription {
 			},
 		},
 	}
+}
+
+func (t *TrackMPEG4Audio) clone() Track {
+	return &TrackMPEG4Audio{
+		PayloadType:      t.PayloadType,
+		Config:           t.Config,
+		SizeLength:       t.SizeLength,
+		IndexLength:      t.IndexLength,
+		IndexDeltaLength: t.IndexDeltaLength,
+		trackBase:        t.trackBase,
+	}
+}
+
+// CreateDecoder creates a decoder able to decode the content of the track.
+func (t *TrackMPEG4Audio) CreateDecoder() *rtpmpeg4audio.Decoder {
+	d := &rtpmpeg4audio.Decoder{
+		SampleRate:       t.Config.SampleRate,
+		SizeLength:       t.SizeLength,
+		IndexLength:      t.IndexLength,
+		IndexDeltaLength: t.IndexDeltaLength,
+	}
+	d.Init()
+	return d
+}
+
+// CreateEncoder creates an encoder able to encode the content of the track.
+func (t *TrackMPEG4Audio) CreateEncoder() *rtpmpeg4audio.Encoder {
+	e := &rtpmpeg4audio.Encoder{
+		PayloadType:      t.PayloadType,
+		SampleRate:       t.Config.SampleRate,
+		SizeLength:       t.SizeLength,
+		IndexLength:      t.IndexLength,
+		IndexDeltaLength: t.IndexDeltaLength,
+	}
+	e.Init()
+	return e
 }

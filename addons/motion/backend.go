@@ -111,9 +111,7 @@ func run(
 	config config,
 	logf log.Func,
 ) error {
-	infoCtx, infoCancel := context.WithTimeout(ctx, 30*time.Second)
-	defer infoCancel()
-	streamInfo, err := i.StreamInfo(infoCtx)
+	streamInfo, err := i.StreamInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("stream info: %w", err)
 	}

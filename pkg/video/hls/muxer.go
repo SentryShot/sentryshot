@@ -25,7 +25,7 @@ type Muxer struct {
 	playlist   *playlist
 	segmenter  *segmenter
 	logf       logFunc
-	streamInfo StreamInfoFunc
+	streamInfo StreamInfo
 
 	mutex        sync.Mutex
 	videoLastSPS []byte
@@ -50,7 +50,7 @@ func NewMuxer(
 	videoSps videoSPSFunc,
 	audioTrackExist bool,
 	audioClockRate audioClockRateFunc,
-	streamInfo StreamInfoFunc,
+	streamInfo StreamInfo,
 ) *Muxer {
 	playlist := newPlaylist(ctx, segmentCount)
 	go playlist.start()
@@ -80,17 +80,14 @@ func NewMuxer(
 type OnSegmentFinalizedFunc func([]SegmentOrGap)
 
 // WriteH264 writes H264 NALUs, grouped by timestamp.
-func (m *Muxer) WriteH264(now time.Time, pts time.Duration, nalus [][]byte) error {
-	return m.segmenter.writeH264(now, pts, nalus)
+func (m *Muxer) WriteH264(ntp time.Time, pts time.Duration, nalus [][]byte) error {
+	return m.segmenter.writeH264(ntp, pts, nalus)
 }
 
 // WriteAAC writes AAC AUs, grouped by timestamp.
-func (m *Muxer) WriteAAC(now time.Time, pts time.Duration, au []byte) error {
-	return m.segmenter.writeAAC(now, pts, au)
+func (m *Muxer) WriteAAC(ntp time.Time, pts time.Duration, au []byte) error {
+	return m.segmenter.writeAAC(ntp, pts, au)
 }
-
-// StreamInfoFunc returns the stream information.
-type StreamInfoFunc func() (*StreamInfo, error)
 
 // StreamInfo Stream information required for decoding.
 type StreamInfo struct {
@@ -117,31 +114,27 @@ func (m *Muxer) File(
 	part string,
 	skip string,
 ) *MuxerFileResponse {
-	info, err := m.streamInfo()
-	if err != nil {
-		m.logf(log.LevelDebug, "generate stream info: %v", err)
-		return &MuxerFileResponse{Status: http.StatusInternalServerError}
-	}
-
 	if name == "index.m3u8" {
-		return primaryPlaylist(*info)
+		return primaryPlaylist(m.streamInfo)
 	}
 
 	if name == "init.mp4" {
 		m.mutex.Lock()
 		defer m.mutex.Unlock()
 
+		sps := m.streamInfo.VideoSPS
+
 		if m.initContent == nil ||
-			(info.VideoTrackExist &&
-				(!bytes.Equal(m.videoLastSPS, info.VideoSPS) ||
-					!bytes.Equal(m.videoLastPPS, info.VideoPPS))) {
-			initContent, err := generateInit(*info)
+			(m.streamInfo.VideoTrackExist &&
+				(!bytes.Equal(m.videoLastSPS, sps) ||
+					!bytes.Equal(m.videoLastPPS, m.streamInfo.VideoPPS))) {
+			initContent, err := generateInit(m.streamInfo)
 			if err != nil {
 				m.logf(log.LevelError, "generate init.mp4: %w", err)
 				return &MuxerFileResponse{Status: http.StatusInternalServerError}
 			}
-			m.videoLastSPS = info.VideoSPS
-			m.videoLastPPS = info.VideoPPS
+			m.videoLastSPS = m.streamInfo.VideoSPS
+			m.videoLastPPS = m.streamInfo.VideoPPS
 			m.initContent = initContent
 		}
 
@@ -158,8 +151,8 @@ func (m *Muxer) File(
 }
 
 // StreamInfo return information about the stream.
-func (m *Muxer) StreamInfo() (*StreamInfo, error) {
-	return m.streamInfo()
+func (m *Muxer) StreamInfo() *StreamInfo {
+	return &m.streamInfo
 }
 
 // WaitForSegFinalized blocks until a new segment has been finalized.

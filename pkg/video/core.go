@@ -72,11 +72,11 @@ func (s *Server) Start(ctx context.Context) error {
 type CancelFunc func()
 
 // HlsMuxerFunc .
-type HlsMuxerFunc func() (IHLSMuxer, error)
+type HlsMuxerFunc func(context.Context) (IHLSMuxer, error)
 
 // IHLSMuxer HLS muxer interface.
 type IHLSMuxer interface {
-	StreamInfo() (*hls.StreamInfo, error)
+	StreamInfo() *hls.StreamInfo
 	WaitForSegFinalized()
 	NextSegment(prevID uint64) (*hls.Segment, error)
 }

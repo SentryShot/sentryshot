@@ -2,7 +2,6 @@ package rtph264
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"nvr/pkg/video/gortsplib/pkg/h264"
@@ -11,25 +10,6 @@ import (
 
 	"github.com/pion/rtp"
 )
-
-// Decoder is a RTP/H264 decoder.
-type Decoder struct {
-	timeDecoder         *rtptimedec.Decoder
-	firstPacketReceived bool
-	fragmentedMode      bool
-	fragmentedParts     [][]byte
-	fragmentedSize      int
-	firstNALUParsed     bool
-	annexBMode          bool
-
-	// for DecodeUntilMarker()
-	naluBuffer [][]byte
-}
-
-// Init initializes the decoder.
-func (d *Decoder) Init() {
-	d.timeDecoder = rtptimedec.New(rtpClockRate)
-}
 
 // ErrNonStartingPacketAndNoPrevious is returned when we received a non-starting
 // packet of a fragmented NALU and we didn't received anything before.
@@ -50,6 +30,7 @@ var (
 	ErrFUinvalidStartAndEnd = errors.New("invalid FU-A packet (can't contain both a start and end bit)")
 	ErrTypeUnsupported      = errors.New("packet type not supported")
 	ErrMultipleAnnexBNalus  = errors.New("multiple NALUs in Annex-B mode are not supported")
+	ErrModeUnsupported      = errors.New("PacketizationMode >= 2 is not supported")
 )
 
 // WrongTypeError .
@@ -61,88 +42,117 @@ func (e WrongTypeError) Error() string {
 	return fmt.Sprintf("expected FU-A packet, got %s packet", e.typ)
 }
 
-// NALUtoBigError .
-type NALUtoBigError struct {
+// NALUToBigError .
+type NALUToBigError struct {
 	NALUsize int
 }
 
-func (e NALUtoBigError) Error() string {
+func (e NALUToBigError) Error() string {
 	return fmt.Sprintf("NALU size (%d) is too big (maximum is %d)", e.NALUsize, h264.MaxNALUSize)
 }
 
+// MaxNALUsError .
+type MaxNALUsError struct {
+	count int
+}
+
+func (e MaxNALUsError) Error() string {
+	return fmt.Sprintf("number of NALUs contained inside a single group (%d)"+
+		" is too big (maximum is %d)", e.count, h264.MaxNALUsPerGroup)
+}
+
+// Decoder is a RTP/H264 decoder.
+type Decoder struct {
+	PacketizationMode int
+
+	timeDecoder         *rtptimedec.Decoder
+	firstPacketReceived bool
+	fragmentedSize      int
+	fragments           [][]byte
+	firstNALUParsed     bool
+	annexBMode          bool
+
+	// for DecodeUntilMarker()
+	naluBuffer [][]byte
+}
+
+// Init initializes the decoder.
+func (d *Decoder) Init() {
+	d.timeDecoder = rtptimedec.New(rtpClockRate)
+}
+
 // Decode decodes NALUs from a RTP/H264 packet.
-func (d *Decoder) Decode(pkt *rtp.Packet) ([][]byte, time.Duration, error) {
-	if d.fragmentedMode {
-		return d.decodeFragmented(pkt)
-	}
-	return d.decodeUnfragmented(pkt)
-}
-
-func (d *Decoder) decodeFragmented(pkt *rtp.Packet) ([][]byte, time.Duration, error) {
-	if len(pkt.Payload) < 2 {
-		d.fragmentedParts = d.fragmentedParts[:0]
-		d.fragmentedMode = false
-		return nil, 0, ErrFUinvalidSize
+func (d *Decoder) Decode(pkt *rtp.Packet) ([][]byte, time.Duration, error) { //nolint:funlen,gocognit
+	if d.PacketizationMode >= 2 {
+		return nil, 0, ErrModeUnsupported
 	}
 
-	typ := naluType(pkt.Payload[0] & 0x1F)
-
-	if typ != naluTypeFUA {
-		d.fragmentedParts = d.fragmentedParts[:0]
-		d.fragmentedMode = false
-		return nil, 0, WrongTypeError{typ: typ}
-	}
-
-	start := pkt.Payload[1] >> 7
-
-	if start == 1 {
-		d.fragmentedParts = d.fragmentedParts[:0]
-		d.fragmentedMode = false
-		return nil, 0, ErrFUinvalidStarting
-	}
-
-	d.fragmentedSize += len(pkt.Payload[2:])
-	if d.fragmentedSize > h264.MaxNALUSize {
-		d.fragmentedParts = d.fragmentedParts[:0]
-		d.fragmentedMode = false
-		return nil, 0, NALUtoBigError{NALUsize: d.fragmentedSize}
-	}
-
-	d.fragmentedParts = append(d.fragmentedParts, pkt.Payload[2:])
-
-	end := (pkt.Payload[1] >> 6) & 0x01
-	if end != 1 {
-		return nil, 0, ErrMorePacketsNeeded
-	}
-
-	ret := make([]byte, d.fragmentedSize)
-	n := 0
-	for _, p := range d.fragmentedParts {
-		n += copy(ret[n:], p)
-	}
-	nalus := [][]byte{ret}
-
-	d.fragmentedParts = d.fragmentedParts[:0]
-	d.fragmentedMode = false
-
-	var err error
-	nalus, err = d.finalize(nalus)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return nalus, d.timeDecoder.Decode(pkt.Timestamp), nil
-}
-
-func (d *Decoder) decodeUnfragmented(pkt *rtp.Packet) ([][]byte, time.Duration, error) { //nolint:funlen
 	if len(pkt.Payload) < 1 {
+		d.fragments = d.fragments[:0] // discard pending fragmented packets
 		return nil, 0, ErrShortPayload
 	}
 
 	typ := naluType(pkt.Payload[0] & 0x1F)
+	var nalus [][]byte
+
 	switch typ {
+	case naluTypeFUA:
+		if len(pkt.Payload) < 2 {
+			return nil, 0, ErrFUinvalidSize
+		}
+
+		start := pkt.Payload[1] >> 7
+		end := (pkt.Payload[1] >> 6) & 0x01
+
+		if start == 1 {
+			d.fragments = d.fragments[:0] // discard pending fragmented packets
+
+			if end != 0 {
+				return nil, 0, ErrFUinvalidStartAndEnd
+			}
+
+			nri := (pkt.Payload[0] >> 5) & 0x03
+			typ := pkt.Payload[1] & 0x1F
+			d.fragmentedSize = len(pkt.Payload[1:])
+			d.fragments = append(d.fragments, []byte{(nri << 5) | typ}, pkt.Payload[2:])
+			d.firstPacketReceived = true
+
+			return nil, 0, ErrMorePacketsNeeded
+		}
+
+		if len(d.fragments) == 0 {
+			if !d.firstPacketReceived {
+				return nil, 0, ErrNonStartingPacketAndNoPrevious
+			}
+
+			return nil, 0, ErrFUinvalidNonStarting
+		}
+
+		d.fragmentedSize += len(pkt.Payload[2:])
+		if d.fragmentedSize > h264.MaxNALUSize {
+			d.fragments = d.fragments[:0]
+			return nil, 0, NALUToBigError{NALUsize: d.fragmentedSize}
+		}
+
+		d.fragments = append(d.fragments, pkt.Payload[2:])
+
+		if end != 1 {
+			return nil, 0, ErrMorePacketsNeeded
+		}
+
+		nalu := make([]byte, d.fragmentedSize)
+		pos := 0
+
+		for _, frag := range d.fragments {
+			pos += copy(nalu[pos:], frag)
+		}
+
+		d.fragments = d.fragments[:0]
+		nalus = [][]byte{nalu}
+
 	case naluTypeSTAPA:
-		var nalus [][]byte
+		d.fragments = d.fragments[:0] // discard pending fragmented packets
+
 		payload := pkt.Payload[1:]
 
 		for len(payload) > 0 {
@@ -150,7 +160,7 @@ func (d *Decoder) decodeUnfragmented(pkt *rtp.Packet) ([][]byte, time.Duration, 
 				return nil, 0, ErrSTAPinvalid
 			}
 
-			size := binary.BigEndian.Uint16(payload)
+			size := uint16(payload[0])<<8 | uint16(payload[1])
 			payload = payload[2:]
 
 			// avoid final padding
@@ -166,75 +176,30 @@ func (d *Decoder) decodeUnfragmented(pkt *rtp.Packet) ([][]byte, time.Duration, 
 			payload = payload[size:]
 		}
 
-		if len(nalus) == 0 {
+		if nalus == nil {
 			return nil, 0, ErrSTAPnaluMissing
 		}
 
 		d.firstPacketReceived = true
 
-		var err error
-		nalus, err = d.finalize(nalus)
-		if err != nil {
-			return nil, 0, err
-		}
-
-		return nalus, d.timeDecoder.Decode(pkt.Timestamp), nil
-
-	case naluTypeFUA: // first packet of a fragmented NALU
-		if len(pkt.Payload) < 2 {
-			return nil, 0, ErrFUinvalidSize
-		}
-
-		start := pkt.Payload[1] >> 7
-		if start != 1 {
-			if !d.firstPacketReceived {
-				return nil, 0, ErrNonStartingPacketAndNoPrevious
-			}
-			return nil, 0, ErrFUinvalidNonStarting
-		}
-
-		end := (pkt.Payload[1] >> 6) & 0x01
-		if end != 0 {
-			return nil, 0, ErrFUinvalidStartAndEnd
-		}
-
-		nri := (pkt.Payload[0] >> 5) & 0x03
-		typ := pkt.Payload[1] & 0x1F
-		d.fragmentedSize = len(pkt.Payload) - 1
-		d.fragmentedParts = append(d.fragmentedParts, []byte{(nri << 5) | typ})
-		d.fragmentedParts = append(d.fragmentedParts, pkt.Payload[2:])
-		d.fragmentedMode = true
-
-		d.firstPacketReceived = true
-
-		return nil, 0, ErrMorePacketsNeeded
-
 	case naluTypeSTAPB, naluTypeMTAP16,
 		naluTypeMTAP24, naluTypeFUB:
+		d.fragments = d.fragments[:0] // discard pending fragmented packets
+		d.firstPacketReceived = true
 		return nil, 0, fmt.Errorf("%w (%v)", ErrTypeUnsupported, typ)
+
+	default:
+		d.fragments = d.fragments[:0] // discard pending fragmented packets
+		d.firstPacketReceived = true
+		nalus = [][]byte{pkt.Payload}
 	}
 
-	nalus := [][]byte{pkt.Payload}
-
-	d.firstPacketReceived = true
-
-	var err error
-	nalus, err = d.finalize(nalus)
+	nalus, err := d.removeAnnexB(nalus)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	return nalus, d.timeDecoder.Decode(pkt.Timestamp), nil
-}
-
-// MaxNALUsError .
-type MaxNALUsError struct {
-	count int
-}
-
-func (e MaxNALUsError) Error() string {
-	return fmt.Sprintf("number of NALUs contained inside a single group (%d)"+
-		" is too big (maximum is %d)", e.count, h264.MaxNALUsPerGroup)
 }
 
 // DecodeUntilMarker decodes NALUs from a RTP/H264 packet and puts them in a buffer.
@@ -246,7 +211,7 @@ func (d *Decoder) DecodeUntilMarker(pkt *rtp.Packet) ([][]byte, time.Duration, e
 		return nil, 0, err
 	}
 
-	if (len(d.naluBuffer) + len(nalus)) >= h264.MaxNALUsPerGroup {
+	if (len(d.naluBuffer) + len(nalus)) > h264.MaxNALUsPerGroup {
 		return nil, 0, MaxNALUsError{count: len(d.naluBuffer) + len(nalus)}
 	}
 
@@ -262,24 +227,26 @@ func (d *Decoder) DecodeUntilMarker(pkt *rtp.Packet) ([][]byte, time.Duration, e
 	return ret, pts, nil
 }
 
-func (d *Decoder) finalize(nalus [][]byte) ([][]byte, error) {
+func (d *Decoder) removeAnnexB(nalus [][]byte) ([][]byte, error) {
 	// some cameras / servers wrap NALUs into Annex-B
-	if !d.firstNALUParsed { //nolint:nestif
+	if !d.firstNALUParsed {
 		d.firstNALUParsed = true
 
-		if len(nalus) == 1 {
-			nalu := nalus[0]
+		if len(nalus) != 1 {
+			return nalus, nil
+		}
 
-			i := bytes.Index(nalu, []byte{0x00, 0x00, 0x00, 0x01})
-			if i >= 0 {
-				d.annexBMode = true
+		nalu := nalus[0]
 
-				if !bytes.HasPrefix(nalu, []byte{0x00, 0x00, 0x00, 0x01}) {
-					nalu = append([]byte{0x00, 0x00, 0x00, 0x01}, nalu...)
-				}
+		i := bytes.Index(nalu, []byte{0x00, 0x00, 0x00, 0x01})
+		if i >= 0 {
+			d.annexBMode = true
 
-				return h264.AnnexBUnmarshal(nalu)
+			if !bytes.HasPrefix(nalu, []byte{0x00, 0x00, 0x00, 0x01}) {
+				nalu = append([]byte{0x00, 0x00, 0x00, 0x01}, nalu...)
 			}
+
+			return h264.AnnexBUnmarshal(nalu)
 		}
 	} else if d.annexBMode {
 		if len(nalus) != 1 {

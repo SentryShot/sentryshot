@@ -3,8 +3,6 @@ package hls
 import (
 	"bytes"
 	"io"
-	"math"
-	"math/big"
 	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 	"nvr/pkg/video/mp4"
 	"nvr/pkg/video/mp4/bitio"
@@ -46,15 +44,9 @@ func (b *myMdat) Marshal(w *bitio.Writer) error {
 
 // NanoToTimescale converts value in nanoseconds into a different timescale.
 func NanoToTimescale(value int64, timescale int64) int64 {
-	multiplied := new(big.Float).Mul(
-		big.NewFloat(float64(value)),
-		big.NewFloat(float64(timescale)),
-	)
-	second := big.NewFloat(1000000000)
-
-	divided := new(big.Float).Quo(multiplied, second)
-	out, _ := divided.Float64()
-	return int64(math.Round(out))
+	secs := value / int64(time.Second)
+	dec := value % int64(time.Second)
+	return secs*timescale + dec*timescale/int64(time.Second)
 }
 
 func generateVideoTraf( //nolint:funlen

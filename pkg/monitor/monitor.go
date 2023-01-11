@@ -401,10 +401,7 @@ type SendEventFunc func(storage.Event) error
 
 // SendEvent sends event to recorder.
 func (m *Monitor) SendEvent(event storage.Event) error {
-	if m.ctx.Err() != nil {
-		return context.Canceled
-	}
-	return m.recorder.sendEvent(event)
+	return m.recorder.sendEvent(m.ctx, event)
 }
 
 // Stop monitor.
@@ -483,32 +480,16 @@ func (i *InputProcess) RTSPprotocol() string {
 func (i *InputProcess) StreamInfo(ctx context.Context) (*hls.StreamInfo, error) {
 	// It may take a few seconds for the stream to
 	// become available after the monitor started.
-	for {
-		muxer, err := i.serverPath.HLSMuxer()
-		if err != nil {
-			return nil, fmt.Errorf("get muxer: %w", err)
-		}
-		// Returns nil if the stream isn't available yet.
-		info, err := muxer.StreamInfo()
-		if err != nil {
-			return nil, err
-		}
-		if info == nil {
-			select {
-			case <-time.After(3 * time.Second):
-				i.logf(log.LevelDebug, "could not get stream info")
-				continue
-			case <-ctx.Done():
-				return nil, context.Canceled
-			}
-		}
-		return info, nil
+	muxer, err := i.serverPath.HLSMuxer(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get muxer: %w", err)
 	}
+	return muxer.StreamInfo(), nil
 }
 
 // HLSMuxer returns the HLS muxer for this input.
-func (i *InputProcess) HLSMuxer() (video.IHLSMuxer, error) {
-	return i.serverPath.HLSMuxer()
+func (i *InputProcess) HLSMuxer(ctx context.Context) (video.IHLSMuxer, error) {
+	return i.serverPath.HLSMuxer(ctx)
 }
 
 // ProcessName name of process "main" or "sub".

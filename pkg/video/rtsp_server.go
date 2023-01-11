@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/pion/rtp"
 )
 
 type rtspServer struct {
@@ -229,9 +231,27 @@ func (s *rtspServer) OnRecord(
 }
 
 // OnPacketRTP implements gortsplib.ServerHandler.
-func (s *rtspServer) OnPacketRTP(ctx *gortsplib.PacketRTPCtx) {
+func (s *rtspServer) OnPacketRTP(
+	session *gortsplib.ServerSession,
+	trackID int,
+	packet *rtp.Packet,
+) {
 	s.mu.RLock()
-	se := s.sessions[ctx.Session]
+	se := s.sessions[session]
 	s.mu.RUnlock()
-	se.onPacketRTP(ctx)
+	se.onPacketRTP(trackID, packet)
+}
+
+// OnDecodeError implements gortsplib.ServerHandler.
+func (s *rtspServer) OnDecodeError(
+	session *gortsplib.ServerSession,
+	err error,
+) {
+	s.mu.Lock()
+	se := s.sessions[session]
+	s.mu.Unlock()
+
+	if se != nil {
+		se.onDecodeError(err)
+	}
 }

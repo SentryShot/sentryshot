@@ -3,6 +3,7 @@ package gortsplib
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/gortsplib/pkg/conn"
@@ -164,26 +165,31 @@ func (sc *ServerConn) readFuncStandard(readRequest chan readReq) error {
 	sc.nconn.SetReadDeadline(time.Time{}) //nolint:errcheck
 
 	for {
-		req, err := sc.conn.ReadRequest()
+		value, err := sc.conn.ReadInterleavedFrameOrRequest()
 		if err != nil {
 			return err
 		}
 
-		cres := make(chan error)
-		select {
-		case readRequest <- readReq{req: req, res: cres}:
-			err = <-cres
-			if err != nil {
-				return err
-			}
+		switch what := value.(type) {
+		case *base.Request:
+			cres := make(chan error)
+			select {
+			case readRequest <- readReq{req: what, res: cres}:
+				err = <-cres
+				if err != nil {
+					return err
+				}
 
-		case <-sc.ctx.Done():
-			return context.Canceled
+			case <-sc.ctx.Done():
+				return context.Canceled
+			}
+		default:
+			return liberrors.ErrServerUnexpectedFrame
 		}
 	}
 }
 
-func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:funlen
+func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error {
 	// reset deadline
 	sc.nconn.SetReadDeadline(time.Time{}) //nolint:errcheck
 
@@ -192,36 +198,22 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 	case <-sc.session.ctx.Done():
 	}
 
-	var processFunc func(int, []byte) error
+	processFunc := func(*ServerSessionSetuppedTrack, []byte) error {
+		return nil
+	}
 
-	if sc.session.state == ServerSessionStatePlay {
-		processFunc = func(trackID int, payload []byte) error {
-			return nil
-		}
-	} else {
+	if sc.session.state != ServerSessionStatePlay {
 		tcpRTPPacketBuffer := newRTPPacketMultiBuffer(uint64(sc.s.readBufferCount))
 
-		processFunc = func(trackID int, payload []byte) error {
+		processFunc = func(track *ServerSessionSetuppedTrack, payload []byte) error {
 			pkt := tcpRTPPacketBuffer.next()
 			err := pkt.Unmarshal(payload)
 			if err != nil {
-				return err
+				return fmt.Errorf("unmarshal packet: %w", err)
 			}
 
-			out, err := sc.session.announcedTracks[trackID].cleaner.Process(pkt)
-			if err != nil {
-				return err
-			}
-			for _, entry := range out {
-				sc.s.handler.OnPacketRTP(&PacketRTPCtx{
-					Session:      sc.session,
-					TrackID:      trackID,
-					Packet:       entry.Packet,
-					PTSEqualsDTS: entry.PTSEqualsDTS,
-					H264NALUs:    entry.H264NALUs,
-					H264PTS:      entry.H264PTS,
-				})
-			}
+			sc.s.handler.OnPacketRTP(sc.session, track.id, pkt)
+
 			return nil
 		}
 	}
@@ -238,11 +230,9 @@ func (sc *ServerConn) readFuncTCP(readRequest chan readReq) error { //nolint:fun
 
 		switch twhat := what.(type) {
 		case *base.InterleavedFrame:
-			channel := twhat.Channel
-
 			// forward frame only if it has been set up
-			if trackID, ok := sc.session.tcpTracksByChannel[channel]; ok {
-				err := processFunc(trackID, twhat.Payload)
+			if track, ok := sc.session.tcpTracksByChannel[twhat.Channel]; ok {
+				err := processFunc(track, twhat.Payload)
 				if err != nil {
 					return err
 				}

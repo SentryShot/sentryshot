@@ -86,19 +86,19 @@ func newTestRecorder(t *testing.T) *Recorder {
 }
 
 type mockMuxer struct {
-	streamInfo    *hls.StreamInfo
-	streamInfoErr error
-	segCount      int
+	streamInfo  *hls.StreamInfo
+	getMuxerErr error
+	segCount    int
 }
 
-func newMockMuxerFunc(muxer *mockMuxer) func() (video.IHLSMuxer, error) {
-	return func() (video.IHLSMuxer, error) {
-		return muxer, nil
+func newMockMuxerFunc(muxer *mockMuxer) func(context.Context) (video.IHLSMuxer, error) {
+	return func(ctx context.Context) (video.IHLSMuxer, error) {
+		return muxer, muxer.getMuxerErr
 	}
 }
 
-func (m *mockMuxer) StreamInfo() (*hls.StreamInfo, error) {
-	return m.streamInfo, m.streamInfoErr
+func (m *mockMuxer) StreamInfo() *hls.StreamInfo {
+	return m.streamInfo
 }
 
 func (m *mockMuxer) NextSegment(prevID uint64) (*hls.Segment, error) {
@@ -132,7 +132,7 @@ func TestStartRecorder(t *testing.T) {
 		r.runSession = mockRunRecording
 		go r.start(ctx)
 
-		err := r.sendEvent(storage.Event{
+		err := r.sendEvent(ctx, storage.Event{
 			Time:        time.Now().Add(time.Duration(-1) * time.Hour),
 			RecDuration: 1,
 		})

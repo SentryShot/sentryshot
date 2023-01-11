@@ -16,10 +16,7 @@ var ErrNoValidTracks = errors.New("no valid tracks found")
 type Tracks []Track
 
 // Unmarshal decodes tracks from the SDP format. It returns the decoded SDP.
-func (ts *Tracks) Unmarshal(
-	byts []byte,
-	skipGenericTracksWithoutClockRate bool,
-) (*sdp.SessionDescription, error) {
+func (ts *Tracks) Unmarshal(byts []byte) (*sdp.SessionDescription, error) {
 	var sd sdp.SessionDescription
 	err := sd.Unmarshal(byts)
 	if err != nil {
@@ -31,9 +28,6 @@ func (ts *Tracks) Unmarshal(
 	for i, md := range sd.MediaDescriptions {
 		t, err := newTrackFromMediaDescription(md)
 		if err != nil {
-			if skipGenericTracksWithoutClockRate && IsClockRateError(err) {
-				continue
-			}
 			return nil, fmt.Errorf("unable to parse track %d: %w", i+1, err)
 		}
 
@@ -79,9 +73,7 @@ func (ts Tracks) Marshal() []byte {
 			AddressType: "IP4",
 			Address:     &psdp.Address{Address: address},
 		},
-		TimeDescriptions: []psdp.TimeDescription{
-			{Timing: psdp.Timing{}},
-		},
+		TimeDescriptions: []psdp.TimeDescription{{}},
 	}
 
 	for _, track := range ts {

@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/gortsplib/pkg/conn"
 	"nvr/pkg/video/gortsplib/pkg/headers"
 
+	"github.com/pion/rtp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +30,8 @@ type testServerHandler struct {
 	onSetup        func(*ServerSession, string, int) (*base.Response, *ServerStream, error)
 	onPlay         func(*ServerSession) (*base.Response, error)
 	onRecord       func(*ServerSession) (*base.Response, error)
-	onPacketRTP    func(*PacketRTPCtx)
+	onPacketRTP    func(*ServerSession, int, *rtp.Packet)
+	onDecodeError  func(*ServerSession, error)
 }
 
 func (sh *testServerHandler) OnConnClose(sc *ServerConn, err error) {
@@ -99,9 +102,22 @@ func (sh *testServerHandler) OnRecord(
 	return nil, fmt.Errorf("unimplemented")
 }
 
-func (sh *testServerHandler) OnPacketRTP(ctx *PacketRTPCtx) {
+func (sh *testServerHandler) OnPacketRTP(
+	session *ServerSession,
+	trackID int,
+	packet *rtp.Packet,
+) {
 	if sh.onPacketRTP != nil {
-		sh.onPacketRTP(ctx)
+		sh.onPacketRTP(session, trackID, packet)
+	}
+}
+
+func (sh *testServerHandler) OnDecodeError(
+	session *ServerSession,
+	err error,
+) {
+	if sh.onDecodeError != nil {
+		sh.onDecodeError(session, err)
 	}
 }
 
@@ -486,21 +502,24 @@ func TestServerErrorInvalidSession(t *testing.T) {
 }
 
 func TestServerSessionClose(t *testing.T) {
-	sessionClosed := make(chan struct{})
+	stream := NewServerStream(Tracks{&TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}})
+	defer stream.Close()
+
+	var session *ServerSession
 
 	s := &Server{
 		handler: &testServerHandler{
-			onSessionOpen: func(session *ServerSession, _ *ServerConn, name string) {
-				require.Equal(t, "teststream", name)
-				session.Close()
-			},
-			onSessionClose: func(*ServerSession, error) {
-				close(sessionClosed)
+			onSessionOpen: func(s *ServerSession, _ *ServerConn, name string) {
+				session = s
 			},
 			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
-				}, nil, nil
+				}, stream, nil
 			},
 		},
 		rtspAddress: "localhost:8554",
@@ -510,13 +529,14 @@ func TestServerSessionClose(t *testing.T) {
 	require.NoError(t, err)
 	defer s.Close()
 
-	conn, err := net.Dial("tcp", "localhost:8554")
+	nconn, err := net.Dial("tcp", "localhost:8554")
 	require.NoError(t, err)
-	defer conn.Close()
+	defer nconn.Close()
+	conn := conn.NewConn(nconn)
 
-	byts, _ := base.Request{
+	res, err := writeReqReadRes(conn, base.Request{
 		Method: base.Setup,
-		URL:    mustParseURL("rtsp://localhost:8554/teststream"),
+		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
 		Header: base.Header{
 			"CSeq": base.HeaderValue{"1"},
 			"Transport": headers.Transport{
@@ -527,11 +547,22 @@ func TestServerSessionClose(t *testing.T) {
 				InterleavedIDs: &[2]int{0, 1},
 			}.Marshal(),
 		},
-	}.Marshal()
-	_, err = conn.Write(byts)
+	})
 	require.NoError(t, err)
+	require.Equal(t, base.StatusOK, res.StatusCode)
 
-	<-sessionClosed
+	session.Close()
+	session.Close()
+	time.Sleep(0)
+
+	_, err = writeReqReadRes(conn, base.Request{
+		Method: base.Options,
+		URL:    mustParseURL("rtsp://localhost:8554/"),
+		Header: base.Header{
+			"CSeq": base.HeaderValue{"2"},
+		},
+	})
+	require.Error(t, err)
 }
 
 func TestServerSessionAutoClose(t *testing.T) {
@@ -541,13 +572,11 @@ func TestServerSessionAutoClose(t *testing.T) {
 		t.Run(ca, func(t *testing.T) {
 			sessionClosed := make(chan struct{})
 
-			track := &TrackH264{
+			stream := NewServerStream(Tracks{&TrackH264{
 				PayloadType: 96,
 				SPS:         []byte{0x01, 0x02, 0x03, 0x04},
 				PPS:         []byte{0x01, 0x02, 0x03, 0x04},
-			}
-
-			stream := NewServerStream(Tracks{track})
+			}})
 			defer stream.Close()
 
 			s := &Server{
@@ -599,4 +628,75 @@ func TestServerSessionAutoClose(t *testing.T) {
 			<-sessionClosed
 		})
 	}
+}
+
+func TestServerSessionTeardown(t *testing.T) {
+	stream := NewServerStream(Tracks{&TrackH264{
+		PayloadType: 96,
+		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
+		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
+	}})
+	defer stream.Close()
+
+	s := &Server{
+		handler: &testServerHandler{
+			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
+				return &base.Response{
+					StatusCode: base.StatusOK,
+				}, stream, nil
+			},
+		},
+		rtspAddress: "localhost:8554",
+	}
+
+	err := s.Start()
+	require.NoError(t, err)
+	defer s.Close()
+
+	nconn, err := net.Dial("tcp", "localhost:8554")
+	require.NoError(t, err)
+	defer nconn.Close()
+	conn := conn.NewConn(nconn)
+
+	res, err := writeReqReadRes(conn, base.Request{
+		Method: base.Setup,
+		URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
+		Header: base.Header{
+			"CSeq": base.HeaderValue{"1"},
+			"Transport": headers.Transport{
+				Mode: func() *headers.TransportMode {
+					v := headers.TransportModePlay
+					return &v
+				}(),
+				InterleavedIDs: &[2]int{0, 1},
+			}.Marshal(),
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, base.StatusOK, res.StatusCode)
+
+	var sx headers.Session
+	err = sx.Unmarshal(res.Header["Session"])
+	require.NoError(t, err)
+
+	res, err = writeReqReadRes(conn, base.Request{
+		Method: base.Teardown,
+		URL:    mustParseURL("rtsp://localhost:8554/"),
+		Header: base.Header{
+			"CSeq":    base.HeaderValue{"2"},
+			"Session": base.HeaderValue{sx.Session},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, base.StatusOK, res.StatusCode)
+
+	res, err = writeReqReadRes(conn, base.Request{
+		Method: base.Options,
+		URL:    mustParseURL("rtsp://localhost:8554/"),
+		Header: base.Header{
+			"CSeq": base.HeaderValue{"3"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, base.StatusOK, res.StatusCode)
 }

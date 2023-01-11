@@ -139,3 +139,6 @@ var ErrServerCannotUseSessionCreatedByOtherIP = errors.New(
 
 // ErrServerSessionNotInUse not in use.
 var ErrServerSessionNotInUse = errors.New("not in use")
+
+// ErrServerUnexpectedFrame received unexpected interleaved frame.
+var ErrServerUnexpectedFrame = errors.New("received unexpected interleaved frame")

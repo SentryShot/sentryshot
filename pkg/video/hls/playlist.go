@@ -341,6 +341,10 @@ func (p *playlist) file(name, msn, part, skip string) *MuxerFileResponse {
 	case strings.HasSuffix(name, ".mp4"):
 		return p.segmentReader(name)
 
+	// Apple bug?
+	case strings.HasSuffix(name, ".mp"):
+		return p.segmentReader(name + "4")
+
 	default:
 		return &MuxerFileResponse{Status: http.StatusNotFound}
 	}
@@ -498,8 +502,6 @@ func (p *playlist) fullPlaylist(isDeltaUpdate bool) []byte { //nolint:funlen
 		skipped = len(p.segments) - shown
 		cnt += "#EXT-X-SKIP:SKIPPED-SEGMENTS=" + strconv.FormatInt(int64(skipped), 10) + "\n"
 	}
-
-	cnt += "\n"
 
 	for i, sog := range p.segments {
 		if i < skipped {

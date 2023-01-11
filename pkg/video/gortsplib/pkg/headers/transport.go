@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net"
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"strconv"
 	"strings"
@@ -24,26 +23,8 @@ const (
 
 // Transport is a Transport header.
 type Transport struct {
-	// (optional) Source IP
-	Source *net.IP
-
-	// (optional) destination IP
-	Destination *net.IP
-
 	// (optional) interleaved frame ids
 	InterleavedIDs *[2]int
-
-	// (optional) TTL
-	TTL *uint
-
-	// (optional) ports
-	Ports *[2]int
-
-	// (optional) client ports
-	ClientPorts *[2]int
-
-	// (optional) server ports
-	ServerPorts *[2]int
 
 	// (optional) SSRC of the packets of the stream
 	SSRC *uint32
@@ -85,16 +66,14 @@ func parsePorts(val string) (*[2]int, error) {
 
 // Transport errors.
 var (
-	ErrTransportValueMissing       = errors.New("value not provided")
-	ErrTransportMultipleValues     = errors.New("value provided multiple times")
-	ErrTransportInvalidDestination = errors.New("invalid destination")
-	ErrTransportInvalidSSRC        = errors.New("invalid SSRC")
-	ErrTransportInvalidMode        = errors.New("invalid transport mode")
-	ErrTransportProtocolNotFound   = errors.New("protocol not found")
+	ErrTransportValueMissing     = errors.New("value not provided")
+	ErrTransportMultipleValues   = errors.New("value provided multiple times")
+	ErrTransportInvalidMode      = errors.New("invalid transport mode")
+	ErrTransportProtocolNotFound = errors.New("protocol not found")
 )
 
 // Unmarshal decodes a Transport header.
-func (h *Transport) Unmarshal(v base.HeaderValue) error { //nolint:funlen,gocognit
+func (h *Transport) Unmarshal(v base.HeaderValue) error { //nolint:funlen
 	if len(v) == 0 {
 		return ErrTransportValueMissing
 	}
@@ -119,50 +98,12 @@ func (h *Transport) Unmarshal(v base.HeaderValue) error { //nolint:funlen,gocogn
 		case "RTP/AVP/TCP":
 			protocolFound = true
 
-		case "destination":
-			if v != "" {
-				ip := net.ParseIP(v)
-				if ip == nil {
-					return fmt.Errorf("%w (%v)", ErrTransportInvalidDestination, v)
-				}
-				h.Destination = &ip
-			}
-
 		case "interleaved":
 			ports, err := parsePorts(v)
 			if err != nil {
 				return err
 			}
 			h.InterleavedIDs = ports
-
-		case "ttl":
-			tmp, err := strconv.ParseUint(v, 10, 64)
-			if err != nil {
-				return err
-			}
-			vu := uint(tmp)
-			h.TTL = &vu
-
-		case "port":
-			ports, err := parsePorts(v)
-			if err != nil {
-				return err
-			}
-			h.Ports = ports
-
-		case "client_port":
-			ports, err := parsePorts(v)
-			if err != nil {
-				return err
-			}
-			h.ClientPorts = ports
-
-		case "server_port":
-			ports, err := parsePorts(v)
-			if err != nil {
-				return err
-			}
-			h.ServerPorts = ports
 
 		case "ssrc":
 			v = strings.TrimLeft(v, " ")
@@ -216,32 +157,9 @@ func (h Transport) Marshal() base.HeaderValue {
 
 	rets = append(rets, "RTP/AVP/TCP")
 
-	if h.Destination != nil {
-		rets = append(rets, "destination="+h.Destination.String())
-	}
-
 	if h.InterleavedIDs != nil {
 		rets = append(rets, "interleaved="+strconv.FormatInt(int64(h.InterleavedIDs[0]), 10)+
 			"-"+strconv.FormatInt(int64(h.InterleavedIDs[1]), 10))
-	}
-
-	if h.Ports != nil {
-		rets = append(rets, "port="+strconv.FormatInt(int64(h.Ports[0]), 10)+
-			"-"+strconv.FormatInt(int64(h.Ports[1]), 10))
-	}
-
-	if h.TTL != nil {
-		rets = append(rets, "ttl="+strconv.FormatUint(uint64(*h.TTL), 10))
-	}
-
-	if h.ClientPorts != nil {
-		rets = append(rets, "client_port="+strconv.FormatInt(int64(h.ClientPorts[0]), 10)+
-			"-"+strconv.FormatInt(int64(h.ClientPorts[1]), 10))
-	}
-
-	if h.ServerPorts != nil {
-		rets = append(rets, "server_port="+strconv.FormatInt(int64(h.ServerPorts[0]), 10)+
-			"-"+strconv.FormatInt(int64(h.ServerPorts[1]), 10))
 	}
 
 	if h.SSRC != nil {

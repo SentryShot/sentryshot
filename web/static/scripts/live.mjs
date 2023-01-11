@@ -126,11 +126,7 @@ function init() {
 	const viewer = newViewer($contentGrid, monitors, Hls);
 
 	const $options = document.querySelector("#options-menu");
-	const buttons = [
-		newOptionsBtn.gridSize(),
-		resBtn(),
-		newOptionsBtn.group(monitors, groups),
-	];
+	const buttons = [newOptionsBtn.gridSize(), resBtn(), newOptionsBtn.group(groups)];
 	const optionsMenu = newOptionsMenu(buttons);
 	$options.innerHTML = optionsMenu.html;
 	optionsMenu.init($options, viewer);

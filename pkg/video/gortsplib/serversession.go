@@ -8,7 +8,6 @@ import (
 	"nvr/pkg/video/gortsplib/pkg/headers"
 	"nvr/pkg/video/gortsplib/pkg/liberrors"
 	"nvr/pkg/video/gortsplib/pkg/ringbuffer"
-	"nvr/pkg/video/gortsplib/pkg/rtpcleaner"
 	"nvr/pkg/video/gortsplib/pkg/url"
 	"sort"
 	"strconv"
@@ -139,13 +138,13 @@ func (s ServerSessionState) String() string {
 
 // ServerSessionSetuppedTrack is a setupped track of a ServerSession.
 type ServerSessionSetuppedTrack struct {
+	id         int
 	tcpChannel int
 }
 
 // ServerSessionAnnouncedTrack is an announced track of a ServerSession.
 type ServerSessionAnnouncedTrack struct {
-	track   Track
-	cleaner *rtpcleaner.Cleaner
+	track Track
 }
 
 // ServerSession is a server-side RTSP session.
@@ -159,7 +158,7 @@ type ServerSession struct {
 	conns              map[*ServerConn]struct{}
 	state              ServerSessionState
 	setuppedTracks     map[int]*ServerSessionSetuppedTrack
-	tcpTracksByChannel map[int]int
+	tcpTracksByChannel map[int]*ServerSessionSetuppedTrack
 	IsTransportSetup   bool
 	setuppedBaseURL    *url.URL      // publish
 	setuppedStream     *ServerStream // read
@@ -262,13 +261,14 @@ func (ss *ServerSession) run(name string) {
 		<-ss.writerDone
 	}
 
+	// close all associated connections except for the ones that called TEARDOWN
+	// (that are detached from the session just after the request)
 	for sc := range ss.conns {
-		if sc == ss.tcpConn {
-			sc.Close()
+		sc.Close()
 
-			// make sure that OnFrame() is never called after OnSessionClose()
-			<-sc.done
-		}
+		// make sure that OnFrame() is never called after OnSessionClose()
+
+		<-sc.done
 
 		select {
 		case sc.sessionRemove <- ss:
@@ -311,8 +311,9 @@ func (ss *ServerSession) runInner() error { //nolint:gocognit
 					}.Marshal()
 				}
 
-				// after a TEARDOWN, session must be unpaired with the connection.
+				// After a TEARDOWN, session must be unpaired with the connection.
 				if req.req.Method == base.Teardown {
+					delete(ss.conns, req.sc)
 					returnedSession = nil
 				}
 			}
@@ -465,7 +466,7 @@ func (ss *ServerSession) handleAnnounce( //nolint:funlen
 	}
 
 	var tracks Tracks
-	_, err = tracks.Unmarshal(req.Body, false)
+	_, err = tracks.Unmarshal(req.Body)
 	if err != nil {
 		return &base.Response{
 			StatusCode: base.StatusBadRequest,
@@ -634,20 +635,19 @@ func (ss *ServerSession) handleSetup(req *base.Request) (*base.Response, error) 
 		res.Header = make(base.Header)
 	}
 
-	sst := &ServerSessionSetuppedTrack{}
+	sst := &ServerSessionSetuppedTrack{id: trackID}
 
 	if ss.tcpTracksByChannel == nil {
-		ss.tcpTracksByChannel = make(map[int]int)
+		ss.tcpTracksByChannel = make(map[int]*ServerSessionSetuppedTrack)
 	}
 
-	ss.tcpTracksByChannel[inTH.InterleavedIDs[0]] = trackID
+	ss.tcpTracksByChannel[inTH.InterleavedIDs[0]] = sst
 
 	th.InterleavedIDs = inTH.InterleavedIDs
 
 	if ss.setuppedTracks == nil {
 		ss.setuppedTracks = make(map[int]*ServerSessionSetuppedTrack)
 	}
-
 	ss.setuppedTracks[trackID] = sst
 
 	res.Header["Transport"] = th.Marshal()
@@ -788,11 +788,6 @@ func (ss *ServerSession) handleRecord(
 	}
 
 	ss.state = ServerSessionStateRecord
-
-	for _, at := range ss.announcedTracks {
-		_, isH264 := at.track.(*TrackH264)
-		at.cleaner = rtpcleaner.New(isH264)
-	}
 
 	ss.tcpConn = sc
 	ss.tcpConn.readFunc = ss.tcpConn.readFuncTCP

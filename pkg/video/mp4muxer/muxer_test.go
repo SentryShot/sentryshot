@@ -206,7 +206,7 @@ func TestGenerateMP4(t *testing.T) {
 		0, 0, 0, 1, // Entry2 sample count.
 		0, 0, 0, 0x12, // Entry2 sample offset
 		0, 0, 0, 1, // Entry3 sample count.
-		0, 0, 0, 0xe, // Entry3 sample offset
+		0, 0, 0, 0xd, // Entry3 sample offset
 		0, 0, 0, 0x1c, 's', 't', 's', 'c',
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 1, // Entry count.
@@ -304,7 +304,7 @@ func TestGenerateMP4(t *testing.T) {
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 1, // Entry count.
 		0, 0, 0, 2, // Entry1 sample count.
-		0, 0, 0, 5, // Entry1 sample delta.
+		0, 0, 0, 4, // Entry1 sample delta.
 		0, 0, 0, 0x1c, 's', 't', 's', 'c',
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 1, // Entry count.

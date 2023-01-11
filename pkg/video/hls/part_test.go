@@ -306,7 +306,7 @@ func TestGeneratePart(t *testing.T) {
 			1, 0, 0xf, 1, // FullBox.
 			0, 0, 0, 2, // Sample count.
 			0, 0, 0, 0xc8, // Data offset.
-			0, 0, 0x2e, 0xe0, // Entry1 sample duration.
+			0, 0, 0x2e, 0xdf, // Entry1 sample duration.
 			0, 0, 0, 4, // Entry1 sample size.
 			0, 0, 0, 0, // Entry1 sample flags.
 			0xff, 0xff, 0xe8, 0x90, // 1 Entry SampleCompositionTimeOffset

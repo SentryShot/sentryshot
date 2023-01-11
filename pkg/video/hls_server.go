@@ -20,10 +20,9 @@ type hlsServer struct {
 	readBufferCount int
 	logger          *log.Logger
 
-	ctx       context.Context
-	ctxCancel func()
-	wg        *sync.WaitGroup
-	muxers    map[string]*HLSMuxer
+	ctx    context.Context
+	wg     *sync.WaitGroup
+	muxers map[string]*HLSMuxer
 
 	// in
 	chPathSourceReady    chan pathSourceReadyRequest
@@ -52,7 +51,7 @@ func newHLSServer(
 }
 
 func (s *hlsServer) start(ctx context.Context, address string) error {
-	s.ctx, s.ctxCancel = context.WithCancel(ctx)
+	s.ctx = ctx
 
 	ln, err := net.Listen("tcp", address)
 	if err != nil {
@@ -114,7 +113,6 @@ func (s *hlsServer) run() {
 	for {
 		select {
 		case <-s.ctx.Done():
-			s.ctxCancel()
 			return
 
 		case req := <-s.chPathSourceReady:
@@ -290,13 +288,15 @@ type muxerByPathNameRequest struct {
 }
 
 // MuxerByPathName .
-func (s *hlsServer) MuxerByPathName(pathName string) (*hls.Muxer, error) {
+func (s *hlsServer) MuxerByPathName(ctx context.Context, pathName string) (*hls.Muxer, error) {
 	muxerByPathNameRes := make(chan *HLSMuxer)
 	muxerByPathNameReq := muxerByPathNameRequest{
 		pathName: pathName,
 		res:      muxerByPathNameRes,
 	}
 	select {
+	case <-ctx.Done():
+		return nil, context.Canceled
 	case <-s.ctx.Done():
 		return nil, context.Canceled
 	case s.chMuxerbyPathName <- muxerByPathNameReq:

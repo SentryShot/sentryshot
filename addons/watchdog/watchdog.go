@@ -33,8 +33,8 @@ func onInputProcessStart(ctx context.Context, i *monitor.InputProcess, _ *[]stri
 		})
 	}
 
-	muxer := func() (muxer, error) {
-		return i.HLSMuxer()
+	muxer := func(ctx context.Context) (muxer, error) {
+		return i.HLSMuxer(ctx)
 	}
 
 	d := &watchdog{
@@ -51,7 +51,7 @@ type muxer interface {
 }
 
 type watchdog struct {
-	muxer    func() (muxer, error)
+	muxer    func(context.Context) (muxer, error)
 	interval time.Duration
 	onFreeze func()
 	logf     func(log.Level, string, ...interface{})
@@ -74,9 +74,8 @@ func (d *watchdog) start(ctx context.Context) {
 				return
 			}
 
-			muxer, err := d.muxer()
+			muxer, err := d.muxer(ctx)
 			if err != nil {
-				d.logf(log.LevelError, "could not get muxer")
 				continue
 			}
 

@@ -650,8 +650,14 @@ func mergeBytes(vals ...[]byte) []byte {
 }
 
 func TestServerPublishErrorInvalidProtocol(t *testing.T) {
+	errorRecv := make(chan struct{})
+
 	s := &Server{
 		handler: &testServerHandler{
+			onConnClose: func(_ *ServerConn, err error) {
+				require.EqualError(t, err, "received unexpected interleaved frame")
+				close(errorRecv)
+			},
 			onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
 				return &base.Response{
 					StatusCode: base.StatusOK,
@@ -667,7 +673,7 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 					StatusCode: base.StatusOK,
 				}, nil
 			},
-			onPacketRTP: func(ctx *PacketRTPCtx) {
+			onPacketRTP: func(*ServerSession, int, *rtp.Packet) {
 				t.Error("should not happen")
 			},
 		},
@@ -709,6 +715,8 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 		Payload: []byte{0x01, 0x02, 0x03, 0x04},
 	}, make([]byte, 1024))
 	require.NoError(t, err)
+
+	<-errorRecv
 }
 
 func TestServerPublishTimeout(t *testing.T) {

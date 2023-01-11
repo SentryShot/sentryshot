@@ -161,34 +161,14 @@ func (s *Segment) writeH264(sample *VideoSample, adjustedPartDuration time.Durat
 	return nil
 }
 
-func (s *Segment) writeAAC(sample *AudioSample, adjustedPartDuration time.Duration) error {
+func (s *Segment) writeAAC(sample *AudioSample) error {
 	size := uint64(len(sample.AU))
-
 	if (s.size + size) > s.segmentMaxSize {
 		return ErrMaximumSegmentSize
 	}
-
-	s.currentPart.writeAAC(sample)
-
 	s.size += size
 
-	// switch part
-	if s.videoTrackExist && s.currentPart.duration() >= adjustedPartDuration {
-		if err := s.currentPart.finalize(); err != nil {
-			return err
-		}
-
-		s.Parts = append(s.Parts, s.currentPart)
-		s.onPartFinalized(s.currentPart)
-
-		s.currentPart = newPart(
-			s.videoTrackExist,
-			s.audioTrackExist,
-			s.audioClockRate,
-			s.muxerStartTime,
-			s.genPartID(),
-		)
-	}
+	s.currentPart.writeAAC(sample)
 
 	return nil
 }

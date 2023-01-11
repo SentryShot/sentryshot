@@ -11,7 +11,7 @@ import (
 
 const (
 	rtpVersion   = 0x02
-	rtpClockRate = 90000 // h264 always uses 90khz
+	rtpClockRate = 90000 // H264 always uses 90khz.
 )
 
 func randUint32() uint32 {
@@ -38,6 +38,8 @@ type Encoder struct {
 
 	// maximum size of packet payloads (optional).
 	PayloadMaxSize int
+
+	PacketizationMode int
 
 	sequenceNumber uint16
 }
@@ -69,6 +71,10 @@ func (e *Encoder) encodeTimestamp(ts time.Duration) uint32 {
 
 // Encode encodes NALUs into RTP/H264 packets.
 func (e *Encoder) Encode(nalus [][]byte, pts time.Duration) ([]*rtp.Packet, error) {
+	if e.PacketizationMode >= 2 {
+		return nil, ErrModeUnsupported
+	}
+
 	var rets []*rtp.Packet
 	var batch [][]byte
 

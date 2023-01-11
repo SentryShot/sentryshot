@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"nvr/pkg/video/gortsplib/pkg/rtph264"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,13 +20,15 @@ var (
 	ErrH264fmtpInvalid  = errors.New("invalid fmtp attribute")
 	ErrH264spropInvalid = errors.New("invalid sprop-parameter-sets")
 	ErrH264spropMissing = errors.New("sprop-parameter-sets is missing")
+	ErrH264ModeInvalid  = errors.New("invalid packetization-mode")
 )
 
 // TrackH264 is a H264 track.
 type TrackH264 struct {
-	PayloadType uint8
-	SPS         []byte
-	PPS         []byte
+	PayloadType       uint8
+	SPS               []byte
+	PPS               []byte
+	PacketizationMode int
 
 	trackBase
 	mu sync.RWMutex
@@ -71,28 +74,34 @@ func (t *TrackH264) fillParamsFromMediaDescription(md *psdp.MediaDescription) er
 			return fmt.Errorf("%w (%v)", ErrH264fmtpInvalid, v)
 		}
 
-		if tmp[0] != "sprop-parameter-sets" {
-			continue
-		}
+		switch tmp[0] {
+		case "sprop-parameter-sets":
 
-		tmp = strings.SplitN(tmp[1], ",", 3)
-		if len(tmp) < 2 {
-			return fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
-		}
+			tmp = strings.SplitN(tmp[1], ",", 3)
+			if len(tmp) < 2 {
+				return fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
+			}
 
-		sps, err := base64.StdEncoding.DecodeString(tmp[0])
-		if err != nil {
-			return fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
-		}
+			sps, err := base64.StdEncoding.DecodeString(tmp[0])
+			if err != nil {
+				return fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
+			}
 
-		pps, err := base64.StdEncoding.DecodeString(tmp[1])
-		if err != nil {
-			return fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
-		}
+			pps, err := base64.StdEncoding.DecodeString(tmp[1])
+			if err != nil {
+				return fmt.Errorf("%w (%v)", ErrH264spropInvalid, v)
+			}
 
-		t.SPS = sps
-		t.PPS = pps
-		return nil
+			t.SPS = sps
+			t.PPS = pps
+		case "packetization-mode":
+			tmp, err := strconv.ParseInt(tmp[1], 10, 64)
+			if err != nil {
+				return fmt.Errorf("%w (%v)", ErrH264ModeInvalid, v)
+			}
+
+			t.PacketizationMode = int(tmp)
+		}
 	}
 
 	return fmt.Errorf("%w (%v)", ErrH264spropMissing, v)
@@ -103,13 +112,84 @@ func (t *TrackH264) ClockRate() int {
 	return 90000
 }
 
+// MediaDescription returns the track media description in SDP format.
+func (t *TrackH264) MediaDescription() *psdp.MediaDescription {
+	typ := strconv.FormatInt(int64(t.PayloadType), 10)
+
+	fmtp := typ
+
+	var tmp []string
+	if t.PacketizationMode != 0 {
+		tmp = append(tmp, "packetization-mode="+strconv.FormatInt(int64(t.PacketizationMode), 10))
+	}
+	var tmp2 []string
+	if t.SPS != nil {
+		tmp2 = append(tmp2, base64.StdEncoding.EncodeToString(t.SPS))
+	}
+	if t.PPS != nil {
+		tmp2 = append(tmp2, base64.StdEncoding.EncodeToString(t.PPS))
+	}
+	if tmp2 != nil {
+		tmp = append(tmp, "sprop-parameter-sets="+strings.Join(tmp2, ","))
+	}
+
+	if len(t.SPS) >= 4 {
+		tmp = append(tmp, "profile-level-id="+strings.ToUpper(hex.EncodeToString(t.SPS[1:4])))
+	}
+	if tmp != nil {
+		fmtp += " " + strings.Join(tmp, "; ")
+	}
+
+	return &psdp.MediaDescription{
+		MediaName: psdp.MediaName{
+			Media:   "video",
+			Protos:  []string{"RTP", "AVP"},
+			Formats: []string{typ},
+		},
+		Attributes: []psdp.Attribute{
+			{
+				Key:   "rtpmap",
+				Value: typ + " H264/90000",
+			},
+			{
+				Key:   "fmtp",
+				Value: fmtp,
+			},
+			{
+				Key:   "control",
+				Value: t.control,
+			},
+		},
+	}
+}
+
 func (t *TrackH264) clone() Track {
 	return &TrackH264{
-		PayloadType: t.PayloadType,
-		SPS:         t.SPS,
-		PPS:         t.PPS,
-		trackBase:   t.trackBase,
+		PayloadType:       t.PayloadType,
+		SPS:               t.SPS,
+		PPS:               t.PPS,
+		PacketizationMode: t.PacketizationMode,
+		trackBase:         t.trackBase,
 	}
+}
+
+// CreateDecoder creates a decoder able to decode the content of the track.
+func (t *TrackH264) CreateDecoder() *rtph264.Decoder {
+	d := &rtph264.Decoder{
+		PacketizationMode: t.PacketizationMode,
+	}
+	d.Init()
+	return d
+}
+
+// CreateEncoder creates an encoder able to encode the content of the track.
+func (t *TrackH264) CreateEncoder() *rtph264.Encoder {
+	e := &rtph264.Encoder{
+		PayloadType:       t.PayloadType,
+		PacketizationMode: t.PacketizationMode,
+	}
+	e.Init()
+	return e
 }
 
 // SafeSPS returns the track SafeSPS.
@@ -138,46 +218,4 @@ func (t *TrackH264) SafeSetPPS(v []byte) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	t.PPS = v
-}
-
-// MediaDescription returns the track media description in SDP format.
-func (t *TrackH264) MediaDescription() *psdp.MediaDescription {
-	typ := strconv.FormatInt(int64(t.PayloadType), 10)
-
-	fmtp := typ + " packetization-mode=1"
-
-	var tmp []string
-	if t.SPS != nil {
-		tmp = append(tmp, base64.StdEncoding.EncodeToString(t.SPS))
-	}
-	if t.PPS != nil {
-		tmp = append(tmp, base64.StdEncoding.EncodeToString(t.PPS))
-	}
-	fmtp += "; sprop-parameter-sets=" + strings.Join(tmp, ",")
-
-	if len(t.SPS) >= 4 {
-		fmtp += "; profile-level-id=" + strings.ToUpper(hex.EncodeToString(t.SPS[1:4]))
-	}
-
-	return &psdp.MediaDescription{
-		MediaName: psdp.MediaName{
-			Media:   "video",
-			Protos:  []string{"RTP", "AVP"},
-			Formats: []string{typ},
-		},
-		Attributes: []psdp.Attribute{
-			{
-				Key:   "rtpmap",
-				Value: typ + " H264/90000",
-			},
-			{
-				Key:   "fmtp",
-				Value: fmtp,
-			},
-			{
-				Key:   "control",
-				Value: t.control,
-			},
-		},
-	}
 }

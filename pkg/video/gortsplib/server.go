@@ -11,7 +11,23 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/pion/rtp"
 )
+
+// ServerHandler is the interface implemented by all the server handlers.
+type ServerHandler interface {
+	OnConnClose(*ServerConn, error)
+	OnSessionOpen(*ServerSession, *ServerConn, string)
+	OnSessionClose(*ServerSession, error)
+	OnDescribe(pathName string) (*base.Response, *ServerStream, error)
+	OnAnnounce(*ServerSession, string, Tracks) (*base.Response, error)
+	OnSetup(*ServerSession, string, int) (*base.Response, *ServerStream, error)
+	OnPlay(*ServerSession) (*base.Response, error)
+	OnRecord(*ServerSession) (*base.Response, error)
+	OnPacketRTP(*ServerSession, int, *rtp.Packet)
+	OnDecodeError(*ServerSession, error)
+}
 
 func newSessionSecretID(sessions map[string]*ServerSession) (string, error) {
 	for {

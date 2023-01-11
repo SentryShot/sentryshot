@@ -24,17 +24,6 @@ type InterleavedFrame struct {
 // ErrInvalidMagicByte invalid magic byte.
 var ErrInvalidMagicByte = errors.New("invalid magic byte")
 
-// PayloadToBigError .
-/*type PayloadToBigError struct {
-	PayloadLen     int
-	MaxPayloadSize int
-}
-
-func (e PayloadToBigError) Error() string {
-	return fmt.Sprintf("payload size (%d) greater than maximum allowed (%d)",
-		e.PayloadLen, e.MaxPayloadSize)
-}*/
-
 // Read decodes an interleaved frame.
 func (f *InterleavedFrame) Read(br *bufio.Reader) error {
 	var header [4]byte

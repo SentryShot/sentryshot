@@ -15,8 +15,8 @@ type stubMuxer struct{}
 
 func (m *stubMuxer) WaitForSegFinalized() {}
 
-func newStubMuxer(err error) func() (muxer, error) {
-	return func() (muxer, error) {
+func newStubMuxer(err error) func(context.Context) (muxer, error) {
+	return func(context.Context) (muxer, error) {
 		return &stubMuxer{}, err
 	}
 }

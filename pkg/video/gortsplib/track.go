@@ -29,57 +29,71 @@ type Track interface {
 // Track errors.
 var (
 	ErrTrackContentBaseMissing = errors.New("Content-Base header not provided")
-	ErrTrackNoFormats          = errors.New("no formats provided")
-	ErrTrackRTPmapInvalid      = errors.New("invalid rtpmap")
-	ErrTrackRTPmapMissing      = errors.New("attribute 'rtpmap' not found")
-	ErrTrackPayloadTypeInvalid = errors.New("invalid payload type")
+	ErrTrackNoFormats          = errors.New("no media formats found")
 )
 
-func newTrackFromMediaDescription(md *psdp.MediaDescription) (Track, error) {
-	control := func() string {
-		for _, attr := range md.Attributes {
-			if attr.Key == "control" {
-				return attr.Value
-			}
+func getControlAttribute(attributes []psdp.Attribute) string {
+	for _, attr := range attributes {
+		if attr.Key == "control" {
+			return attr.Value
 		}
-		return ""
-	}()
+	}
+	return ""
+}
 
-	rtpmapPart1, payloadType := func() (string, uint8) {
-		rtpmap, ok := md.Attribute("rtpmap")
-		if !ok {
-			return "", 0
-		}
-		rtpmap = strings.TrimSpace(rtpmap)
-		rtpmapParts := strings.Split(rtpmap, " ")
-		if len(rtpmapParts) != 2 {
-			return "", 0
-		}
-
-		tmp, err := strconv.ParseInt(rtpmapParts[0], 10, 64)
-		if err != nil {
-			return "", 0
-		}
-		payloadType := uint8(tmp)
-
-		return rtpmapParts[1], payloadType
-	}()
-
-	if len(md.MediaName.Formats) == 1 {
-		switch {
-		case md.MediaName.Media == "video":
-			if rtpmapPart1 == "H264/90000" {
-				return newTrackH264FromMediaDescription(control, payloadType, md)
-			}
-
-		case md.MediaName.Media == "audio":
-			if strings.HasPrefix(strings.ToLower(rtpmapPart1), "mpeg4-generic/") {
-				return newTrackMPEG4AudioFromMediaDescription(control, payloadType, md)
+func getRtpmapAttribute(attributes []psdp.Attribute, payloadType uint8) string {
+	for _, attr := range attributes {
+		if attr.Key == "rtpmap" {
+			v := strings.TrimSpace(attr.Value)
+			if parts := strings.SplitN(v, " ", 2); len(parts) == 2 {
+				if tmp, err := strconv.ParseInt(parts[0], 10, 8); err == nil && uint8(tmp) == payloadType {
+					return parts[1]
+				}
 			}
 		}
 	}
+	return ""
+}
 
-	return newTrackGenericFromMediaDescription(control, md)
+func getCodecAndClock(attributes []psdp.Attribute, payloadType uint8) (string, string) {
+	rtpmap := getRtpmapAttribute(attributes, payloadType)
+	if rtpmap == "" {
+		return "", ""
+	}
+
+	parts2 := strings.SplitN(rtpmap, "/", 2)
+	if len(parts2) != 2 {
+		return "", ""
+	}
+
+	return parts2[0], parts2[1]
+}
+
+func newTrackFromMediaDescription(md *psdp.MediaDescription) (Track, error) {
+	if len(md.MediaName.Formats) == 0 {
+		return nil, ErrTrackNoFormats
+	}
+
+	control := getControlAttribute(md.Attributes)
+
+	if len(md.MediaName.Formats) == 1 {
+		tmp, err := strconv.ParseInt(md.MediaName.Formats[0], 10, 8)
+		if err != nil {
+			return nil, err
+		}
+		payloadType := uint8(tmp)
+
+		codec, clock := getCodecAndClock(md.Attributes, payloadType)
+		codec = strings.ToLower(codec)
+
+		if md.MediaName.Media == "video" && codec == "h264" && clock == "90000" {
+			return newTrackH264FromMediaDescription(control, payloadType, md)
+		} else if md.MediaName.Media == "audio" && strings.ToLower(codec) == "mpeg4-generic" {
+			return newTrackMPEG4AudioFromMediaDescription(control, payloadType, md)
+		}
+	}
+
+	return nil, nil
 }
 
 type trackBase struct {

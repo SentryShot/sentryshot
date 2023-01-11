@@ -543,7 +543,7 @@ func TestInputStreamInfo(t *testing.T) {
 	t.Run("getMuxerErr", func(t *testing.T) {
 		mockError := errors.New("mock")
 		muxer := newMockMuxerFunc(&mockMuxer{
-			streamInfoErr: mockError,
+			getMuxerErr: mockError,
 		})
 		i := &InputProcess{
 			serverPath: video.ServerPath{
@@ -554,30 +554,18 @@ func TestInputStreamInfo(t *testing.T) {
 		require.ErrorIs(t, err, mockError)
 		require.Nil(t, actual)
 	})
-	t.Run("canceled", func(t *testing.T) {
-		muxer := newMockMuxerFunc(&mockMuxer{})
-		i := &InputProcess{
-			serverPath: video.ServerPath{
-				HLSMuxer: muxer,
-			},
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-
-		actual, err := i.StreamInfo(ctx)
-		require.ErrorIs(t, err, context.Canceled)
-		require.Nil(t, actual)
-	})
 }
 
 func TestSendEvent(t *testing.T) {
 	t.Run("canceled", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		m := &Monitor{ctx: ctx}
+		m := &Monitor{ctx: ctx, recorder: &Recorder{}}
 
-		err := m.SendEvent(storage.Event{})
+		err := m.SendEvent(storage.Event{
+			Time:        time.Unix(1, 0),
+			RecDuration: 1,
+		})
 		require.ErrorIs(t, err, context.Canceled)
 	})
 	t.Run("missingTimeErr", func(t *testing.T) {

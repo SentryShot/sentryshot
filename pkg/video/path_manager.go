@@ -13,7 +13,7 @@ import (
 type pathManagerHLSServer interface {
 	pathSourceReady(*path, gortsplib.Tracks) (*HLSMuxer, error)
 	pathSourceNotReady(pathName string)
-	MuxerByPathName(pathName string) (*hls.Muxer, error)
+	MuxerByPathName(ctx context.Context, pathName string) (*hls.Muxer, error)
 }
 
 type pathManager struct {
@@ -80,8 +80,8 @@ func (pm *pathManager) AddPath(
 		pm.log,
 	)
 
-	hlsMuxer := func() (IHLSMuxer, error) {
-		return pm.hlsServer.MuxerByPathName(name)
+	hlsMuxer := func(ctx context.Context) (IHLSMuxer, error) {
+		return pm.hlsServer.MuxerByPathName(ctx, name)
 	}
 
 	go func() {

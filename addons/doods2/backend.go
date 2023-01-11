@@ -90,9 +90,7 @@ func start(
 		return fmt.Errorf("get detector: %w", err)
 	}
 
-	infoCtx, infoCancel := context.WithTimeout(ctx, 30*time.Second)
-	defer infoCancel()
-	streamInfo, err := input.StreamInfo(infoCtx)
+	streamInfo, err := input.StreamInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("stream info: %w", err)
 	}

@@ -9,7 +9,6 @@ import (
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 	"nvr/pkg/video/gortsplib/pkg/ringbuffer"
-	"nvr/pkg/video/gortsplib/pkg/rtpmpeg4audio"
 	"nvr/pkg/video/hls"
 	"sync"
 	"time"
@@ -72,13 +71,15 @@ func (m *HLSMuxer) start(tracks gortsplib.Tracks) error {
 }
 
 func (m *HLSMuxer) run(tracks gortsplib.Tracks) error {
-	videoTrack, videoTrackID, audioTrack,
-		audioTrackID, aacDecoder, err := parseTracks(tracks)
+	videoTrack, videoTrackID, audioTrack, audioTrackID, err := parseTracks(tracks)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse tracks: %w", err)
 	}
 
-	m.muxer = m.createMuxer(videoTrack, audioTrack)
+	m.muxer, err = m.createMuxer(videoTrack, audioTrack)
+	if err != nil {
+		return fmt.Errorf("create muxer: %w", err)
+	}
 
 	m.ringBuffer, err = ringbuffer.New(uint64(m.readBufferCount))
 	if err != nil {
@@ -87,12 +88,11 @@ func (m *HLSMuxer) run(tracks gortsplib.Tracks) error {
 
 	innerErr := make(chan error)
 	go func() {
-		innerErr <- m.runInner(
+		innerErr <- m.runWriter(
 			videoTrack,
 			videoTrackID,
 			audioTrack,
 			audioTrackID,
-			aacDecoder,
 		)
 	}()
 
@@ -135,20 +135,20 @@ func (m *HLSMuxer) run(tracks gortsplib.Tracks) error {
 
 func parseTracks(tracks gortsplib.Tracks) (
 	*gortsplib.TrackH264, int,
-	*gortsplib.TrackMPEG4Audio, int,
-	*rtpmpeg4audio.Decoder, error,
+	*gortsplib.TrackMPEG4Audio,
+	int,
+	error,
 ) {
 	var videoTrack *gortsplib.TrackH264
 	videoTrackID := -1
 	var audioTrack *gortsplib.TrackMPEG4Audio
 	audioTrackID := -1
-	var aacDecoder *rtpmpeg4audio.Decoder
 
 	for i, track := range tracks {
 		switch tt := track.(type) {
 		case *gortsplib.TrackH264:
 			if videoTrack != nil {
-				return nil, 0, nil, 0, nil,
+				return nil, 0, nil, 0,
 					fmt.Errorf("can't encode track %d with HLS: %w", i+1, ErrTooManyTracks)
 			}
 
@@ -157,65 +157,55 @@ func parseTracks(tracks gortsplib.Tracks) (
 
 		case *gortsplib.TrackMPEG4Audio:
 			if audioTrack != nil {
-				return nil, 0, nil, 0, nil,
+				return nil, 0, nil, 0,
 					fmt.Errorf("can't encode track %d with HLS: %w", i+1, ErrTooManyTracks)
 			}
 
 			audioTrack = tt
 			audioTrackID = i
-			aacDecoder = &rtpmpeg4audio.Decoder{
-				SampleRate:       tt.Config.SampleRate,
-				SizeLength:       tt.SizeLength,
-				IndexLength:      tt.IndexLength,
-				IndexDeltaLength: tt.IndexDeltaLength,
-			}
-			aacDecoder.Init()
 		}
 	}
 
 	if videoTrack == nil && audioTrack == nil {
-		return nil, 0, nil, 0, nil, ErrNoTracks
+		return nil, 0, nil, 0, ErrNoTracks
 	}
 
-	return videoTrack, videoTrackID, audioTrack, audioTrackID, aacDecoder, nil
+	return videoTrack, videoTrackID, audioTrack, audioTrackID, nil
 }
 
 func (m *HLSMuxer) createMuxer(
 	videoTrack *gortsplib.TrackH264,
 	audioTrack *gortsplib.TrackMPEG4Audio,
-) *hls.Muxer {
+) (*hls.Muxer, error) {
 	muxerLogFunc := func(level log.Level, format string, a ...interface{}) {
 		m.path.logf(level, "HLS: "+format, a...)
 	}
 	videoTrackExist := videoTrack != nil
 	audioTrackExist := audioTrack != nil
 
-	streamInfo := func() (*hls.StreamInfo, error) {
-		info := hls.StreamInfo{
-			VideoTrackExist: videoTrackExist,
-			AudioTrackExist: audioTrackExist,
+	info := hls.StreamInfo{
+		VideoTrackExist: videoTrackExist,
+		AudioTrackExist: audioTrackExist,
+	}
+	if info.VideoTrackExist {
+		info.VideoSPS = videoTrack.SafeSPS()
+		info.VideoPPS = videoTrack.SafePPS()
+		err := info.VideoSPSP.Unmarshal(info.VideoSPS)
+		if err != nil {
+			return nil, err
 		}
-		if info.VideoTrackExist {
-			info.VideoSPS = videoTrack.SafeSPS()
-			info.VideoPPS = videoTrack.SafePPS()
-			err := info.VideoSPSP.Unmarshal(info.VideoSPS)
-			if err != nil {
-				return nil, err
-			}
-			info.VideoHeight = info.VideoSPSP.Height()
-			info.VideoWidth = info.VideoSPSP.Width()
+		info.VideoHeight = info.VideoSPSP.Height()
+		info.VideoWidth = info.VideoSPSP.Width()
+	}
+	if info.AudioTrackExist {
+		var err error
+		info.AudioTrackConfig, err = audioTrack.Config.Marshal()
+		if err != nil {
+			return nil, err
 		}
-		if info.AudioTrackExist {
-			var err error
-			info.AudioTrackConfig, err = audioTrack.Config.Marshal()
-			if err != nil {
-				return nil, err
-			}
-			info.AudioChannelCount = audioTrack.Config.ChannelCount
-			info.AudioClockRate = audioTrack.ClockRate()
-			info.AudioType = audioTrack.Config.Type
-		}
-		return &info, nil
+		info.AudioChannelCount = audioTrack.Config.ChannelCount
+		info.AudioClockRate = audioTrack.ClockRate()
+		info.AudioType = audioTrack.Config.Type
 	}
 
 	return hls.NewMuxer(
@@ -229,8 +219,8 @@ func (m *HLSMuxer) createMuxer(
 		videoTrack.SafeSPS,
 		audioTrackExist,
 		audioTrack.ClockRate,
-		streamInfo,
-	)
+		info,
+	), nil
 }
 
 // Errors.
@@ -239,56 +229,62 @@ var (
 	ErrNoTracks      = errors.New("the stream doesn't contain an H264 track or an AAC track")
 )
 
-func (m *HLSMuxer) runInner( //nolint:gocognit
+func (m *HLSMuxer) runWriter(
 	videoTrack *gortsplib.TrackH264,
 	videoTrackID int,
 	audioTrack *gortsplib.TrackMPEG4Audio,
 	audioTrackID int,
-	aacDecoder *rtpmpeg4audio.Decoder,
 ) error {
-	var videoInitialPTS *time.Duration
+	videoStartPTSFilled := false
+	var videoStartPTS time.Duration
+	audioStartPTSFilled := false
+	var audioStartPTS time.Duration
+
 	for {
 		item, ok := m.ringBuffer.Pull()
 		if !ok {
 			return context.Canceled
 		}
-		data := item.(*data) //nolint:forcetypeassert
+		data := item.(data) //nolint:forcetypeassert
 
-		if videoTrack != nil && data.trackID == videoTrackID {
-			if data.h264NALUs == nil {
+		if videoTrack != nil && data.getTrackID() == videoTrackID {
+			tdata := data.(*dataH264) //nolint:forcetypeassert
+
+			if tdata.nalus == nil {
 				continue
 			}
 
-			// video is decoded in another routine,
-			// while audio is decoded in this routine:
-			// we have to sync their PTS.
-			if videoInitialPTS == nil {
-				v := data.pts
-				videoInitialPTS = &v
+			if !videoStartPTSFilled {
+				videoStartPTSFilled = true
+				videoStartPTS = tdata.pts
 			}
-			pts := data.pts - *videoInitialPTS
+			pts := tdata.pts - videoStartPTS
 
-			err := m.muxer.WriteH264(time.Now(), pts, data.h264NALUs)
+			err := m.muxer.WriteH264(tdata.ntp, pts, tdata.nalus)
 			if err != nil {
-				return fmt.Errorf("unable to write segment: %w", err)
+				return fmt.Errorf("muxer error: %w", err)
 			}
-		} else if audioTrack != nil && data.trackID == audioTrackID {
-			aus, pts, err := aacDecoder.Decode(data.rtpPacket)
-			if err != nil {
-				if !errors.Is(err, rtpmpeg4audio.ErrMorePacketsNeeded) {
-					return fmt.Errorf("unable to decode audio track: %w", err)
-				}
+		} else if audioTrack != nil && data.getTrackID() == audioTrackID {
+			tdata := data.(*dataMPEG4Audio) //nolint:forcetypeassert
+
+			if tdata.aus == nil {
 				continue
 			}
 
-			for i, au := range aus {
-				err = m.muxer.WriteAAC(
-					time.Now(),
+			if !audioStartPTSFilled {
+				audioStartPTSFilled = true
+				audioStartPTS = tdata.pts
+			}
+			pts := tdata.pts - audioStartPTS
+
+			for i, au := range tdata.aus {
+				err := m.muxer.WriteAAC(
+					tdata.ntp,
 					pts+time.Duration(i)*mpeg4audio.SamplesPerAccessUnit*
 						time.Second/time.Duration(audioTrack.ClockRate()),
 					au)
 				if err != nil {
-					return fmt.Errorf("write aac: %w", err)
+					return fmt.Errorf("muxer error: %w", err)
 				}
 			}
 		}
@@ -337,7 +333,7 @@ func (m *HLSMuxer) onRequest(req *hlsMuxerRequest) {
 	}
 }
 
-// readerData implements reader.
-func (m *HLSMuxer) readerData(data *data) {
+// readerData is called by stream.
+func (m *HLSMuxer) readerData(data data) {
 	m.ringBuffer.Push(data)
 }

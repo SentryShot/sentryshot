@@ -8,6 +8,9 @@ import (
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"sync"
+	"time"
+
+	"github.com/pion/rtp"
 )
 
 type rtspSessionPathManager interface {
@@ -23,10 +26,10 @@ type rtspSession struct {
 
 	path            *path
 	pathLogf        log.Func
+	stream          *stream
 	state           gortsplib.ServerSessionState
 	stateMutex      sync.Mutex
-	announcedTracks gortsplib.Tracks // publish
-	stream          *stream          // publish
+	announcedTracks gortsplib.Tracks
 }
 
 func newRTSPSession(
@@ -200,20 +203,30 @@ func (s *rtspSession) onRecord() (*base.Response, error) {
 }
 
 // onPacketRTP is called by rtspServer.
-func (s *rtspSession) onPacketRTP(ctx *gortsplib.PacketRTPCtx) {
-	if ctx.H264NALUs != nil {
-		s.stream.writeData(&data{
-			trackID:      ctx.TrackID,
-			rtpPacket:    ctx.Packet,
-			ptsEqualsDTS: ctx.PTSEqualsDTS,
-			h264NALUs:    ctx.H264NALUs,
-			pts:          ctx.H264PTS,
+func (s *rtspSession) onPacketRTP(trackID int, packet *rtp.Packet) {
+	var err error
+
+	switch s.announcedTracks[trackID].(type) {
+	case *gortsplib.TrackH264:
+		err = s.stream.writeData(&dataH264{
+			trackID:    trackID,
+			rtpPackets: []*rtp.Packet{packet},
+			ntp:        time.Now(),
 		})
-	} else {
-		s.stream.writeData(&data{
-			trackID:      ctx.TrackID,
-			rtpPacket:    ctx.Packet,
-			ptsEqualsDTS: ctx.PTSEqualsDTS,
+
+	case *gortsplib.TrackMPEG4Audio:
+		err = s.stream.writeData(&dataMPEG4Audio{
+			trackID:    trackID,
+			rtpPackets: []*rtp.Packet{packet},
+			ntp:        time.Now(),
 		})
 	}
+
+	if err != nil {
+		s.logf(log.LevelWarning, "write data: %v", err)
+	}
+}
+
+func (s *rtspSession) onDecodeError(err error) {
+	s.logf(log.LevelWarning, "decode: %v", err)
 }

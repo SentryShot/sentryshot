@@ -8,9 +8,7 @@ import (
 	"nvr/pkg/video/gortsplib/pkg/base"
 	"nvr/pkg/video/gortsplib/pkg/conn"
 	"nvr/pkg/video/gortsplib/pkg/headers"
-	"nvr/pkg/video/gortsplib/pkg/url"
 
-	"github.com/pion/rtp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -283,7 +281,7 @@ func TestServerReadTCPResponseBeforeFrames(t *testing.T) {
 				go func() {
 					defer close(writerDone)
 
-					stream.WritePacketRTP(0, &testRTPPacket, true)
+					stream.WritePacketRTP(0, &testRTPPacket)
 
 					t := time.NewTicker(50 * time.Millisecond)
 					defer t.Stop()
@@ -291,7 +289,7 @@ func TestServerReadTCPResponseBeforeFrames(t *testing.T) {
 					for {
 						select {
 						case <-t.C:
-							stream.WritePacketRTP(0, &testRTPPacket, true)
+							stream.WritePacketRTP(0, &testRTPPacket)
 						case <-writerTerminate:
 							return
 						}
@@ -436,197 +434,4 @@ func TestServerReadWithoutTeardown(t *testing.T) {
 
 	<-sessionClosed
 	<-connClosed
-}
-
-func TestServerReadAdditionalInfos(t *testing.T) {
-	getInfos := func() (*headers.RTPinfo, []*uint32) {
-		nconn, err := net.Dial("tcp", "localhost:8554")
-		require.NoError(t, err)
-		defer nconn.Close()
-		conn := conn.NewConn(nconn)
-
-		ssrcs := make([]*uint32, 2)
-
-		inTH := &headers.Transport{
-			Mode: func() *headers.TransportMode {
-				v := headers.TransportModePlay
-				return &v
-			}(),
-			InterleavedIDs: &[2]int{0, 1},
-		}
-
-		res, err := writeReqReadRes(conn, base.Request{
-			Method: base.Setup,
-			URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=0"),
-			Header: base.Header{
-				"CSeq":      base.HeaderValue{"1"},
-				"Transport": inTH.Marshal(),
-			},
-		})
-		require.NoError(t, err)
-		require.Equal(t, base.StatusOK, res.StatusCode)
-
-		var th headers.Transport
-		err = th.Unmarshal(res.Header["Transport"])
-		require.NoError(t, err)
-		ssrcs[0] = th.SSRC
-
-		inTH = &headers.Transport{
-			Mode: func() *headers.TransportMode {
-				v := headers.TransportModePlay
-				return &v
-			}(),
-			InterleavedIDs: &[2]int{2, 3},
-		}
-
-		var sx headers.Session
-		err = sx.Unmarshal(res.Header["Session"])
-		require.NoError(t, err)
-
-		res, err = writeReqReadRes(conn, base.Request{
-			Method: base.Setup,
-			URL:    mustParseURL("rtsp://localhost:8554/teststream/trackID=1"),
-			Header: base.Header{
-				"CSeq":      base.HeaderValue{"2"},
-				"Transport": inTH.Marshal(),
-				"Session":   base.HeaderValue{sx.Session},
-			},
-		})
-		require.NoError(t, err)
-		require.Equal(t, base.StatusOK, res.StatusCode)
-
-		th = headers.Transport{}
-		err = th.Unmarshal(res.Header["Transport"])
-		require.NoError(t, err)
-		ssrcs[1] = th.SSRC
-
-		res, err = writeReqReadRes(conn, base.Request{
-			Method: base.Play,
-			URL:    mustParseURL("rtsp://localhost:8554/teststream"),
-			Header: base.Header{
-				"CSeq":    base.HeaderValue{"3"},
-				"Session": base.HeaderValue{sx.Session},
-			},
-		})
-		require.NoError(t, err)
-		require.Equal(t, base.StatusOK, res.StatusCode)
-
-		var ri headers.RTPinfo
-		err = ri.Unmarshal(res.Header["RTP-Info"])
-		require.NoError(t, err)
-
-		return &ri, ssrcs
-	}
-
-	track := &TrackH264{
-		PayloadType: 96,
-		SPS:         []byte{0x01, 0x02, 0x03, 0x04},
-		PPS:         []byte{0x01, 0x02, 0x03, 0x04},
-	}
-
-	stream := NewServerStream(Tracks{track, track})
-	defer stream.Close()
-
-	s := &Server{
-		handler: &testServerHandler{
-			onSetup: func(*ServerSession, string, int) (*base.Response, *ServerStream, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, stream, nil
-			},
-			onPlay: func(*ServerSession) (*base.Response, error) {
-				return &base.Response{
-					StatusCode: base.StatusOK,
-				}, nil
-			},
-		},
-		rtspAddress: "localhost:8554",
-	}
-
-	err := s.Start()
-	require.NoError(t, err)
-	defer s.Close()
-
-	stream.WritePacketRTP(0, &rtp.Packet{
-		Header: rtp.Header{
-			Version:        0x80,
-			PayloadType:    96,
-			SequenceNumber: 556,
-			Timestamp:      984512368,
-			SSRC:           96342362,
-		},
-		Payload: []byte{0x01, 0x02, 0x03, 0x04},
-	}, true)
-
-	rtpInfo, ssrcs := getInfos()
-	require.Equal(t, &headers.RTPinfo{
-		&headers.RTPInfoEntry{
-			URL: (&url.URL{
-				Scheme: "rtsp",
-				Host:   "localhost:8554",
-				Path:   "/teststream/trackID=0",
-			}).String(),
-			SequenceNumber: func() *uint16 {
-				v := uint16(557)
-				return &v
-			}(),
-			Timestamp: (*rtpInfo)[0].Timestamp,
-		},
-	}, rtpInfo)
-	require.Equal(t, []*uint32{
-		func() *uint32 {
-			v := uint32(96342362)
-			return &v
-		}(),
-		nil,
-	}, ssrcs)
-
-	stream.WritePacketRTP(1, &rtp.Packet{
-		Header: rtp.Header{
-			Version:        0x80,
-			PayloadType:    96,
-			SequenceNumber: 87,
-			Timestamp:      756436454,
-			SSRC:           536474323,
-		},
-		Payload: []byte{0x01, 0x02, 0x03, 0x04},
-	}, true)
-
-	rtpInfo, ssrcs = getInfos()
-	require.Equal(t, &headers.RTPinfo{
-		&headers.RTPInfoEntry{
-			URL: (&url.URL{
-				Scheme: "rtsp",
-				Host:   "localhost:8554",
-				Path:   "/teststream/trackID=0",
-			}).String(),
-			SequenceNumber: func() *uint16 {
-				v := uint16(557)
-				return &v
-			}(),
-			Timestamp: (*rtpInfo)[0].Timestamp,
-		},
-		&headers.RTPInfoEntry{
-			URL: (&url.URL{
-				Scheme: "rtsp",
-				Host:   "localhost:8554",
-				Path:   "/teststream/trackID=1",
-			}).String(),
-			SequenceNumber: func() *uint16 {
-				v := uint16(88)
-				return &v
-			}(),
-			Timestamp: (*rtpInfo)[1].Timestamp,
-		},
-	}, rtpInfo)
-	require.Equal(t, []*uint32{
-		func() *uint32 {
-			v := uint32(96342362)
-			return &v
-		}(),
-		func() *uint32 {
-			v := uint32(536474323)
-			return &v
-		}(),
-	}, ssrcs)
 }

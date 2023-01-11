@@ -125,7 +125,7 @@ func (m *segmenter) adjustPartDuration(du time.Duration) {
 	}
 }
 
-func (m *segmenter) writeH264(now time.Time, pts time.Duration, nalus [][]byte) error {
+func (m *segmenter) writeH264(ntp time.Time, pts time.Duration, nalus [][]byte) error {
 	idrPresent := false
 	nonIDRPresent := false
 
@@ -177,7 +177,7 @@ func (m *segmenter) writeH264(now time.Time, pts time.Duration, nalus [][]byte) 
 		dts -= m.startDTS
 	}
 
-	return m.writeH264Entry(now, &VideoSample{
+	return m.writeH264Entry(ntp, &VideoSample{
 		PTS:        m.muxerStartTime + int64(pts),
 		DTS:        m.muxerStartTime + int64(dts),
 		AVCC:       avcc,
@@ -185,7 +185,7 @@ func (m *segmenter) writeH264(now time.Time, pts time.Duration, nalus [][]byte) 
 	})
 }
 
-func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { //nolint:funlen
+func (m *segmenter) writeH264Entry(ntp time.Time, sample *VideoSample) error { //nolint:funlen
 	sample, m.nextVideoSample = m.nextVideoSample, sample
 	if sample == nil {
 		return nil
@@ -198,7 +198,7 @@ func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { /
 		// create first segment
 		m.currentSegment = newSegment(
 			m.genSegmentID(),
-			now,
+			ntp,
 			time.Duration(sample.DTS-m.muxerStartTime),
 			m.muxerStartTime,
 			m.segmentMaxSize,
@@ -236,7 +236,7 @@ func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { /
 
 		m.currentSegment = newSegment(
 			m.genSegmentID(),
-			now,
+			ntp,
 			time.Duration(next.PTS-m.muxerStartTime),
 			m.muxerStartTime,
 			m.segmentMaxSize,
@@ -258,14 +258,14 @@ func (m *segmenter) writeH264Entry(now time.Time, sample *VideoSample) error { /
 	return nil
 }
 
-func (m *segmenter) writeAAC(now time.Time, pts time.Duration, au []byte) error {
-	return m.writeAACEntry(now, &AudioSample{
+func (m *segmenter) writeAAC(ntp time.Time, pts time.Duration, au []byte) error {
+	return m.writeAACEntry(ntp, &AudioSample{
 		PTS: int64(pts),
 		AU:  au,
 	})
 }
 
-func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //nolint:funlen
+func (m *segmenter) writeAACEntry(ntp time.Time, sample *AudioSample) error { //nolint:funlen
 	if m.videoTrackExist {
 		// wait for the video track
 		if !m.videoFirstIDRReceived {
@@ -291,7 +291,7 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 			// create first segment
 			m.currentSegment = newSegment(
 				m.genSegmentID(),
-				now,
+				ntp,
 				time.Duration(sample.PTS),
 				m.muxerStartTime,
 				m.segmentMaxSize,
@@ -309,7 +309,7 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 		}
 	}
 
-	err := m.currentSegment.writeAAC(sample, m.partDuration)
+	err := m.currentSegment.writeAAC(sample)
 	if err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func (m *segmenter) writeAACEntry(now time.Time, sample *AudioSample) error { //
 
 		m.currentSegment = newSegment(
 			m.genSegmentID(),
-			now,
+			ntp,
 			time.Duration(sample.NextPTS),
 			m.muxerStartTime,
 			m.segmentMaxSize,

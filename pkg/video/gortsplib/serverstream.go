@@ -14,9 +14,9 @@ type trackTypePayload struct {
 }
 
 type serverStreamTrack struct {
-	firstPacketSent    bool
 	lastSequenceNumber uint16
 	lastSSRC           uint32
+	lastTimeFilled     bool
 	lastTimeRTP        uint32
 	lastTimeNTP        time.Time
 }
@@ -32,7 +32,8 @@ type ServerStream struct {
 	s              *Server
 	readersUnicast map[*ServerSession]struct{}
 	readers        map[*ServerSession]struct{}
-	stTracks       []*serverStreamTrack
+	streamTracks   []*serverStreamTrack
+	closed         bool
 }
 
 // NewServerStream allocates a ServerStream.
@@ -46,9 +47,9 @@ func NewServerStream(tracks Tracks) *ServerStream {
 		readers:        make(map[*ServerSession]struct{}),
 	}
 
-	st.stTracks = make([]*serverStreamTrack, len(tracks))
-	for i := range st.stTracks {
-		st.stTracks[i] = &serverStreamTrack{}
+	st.streamTracks = make([]*serverStreamTrack, len(tracks))
+	for i := range st.streamTracks {
+		st.streamTracks[i] = &serverStreamTrack{}
 	}
 
 	return st
@@ -57,14 +58,12 @@ func NewServerStream(tracks Tracks) *ServerStream {
 // Close closes a ServerStream.
 func (st *ServerStream) Close() error {
 	st.mutex.Lock()
-	defer st.mutex.Unlock()
+	st.closed = true
+	st.mutex.Unlock()
 
 	for ss := range st.readers {
 		ss.Close()
 	}
-
-	st.readers = nil
-	st.readersUnicast = nil
 
 	return nil
 }
@@ -77,16 +76,21 @@ func (st *ServerStream) Tracks() Tracks {
 func (st *ServerStream) ssrc(trackID int) uint32 {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
-	return st.stTracks[trackID].lastSSRC
+	return st.streamTracks[trackID].lastSSRC
 }
 
 func (st *ServerStream) rtpInfo(trackID int, now time.Time) (uint16, uint32, bool) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	track := st.stTracks[trackID]
+	track := st.streamTracks[trackID]
 
-	if !track.firstPacketSent {
+	if !track.lastTimeFilled {
+		return 0, 0, false
+	}
+
+	clockRate := st.tracks[trackID].ClockRate()
+	if clockRate == 0 {
 		return 0, 0, false
 	}
 
@@ -96,10 +100,9 @@ func (st *ServerStream) rtpInfo(trackID int, now time.Time) (uint16, uint32, boo
 	// RTP timestamp corresponding to the time value in
 	// the Range response header.
 	// remove a small quantity in order to avoid DTS > PTS
-	cr := st.tracks[trackID].ClockRate()
 	ts := uint32(uint64(track.lastTimeRTP) +
-		uint64(now.Sub(track.lastTimeNTP).Seconds()*float64(cr)) -
-		uint64(cr)/10)
+		uint64(now.Sub(track.lastTimeNTP).Seconds()*float64(clockRate)) -
+		uint64(clockRate)/10)
 
 	return seq, ts, true
 }
@@ -111,7 +114,7 @@ func (st *ServerStream) readerAdd(ss *ServerSession) error {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	if st.readers == nil {
+	if st.closed {
 		return ErrClosedStream
 	}
 
@@ -128,23 +131,44 @@ func (st *ServerStream) readerRemove(ss *ServerSession) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
+	if st.closed {
+		return
+	}
+
 	delete(st.readers, ss)
 }
 
 func (st *ServerStream) readerSetActive(ss *ServerSession) {
 	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
+	if st.closed {
+		return
+	}
+
 	st.readersUnicast[ss] = struct{}{}
-	st.mutex.Unlock()
 }
 
 func (st *ServerStream) readerSetInactive(ss *ServerSession) {
 	st.mutex.Lock()
+	defer st.mutex.Unlock()
+
+	if st.closed {
+		return
+	}
+
 	delete(st.readersUnicast, ss)
-	st.mutex.Unlock()
 }
 
 // WritePacketRTP writes a RTP packet to all the readers of the stream.
-func (st *ServerStream) WritePacketRTP(trackID int, pkt *rtp.Packet, ptsEqualsDTS bool) {
+func (st *ServerStream) WritePacketRTP(trackID int, pkt *rtp.Packet) {
+	st.WritePacketRTPWithNTP(trackID, pkt, time.Now())
+}
+
+// WritePacketRTPWithNTP writes a RTP packet to all the readers of the stream.
+// ntp is the absolute time of the packet, and is needed to generate RTCP sender reports
+// that allows the receiver to reconstruct the absolute time of the packet.
+func (st *ServerStream) WritePacketRTPWithNTP(trackID int, pkt *rtp.Packet, ntp time.Time) {
 	byts := make([]byte, maxPacketSize)
 	n, err := pkt.MarshalTo(byts)
 	if err != nil {
@@ -155,13 +179,17 @@ func (st *ServerStream) WritePacketRTP(trackID int, pkt *rtp.Packet, ptsEqualsDT
 	st.mutex.RLock()
 	defer st.mutex.RUnlock()
 
-	track := st.stTracks[trackID]
-	now := time.Now()
+	if st.closed {
+		return
+	}
 
-	if !track.firstPacketSent || ptsEqualsDTS {
-		track.firstPacketSent = true
+	track := st.streamTracks[trackID]
+	ptsEqualsDTS := ptsEqualsDTS(st.tracks[trackID], pkt)
+
+	if ptsEqualsDTS {
+		track.lastTimeFilled = true
 		track.lastTimeRTP = pkt.Header.Timestamp
-		track.lastTimeNTP = now
+		track.lastTimeNTP = ntp
 	}
 
 	track.lastSequenceNumber = pkt.Header.SequenceNumber
