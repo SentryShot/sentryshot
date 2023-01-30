@@ -502,6 +502,32 @@ func TestNewConfigEnv(t *testing.T) {
 		_, err = NewConfigEnv(envPath, envYAML)
 		require.ErrorIs(t, err, ErrPathNotAbsolute)
 	})
+	t.Run("CensorLog", func(t *testing.T) {
+		cases := map[string]struct {
+			env      ConfigEnv
+			input    string
+			expected string
+		}{
+			"emptyConfig": {
+				ConfigEnv{},
+				"a b c",
+				"a b c",
+			},
+			"storageDir": {
+				ConfigEnv{
+					StorageDir: "a",
+				},
+				"a b c",
+				"$StorageDir b c",
+			},
+		}
+		for name, tc := range cases {
+			t.Run(name, func(t *testing.T) {
+				actual := tc.env.CensorLog(tc.input)
+				require.Equal(t, tc.expected, actual)
+			})
+		}
+	})
 }
 
 func TestPrepareEnvironment(t *testing.T) {

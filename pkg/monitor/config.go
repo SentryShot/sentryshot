@@ -2,6 +2,8 @@
 
 package monitor
 
+import "strings"
+
 // RawConfigs map of RawConfig.
 type RawConfigs map[string]RawConfig
 
@@ -102,4 +104,15 @@ func (c Config) LogLevel() string {
 // Hwaccel returns the ffmpeg hwaccel.
 func (c Config) Hwaccel() string {
 	return c.v["hwaccel"]
+}
+
+// CensorLog replaces sensitive monitor config values.
+func (c Config) CensorLog(msg string) string {
+	if c.MainInput() != "" {
+		msg = strings.ReplaceAll(msg, c.MainInput(), "$MainInput")
+	}
+	if c.SubInput() != "" {
+		msg = strings.ReplaceAll(msg, c.SubInput(), "$SubInput")
+	}
+	return msg
 }

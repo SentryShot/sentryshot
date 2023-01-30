@@ -47,11 +47,12 @@ type Recorder struct {
 func newRecorder(m *Monitor) *Recorder {
 	monitorID := m.Config.ID()
 	logf := func(level log.Level, format string, a ...interface{}) {
+		msg := fmt.Sprintf(format, a...)
 		m.Logger.Log(log.Entry{
 			Level:     level,
 			Src:       "recorder",
 			MonitorID: monitorID,
-			Msg:       fmt.Sprintf(format, a...),
+			Msg:       m.Env.CensorLog(msg),
 		})
 	}
 	return &Recorder{

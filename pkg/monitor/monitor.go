@@ -314,11 +314,12 @@ type (
 func (m *Manager) newMonitor(config Config) *Monitor {
 	monitorID := config.ID()
 	logf := func(level log.Level, format string, a ...interface{}) {
+		msg := fmt.Sprintf(format, a...)
 		m.logger.Log(log.Entry{
 			Level:     level,
 			Src:       "monitor",
 			MonitorID: monitorID,
-			Msg:       fmt.Sprintf(format, a...),
+			Msg:       m.env.CensorLog(config.CensorLog(msg)),
 		})
 	}
 

@@ -68,11 +68,12 @@ func handleTimeline(recordingsDir string) http.Handler {
 func onRecSaved(r *monitor.Recorder, recPath string, recData storage.RecordingData) {
 	id := r.Config.ID()
 	logf := func(level log.Level, format string, a ...interface{}) {
+		msg := fmt.Sprintf(format, a...)
 		r.Logger.Log(log.Entry{
 			Level:     level,
 			Src:       "timeline",
 			MonitorID: id,
-			Msg:       fmt.Sprintf(format, a...),
+			Msg:       r.Env.CensorLog(msg),
 		})
 	}
 

@@ -377,6 +377,14 @@ func (env ConfigEnv) PrepareEnvironment() error {
 	return nil
 }
 
+// CensorLog replaces sensitive env config values.
+func (env ConfigEnv) CensorLog(msg string) string {
+	if env.StorageDir != "" {
+		msg = strings.ReplaceAll(msg, env.StorageDir, "$StorageDir")
+	}
+	return msg
+}
+
 // ConfigGeneral stores config and path.
 type ConfigGeneral struct {
 	Config map[string]string
