@@ -7,8 +7,7 @@ import (
 	"io"
 	"net/http"
 	"nvr/pkg/log"
-	"nvr/pkg/video/gortsplib/pkg/h264"
-	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
+	"nvr/pkg/video/gortsplib"
 	"sync"
 	"time"
 )
@@ -24,16 +23,15 @@ type MuxerFileResponse struct {
 type Muxer struct {
 	playlist   *playlist
 	segmenter  *segmenter
-	logf       logFunc
-	streamInfo StreamInfo
+	logf       log.Func
+	videoTrack *gortsplib.TrackH264
+	audioTrack *gortsplib.TrackMPEG4Audio
 
 	mutex        sync.Mutex
 	videoLastSPS []byte
 	videoLastPPS []byte
 	initContent  []byte
 }
-
-type logFunc func(log.Level, string, ...interface{})
 
 // ErrTrackInvalid invalid H264 track: SPS or PPS not provided into the SDP.
 var ErrTrackInvalid = errors.New("invalid H264 track: SPS or PPS not provided into the SDP")
@@ -45,12 +43,9 @@ func NewMuxer(
 	segmentDuration time.Duration,
 	partDuration time.Duration,
 	segmentMaxSize uint64,
-	logf logFunc,
-	videoTrackExist bool,
-	videoSps videoSPSFunc,
-	audioTrackExist bool,
-	audioClockRate audioClockRateFunc,
-	streamInfo StreamInfo,
+	logf log.Func,
+	videoTrack *gortsplib.TrackH264,
+	audioTrack *gortsplib.TrackMPEG4Audio,
 ) *Muxer {
 	playlist := newPlaylist(ctx, segmentCount)
 	go playlist.start()
@@ -58,7 +53,7 @@ func NewMuxer(
 	m := &Muxer{
 		playlist:   playlist,
 		logf:       logf,
-		streamInfo: streamInfo,
+		videoTrack: videoTrack,
 	}
 
 	m.segmenter = newSegmenter(
@@ -66,10 +61,8 @@ func NewMuxer(
 		segmentDuration,
 		partDuration,
 		segmentMaxSize,
-		videoTrackExist,
-		videoSps,
-		audioTrackExist,
-		audioClockRate,
+		videoTrack,
+		audioTrack,
 		m.playlist.onSegmentFinalized,
 		m.playlist.partFinalized,
 	)
@@ -85,26 +78,8 @@ func (m *Muxer) WriteH264(ntp time.Time, pts time.Duration, nalus [][]byte) erro
 }
 
 // WriteAAC writes AAC AUs, grouped by timestamp.
-func (m *Muxer) WriteAAC(ntp time.Time, pts time.Duration, au []byte) error {
-	return m.segmenter.writeAAC(ntp, pts, au)
-}
-
-// StreamInfo Stream information required for decoding.
-type StreamInfo struct {
-	VideoTrackExist bool
-	VideoTrackID    int
-	VideoSPS        []byte
-	VideoPPS        []byte
-	VideoSPSP       h264.SPS
-	VideoWidth      int
-	VideoHeight     int
-
-	AudioTrackExist   bool
-	AudioTrackID      int
-	AudioTrackConfig  []byte
-	AudioChannelCount int
-	AudioClockRate    int
-	AudioType         mpeg4audio.ObjectType
+func (m *Muxer) WriteAAC(pts time.Duration, au []byte) error {
+	return m.segmenter.writeAAC(pts, au)
 }
 
 // File returns a file reader.
@@ -115,26 +90,25 @@ func (m *Muxer) File(
 	skip string,
 ) *MuxerFileResponse {
 	if name == "index.m3u8" {
-		return primaryPlaylist(m.streamInfo)
+		return primaryPlaylist(m.videoTrack, m.audioTrack)
 	}
 
 	if name == "init.mp4" {
 		m.mutex.Lock()
 		defer m.mutex.Unlock()
 
-		sps := m.streamInfo.VideoSPS
+		sps := m.videoTrack.SPS
 
 		if m.initContent == nil ||
-			(m.streamInfo.VideoTrackExist &&
-				(!bytes.Equal(m.videoLastSPS, sps) ||
-					!bytes.Equal(m.videoLastPPS, m.streamInfo.VideoPPS))) {
-			initContent, err := generateInit(m.streamInfo)
+			(!bytes.Equal(m.videoLastSPS, sps) ||
+				!bytes.Equal(m.videoLastPPS, m.videoTrack.PPS)) {
+			initContent, err := generateInit(m.videoTrack, m.audioTrack)
 			if err != nil {
 				m.logf(log.LevelError, "generate init.mp4: %w", err)
 				return &MuxerFileResponse{Status: http.StatusInternalServerError}
 			}
-			m.videoLastSPS = m.streamInfo.VideoSPS
-			m.videoLastPPS = m.streamInfo.VideoPPS
+			m.videoLastSPS = m.videoTrack.SPS
+			m.videoLastPPS = m.videoTrack.PPS
 			m.initContent = initContent
 		}
 
@@ -150,9 +124,14 @@ func (m *Muxer) File(
 	return m.playlist.file(name, msn, part, skip)
 }
 
-// StreamInfo return information about the stream.
-func (m *Muxer) StreamInfo() *StreamInfo {
-	return &m.streamInfo
+// VideoTrack returns the stream video track.
+func (m *Muxer) VideoTrack() *gortsplib.TrackH264 {
+	return m.videoTrack
+}
+
+// AudioTrack returns the stream audio track.
+func (m *Muxer) AudioTrack() *gortsplib.TrackMPEG4Audio {
+	return m.audioTrack
 }
 
 // WaitForSegFinalized blocks until a new segment has been finalized.

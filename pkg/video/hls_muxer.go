@@ -76,10 +76,7 @@ func (m *HLSMuxer) run(tracks gortsplib.Tracks) error {
 		return fmt.Errorf("parse tracks: %w", err)
 	}
 
-	m.muxer, err = m.createMuxer(videoTrack, audioTrack)
-	if err != nil {
-		return fmt.Errorf("create muxer: %w", err)
-	}
+	m.muxer = m.createMuxer(videoTrack, audioTrack)
 
 	m.ringBuffer, err = ringbuffer.New(uint64(m.readBufferCount))
 	if err != nil {
@@ -173,54 +170,34 @@ func parseTracks(tracks gortsplib.Tracks) (
 	return videoTrack, videoTrackID, audioTrack, audioTrackID, nil
 }
 
+const (
+	hlsSegmentCount    = 3
+	hlsSegmentDuration = 900 * time.Millisecond
+	hlsPartDuration    = 300 * time.Millisecond
+)
+
+var mb = uint64(1000000)
+
+var hlsSegmentMaxSize = 50 * mb
+
 func (m *HLSMuxer) createMuxer(
 	videoTrack *gortsplib.TrackH264,
 	audioTrack *gortsplib.TrackMPEG4Audio,
-) (*hls.Muxer, error) {
+) *hls.Muxer {
 	muxerLogFunc := func(level log.Level, format string, a ...interface{}) {
 		m.path.logf(level, "HLS: "+format, a...)
-	}
-	videoTrackExist := videoTrack != nil
-	audioTrackExist := audioTrack != nil
-
-	info := hls.StreamInfo{
-		VideoTrackExist: videoTrackExist,
-		AudioTrackExist: audioTrackExist,
-	}
-	if info.VideoTrackExist {
-		info.VideoSPS = videoTrack.SafeSPS()
-		info.VideoPPS = videoTrack.SafePPS()
-		err := info.VideoSPSP.Unmarshal(info.VideoSPS)
-		if err != nil {
-			return nil, err
-		}
-		info.VideoHeight = info.VideoSPSP.Height()
-		info.VideoWidth = info.VideoSPSP.Width()
-	}
-	if info.AudioTrackExist {
-		var err error
-		info.AudioTrackConfig, err = audioTrack.Config.Marshal()
-		if err != nil {
-			return nil, err
-		}
-		info.AudioChannelCount = audioTrack.Config.ChannelCount
-		info.AudioClockRate = audioTrack.ClockRate()
-		info.AudioType = audioTrack.Config.Type
 	}
 
 	return hls.NewMuxer(
 		m.ctx,
-		m.path.hlsSegmentCount(),
-		m.path.hlsSegmentDuration(),
-		m.path.hlsPartDuration(),
-		m.path.hlsSegmentMaxSize(),
+		hlsSegmentCount,
+		hlsSegmentDuration,
+		hlsPartDuration,
+		hlsSegmentMaxSize,
 		muxerLogFunc,
-		videoTrackExist,
-		videoTrack.SafeSPS,
-		audioTrackExist,
-		audioTrack.ClockRate,
-		info,
-	), nil
+		videoTrack,
+		audioTrack,
+	)
 }
 
 // Errors.
@@ -279,7 +256,6 @@ func (m *HLSMuxer) runWriter(
 
 			for i, au := range tdata.aus {
 				err := m.muxer.WriteAAC(
-					tdata.ntp,
 					pts+time.Duration(i)*mpeg4audio.SamplesPerAccessUnit*
 						time.Second/time.Duration(audioTrack.ClockRate()),
 					au)

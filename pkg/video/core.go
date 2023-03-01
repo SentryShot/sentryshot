@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
+	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/hls"
 	"strconv"
 	"sync"
@@ -76,7 +77,8 @@ type HlsMuxerFunc func(context.Context) (IHLSMuxer, error)
 
 // IHLSMuxer HLS muxer interface.
 type IHLSMuxer interface {
-	StreamInfo() *hls.StreamInfo
+	VideoTrack() *gortsplib.TrackH264
+	AudioTrack() *gortsplib.TrackMPEG4Audio
 	WaitForSegFinalized()
 	NextSegment(prevID uint64) (*hls.Segment, error)
 }

@@ -8,7 +8,6 @@ import (
 	"nvr/pkg/video/gortsplib"
 	"regexp"
 	"sync"
-	"time"
 )
 
 type pathHLSServer interface {
@@ -197,22 +196,6 @@ func (pa *path) readerStart(session *rtspSession) {
 	pa.readers[session] = struct{}{}
 }
 
-func (pa *path) hlsSegmentCount() int {
-	return pa.conf.HLSSegmentCount
-}
-
-func (pa *path) hlsSegmentDuration() time.Duration {
-	return pa.conf.HLSSegmentDuration
-}
-
-func (pa *path) hlsPartDuration() time.Duration {
-	return pa.conf.HLSPartDuration
-}
-
-func (pa *path) hlsSegmentMaxSize() uint64 {
-	return pa.conf.HLSSegmentMaxSize
-}
-
 // Errors.
 var (
 	ErrEmptyName    = errors.New("name can not be empty")
@@ -248,11 +231,6 @@ func isValidPathName(name string) error {
 type PathConf struct {
 	MonitorID string
 	IsSub     bool
-
-	HLSSegmentCount    int
-	HLSSegmentDuration time.Duration
-	HLSPartDuration    time.Duration
-	HLSSegmentMaxSize  uint64
 }
 
 // Errors.
@@ -262,16 +240,6 @@ var (
 	ErrInvalidURL     = errors.New("invalid URL")
 	ErrInvalidSource  = errors.New("invalid source")
 )
-
-const (
-	defaultHLSSegmentCount    = 3
-	defaultHLSSegmentDuration = 900 * time.Millisecond
-	defaultHLSPartDuration    = 300 * time.Millisecond
-)
-
-var mb = uint64(1000000)
-
-var defaultHLSsegmentMaxSize = 50 * mb
 
 // ErrPathInvalidName invalid path name.
 var ErrPathInvalidName = errors.New("invalid path name")
@@ -288,19 +256,6 @@ func (pconf *PathConf) CheckAndFillMissing(name string) error {
 	err := isValidPathName(name)
 	if err != nil {
 		return fmt.Errorf("%w: %s (%v)", ErrPathInvalidName, name, err)
-	}
-
-	if pconf.HLSSegmentCount == 0 {
-		pconf.HLSSegmentCount = defaultHLSSegmentCount
-	}
-	if pconf.HLSSegmentDuration == 0 {
-		pconf.HLSSegmentDuration = defaultHLSSegmentDuration
-	}
-	if pconf.HLSPartDuration == 0 {
-		pconf.HLSPartDuration = defaultHLSPartDuration
-	}
-	if pconf.HLSSegmentMaxSize == 0 {
-		pconf.HLSSegmentMaxSize = defaultHLSsegmentMaxSize
 	}
 
 	return nil

@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"nvr/pkg/video/gortsplib"
+	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -12,8 +15,7 @@ func TestGeneratePart(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		actual, err := generatePart(
 			0,
-			false,
-			func() int { return 0 },
+			&gortsplib.TrackMPEG4Audio{},
 			[]*VideoSample{{
 				PTS:     0,
 				DTS:     0,
@@ -50,8 +52,7 @@ func TestGeneratePart(t *testing.T) {
 	t.Run("videoSample", func(t *testing.T) {
 		actual, err := generatePart(
 			0,
-			false,
-			func() int { return 0 },
+			&gortsplib.TrackMPEG4Audio{},
 			[]*VideoSample{{
 				PTS:     0,
 				DTS:     0,
@@ -89,8 +90,7 @@ func TestGeneratePart(t *testing.T) {
 	t.Run("audioSample", func(t *testing.T) {
 		actual, err := generatePart(
 			0,
-			true,
-			func() int { return 0 },
+			&gortsplib.TrackMPEG4Audio{Config: &mpeg4audio.Config{}},
 			[]*VideoSample{{
 				PTS:     0,
 				DTS:     0,
@@ -144,8 +144,7 @@ func TestGeneratePart(t *testing.T) {
 	t.Run("videoAndAudioSample", func(t *testing.T) {
 		actual, err := generatePart(
 			0,
-			true,
-			func() int { return 0 },
+			&gortsplib.TrackMPEG4Audio{Config: &mpeg4audio.Config{}},
 			[]*VideoSample{{
 				PTS:     0,
 				DTS:     0,
@@ -200,8 +199,7 @@ func TestGeneratePart(t *testing.T) {
 	t.Run("multipleVideoSample", func(t *testing.T) {
 		actual, err := generatePart(
 			0,
-			true,
-			func() int { return 0 },
+			&gortsplib.TrackMPEG4Audio{},
 			[]*VideoSample{
 				{
 					PTS:        0,
@@ -277,8 +275,9 @@ func TestGeneratePart(t *testing.T) {
 
 		actual, err := generatePart(
 			muxerStartTime,
-			true,
-			func() int { return 44100 },
+			&gortsplib.TrackMPEG4Audio{
+				Config: &mpeg4audio.Config{ChannelCount: 1, SampleRate: 44100},
+			},
 			[]*VideoSample{
 				videoSample1,
 				videoSample2,

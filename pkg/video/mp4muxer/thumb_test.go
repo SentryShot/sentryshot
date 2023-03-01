@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/h264"
 	"nvr/pkg/video/hls"
 
@@ -36,14 +37,14 @@ func TestGenerateThumbnailVideo(t *testing.T) {
 	require.NoError(t, err)
 
 	buf := &bytes.Buffer{}
-	info := hls.StreamInfo{
-		VideoTrackExist: true,
+	/*info := hls.StreamInfo{
 		VideoSPS:        sps,
 		VideoSPSP:       spsp,
 		VideoWidth:      640,
 		VideoHeight:     480,
 		AudioTrackExist: true,
-	}
+	}*/
+	videoTrack := &gortsplib.TrackH264{SPS: sps}
 
 	firstSegment := &hls.Segment{
 		StartTime:        time.Unix(0, int64(1*time.Hour)),
@@ -58,7 +59,7 @@ func TestGenerateThumbnailVideo(t *testing.T) {
 		},
 	}
 
-	err = GenerateThumbnailVideo(buf, firstSegment, info)
+	err = GenerateThumbnailVideo(buf, firstSegment, videoTrack)
 	require.NoError(t, err)
 
 	expected := []byte{
@@ -106,8 +107,8 @@ func TestGenerateThumbnailVideo(t *testing.T) {
 		0, 0, 0, 0, 0, 0, 0, 0, 1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0x40, 0, 0, 0,
-		2, 0x80, 0, 0, // Width.
-		1, 0xe0, 0, 0, // Height.
+		2, 0x8a, 0, 0, // Width.
+		1, 0xc2, 0, 0, // Height.
 		0, 0, 1, 0x91, 'm', 'd', 'i', 'a',
 		0, 0, 0, 0x20, 'm', 'd', 'h', 'd',
 		0, 0, 0, 0, // FullBox.
@@ -148,8 +149,8 @@ func TestGenerateThumbnailVideo(t *testing.T) {
 		0, 0, 0, 0, // Predefined2.
 		0, 0, 0, 0,
 		0, 0, 0, 0,
-		2, 0x80, // Width.
-		1, 0xe0, // Height.
+		2, 0x8a, // Width.
+		1, 0xc2, // Height.
 		0, 0x48, 0, 0, // Horizresolution
 		0, 0x48, 0, 0, // Vertresolution
 		0, 0, 0, 0, // Reserved2.
@@ -210,7 +211,7 @@ func TestGenerateThumbnailVideoErrors(t *testing.T) {
 				VideoSamples: []*hls.VideoSample{},
 			}},
 		}
-		err := GenerateThumbnailVideo(nil, segment, hls.StreamInfo{})
+		err := GenerateThumbnailVideo(nil, segment, &gortsplib.TrackH264{})
 		require.ErrorIs(t, err, ErrSampleMissing)
 	})
 	t.Run("sampleInvalid", func(t *testing.T) {
@@ -221,7 +222,7 @@ func TestGenerateThumbnailVideoErrors(t *testing.T) {
 				}},
 			}},
 		}
-		err := GenerateThumbnailVideo(nil, segment, hls.StreamInfo{})
+		err := GenerateThumbnailVideo(nil, segment, &gortsplib.TrackH264{})
 		require.ErrorIs(t, err, ErrSampleInvalid)
 	})
 }

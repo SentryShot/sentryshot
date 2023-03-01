@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
-	"nvr/pkg/video/hls"
 )
 
 // Header meta file header.
@@ -127,35 +127,25 @@ func unmarshalArray(r io.Reader, value *[]byte) (int, error) {
 	return read, nil
 }
 
-// ToStreamInfo converts header to stream info.
-func (h Header) ToStreamInfo() (*hls.StreamInfo, error) {
-	info := hls.StreamInfo{
-		VideoTrackExist:  true,
-		AudioTrackExist:  len(h.AudioConfig) != 0,
-		AudioTrackConfig: h.AudioConfig,
-	}
+// GetTracks from header.
+func (h Header) GetTracks() (
+	*gortsplib.TrackH264,
+	*gortsplib.TrackMPEG4Audio,
+	error,
+) {
+	videoTrack := &gortsplib.TrackH264{SPS: h.VideoSPS, PPS: h.VideoPPS}
 
-	if info.VideoTrackExist {
-		info.VideoSPS = h.VideoSPS
-		info.VideoPPS = h.VideoPPS
-		err := info.VideoSPSP.Unmarshal(info.VideoSPS)
-		if err != nil {
-			return nil, fmt.Errorf("unmarshal spsp: %w", err)
-		}
-		info.VideoHeight = info.VideoSPSP.Height()
-		info.VideoWidth = info.VideoSPSP.Width()
-	}
+	var audioTrack *gortsplib.TrackMPEG4Audio
 
-	if info.AudioTrackExist {
+	audioTrackExist := len(h.AudioConfig) != 0
+	if audioTrackExist {
 		var config mpeg4audio.Config
 		err := config.Unmarshal(h.AudioConfig)
 		if err != nil {
-			return nil, fmt.Errorf("unmarshal audio config: %w", err)
+			return nil, nil, fmt.Errorf("unmarshal audio config: %w", err)
 		}
-		info.AudioChannelCount = config.ChannelCount
-		info.AudioClockRate = config.SampleRate
-		info.AudioType = config.Type
+		audioTrack = &gortsplib.TrackMPEG4Audio{Config: &config}
 	}
 
-	return &info, nil
+	return videoTrack, audioTrack, nil
 }

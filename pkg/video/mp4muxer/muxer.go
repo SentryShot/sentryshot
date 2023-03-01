@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"nvr/pkg/video/customformat"
+	"nvr/pkg/video/gortsplib"
+	"nvr/pkg/video/gortsplib/pkg/h264"
 	"nvr/pkg/video/hls"
 	"nvr/pkg/video/mp4"
 	"nvr/pkg/video/mp4/bitio"
@@ -11,8 +13,11 @@ import (
 )
 
 type muxer struct {
-	info hls.StreamInfo
-	out  *bitio.Writer
+	out         *bitio.Writer
+	videoTrack  *gortsplib.TrackH264
+	videoSPSP   h264.SPS
+	audioTrack  *gortsplib.TrackMPEG4Audio
+	audioConfig []byte
 
 	startTime int64
 	endTime   int64
@@ -42,15 +47,29 @@ func GenerateMP4(
 	out io.Writer,
 	startTime int64,
 	samples []customformat.Sample,
-	info hls.StreamInfo,
+	videoTrack *gortsplib.TrackH264,
+	audioTrack *gortsplib.TrackMPEG4Audio,
 ) (int64, error) {
 	bw := bitio.NewByteWriter(out)
 	m := &muxer{
-		info: info,
-		out:  bitio.NewWriter(bw),
+		out:        bitio.NewWriter(bw),
+		videoTrack: videoTrack,
+		audioTrack: audioTrack,
 
 		startTime:   startTime,
 		firstSample: true,
+	}
+
+	err := m.videoSPSP.Unmarshal(videoTrack.SPS)
+	if err != nil {
+		return 0, fmt.Errorf("unmarshal video spsp: %w", err)
+	}
+
+	if audioTrack != nil {
+		m.audioConfig, err = audioTrack.Config.Marshal()
+		if err != nil {
+			return 0, fmt.Errorf("marshal audio config: %w", err)
+		}
 	}
 
 	ftyp := &mp4.Ftyp{
@@ -60,7 +79,7 @@ func GenerateMP4(
 			{CompatibleBrand: [4]byte{'i', 's', 'o', '4'}},
 		},
 	}
-	_, err := mp4.WriteSingleBox(m.out, ftyp)
+	_, err = mp4.WriteSingleBox(m.out, ftyp)
 	if err != nil {
 		return 0, fmt.Errorf("write ftyp: %w", err)
 	}
@@ -132,7 +151,7 @@ func (m *muxer) writeVideoSample(sample customformat.Sample) {
 }
 
 func (m *muxer) writeAudioSample(sample customformat.Sample) {
-	delta := hls.NanoToTimescale(sample.Next-sample.PTS, int64(m.info.AudioClockRate))
+	delta := hls.NanoToTimescale(sample.Next-sample.PTS, int64(m.audioTrack.ClockRate()))
 	if len(m.audioStts) > 0 && m.audioStts[len(m.audioStts)-1].SampleDelta == uint32(delta) {
 		m.audioStts[len(m.audioStts)-1].SampleCount++
 	} else {
@@ -159,15 +178,6 @@ func (m *muxer) writeAudioSample(sample customformat.Sample) {
 	m.audioStsz = append(m.audioStsz, sample.Size)
 }
 
-// 14496-12_2015 8.3.2.3
-// track_ID is an integer that uniquely identifies this track
-// over the entire life‐time of this presentation.
-// Track IDs are never re‐used and cannot be zero.
-const (
-	videoTrackID = 1
-	audioTrackID = 2
-)
-
 func (m *muxer) writeMetadata() error {
 	/*
 	   moov
@@ -187,7 +197,7 @@ func (m *muxer) writeMetadata() error {
 				Rate:        65536,
 				Volume:      256,
 				Matrix:      [9]int32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
-				NextTrackID: videoTrackID + 1,
+				NextTrackID: hls.VideoTrackID + 1,
 			}},
 			m.generateVideoTrak(duration),
 			m.generateAudioTrak(duration),
@@ -222,6 +232,7 @@ func (m *muxer) generateVideoTrak(duration time.Duration) mp4.Boxes {
 	     - hdlr
 	     - minf
 	*/
+
 	trak := mp4.Boxes{
 		Box: &mp4.Trak{},
 		Children: []mp4.Boxes{
@@ -229,10 +240,10 @@ func (m *muxer) generateVideoTrak(duration time.Duration) mp4.Boxes {
 				FullBox: mp4.FullBox{
 					Flags: [3]byte{0, 0, 3},
 				},
-				TrackID:    videoTrackID,
+				TrackID:    hls.VideoTrackID,
 				DurationV0: uint32(duration.Milliseconds()),
-				Width:      uint32(m.info.VideoWidth * 65536),
-				Height:     uint32(m.info.VideoHeight * 65536),
+				Width:      uint32(m.videoSPSP.Width() * 65536),
+				Height:     uint32(m.videoSPSP.Height() * 65536),
 				Matrix:     [9]int32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
 			}},
 			{
@@ -275,10 +286,11 @@ func (m *muxer) generateVideoMinf() mp4.Boxes {
 	       - stsz
 	       - stco
 	*/
+
 	stbl := mp4.Boxes{
 		Box: &mp4.Stbl{},
 		Children: []mp4.Boxes{
-			generateVideoStsd(m.info),
+			generateVideoStsd(m.videoTrack, m.videoSPSP),
 			{Box: &mp4.Stts{
 				Entries: m.videoStts,
 			}},
@@ -326,7 +338,10 @@ func (m *muxer) generateVideoMinf() mp4.Boxes {
 	return minf
 }
 
-func generateVideoStsd(info hls.StreamInfo) mp4.Boxes {
+func generateVideoStsd(
+	videoTrack *gortsplib.TrackH264,
+	videoSPSP h264.SPS,
+) mp4.Boxes {
 	/*
 	   - stsd
 	     - avc1
@@ -341,8 +356,8 @@ func generateVideoStsd(info hls.StreamInfo) mp4.Boxes {
 					SampleEntry: mp4.SampleEntry{
 						DataReferenceIndex: 1,
 					},
-					Width:           uint16(info.VideoWidth),
-					Height:          uint16(info.VideoHeight),
+					Width:           uint16(videoSPSP.Width()),
+					Height:          uint16(videoSPSP.Height()),
 					Horizresolution: 4718592,
 					Vertresolution:  4718592,
 					FrameCount:      1,
@@ -352,17 +367,17 @@ func generateVideoStsd(info hls.StreamInfo) mp4.Boxes {
 				Children: []mp4.Boxes{
 					{Box: &mp4.AvcC{
 						ConfigurationVersion:       1,
-						Profile:                    info.VideoSPSP.ProfileIdc,
-						ProfileCompatibility:       info.VideoSPS[2],
-						Level:                      info.VideoSPSP.LevelIdc,
+						Profile:                    videoSPSP.ProfileIdc,
+						ProfileCompatibility:       videoTrack.SPS[2],
+						Level:                      videoSPSP.LevelIdc,
 						LengthSizeMinusOne:         3,
 						NumOfSequenceParameterSets: 1,
 						SequenceParameterSets: []mp4.AVCParameterSet{
-							{NALUnit: info.VideoSPS},
+							{NALUnit: videoTrack.SPS},
 						},
 						NumOfPictureParameterSets: 1,
 						PictureParameterSets: []mp4.AVCParameterSet{
-							{NALUnit: info.VideoPPS},
+							{NALUnit: videoTrack.PPS},
 						},
 					}},
 				},
@@ -374,7 +389,7 @@ func generateVideoStsd(info hls.StreamInfo) mp4.Boxes {
 }
 
 func (m *muxer) generateAudioTrak(duration time.Duration) mp4.Boxes {
-	if !m.info.AudioTrackExist {
+	if m.audioTrack == nil {
 		return mp4.Boxes{Box: &mp4.Free{}}
 	}
 
@@ -386,6 +401,7 @@ func (m *muxer) generateAudioTrak(duration time.Duration) mp4.Boxes {
 	     - hdlr
 	     - minf
 	*/
+
 	trak := mp4.Boxes{
 		Box: &mp4.Trak{},
 		Children: []mp4.Boxes{
@@ -394,7 +410,7 @@ func (m *muxer) generateAudioTrak(duration time.Duration) mp4.Boxes {
 					Flags: [3]byte{0, 0, 3},
 				},
 				DurationV0:     uint32(duration.Milliseconds()),
-				TrackID:        audioTrackID,
+				TrackID:        hls.AudioTrackID,
 				AlternateGroup: 1,
 				Volume:         256,
 				Matrix:         [9]int32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
@@ -403,10 +419,10 @@ func (m *muxer) generateAudioTrak(duration time.Duration) mp4.Boxes {
 				Box: &mp4.Mdia{},
 				Children: []mp4.Boxes{
 					{Box: &mp4.Mdhd{
-						Timescale: uint32(m.info.AudioClockRate),
+						Timescale: uint32(m.audioTrack.ClockRate()),
 						Language:  [3]byte{'u', 'n', 'd'},
 						DurationV0: uint32(
-							hls.NanoToTimescale(int64(duration), int64(m.info.AudioClockRate))),
+							hls.NanoToTimescale(int64(duration), int64(m.audioTrack.ClockRate()))),
 					}},
 					{Box: &mp4.Hdlr{
 						HandlerType: [4]byte{'s', 'o', 'u', 'n'},
@@ -436,6 +452,7 @@ func (m *muxer) generateAudioMinf() mp4.Boxes { //nolint:funlen
 	     - stsz
 	     - stco
 	*/
+
 	minf := mp4.Boxes{
 		Box: &mp4.Minf{},
 		Children: []mp4.Boxes{
@@ -465,14 +482,14 @@ func (m *muxer) generateAudioMinf() mp4.Boxes { //nolint:funlen
 									SampleEntry: mp4.SampleEntry{
 										DataReferenceIndex: 1,
 									},
-									ChannelCount: uint16(m.info.AudioChannelCount),
+									ChannelCount: uint16(m.audioTrack.Config.ChannelCount),
 									SampleSize:   16,
-									SampleRate:   uint32(m.info.AudioClockRate * 65536),
+									SampleRate:   uint32(m.audioTrack.ClockRate() * 65536),
 								},
 								Children: []mp4.Boxes{
 									{Box: &myEsds{
-										ESID:   audioTrackID,
-										config: m.info.AudioTrackConfig,
+										ESID:   hls.AudioTrackID,
+										config: m.audioConfig,
 									}},
 								},
 							},

@@ -3,6 +3,7 @@ package hls
 import (
 	"errors"
 	"io"
+	"nvr/pkg/video/gortsplib"
 	"strconv"
 	"time"
 )
@@ -44,9 +45,7 @@ type Segment struct {
 	startDTS        time.Duration
 	muxerStartTime  int64
 	segmentMaxSize  uint64
-	videoTrackExist bool
-	audioTrackExist bool
-	audioClockRate  audioClockRateFunc
+	audioTrack      *gortsplib.TrackMPEG4Audio
 	genPartID       func() uint64
 	onPartFinalized func(*MuxerPart)
 
@@ -63,9 +62,7 @@ func newSegment(
 	startDTS time.Duration,
 	muxerStartTime int64,
 	segmentMaxSize uint64,
-	videoTrackExist bool,
-	audioTrackExist bool,
-	audioClockRate audioClockRateFunc,
+	audioTrack *gortsplib.TrackMPEG4Audio,
 	genPartID func() uint64,
 	onPartFinalized func(*MuxerPart),
 ) *Segment {
@@ -75,18 +72,14 @@ func newSegment(
 		startDTS:        startDTS,
 		muxerStartTime:  muxerStartTime,
 		segmentMaxSize:  segmentMaxSize,
-		videoTrackExist: videoTrackExist,
-		audioTrackExist: audioTrackExist,
-		audioClockRate:  audioClockRate,
+		audioTrack:      audioTrack,
 		genPartID:       genPartID,
 		onPartFinalized: onPartFinalized,
 		name:            "seg" + strconv.FormatUint(id, 10),
 	}
 
 	s.currentPart = newPart(
-		s.videoTrackExist,
-		s.audioTrackExist,
-		s.audioClockRate,
+		audioTrack,
 		s.muxerStartTime,
 		s.genPartID(),
 	)
@@ -113,16 +106,9 @@ func (s *Segment) finalize(nextVideoSample *VideoSample) error {
 	}
 
 	s.currentPart = nil
+	s.RenderedDuration = time.Duration(
+		nextVideoSample.DTS-s.muxerStartTime) - s.startDTS
 
-	if s.videoTrackExist {
-		s.RenderedDuration = time.Duration(
-			nextVideoSample.DTS-s.muxerStartTime) - s.startDTS
-	} else {
-		s.RenderedDuration = 0
-		for _, pa := range s.Parts {
-			s.RenderedDuration += pa.renderedDuration
-		}
-	}
 	return nil
 }
 
@@ -150,9 +136,7 @@ func (s *Segment) writeH264(sample *VideoSample, adjustedPartDuration time.Durat
 		s.onPartFinalized(s.currentPart)
 
 		s.currentPart = newPart(
-			s.videoTrackExist,
-			s.audioTrackExist,
-			s.audioClockRate,
+			s.audioTrack,
 			s.muxerStartTime,
 			s.genPartID(),
 		)

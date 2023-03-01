@@ -2,8 +2,20 @@ package hls
 
 import (
 	"bytes"
+	"fmt"
+	"nvr/pkg/video/gortsplib"
+	"nvr/pkg/video/gortsplib/pkg/h264"
 	"nvr/pkg/video/mp4"
 	"nvr/pkg/video/mp4/bitio"
+)
+
+// 14496-12_2015 8.3.2.3
+// track_ID is an integer that uniquely identifies this track
+// over the entire life‐time of this presentation.
+// Track IDs are never re‐used and cannot be zero.
+const (
+	VideoTrackID = 1
+	AudioTrackID = 2
 )
 
 //  ISO/IEC 14496-1
@@ -66,7 +78,7 @@ func (b *myEsds) Marshal(w *bitio.Writer) error {
 	return w.TryError
 }
 
-func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:funlen
+func initGenerateVideoTrack(videoTrack *gortsplib.TrackH264) (*mp4.Boxes, error) { //nolint:funlen
 	/*
 	   trak
 	   - tkhd
@@ -89,8 +101,14 @@ func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 	         - stco
 	*/
 
-	width := info.VideoSPSP.Width()
-	height := info.VideoSPSP.Height()
+	var spsp h264.SPS
+	err := spsp.Unmarshal(videoTrack.SPS)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal spsp: %w", err)
+	}
+
+	width := spsp.Width()
+	height := spsp.Height()
 
 	stbl := mp4.Boxes{
 		Box: &mp4.Stbl{},
@@ -114,20 +132,20 @@ func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 						Children: []mp4.Boxes{
 							{Box: &mp4.AvcC{
 								ConfigurationVersion:       1,
-								Profile:                    info.VideoSPSP.ProfileIdc,
-								ProfileCompatibility:       info.VideoSPS[2],
-								Level:                      info.VideoSPSP.LevelIdc,
+								Profile:                    spsp.ProfileIdc,
+								ProfileCompatibility:       videoTrack.SPS[2],
+								Level:                      spsp.LevelIdc,
 								LengthSizeMinusOne:         3,
 								NumOfSequenceParameterSets: 1,
 								SequenceParameterSets: []mp4.AVCParameterSet{
 									{
-										NALUnit: info.VideoSPS,
+										NALUnit: videoTrack.SPS,
 									},
 								},
 								NumOfPictureParameterSets: 1,
 								PictureParameterSets: []mp4.AVCParameterSet{
 									{
-										NALUnit: info.VideoPPS,
+										NALUnit: videoTrack.PPS,
 									},
 								},
 							}},
@@ -185,7 +203,7 @@ func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 					FullBox: mp4.FullBox{
 						Flags: [3]byte{0, 0, 3},
 					},
-					TrackID: uint32(trackID),
+					TrackID: VideoTrackID,
 					Width:   uint32(width * 65536),
 					Height:  uint32(height * 65536),
 					Matrix:  [9]int32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
@@ -207,10 +225,10 @@ func initGenerateVideoTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 			},
 		},
 	}
-	return trak
+	return &trak, nil
 }
 
-func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:funlen
+func initGenerateAudioTrack(audioTrack *gortsplib.TrackMPEG4Audio) (*mp4.Boxes, error) { //nolint:funlen
 	/*
 	   trak
 	   - tkhd
@@ -232,6 +250,11 @@ func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 	         - stsz
 	         - stco
 	*/
+
+	audioTrackConfig, err := audioTrack.Config.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("marshal audio config: %w", err)
+	}
 
 	minf := mp4.Boxes{
 		Box: &mp4.Minf{},
@@ -264,14 +287,14 @@ func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 									SampleEntry: mp4.SampleEntry{
 										DataReferenceIndex: 1,
 									},
-									ChannelCount: uint16(info.AudioChannelCount),
+									ChannelCount: uint16(audioTrack.Config.ChannelCount),
 									SampleSize:   16,
-									SampleRate:   uint32(info.AudioClockRate * 65536),
+									SampleRate:   uint32(audioTrack.ClockRate() * 65536),
 								},
 								Children: []mp4.Boxes{
 									{Box: &myEsds{
-										ESID:   uint8(trackID),
-										config: info.AudioTrackConfig,
+										ESID:   uint8(AudioTrackID),
+										config: audioTrackConfig,
 									}},
 									{Box: &mp4.Btrt{
 										MaxBitrate: 128825,
@@ -297,7 +320,7 @@ func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 				FullBox: mp4.FullBox{
 					Flags: [3]byte{0, 0, 3},
 				},
-				TrackID:        uint32(trackID),
+				TrackID:        AudioTrackID,
 				AlternateGroup: 1,
 				Volume:         256,
 				Matrix:         [9]int32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
@@ -306,7 +329,7 @@ func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 				Box: &mp4.Mdia{},
 				Children: []mp4.Boxes{
 					{Box: &mp4.Mdhd{
-						Timescale: uint32(info.AudioClockRate),
+						Timescale: uint32(audioTrack.ClockRate()),
 						Language:  [3]byte{'u', 'n', 'd'},
 					}},
 					{Box: &mp4.Hdlr{
@@ -319,25 +342,24 @@ func initGenerateAudioTrack(trackID int, info StreamInfo) mp4.Boxes { //nolint:f
 		},
 	}
 
-	return trak
+	return &trak, nil
 }
 
-func initGenerateMvex(info StreamInfo) mp4.Boxes {
+func initGenerateMvex(audioTrackExist bool) mp4.Boxes {
 	mvex := mp4.Boxes{
 		Box: &mp4.Mvex{},
 	}
 	trackID := 1
-	if info.VideoTrackExist {
-		trex := mp4.Boxes{
-			Box: &mp4.Trex{
-				TrackID:                       uint32(trackID),
-				DefaultSampleDescriptionIndex: 1,
-			},
-		}
-		mvex.Children = append(mvex.Children, trex)
-		trackID++
+	trex := mp4.Boxes{
+		Box: &mp4.Trex{
+			TrackID:                       uint32(trackID),
+			DefaultSampleDescriptionIndex: 1,
+		},
 	}
-	if info.AudioTrackExist {
+	mvex.Children = append(mvex.Children, trex)
+	trackID++
+
+	if audioTrackExist {
 		trex := mp4.Boxes{
 			Box: &mp4.Trex{
 				TrackID:                       uint32(trackID),
@@ -349,7 +371,10 @@ func initGenerateMvex(info StreamInfo) mp4.Boxes {
 	return mvex
 }
 
-func generateInit(info StreamInfo) ([]byte, error) {
+func generateInit( //nolint:funlen
+	videoTrack *gortsplib.TrackH264,
+	audioTrack *gortsplib.TrackMPEG4Audio,
+) ([]byte, error) {
 	/*
 	   - ftyp
 	   - moov
@@ -387,18 +412,22 @@ func generateInit(info StreamInfo) ([]byte, error) {
 		},
 	}
 
-	trackID := 1
-	if info.VideoTrackExist {
-		videoTrak := initGenerateVideoTrack(trackID, info)
-		moov.Children = append(moov.Children, videoTrak)
-		trackID++
+	videoTrak, err := initGenerateVideoTrack(videoTrack)
+	if err != nil {
+		return nil, fmt.Errorf("generate video track: %w", err)
 	}
-	if info.AudioTrackExist {
-		audioTrak := initGenerateAudioTrack(trackID, info)
-		moov.Children = append(moov.Children, audioTrak)
+	moov.Children = append(moov.Children, *videoTrak)
+
+	audioTrackExist := audioTrack != nil
+	if audioTrackExist {
+		audioTrak, err := initGenerateAudioTrack(audioTrack)
+		if err != nil {
+			return nil, fmt.Errorf("generate audio track: %w", err)
+		}
+		moov.Children = append(moov.Children, *audioTrak)
 	}
 
-	mvex := initGenerateMvex(info)
+	mvex := initGenerateMvex(audioTrackExist)
 	moov.Children = append(moov.Children, mvex)
 
 	size := ftyp.Size() + moov.Size()
@@ -407,10 +436,10 @@ func generateInit(info StreamInfo) ([]byte, error) {
 	w := bitio.NewWriter(buf)
 
 	if err := ftyp.Marshal(w); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshal ftyp: %w", err)
 	}
 	if err := moov.Marshal(w); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshal moov: %w", err)
 	}
 
 	return buf.Bytes(), nil

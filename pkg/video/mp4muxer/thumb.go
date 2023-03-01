@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"nvr/pkg/video/gortsplib"
+	"nvr/pkg/video/gortsplib/pkg/h264"
 	"nvr/pkg/video/hls"
 	"nvr/pkg/video/mp4"
 	"nvr/pkg/video/mp4/bitio"
@@ -17,10 +19,10 @@ var (
 
 // GenerateThumbnailVideo generates a mp4 video with a single
 // frame that will be converted to jpeg by FFmpeg.
-func GenerateThumbnailVideo(
+func GenerateThumbnailVideo( //nolint:funlen
 	out io.Writer,
 	segment *hls.Segment,
-	info hls.StreamInfo,
+	videoTrack *gortsplib.TrackH264,
 ) error {
 	if segment == nil || len(segment.Parts) == 0 ||
 		len(segment.Parts[0].VideoSamples) == 0 {
@@ -54,7 +56,13 @@ func GenerateThumbnailVideo(
 	   mdat
 	*/
 
-	mdatOffset := 610 + uint32(len(info.VideoPPS)+len(info.VideoSPS))
+	var videoSPSP h264.SPS
+	err = videoSPSP.Unmarshal(videoTrack.SPS)
+	if err != nil {
+		return fmt.Errorf("unmarshal spsp: %w", err)
+	}
+
+	mdatOffset := 610 + uint32(len(videoTrack.PPS)+len(videoTrack.SPS))
 	stco := []uint32{mdatOffset + 8}
 	stsz := []uint32{uint32(len(sample.AVCC))}
 	moov := mp4.Boxes{
@@ -65,9 +73,9 @@ func GenerateThumbnailVideo(
 				Rate:        65536,
 				Volume:      256,
 				Matrix:      [9]int32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
-				NextTrackID: videoTrackID + 1,
+				NextTrackID: hls.VideoTrackID + 1,
 			}},
-			generateThumbnailVideoTrak(info, stsz, stco),
+			generateThumbnailVideoTrak(videoTrack, videoSPSP, stsz, stco),
 		},
 	}
 	if err := moov.Marshal(w); err != nil {
@@ -83,7 +91,8 @@ func GenerateThumbnailVideo(
 }
 
 func generateThumbnailVideoTrak(
-	info hls.StreamInfo,
+	videoTrack *gortsplib.TrackH264,
+	videoSPSP h264.SPS,
 	stsz []uint32,
 	stco []uint32,
 ) mp4.Boxes {
@@ -103,9 +112,9 @@ func generateThumbnailVideoTrak(
 				FullBox: mp4.FullBox{
 					Flags: [3]byte{0, 0, 3},
 				},
-				TrackID: videoTrackID,
-				Width:   uint32(info.VideoWidth * 65536),
-				Height:  uint32(info.VideoHeight * 65536),
+				TrackID: hls.VideoTrackID,
+				Width:   uint32(videoSPSP.Width() * 65536),
+				Height:  uint32(videoSPSP.Height() * 65536),
 				Matrix:  [9]int32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
 			}},
 			{
@@ -119,7 +128,7 @@ func generateThumbnailVideoTrak(
 						HandlerType: [4]byte{'v', 'i', 'd', 'e'},
 						Name:        "VideoHandler",
 					}},
-					generateThumbnailVideoMinf(info, stsz, stco),
+					generateThumbnailVideoMinf(videoTrack, videoSPSP, stsz, stco),
 				},
 			},
 		},
@@ -127,8 +136,9 @@ func generateThumbnailVideoTrak(
 	return trak
 }
 
-func generateThumbnailVideoMinf(
-	info hls.StreamInfo,
+func generateThumbnailVideoMinf( //nolint:funlen
+	videoTrack *gortsplib.TrackH264,
+	videoSPSP h264.SPS,
 	stsz []uint32,
 	stco []uint32,
 ) mp4.Boxes {
@@ -145,10 +155,11 @@ func generateThumbnailVideoMinf(
 	       - stsz
 	       - stco
 	*/
+
 	stbl := mp4.Boxes{
 		Box: &mp4.Stbl{},
 		Children: []mp4.Boxes{
-			generateVideoStsd(info),
+			generateVideoStsd(videoTrack, videoSPSP),
 			{Box: &mp4.Stts{
 				Entries: []mp4.SttsEntry{
 					{SampleCount: 1},

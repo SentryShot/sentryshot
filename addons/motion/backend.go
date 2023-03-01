@@ -12,6 +12,7 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/monitor"
 	"nvr/pkg/storage"
+	"nvr/pkg/video/gortsplib/pkg/h264"
 	"os/exec"
 	"strconv"
 	"sync"
@@ -98,12 +99,19 @@ func run(
 	config config,
 	logf log.Func,
 ) error {
-	streamInfo, err := i.StreamInfo(ctx)
+	videoTrack, err := i.VideoTrack(ctx)
 	if err != nil {
-		return fmt.Errorf("stream info: %w", err)
+		return fmt.Errorf("get video track: %w", err)
 	}
-	width := streamInfo.VideoWidth
-	height := streamInfo.VideoHeight
+
+	var spsp h264.SPS
+	err = spsp.Unmarshal(videoTrack.SPS)
+	if err != nil {
+		return fmt.Errorf("unmarshal spsp: %w", err)
+	}
+
+	width := spsp.Width()
+	height := spsp.Height()
 
 	d, err := newDetector(i, config, logf, width, height)
 	if err != nil {

@@ -12,7 +12,7 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"nvr/pkg/video"
-	"nvr/pkg/video/hls"
+	"nvr/pkg/video/gortsplib"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -464,15 +464,26 @@ func (i *InputProcess) RTSPprotocol() string {
 	return i.serverPath.RtspProtocol
 }
 
-// StreamInfo returns the stream information of the input.
-func (i *InputProcess) StreamInfo(ctx context.Context) (*hls.StreamInfo, error) {
+// VideoTrack returns the stream video track.
+func (i *InputProcess) VideoTrack(ctx context.Context) (*gortsplib.TrackH264, error) {
 	// It may take a few seconds for the stream to
 	// become available after the monitor started.
 	muxer, err := i.serverPath.HLSMuxer(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get muxer: %w", err)
 	}
-	return muxer.StreamInfo(), nil
+	return muxer.VideoTrack(), nil
+}
+
+// AudioTrack returns the stream audio track.
+func (i *InputProcess) AudioTrack(ctx context.Context) (*gortsplib.TrackMPEG4Audio, error) {
+	// It may take a few seconds for the stream to
+	// become available after the monitor started.
+	muxer, err := i.serverPath.HLSMuxer(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get muxer: %w", err)
+	}
+	return muxer.AudioTrack(), nil
 }
 
 // HLSMuxer returns the HLS muxer for this input.

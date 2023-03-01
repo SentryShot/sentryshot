@@ -3,7 +3,7 @@ package hls
 import (
 	"bytes"
 	"io"
-	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
+	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/mp4"
 	"nvr/pkg/video/mp4/bitio"
 	"strconv"
@@ -185,8 +185,7 @@ func generateAudioTraf(
 
 func generatePart( //nolint:funlen
 	muxerStartTime int64,
-	audioTrackExist bool,
-	audioClockRate func() int,
+	audioTrack *gortsplib.TrackMPEG4Audio,
 	videoSamples []*VideoSample,
 	audioSamples []*AudioSample,
 ) ([]byte, error) {
@@ -218,6 +217,7 @@ func generatePart( //nolint:funlen
 	audioOffset := mfhdOffset + videoTrunSize + 44
 
 	mdatOffset := audioOffset
+	audioTrackExist := audioTrack != nil
 	if audioTrackExist && len(audioSamples) != 0 {
 		audioTrunOffset := audioOffset + 44
 		audioTrunSize := len(audioSamples)*8 + 20
@@ -250,7 +250,7 @@ func generatePart( //nolint:funlen
 		traf := generateAudioTraf(
 			muxerStartTime,
 			trackID,
-			audioClockRate(),
+			audioTrack.ClockRate(),
 			audioSamples,
 			audioDataOffset)
 		moof.Children = append(moof.Children, traf)
@@ -285,11 +285,9 @@ func partName(id uint64) string {
 
 // MuxerPart fmp4 part.
 type MuxerPart struct {
-	videoTrackExist bool
-	audioTrackExist bool
-	audioClockRate  audioClockRateFunc
-	muxerStartTime  int64
-	id              uint64
+	audioTrack     *gortsplib.TrackMPEG4Audio
+	muxerStartTime int64
+	id             uint64
 
 	isIndependent    bool
 	VideoSamples     []*VideoSample
@@ -298,28 +296,16 @@ type MuxerPart struct {
 	renderedDuration time.Duration
 }
 
-type audioClockRateFunc func() int
-
 func newPart(
-	videoTrackExist bool,
-	audioTrackExist bool,
-	audioClockRate audioClockRateFunc,
+	audioTrack *gortsplib.TrackMPEG4Audio,
 	muxerStartTime int64,
 	id uint64,
 ) *MuxerPart {
-	p := &MuxerPart{
-		videoTrackExist: videoTrackExist,
-		audioTrackExist: audioTrackExist,
-		audioClockRate:  audioClockRate,
-		muxerStartTime:  muxerStartTime,
-		id:              id,
+	return &MuxerPart{
+		audioTrack:     audioTrack,
+		muxerStartTime: muxerStartTime,
+		id:             id,
 	}
-
-	if !videoTrackExist {
-		p.isIndependent = true
-	}
-
-	return p
 }
 
 func (p *MuxerPart) name() string {
@@ -331,19 +317,11 @@ func (p *MuxerPart) reader() io.Reader {
 }
 
 func (p *MuxerPart) duration() time.Duration {
-	if p.videoTrackExist {
-		ret := time.Duration(0)
-		for _, e := range p.VideoSamples {
-			ret += e.duration()
-		}
-		return ret
+	total := time.Duration(0)
+	for _, e := range p.VideoSamples {
+		total += e.duration()
 	}
-
-	// use the sum of the default duration of all samples,
-	// not the real duration,
-	// otherwise on iPhone iOS the stream freezes.
-	return time.Duration(len(p.AudioSamples)) * time.Second *
-		time.Duration(mpeg4audio.SamplesPerAccessUnit) / time.Duration(p.audioClockRate())
+	return total
 }
 
 func (p *MuxerPart) finalize() error {
@@ -351,8 +329,7 @@ func (p *MuxerPart) finalize() error {
 		var err error
 		p.renderedContent, err = generatePart(
 			p.muxerStartTime,
-			p.audioTrackExist,
-			p.audioClockRate,
+			p.audioTrack,
 			p.VideoSamples,
 			p.AudioSamples)
 		if err != nil {

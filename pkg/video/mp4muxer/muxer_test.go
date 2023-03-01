@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"nvr/pkg/video/customformat"
+	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/h264"
-	"nvr/pkg/video/hls"
+	"nvr/pkg/video/gortsplib/pkg/mpeg4audio"
 
 	"github.com/stretchr/testify/require"
 )
@@ -59,18 +60,21 @@ func TestGenerateMP4(t *testing.T) {
 	require.NoError(t, err)
 
 	buf := &bytes.Buffer{}
-	info := hls.StreamInfo{
-		VideoTrackExist: true,
+	/*info := hls.StreamInfo{
 		VideoSPS:        sps,
 		VideoSPSP:       spsp,
 		VideoWidth:      640,
 		VideoHeight:     480,
 		AudioTrackExist: true,
 		AudioClockRate:  48000,
+	}*/
+	videoTrack := &gortsplib.TrackH264{SPS: sps}
+	audioTrack := &gortsplib.TrackMPEG4Audio{
+		Config: &mpeg4audio.Config{ChannelCount: 1, SampleRate: 48000},
 	}
 
 	startTime := int64(10000)
-	mdatSize, err := GenerateMP4(buf, startTime, samples, info)
+	mdatSize, err := GenerateMP4(buf, startTime, samples, videoTrack, audioTrack)
 	require.NoError(t, err)
 	require.Equal(t, int64(10), mdatSize)
 
@@ -80,7 +84,7 @@ func TestGenerateMP4(t *testing.T) {
 		0, 0, 2, 0, // Minor version.
 		'i', 's', 'o', '4',
 
-		0, 0, 4, 0x77, 'm', 'o', 'o', 'v',
+		0, 0, 4, 0x79, 'm', 'o', 'o', 'v',
 		0, 0, 0, 0x6c, 'm', 'v', 'h', 'd',
 		0, 0, 0, 0, // Fullbox.
 		0, 0, 0, 0, // Creation time.
@@ -119,8 +123,8 @@ func TestGenerateMP4(t *testing.T) {
 		0, 0, 0, 0, 0, 0, 0, 0, 1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0x40, 0, 0, 0,
-		2, 0x80, 0, 0, // Width.
-		1, 0xe0, 0, 0, // Height.
+		2, 0x8a, 0, 0, // Width.
+		1, 0xc2, 0, 0, // Height.
 		0, 0, 1, 0xd5, 'm', 'd', 'i', 'a',
 		0, 0, 0, 0x20, 'm', 'd', 'h', 'd',
 		0, 0, 0, 0, // FullBox.
@@ -161,8 +165,8 @@ func TestGenerateMP4(t *testing.T) {
 		0, 0, 0, 0, // Predefined2.
 		0, 0, 0, 0,
 		0, 0, 0, 0,
-		2, 0x80, // Width.
-		1, 0xe0, // Height.
+		2, 0x8a, // Width.
+		1, 0xc2, // Height.
 		0, 0x48, 0, 0, // Horizresolution
 		0, 0x48, 0, 0, // Vertresolution
 		0, 0, 0, 0, // Reserved2.
@@ -223,10 +227,10 @@ func TestGenerateMP4(t *testing.T) {
 		0, 0, 0, 0x14, 's', 't', 'c', 'o',
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 1, // Entry count.
-		0, 0, 4, 0x93, // Chunk offset1.
+		0, 0, 4, 0x95, // Chunk offset1.
 
 		/* Audio trak */
-		0, 0, 1, 0xca, 't', 'r', 'a', 'k',
+		0, 0, 1, 0xcc, 't', 'r', 'a', 'k',
 		0, 0, 0, 0x5c, 't', 'k', 'h', 'd',
 		0, 0, 0, 3, // FullBox.
 		0, 0, 0, 0, // Creation time.
@@ -250,7 +254,7 @@ func TestGenerateMP4(t *testing.T) {
 		0x40, 0, 0, 0, // 9.
 		0, 0, 0, 0, // Width.
 		0, 0, 0, 0, // Height
-		0, 0, 1, 0x66, 'm', 'd', 'i', 'a',
+		0, 0, 1, 0x68, 'm', 'd', 'i', 'a',
 		0, 0, 0, 0x20, 'm', 'd', 'h', 'd',
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 0, // Creation time.
@@ -267,7 +271,7 @@ func TestGenerateMP4(t *testing.T) {
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		'S', 'o', 'u', 'n', 'd', 'H', 'a', 'n', 'd', 'l', 'e', 'r', 0,
-		0, 0, 1, 0x11, 'm', 'i', 'n', 'f',
+		0, 0, 1, 0x13, 'm', 'i', 'n', 'f',
 		0, 0, 0, 0x14, 'v', 'm', 'h', 'd',
 		0, 0, 0, 0, // FullBox.
 		0, 0, // Graphics mode.
@@ -278,28 +282,28 @@ func TestGenerateMP4(t *testing.T) {
 		0, 0, 0, 1, // Entry count.
 		0, 0, 0, 0xc, 'u', 'r', 'l', ' ',
 		0, 0, 0, 1, // FullBox.
-		0, 0, 0, 0xd1, 's', 't', 'b', 'l',
-		0, 0, 0, 0x65, 's', 't', 's', 'd',
+		0, 0, 0, 0xd3, 's', 't', 'b', 'l',
+		0, 0, 0, 0x67, 's', 't', 's', 'd',
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 1, // Entry count.
-		0, 0, 0, 0x55, 'm', 'p', '4', 'a',
+		0, 0, 0, 0x57, 'm', 'p', '4', 'a',
 		0, 0, 0, 0, 0, 0, // Reserved.
 		0, 1, // Data reference index.
 		0, 0, // Entry version.
 		0, 0, 0, 0, 0, 0,
-		0, 0, //  Channel count.
+		0, 1, //  Channel count.
 		0, 0x10, // Sample size 16.
 		0, 0, // Predefined.
 		0, 0, // Reserved2.
 		0xbb, 0x80, 0, 0, // Sample rate.
-		0, 0, 0, 0x31, 'e', 's', 'd', 's',
+		0, 0, 0, 0x33, 'e', 's', 'd', 's',
 		0, 0, 0, 0, // FullBox.
-		3, 0x80, 0x80, 0x80, 0x20, 0, 2, 0, // Data.
-		4, 0x80, 0x80, 0x80, 0x12, 0x40, 0x15, 0,
+		3, 0x80, 0x80, 0x80, 0x22, 0, 2, 0, // Data.
+		4, 0x80, 0x80, 0x80, 0x14, 0x40, 0x15, 0,
 		0, 0, 0, 1,
 		0xf7, 0x39, 0, 1,
 		0xf7, 0x39, 5, 0x80,
-		0x80, 0x80, 0, 6, 0x80, 0x80, 0x80, 1, 2,
+		0x80, 0x80, 2, 1, 0x88, 6, 0x80, 0x80, 0x80, 1, 2,
 		0, 0, 0, 0x18, 's', 't', 't', 's',
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 1, // Entry count.
@@ -320,7 +324,7 @@ func TestGenerateMP4(t *testing.T) {
 		0, 0, 0, 0x14, 's', 't', 'c', 'o',
 		0, 0, 0, 0, // FullBox.
 		0, 0, 0, 1, // Entry count.
-		0, 0, 4, 0x99, // Chunk offset1.
+		0, 0, 4, 0x9b, // Chunk offset1.
 
 		0, 0, 0, 0x12, 'm', 'd', 'a', 't',
 	}

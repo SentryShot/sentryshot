@@ -18,7 +18,7 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"nvr/pkg/video"
-	"nvr/pkg/video/hls"
+	"nvr/pkg/video/gortsplib"
 
 	"github.com/stretchr/testify/require"
 )
@@ -512,20 +512,20 @@ func TestGenInputArgs(t *testing.T) {
 	})
 }
 
-func TestInputStreamInfo(t *testing.T) {
+func TestInputVideoTrack(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		mockStreamInfo := &hls.StreamInfo{}
+		mockVideoTrack := &gortsplib.TrackH264{}
 		muxer := newMockMuxerFunc(&mockMuxer{
-			streamInfo: mockStreamInfo,
+			videoTrack: mockVideoTrack,
 		})
 		i := &InputProcess{
 			serverPath: video.ServerPath{
 				HLSMuxer: muxer,
 			},
 		}
-		actual, err := i.StreamInfo(context.Background())
+		actual, err := i.VideoTrack(context.Background())
 		require.NoError(t, err)
-		require.Equal(t, mockStreamInfo, actual)
+		require.Equal(t, mockVideoTrack, actual)
 	})
 	t.Run("getMuxerErr", func(t *testing.T) {
 		mockError := errors.New("mock")
@@ -537,10 +537,25 @@ func TestInputStreamInfo(t *testing.T) {
 				HLSMuxer: muxer,
 			},
 		}
-		actual, err := i.StreamInfo(context.Background())
+		actual, err := i.VideoTrack(context.Background())
 		require.ErrorIs(t, err, mockError)
 		require.Nil(t, actual)
 	})
+}
+
+func TestInputAudioTrack(t *testing.T) {
+	mockAudioTrack := &gortsplib.TrackMPEG4Audio{}
+	muxer := newMockMuxerFunc(&mockMuxer{
+		audioTrack: mockAudioTrack,
+	})
+	i := &InputProcess{
+		serverPath: video.ServerPath{
+			HLSMuxer: muxer,
+		},
+	}
+	actual, err := i.AudioTrack(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, mockAudioTrack, actual)
 }
 
 func TestSendEvent(t *testing.T) {

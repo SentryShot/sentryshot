@@ -18,6 +18,7 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"nvr/pkg/video"
+	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/hls"
 
 	"github.com/stretchr/testify/require"
@@ -51,11 +52,8 @@ func newTestRecorder(t *testing.T) *Recorder {
 			serverPath: video.ServerPath{
 				HlsAddress: "hls.m3u8",
 				HLSMuxer: newMockMuxerFunc(
-					&mockMuxer{
-						streamInfo: &hls.StreamInfo{
-							VideoSPS: []byte{0, 0, 0},
-						},
-					}),
+					&mockMuxer{videoTrack: &gortsplib.TrackH264{SPS: []byte{0, 0, 0}}},
+				),
 			},
 
 			logf: logf,
@@ -73,7 +71,8 @@ func newTestRecorder(t *testing.T) *Recorder {
 }
 
 type mockMuxer struct {
-	streamInfo  *hls.StreamInfo
+	videoTrack  *gortsplib.TrackH264
+	audioTrack  *gortsplib.TrackMPEG4Audio
 	getMuxerErr error
 	segCount    int
 }
@@ -84,8 +83,12 @@ func newMockMuxerFunc(muxer *mockMuxer) func(context.Context) (video.IHLSMuxer, 
 	}
 }
 
-func (m *mockMuxer) StreamInfo() *hls.StreamInfo {
-	return m.streamInfo
+func (m *mockMuxer) VideoTrack() *gortsplib.TrackH264 {
+	return m.videoTrack
+}
+
+func (m *mockMuxer) AudioTrack() *gortsplib.TrackMPEG4Audio {
+	return m.audioTrack
 }
 
 func (m *mockMuxer) NextSegment(prevID uint64) (*hls.Segment, error) {
@@ -358,13 +361,11 @@ func TestWriteThumbnail(t *testing.T) {
 				}},
 			}},
 		}
-		info := hls.StreamInfo{
-			VideoSPS: []byte{0, 0, 0},
-		}
+		videoTrack := &gortsplib.TrackH264{SPS: []byte{103, 0, 0, 0, 172, 217, 0}}
 
 		done := make(chan struct{})
 		go func() {
-			r.generateThumbnail(os.TempDir(), segment, info)
+			r.generateThumbnail(os.TempDir(), segment, videoTrack)
 			close(done)
 		}()
 
@@ -388,13 +389,11 @@ func TestWriteThumbnail(t *testing.T) {
 				}},
 			}},
 		}
-		info := hls.StreamInfo{
-			VideoSPS: []byte{0, 0, 0},
-		}
+		videoTrack := &gortsplib.TrackH264{SPS: []byte{103, 0, 0, 0, 172, 217, 0}}
 
 		done := make(chan struct{})
 		go func() {
-			r.generateThumbnail(os.TempDir(), segment, info)
+			r.generateThumbnail(os.TempDir(), segment, videoTrack)
 			close(done)
 		}()
 

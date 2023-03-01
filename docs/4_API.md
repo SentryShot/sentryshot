@@ -87,9 +87,19 @@ Users.
 
 ### PUT /api/user/set
 
+Set user data.
+
 ##### Auth: admin
 
-Set user data.
+example request:
+```
+{
+	"id": "7phg3h7v3ayb5g2f",
+	"username": "name",
+	"isAdmin": false,
+	"plainPassword": "pass"
+}
+```
 
 <br>
 

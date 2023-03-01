@@ -76,9 +76,9 @@ func newVideoReader(recordingPath string, nSamples int) (*videoReader, error) { 
 		return nil, fmt.Errorf("new reader: %w", err)
 	}
 
-	info, err := header.ToStreamInfo()
+	videoTrack, audioTrack, err := header.GetTracks()
 	if err != nil {
-		return nil, fmt.Errorf("stream info: %w", err)
+		return nil, fmt.Errorf("get tracks: %w", err)
 	}
 
 	samples, err := reader.ReadAllSamples()
@@ -88,7 +88,7 @@ func newVideoReader(recordingPath string, nSamples int) (*videoReader, error) { 
 	samples = samples[:nSamples]
 
 	metaBuf := &bytes.Buffer{}
-	mdatSize, err := mp4muxer.GenerateMP4(metaBuf, header.StartTime, samples, *info)
+	mdatSize, err := mp4muxer.GenerateMP4(metaBuf, header.StartTime, samples, videoTrack, audioTrack)
 	if err != nil {
 		return nil, fmt.Errorf("generate meta: %w", err)
 	}

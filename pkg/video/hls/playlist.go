@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"nvr/pkg/video/gortsplib"
 	"strconv"
 	"strings"
 	"time"
@@ -417,7 +418,10 @@ func (p *playlist) playlistReader(msn, part, skip string) *MuxerFileResponse {
 	}
 }
 
-func primaryPlaylist(info StreamInfo) *MuxerFileResponse {
+func primaryPlaylist(
+	videoTrack *gortsplib.TrackH264,
+	audioTrack *gortsplib.TrackMPEG4Audio,
+) *MuxerFileResponse {
 	return &MuxerFileResponse{
 		Status: http.StatusOK,
 		Header: map[string]string{
@@ -426,18 +430,16 @@ func primaryPlaylist(info StreamInfo) *MuxerFileResponse {
 		Body: func() io.Reader {
 			var codecs []string
 
-			if info.VideoTrackExist {
-				sps := info.VideoSPS
-				if len(sps) >= 4 {
-					codecs = append(codecs, "avc1."+hex.EncodeToString(sps[1:4]))
-				}
+			sps := videoTrack.SPS
+			if len(sps) >= 4 {
+				codecs = append(codecs, "avc1."+hex.EncodeToString(sps[1:4]))
 			}
 
 			// https://developer.mozilla.org/en-US/docs/Web/Media/Formats/codecs_parameter
-			if info.AudioTrackExist {
+			if audioTrack != nil {
 				codecs = append(
 					codecs,
-					"mp4a.40."+strconv.FormatInt(int64(info.AudioType), 10),
+					"mp4a.40."+strconv.FormatInt(int64(audioTrack.Config.Type), 10),
 				)
 			}
 

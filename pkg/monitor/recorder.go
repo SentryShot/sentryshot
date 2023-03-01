@@ -12,6 +12,7 @@ import (
 	"nvr/pkg/log"
 	"nvr/pkg/storage"
 	"nvr/pkg/video/customformat"
+	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/hls"
 	"nvr/pkg/video/mp4muxer"
 	"os"
@@ -210,11 +211,12 @@ func runRecording(ctx context.Context, r *Recorder) error {
 
 	r.logf(log.LevelInfo, "starting recording: %v", basePath)
 
-	info := *muxer.StreamInfo()
-	go r.generateThumbnail(filePath, firstSegment, info)
+	videoTrack := muxer.VideoTrack()
+	audioTrack := muxer.AudioTrack()
+	go r.generateThumbnail(filePath, firstSegment, videoTrack)
 
 	prevSeg, endTime, err := generateVideo(
-		ctx, filePath, muxer.NextSegment, firstSegment, info, videoLength)
+		ctx, filePath, muxer.NextSegment, firstSegment, videoTrack, audioTrack, videoLength)
 	if err != nil {
 		return fmt.Errorf("write video: %w", err)
 	}
@@ -236,7 +238,8 @@ func generateVideo( //nolint:funlen
 	filePath string,
 	nextSegment nextSegmentFunc,
 	firstSegment *hls.Segment,
-	info hls.StreamInfo,
+	videoTrack *gortsplib.TrackH264,
+	audioTrack *gortsplib.TrackMPEG4Audio,
 	maxDuration time.Duration,
 ) (uint64, *time.Time, error) {
 	prevSeg := firstSegment.ID
@@ -259,10 +262,18 @@ func generateVideo( //nolint:funlen
 	}
 	defer mdat.Close()
 
+	var audioConfig []byte
+	if audioTrack != nil {
+		audioConfig, err = audioTrack.Config.Marshal()
+		if err != nil {
+			return 0, nil, err
+		}
+	}
+
 	header := customformat.Header{
-		VideoSPS:    info.VideoSPS,
-		VideoPPS:    info.VideoPPS,
-		AudioConfig: info.AudioTrackConfig,
+		VideoSPS:    videoTrack.SPS,
+		VideoPPS:    videoTrack.PPS,
+		AudioConfig: audioConfig,
 		StartTime:   startTime.UnixNano(),
 	}
 
@@ -314,10 +325,10 @@ func generateVideo( //nolint:funlen
 func (r *Recorder) generateThumbnail(
 	filePath string,
 	firstSegment *hls.Segment,
-	info hls.StreamInfo,
+	videoTrack *gortsplib.TrackH264,
 ) {
 	videoBuffer := &bytes.Buffer{}
-	err := mp4muxer.GenerateThumbnailVideo(videoBuffer, firstSegment, info)
+	err := mp4muxer.GenerateThumbnailVideo(videoBuffer, firstSegment, videoTrack)
 	if err != nil {
 		r.logf(log.LevelError, "generate thumbnail video: %v", err)
 		return
