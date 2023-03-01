@@ -246,3 +246,6 @@ func NewMockLogger() (ILogger, chan string) {
 func NewDummyLogger() ILogger {
 	return new(testLogger)
 }
+
+// DummyLogf testing.
+func DummyLogf(Level, string, ...interface{}) {}

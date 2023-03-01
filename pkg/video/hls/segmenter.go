@@ -21,21 +21,22 @@ func partDurationIsCompatible(partDuration time.Duration, sampleDuration time.Du
 	return partDuration > ((f * 85) / 100)
 }
 
+func partDurationIsCompatibleWithAll(partDuration time.Duration, sampleDurations map[time.Duration]struct{}) bool {
+	for sd := range sampleDurations {
+		if !partDurationIsCompatible(partDuration, sd) {
+			return false
+		}
+	}
+	return true
+}
+
 func findCompatiblePartDuration(
 	minPartDuration time.Duration,
 	sampleDurations map[time.Duration]struct{},
 ) time.Duration {
 	i := minPartDuration
 	for ; i < 5*time.Second; i += 5 * time.Millisecond {
-		isCompatible := func() bool {
-			for sd := range sampleDurations {
-				if !partDurationIsCompatible(i, sd) {
-					return false
-				}
-			}
-			return true
-		}()
-		if isCompatible {
+		if partDurationIsCompatibleWithAll(i, sampleDurations) {
 			break
 		}
 	}
@@ -106,6 +107,11 @@ func (m *segmenter) genPartID() uint64 {
 // find a part duration that is compatible with all received sample durations.
 func (m *segmenter) adjustPartDuration(du time.Duration) {
 	if m.firstSegmentFinalized {
+		return
+	}
+
+	// Avoid a crash by skipping invalid durations.
+	if du == 0 {
 		return
 	}
 
