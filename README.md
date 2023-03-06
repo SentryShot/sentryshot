@@ -1,6 +1,6 @@
-<img src="https://gitlab.com/osnvr/os-nvr-assets/-/raw/master/screenshots/readme.png">
+<img src="https://codeberg.org/Curid/os-nvr_assets/raw/branch/master/screenshots/readme.png">
 
-[Screenshots](https://gitlab.com/osnvr/os-nvr_assets/-/tree/master/screenshots)
+[Screenshots](https://codeberg.org/Curid/os-nvr_assets/src/branch/master/screenshots)
 
 ## Overview
 
@@ -11,10 +11,10 @@ OS-NVR is a mobile-friendly extensible CCTV system.
 The front-end is written completely from scratch to give the best performance on mobile/low-end devices. The back-end is written in Go using FFmpeg for video processing.
 
 
-`OS-NVR` is a temporary name. [#2](https://gitlab.com/osnvr/os-nvr/-/issues/2)
+`OS-NVR` is a temporary name. [#2](https://codeberg.org/Curid/os-nvr/issues/2)
 
 
-Use [Issues](https://gitlab.com/osnvr/os-nvr/-/issues) for bug reports, feature requests and support. [Matrix chat](https://matrix.to/#/#os_nvr:matrix.org)
+Use [Issues](https://codeberg.org/Curid/os-nvr/issues) for bug reports, feature requests and support. [Matrix chat](https://matrix.to/#/#os_nvr:matrix.org)
 
 ##### Note: iPhone support is currently limited.
 
@@ -40,7 +40,7 @@ Use [Issues](https://gitlab.com/osnvr/os-nvr/-/issues) for bug reports, feature 
 
 ## Related projects
 
-- [TF-CCTV](https://gitlab.com/Curid/TF-CCTV)
+- [TF-CCTV](https://codeberg.org/Curid/TF-CCTV)
 - [OpenIPC](https://openipc.org)
 - [PineCube](https://www.pine64.org/cube)
 

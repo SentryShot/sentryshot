@@ -29,7 +29,7 @@ App will be served on `https://ip:2000`
 
 ## Docker Compose Install
 
-[Docker Compose](https://gitlab.com/osnvr/os-nvr_docker)
+[Docker Compose](https://codeberg.org/Curid/os-nvr_docker)
 
 <br>
 
@@ -48,7 +48,7 @@ App will be served on `https://ip:2000`
 #### Go to `_nvr` home and clone repository.
 
     cd /home/_nvr/
-    sudo -u _nvr git clone --branch master https://gitlab.com/osnvr/os-nvr.git
+    sudo -u _nvr git clone --branch master https://codeberg.org/Curid/os-nvr.git
     cd ./os-nvr
 
 

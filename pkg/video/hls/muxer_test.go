@@ -2,10 +2,11 @@ package hls
 
 import (
 	"context"
-	"nvr/pkg/log"
-	"nvr/pkg/video/gortsplib"
 	"testing"
 	"time"
+
+	"nvr/pkg/log"
+	"nvr/pkg/video/gortsplib"
 
 	"github.com/stretchr/testify/require"
 )

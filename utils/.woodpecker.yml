@@ -1,22 +1,14 @@
-default:
-    image:
-        osnvr/os-nvr_ci:v0.10.0
+pipeline:
+    run:
+        image:
+            osnvr/os-nvr_ci:v0.10.0
+            #cache: &global_cache
+            #    key: ${CI_COMMIT_REF_SLUG}
+            #    paths:
+            #        - node_modules/
+            #        - .cache/
 
-        #cache: &global_cache
-        #    key: ${CI_COMMIT_REF_SLUG}
-        #    paths:
-        #        - node_modules/
-        #        - .cache/
-
-run:
-    artifacts:
-        reports:
-            coverage_report:
-                coverage_format: cobertura
-                path: ./coverage/*.xml
-            junit: ./coverage/report/*.xml
-    script:
-        - |
+        commands: |
             # Setup.
             #export GOPATH="$CI_PROJECT_DIR/.cache/GOPATH:$GOPATH"
             #export GOCACHE="$CI_PROJECT_DIR/.cache/GOCACHE"
@@ -25,7 +17,7 @@ run:
             npm install
 
             # Get changed files.
-            git remote add upstream https://gitlab.com/osnvr/os-nvr.git
+            git remote add upstream https://codeberg.org/Curid/os-nvr.git
             git fetch upstream dev
             git diff --name-only upstream/dev "$CI_COMMIT_SHA"
             files_changed="$(git diff --name-only upstream/dev $CI_COMMIT_SHA)"
@@ -35,3 +27,5 @@ run:
             fi
 
             ./utils/ci.sh "$files_changed"
+        when:
+            event: [pull_request, tag]

@@ -1,13 +1,13 @@
--	[Re-streaming](#re-streaming)
+-   [Re-streaming](#re-streaming)
 -   [REST API](#rest-api)
-	-   [System](#system)
-	-   [General](#general)
-	-   [User](#user)
-	-   [Monitor](#monitor)
-	-   [Recording](#recording)
-	-   [Logs](#logs)
+    -   [System](#system)
+    -   [General](#general)
+    -   [User](#user)
+    -   [Monitor](#monitor)
+    -   [Recording](#recording)
+    -   [Logs](#logs)
 -   [Websockets API](#websockets-api)
-	-   [Logs](#logs)
+    -   [Logs](#logs)
 
 # Re-streaming
 
@@ -19,8 +19,8 @@
 
 ##### example:
 
-	ffplay -rtsp_transport tcp rtsp://127.0.0.1:2021/myMonitor
-	ffplay -rtsp_transport tcp rtsp://127.0.0.1:2021/myMonitor_sub
+    ffplay -rtsp_transport tcp rtsp://127.0.0.1:2021/myMonitor
+    ffplay -rtsp_transport tcp rtsp://127.0.0.1:2021/myMonitor_sub
 
 Remember to expose the ports if you're using Docker.
 
@@ -32,9 +32,8 @@ Remember to expose the ports if you're using Docker.
 
 ##### example:
 
-	ffplay http://127.0.0.1:2022/hls/myMonitor/stream.m3u8
-	   vlc http://127.0.0.1:2022/hls/myMonitor_sub/stream.m3u8
-
+    ffplay http://127.0.0.1:2022/hls/myMonitor/stream.m3u8
+    vlc http://127.0.0.1:2022/hls/myMonitor_sub/stream.m3u8
 
 <br>
 <br>
@@ -92,6 +91,7 @@ Set user data.
 ##### Auth: admin
 
 example request:
+
 ```
 {
 	"id": "7phg3h7v3ayb5g2f",
@@ -145,7 +145,6 @@ Censored monitor configuration.
 
 <br>
 
-
 ### POST /api/monitor/restart?id=x
 
 ##### Auth: admin
@@ -154,7 +153,7 @@ Restart monitor by id.
 
 <br>
 
-### SET /api/monitor/set
+### PUT /api/monitor/set
 
 ##### Auth: admin
 
@@ -265,7 +264,6 @@ example response:
 List of log sources.
 
 example response:`["app","monitor","recorder","storage","watchdog"]`
-
 
 <br>
 <br>

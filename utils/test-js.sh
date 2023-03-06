@@ -7,4 +7,4 @@ home_dir=$(dirname "$(dirname "$script_path")")
 cd "$home_dir" || exit
 
 npm run test
-npm run cover
+#npm run cover
