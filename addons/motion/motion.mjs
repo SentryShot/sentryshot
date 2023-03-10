@@ -444,7 +444,7 @@ function zones(hls) {
 			element
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {
-					const subInputEnabled = fields.subInput.value() !== "" ? "true" : "";
+					const subInputEnabled = fields.subInput.value() === "" ? "" : "true";
 					const monitor = {
 						id: fields.id.value(),
 						audioEnabled: "false",
@@ -452,15 +452,15 @@ function zones(hls) {
 					};
 					feed = newFeed(hls, monitor, true);
 
-					if (!rendered) {
+					if (rendered) {
+						// Update feed.
+						$feed.innerHTML = feed.html;
+					} else {
 						renderModal(element, feed);
 						modal.onClose(() => {
 							feed.destroy();
 						});
 						rendered = true;
-					} else {
-						// Update feed.
-						$feed.innerHTML = feed.html;
 					}
 
 					modal.open();

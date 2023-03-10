@@ -495,7 +495,7 @@ function crop(hls, detectors) {
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {
 					const subInputEnabled =
-						monitorFields.subInput.value() !== "" ? "true" : "";
+						monitorFields.subInput.value() === "" ? "" : "true";
 					const monitor = {
 						id: monitorFields.id.value(),
 						audioEnabled: "false",
@@ -503,16 +503,16 @@ function crop(hls, detectors) {
 					};
 					feed = newFeed(hls, monitor, true);
 
-					if (!rendered) {
+					if (rendered) {
+						// Update feed and preview.
+						$feed.innerHTML = feed.html;
+						$overlay.innerHTML = renderPreviewOverlay();
+					} else {
 						renderModal(element, feed);
 						modal.onClose(() => {
 							feed.destroy();
 						});
 						rendered = true;
-					} else {
-						// Update feed and preview.
-						$feed.innerHTML = feed.html;
-						$overlay.innerHTML = renderPreviewOverlay();
 					}
 
 					modal.open();
@@ -697,7 +697,7 @@ function mask(hls) {
 			element
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {
-					const subInputEnabled = fields.subInput.value() !== "" ? "true" : "";
+					const subInputEnabled = fields.subInput.value() === "" ? "" : "true";
 					const monitor = {
 						id: fields.id.value(),
 						audioEnabled: "false",
@@ -705,15 +705,15 @@ function mask(hls) {
 					};
 					feed = newFeed(hls, monitor, true);
 
-					if (!rendered) {
+					if (rendered) {
+						// Update feed.
+						$feed.innerHTML = feed.html;
+					} else {
 						renderModal(element, feed);
 						modal.onClose(() => {
 							feed.destroy();
 						});
 						rendered = true;
-					} else {
-						// Update feed.
-						$feed.innerHTML = feed.html;
 					}
 
 					modal.open();

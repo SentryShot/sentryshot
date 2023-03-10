@@ -37,8 +37,10 @@ import (
 // }
 
 // 166 minutes or 27.7 hours.
-const chunkDuration = 1000000 * second
-const second = 100000
+const (
+	chunkDuration = 1000000 * second
+	second        = 100000
+)
 
 const (
 	chunkAPIVersion   = 0

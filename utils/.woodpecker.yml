@@ -1,7 +1,7 @@
 pipeline:
     run:
         image:
-            osnvr/os-nvr_ci:v0.10.0
+            osnvr/os-nvr_ci:v0.12.3
             #cache: &global_cache
             #    key: ${CI_COMMIT_REF_SLUG}
             #    paths:

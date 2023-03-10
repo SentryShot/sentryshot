@@ -34,15 +34,18 @@ describe("newViewer", () => {
 			const isThumbnail = [];
 			for (const child of element.children) {
 				switch (child.children[0].tagName) {
-					case "IMG":
+					case "IMG": {
 						isThumbnail.push(true);
 						break;
-					case "VIDEO":
+					}
+					case "VIDEO": {
 						isThumbnail.push(false);
 						break;
-					default:
+					}
+					default: {
 						isThumbnail.push("err");
 						console.log(child.children[0].tagName);
+					}
 				}
 			}
 			return isThumbnail;

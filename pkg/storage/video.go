@@ -161,8 +161,10 @@ func (r *VideoReader) Read(p []byte) (int, error) {
 }
 
 // Testing.
-var errInvalidWhence = errors.New("bytes.Reader.Seek: invalid whence")
-var errNegativePosition = errors.New("bytes.Reader.Seek: negative position")
+var (
+	errInvalidWhence    = errors.New("bytes.Reader.Seek: invalid whence")
+	errNegativePosition = errors.New("bytes.Reader.Seek: negative position")
+)
 
 // Seek implements io.Seeker .
 func (r *VideoReader) Seek(offset int64, whence int) (int64, error) {

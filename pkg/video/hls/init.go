@@ -18,7 +18,7 @@ const (
 	AudioTrackID = 2
 )
 
-//  ISO/IEC 14496-1
+// ISO/IEC 14496-1.
 type myEsds struct {
 	mp4.FullBox
 	ESID   uint8

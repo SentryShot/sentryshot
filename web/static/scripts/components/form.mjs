@@ -30,12 +30,14 @@ function newForm(fields) {
 		},
 		addButton(type) {
 			switch (type) {
-				case "save":
+				case "save": {
 					buttons["save"] = newSaveBtn();
 					break;
-				case "delete":
+				}
+				case "delete": {
 					buttons["delete"] = newDeleteBtn();
 					break;
+				}
 			}
 		},
 		fields: fields,

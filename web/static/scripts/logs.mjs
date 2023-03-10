@@ -110,20 +110,25 @@ function newLogger(formatLog) {
 		lazyLoadSavedLogs: lazyLoadSavedLogs,
 		setLevel(input) {
 			switch (input) {
-				case "error":
+				case "error": {
 					levels = [LevelError];
 					break;
-				case "warning":
+				}
+				case "warning": {
 					levels = [LevelError, LevelWarning];
 					break;
-				case "info":
+				}
+				case "info": {
 					levels = [LevelError, LevelWarning, LevelInfo];
 					break;
-				case "debug":
+				}
+				case "debug": {
 					levels = [LevelError, LevelWarning, LevelInfo, LevelDebug];
 					break;
-				default:
+				}
+				default: {
 					console.log("invalid level:" + input);
+				}
 			}
 		},
 		setSources(input) {
@@ -148,18 +153,22 @@ function newFormater(monitorNameByID, timeZone) {
 		let output = "";
 
 		switch (log.level) {
-			case LevelError:
+			case LevelError: {
 				output += "[ERROR] ";
 				break;
-			case LevelWarning:
+			}
+			case LevelWarning: {
 				output += "[WARNING] ";
 				break;
-			case LevelInfo:
+			}
+			case LevelInfo: {
 				output += "[INFO] ";
 				break;
-			case LevelDebug:
+			}
+			case LevelDebug: {
 				output += "[DEBUG] ";
 				break;
+			}
 		}
 
 		output += unixToDateStr(log.time) + " ";

@@ -24,8 +24,8 @@
 	display: flex;
 	align-items: center;
 	padding: 0.2rem 1rem 0.2rem 0.4rem;
-	border-color: var(--color2-hover);
 	border-width: 0.01rem;
+	border-color: var(--color2-hover);
 	border-bottom-style: solid;
 }
 
@@ -70,8 +70,8 @@
 .settings-category {
 	z-index: 0;
 	display: flex;
-	flex-direction: column;
 	flex-shrink: 0;
+	flex-direction: column;
 	width: 100%;
 	height: 100%;
 	overflow-y: auto;
@@ -200,9 +200,9 @@
 	align-items: center;
 	width: 100%;
 	padding: 0.1rem 0.2rem;
-	border-color: var(--color1);
-	border-style: solid;
 	border-width: 0.01rem;
+	border-style: solid;
+	border-color: var(--color1);
 }
 
 .monitor-selector-label {

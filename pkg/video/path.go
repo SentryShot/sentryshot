@@ -241,9 +241,6 @@ var (
 	ErrInvalidSource  = errors.New("invalid source")
 )
 
-// ErrPathInvalidName invalid path name.
-var ErrPathInvalidName = errors.New("invalid path name")
-
 // CheckAndFillMissing .
 func (pconf *PathConf) CheckAndFillMissing(name string) error {
 	if name == "" {
@@ -255,7 +252,7 @@ func (pconf *PathConf) CheckAndFillMissing(name string) error {
 
 	err := isValidPathName(name)
 	if err != nil {
-		return fmt.Errorf("%w: %s (%v)", ErrPathInvalidName, name, err)
+		return fmt.Errorf("invalid path name: %s (%w)", name, err)
 	}
 
 	return nil

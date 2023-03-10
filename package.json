@@ -13,20 +13,20 @@
 		"browserslist": "^4.20.3",
 		"eslint": "^8.14.0",
 		"eslint-plugin-compat": "^4.0.2",
-		"eslint-plugin-jest": "^26.1.5",
+		"eslint-plugin-jest": "^27.2.1",
 		"eslint-plugin-promise": "^6.0.0",
-		"eslint-plugin-unicorn": "^42.0.0",
-		"jest": "^28.0.3",
-		"jest-environment-jsdom": "^28.0.2",
-		"jest-junit": "^13.2.0",
+		"eslint-plugin-unicorn": "^46.0.0",
+		"jest": "^29.5.0",
+		"jest-environment-jsdom": "^29.5.0",
+		"jest-junit": "^15.0.0",
 		"prettier": "^2.6.2",
-		"prettier-plugin-go-template": "^0.0.12",
-		"stylelint": "^14.8.1",
+		"prettier-plugin-go-template": "^0.0.13",
+		"stylelint": "^15.2.0",
 		"stylelint-config-prettier": "^9.0.3",
-		"stylelint-config-rational-order": "^0.1.2",
-		"stylelint-config-standard": "^25.0.0",
-		"stylelint-no-unsupported-browser-features": "^5.0.3",
-		"stylelint-order": "^5.0.0"
+		"stylelint-config-rational-order": "^0.0.4",
+		"stylelint-config-standard": "^30.0.1",
+		"stylelint-no-unsupported-browser-features": "^6.1.0",
+		"stylelint-order": "^6.0.3"
 	},
 	"jest": {
 		"testEnvironment": "jsdom",
@@ -83,7 +83,8 @@
 				"off"
 			],
 			"unicorn/prefer-add-event-listener": "off",
-			"unicorn/numeric-separators-style": "off"
+			"unicorn/numeric-separators-style": "off",
+			"unicorn/prefer-logical-operator-over-ternary": "off"
 		}
 	},
 	"stylelint": {

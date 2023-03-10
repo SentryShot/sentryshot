@@ -2,7 +2,7 @@
 
 set -e
 
-ci_version="v0.10.0"
+ci_version="v0.12.3"
 
 script_dir=$(dirname "$(readlink -f "$0")")
 cd "$script_dir"

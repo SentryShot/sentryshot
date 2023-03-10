@@ -515,7 +515,7 @@ func (m *muxer) generateAudioMinf() mp4.Boxes { //nolint:funlen
 	return minf
 }
 
-//  ISO/IEC 14496-1
+// ISO/IEC 14496-1.
 type myEsds struct {
 	mp4.FullBox
 	ESID   uint8

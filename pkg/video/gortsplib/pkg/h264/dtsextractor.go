@@ -206,7 +206,7 @@ func (d *DTSExtractor) extractInner(
 				var spsp SPS
 				err := spsp.Unmarshal(nalu)
 				if err != nil {
-					return 0, 0, fmt.Errorf("%w: %v", ErrSpsInvalid, err)
+					return 0, 0, fmt.Errorf("unmarshal SPS: %w", err)
 				}
 				d.sps = append([]byte(nil), nalu...)
 				d.spsp = &spsp
