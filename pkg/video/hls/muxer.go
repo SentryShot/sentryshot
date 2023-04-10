@@ -160,11 +160,7 @@ type VideoSample struct {
 	AVCC       []byte
 	IdrPresent bool
 
-	NextDTS int64
-}
-
-func (s VideoSample) duration() time.Duration {
-	return time.Duration(s.NextDTS - s.DTS)
+	Duration time.Duration
 }
 
 func (VideoSample) private() {}

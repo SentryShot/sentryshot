@@ -90,7 +90,7 @@ func (w *Writer) writeVideoSample(sample *hls.VideoSample) error {
 		IsSyncSample: sample.IdrPresent,
 		PTS:          sample.PTS,
 		DTS:          sample.DTS,
-		Next:         sample.NextDTS,
+		Next:         sample.DTS + int64(sample.Duration),
 		Offset:       uint32(w.mdatPos),
 		Size:         uint32(len(sample.AVCC)),
 	}

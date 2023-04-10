@@ -52,19 +52,20 @@ type segmenter struct {
 	onSegmentFinalized func(*Segment)
 	onPartFinalized    func(*MuxerPart)
 
-	startDTS              time.Duration
-	muxerStartTime        int64
-	videoFirstIDRReceived bool
-	videoDTSExtractor     *h264.DTSExtractor
-	nextSegmentID         uint64
-	videoSPS              []byte
-	currentSegment        *Segment
-	nextPartID            uint64
-	nextVideoSample       *VideoSample
-	nextAudioSample       *AudioSample
-	firstSegmentFinalized bool
-	sampleDurations       map[time.Duration]struct{}
-	adjustedPartDuration  time.Duration
+	startDTS                       time.Duration
+	muxerStartTime                 int64
+	videoFirstRandomAccessReceived bool
+	videoDTSExtractor              *h264.DTSExtractor
+	lastVideoParams                [][]byte
+	nextSegmentID                  uint64
+	videoSPS                       []byte
+	currentSegment                 *Segment
+	nextPartID                     uint64
+	nextVideoSample                *VideoSample
+	nextAudioSample                *AudioSample
+	firstSegmentFinalized          bool
+	sampleDurations                map[time.Duration]struct{}
+	adjustedPartDuration           time.Duration
 }
 
 func newSegmenter(
@@ -124,40 +125,48 @@ func (m *segmenter) adjustPartDuration(du time.Duration) {
 	}
 }
 
-func (m *segmenter) writeH264(ntp time.Time, pts time.Duration, nalus [][]byte) error {
-	idrPresent := false
+func (m *segmenter) writeH264(ntp time.Time, pts time.Duration, au [][]byte) error {
+	randomAccessPresent := false
 	nonIDRPresent := false
 
-	for _, nalu := range nalus {
+	for _, nalu := range au {
 		typ := h264.NALUType(nalu[0] & 0x1F)
 		switch typ {
 		case h264.NALUTypeIDR:
-			idrPresent = true
+			randomAccessPresent = true
 
 		case h264.NALUTypeNonIDR:
 			nonIDRPresent = true
 		}
 	}
 
-	if !idrPresent && !nonIDRPresent {
+	if !randomAccessPresent && !nonIDRPresent {
 		return nil
 	}
 
-	avcc := h264.AVCCMarshal(nalus)
+	return m.writeH264Entry(ntp, pts, au, randomAccessPresent)
+}
 
+func (m *segmenter) writeH264Entry( //nolint:funlen
+	ntp time.Time,
+	pts time.Duration,
+	au [][]byte,
+	randomAccessPresent bool,
+) error {
 	var dts time.Duration
-	if !m.videoFirstIDRReceived {
+
+	if !m.videoFirstRandomAccessReceived {
 		// skip sample silently until we find one with an IDR
-		if !idrPresent {
+		if !randomAccessPresent {
 			return nil
 		}
 
-		m.videoFirstIDRReceived = true
+		m.videoFirstRandomAccessReceived = true
 		m.videoDTSExtractor = h264.NewDTSExtractor()
 		m.videoSPS = m.videoTrack.SPS
 
 		var err error
-		dts, err = m.videoDTSExtractor.Extract(nalus, dts)
+		dts, err = m.videoDTSExtractor.Extract(au, dts)
 		if err != nil {
 			return err
 		}
@@ -167,7 +176,7 @@ func (m *segmenter) writeH264(ntp time.Time, pts time.Duration, nalus [][]byte) 
 		pts -= m.startDTS
 	} else {
 		var err error
-		dts, err = m.videoDTSExtractor.Extract(nalus, pts)
+		dts, err = m.videoDTSExtractor.Extract(au, pts)
 		if err != nil {
 			return err
 		}
@@ -176,22 +185,29 @@ func (m *segmenter) writeH264(ntp time.Time, pts time.Duration, nalus [][]byte) 
 		dts -= m.startDTS
 	}
 
-	return m.writeH264Entry(ntp, &VideoSample{
+	avcc := h264.AVCCMarshal(au)
+
+	sample := &VideoSample{
 		PTS:        m.muxerStartTime + int64(pts),
 		DTS:        m.muxerStartTime + int64(dts),
 		AVCC:       avcc,
-		IdrPresent: idrPresent,
-	})
-}
+		IdrPresent: randomAccessPresent,
+	}
 
-func (m *segmenter) writeH264Entry(ntp time.Time, sample *VideoSample) error { //nolint:funlen
+	// put samples into a queue in order to
+	// - compute sample duration
+	// - check if next sample is IDR
 	sample, m.nextVideoSample = m.nextVideoSample, sample
 	if sample == nil {
 		return nil
 	}
 
-	next := m.nextVideoSample
-	sample.NextDTS = next.DTS
+	sample.Duration = func() time.Duration {
+		if m.nextVideoSample.DTS-sample.DTS < 0 {
+			return 0
+		}
+		return time.Duration(m.nextVideoSample.DTS - sample.DTS)
+	}()
 
 	if m.currentSegment == nil {
 		// create first segment
@@ -207,50 +223,70 @@ func (m *segmenter) writeH264Entry(ntp time.Time, sample *VideoSample) error { /
 		)
 	}
 
-	m.adjustPartDuration(sample.duration())
+	m.adjustPartDuration(sample.Duration)
 
 	err := m.currentSegment.writeH264(sample, m.adjustedPartDuration)
 	if err != nil {
 		return err
 	}
 
-	if !next.IdrPresent {
-		return nil
-	}
 	// switch segment
-	sps := m.videoTrack.SPS
-	spsChanged := !bytes.Equal(m.videoSPS, sps)
+	if randomAccessPresent {
+		videoParams := extractVideoParams(m.videoTrack)
+		paramsChanged := !videoParamsEqual(m.lastVideoParams, videoParams)
 
-	if (time.Duration(sample.NextDTS-m.muxerStartTime)-
-		m.currentSegment.startDTS) >= m.segmentDuration || spsChanged {
-		err := m.currentSegment.finalize(next)
-		if err != nil {
-			return err
-		}
-		m.onSegmentFinalized(m.currentSegment)
+		if (time.Duration(m.nextVideoSample.DTS)-m.currentSegment.startDTS) >= m.segmentDuration ||
+			paramsChanged {
+			err := m.currentSegment.finalize(m.nextVideoSample)
+			if err != nil {
+				return err
+			}
+			m.onSegmentFinalized(m.currentSegment)
 
-		m.firstSegmentFinalized = true
+			m.firstSegmentFinalized = true
 
-		m.currentSegment = newSegment(
-			m.genSegmentID(),
-			ntp,
-			time.Duration(next.PTS-m.muxerStartTime),
-			m.muxerStartTime,
-			m.segmentMaxSize,
-			m.audioTrack,
-			m.genPartID,
-			m.onPartFinalized,
-		)
+			m.currentSegment = newSegment(
+				m.genSegmentID(),
+				ntp,
+				time.Duration(sample.DTS-m.muxerStartTime),
+				m.muxerStartTime,
+				m.segmentMaxSize,
+				m.audioTrack,
+				m.genPartID,
+				m.onPartFinalized,
+			)
 
-		// if SPS changed, reset adjusted part duration
-		if spsChanged {
-			m.videoSPS = sps
-			m.firstSegmentFinalized = false
-			m.sampleDurations = make(map[time.Duration]struct{})
+			if paramsChanged {
+				m.lastVideoParams = videoParams
+				m.firstSegmentFinalized = false
+
+				// reset adjusted part duration
+				m.sampleDurations = make(map[time.Duration]struct{})
+			}
 		}
 	}
 
 	return nil
+}
+
+func extractVideoParams(track *gortsplib.TrackH264) [][]byte {
+	params := make([][]byte, 2)
+	params[0] = track.SafeSPS()
+	params[1] = track.SafePPS()
+	return params
+}
+
+func videoParamsEqual(p1 [][]byte, p2 [][]byte) bool {
+	if len(p1) != len(p2) {
+		return true
+	}
+
+	for i, p := range p1 {
+		if !bytes.Equal(p2[i], p) {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *segmenter) writeAAC(pts time.Duration, au []byte) error {
@@ -262,7 +298,7 @@ func (m *segmenter) writeAAC(pts time.Duration, au []byte) error {
 
 func (m *segmenter) writeAACEntry(sample *AudioSample) error {
 	// wait for the video track
-	if !m.videoFirstIDRReceived {
+	if !m.videoFirstRandomAccessReceived {
 		return nil
 	}
 

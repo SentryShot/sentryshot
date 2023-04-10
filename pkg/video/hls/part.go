@@ -103,7 +103,7 @@ func generateVideoTraf( //nolint:funlen
 		}
 		trun.Entries[i] = mp4.TrunEntry{
 			SampleDuration: uint32(
-				NanoToTimescale(int64(e.duration()), VideoTimescale)),
+				NanoToTimescale(int64(e.Duration), VideoTimescale)),
 			SampleSize:                    uint32(len(e.AVCC)),
 			SampleFlags:                   flags,
 			SampleCompositionTimeOffsetV1: int32(NanoToTimescale(off, VideoTimescale)),
@@ -319,7 +319,7 @@ func (p *MuxerPart) reader() io.Reader {
 func (p *MuxerPart) duration() time.Duration {
 	total := time.Duration(0)
 	for _, e := range p.VideoSamples {
-		total += e.duration()
+		total += e.Duration
 	}
 	return total
 }

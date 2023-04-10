@@ -18,7 +18,7 @@ func TestGenerateThumbnailVideo(t *testing.T) {
 		DTS:        40000,
 		AVCC:       []byte{0x0, 0x1},
 		IdrPresent: true,
-		NextDTS:    60000,
+		Duration:   20000,
 	}
 	audioSample1 := &hls.AudioSample{
 		AU:  []byte{0x6, 0x7},
@@ -37,13 +37,7 @@ func TestGenerateThumbnailVideo(t *testing.T) {
 	require.NoError(t, err)
 
 	buf := &bytes.Buffer{}
-	/*info := hls.StreamInfo{
-		VideoSPS:        sps,
-		VideoSPSP:       spsp,
-		VideoWidth:      640,
-		VideoHeight:     480,
-		AudioTrackExist: true,
-	}*/
+
 	videoTrack := &gortsplib.TrackH264{SPS: sps}
 
 	firstSegment := &hls.Segment{

@@ -208,7 +208,8 @@ class Hls {
       $video,
       initURL,
       mimeCodec,
-      this.config.maxDelaySec
+      this.config.maxDelaySec,
+      this.config.maxFailedBufferAppends
     );
     await player.init();
     this.partFetcher = new PartFetcher(
@@ -234,11 +235,15 @@ class Hls {
   }
 }
 const defaultMaxDelaySec = 0.75;
+const defaultMaxFailedBufferAppends = 3;
 const defaultMaxRecoveryAttempts = 3;
 const defaultRecoverySleepSec = 3;
 function fillMissing(config) {
   if (config.maxDelaySec === void 0) {
     config.maxDelaySec = defaultMaxDelaySec;
+  }
+  if (config.maxFailedBufferAppends === void 0) {
+    config.maxFailedBufferAppends = defaultMaxFailedBufferAppends;
   }
   if (config.maxRecoveryAttempts === void 0) {
     config.maxRecoveryAttempts = defaultMaxRecoveryAttempts;
@@ -292,15 +297,19 @@ class Fetcher {
     return await response.arrayBuffer();
   }
 }
+const fastForwardThreshold = 1e4;
+const failedBufferAppendError = new Error("failed to append buffer");
 class Player {
-  constructor(abortSignal, fetcher, $video, initURL, mimeCodec, maxDelaySec) {
+  constructor(abortSignal, fetcher, $video, initURL, mimeCodec, maxDelaySec, maxFailedAppends) {
     this.initialized = false;
+    this.nFailedAppends = 0;
     this.abortSignal = abortSignal;
     this.fetcher = fetcher;
     this.$video = $video;
     this.initURL = initURL;
     this.mimeCodec = mimeCodec;
     this.maxDelaySec = maxDelaySec;
+    this.maxFailedAppends = maxFailedAppends;
     abortSignal.addEventListener("abort", () => {
       this.destroy();
     });
@@ -332,17 +341,33 @@ class Player {
       throw abortedError;
     }
     const buf = await this.fetcher.fetchVideo(url);
+    let prevEndTS;
+    if (this.sourceBuffer.buffered.length > 0) {
+      prevEndTS = this.sourceBuffer.buffered.end(0);
+    }
     const updateEnd = this.waitForUpdateEnd();
     this.sourceBuffer.appendBuffer(buf);
     await updateEnd;
     if (this.sourceBuffer.buffered.length === 0) {
       return;
     }
+    const endTS = this.sourceBuffer.buffered.end(0);
+    const appendFailed = endTS == prevEndTS;
+    if (appendFailed) {
+      this.nFailedAppends++;
+      if (this.nFailedAppends >= this.maxFailedAppends) {
+        throw failedBufferAppendError;
+      }
+    } else {
+      this.nFailedAppends = 0;
+    }
     if (this.$video.paused) {
       this.$video.play();
     }
-    const endTS = this.sourceBuffer.buffered.end(0);
-    if (this.$video.currentTime < endTS - this.maxDelaySec) {
+    const currentTime = this.$video.currentTime;
+    if (currentTime > endTS || endTS - currentTime > fastForwardThreshold) {
+      this.$video.currentTime = endTS;
+    } else if (currentTime < endTS - this.maxDelaySec) {
       const diff = endTS - this.$video.currentTime;
       this.$video.currentTime += diff * 0.5;
     }
@@ -443,4 +468,4 @@ function sleep(ms, signal) {
     );
   });
 }
-export { Hls as default, failedAfterRecoveryError, minVersionError, missingCodecsError, missingMediaURIError, noNextPartError };
+export { Hls as default, failedAfterRecoveryError, failedBufferAppendError, minVersionError, missingCodecsError, missingMediaURIError, noNextPartError };

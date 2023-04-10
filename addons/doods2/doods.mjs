@@ -120,7 +120,7 @@ function _doods(hls, detectors) {
 			return "";
 		},
 		init($parent) {
-			const element = $parent.querySelector("#" + id);
+			const element = $parent.querySelector(`#${id}`);
 			element
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {
@@ -271,7 +271,7 @@ function thresholds(detectors) {
 			return validateErr;
 		},
 		init($parent) {
-			const element = $parent.querySelector("#" + id);
+			const element = $parent.querySelector(`#${id}`);
 			element
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {
@@ -490,7 +490,7 @@ function crop(hls, detectors) {
 		},
 		init($parent) {
 			var feed;
-			const element = $parent.querySelector("#" + id);
+			const element = $parent.querySelector(`#${id}`);
 			element
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {
@@ -693,7 +693,7 @@ function mask(hls) {
 		},
 		init($parent) {
 			var feed;
-			const element = $parent.querySelector("#" + id);
+			const element = $parent.querySelector(`#${id}`);
 			element
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {

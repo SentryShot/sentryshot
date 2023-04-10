@@ -28,9 +28,9 @@ func TestWriter(t *testing.T) {
 			VideoSamples: []*hls.VideoSample{{
 				PTS:        100000000000000000,
 				DTS:        200000000000000000,
-				NextDTS:    300000000000000000,
 				IdrPresent: true,
 				AVCC:       []byte{9},
+				Duration:   100000000000000000,
 			}},
 			AudioSamples: []*hls.AudioSample{{
 				PTS:     1,

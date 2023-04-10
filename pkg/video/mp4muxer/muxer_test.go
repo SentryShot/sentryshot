@@ -60,14 +60,7 @@ func TestGenerateMP4(t *testing.T) {
 	require.NoError(t, err)
 
 	buf := &bytes.Buffer{}
-	/*info := hls.StreamInfo{
-		VideoSPS:        sps,
-		VideoSPSP:       spsp,
-		VideoWidth:      640,
-		VideoHeight:     480,
-		AudioTrackExist: true,
-		AudioClockRate:  48000,
-	}*/
+
 	videoTrack := &gortsplib.TrackH264{SPS: sps}
 	audioTrack := &gortsplib.TrackMPEG4Audio{
 		Config: &mpeg4audio.Config{ChannelCount: 1, SampleRate: 48000},

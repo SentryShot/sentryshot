@@ -17,10 +17,9 @@ func TestGeneratePart(t *testing.T) {
 			0,
 			&gortsplib.TrackMPEG4Audio{},
 			[]*VideoSample{{
-				PTS:     0,
-				DTS:     0,
-				AVCC:    []byte{},
-				NextDTS: 0,
+				PTS:  0,
+				DTS:  0,
+				AVCC: []byte{},
 			}},
 			[]*AudioSample{},
 		)
@@ -54,10 +53,9 @@ func TestGeneratePart(t *testing.T) {
 			0,
 			&gortsplib.TrackMPEG4Audio{},
 			[]*VideoSample{{
-				PTS:     0,
-				DTS:     0,
-				AVCC:    []byte{'a', 'b', 'c', 'd'},
-				NextDTS: 0,
+				PTS:  0,
+				DTS:  0,
+				AVCC: []byte{'a', 'b', 'c', 'd'},
 			}},
 			[]*AudioSample{},
 		)
@@ -92,10 +90,9 @@ func TestGeneratePart(t *testing.T) {
 			0,
 			&gortsplib.TrackMPEG4Audio{Config: &mpeg4audio.Config{}},
 			[]*VideoSample{{
-				PTS:     0,
-				DTS:     0,
-				AVCC:    []byte{},
-				NextDTS: 0,
+				PTS:  0,
+				DTS:  0,
+				AVCC: []byte{},
 			}},
 			[]*AudioSample{{
 				PTS:     0,
@@ -146,10 +143,9 @@ func TestGeneratePart(t *testing.T) {
 			0,
 			&gortsplib.TrackMPEG4Audio{Config: &mpeg4audio.Config{}},
 			[]*VideoSample{{
-				PTS:     0,
-				DTS:     0,
-				AVCC:    []byte{'a', 'b', 'c', 'd'},
-				NextDTS: 0,
+				PTS:  0,
+				DTS:  0,
+				AVCC: []byte{'a', 'b', 'c', 'd'},
 			}},
 			[]*AudioSample{{
 				PTS:     0,
@@ -206,19 +202,16 @@ func TestGeneratePart(t *testing.T) {
 					DTS:        0,
 					AVCC:       []byte{'a', 'b', 'c', 'd'},
 					IdrPresent: true,
-					NextDTS:    0,
 				},
 				{
-					PTS:     0,
-					DTS:     0,
-					AVCC:    []byte{'e', 'f', 'g', 'h'},
-					NextDTS: 0,
+					PTS:  0,
+					DTS:  0,
+					AVCC: []byte{'e', 'f', 'g', 'h'},
 				},
 				{
-					PTS:     0,
-					DTS:     0,
-					AVCC:    []byte{'i', 'j', 'k', 'l'},
-					NextDTS: 0,
+					PTS:  0,
+					DTS:  0,
+					AVCC: []byte{'i', 'j', 'k', 'l'},
 				},
 			},
 			[]*AudioSample{},
@@ -260,17 +253,17 @@ func TestGeneratePart(t *testing.T) {
 	t.Run("real", func(t *testing.T) {
 		muxerStartTime := int64(time.Hour)
 		videoSample2 := &VideoSample{
-			PTS:     muxerStartTime + 700000000,
-			DTS:     muxerStartTime + 800000000,
-			AVCC:    []byte{'e', 'f', 'g', 'h'},
-			NextDTS: muxerStartTime + 900000000,
+			PTS:      muxerStartTime + 700000000,
+			DTS:      muxerStartTime + 800000000,
+			AVCC:     []byte{'e', 'f', 'g', 'h'},
+			Duration: 100000000,
 		}
 		videoSample1 := &VideoSample{
 			PTS:        muxerStartTime + 600000000,
 			DTS:        muxerStartTime + 666666667,
 			AVCC:       []byte{'a', 'b', 'c', 'd'},
 			IdrPresent: true,
-			NextDTS:    muxerStartTime + 800000000,
+			Duration:   133333333,
 		}
 
 		actual, err := generatePart(

@@ -77,7 +77,6 @@ type playlist struct {
 	segments           []SegmentOrGap
 	segmentsByName     map[string]*Segment
 	segmentDeleteCount int
-	parts              []*MuxerPart
 	partsByName        map[string]*MuxerPart
 	nextSegmentID      uint64
 	nextSegmentParts   []*MuxerPart
@@ -164,7 +163,6 @@ func (p *playlist) start() { //nolint:funlen,gocognit
 		case req := <-p.chPartFinalized:
 			part := req.part
 			p.partsByName[part.name()] = part
-			p.parts = append(p.parts, part)
 			p.nextSegmentParts = append(p.nextSegmentParts, part)
 			p.nextPartID = part.id + 1
 
@@ -639,12 +637,6 @@ func (p *playlist) segmentFinalized(segment *Segment) {
 			for _, part := range toDeleteSeg.Parts {
 				delete(p.partsByName, part.name())
 			}
-
-			// Free memory!
-			for i := 0; i < len(toDeleteSeg.Parts); i++ {
-				p.parts[i] = nil
-			}
-			p.parts = p.parts[len(toDeleteSeg.Parts):]
 
 			delete(p.segmentsByName, toDeleteSeg.name)
 		}

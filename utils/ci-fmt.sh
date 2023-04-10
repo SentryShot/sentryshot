@@ -43,12 +43,14 @@ modified ".js$" || modified ".mjs" || modified ".css" && {
 }
 
 modified ".js$" || modified ".mjs" && {
+	printf "lint js\\n"
 	./utils/lint-js-fix.sh || error "lint js failed"
 	printf "test js\\n"
 	./utils/test-js.sh || error "test js failed"
 }
 
 modified ".css" && {
+	printf "lint css\\n"
 	./utils/lint-css-fix.sh || error "lint css failed"
 }
 
