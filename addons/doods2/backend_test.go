@@ -228,6 +228,7 @@ func newTestInstance(logs chan string) *instance {
 		encoder: png.Encoder{
 			CompressionLevel: png.NoCompression,
 		},
+		previewCache:  newPreviewCache(),
 		newProcess:    ffmock.NewProcess,
 		startReader:   stubStartReader,
 		sendRequest:   stubSendRequest,

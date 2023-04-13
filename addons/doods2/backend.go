@@ -100,7 +100,7 @@ func start(
 		return fmt.Errorf("calculate ffmpeg outputs: %w", err)
 	}
 
-	i := newInstance(addon.sendRequest, input, config, logf)
+	i := newInstance(addon.sendRequest, input, config, addon.previewCache, logf)
 
 	i.outputs = *outputs
 	i.reverseValues = *reverseValues
@@ -135,10 +135,11 @@ type instance struct {
 	ffArgs        []string
 	reverseValues reverseValues
 
-	newProcess  ffmpeg.NewProcessFunc
-	startReader startReaderFunc
-	sendRequest sendRequestFunc
-	encoder     png.Encoder
+	newProcess   ffmpeg.NewProcessFunc
+	startReader  startReaderFunc
+	sendRequest  sendRequestFunc
+	encoder      png.Encoder
+	previewCache *previewCache
 
 	// watchdogTimer restarts process if it stops outputting frames.
 	watchdogTimer *time.Timer
@@ -148,6 +149,7 @@ func newInstance(
 	sendRequest sendRequestFunc,
 	i *monitor.InputProcess,
 	c config,
+	previewCache *previewCache,
 	logf log.Func,
 ) *instance {
 	return &instance{
@@ -160,10 +162,10 @@ func newInstance(
 		newProcess:  ffmpeg.NewProcess,
 		startReader: startReader,
 		sendRequest: sendRequest,
-
 		encoder: png.Encoder{
 			CompressionLevel: png.BestSpeed,
 		},
+		previewCache: previewCache,
 	}
 }
 
@@ -459,6 +461,7 @@ func (i *instance) runReader(ctx context.Context, stdout io.Reader) error {
 			return fmt.Errorf("encode frame: %w", err)
 		}
 		outputBuffer = b.Bytes()
+		i.previewCache.Set(i.c.monitorID, outputBuffer)
 
 		request := detectRequest{
 			DetectorName: i.c.detectorName,

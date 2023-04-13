@@ -48,6 +48,7 @@ function _doods(hls, detectors) {
 		),
 		duration: fieldTemplate.integer("Trigger duration (sec)", "", "120"),
 		useSubStream: fieldTemplate.toggle("Use sub stream", "true"),
+		preview: preview(),
 	};
 
 	const form = newForm(fields);
@@ -69,6 +70,9 @@ function _doods(hls, detectors) {
 		modal.onClose(() => {
 			// Get value.
 			for (const key of Object.keys(form.fields)) {
+				if (!form.fields[key].value) {
+					continue;
+				}
 				value[key] = form.fields[key].value();
 			}
 		});
@@ -719,6 +723,24 @@ function mask(hls) {
 					modal.open();
 					feed.init($modalContent);
 				});
+		},
+	};
+}
+
+function preview() {
+	const id = uniqueID();
+	let element;
+	return {
+		html: `
+			<div style="margin: 0.3rem; margin-bottom: 0;">
+				<img id=${id} style="width: 100%; height: 100%">
+			</div>`,
+		init() {
+			element = document.querySelector(`#${id}`);
+		},
+		set(_, __, monitorFields) {
+			const monitorID = monitorFields["id"].value();
+			element.src = `api/doods/preview/${monitorID}?rand=${Math.random()}`;
 		},
 	};
 }
