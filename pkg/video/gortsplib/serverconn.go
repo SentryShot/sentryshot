@@ -107,7 +107,7 @@ func (sc *ServerConn) run() {
 				req.res <- sc.handleRequestOuter(req.req)
 
 			case err := <-readErr:
-				return err
+				return fmt.Errorf("read: %w", err)
 
 			case ss := <-sc.sessionRemove:
 				if sc.session == ss {

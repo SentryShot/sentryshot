@@ -61,6 +61,15 @@ func newRTSPServer(
 	return s
 }
 
+func (s *rtspServer) logf(level log.Level, format string, a ...interface{}) {
+	msg := fmt.Sprintf(format, a...)
+	s.logger.Log(log.Entry{
+		Level: level,
+		Src:   "app",
+		Msg:   fmt.Sprintf("RTSP server: %s", msg),
+	})
+}
+
 func (s *rtspServer) start(ctx context.Context) error {
 	s.ctx = ctx
 
@@ -141,6 +150,8 @@ func (s *rtspServer) OnConnClose(sc *gortsplib.ServerConn, err error) {
 
 	if se != nil {
 		se.onConnClose(err)
+	} else {
+		s.logf(log.LevelDebug, "conn close: %v", err)
 	}
 }
 
@@ -176,6 +187,8 @@ func (s *rtspServer) OnSessionClose(session *gortsplib.ServerSession, err error)
 
 	if se != nil {
 		se.onClose(err)
+	} else {
+		s.logf(log.LevelDebug, "session close: %v", err)
 	}
 }
 
@@ -253,5 +266,7 @@ func (s *rtspServer) OnDecodeError(
 
 	if se != nil {
 		se.onDecodeError(err)
+	} else {
+		s.logf(log.LevelDebug, "decode error: %v", err)
 	}
 }

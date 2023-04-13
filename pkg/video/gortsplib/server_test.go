@@ -166,7 +166,7 @@ func TestServerErrorCSeqMissing(t *testing.T) {
 	s := &Server{
 		handler: &testServerHandler{
 			onConnClose: func(_ *ServerConn, err error) {
-				require.EqualError(t, err, "CSeq is missing")
+				require.EqualError(t, err, "read: CSeq is missing")
 				close(connClosed)
 			},
 		},

@@ -16,7 +16,7 @@ type cancelFunc func()
 func newTestServer(t *testing.T) (*Server, cancelFunc) {
 	wg := sync.WaitGroup{}
 
-	logger, _ := log.NewMockLogger()
+	logger := log.NewDummyLogger()
 	pathManager := newPathManager(&wg, logger, nil)
 
 	s := &Server{

@@ -154,13 +154,13 @@ func TestServerReadSetupErrors(t *testing.T) {
 					onConnClose: func(_ *ServerConn, err error) {
 						switch ca {
 						case "different paths":
-							require.EqualError(t, err, "can't setup tracks with different paths")
+							require.EqualError(t, err, "read: can't setup tracks with different paths")
 
 						case "double setup":
-							require.EqualError(t, err, "track 0 has already been setup")
+							require.EqualError(t, err, "read: track 0 has already been setup")
 
 						case "closed stream":
-							require.EqualError(t, err, "stream is closed")
+							require.EqualError(t, err, "read: stream is closed")
 						}
 						close(connClosed)
 					},

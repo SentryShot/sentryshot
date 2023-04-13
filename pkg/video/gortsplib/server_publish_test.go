@@ -91,7 +91,7 @@ func TestServerPublishErrorAnnounce(t *testing.T) {
 					"CSeq": base.HeaderValue{"1"},
 				},
 			},
-			"Content-Type header is missing",
+			"read: Content-Type header is missing",
 		},
 		{
 			"invalid content-type",
@@ -103,7 +103,7 @@ func TestServerPublishErrorAnnounce(t *testing.T) {
 					"Content-Type": base.HeaderValue{"aa"},
 				},
 			},
-			"unsupported Content-Type header '[aa]'",
+			"read: unsupported Content-Type header '[aa]'",
 		},
 		{
 			"invalid tracks",
@@ -116,22 +116,22 @@ func TestServerPublishErrorAnnounce(t *testing.T) {
 				},
 				Body: []byte{0x01, 0x02, 0x03, 0x04},
 			},
-			"invalid SDP: invalid line: (\x01\x02\x03\x04)",
+			"read: invalid SDP: invalid line: (\x01\x02\x03\x04)",
 		},
 		{
 			"invalid URL 1",
 			invalidURLAnnounceReq(t, "rtsp://  aaaaa"),
-			"unable to generate track URL",
+			"read: unable to generate track URL",
 		},
 		{
 			"invalid URL 2",
 			invalidURLAnnounceReq(t, "rtsp://host"),
-			"invalid track URL (rtsp://localhost:8554)",
+			"read: invalid track URL (rtsp://localhost:8554)",
 		},
 		{
 			"invalid URL 3",
 			invalidURLAnnounceReq(t, "rtsp://host/otherpath"),
-			"invalid track path: must begin with 'teststream', but is 'otherpath'",
+			"read: invalid track path: must begin with 'teststream', but is 'otherpath'",
 		},
 	} {
 		t.Run(ca.name, func(t *testing.T) {
@@ -387,7 +387,7 @@ func TestServerPublishErrorSetupDifferentPaths(t *testing.T) {
 	require.Equal(t, base.StatusBadRequest, res.StatusCode)
 
 	err = <-serverErr
-	require.EqualError(t, err, "invalid track path (test2stream/trackID=0)")
+	require.EqualError(t, err, "read: invalid track path (test2stream/trackID=0)")
 }
 
 func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
@@ -478,7 +478,7 @@ func TestServerPublishErrorSetupTrackTwice(t *testing.T) {
 	require.Equal(t, base.StatusBadRequest, res.StatusCode)
 
 	err = <-serverErr
-	require.EqualError(t, err, "track 0 has already been setup")
+	require.EqualError(t, err, "read: track 0 has already been setup")
 }
 
 func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
@@ -579,7 +579,7 @@ func TestServerPublishErrorRecordPartialTracks(t *testing.T) {
 	require.Equal(t, base.StatusBadRequest, res.StatusCode)
 
 	err = <-serverErr
-	require.EqualError(t, err, "not all announced tracks have been setup")
+	require.EqualError(t, err, "read: not all announced tracks have been setup")
 }
 
 var oversizedPacketRTPIn = rtp.Packet{
@@ -655,7 +655,7 @@ func TestServerPublishErrorInvalidProtocol(t *testing.T) {
 	s := &Server{
 		handler: &testServerHandler{
 			onConnClose: func(_ *ServerConn, err error) {
-				require.EqualError(t, err, "received unexpected interleaved frame")
+				require.EqualError(t, err, "read: received unexpected interleaved frame")
 				close(errorRecv)
 			},
 			onAnnounce: func(*ServerSession, string, Tracks) (*base.Response, error) {
