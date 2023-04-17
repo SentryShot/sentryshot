@@ -206,7 +206,7 @@ func CreateMask(w int, h int, poly Polygon) image.Image {
 
 	for y := 0; y < w; y++ {
 		for x := 0; x < h; x++ {
-			if vertexInsidePoly(y, x, poly) {
+			if VertexInsidePoly(y, x, poly) {
 				img.Set(y, x, color.Alpha{255})
 			} else {
 				img.Set(y, x, color.Alpha{0})
@@ -223,7 +223,7 @@ func CreateInvertedMask(w int, h int, poly Polygon) image.Image {
 
 	for y := 0; y < w; y++ {
 		for x := 0; x < h; x++ {
-			if vertexInsidePoly(y, x, poly) {
+			if VertexInsidePoly(y, x, poly) {
 				img.Set(y, x, color.Alpha{0})
 			} else {
 				img.Set(y, x, color.Alpha{255})
@@ -233,7 +233,8 @@ func CreateInvertedMask(w int, h int, poly Polygon) image.Image {
 	return img
 }
 
-func vertexInsidePoly(x int, y int, poly Polygon) bool {
+// VertexInsidePoly returns true if point is inside polygon.
+func VertexInsidePoly(y int, x int, poly Polygon) bool {
 	inside := false
 	j := len(poly) - 1
 	for i := 0; i < len(poly); i++ {
@@ -242,7 +243,7 @@ func vertexInsidePoly(x int, y int, poly Polygon) bool {
 		xj := poly[j][0]
 		yj := poly[j][1]
 
-		if ((yi > y) != (yj > y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi) {
+		if ((yi > x) != (yj > x)) && (y < (xj-xi)*(x-yi)/(yj-yi)+xi) {
 			inside = !inside
 		}
 		j = i

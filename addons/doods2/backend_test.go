@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"image/png"
 	"io"
-	"os"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
@@ -112,43 +110,6 @@ func TestCaclulateOutputs(t *testing.T) {
 	})
 }
 
-func TestGenerateMask(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "")
-		require.NoError(t, err)
-		defer os.RemoveAll(tempDir)
-
-		a := &instance{
-			env: storage.ConfigEnv{
-				TempDir: filepath.Join(tempDir, "newdir"),
-			},
-			outputs: outputs{
-				scaledWidth:  1,
-				scaledHeight: 1,
-			},
-		}
-		_, err = a.generateMask(mask{Enable: true})
-		require.NoError(t, err)
-	})
-	t.Run("disabled", func(t *testing.T) {
-		a := &instance{}
-		path, err := a.generateMask(mask{Enable: false})
-		require.NoError(t, err)
-		require.Empty(t, path)
-	})
-	t.Run("saveErr", func(t *testing.T) {
-		a := &instance{
-			env: storage.ConfigEnv{
-				TempDir: "/dev/null",
-			},
-			outputs: outputs{},
-		}
-		_, err := a.generateMask(mask{Enable: true})
-		var e *os.PathError
-		require.ErrorAs(t, err, &e)
-	})
-}
-
 func TestGenerateArgs(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		c := config{
@@ -165,7 +126,7 @@ func TestGenerateArgs(t *testing.T) {
 			cropX:        "11",
 			cropY:        "12",
 		}
-		args := generateFFmpegArgs(outputs, c, "2", "3", "")
+		args := generateFFmpegArgs(outputs, c, "2", "3")
 
 		actual := fmt.Sprintf("%v", args)
 		expected := "[-y -threads 1 -loglevel 1 -rtsp_transport 2 -i 3" +
@@ -190,12 +151,11 @@ func TestGenerateArgs(t *testing.T) {
 			cropX:        "13",
 			cropY:        "14",
 		}
-		args := generateFFmpegArgs(outputs, c, "3", "4", "5")
+		args := generateFFmpegArgs(outputs, c, "3", "4")
 
 		actual := fmt.Sprintf("%v", args)
-		expected := "[-y -threads 1 -loglevel 1 -hwaccel 2 -rtsp_transport 3" +
-			" -i 4 -i 5 -filter_complex [0:v]fps=fps=6,scale=7:8[bg];" +
-			"[bg][1:v]overlay,pad=9:10:0:0,crop=11:12:13:14,hue=s=0" +
+		expected := "[-y -threads 1 -loglevel 1 -hwaccel 2 -rtsp_transport 3 -i 4" +
+			" -filter fps=fps=6,scale=7:8,pad=9:10:0:0,crop=11:12:13:14,hue=s=0" +
 			" -f rawvideo -pix_fmt rgb24 -]"
 		require.Equal(t, expected, actual)
 	})
@@ -466,7 +426,7 @@ func TestParseDetections(t *testing.T) {
 			},
 		}
 
-		actual := parseDetections(reverse, detections)
+		actual := parseDetections(nil, reverse, detections)
 		expected := []storage.Detection{
 			{
 				Label: "b",
@@ -478,7 +438,36 @@ func TestParseDetections(t *testing.T) {
 		}
 		require.Equal(t, actual, expected)
 	})
+	t.Run("mask", func(t *testing.T) {
+		fmt.Println("aaa")
+		reverse := reverseValues{
+			paddingXmultiplier: 1,
+			paddingYmultiplier: 1,
+			uncropXfunc:        func(i float32) float32 { return i },
+			uncropYfunc:        func(i float32) float32 { return i },
+		}
+		detections := detections{
+			{
+				Top:        0.22,
+				Left:       0.62,
+				Bottom:     0.38,
+				Right:      0.78,
+				Label:      "b",
+				Confidence: 5,
+			},
+		}
+
+		mask := ffmpeg.Polygon{
+			{20, 60},
+			{20, 80},
+			{40, 80},
+			{40, 60},
+		}
+
+		actual := parseDetections(mask, reverse, detections)
+		require.Empty(t, actual)
+	})
 	t.Run("noDetections", func(t *testing.T) {
-		parseDetections(reverseValues{}, detections{})
+		parseDetections(nil, reverseValues{}, detections{})
 	})
 }
