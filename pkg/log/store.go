@@ -229,7 +229,7 @@ func (s *Store) queryChunk(q Query, entries *[]Entry, chunkID string) error {
 	}
 
 	for index >= 0 && (q.Limit == 0 || len(*entries) < q.Limit) {
-		entry, err := decoder.decode(index)
+		entry, _, err := decoder.decode(index)
 		if err != nil {
 			return err
 		}
@@ -426,7 +426,7 @@ func (c *chunkDecoder) search(time UnixMicro) (int, error) {
 	for l <= r {
 		i := (l + r) / 2
 
-		entry, err := c.decode(i)
+		entry, _, err := c.decode(i)
 		if err != nil {
 			return 0, fmt.Errorf("decode: %w", err)
 		}
@@ -443,24 +443,24 @@ func (c *chunkDecoder) search(time UnixMicro) (int, error) {
 	return l, nil
 }
 
-func (c *chunkDecoder) decode(index int) (*Entry, error) {
+func (c *chunkDecoder) decode(index int) (*Entry, uint32, error) {
 	entryPos := int64(chunkHeaderLength + (index * dataSize))
 	_, err := c.dataFile.Seek(entryPos, io.SeekStart)
 	if err != nil {
-		return nil, fmt.Errorf("seek: %w", err)
+		return nil, 0, fmt.Errorf("seek: %w", err)
 	}
 
 	rawEntry := make([]byte, dataSize)
 	_, err = io.ReadFull(c.dataFile, rawEntry)
 	if err != nil {
-		return nil, fmt.Errorf("read full: %w", err)
+		return nil, 0, fmt.Errorf("read full: %w", err)
 	}
 
-	entry, err := decodeEntry(rawEntry, c.msgFile)
+	entry, msgOffset, err := decodeEntry(rawEntry, c.msgFile)
 	if err != nil {
-		return nil, fmt.Errorf("decode entry: %w", err)
+		return nil, 0, fmt.Errorf("decode entry: %w", err)
 	}
-	return entry, nil
+	return entry, msgOffset, nil
 }
 
 type writeSeekCloser interface {
@@ -482,6 +482,7 @@ func newChunkEncoder(logDir, chunkID string) (*chunkEncoder, UnixMicro, error) {
 
 	dataEnd := int64(chunkHeaderLength)
 	dataFileSize := getFileSize(dataPath)
+	msgPos := uint32(0)
 	var prevEntryTime UnixMicro
 	if dataFileSize == 0 {
 		err := os.WriteFile(dataPath, []byte{chunkAPIVersion}, 0o600)
@@ -497,13 +498,14 @@ func newChunkEncoder(logDir, chunkID string) (*chunkEncoder, UnixMicro, error) {
 
 		i := decoder.lastIndex()
 
-		lastEntry, err := decoder.decode(i)
+		lastEntry, msgOffset, err := decoder.decode(i)
 		if err != nil {
 			return nil, 0, err
 		}
 
 		prevEntryTime = lastEntry.Time
 		dataEnd = calculateDataEnd(dataFileSize)
+		msgPos = msgOffset + uint32(len(lastEntry.Msg)) + 1
 	}
 
 	dataFile, err := os.OpenFile(dataPath, os.O_WRONLY, 0)
@@ -514,7 +516,7 @@ func newChunkEncoder(logDir, chunkID string) (*chunkEncoder, UnixMicro, error) {
 	_, err = dataFile.Seek(dataEnd, io.SeekStart)
 	if err != nil {
 		dataFile.Close()
-		return nil, 0, fmt.Errorf("seek to end: %w", err)
+		return nil, 0, fmt.Errorf("seek to data end: %w", err)
 	}
 
 	msgFile, err := os.OpenFile(msgPath, os.O_CREATE|os.O_WRONLY, 0o600)
@@ -523,10 +525,18 @@ func newChunkEncoder(logDir, chunkID string) (*chunkEncoder, UnixMicro, error) {
 		return nil, 0, fmt.Errorf("open msg file: %w", err)
 	}
 
+	_, err = msgFile.Seek(int64(msgPos), io.SeekStart)
+	if err != nil {
+		dataFile.Close()
+		msgFile.Close()
+		return nil, 0, fmt.Errorf("seek to msg end: %w", err)
+	}
+
 	encoder := &chunkEncoder{
 		chunkID:  chunkID,
 		msgFile:  msgFile,
 		dataFile: dataFile,
+		msgPos:   msgPos,
 	}
 	return encoder, prevEntryTime, nil
 }
@@ -601,19 +611,19 @@ func encodeEntry(buf []byte, entry Entry, msgFile io.Writer, msgOffset *uint32) 
 	return nil
 }
 
-func decodeEntry(buf []byte, msgFile io.ReadSeeker) (*Entry, error) {
+func decodeEntry(buf []byte, msgFile io.ReadSeeker) (*Entry, uint32, error) {
 	msgOffset := binary.BigEndian.Uint32(buf[40:44])
 	msgSize := binary.BigEndian.Uint16(buf[44:46])
 
 	_, err := msgFile.Seek(int64(msgOffset), io.SeekStart)
 	if err != nil {
-		return nil, fmt.Errorf("seek: %w", err)
+		return nil, 0, fmt.Errorf("seek: %w", err)
 	}
 
 	msgBuf := make([]byte, msgSize)
 	_, err = io.ReadFull(msgFile, msgBuf)
 	if err != nil {
-		return nil, fmt.Errorf("read: %w", err)
+		return nil, 0, fmt.Errorf("read: %w", err)
 	}
 
 	return &Entry{
@@ -622,7 +632,7 @@ func decodeEntry(buf []byte, msgFile io.ReadSeeker) (*Entry, error) {
 		MonitorID: strings.TrimSpace(string(buf[16:40])),
 		Level:     Level(buf[46]),
 		Msg:       string(msgBuf),
-	}, nil
+	}, msgOffset, nil
 }
 
 // ErrInvalidTime invalid time.

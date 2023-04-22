@@ -208,14 +208,36 @@ func TestQuery(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []Entry{msg3, msg2, msg1}, entries)
 	})
+	t.Run("recoverMsgPos", func(t *testing.T) {
+		logDir := t.TempDir()
+
+		store := newTestStore(t, logDir)
+		store.saveLog(Entry{Time: 1, Msg: "a"})
+
+		store = newTestStore(t, logDir)
+		store.saveLog(Entry{Time: 2, Msg: "b"})
+
+		expected := []Entry{
+			{Time: 2, Msg: "b"},
+			{Time: 1, Msg: "a"},
+		}
+		actual, err := store.Query(Query{})
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+
+		expectedFile := []byte{'a', '\n', 'b', '\n'}
+		actualFile, err := os.ReadFile(filepath.Join(logDir, "00000.msg"))
+		require.NoError(t, err)
+		require.Equal(t, expectedFile, actualFile)
+
+	})
 	t.Run("order", func(t *testing.T) {
 		logDir := t.TempDir()
-		store := newTestStore(t, logDir)
 
+		store := newTestStore(t, logDir)
 		store.saveLog(Entry{Time: 100})
 
 		store = newTestStore(t, logDir)
-
 		store.saveLog(Entry{Time: 90})
 		store.saveLog(Entry{Time: 120})
 		store.saveLog(Entry{Time: 0})
@@ -337,7 +359,7 @@ func TestEncodeAndDecodeEntry(t *testing.T) {
 		err = encodeEntry(buf, testEntry, msgBuf, &msgPos)
 		require.NoError(t, err)
 
-		entry, err := decodeEntry(buf, bytes.NewReader(msgBuf.buf))
+		entry, _, err := decodeEntry(buf, bytes.NewReader(msgBuf.buf))
 		require.NoError(t, err)
 		require.Equal(t, testEntry, *entry)
 	})
