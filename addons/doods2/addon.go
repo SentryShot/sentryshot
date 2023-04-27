@@ -392,46 +392,36 @@ func dirExist(path string) bool {
 	return true
 }
 
-type preview struct {
-	buf []byte
-	mu  *sync.Mutex
-}
-
 type previewCache struct {
-	monitors map[string]preview
+	monitors map[string][]byte
+	mu       *sync.Mutex
 }
 
 func newPreviewCache() *previewCache {
-	return &previewCache{monitors: make(map[string]preview)}
+	return &previewCache{monitors: make(map[string][]byte), mu: &sync.Mutex{}}
 }
 
 func (cache *previewCache) Set(monitorID string, buf []byte) {
-	p, exist := cache.monitors[monitorID]
-	if !exist {
-		cache.monitors[monitorID] = preview{buf: buf, mu: &sync.Mutex{}}
-		return
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
 
-	p.buf = buf
-	cache.monitors[monitorID] = p
+	cache.monitors[monitorID] = buf
 }
 
 // ServeHTTP Implements http.Handler.
 func (cache *previewCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
 	monitorID := strings.TrimPrefix(r.URL.Path, "/api/doods/preview/")
 
-	preview, exist := cache.monitors[monitorID]
+	buf, exist := cache.monitors[monitorID]
 	if !exist {
 		http.Error(w, "", http.StatusNotFound)
 		return
 	}
 
-	preview.mu.Lock()
-	defer preview.mu.Unlock()
-
-	_, err := w.Write(preview.buf)
+	_, err := w.Write(buf)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
