@@ -105,7 +105,7 @@ func (pm *pathManager) AddPath(
 		delete(pm.pathConfs, name)
 
 		// Close and remove path.
-		pm.paths[name].close()
+		go pm.paths[name].close()
 		delete(pm.paths, name)
 	}()
 
