@@ -30,6 +30,9 @@ func (ts *Tracks) Unmarshal(byts []byte) (*sdp.SessionDescription, error) {
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse track %d: %w", i+1, err)
 		}
+		if t == nil {
+			continue
+		}
 
 		*ts = append(*ts, t)
 	}
