@@ -156,8 +156,20 @@ function thresholds(detectors) {
 						class="doods-threshold"
 						type="number"
 						value="${val}"
+						min=0
+						max=100
 					/>
 				</li>`,
+			init() {
+				const element = document.querySelector(`#${id}`);
+				element.addEventListener("change", () => {
+					if (element.value < 0) {
+						element.value = 0;
+					} else if (element.value > 100) {
+						element.value = 100;
+					}
+				});
+			},
 			value() {
 				return document.querySelector(`#${id}`).value;
 			},
@@ -244,6 +256,11 @@ function thresholds(detectors) {
 			html += field.html;
 		}
 		$modalContent.innerHTML = html;
+
+		// Init fields.
+		for (const field of fields) {
+			field.init();
+		}
 	};
 
 	let doodsFields;
