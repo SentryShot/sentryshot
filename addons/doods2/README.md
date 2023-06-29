@@ -22,6 +22,14 @@ Crop frame to focus the detector and increase accuracy.
 
 Mask off areas you want the detector to ignore. The dark marked area will be ignored.
 
+#### Minimum size %
+
+Objects with an percentage area smaller than this value will be discarded.
+
+#### Maximum size %
+
+Objects with an percentage area greater than this value will be discarded. This filter will be disabled if the value is zero.
+
 #### Detector
 
 TensorFlow model used by DOODS to detect objects.

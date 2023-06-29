@@ -28,6 +28,8 @@ function _doods(hls, detectors) {
 		thresholds: thresholds(detectors),
 		crop: crop(hls, detectors),
 		mask: mask(hls),
+		minSize: fieldTemplate.text("Minimum size %", "0", "0"),
+		maxSize: fieldTemplate.text("Maximum size %", "100", "100"),
 		detectorName: fieldTemplate.select(
 			"Detector",
 			detectorNames,

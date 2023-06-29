@@ -23,6 +23,8 @@ type config struct {
 	cropY           float64
 	cropSize        float64
 	mask            mask
+	minSize         float64
+	maxSize         float64
 	detectorName    string
 	grayMode        bool
 	feedRate        float64
@@ -35,6 +37,8 @@ type rawConfigV1 struct {
 	Thresholds   string `json:"thresholds"`
 	Crop         string `json:"crop"`
 	Mask         string `json:"mask"`
+	MinSize      string `json:"minSize"`
+	MaxSize      string `json:"maxSize"`
 	DetectorName string `json:"detectorName"`
 	FeedRate     string `json:"feedRate"`
 	Duration     string `json:"duration"`
@@ -81,6 +85,21 @@ func parseConfig(c monitor.Config) (*config, bool, error) { //nolint:funlen
 		}
 	}
 
+	var minSize float64
+	if rawConf.MinSize != "" {
+		minSize, err = strconv.ParseFloat(rawConf.MinSize, 64)
+		if err != nil {
+			return nil, false, fmt.Errorf("parse min size: %w", err)
+		}
+	}
+	var maxSize float64
+	if rawConf.MinSize != "" {
+		maxSize, err = strconv.ParseFloat(rawConf.MaxSize, 64)
+		if err != nil {
+			return nil, false, fmt.Errorf("parse max size: %w", err)
+		}
+	}
+
 	grayMode := len(rawConf.DetectorName) > 5 &&
 		rawConf.DetectorName[0:5] == "gray_"
 
@@ -109,6 +128,8 @@ func parseConfig(c monitor.Config) (*config, bool, error) { //nolint:funlen
 		cropY:           crop[1],
 		cropSize:        crop[2],
 		mask:            mask,
+		minSize:         minSize,
+		maxSize:         maxSize,
 		detectorName:    rawConf.DetectorName,
 		grayMode:        grayMode,
 		feedRate:        feedRate,

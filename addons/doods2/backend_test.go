@@ -426,7 +426,7 @@ func TestParseDetections(t *testing.T) {
 			},
 		}
 
-		actual := parseDetections(nil, reverse, detections)
+		actual := parseDetections(0, 0, nil, reverse, detections)
 		expected := []storage.Detection{
 			{
 				Label: "b",
@@ -464,10 +464,10 @@ func TestParseDetections(t *testing.T) {
 			{40, 60},
 		}
 
-		actual := parseDetections(mask, reverse, detections)
+		actual := parseDetections(0, 0, mask, reverse, detections)
 		require.Empty(t, actual)
 	})
 	t.Run("noDetections", func(t *testing.T) {
-		parseDetections(nil, reverseValues{}, detections{})
+		parseDetections(0, 0, nil, reverseValues{}, detections{})
 	})
 }

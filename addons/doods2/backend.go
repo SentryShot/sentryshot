@@ -434,7 +434,7 @@ func (i *instance) runReader(ctx context.Context, stdout io.Reader) error {
 			return fmt.Errorf("send frame: %w", err)
 		}
 
-		parsed := parseDetections(i.c.mask.Area, i.reverseValues, *detections)
+		parsed := parseDetections(i.c.minSize, i.c.maxSize, i.c.mask.Area, i.reverseValues, *detections)
 		if len(parsed) == 0 {
 			continue
 		}
@@ -454,7 +454,13 @@ func (i *instance) runReader(ctx context.Context, stdout io.Reader) error {
 	}
 }
 
-func parseDetections(mask ffmpeg.Polygon, reverse reverseValues, detections detections) []storage.Detection {
+func parseDetections(
+	minSize float64,
+	maxSize float64,
+	mask ffmpeg.Polygon,
+	reverse reverseValues,
+	detections detections,
+) []storage.Detection {
 	parsed := []storage.Detection{}
 
 	for _, detection := range detections {
@@ -477,6 +483,14 @@ func parseDetections(mask ffmpeg.Polygon, reverse reverseValues, detections dete
 
 		height := bottom - top
 		width := right - left
+
+		sizePercent := float64(width*height) / 100
+		if sizePercent < minSize {
+			continue
+		}
+		if maxSize != 0 && sizePercent > maxSize {
+			continue
+		}
 
 		centerY := top + (height / 2)
 		centerX := left + (width / 2)

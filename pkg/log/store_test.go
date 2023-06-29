@@ -229,7 +229,6 @@ func TestQuery(t *testing.T) {
 		actualFile, err := os.ReadFile(filepath.Join(logDir, "00000.msg"))
 		require.NoError(t, err)
 		require.Equal(t, expectedFile, actualFile)
-
 	})
 	t.Run("order", func(t *testing.T) {
 		logDir := t.TempDir()
