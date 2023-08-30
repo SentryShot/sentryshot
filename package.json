@@ -10,40 +10,30 @@
 		"lint-css-fix": "npx stylelint './{,!(.cache|coverage)/**/!(vendor)/}*.css' --fix --cache=true --cache-location=./node_modules/.cache/stylelint"
 	},
 	"devDependencies": {
-		"browserslist": "^4.20.3",
-		"eslint": "^8.14.0",
-		"eslint-plugin-compat": "^4.0.2",
-		"eslint-plugin-jest": "^27.2.1",
-		"eslint-plugin-promise": "^6.0.0",
-		"eslint-plugin-unicorn": "^46.0.0",
-		"jest": "^29.5.0",
-		"jest-environment-jsdom": "^29.5.0",
-		"jest-junit": "^15.0.0",
-		"prettier": "^2.6.2",
-		"prettier-plugin-go-template": "^0.0.13",
-		"stylelint": "^15.2.0",
-		"stylelint-config-prettier": "^9.0.3",
-		"stylelint-config-rational-order": "^0.0.4",
-		"stylelint-config-standard": "^30.0.1",
-		"stylelint-no-unsupported-browser-features": "^6.1.0",
+		"browserslist": "^4.21.10",
+		"eslint": "^8.48.0",
+		"eslint-plugin-compat": "^4.2.0",
+		"eslint-plugin-jest": "^27.2.3",
+		"eslint-plugin-promise": "^6.1.1",
+		"eslint-plugin-unicorn": "^48.0.1",
+		"jest": "^29.6.4",
+		"jest-environment-jsdom": "^29.6.4",
+		"jest-junit": "^16.0.0",
+		"prettier": "^3.0.3",
+		"prettier-plugin-go-template": "^0.0.15",
+		"stylelint": "^15.10.3",
+		"stylelint-config-standard": "^34.0.0",
+		"stylelint-no-unsupported-browser-features": "^7.0.0",
 		"stylelint-order": "^6.0.3"
 	},
 	"jest": {
 		"testEnvironment": "jsdom",
 		"transform": {},
-		"testMatch": [
-			"**/*_test.mjs"
-		],
-		"moduleFileExtensions": [
-			"js",
-			"mjs"
-		],
+		"testMatch": ["**/*_test.mjs"],
+		"moduleFileExtensions": ["js", "mjs"],
 		"cacheDirectory": "./node_modules/.cache/jest",
 		"coverageDirectory": "coverage",
-		"coverageReporters": [
-			"json",
-			"cobertura"
-		]
+		"coverageReporters": ["json", "cobertura"]
 	},
 	"jest-junit": {
 		"outputDirectory": "coverage/report",
@@ -52,7 +42,8 @@
 	"prettier": {
 		"printWidth": 90,
 		"tabWidth": 4,
-		"useTabs": true
+		"useTabs": true,
+		"plugins": ["prettier-plugin-go-template"]
 	},
 	"eslintConfig": {
 		"env": {
@@ -72,30 +63,19 @@
 			"ecmaVersion": 8,
 			"sourceType": "module"
 		},
-		"plugins": [
-			"unicorn",
-			"jest"
-		],
+		"plugins": ["unicorn", "jest"],
 		"rules": {
 			"unicorn/consistent-function-scoping": "off",
 			"unicorn/prevent-abbreviations": "off",
-			"unicorn/filename-case": [
-				"off"
-			],
+			"unicorn/filename-case": ["off"],
 			"unicorn/prefer-add-event-listener": "off",
 			"unicorn/numeric-separators-style": "off",
 			"unicorn/prefer-logical-operator-over-ternary": "off"
 		}
 	},
 	"stylelint": {
-		"extends": [
-			"stylelint-config-standard",
-			"stylelint-config-prettier",
-			"stylelint-config-rational-order"
-		],
-		"plugins": [
-			"stylelint-no-unsupported-browser-features"
-		],
+		"extends": ["stylelint-config-standard"],
+		"plugins": ["stylelint-order", "stylelint-no-unsupported-browser-features"],
 		"rules": {
 			"value-keyword-case": null,
 			"no-descending-specificity": null,
@@ -103,19 +83,10 @@
 			"plugin/no-unsupported-browser-features": [
 				true,
 				{
-					"ignore": [
-						"multicolumn",
-						"css-appearance"
-					]
+					"ignore": ["multicolumn", "css-appearance", "css-text-indent"]
 				}
 			]
 		}
 	},
-	"browserslist": [
-		"Chrome 66",
-		"Edge 79",
-		"Firefox 60",
-		"Opera 53",
-		"Safari 12.1"
-	]
+	"browserslist": ["Chrome 104", "Edge 104", "Firefox 81", "Opera 91", "Safari 16.4"]
 }

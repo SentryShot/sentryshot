@@ -15,4 +15,5 @@ find . \
 	-not -path "./coverage/*" \
 	-not -path "./node_modules/*" \
 	-not -path "./local/*" \
+	-not -path "./new/*" \
 	-not -path "./start/build/main.go"

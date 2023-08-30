@@ -28,9 +28,9 @@ describe("optionsGridSize", () => {
 				<button class="options-menu-btn js-minus">
 					<img class="icon" src="static/icons/feather/minus.svg">
 				</button>
-			</div>`.replace(/\s/g, "");
+			</div>`.replaceAll(/\s/g, "");
 
-		let actual = document.body.innerHTML.replace(/\s/g, "");
+		let actual = document.body.innerHTML.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 	});
 	test("logic", () => {
@@ -41,7 +41,7 @@ describe("optionsGridSize", () => {
 			return Number(
 				getComputedStyle(document.documentElement)
 					.getPropertyValue("--gridsize")
-					.trim()
+					.trim(),
 			);
 		};
 		const element = setup(content, newOptionsBtn.gridSize());
@@ -292,14 +292,14 @@ describe("optionsGroup", () => {
 		const expected = `
 			<span class="select-one-label">Groups</span>
 			<span class="select-one-item" data="group1">group1</span>
-			<span class="select-one-item" data="group2">group2</span>`.replace(/\s/g, "");
+			<span class="select-one-item" data="group2">group2</span>`.replaceAll(/\s/g, "");
 		const $picker = document.querySelector(".select-one");
 
-		let actual = $picker.innerHTML.replace(/\s/g, "");
+		let actual = $picker.innerHTML.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 
 		document.querySelector(".select-one-label").click();
-		actual = $picker.innerHTML.replace(/\s/g, "");
+		actual = $picker.innerHTML.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 
 		const $group1 = document.querySelector(".select-one-item[data='group1']");
@@ -369,9 +369,9 @@ describe("newOptionsMenu", () => {
 
 		let expected = `
 			<button id="topbar-options-btn" style="visibility:visible;"></button>
-			<div id="options-menu">ab</div>`.replace(/\s/g, "");
+			<div id="options-menu">ab</div>`.replaceAll(/\s/g, "");
 
-		let actual = document.body.innerHTML.replace(/\s/g, "");
+		let actual = document.body.innerHTML.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 	});
 	test("logic", () => {

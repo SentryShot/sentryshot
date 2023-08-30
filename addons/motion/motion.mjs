@@ -17,7 +17,7 @@ function _motion(hls) {
 		frameScale: fieldTemplate.select(
 			"Frame scale",
 			["full", "half", "third", "quarter", "sixth", "eighth"],
-			"full"
+			"full",
 		),
 		duration: fieldTemplate.integer("Trigger duration (sec)", "", "120"),
 		zones: zones(hls),
@@ -238,8 +238,7 @@ function zones(hls) {
 			zones.push(newZone());
 
 			$zoneSelect.innerHTML = renderOptions();
-			$zoneSelect.value =
-				$zoneSelect.options[$zoneSelect.options.length - 1].textContent;
+			$zoneSelect.value = $zoneSelect.options.at(-1).textContent;
 			loadZone();
 		});
 

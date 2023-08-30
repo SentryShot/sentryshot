@@ -3,7 +3,6 @@ package video
 import (
 	"context"
 	"errors"
-	"fmt"
 	"nvr/pkg/log"
 	"nvr/pkg/video/gortsplib"
 	"nvr/pkg/video/gortsplib/pkg/base"
@@ -54,15 +53,6 @@ func (pm *pathManager) AddPath(
 	name string,
 	newConf PathConf,
 ) (HlsMuxerFunc, error) {
-	debug := func(msg string) {
-		pm.log.Log(log.Entry{
-			Level: log.LevelDebug,
-			Src:   "app",
-			Msg:   fmt.Sprintf("%v: addPath: %v", name, msg),
-		})
-	}
-	debug("lock")
-	defer debug("unlock")
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 

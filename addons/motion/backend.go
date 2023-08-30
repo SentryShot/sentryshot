@@ -226,7 +226,7 @@ func (d detector) startFrameReader(
 ) {
 	defer wg.Done()
 	err := d.runFrameReader(stdout)
-	if err != nil && !errors.Is(err, io.EOF) {
+	if !errors.Is(err, io.EOF) {
 		d.logf(log.LevelError, "frame reader: %v", err)
 	}
 	cancel()

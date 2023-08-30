@@ -55,9 +55,9 @@ describe("newPlayer", () => {
 					<rect x="10" width="10" y="0" height="100"></rect>
 					<rect x="95" width="5" y="0" height="100"></rect>
 				</svg>
-			</div>`.replace(/\s/g, "");
+			</div>`.replaceAll(/\s/g, "");
 
-		const actual = element.innerHTML.replace(/\s/g, "");
+		const actual = element.innerHTML.replaceAll(/\s/g, "");
 		expect(actual).toEqual(thumbnailHTML);
 
 		document.querySelector("div img").click();
@@ -117,13 +117,13 @@ describe("newPlayer", () => {
 							<span class="player-menu-text">D</span>
 						</div>
 					</div>
-				</div>`.replace(/\s/g, "");
+				</div>`.replaceAll(/\s/g, "");
 
-		const actual2 = element.innerHTML.replace(/\s/g, "");
+		const actual2 = element.innerHTML.replaceAll(/\s/g, "");
 		expect(actual2).toEqual(videoHTML);
 
 		player.reset();
-		const actual3 = element.innerHTML.replace(/\s/g, "");
+		const actual3 = element.innerHTML.replaceAll(/\s/g, "");
 		expect(actual3).toEqual(thumbnailHTML);
 	});
 
@@ -153,9 +153,9 @@ describe("newPlayer", () => {
 					<rect x="10" width="10" y="0" height="100"></rect>
 					<rect x="95" width="5" y="0" height="100"></rect>
 				</svg>
-			</div>`.replace(/\s/g, "");
+			</div>`.replaceAll(/\s/g, "");
 
-		const actual = element.innerHTML.replace(/\s/g, "");
+		const actual = element.innerHTML.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 
 		document.querySelector("div img").click();
@@ -170,9 +170,11 @@ describe("newPlayer", () => {
 			</a>
 			<button class="js-fullscreen player-options-btn">
 				<img src="static/icons/feather/maximize.svg">
-			</button>`.replace(/\s/g, "");
+			</button>`.replaceAll(/\s/g, "");
 
-		const actual2 = element.querySelector(".js-popup").innerHTML.replace(/\s/g, "");
+		const actual2 = element
+			.querySelector(".js-popup")
+			.innerHTML.replaceAll(/\s/g, "");
 		expect(actual2).toEqual(expected2);
 
 		document.querySelector(".js-delete").click();
@@ -213,7 +215,7 @@ describe("detectionRenderer", () => {
 		const [d, element] = newTestRenderer();
 
 		d.set(60);
-		const actual = element.innerHTML.replace(/\s/g, "");
+		const actual = element.innerHTML.replaceAll(/\s/g, "");
 		const expected = `
 		<svg
 			class="js-detections player-detections"
@@ -225,7 +227,7 @@ describe("detectionRenderer", () => {
 				class="player-detection-text"
 			>12%</text>
 			<rect x="20" width="20" y="10" height="20"></rect>
-		</svg>`.replace(/\s/g, "");
+		</svg>`.replaceAll(/\s/g, "");
 
 		expect(actual).toEqual(expected);
 	});
@@ -234,14 +236,14 @@ describe("detectionRenderer", () => {
 
 		d.set(60 * 10); // Second event.
 
-		const actual = element.innerHTML.replace(/\s/g, "");
+		const actual = element.innerHTML.replaceAll(/\s/g, "");
 		const expected = `
 		<svg
 			class="js-detections player-detections"
 			viewBox="00100100"
 			preserveAspectRatio="none"
 		>
-		</svg>`.replace(/\s/g, "");
+		</svg>`.replaceAll(/\s/g, "");
 
 		expect(actual).toEqual(expected);
 	});

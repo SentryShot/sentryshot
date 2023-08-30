@@ -68,7 +68,7 @@ describe("MultiSelect", () => {
 	};
 	test("rendering", () => {
 		const [element] = setup();
-		const actual = element.innerHTML.replace(/\s/g, "");
+		const actual = element.innerHTML.replaceAll(/\s/g, "");
 		const expected = `
 			<li id="uid4" class="form-field">
 				<label class="form-field-label">test</label>
@@ -107,7 +107,7 @@ describe("MultiSelect", () => {
 						<span class="log-selector-label">c</span>
 					</div>
 				</div>
-			</li>`.replace(/\s/g, "");
+			</li>`.replaceAll(/\s/g, "");
 
 		expect(actual).toEqual(expected);
 	});
@@ -217,7 +217,7 @@ describe("logSelector", () => {
 
 		logSelector.init(element);
 
-		const actual = element.innerHTML.replace(/\s/g, "");
+		const actual = element.innerHTML.replaceAll(/\s/g, "");
 		const expected = `
 			<div class="js-sidebar">
 				<ul class="form">
@@ -235,7 +235,7 @@ describe("logSelector", () => {
 					</button>
 				</div>
 			</div>
-			<div class="js-back"></div>`.replace(/\s/g, "");
+			<div class="js-back"></div>`.replaceAll(/\s/g, "");
 
 		expect(actual).toEqual(expected);
 	});

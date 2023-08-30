@@ -52,7 +52,7 @@ if (isAdmin) {
 			},
 			{
 				label: "ID",
-			}
+			},
 		),
 		name: fieldTemplate.text("Name", "my_monitor"),
 		enable: fieldTemplate.toggle("Enable monitor", "true"),
@@ -67,7 +67,7 @@ if (isAdmin) {
 			{
 				label: "Main input",
 				placeholder: "rtsp://x.x.x.x/main",
-			}
+			},
 		),
 		subInput: newField(
 			[],
@@ -77,7 +77,7 @@ if (isAdmin) {
 			{
 				label: "Sub input",
 				placeholder: "rtsp//x.x.x.x/sub (optional)",
-			}
+			},
 		),
 		hwaccel: newField(
 			[],
@@ -86,7 +86,7 @@ if (isAdmin) {
 			},
 			{
 				label: "Hardware acceleration",
-			}
+			},
 		),
 		videoEncoder: fieldTemplate.selectCustom(
 			"Video encoder",
@@ -96,12 +96,12 @@ if (isAdmin) {
 				"libx264 -preset medium",
 				"libx264 -preset veryslow",
 			],
-			"copy"
+			"copy",
 		),
 		audioEncoder: fieldTemplate.selectCustom(
 			"Audio encoder",
 			["none", "copy", "aac"],
-			"none"
+			"none",
 		),
 		alwaysRecord: fieldTemplate.toggle("Always record", "false"),
 		videoLength: fieldTemplate.text("Video length (min)", "15", "15"),
@@ -109,7 +109,7 @@ if (isAdmin) {
 		logLevel: fieldTemplate.select(
 			"Log level",
 			["quiet", "fatal", "error", "warning", "info", "debug"],
-			"fatal"
+			"fatal",
 		),
 	};
 	const monitor = newMonitor(csrfToken, monitorFields);
@@ -148,7 +148,7 @@ if (isAdmin) {
 				label: "Username",
 				placeholder: "name",
 				initial: "",
-			}
+			},
 		),
 		isAdmin: fieldTemplate.toggle("Admin"),
 		password: newPasswordField(),

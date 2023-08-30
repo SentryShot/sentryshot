@@ -68,9 +68,9 @@ describe("newForm", () => {
 							<span>Save</span>
 						</button>
 					</div>
-				</ul>`.replace(/\s/g, "");
+				</ul>`.replaceAll(/\s/g, "");
 
-			let actual = form.html().replace(/\s/g, "");
+			let actual = form.html().replaceAll(/\s/g, "");
 			expect(actual).toEqual(expected);
 		});
 		test("onClick", () => {
@@ -103,9 +103,9 @@ describe("newForm", () => {
 							<span>Delete</span>
 						</button>
 					</div>
-				</ul>`.replace(/\s/g, "");
+				</ul>`.replaceAll(/\s/g, "");
 
-			let actual = form.html().replace(/\s/g, "");
+			let actual = form.html().replaceAll(/\s/g, "");
 			expect(actual).toEqual(expected);
 		});
 		test("onClick", () => {
@@ -143,9 +143,9 @@ describe("newForm", () => {
 						<span>Delete</span>
 					</button>
 			</div>
-		</ul>`.replace(/\s/g, "");
+		</ul>`.replaceAll(/\s/g, "");
 
-		let actual = form.html().replace(/\s/g, "");
+		let actual = form.html().replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 	});
 });
@@ -165,7 +165,7 @@ describe("newField", () => {
 				label: "a",
 				placeholder: "b",
 				initial: "c",
-			}
+			},
 		);
 	};
 	test("rendering", () => {
@@ -182,10 +182,10 @@ describe("newField", () => {
 				step="0.5"
 			/>
 			<span class="settings-error js-error"></span>
-		</li>`.replace(/\s/g, "");
+		</li>`.replaceAll(/\s/g, "");
 
 		uidReset();
-		const actual = newTestField().html.replace(/\s/g, "");
+		const actual = newTestField().html.replaceAll(/\s/g, "");
 		expect(actual).toBe(expected);
 	});
 	test("validate", () => {
@@ -268,9 +268,9 @@ describe("fieldTemplate", () => {
 				placeholder="2"
 			/>
 			<span class="settings-error js-error"></span>
-		</li>`.replace(/\s/g, "");
+		</li>`.replaceAll(/\s/g, "");
 
-		const actual = field.html.replace(/\s/g, "");
+		const actual = field.html.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 
 		document.body.innerHTML = field.html;
@@ -302,9 +302,9 @@ describe("fieldTemplate", () => {
 				step="1"
 			/>
 			<span class="settings-error js-error"></span>
-		</li>`.replace(/\s/g, "");
+		</li>`.replaceAll(/\s/g, "");
 
-		const actual = field.html.replace(/\s/g, "");
+		const actual = field.html.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 
 		document.body.innerHTML = field.html;
@@ -332,9 +332,9 @@ describe("fieldTemplate", () => {
 					<option>false</option>
 				</select>
 			</div>
-		</li>`.replace(/\s/g, "");
+		</li>`.replaceAll(/\s/g, "");
 
-		const actual = field.html.replace(/\s/g, "");
+		const actual = field.html.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 
 		document.body.innerHTML = field.html;
@@ -361,9 +361,9 @@ describe("fieldTemplate", () => {
 					<option>c</option>
 				</select>
 			</div>
-		</li>`.replace(/\s/g, "");
+		</li>`.replaceAll(/\s/g, "");
 
-		const actual = field.html.replace(/\s/g, "");
+		const actual = field.html.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 
 		document.body.innerHTML = field.html;
@@ -397,9 +397,9 @@ describe("fieldTemplate", () => {
 				</button>
 				</div>
 			<span class="settings-error js-error"></span>
-		</li>`.replace(/\s/g, "");
+		</li>`.replaceAll(/\s/g, "");
 
-		const actual = field.html.replace(/\s/g, "");
+		const actual = field.html.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 
 		document.body.innerHTML = field.html;
@@ -455,9 +455,9 @@ describe("selectCustomField", () => {
 					/>
 				</button>
 				</div>
-		</li>`.replace(/\s/g, "");
+		</li>`.replaceAll(/\s/g, "");
 
-		const actual = field.html.replace(/\s/g, "");
+		const actual = field.html.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 
 		document.body.innerHTML = field.html;
@@ -503,9 +503,9 @@ describe("passwordField", () => {
 				<span class="settings-error js-error"></span>
 			</li>
 
-		`.replace(/\s/g, "");
+		`.replaceAll(/\s/g, "");
 
-		const actual = newPasswordField().html.replace(/\s/g, "");
+		const actual = newPasswordField().html.replaceAll(/\s/g, "");
 
 		expect(actual).toEqual(expected);
 	});
@@ -521,10 +521,10 @@ describe("passwordField", () => {
 			field.init($div);
 
 			[$newInput, $newError] = $getInputAndError(
-				document.querySelector("#js-uid1")
+				document.querySelector("#js-uid1"),
 			);
 			[$repeatInput, $repeatError] = $getInputAndError(
-				document.querySelector("#js-uid2")
+				document.querySelector("#js-uid2"),
 			);
 		});
 		const change = new Event("change");

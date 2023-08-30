@@ -22,9 +22,9 @@ test("newModal", () => {
 			</button>
 		</header>
 		<div class="modal-content">a</div>
-		`.replace(/\s/g, "");
+		`.replaceAll(/\s/g, "");
 
-	let actual = document.querySelector(".modal").innerHTML.replace(/\s/g, "");
+	let actual = document.querySelector(".modal").innerHTML.replaceAll(/\s/g, "");
 	expect(actual).toEqual(expected);
 
 	expect(modal.isOpen()).toBe(true);
@@ -65,9 +65,9 @@ test("modalSelect", () => {
 					</div>
 				</div>
 			</div>
-		</div>`.replace(/\s/g, "");
+		</div>`.replaceAll(/\s/g, "");
 
-	let actual = element.innerHTML.replace(/\s/g, "");
+	let actual = element.innerHTML.replaceAll(/\s/g, "");
 	expect(expected).toEqual(actual);
 
 	const item1 = document.querySelector(".js-option[data='m1']");

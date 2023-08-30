@@ -104,7 +104,7 @@ function newSimpleCategory(category, title) {
 
 			close = () => {
 				for (const element of document.querySelectorAll(
-					".js-set-settings-category"
+					".js-set-settings-category",
 				)) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
@@ -209,7 +209,7 @@ function newCategory(category, title) {
 			close = () => {
 				$wrapper.classList.remove("settings-category-selected");
 				for (const element of document.querySelectorAll(
-					".js-set-settings-category"
+					".js-set-settings-category",
 				)) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
@@ -287,7 +287,7 @@ function newGeneral(token, fields) {
 			"api/general/set",
 			conf,
 			token,
-			"failed to save general config"
+			"failed to save general config",
 		);
 		if (!ok) {
 			return;
@@ -401,7 +401,7 @@ function newMonitor(token, fields) {
 		category.closeSubcategory();
 		monitors = await fetchGet(
 			"api/monitor/configs",
-			"could not fetch monitor config"
+			"could not fetch monitor config",
 		);
 		renderMonitorList(monitors);
 	};
@@ -423,7 +423,7 @@ function newMonitor(token, fields) {
 			"api/monitor/set",
 			monitor,
 			token,
-			"could not save monitor"
+			"could not save monitor",
 		);
 		if (!ok) {
 			return;
@@ -433,7 +433,7 @@ function newMonitor(token, fields) {
 			"api/monitor/restart?id=" + id,
 			monitor,
 			token,
-			"could not restart monitor"
+			"could not restart monitor",
 		);
 
 		load();
@@ -444,7 +444,7 @@ function newMonitor(token, fields) {
 		const ok = await fetchDelete(
 			"api/monitor/delete?" + params,
 			token,
-			"could not delete monitor"
+			"could not delete monitor",
 		);
 		if (!ok) {
 			return;
@@ -586,7 +586,7 @@ function newGroup(token, fields) {
 		const ok = await fetchDelete(
 			"api/group/delete?" + params,
 			token,
-			"could not delete group"
+			"could not delete group",
 		);
 		if (!ok) {
 			return;
@@ -725,7 +725,7 @@ function newUser(token, fields) {
 		const ok = await fetchDelete(
 			"api/user/delete?" + params,
 			token,
-			"could not delete user"
+			"could not delete user",
 		);
 		if (!ok) {
 			return;
@@ -815,7 +815,7 @@ function newSelectMonitor(id) {
 		}
 		const monitorsList = await fetchGet(
 			"api/monitor/list",
-			"could not fetch monitor list"
+			"could not fetch monitor list",
 		);
 
 		fields = {};

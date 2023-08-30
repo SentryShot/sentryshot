@@ -185,13 +185,13 @@ function newTimeline(element, player, timezone) {
 		rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
 
 		const timestampHeight = Number.parseFloat(
-			getComputedStyle(element.querySelector(".timeline-timestamp")).height
+			getComputedStyle(element.querySelector(".timeline-timestamp")).height,
 		);
 		const needleMargin = Number.parseFloat(
-			getComputedStyle(element.querySelector(".timeline-needle-wrapper")).marginTop
+			getComputedStyle(element.querySelector(".timeline-needle-wrapper")).marginTop,
 		);
 		const needleHeight = Number.parseFloat(
-			getComputedStyle(element.querySelector(".timeline-needle-wrapper")).height
+			getComputedStyle(element.querySelector(".timeline-needle-wrapper")).height,
 		);
 		const needleOffset = needleHeight / 2 + needleMargin;
 
@@ -270,7 +270,7 @@ function newTimeline(element, player, timezone) {
 		});
 		const recordings = await fetchGet(
 			"api/recording/query?" + parameters,
-			"could not get recordings"
+			"could not get recordings",
 		);
 
 		if (recordings == undefined) {

@@ -212,7 +212,7 @@
 }
 
 /* Mobile Landscape mode. */
-@media (min-aspect-ratio: 3/2) {
+@media (aspect-ratio >= 3/2) {
 	.settings-category-wrapper {
 		width: var(--size-minus-topbar);
 		height: 100%;
@@ -233,7 +233,7 @@
 }
 
 /* Tablet/Dektop. */
-@media only screen and (min-width: 768px) {
+@media only screen and (width >= 768px) {
 	.settings-navbar {
 		width: auto;
 		padding-top: 2rem;

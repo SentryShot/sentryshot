@@ -25,7 +25,7 @@ function newLogger(formatLog) {
 		// Use relative path.
 		const path = window.location.pathname.replace("logs", "api/log/feed");
 		logStream = new WebSocket(
-			"wss://" + window.location.host + path + "?" + parameters
+			"wss://" + window.location.host + path + "?" + parameters,
 		);
 
 		logStream.addEventListener("open", () => {
@@ -144,7 +144,7 @@ function newFormater(monitorNameByID, timeZone) {
 	const unixToDateStr = (unixMillisecond) => {
 		const { YY, MM, DD, hh, mm, ss } = fromUTC2(
 			new Date(unixMillisecond / 1000),
-			timeZone
+			timeZone,
 		);
 		return `${YY}-${MM}-${DD}_${hh}:${mm}:${ss}`;
 	};
@@ -396,7 +396,7 @@ async function init() {
 		level: fieldTemplate.select(
 			"Level",
 			["error", "warning", "info", "debug"],
-			"info"
+			"info",
 		),
 		monitor: newMonitorPicker(monitors),
 		sources: newMultiSelect("Sources", logSources, logSources),

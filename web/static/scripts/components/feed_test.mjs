@@ -10,7 +10,7 @@ describe("feed", () => {
 		const buttons = [newFeedBtn.mute(monitor)];
 		const feed = newFeed(undefined, monitor, true, buttons);
 
-		const actual = feed.html.replace(/\s/g, "");
+		const actual = feed.html.replaceAll(/\s/g, "");
 		const expected = `
 			<div id="uid1" class="grid-item-container">
 				<input
@@ -36,7 +36,7 @@ describe("feed", () => {
 					disablepictureinpicture
 					playsinline
 				></video>
-			</div>`.replace(/\s/g, "");
+			</div>`.replaceAll(/\s/g, "");
 
 		expect(actual).toBe(expected);
 	});
@@ -45,14 +45,14 @@ describe("feed", () => {
 describe("muteBtn", () => {
 	test("rendering", async () => {
 		const monitor = { audioEnabled: "true" };
-		const actual = newFeedBtn.mute(monitor).html.replace(/\s/g, "");
+		const actual = newFeedBtn.mute(monitor).html.replaceAll(/\s/g, "");
 		const expected = `
 			<button class="js-mute-btn feed-btn">
 				<img
 					class="feed-btn-img icon"
 					src="static/icons/feather/volume.svg"
 				/>
-			</button>`.replace(/\s/g, "");
+			</button>`.replaceAll(/\s/g, "");
 		expect(actual).toBe(expected);
 	});
 	test("logic", async () => {
@@ -82,7 +82,7 @@ describe("muteBtn", () => {
 });
 
 test("recordingsBtn", async () => {
-	const actual = newFeedBtn.recordings("a", "b").html.replace(/\s/g, "");
+	const actual = newFeedBtn.recordings("a", "b").html.replaceAll(/\s/g, "");
 	const expected = `
 		<a href="a#monitors=b" class="feed-btn">
 			<img
@@ -90,18 +90,18 @@ test("recordingsBtn", async () => {
 				style="height: 0.65rem;"
 				src="static/icons/feather/film.svg"
 			/>
-		</a>`.replace(/\s/g, "");
+		</a>`.replaceAll(/\s/g, "");
 	expect(actual).toBe(expected);
 });
 
 test("fullscreenBtn", () => {
-	const actual = newFeedBtn.fullscreen().html.replace(/\s/g, "");
+	const actual = newFeedBtn.fullscreen().html.replaceAll(/\s/g, "");
 	const expected = `
 		<button class="js-fullscreen-btn feed-btn">
 			<img
 				class="feed-btn-img icon"
 				src="static/icons/feather/maximize.svg"
 			/>
-		</button>`.replace(/\s/g, "");
+		</button>`.replaceAll(/\s/g, "");
 	expect(actual).toBe(expected);
 });

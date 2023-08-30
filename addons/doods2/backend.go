@@ -389,7 +389,7 @@ func startReader(
 	defer i.wg.Done()
 
 	err := i.runReader(ctx, stdout)
-	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, context.Canceled) {
+	if !errors.Is(err, io.EOF) && !errors.Is(err, context.Canceled) {
 		i.logf(log.LevelError, "instance crashed: %v", err)
 	} else {
 		i.logf(log.LevelInfo, "instance stopped")

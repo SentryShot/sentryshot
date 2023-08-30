@@ -70,7 +70,7 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 		});
 		const recordings = await fetchGet(
 			"api/recording/query?" + parameters,
-			"could not get recording"
+			"could not get recording",
 		);
 
 		if (recordings == undefined) {
@@ -133,7 +133,7 @@ function idToISOstring(id) {
 	// Output 0000-00-00T00:00:00
 	return id.replace(
 		/(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})_.*/,
-		"$1-$2-$3T$4:$5:$6+00:00"
+		"$1-$2-$3T$4:$5:$6+00:00",
 	);
 }
 

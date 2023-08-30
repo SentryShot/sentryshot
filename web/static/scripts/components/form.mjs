@@ -282,7 +282,7 @@ const fieldTemplate = {
 				label: label,
 				placeholder: placeholder,
 				initial: initial,
-			}
+			},
 		);
 	},
 	integer(label, placeholder, initial) {
@@ -298,7 +298,7 @@ const fieldTemplate = {
 				label: label,
 				placeholder: placeholder,
 				initial: initial,
-			}
+			},
 		);
 	},
 	toggle(label, initial) {
@@ -310,7 +310,7 @@ const fieldTemplate = {
 			{
 				label: label,
 				initial: initial,
-			}
+			},
 		);
 	},
 	select(label, options, initial) {
@@ -322,7 +322,7 @@ const fieldTemplate = {
 			{
 				label: label,
 				initial: initial,
-			}
+			},
 		);
 	},
 	selectCustom(label, options, initial) {
@@ -382,7 +382,7 @@ function newSelectCustomField(inputRules, options, values) {
 				},
 				id,
 				values.label,
-				values.placeholder
+				values.placeholder,
 			);
 		})(),
 		init() {
@@ -439,10 +439,10 @@ function newPasswordField() {
 
 	const passwordStrength = (string) => {
 		const strongRegex = new RegExp(
-			"^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*])(?=.{8,})"
+			"^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*])(?=.{8,})",
 		);
 		const mediumRegex = new RegExp(
-			"^(((?=.*[a-z])(?=.*[A-Z]))|((?=.*[a-z])(?=.*\\d))|((?=.*[A-Z])(?=.*\\d)))(?=.{6,})"
+			"^(((?=.*[a-z])(?=.*[A-Z]))|((?=.*[a-z])(?=.*\\d))|((?=.*[A-Z])(?=.*\\d)))(?=.{6,})",
 		);
 
 		if (strongRegex.test(string) || string === "") {
@@ -476,10 +476,10 @@ function newPasswordField() {
 		},
 		init($parent) {
 			[$newInput, $newError] = $getInputAndError(
-				$parent.querySelector("#js-" + newID)
+				$parent.querySelector("#js-" + newID),
 			);
 			[$repeatInput, $repeatError] = $getInputAndError(
-				$parent.querySelector("#js-" + repeatID)
+				$parent.querySelector("#js-" + repeatID),
 			);
 
 			$newInput.addEventListener("change", () => {

@@ -936,7 +936,9 @@ a:focus {
 	justify-content: center;
 	visibility: hidden;
 	opacity: 0.1;
-	transition: visibility 0.8s, opacity 0.7s;
+	transition:
+		visibility 0.8s,
+		opacity 0.7s;
 	transition-timing-function: ease-in;
 }
 
@@ -982,7 +984,9 @@ a:focus {
 .player-overlay-checkbox:hover ~ .player-overlay {
 	visibility: visible;
 	opacity: 0.8;
-	transition: visibility 0s, opacity 0.1s;
+	transition:
+		visibility 0s,
+		opacity 0.1s;
 }
 
 .player-play-btn {
@@ -1119,7 +1123,7 @@ a:focus {
 }
 
 /* Mobile Landscape mode. */
-@media (min-aspect-ratio: 3/2) {
+@media (aspect-ratio >= 3/2) {
 	:root {
 		font-size: 12vh; /* Window scale. */
 
@@ -1173,7 +1177,7 @@ a:focus {
 }
 
 /* Tablet/Dektop. */
-@media only screen and (min-width: 768px) {
+@media only screen and (width >= 768px) {
 	:root {
 		font-size: 4.5vh; /* Window scale. */
 
@@ -1204,10 +1208,7 @@ a:focus {
 	}
 
 	#options-menu {
-		top: auto;
-		right: auto;
-		bottom: auto;
-		left: var(--sidebar-width);
+		inset: auto auto auto var(--sidebar-width);
 		transition: left 400ms;
 	}
 

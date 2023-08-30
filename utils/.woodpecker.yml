@@ -1,4 +1,4 @@
-pipeline:
+steps:
     run:
         image:
             osnvr/os-nvr_ci:v0.12.3
