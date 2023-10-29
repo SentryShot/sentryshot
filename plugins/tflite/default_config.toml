@@ -1,0 +1,39 @@
+[[detector_cpu]]
+enable = true
+name = "cpu_detector1"
+width = 340
+height = 340
+model = "https://codeberg.org/Curid/TF-CCTV/raw/branch/master/models/cctv3.3/gray_cctv3_340x340.tflite"
+sha256sum = "4337107b4ca60a6aebca8137536c7a605d5e0cbfa5b611efba78f106f03c29c2"
+label_map = "https://codeberg.org/Curid/TF-CCTV/raw/branch/master/labels/person-map.txt"
+threads = 1
+
+[[detector_cpu]]
+enable = false
+name = "cpu_detector2"
+width = 320
+height = 320
+model = "https://raw.githubusercontent.com/google-coral/test_data/master/ssdlite_mobiledet_coco_qat_postprocess.tflite"
+sha256sum = "32c486140391eb4dc43fca7113ad392be632dc5366687f2731f73d740678693f"
+label_map = "https://codeberg.org/Curid/TF-CCTV/raw/branch/master/labels/mscoco-map.txt"
+threads = 1
+
+
+# NOT IMPLEMENTED.
+[[detector_edgetpu]]
+enable = false
+name = "edgetpu_detector1"
+width = 340
+height = 340
+model = "https://codeberg.org/Curid/TF-CCTV/raw/branch/master/models/cctv3.3/gray_cctv3_340x340_edgetpu.tflite"
+sha256sum = "2816b5f401b0ac168584c83554e06e4744c86ecd688c857289438093d32a20ef"
+label_map = "https://codeberg.org/Curid/TF-CCTV/raw/branch/master/labels/person-map.txt"
+device = "/dev/x"
+
+
+# The sha256sum is for the tflite file.
+# The label maps are sanitized and don't need a checksum.
+#
+# Each monitor can only saturate a single thread.
+#
+# WebUI documentation: ./plugins/tflite/README.md

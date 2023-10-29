@@ -1,138 +1,68 @@
 ### Index
 
+- [Development Environment](#development-environment)
+- [Test Stream](#test-stream)
 - [Program Map](#program-map)
-- [The addon system](#the-addon-system)
-- [The video server](../pkg/video/README.md)
+- [The Plugin System](#the-plugin-system)
+
+<br>
+
+## Development Environment
+
+Use this command to run the full CI suite after setting up your environment
+
+    ./misc/utils.sh ci-fix
+
+
+
+### Nix shell
+
+Use a [nix shell](https://nix.dev/tutorials/first-steps/ad-hoc-shell-environments) with all the build tools installed. Will use 5GB disk space. [Install Nix](https://nixos.org/download#download-nix)
+
+    ./misc/utils.sh dev-env-nix
+
+
+### Docker
+
+Enter a nix shell packaged inside a OCI image. This is the same image that the CI pipeline uses.
+
+	./misc/utils.sh dev-env-docker 
+
+### Manual
+
+You can install everything manually instead. Most things don't require a very specific version, but they may not exist in your package manager.
+
+* [rust 1.65+](https://www.rust-lang.org/tools/install)
+* [node 18+](https://nodejs.org)
+* [libavutil+libavcodec](https://ffmpeg.org)
+* [libtensorflowlite_c](https://www.tensorflow.org/lite/guide/build_cmake#build_tensorflow_lite_c_library)
+* [shellcheck](https://www.shellcheck.net)
+* pkg-config
+
+<br>
+
+## Test Stream
+
+TODO
 
 <br>
 
 ## Program Map
 
 ```
-.
-├── nvr.go   # Main app.
-├── addon.go # Addon hooks.
-├── addons
-│   ├── auth
-│   │   ├── basic/
-│   │   └── none/
-│   └── thumbscale/
-├── start
-│   ├── build/main.go # Build file output.
-│   └── start.go      # Start script.
-├── pkg
-│   ├── ffmpeg
-│   │   ├── ffmock/   # ffmpeg sub-process mock.
-│   │   └── ffmpeg.go # ffmpeg helper functions.
-│   ├── group # Monitor groups.
-│   ├── log
-│   │   ├── db.go  # Log storage.
-│   │   └── log.go # Logging.
-│   ├── monitor
-│   │   ├── monitor.go
-│   │   └── recorder.go
-│   ├── storage
-│   │   ├── crawler.go   # Finds recordings.
-│   │   ├── storage.go
-│   │   ├── types.go
-│   │   └── video.go
-│   ├── system/
-│   ├── video/ # Internal Video server.
-│   └── web
-│       ├── auth/     # Authentication definitions.
-│       ├── routes.go # HTTP handlers.
-│       └── web.go    # Templating.
-├── go.mod       # Go Dependencies.
-├── package.json # Optional front-end tools.
-├── utils
-│   ├── ci-fmt.sh # Format, lint and test.
-│   └── services/ # Service scripts.
-└── web # Front-end.
-    ├── static
-    │   ├── icons/
-    │   ├── scripts/
-    │   └── style/
-    └── templates
-        ├── includes # Sub-templates/Nested templates.
-        │   └── sidebar.tpl
-        └── live.tpl
-
+TODO:
 ```
+
 
 
 <br>
 
-## The addon system
+## The Plugin System
 
-The addon system is inspired by [Caddy](https://caddyserver.com/docs/architecture). It injects imports statements into a `main.go` build file and `go` runs it as a sub-process. The addons use `init()` to register hooks in the app before it's started.
+Each plugin is a `dylib` shared library. Enabled plugins are loaded at runtime with [libloading](https://github.com/nagisa/rust_libloading), unloading or reloading is not supported.
 
-This is done by the [start script](./start/start.go) at runtime.
+https://github.com/luojia65/plugin-system-example
 
+### Tokio limitations
 
-#### Minimal example.
-
-```
-.
-├── start
-│   └── main.go
-├── addons
-│   ├── A
-│   │   └── A.go
-│   └── B
-│       └── B.go
-└── app.go
-```
-
-```
-// main.go
-import (
-	app
-	_ app/addons/A
-	_ app/addons/B
-)
-
-// main() is called after packages have been imported.
-func main() {
-	app.Start()
-}
-
-```
-
-```
-// A.go
-import app
-
-// This is called when main.go imports it.
-func init() {
-	// Register message in app.
-	app.registerMsg("a")
-}
-```
-
-```
-// B.go
-import app
-
-func init() {
-	app.registerMsg("b")
-}
-```
-
-```
-// app.go
-package app
-
-var messages []string
-func RegisterMsg(msg string) {
-	messages = append(messages, msg)
-}
-
-func Start() {
-	for _, msg := range messages {
-		println(msg)
-	}
-}
-```
-
-
-See the simple [thumbscale](./addons/thumbscale/thumb.go) addon.
+Tokio stores internal state in a global variable that isn't shared across shared libraries. Calling Tokio functions from a plugin must be done using a injected runtime handle, `self.rt_handle.spawn()` or by adding `let _enter = self.rt_handle.enter()` just before the function.

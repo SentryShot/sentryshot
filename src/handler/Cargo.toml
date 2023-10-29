@@ -1,0 +1,38 @@
+[package]
+name = "handler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "handler"
+path = "handler.rs"
+doctest = false
+
+
+[dependencies]
+common.path = "../common"
+crawler.path = "../crawler"
+hls.path = "../hls"
+log.path = "../log"
+monitor.path = "../monitor"
+recording.path = "../recording"
+web.path = "../web"
+rust-embed.path = "../rust-embed"
+
+axum.workspace = true
+#axum-macros = "0.3.7"
+http.workspace = true
+hyper.workspace = true
+mime_guess.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+test-case.workspace = true

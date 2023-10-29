@@ -1,0 +1,18 @@
+[package]
+name = "mp4"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "mp4"
+path = "mp4.rs"
+doctest = false
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+test-case.workspace = true

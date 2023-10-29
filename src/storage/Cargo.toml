@@ -1,0 +1,29 @@
+[package]
+name = "storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+
+[lib]
+name = "storage"
+path = "storage.rs"
+doctest = false
+
+[dependencies]
+common.path = "../common"
+env.path = "../env" 
+recording.path = "../recording"
+
+async-trait.workspace = true
+bytesize.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+tempfile.workspace = true
+test-case.workspace = true

@@ -29,11 +29,19 @@
 	"jest": {
 		"testEnvironment": "jsdom",
 		"transform": {},
-		"testMatch": ["**/*_test.mjs"],
-		"moduleFileExtensions": ["js", "mjs"],
+		"testMatch": [
+			"**/*_test.mjs"
+		],
+		"moduleFileExtensions": [
+			"js",
+			"mjs"
+		],
 		"cacheDirectory": "./node_modules/.cache/jest",
 		"coverageDirectory": "coverage",
-		"coverageReporters": ["json", "cobertura"]
+		"coverageReporters": [
+			"json",
+			"cobertura"
+		]
 	},
 	"jest-junit": {
 		"outputDirectory": "coverage/report",
@@ -42,8 +50,7 @@
 	"prettier": {
 		"printWidth": 90,
 		"tabWidth": 4,
-		"useTabs": true,
-		"plugins": ["prettier-plugin-go-template"]
+		"useTabs": true
 	},
 	"eslintConfig": {
 		"env": {
@@ -63,19 +70,29 @@
 			"ecmaVersion": 8,
 			"sourceType": "module"
 		},
-		"plugins": ["unicorn", "jest"],
+		"plugins": [
+			"unicorn",
+			"jest"
+		],
 		"rules": {
 			"unicorn/consistent-function-scoping": "off",
 			"unicorn/prevent-abbreviations": "off",
-			"unicorn/filename-case": ["off"],
+			"unicorn/filename-case": [
+				"off"
+			],
 			"unicorn/prefer-add-event-listener": "off",
 			"unicorn/numeric-separators-style": "off",
 			"unicorn/prefer-logical-operator-over-ternary": "off"
 		}
 	},
 	"stylelint": {
-		"extends": ["stylelint-config-standard"],
-		"plugins": ["stylelint-order", "stylelint-no-unsupported-browser-features"],
+		"extends": [
+			"stylelint-config-standard"
+		],
+		"plugins": [
+"stylelint-order", 
+			"stylelint-no-unsupported-browser-features"
+		],
 		"rules": {
 			"value-keyword-case": null,
 			"no-descending-specificity": null,
@@ -83,10 +100,20 @@
 			"plugin/no-unsupported-browser-features": [
 				true,
 				{
-					"ignore": ["multicolumn", "css-appearance", "css-text-indent"]
+					"ignore": [
+						"multicolumn",
+						"css-appearance",
+						"css-text-indent"
+					]
 				}
 			]
 		}
 	},
-	"browserslist": ["Chrome 104", "Edge 104", "Firefox 81", "Opera 91", "Safari 16.4"]
+	"browserslist": [
+		"Chrome 104",
+		"Edge 104",
+		"Firefox 81",
+		"Opera 91",
+		"Safari 16.4"
+	]
 }

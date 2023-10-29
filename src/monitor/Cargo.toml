@@ -1,0 +1,40 @@
+[package]
+name = "monitor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "monitor"
+path = "lib.rs"
+doctest = false
+
+[dependencies]
+common.path = "../common"
+hls.path = "../hls"
+log.path = "../log"
+recording.path = "../recording"
+plugin.path = "../plugin"
+
+async-trait.workspace = true
+bytesize.workspace = true
+futures.workspace = true
+jpeg-encoder.workspace = true
+retina.workspace = true
+sentryshot_convert.workspace = true
+sentryshot_ffmpeg_h264.workspace = true
+sentryshot_util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+url.workspace = true
+
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+pretty-hex.workspace = true
+tempfile.workspace = true
+test-case.workspace = true

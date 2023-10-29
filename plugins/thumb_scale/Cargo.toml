@@ -1,0 +1,23 @@
+[package]
+name = "thumb_scale"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "thumb_scale"
+path = "thumb.rs"
+crate-type = ["dylib"]
+
+[dependencies]
+common.path = "../../src/common"
+plugin.path = "../../src/plugin"
+
+async-trait.workspace = true
+sentryshot_scale.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

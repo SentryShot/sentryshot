@@ -1,0 +1,101 @@
+[workspace]
+members = [
+	"plugins/auth_basic",
+	"plugins/auth_none",
+	"plugins/motion",
+	"plugins/tflite",
+	"plugins/thumb_scale",
+
+	"src/common",
+	"src/crawler",
+	"src/csv",
+	"src/env",
+	"src/fs",
+	"src/handler",
+	"src/hls",
+	"src/log",
+	"src/monitor",
+	"src/mp4",
+	"src/plugin",
+	"src/recording",
+	"src/sentryshot",
+	"src/storage",
+	"src/web",
+
+	"src/rust-embed",
+	"src/rust-embed/impl",
+	"src/rust-embed/utils",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.65"
+license = "GPL-2.0+"
+
+[workspace.dependencies]
+sentryshot_convert = "0.1.1"
+sentryshot_ffmpeg_h264 = "0.1.1"
+sentryshot_filter = "0.1.1"
+sentryshot_padded_bytes = "0.1.0"
+sentryshot_scale = "0.1.1"
+sentryshot_util = "0.1.1"
+
+retina = { git = "https://github.com/Curid/retina", branch = "dts" }
+
+async-channel = "1.9.0"
+async-trait = "0.1.64"
+argon2 = "0.4.1"
+axum = { version = "0.6.20", default-features = false, features = ["json", "query", "ws"] }
+bytes = "1.4.0"
+bytesize = "1.2.0"
+chrono = "0.4.24"
+console-subscriber = "0.1.9"
+futures = "0.3.27"
+headers = "0.3.8"
+http = "0.2.9"
+httpdate = "1.0.2"
+http-body = "0.4.5"
+hyper = "0.14.23"
+hyper-rustls = { version ="0.24.1", default-features = false, features = ["native-tokio", "http1"] }
+jpeg-encoder = "0.5.1"
+libloading = "0.7.4"
+mime_guess = { version = "2.0.4", default-features = false }
+pin-project = "1.0.12"
+pretty_assertions = "1.3.0"
+pretty-hex = "0.3.0"
+rand = "0.8.5"
+sha2 = "0.10.8"
+serde = { version = "1.0.152", default-features = false, features = ["alloc"] }
+serde_json = "1.0.92"
+tempfile = "3.3.0"
+test-case = "2.2.2"
+thiserror = "1.0.38"
+toml = { version = "0.7.2", default-features = false, features = ["parse"] }
+tokio-util = { version = "0.7.7", features = ["io-util"] }
+tower = { version = "0.4.13", default-features = false }
+upon = "0.6.0"
+url = { version = "2.3.1", features = ["serde"] }
+
+[workspace.dependencies.clap]
+version = "4.1.4"
+default-features = false
+features = ["derive", "std", "help", "usage", "error-context"]
+
+[workspace.dependencies.tokio]
+version = "1"
+default-features = false
+features = ["fs" ,"macros", "rt-multi-thread", "signal", "sync", "time"]
+
+
+# Strip plugins to reduce size.
+[profile.release.package.auth_basic]
+strip = true
+[profile.release.package.auth_none]
+strip = true
+[profile.release.package.motion]
+strip = true
+[profile.release.package.tflite]
+strip = true
+[profile.release.package.thumb_scale]
+strip = true

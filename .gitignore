@@ -1,13 +1,15 @@
 /configs
-/shm
+/target
+/target2
+/build
 /storage
+/plugin_dir
 
 /node_modules
 /coverage
 
-.cache
 /local
+
 *.swp
 *.backup
 /.vscode
-/new

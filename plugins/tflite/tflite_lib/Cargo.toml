@@ -1,0 +1,15 @@
+[package]
+name = "tflite_lib"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "tflite_lib"
+path = "./lib.rs"
+
+[dependencies]
+tflite_sys.path="./tflite_sys"
+
+thiserror.workspace = true

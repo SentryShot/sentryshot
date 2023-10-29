@@ -1,54 +1,30 @@
-<img src="https://codeberg.org/Curid/os-nvr_assets/raw/branch/master/screenshots/readme.png">
+<img src="https://codeberg.org/SentryShot/sentryshot-assets/raw/branch/master/screenshots/recordings.png">
 
-[Screenshots](https://codeberg.org/Curid/os-nvr_assets/src/branch/master/screenshots)
+[Screenshots](https://codeberg.org/SentryShot/sentryshot-assets/src/branch/master/screenshots) | [Changelog](./misc/CHANGELOG.md) | [Codeberg](https://codeberg.org/SentryShot/sentryshot) | [Matrix](https://matrix.to/#/#sentryshot:matrix.org)
 
 ## Overview
 
-##### beta release.
 
-OS-NVR is a mobile-friendly extensible CCTV system.
+* Full resolution live view with sub 2 second delay
+* 24/7 recording to custom database
+* TFlite object detection with [custom model](https://codeberg.org/Curid/TF-CCTV)
+* Mobile-friendly web interface
 
-The front-end is written completely from scratch to give the best performance on mobile/low-end devices. The back-end is written in Go using FFmpeg for video processing.
-
-
-`OS-NVR` is a temporary name. [#2](https://codeberg.org/Curid/os-nvr/issues/2)
-
-
-Use [Issues](https://codeberg.org/Curid/os-nvr/issues) for bug reports, feature requests and support. [Matrix chat](https://matrix.to/#/#os_nvr:matrix.org)
-
-##### Note: iPhone support is currently limited.
 
 ## Documentation
 
 - [Installation](./docs/1_Installation.md)
 - [Configuration](./docs/2_Configuration.md)
+- [TFlite Object Detection](./plugins/tflite/README.md)
+- [Motion Detection](./plugins/motion/README.md)
 - [Development](./docs/3_Development.md)
 - [API](./docs/4_API.md)
-- [Object Detection](./addons/doods2/README.md)
-- [Motion Detection](./addons/motion/README.md)
-- [Timeline viewer](./addons/timeline/README.md)
-
-<br>
-
-## Similar projects
-
-- [ZoneMinder](https://github.com/ZoneMinder/ZoneMinder)
-- [Moonfire](https://github.com/scottlamb/moonfire-nvr)
-- [Motion](https://github.com/Motion-Project/motion)[Eye](https://github.com/ccrisan/motioneye/)[OS](https://github.com/ccrisan/motioneyeos)
-- [Viseron](https://github.com/roflcoopter/viseron)
-- [camera.ui](https://github.com/SeydX/camera.ui)
-
-## Related projects
-
-- [TF-CCTV](https://codeberg.org/Curid/TF-CCTV)
-- [OpenIPC](https://openipc.org)
-- [PineCube](https://www.pine64.org/cube)
 
 <br>
 
 ## License
 
-Copyright (C) 2021-2023 Curid, <Curid@protonmail.com>
+Copyright (C) 2021-2023 The SentryShot authors
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 

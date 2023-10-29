@@ -1,0 +1,42 @@
+[package]
+name = "sentryshot"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "sentryshot"
+path = "./main.rs"
+
+
+[dependencies]
+common.path = "../common"
+crawler.path = "../crawler"
+csv.path = "../csv"
+env.path = "../env"
+fs.path = "../fs"
+handler.path = "../handler"
+hls.path = "../hls"
+log.path = "../log"
+monitor.path = "../monitor"
+plugin.path = "../plugin"
+recording.path = "../recording"
+storage.path = "../storage"
+web.path = "../web"
+rust-embed.path = "../rust-embed"
+
+axum.workspace = true
+bytesize.workspace = true
+clap.workspace = true
+console-subscriber.workspace = true
+hyper.workspace = true
+thiserror.workspace = true
+tower.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+test-case.workspace = true
