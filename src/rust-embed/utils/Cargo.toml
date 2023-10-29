@@ -1,0 +1,10 @@
+[package]
+name = "rust-embed-utils"
+version = "7.3.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "rust_embed_utils"
+path = "utils.rs"
+doctest = false

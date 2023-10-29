@@ -1,16 +1,16 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
 
 <!DOCTYPE html>
-{{ template "html" }}
+{% include "html" %}
 <head>
-	{{ template "meta" . }}
+	{% include "meta" %}
 	<script type="module" defer>
-		import { init } from "./static/scripts/recordings.mjs";
+		import { init } from "./assets/scripts/recordings.mjs";
 		init();
 	</script>
 </head>
 <body>
-	{{ template "sidebar" . }}
+	{% include "sidebar" %}
 	<div id="content">
 		<div id="content-grid-wrapper">
 			<div id="content-grid"></div>
@@ -22,4 +22,4 @@
 		background: var(--color1-hover);
 	}
 </style>
-{{ template "html2" }}
+{% include "html2" %}

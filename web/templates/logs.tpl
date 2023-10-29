@@ -1,22 +1,22 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
 
 <!DOCTYPE html>
-{{ template "html" }}
+{% include "html" %}
 <head>
-	{{ template "meta" . }}
+	{% include "meta" %}
 	<script type="module" defer>
-		import { init } from "./static/scripts/logs.mjs";
+		import { init } from "./assets/scripts/logs.mjs";
 		init();
 	</script>
 </head>
 <body>
-	{{ template "sidebar" . }}
+	{% include "sidebar" %}
 	<div class="js-content" id="content">
 		<div class="log-sidebar js-sidebar"></div>
 		<div class="log-list-wrapper js-list">
 			<div id="log-menubar">
 				<nav id="log-back-btn" class="js-back">
-					<img src="static/icons/feather/arrow-left.svg" />
+					<img src="assets/icons/feather/arrow-left.svg" />
 				</nav>
 			</div>
 			<div id="log-list"></div>
@@ -135,4 +135,4 @@
 		}
 	}
 </style>
-{{ template "html2" }}
+{% include "html2" %}

@@ -1,0 +1,30 @@
+[package]
+name = "auth_basic"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "auth_basic"
+path = "basic.rs"
+crate-type = ["dylib"]
+
+[dependencies]
+common.path = "../../src/common"
+plugin.path = "../../src/plugin"
+
+argon2.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+headers.workspace = true
+http.workspace = true
+rand.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+tempfile.workspace = true
+test-case.workspace = true

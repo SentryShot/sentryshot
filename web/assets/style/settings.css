@@ -1,0 +1,284 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#nav-link-settings {
+	background: var(--color1-hover);
+}
+
+#content {
+	display: flex;
+	overflow-x: hidden;
+}
+
+.settings-navbar {
+	flex-shrink: 0;
+	width: 100%;
+	background: var(--color2);
+}
+
+#settings-navbar-nav {
+	height: 100%;
+	overflow-y: auto;
+}
+
+.settings-nav-item {
+	display: flex;
+	align-items: center;
+	padding: 0.2rem 1rem 0.2rem 0.4rem;
+	border-width: 0.01rem;
+	border-color: var(--color2-hover);
+	border-bottom-style: solid;
+}
+
+.settings-nav-item img {
+	aspect-ratio: 1;
+	height: 0.7rem;
+	margin-right: 0.3rem;
+	font-size: 0.8rem;
+	filter: var(--color-icons);
+}
+
+.settings-nav-item span {
+	color: var(--color-text);
+	font-size: 0.7rem;
+}
+
+.settings-nav-item:hover {
+	background: var(--color3);
+}
+
+.settings-nav-btn-selected {
+	background: var(--color3);
+}
+
+.settings-category-wrapper {
+	position: absolute;
+	display: flex;
+	width: 100%;
+	height: var(--size-minus-topbar);
+	transform: translateX(100%);
+	transition: transform 400ms;
+}
+
+.settings-simple-category {
+	width: 100vw;
+}
+
+.settings-category {
+	z-index: 0;
+	display: flex;
+	flex-shrink: 0;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	overflow-y: auto;
+	background: var(--color2);
+}
+
+.settings-category-selected {
+	transform: none;
+}
+
+.settings-category-nav {
+	display: flex;
+	flex-direction: column;
+	overflow-y: auto;
+}
+
+.settings-sub-category {
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background: var(--color3);
+	transform: translateX(100%);
+	transition: transform 400ms;
+}
+
+.settings-subcategory-open {
+	transform: none;
+}
+
+.settings-menubar {
+	display: flex;
+	height: var(--barsize);
+	background: var(--color2);
+	border-width: 0.01rem;
+	border-color: var(--color2-hover);
+	border-bottom-style: solid;
+}
+
+.settings-subcategory-menubar {
+	background: var(--color2);
+}
+
+.settings-menu-back-btn {
+	display: flex;
+	width: 1.4rem;
+}
+
+.settings-menu-back-btn img {
+	aspect-ratio: 1;
+	width: 1.1rem;
+	padding: var(--icon-padding);
+	filter: var(--color-icons);
+}
+
+.settings-add-btn {
+	flex-shrink: 0;
+	margin: 0.2rem auto 0.2rem 0.3rem;
+	padding: 0.1rem;
+	background: var(--color-green);
+	border-radius: 0.1rem;
+}
+
+.settings-add-btn:hover {
+	background: var(--color-green-hover);
+}
+
+.settings-add-btn span {
+	color: var(--color-text);
+	font-size: 0.7rem;
+}
+
+.settings-category-title {
+	width: 100%;
+	margin: auto;
+	margin-right: 1.4rem;
+	color: var(--color-text);
+	font-size: 0.8rem;
+	text-align: center;
+}
+
+.settings-input-text {
+	width: 100%;
+	height: 1rem;
+	overflow: auto;
+	font-size: 0.5rem;
+	text-indent: 12px;
+	border-style: none;
+	border-radius: 5px;
+}
+
+.settings-error {
+	height: 0.5rem;
+	color: var(--color-red);
+	font-size: 0.4rem;
+	white-space: nowrap;
+}
+
+.password-strength {
+	color: var(--color-orange);
+}
+
+.monitor-selector {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.monitor-selector-item {
+	position: relative;
+	display: flex;
+	align-items: center;
+	width: 100%;
+	padding: 0.1rem 0.2rem;
+	border-width: 0.01rem;
+	border-style: solid;
+	border-color: var(--color1);
+}
+
+.monitor-selector-label {
+	margin-right: auto;
+	color: var(--color-text);
+	font-size: 1rem;
+}
+
+/* Mobile Landscape mode. */
+@media (aspect-ratio >= 3/2) {
+	.settings-category-wrapper {
+		width: var(--size-minus-topbar);
+		height: 100%;
+	}
+
+	.settings-category-nav {
+		flex-shrink: 0;
+	}
+
+	.settings-sub-category {
+		height: 100%;
+		overflow-y: auto;
+	}
+
+	.form {
+		overflow-y: initial;
+	}
+}
+
+/* Tablet/Dektop. */
+@media only screen and (width >= 768px) {
+	.settings-navbar {
+		width: auto;
+		padding-top: 2rem;
+	}
+
+	.settings-navbar-closed {
+		transform: none;
+	}
+
+	.settings-category {
+		width: auto;
+		min-width: 6rem;
+		max-width: 9rem;
+	}
+
+	.settings-category-wrapper {
+		position: relative;
+		display: none;
+		height: auto;
+		transform: none;
+		transition: transform 0ms;
+	}
+
+	.settings-category-selected {
+		display: flex;
+	}
+
+	.settings-sub-category {
+		position: relative;
+		max-width: 12rem;
+		visibility: hidden;
+		transition: transform 0ms;
+	}
+
+	.settings-subcategory-open {
+		visibility: visible;
+	}
+
+	.settings-menubar {
+		display: none;
+	}
+
+	.form-field-label {
+		width: auto;
+	}
+
+	.settings-users-item {
+		width: 100%;
+	}
+
+	.settings-users-info {
+		display: flex;
+		align-items: center;
+	}
+
+	.monitor-selector {
+		grid-auto-columns: min-content;
+	}
+
+	.monitor-selector-item {
+		width: auto;
+	}
+
+	.monitor-selector-label {
+		padding-right: 0.3rem;
+	}
+}

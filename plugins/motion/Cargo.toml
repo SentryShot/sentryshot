@@ -1,0 +1,31 @@
+[package]
+name = "motion"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "motion"
+path = "motion.rs"
+crate-type = ["dylib"]
+
+[dependencies]
+common.path = "../../src/common"
+plugin.path = "../../src/plugin"
+recording.path = "../../src/recording"
+
+async-trait.workspace = true
+sentryshot_convert.workspace = true
+sentryshot_ffmpeg_h264.workspace = true
+sentryshot_filter.workspace = true
+sentryshot_util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+test-case.workspace = true

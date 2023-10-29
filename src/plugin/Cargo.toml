@@ -1,0 +1,25 @@
+[package]
+name = "plugin"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "plugin"
+path = "./plugin.rs"
+doctest = false
+
+[dependencies]
+common.path = "../common"
+
+async-trait.workspace = true
+axum.workspace = true
+http.workspace = true
+libloading.workspace = true
+sentryshot_util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true

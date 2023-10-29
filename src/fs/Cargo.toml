@@ -1,0 +1,18 @@
+[package]
+name = "fs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "fs"
+path = "fs.rs"
+doctest = false
+
+[dependencies]
+thiserror.workspace = true
+
+
+[dev-dependencies]
+pretty_assertions.workspace = true

@@ -1,0 +1,15 @@
+body {
+	color: #000;
+	font-weight: bold;
+	font-size: small;
+	font-family: sans-serif;
+	font-style: italic;
+}
+
+table.hh {
+	border: 1px solid gray;
+}
+
+li {
+	border: 1px;
+}
