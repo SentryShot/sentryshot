@@ -1,0 +1,6 @@
+steps:
+    run:
+        image: codeberg.org/sentryshot/sentryshot-ci:v0.0.1
+        commands: "nix-shell /shell.nix --command 'npm install && ./misc/utils.sh ci'"
+        when:
+            event: [push, pull_request]

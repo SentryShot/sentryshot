@@ -8,6 +8,7 @@ license.workspace = true
 [lib]
 name = "tflite_lib"
 path = "./lib.rs"
+doctest = false
 
 [dependencies]
 tflite_sys.path="./tflite_sys"

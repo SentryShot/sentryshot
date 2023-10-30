@@ -9,6 +9,7 @@ license.workspace = true
 name = "tflite"
 path = "tflite.rs"
 crate-type = ["dylib"]
+doctest = false
 
 [dependencies]
 tflite_lib.path = "./tflite_lib" 

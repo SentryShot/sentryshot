@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+name = "tflite_sys"
+doctest = false
+
 [dependencies]
 
 [build-dependencies]
