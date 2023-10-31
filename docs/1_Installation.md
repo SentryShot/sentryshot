@@ -15,15 +15,25 @@ docker run -it \
 	-v /docker/sentryshot/configs:/app/configs \
 	-v /docker/sentryshot/storage:/app/storage \
 	-p 2020:2020 \
-	todo:latest
+	codeberg.org/sentryshot/sentryshot:v0.x.x
 ```
 
-App will be served on `https://ip:2020`
+App will be served on `http://ip:2020/live`
 
 ### Compose
 
 ```
-todo
+services:
+  sentryshot:
+    shm_size: 500m
+    image: codeberg.org/sentryshot/sentryshot:v0.x.x
+    ports:
+      - 2020:2020
+    environment:
+      - TZ=America/New_York # Timezone.
+    volumes:
+      - /docker/sentryshot/configs:/app/configs
+      - /docker/sentryshot/storage:/app/storage
 ```
 
 <br>
@@ -31,7 +41,18 @@ todo
 
 ## Tarball Install
 
-TODO
+The only requirement is a system with `glibc 2.34+` Check with `ld -v`
+
+Download a tarball from the [releases](https://codeberg.org/SentryShot/sentryshot/releases) page.
+
+```
+mkdir sentryshot
+tar -xzvf sentryshot-* -C ./sentryshot/
+cd sentryshot
+./sentryshot --help
+```
+
+Help wanted for proper install instructions.
 
 <br>
 
@@ -52,6 +73,8 @@ cd sentryshot
 
 # Build 
 ./misc/utils build-target x86_64
-```
 
-TODO
+# Make a tarball.
+tar -czvf "./build/sentryshot-x86_64.tar.gz" -C "./build/x86_64" .
+```
+[Tarball Install](#tarball-install)
