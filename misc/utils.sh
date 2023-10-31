@@ -91,6 +91,17 @@ parse_command() {
 		build_target_nix "$@"
 		exit 0
 		;;
+	build-target-aarch64)
+		shift
+		TFLITELIB="$(pwd)/misc/nix/aarch64-tflite/out"
+		export TFLITELIB
+		# shellcheck disable=SC2016
+		tmp='\$ORIGIN/libs:\$ORIGIN/../libs'
+		CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-L $(pwd)/misc/nix/aarch64-tflite/out -C link-args=-Wl,-rpath,$tmp"
+		export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS
+		build_target "aarch64"
+		exit 0
+		;;
 	test-backend | test-back | test-be | test-b | testb)
 		shift
 		test_backend

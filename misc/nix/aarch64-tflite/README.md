@@ -15,3 +15,9 @@ nix-shell --option filter-syscalls false
 
 cp $TFLITELIB/libtensorflowlite_c.so /out/
 ```
+
+```
+curl --user Curid:$TOKEN \
+     --upload-file ./out/libtensorflowlite_c.so \
+     'https://codeberg.org/api/packages/SentryShot/generic/tflite/0.0.1/libtensorflowlite_c.so'
+```

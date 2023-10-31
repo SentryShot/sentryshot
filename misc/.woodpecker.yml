@@ -4,3 +4,55 @@ steps:
         commands: "nix-shell /shell.nix --command 'npm install && ./misc/utils.sh ci'"
         when:
             event: [push, pull_request]
+
+    build-x86_64:
+        image: codeberg.org/sentryshot/sentryshot-build-x86_64:v0.0.1
+        commands: "nix-shell /shell.nix --command './misc/utils.sh build-target x86_64'"
+        when:
+            event: [tag]
+    build-aarch64:
+        image: codeberg.org/sentryshot/sentryshot-build-aarch64:v0.0.1
+        commands: |
+            # Prebuilt library because I couldn't get it to cross-compile.
+            curl https://codeberg.org/api/packages/SentryShot/generic/tflite/0.0.1/libtensorflowlite_c.so \
+                -o ./misc/nix/aarch64-tflite/out/libtensorflowlite_c.so
+            nix-shell /shell.nix --command './misc/utils.sh build-target-aarch64'
+        when:
+            event: [tag]
+
+    tarball:
+        image: busybox:1.36
+        commands: |
+            tag="${CI_COMMIT_TAG}"
+            tar -czvf "./build/sentryshot-$tag-x86_64.tar.gz" -C "./build/x86_64" .
+            tar -czvf "./build/sentryshot-$tag-aarch64.tar.gz" -C "./build/aarch64" .
+            ls ./build
+        when:
+            event: [tag]
+
+    docker:
+        image: woodpeckerci/plugin-docker-buildx
+        settings:
+            platforms: linux/amd64,linux/arm64
+            repo: codeberg.org/sentryshot/sentryshot
+            registry: codeberg.org
+            dockerfile: "./misc/Dockerfile"
+            tags: ["${CI_COMMIT_TAG}", "latest"]
+            username: "Curid"
+            password:
+                from_secret: cb_token
+        when:
+            event: [tag]
+
+    release:
+        image: woodpeckerci/plugin-gitea-release
+        settings:
+            base_url: https://codeberg.org
+            files:
+                - "./build/sentryshot-v*"
+            api_key:
+                from_secret: cb_token
+            target: main
+            title: "release ${CI_COMMIT_TAG}"
+        when:
+            event: [tag]

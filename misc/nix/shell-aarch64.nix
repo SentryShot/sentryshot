@@ -57,7 +57,7 @@ let
     )
   {} );
 in pkgs.mkShell {
-  nativeBuildInputs = [ pkgs.rust-bin.stable."1.65.0".minimal pkgs.pkg-config ];
+  nativeBuildInputs = [ pkgs.rust-bin.stable."1.65.0".minimal pkgs.pkg-config pkgs.curl ];
   buildInputs = [ ffmpeg ];
 
   FFLIBS = "${ffmpeg}/lib";
