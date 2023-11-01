@@ -43,7 +43,10 @@ You can install everything manually instead. Most things don't require a very sp
 
 ## Test Stream
 
-TODO
+```
+docker run -it --network=host codeberg.org/sentryshot/test-stream:v0.1.0
+ffplay -rtsp_transport tcp rtsp://127.0.0.1:8554/1
+```
 
 <br>
 
