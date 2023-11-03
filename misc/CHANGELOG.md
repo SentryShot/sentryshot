@@ -1,5 +1,7 @@
 ## unreleased
 
+-   fix date picker
+
 ## `v0.1.0`
 
 -   RUST REWIRTE [9949f50ef0](https://codeberg.org/SentryShot/sentryshot/commit/9949f50ef058501d0c69b54a59c447498d80f119)

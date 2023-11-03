@@ -76,7 +76,7 @@ describe("newViewer", () => {
 		window.fetch = (r) => {
 			if (
 				r ===
-				"api/recording/query?recording-id=2000-01-02_03-04-05&reverse=false&include-data=true"
+				"api/recording/query?recording-id=2000-01-02_03-04-05_x&reverse=false&include-data=true"
 			) {
 				fetchCalled = true;
 			}

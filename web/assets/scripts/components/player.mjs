@@ -219,33 +219,31 @@ function newPlayer(data, isAdmin, token) {
 	};
 }
 
-function renderTimeline(d) {
-	if (!d.start || !d.end || !d.events) {
+function renderTimeline(data) {
+	if (!data.start || !data.end || !data.events) {
 		return "";
 	}
+	const startMs = data.start / millisecond;
+	const endMs = data.end / millisecond;
+	const offset = endMs - startMs;
 
-	// timeline resolution.
-	const res = 1000;
-	const multiplier = res / 100;
+	const resolution = 1000;
+	const multiplier = resolution / 100;
 
 	// Array of booleans representing events.
-	let timeline = Array.from({ length: res }).fill(false);
+	let timeline = Array.from({ length: resolution }).fill(false);
+	for (const e of data.events) {
+		const eventTimeMs = e.time / millisecond;
+		const eventDurationMs = e.duration / millisecond;
 
-	for (const e of d.events) {
-		const time = e.time / millisecond;
-		const start = d.start / millisecond;
-		const end = d.end / millisecond;
-		const duration = e.duration / millisecond;
-		const offset = end - start;
+		const startTime = eventTimeMs - startMs;
+		const endTime = eventTimeMs + eventDurationMs - startMs;
 
-		const startTime = time - start;
-		const endTime = time + duration - start;
-
-		const start2 = Math.round((startTime / offset) * res);
-		const end2 = Math.round((endTime / offset) * res);
+		const start2 = Math.round((startTime / offset) * resolution);
+		const end2 = Math.round((endTime / offset) * resolution);
 
 		for (let i = start2; i < end2; i++) {
-			if (i >= res) {
+			if (i >= resolution) {
 				continue;
 			}
 			timeline[i] = true;
@@ -253,12 +251,12 @@ function renderTimeline(d) {
 	}
 
 	let svg = "";
-	for (let start = 0; start < res; start++) {
+	for (let start = 0; start < resolution; start++) {
 		if (!timeline[start]) {
 			continue;
 		}
-		let end = res;
-		for (let e = start; e < res; e++) {
+		let end = resolution;
+		for (let e = start; e < resolution; e++) {
 			if (!timeline[e]) {
 				end = e;
 				break;
@@ -281,12 +279,7 @@ function renderTimeline(d) {
 		</svg>`;
 }
 
-function newDetectionRenderer(start, events) {
-	// To seconds after start.
-	const toSeconds = (input) => {
-		return (input - start) / 1000;
-	};
-
+function newDetectionRenderer(startTimeMs, events) {
 	const renderRectangle = (rect, label, score) => {
 		const x = denormalize(rect.x, 100);
 		const y = denormalize(rect.y, 100);
@@ -330,21 +323,18 @@ function newDetectionRenderer(start, events) {
 		init(e) {
 			element = e;
 		},
-		set(duration) {
+		set(newDurationSec) {
+			const newDurationMs = startTimeMs + newDurationSec * 1000;
 			let html = "";
 
 			for (const e of events) {
-				const time = e.time / millisecond;
-				const start = toSeconds(time);
-				if (duration < start) {
-					continue;
-				}
+				const eventStartMs = e.time / millisecond;
+				const eventDurationMs = e.duration / millisecond;
+				const eventEndMs = eventStartMs + eventDurationMs;
 
-				const end = toSeconds(time + e.duration / 1000000);
-				if (duration > end) {
-					continue;
+				if (eventStartMs <= newDurationMs && newDurationMs < eventEndMs) {
+					html += renderDetections(e.detections);
 				}
-				html += renderDetections(e.detections);
 			}
 
 			element.innerHTML = html;

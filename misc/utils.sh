@@ -23,7 +23,7 @@ usage="Utilities
     $0 dev-env-nix  # Enter a shell with all deps installed.
     $0 dev-env-docker # Enter a container with all deps installed.
     $0 clean          # Clean build directories.
-  Use 'npm cover x' to run javascript tests
+  Use 'npm run cover x' to run javascript tests
 "
 #    $0 build        # Build app and plugins in release mode.
 #    $0 build-debug  # Build app plugins in debug mode.
