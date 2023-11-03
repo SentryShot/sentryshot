@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "auth_basic"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "argon2",
  "async-trait",
@@ -77,7 +77,7 @@ dependencies = [
 
 [[package]]
 name = "auth_none"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "argon2",
  "async-trait",
@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "common"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -401,7 +401,7 @@ dependencies = [
 
 [[package]]
 name = "crawler"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "common",
  "csv",
@@ -455,7 +455,7 @@ dependencies = [
 
 [[package]]
 name = "csv"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "pretty_assertions",
  "serde",
@@ -547,7 +547,7 @@ checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
 name = "env"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytesize",
  "common",
@@ -613,7 +613,7 @@ checksum = "3958af68a31b1d1384d3f39b6aa33eb14b6009065b5ca305ddd9712a4237124f"
 
 [[package]]
 name = "fs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "pretty_assertions",
  "thiserror",
@@ -763,7 +763,7 @@ dependencies = [
 
 [[package]]
 name = "handler"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "axum",
  "common",
@@ -771,7 +771,7 @@ dependencies = [
  "hls",
  "http",
  "hyper",
- "log 0.1.0",
+ "log 0.1.1",
  "mime_guess",
  "monitor",
  "pretty_assertions",
@@ -856,7 +856,7 @@ checksum = "5491a308e0214554f07a81d8944abe45f552871c12e3c3c6e7e5d354039a6c4c"
 
 [[package]]
 name = "hls"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1095,7 +1095,7 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytesize",
  "common",
@@ -1194,7 +1194,7 @@ dependencies = [
 
 [[package]]
 name = "monitor"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "bytesize",
@@ -1202,7 +1202,7 @@ dependencies = [
  "futures",
  "hls",
  "jpeg-encoder",
- "log 0.1.0",
+ "log 0.1.1",
  "plugin",
  "pretty-hex",
  "pretty_assertions",
@@ -1223,7 +1223,7 @@ dependencies = [
 
 [[package]]
 name = "motion"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "common",
@@ -1244,7 +1244,7 @@ dependencies = [
 
 [[package]]
 name = "mp4"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "pretty_assertions",
  "test-case",
@@ -1398,7 +1398,7 @@ checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 
 [[package]]
 name = "plugin"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -1543,7 +1543,7 @@ dependencies = [
 
 [[package]]
 name = "recording"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "axum",
  "common",
@@ -1809,7 +1809,7 @@ dependencies = [
 
 [[package]]
 name = "sentryshot"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "axum",
  "bytesize",
@@ -1823,7 +1823,7 @@ dependencies = [
  "handler",
  "hls",
  "hyper",
- "log 0.1.0",
+ "log 0.1.1",
  "monitor",
  "plugin",
  "pretty_assertions",
@@ -2044,7 +2044,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "storage"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "bytesize",
@@ -2140,7 +2140,7 @@ dependencies = [
 
 [[package]]
 name = "tflite"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -2169,7 +2169,7 @@ dependencies = [
 
 [[package]]
 name = "tflite_lib"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "tflite_sys",
  "thiserror",
@@ -2177,7 +2177,7 @@ dependencies = [
 
 [[package]]
 name = "tflite_sys"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cc",
 ]
@@ -2214,7 +2214,7 @@ dependencies = [
 
 [[package]]
 name = "thumb_scale"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "common",
@@ -2673,7 +2673,7 @@ checksum = "0046fef7e28c3804e5e38bfa31ea2a0f73905319b677e57ebe37e49358989b5d"
 
 [[package]]
 name = "web"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "axum",
  "common",
@@ -2681,7 +2681,7 @@ dependencies = [
  "http",
  "http-body",
  "httpdate",
- "log 0.1.0",
+ "log 0.1.1",
  "monitor",
  "pin-project",
  "pretty_assertions",

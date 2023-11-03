@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.1.1`
+
 -   fix date picker
 
 ## `v0.1.0`
