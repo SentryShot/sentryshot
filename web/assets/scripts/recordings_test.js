@@ -22,7 +22,9 @@ describe("newViewer", () => {
 	};
 
 	test("videoUnloading", async () => {
+		// @ts-ignore
 		window.HTMLMediaElement.prototype.play = () => {};
+		// @ts-ignore
 		window.fetch = mockFetch;
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
@@ -32,6 +34,7 @@ describe("newViewer", () => {
 
 		const domState = () => {
 			const isThumbnail = [];
+			// @ts-ignore
 			for (const child of element.children) {
 				switch (child.children[0].tagName) {
 					case "IMG": {
@@ -73,6 +76,7 @@ describe("newViewer", () => {
 		await viewer.reset();
 
 		let fetchCalled = false;
+		// @ts-ignore
 		window.fetch = (r) => {
 			if (
 				r ===

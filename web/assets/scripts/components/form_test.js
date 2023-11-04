@@ -83,6 +83,7 @@ describe("newForm", () => {
 			form.buttons()["save"].onClick(() => {
 				clicked = true;
 			});
+			// @ts-ignore
 			document.querySelector(".js-save-btn").click();
 
 			expect(clicked).toBe(true);
@@ -118,6 +119,7 @@ describe("newForm", () => {
 			form.buttons()["delete"].onClick(() => {
 				clicked = true;
 			});
+			// @ts-ignore
 			document.querySelector(".js-delete-btn").click();
 
 			expect(clicked).toBe(true);

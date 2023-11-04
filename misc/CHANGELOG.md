@@ -1,5 +1,6 @@
 ## unreleased
 
+-   add typescript as a linter
 -   use `.js` as the javascript file extension
 -   replace clap with pico-args
 

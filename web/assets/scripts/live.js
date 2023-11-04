@@ -107,6 +107,7 @@ function resBtn() {
 function init() {
 	// Globals.
 	//const groups = Groups; // eslint-disable-line no-undef
+	// @ts-ignore
 	const monitors = MonitorsInfo; // eslint-disable-line no-undef
 
 	const $contentGrid = document.querySelector("#content-grid");

@@ -8,6 +8,7 @@ describe("logger", () => {
 	test("time", () => {
 		const format = newFormater(monitorIDtoName, "utc");
 		const log = {
+			// @ts-ignore
 			time: new Date("2001-02-03T04:05:06+00:00") * 1000,
 			level: "error",
 			source: "1",
@@ -63,6 +64,7 @@ describe("MultiSelect", () => {
 	};
 	test("rendering", () => {
 		const [element] = setup();
+		// @ts-ignore
 		const actual = element.innerHTML.replaceAll(/\s/g, "");
 		const expected = `
 			<li id="uid4" class="form-field">
@@ -108,12 +110,17 @@ describe("MultiSelect", () => {
 	});
 	test("set", () => {
 		const [element, field] = setup();
+		// @ts-ignore
 		expect(field.value()).toEqual([]);
 
+		// @ts-ignore
 		element.querySelector(".item-uid1 input").checked = true;
+		// @ts-ignore
 		expect(field.value()).toEqual(["a"]);
 
+		// @ts-ignore
 		field.set("");
+		// @ts-ignore
 		expect(field.value()).toEqual([]);
 	});
 });
@@ -151,6 +158,7 @@ test("monitorPicker", () => {
 		};
 	};
 
+	// @ts-ignore
 	const picker = newMonitorPicker(monitors, mockModalSelect);
 	element.innerHTML = picker.html;
 	picker.init(element);
@@ -162,6 +170,7 @@ test("monitorPicker", () => {
 
 	// Modal select.
 	expect(picker.value()).toBe("");
+	// @ts-ignore
 	modalOnSelect("m1");
 	expect(picker.value()).toBe("a");
 

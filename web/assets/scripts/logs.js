@@ -90,6 +90,7 @@ function newLogger(formatLog) {
 			!loading &&
 			!lastLog &&
 			$logList.lastChild &&
+			// @ts-ignore
 			$logList.lastChild.getBoundingClientRect().top < window.screen.height * 3
 		) {
 			loading = true;
@@ -391,8 +392,11 @@ function newLogSelector(logger, formFields) {
 }
 
 async function init() {
+	// @ts-ignore
 	const logSources = LogSources; // eslint-disable-line no-undef
+	// @ts-ignore
 	const monitors = Monitors; // eslint-disable-line no-undef
+	// @ts-ignore
 	const timeZone = TZ; // eslint-disable-line no-undef
 
 	const monitorNameByID = newMonitorNameByID(monitors);

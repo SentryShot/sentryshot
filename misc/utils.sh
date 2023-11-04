@@ -283,11 +283,13 @@ format_frontend() {
 
 lint_js() {
 	printf "lint js\\n"
+	npx tsc ./plugins/**/**.js ./web/**/**/**.js --lib es2021 --allowJs --checkJs --noEmit || error "tsc failed"
 	npm run lint-js || error "lint js failed"
 }
 
 lint_js_fix() {
 	printf "lint js\\n"
+	npx tsc ./plugins/**/**.js ./web/**/**/**.js --lib es2021 --allowJs --checkJs --noEmit || error "tsc failed"
 	npm run lint-js-fix || error "lint js failed"
 }
 

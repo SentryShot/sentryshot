@@ -17,6 +17,7 @@ async function testFetchError(fetch) {
 		alerted = true;
 	};
 
+	// @ts-ignore
 	window.fetch = async () => {
 		return {
 			status: 400,
@@ -41,6 +42,7 @@ const fetchCreated = {
 
 test("fetchGet", async () => {
 	let response;
+	// @ts-ignore
 	window.fetch = async (url, data) => {
 		response = [url, data];
 		return fetchOk;
@@ -62,6 +64,7 @@ test("fetchGet", async () => {
 
 test("fetchPost", async () => {
 	let response;
+	// @ts-ignore
 	window.fetch = async (url, data) => {
 		response = [url, data];
 		return fetchOk;
@@ -88,6 +91,7 @@ test("fetchPost", async () => {
 
 test("fetchPut", async () => {
 	let response;
+	// @ts-ignore
 	window.fetch = async (url, data) => {
 		response = [url, data];
 		return fetchOk;
@@ -114,6 +118,7 @@ test("fetchPut", async () => {
 
 test("fetchPutCreated", async () => {
 	let response;
+	// @ts-ignore
 	window.fetch = async (url, data) => {
 		response = [url, data];
 		return fetchCreated;
@@ -138,6 +143,7 @@ test("fetchPutCreated", async () => {
 
 test("fetchDelete", async () => {
 	let response;
+	// @ts-ignore
 	window.fetch = async (url, data) => {
 		response = [url, data];
 		return fetchOk;

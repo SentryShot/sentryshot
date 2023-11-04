@@ -5,6 +5,7 @@ import { toUTC } from "../libs/time.js";
 import { newModalSelect } from "../components/modal.js";
 
 function newOptionsMenu(buttons) {
+	// @ts-ignore
 	document.querySelector("#topbar-options-btn").style.visibility = "visible";
 
 	const html = () => {
@@ -155,7 +156,7 @@ function toMonthString(date) {
 function fromMonthString(string) {
 	for (const i in months) {
 		if (months[i] === string) {
-			return i;
+			return Number(i);
 		}
 	}
 }
@@ -163,7 +164,7 @@ function fromMonthString(string) {
 function nextMonth(string) {
 	for (const i in months) {
 		if (months[i] === string) {
-			if (i == 11) {
+			if (Number(i) == 11) {
 				return [months[0], true];
 			}
 			return [months[Number(i) + 1], false];
@@ -174,7 +175,7 @@ function nextMonth(string) {
 function prevMonth(string) {
 	for (const i in months) {
 		if (months[i] === string) {
-			if (i == 0) {
+			if (Number(i) == 0) {
 				return [months[11], true];
 			}
 			return [months[Number(i) - 1], false];

@@ -120,7 +120,7 @@ function getHashParam(key) {
 function removeEmptyValues(obj) {
 	for (let field in obj) {
 		let v = obj[field];
-		if (v === undefined || v === [] || v.length === 0 || v[0] === "") {
+		if (v === undefined || v.length === 0 || v[0] === "") {
 			delete obj[field];
 		}
 	}
@@ -128,7 +128,7 @@ function removeEmptyValues(obj) {
 }
 
 function normalize(input, max) {
-	return Number.parseInt((1000000 * input) / max);
+	return Math.floor((1000000 * input) / max);
 }
 
 function denormalize(input, max) {

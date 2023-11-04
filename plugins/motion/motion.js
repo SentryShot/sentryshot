@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-ignore
 import Hls from "./vendor/hls.js";
+// @ts-ignore
 import { uniqueID, normalize, denormalize } from "./libs/common.js";
+// @ts-ignore
 import { newForm, fieldTemplate } from "./components/form.js";
+// @ts-ignore
 import { newFeed } from "./components/feed.js";
+// @ts-ignore
 import { newModal } from "./components/modal.js";
 
 export function motion() {
+	// @ts-ignore
 	const monitorsInfo = MonitorsInfo; // eslint-disable-line no-undef
 	const hasSubStream = (monitorID) => {
 		if (monitorsInfo[monitorID] && monitorsInfo[monitorID].hasSubStream) {

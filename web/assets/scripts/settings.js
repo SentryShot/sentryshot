@@ -73,9 +73,11 @@ function newRenderer($parent) {
 
 const backIconPath = "assets/icons/feather/arrow-left.svg";
 function closeAllCategories() {
+	// @ts-ignore
 	for (const element of document.querySelectorAll(".settings-category-wrapper")) {
 		element.classList.remove("settings-category-selected");
 	}
+	// @ts-ignore
 	for (const element of document.querySelectorAll(".js-set-settings-category")) {
 		element.classList.remove("settings-nav-btn-selected");
 	}
@@ -145,6 +147,7 @@ function newCategory(category, title) {
 	let $wrapper, $subcategory, $title, form, open, close, $nav, onNav;
 
 	const closeSubcategory = () => {
+		// @ts-ignore
 		for (const element of document.querySelectorAll(`.js-nav`)) {
 			element.classList.remove("settings-nav-btn-selected");
 		}
@@ -219,6 +222,7 @@ function newCategory(category, title) {
 
 			close = () => {
 				$wrapper.classList.remove("settings-category-selected");
+				// @ts-ignore
 				for (const element of document.querySelectorAll(
 					".js-set-settings-category",
 				)) {
@@ -388,7 +392,7 @@ function newMonitor(token, fields) {
 	const init = () => {
 		category.init();
 		form.buttons()["save"].onClick(() => {
-			saveMonitor(form, monitors);
+			saveMonitor(form);
 		});
 
 		form.buttons()["delete"].onClick(() => {
@@ -411,8 +415,8 @@ function newMonitor(token, fields) {
 		html() {
 			return category.html();
 		},
-		init($parent) {
-			init($parent);
+		init() {
+			init();
 		},
 		open() {
 			category.open();
@@ -708,8 +712,8 @@ function newAccount(token, fields) {
 		html() {
 			return category.html();
 		},
-		init($parent) {
-			init($parent);
+		init() {
+			init();
 		},
 		open() {
 			category.open();
@@ -993,7 +997,9 @@ function newSourceRTSP() {
 }
 
 // Globals.
+// @ts-ignore
 const csrfToken = CSRFToken; // eslint-disable-line no-undef
+// @ts-ignore
 const isAdmin = IsAdmin; // eslint-disable-line no-undef
 
 function init() {

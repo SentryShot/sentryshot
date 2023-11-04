@@ -32,14 +32,17 @@ describe("resBtn", () => {
 		res.init(element, mockContent);
 		expect($btn.textContent).toBe("HD");
 
+		// @ts-ignore
 		$btn.click();
 		expect($btn.textContent).toBe("SD");
 		expect(localStorage.getItem("preferLowRes")).toBe("true");
 
+		// @ts-ignore
 		$btn.click();
 		expect($btn.textContent).toBe("HD");
 		expect(localStorage.getItem("preferLowRes")).toBe("false");
 
+		// @ts-ignore
 		$btn.click();
 		expect($btn.textContent).toBe("SD");
 		expect(localStorage.getItem("preferLowRes")).toBe("true");
@@ -62,6 +65,7 @@ describe("resBtn", () => {
 		};
 
 		res.init(element, content);
+		// @ts-ignore
 		document.querySelector(".js-res").click();
 		expect(preferLowCalled).toBe(true);
 		expect(resetCalled).toBe(true);

@@ -392,6 +392,7 @@ function newSelectCustomField(inputRules, options, values) {
 		}
 
 		let customValue = true;
+		// @ts-ignore
 		for (const option of document.querySelector(`#${id}`).options) {
 			if (option.value === input) {
 				customValue = false;
@@ -496,7 +497,7 @@ function newPasswordField() {
 	};
 	const checkPassword = () => {
 		$newError.innerHTML = passwordStrength($newInput.value);
-		$repeatError.innerHTML = validate(value());
+		$repeatError.innerHTML = validate();
 	};
 
 	return {

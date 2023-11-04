@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-ignore
 import Hls from "./vendor/hls.js";
+// @ts-ignore
 import { uniqueID, normalize, denormalize } from "./libs/common.js";
+// @ts-ignore
 import { newForm, newField, inputRules, fieldTemplate } from "./components/form.js";
+// @ts-ignore
 import { newFeed } from "./components/feed.js";
+// @ts-ignore
 import { newModal } from "./components/modal.js";
 
 const Detectors = JSON.parse(`$detectorsJSON`);
 
 export function tflite() {
+	// @ts-ignore
 	const monitorsInfo = MonitorsInfo; // eslint-disable-line no-undef
 	const hasSubStream = (monitorID) => {
 		if (monitorsInfo[monitorID] && monitorsInfo[monitorID].hasSubStream) {
@@ -157,14 +163,19 @@ function thresholds(detectors) {
 			init() {
 				const element = document.querySelector(`#${id}`);
 				element.addEventListener("change", () => {
+					// @ts-ignore
 					if (element.value < 0) {
+						// @ts-ignore
 						element.value = 0;
+						// @ts-ignore
 					} else if (element.value > 100) {
+						// @ts-ignore
 						element.value = 100;
 					}
 				});
 			},
 			value() {
+				// @ts-ignore
 				return document.querySelector(`#${id}`).value;
 			},
 			label() {

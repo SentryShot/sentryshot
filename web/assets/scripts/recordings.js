@@ -164,10 +164,14 @@ function dateToID(d) {
 async function init() {
 	const hashMonitors = getHashParam("monitors").split(",");
 
+	// @ts-ignore
 	const timeZone = TZ; // eslint-disable-line no-undef
 	//const groups = Groups; // eslint-disable-line no-undef
+	// @ts-ignore
 	const monitors = MonitorsInfo; // eslint-disable-line no-undef
+	// @ts-ignore
 	const isAdmin = IsAdmin; // eslint-disable-line no-undef
+	// @ts-ignore
 	const csrfToken = CSRFToken; // eslint-disable-line no-undef
 
 	const monitorNameByID = newMonitorNameByID(monitors);

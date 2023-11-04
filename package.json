@@ -11,6 +11,7 @@
 		"lint-css-fix": "npx stylelint './{,!(.cache|coverage)/**/!(vendor)/}*.css' --fix --cache=true --cache-location=./node_modules/.cache/stylelint"
 	},
 	"devDependencies": {
+		"@types/jest": "^29.5.7",
 		"browserslist": "^4.21.10",
 		"eslint": "^8.48.0",
 		"eslint-plugin-compat": "^4.2.0",
@@ -25,16 +26,24 @@
 		"stylelint": "^15.10.3",
 		"stylelint-config-standard": "^34.0.0",
 		"stylelint-no-unsupported-browser-features": "^7.0.0",
-		"stylelint-order": "^6.0.3"
+		"stylelint-order": "^6.0.3",
+		"typescript": "^5.2.2"
 	},
 	"jest": {
 		"testEnvironment": "jsdom",
 		"transform": {},
-		"testMatch": ["**/*_test.js"],
-		"moduleFileExtensions": ["js"],
+		"testMatch": [
+			"**/*_test.js"
+		],
+		"moduleFileExtensions": [
+			"js"
+		],
 		"cacheDirectory": "./node_modules/.cache/jest",
 		"coverageDirectory": "coverage",
-		"coverageReporters": ["json", "cobertura"]
+		"coverageReporters": [
+			"json",
+			"cobertura"
+		]
 	},
 	"jest-junit": {
 		"outputDirectory": "coverage/report",
@@ -63,19 +72,29 @@
 			"ecmaVersion": 8,
 			"sourceType": "module"
 		},
-		"plugins": ["unicorn", "jest"],
+		"plugins": [
+			"unicorn",
+			"jest"
+		],
 		"rules": {
 			"unicorn/consistent-function-scoping": "off",
 			"unicorn/prevent-abbreviations": "off",
-			"unicorn/filename-case": ["off"],
+			"unicorn/filename-case": [
+				"off"
+			],
 			"unicorn/prefer-add-event-listener": "off",
 			"unicorn/numeric-separators-style": "off",
 			"unicorn/prefer-logical-operator-over-ternary": "off"
 		}
 	},
 	"stylelint": {
-		"extends": ["stylelint-config-standard"],
-		"plugins": ["stylelint-order", "stylelint-no-unsupported-browser-features"],
+		"extends": [
+			"stylelint-config-standard"
+		],
+		"plugins": [
+			"stylelint-order",
+			"stylelint-no-unsupported-browser-features"
+		],
 		"rules": {
 			"value-keyword-case": null,
 			"no-descending-specificity": null,
@@ -83,10 +102,20 @@
 			"plugin/no-unsupported-browser-features": [
 				true,
 				{
-					"ignore": ["multicolumn", "css-appearance", "css-text-indent"]
+					"ignore": [
+						"multicolumn",
+						"css-appearance",
+						"css-text-indent"
+					]
 				}
 			]
 		}
 	},
-	"browserslist": ["Chrome 104", "Edge 104", "Firefox 81", "Opera 91", "Safari 16.4"]
+	"browserslist": [
+		"Chrome 104",
+		"Edge 104",
+		"Firefox 81",
+		"Opera 91",
+		"Safari 16.4"
+	]
 }
