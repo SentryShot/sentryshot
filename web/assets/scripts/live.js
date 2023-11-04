@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import Hls from "./vendor/hls.mjs";
-import { sortByName } from "./libs/common.mjs";
-import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
-import { newFeed, newFeedBtn } from "./components/feed.mjs";
+import Hls from "./vendor/hls.js";
+import { sortByName } from "./libs/common.js";
+import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
+import { newFeed, newFeedBtn } from "./components/feed.js";
 
 function newViewer($parent, monitors, hls) {
 	let selectedMonitors = [];

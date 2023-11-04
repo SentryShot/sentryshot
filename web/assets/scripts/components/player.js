@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { fromUTC } from "../libs/time.mjs";
-import { fetchDelete, denormalize } from "../libs/common.mjs";
+import { fromUTC } from "../libs/time.js";
+import { fetchDelete, denormalize } from "../libs/common.js";
 
 const millisecond = 1000000;
 

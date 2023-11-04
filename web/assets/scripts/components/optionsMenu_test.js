@@ -2,7 +2,7 @@
 
 import { jest } from "@jest/globals";
 
-import { newOptionsMenu, newOptionsBtn, newSelectMonitor } from "./optionsMenu.mjs";
+import { newOptionsMenu, newOptionsBtn, newSelectMonitor } from "./optionsMenu.js";
 
 describe("optionsGridSize", () => {
 	const setup = (content, button) => {

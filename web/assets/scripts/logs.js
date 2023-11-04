@@ -6,10 +6,10 @@ import {
 	sortByName,
 	newMonitorNameByID,
 	removeEmptyValues,
-} from "./libs/common.mjs";
-import { fromUTC2 } from "./libs/time.mjs";
-import { newForm, fieldTemplate } from "./components/form.mjs";
-import { newModalSelect } from "./components/modal.mjs";
+} from "./libs/common.js";
+import { fromUTC2 } from "./libs/time.js";
+import { newForm, fieldTemplate } from "./components/form.js";
+import { newModalSelect } from "./components/modal.js";
 
 // Log level constants.
 const LevelError = "error";

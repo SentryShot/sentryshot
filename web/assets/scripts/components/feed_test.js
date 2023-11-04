@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { uidReset } from "../libs/common.mjs";
-import { newFeed, newFeedBtn } from "./feed.mjs";
+import { uidReset } from "../libs/common.js";
+import { newFeed, newFeedBtn } from "./feed.js";
 
 describe("feed", () => {
 	test("rendering", () => {

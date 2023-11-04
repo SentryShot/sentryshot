@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { normalize } from "../libs/common.mjs";
-import { newPlayer, newDetectionRenderer } from "./player.mjs";
+import { normalize } from "../libs/common.js";
+import { newPlayer, newDetectionRenderer } from "./player.js";
 
 const millisecond = 1000000;
 const events = [

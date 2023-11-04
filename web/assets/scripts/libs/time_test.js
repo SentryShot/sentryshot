@@ -1,4 +1,4 @@
-import { toUTC, fromUTC, fromUTC2 } from "./time.mjs";
+import { toUTC, fromUTC, fromUTC2 } from "./time.js";
 
 describe("toAndFromUTC", () => {
 	test("summer", () => {

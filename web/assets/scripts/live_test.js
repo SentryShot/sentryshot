@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { resBtn } from "./live.mjs";
+import { resBtn } from "./live.js";
 
 class mockHls {
 	constructor() {}

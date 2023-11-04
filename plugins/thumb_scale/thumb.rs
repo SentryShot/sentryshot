@@ -28,8 +28,8 @@ struct ThumbScalePlugin {
 #[async_trait]
 impl Plugin for ThumbScalePlugin {
     fn edit_assets(&self, assets: &mut Assets) {
-        let js = assets["scripts/settings.mjs"].to_vec();
-        *assets.get_mut("scripts/settings.mjs").unwrap() = Cow::Owned(modify_settings_js(js));
+        let js = assets["scripts/settings.js"].to_vec();
+        *assets.get_mut("scripts/settings.js").unwrap() = Cow::Owned(modify_settings_js(js));
     }
 
     fn on_thumb_save(&self, config: &MonitorConfig, frame: Frame) -> Frame {

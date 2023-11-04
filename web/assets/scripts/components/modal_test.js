@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { newModal, newModalSelect } from "./modal.mjs";
+import { newModal, newModalSelect } from "./modal.js";
 
 test("newModal", () => {
 	const modal = newModal("test", "a");

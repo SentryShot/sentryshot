@@ -6,7 +6,7 @@
 	{% include "meta" %}
 	<link rel="stylesheet" type="text/css" href="assets/style/settings.css" />
 	<script type="module" defer>
-		import { init } from "./assets/scripts/settings.mjs";
+		import { init } from "./assets/scripts/settings.js";
 		init();
 	</script>
 </head>

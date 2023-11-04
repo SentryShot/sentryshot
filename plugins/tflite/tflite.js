@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import Hls from "./vendor/hls.mjs";
-import { uniqueID, normalize, denormalize } from "./libs/common.mjs";
-import { newForm, newField, inputRules, fieldTemplate } from "./components/form.mjs";
-import { newFeed } from "./components/feed.mjs";
-import { newModal } from "./components/modal.mjs";
+import Hls from "./vendor/hls.js";
+import { uniqueID, normalize, denormalize } from "./libs/common.js";
+import { newForm, newField, inputRules, fieldTemplate } from "./components/form.js";
+import { newFeed } from "./components/feed.js";
+import { newModal } from "./components/modal.js";
 
 const Detectors = JSON.parse(`$detectorsJSON`);
 

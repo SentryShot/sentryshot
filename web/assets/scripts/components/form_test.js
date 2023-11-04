@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { uidReset } from "../libs/common.mjs";
+import { uidReset } from "../libs/common.js";
 import {
 	newForm,
 	newField,
@@ -9,7 +9,7 @@ import {
 	newSelectCustomField,
 	newPasswordField,
 	$getInputAndError,
-} from "./form.mjs";
+} from "./form.js";
 
 describe("newForm", () => {
 	test("logic", () => {

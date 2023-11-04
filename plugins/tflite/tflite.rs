@@ -121,7 +121,7 @@ impl TflitePlugin {
     }
 }
 
-const TFLITE_MJS_FILE: &[u8] = include_bytes!("./tflite.mjs");
+const TFLITE_MJS_FILE: &[u8] = include_bytes!("./tflite.js");
 
 #[async_trait]
 impl Plugin for TflitePlugin {
@@ -129,11 +129,11 @@ impl Plugin for TflitePlugin {
         let detectors = self.detector_manager.detectors();
         let detectors_json = serde_json::to_string_pretty(detectors).expect("infallible");
 
-        let js = assets["scripts/settings.mjs"].to_vec();
-        *assets.get_mut("scripts/settings.mjs").unwrap() = Cow::Owned(modify_settings_js(js));
+        let js = assets["scripts/settings.js"].to_vec();
+        *assets.get_mut("scripts/settings.js").unwrap() = Cow::Owned(modify_settings_js(js));
 
         assets.insert(
-            "scripts/tflite.mjs".to_owned(),
+            "scripts/tflite.js".to_owned(),
             Cow::Owned(
                 String::from_utf8(TFLITE_MJS_FILE.to_owned())
                     .unwrap()
@@ -735,7 +735,7 @@ fn parse_detections(
 }
 
 fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
-    const IMPORT_STATEMENT: &str = "import { tflite } from \"./tflite.mjs\";";
+    const IMPORT_STATEMENT: &str = "import { tflite } from \"./tflite.js\";";
     const TARGET: &str = "/* SETTINGS_LAST_FIELD */";
 
     let tpl = String::from_utf8(tpl).unwrap();

@@ -1,5 +1,8 @@
 ## unreleased
 
+-   use `.js` as the javascript file extension
+-   replace clap with pico-args
+
 ## `v0.1.1`
 
 -   fix date picker

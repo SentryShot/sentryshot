@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { newMonitorNameByID } from "./libs/common.mjs";
-import { newViewer } from "./recordings.mjs";
+import { newMonitorNameByID } from "./libs/common.js";
+import { newViewer } from "./recordings.js";
 
 describe("newViewer", () => {
 	const monitorNameByID = newMonitorNameByID({});

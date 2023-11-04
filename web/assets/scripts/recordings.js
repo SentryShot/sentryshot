@@ -5,9 +5,9 @@ import {
 	newMonitorNameByID,
 	getHashParam,
 	removeEmptyValues,
-} from "./libs/common.mjs";
-import { newPlayer } from "./components/player.mjs";
-import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.mjs";
+} from "./libs/common.js";
+import { newPlayer } from "./components/player.js";
+import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
 
 async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 	let selectedMonitors = [];

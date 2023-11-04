@@ -1,10 +1,5 @@
-import { uidReset } from "./libs/common.mjs";
-import {
-	newFormater,
-	newMultiSelect,
-	newMonitorPicker,
-	newLogSelector,
-} from "./logs.mjs";
+import { uidReset } from "./libs/common.js";
+import { newFormater, newMultiSelect, newMonitorPicker, newLogSelector } from "./logs.js";
 
 describe("logger", () => {
 	const monitorIDtoName = (input) => {

@@ -5,7 +5,7 @@
 <head>
 	{% include "meta" %}
 	<script type="module" defer>
-		import { init } from "./assets/scripts/live.mjs";
+		import { init } from "./assets/scripts/live.js";
 		init();
 	</script>
 </head>

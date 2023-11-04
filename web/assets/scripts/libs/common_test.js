@@ -9,7 +9,7 @@ import {
 	getHashParam,
 	normalize,
 	denormalize,
-} from "./common.mjs";
+} from "./common.js";
 
 async function testFetchError(fetch) {
 	let alerted = false;

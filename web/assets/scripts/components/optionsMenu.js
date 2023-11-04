@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { sortByName, uniqueID } from "../libs/common.mjs";
-import { toUTC } from "../libs/time.mjs";
-import { newModalSelect } from "../components/modal.mjs";
+import { sortByName, uniqueID } from "../libs/common.js";
+import { toUTC } from "../libs/time.js";
+import { newModalSelect } from "../components/modal.js";
 
 function newOptionsMenu(buttons) {
 	document.querySelector("#topbar-options-btn").style.visibility = "visible";

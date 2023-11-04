@@ -63,16 +63,16 @@ pub struct MotionPlugin {
     logger: DynLogger,
 }
 
-const MOTION_MJS_FILE: &[u8] = include_bytes!("./motion.mjs");
+const MOTION_MJS_FILE: &[u8] = include_bytes!("./motion.js");
 
 #[async_trait]
 impl Plugin for MotionPlugin {
     fn edit_assets(&self, assets: &mut Assets) {
-        let js = assets["scripts/settings.mjs"].to_vec();
-        *assets.get_mut("scripts/settings.mjs").unwrap() = Cow::Owned(modify_settings_js(js));
+        let js = assets["scripts/settings.js"].to_vec();
+        *assets.get_mut("scripts/settings.js").unwrap() = Cow::Owned(modify_settings_js(js));
 
         assets.insert(
-            "scripts/motion.mjs".to_owned(),
+            "scripts/motion.js".to_owned(),
             Cow::Borrowed(MOTION_MJS_FILE),
         );
     }
@@ -372,7 +372,7 @@ fn decode_frame(s: &mut State) -> Result<bool, DecodeFrameError> {
 }
 
 fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
-    const IMPORT_STATEMENT: &str = "import { motion } from \"./motion.mjs\";";
+    const IMPORT_STATEMENT: &str = "import { motion } from \"./motion.js\";";
     const TARGET: &str = "/* SETTINGS_LAST_FIELD */";
 
     let tpl = String::from_utf8(tpl).unwrap();

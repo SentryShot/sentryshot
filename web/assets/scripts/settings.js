@@ -8,7 +8,7 @@ import {
 	sortByName,
 	uniqueID,
 	removeEmptyValues,
-} from "./libs/common.mjs";
+} from "./libs/common.js";
 import {
 	newForm,
 	newField,
@@ -17,8 +17,8 @@ import {
 	fieldTemplate,
 	newPasswordField,
 	$getInputAndError,
-} from "./components/form.mjs";
-import { newModal } from "./components/modal.mjs";
+} from "./components/form.js";
+import { newModal } from "./components/modal.js";
 
 function newRenderer($parent) {
 	let categories = [];
