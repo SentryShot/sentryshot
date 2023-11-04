@@ -28,9 +28,9 @@ rust-embed.path = "../rust-embed"
 
 axum.workspace = true
 bytesize.workspace = true
-clap.workspace = true
 console-subscriber.workspace = true
 hyper.workspace = true
+pico-args.workspace = true
 thiserror.workspace = true
 tower.workspace = true
 tokio.workspace = true
