@@ -5,6 +5,52 @@ import { fetchDelete, denormalize } from "../libs/common.js";
 
 const millisecond = 1000000;
 
+/**
+ * @typedef {Object} RecordingData
+ * @property {string} id
+ * @property {string} videoPath
+ * @property {string} thumbPath
+ * @property {string} deletePath
+ * @property {string} name
+ * @property {string} timeZone
+ * @property {number} start
+ * @property {number} end
+ * @property {Event[]} events
+ */
+
+/**
+ * @typedef {Object} Event
+ * @property {Detection[]} detections
+ * @property {number} duration
+ * @property {number} time
+ */
+
+/**
+ * @typedef {Object} Detection
+ * @property {string} label
+ * @property {Region} region
+ * @property {number} score
+ */
+
+/**
+ * @typedef {Object} Region
+ * @property {null} polygon
+ * @property {Rectangle} rectangle
+ */
+
+/**
+ * @typedef {Object} Rectangle
+ * @property {number} height
+ * @property {number} width
+ * @property {number} x
+ * @property {number} y
+ */
+
+/**
+ * @param {RecordingData} data
+ * @param {boolean} isAdmin
+ * @param {string} token
+ */
 function newPlayer(data, isAdmin, token) {
 	const d = data;
 
@@ -19,6 +65,10 @@ function newPlayer(data, isAdmin, token) {
 
 	const start = fromUTC(new Date(d.start / millisecond), d.timeZone);
 
+	/**
+	 * @param {Date} d
+	 * @return {[string, string]}
+	 */
 	const parseDate = (d) => {
 		const YY = d.getUTCFullYear(),
 			MM = pad(d.getUTCMonth() + 1),
@@ -95,6 +145,7 @@ function newPlayer(data, isAdmin, token) {
 			</div>
 		</div>`;
 
+	/** @param {Element} element */
 	const loadVideo = (element) => {
 		element.innerHTML = videoHTML;
 		element.classList.add("js-loaded");
@@ -107,6 +158,7 @@ function newPlayer(data, isAdmin, token) {
 		// Play/Pause.
 		const $playpause = element.querySelector(".player-play-btn");
 		const $playpauseImg = $playpause.querySelector("img");
+		/** @type {HTMLInputElement} */
 		const $checkbox = element.querySelector(".player-overlay-checkbox");
 
 		const playpause = () => {
@@ -125,18 +177,19 @@ function newPlayer(data, isAdmin, token) {
 
 		let videoDuration;
 
-		// Progress.
+		/** @type {HTMLProgressElement} */
 		const $progress = element.querySelector(".player-progress");
 		const $topOverlay = element.querySelector(".player-top-bar");
 
 		$video.addEventListener("loadedmetadata", () => {
 			videoDuration = $video.duration;
-			$progress.setAttribute("max", videoDuration);
+			$progress.setAttribute("max", String(videoDuration));
 		});
 		const updateProgress = (newTime) => {
 			$progress.value = newTime;
-			$progress.querySelector(".player-progress-bar").style.width =
-				Math.floor((newTime / videoDuration) * 100) + "%";
+			/** @type {HTMLElement} */
+			const $progressBar = $progress.querySelector(".player-progress-bar");
+			$progressBar.style.width = Math.floor((newTime / videoDuration) * 100) + "%";
 
 			const newDate = new Date(start.getTime());
 			newDate.setMilliseconds($video.currentTime * 1000);
@@ -199,6 +252,7 @@ function newPlayer(data, isAdmin, token) {
 
 	return {
 		html: `<div id="${elementID}" class="grid-item-container">${thumbHTML}</div>`,
+		/** @param {() => void=} onLoad */
 		init(onLoad) {
 			element = document.querySelector(`#${elementID}`);
 
@@ -219,6 +273,7 @@ function newPlayer(data, isAdmin, token) {
 	};
 }
 
+/** @param {RecordingData} data */
 function renderTimeline(data) {
 	if (!data.start || !data.end || !data.events) {
 		return "";
@@ -230,7 +285,10 @@ function renderTimeline(data) {
 	const resolution = 1000;
 	const multiplier = resolution / 100;
 
-	// Array of booleans representing events.
+	/**
+	 * Array of booleans representing events.
+	 * @type {boolean[]}
+	 */
 	let timeline = Array.from({ length: resolution }).fill(false);
 	for (const e of data.events) {
 		const eventTimeMs = e.time / millisecond;
@@ -279,7 +337,16 @@ function renderTimeline(data) {
 		</svg>`;
 }
 
+/**
+ * @param {number} startTimeMs
+ * @param {Event[]} events
+ */
 function newDetectionRenderer(startTimeMs, events) {
+	/**
+	 * @param {Rectangle} rect
+	 * @param {string} label
+	 * @param {number} score
+	 */
 	const renderRectangle = (rect, label, score) => {
 		const x = denormalize(rect.x, 100);
 		const y = denormalize(rect.y, 100);
@@ -297,6 +364,7 @@ function newDetectionRenderer(startTimeMs, events) {
 			<rect x="${x}" width="${width}" y="${y}" height="${height}" />`;
 	};
 
+	/** @param {Detection[]} detections */
 	const renderDetections = (detections) => {
 		let html = "";
 		if (!detections) {
@@ -310,6 +378,7 @@ function newDetectionRenderer(startTimeMs, events) {
 		return html;
 	};
 
+	/** @type {Element} */
 	let element;
 
 	return {
@@ -320,9 +389,11 @@ function newDetectionRenderer(startTimeMs, events) {
 				preserveAspectRatio="none"
 			>
 			</svg>`,
+		/** @param {Element} e */
 		init(e) {
 			element = e;
 		},
+		/** @param {number} newDurationSec */
 		set(newDurationSec) {
 			const newDurationMs = startTimeMs + newDurationSec * 1000;
 			let html = "";
@@ -342,8 +413,9 @@ function newDetectionRenderer(startTimeMs, events) {
 	};
 }
 
+/** @param {number} n */
 function pad(n) {
-	return n < 10 ? "0" + n : n;
+	return String(n < 10 ? "0" + n : n);
 }
 
 export { newPlayer, newDetectionRenderer };

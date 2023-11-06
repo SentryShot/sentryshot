@@ -546,7 +546,7 @@ describe("passwordField", () => {
 			expect(field.validate()).toBe("repeat password");
 		});
 		test("reset", () => {
-			field.reset();
+			field.set("");
 			expect($newError.textContent).toBe("");
 			expect($repeatError.textContent).toBe("");
 		});

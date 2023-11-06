@@ -9,6 +9,8 @@ import {
 import { newPlayer } from "./components/player.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
 
+/** @typedef {import("./components/player.js").RecordingData} RecordingData */
+
 async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 	let selectedMonitors = [];
 	let maxPlayingVideos = 2;
@@ -26,7 +28,8 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 		let current;
 		let players = [];
 		for (const rec of Object.values(recordings)) {
-			let d = {}; // Recording data.
+			/** @type RecordingData */
+			let d = {};
 			d.id = rec.id;
 			d.videoPath = toAbsolutePath(`api/recording/video/${d.id}`);
 			d.thumbPath = toAbsolutePath(`api/recording/thumbnail/${d.id}`);

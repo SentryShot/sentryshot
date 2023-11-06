@@ -1,7 +1,25 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+/**
+ * @typedef {Object} Modal
+ * @property {string} html
+ * @property {() => void} open
+ * @property {() => void} close
+ * @property {(func: () => void) => void} onClose
+ * @property {() => boolean} isOpen
+ * @property {($parent: Element) => Element} init
+ */
+
+/**
+ * @param {string} label
+ * @return {Modal}
+ */
 function newModal(label, content = "") {
-	var $wrapper, onClose;
+	/** @type {Element} */
+	let $wrapper;
+	/** @type {() => void} */
+	let onClose;
+
 	return {
 		html: `
 			<div class="modal-wrapper js-modal-wrapper">
@@ -40,6 +58,28 @@ function newModal(label, content = "") {
 	};
 }
 
+/**
+ * @callback NewModalSelectFunc
+ * @param {string} name
+ * @param {string[]} options
+ * @param {(name: string) => void} onSelect
+ * @return {ModalSelect}
+
+ */
+
+/**
+ * @typedef {Object} ModalSelect
+ * @property {($parent: Element) => void} init
+ * @property {() => void} open
+ * @property {(v: string) => void} set
+ * @property {() => boolean} isOpen
+ */
+
+/**
+ * Creates modal with several buttons in a grid.
+ *
+ * @type {NewModalSelectFunc}
+ */
 function newModalSelect(name, options, onSelect) {
 	const renderOptions = () => {
 		let html = "";
@@ -53,7 +93,17 @@ function newModalSelect(name, options, onSelect) {
 		return `<div class="js-selector modal-select">${html}</div>`;
 	};
 
-	let $parent, value, modal, $modalContent, $selector;
+	/** @type {Element} */
+	let $parent;
+	/** $type {string} */
+	let value;
+	/** @type {Modal} */
+	let modal;
+	/** @type {Element} */
+	let $modalContent;
+	/** @type {Element} */
+	let $selector;
+
 	let isRendered = false;
 	const render = () => {
 		if (isRendered) {
@@ -64,18 +114,21 @@ function newModalSelect(name, options, onSelect) {
 		$modalContent = modal.init($parent);
 		$selector = $modalContent.querySelector(".js-selector");
 
-		$selector.addEventListener("click", (event) => {
-			if (!event.target.classList.contains("js-option")) {
-				return;
+		$selector.addEventListener("click", (e) => {
+			const target = e.target;
+			if (target instanceof HTMLElement) {
+				if (!target.classList.contains("js-option")) {
+					return;
+				}
+
+				clearSelection();
+				target.classList.add("modal-select-option-selected");
+
+				const name = target.textContent;
+				value = name;
+				onSelect(name);
+				modal.close();
 			}
-
-			clearSelection();
-			event.target.classList.add("modal-select-option-selected");
-
-			const name = event.target.textContent;
-			value = name;
-			onSelect(name);
-			modal.close();
 		});
 		isRendered = true;
 	};

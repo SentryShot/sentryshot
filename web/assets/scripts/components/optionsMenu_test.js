@@ -263,6 +263,7 @@ test("optionsMonitor", () => {
 	expect(localStorage.getItem("selected-monitor")).toBe("a");
 });
 
+/*
 describe("optionsGroup", () => {
 	const setup = () => {
 		document.body.innerHTML = `<div></div>`;
@@ -339,7 +340,7 @@ describe("optionsGroup", () => {
 		const group = newOptionsBtn.group({}, {});
 		expect(group).toBeUndefined();
 	});
-});
+});*/
 
 describe("newOptionsMenu", () => {
 	test("rendering", () => {

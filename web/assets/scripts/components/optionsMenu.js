@@ -4,9 +4,18 @@ import { sortByName, uniqueID } from "../libs/common.js";
 import { toUTC } from "../libs/time.js";
 import { newModalSelect } from "../components/modal.js";
 
+/**
+ * @typedef {Object} Button
+ * @property {string} html
+ * @property {($parent: Element, content: any) => void} init
+ */
+
+/** @param {Button[]} buttons */
 function newOptionsMenu(buttons) {
-	// @ts-ignore
-	document.querySelector("#topbar-options-btn").style.visibility = "visible";
+	const $optionsBtn = document.querySelector("#topbar-options-btn");
+	if ($optionsBtn instanceof HTMLElement) {
+		$optionsBtn.style.visibility = "visible";
+	}
 
 	const html = () => {
 		let html = "";
@@ -30,7 +39,13 @@ function newOptionsMenu(buttons) {
 	};
 }
 
+/**
+ * @typedef {Object} Monitor
+ * @typedef {Object.<string, Monitor>} Monitors
+ */
+
 const newOptionsBtn = {
+	/** @return {Button} */
 	gridSize() {
 		const getGridSize = () => {
 			const saved = localStorage.getItem("gridsize");
@@ -70,6 +85,10 @@ const newOptionsBtn = {
 			},
 		};
 	},
+	/**
+	 * @param {string} timeZone
+	 * @return {Button}
+	 */
 	date(timeZone) {
 		const datePicker = newDatePicker(timeZone);
 		const icon = "assets/icons/feather/calendar.svg";
@@ -83,10 +102,15 @@ const newOptionsBtn = {
 			},
 		};
 	},
-	monitor(monitors, remember) {
+	/**
+	 * @param {Monitors} monitors
+	 * @param {boolean} remember
+	 * @return {Button}
+	 */
+	monitor(monitors, remember = false) {
 		return newSelectMonitor(monitors, remember);
 	},
-	group(groups) {
+	/*group(groups) {
 		if (Object.keys(groups).length === 0) {
 			return;
 		}
@@ -101,10 +125,25 @@ const newOptionsBtn = {
 				groupPicker.init(popup, content);
 			},
 		};
-	},
+	},*/
 };
 
+/**
+ * @typedef {Object} Popup
+ * @property {string} html
+ * @property {() => void} toggle
+ * @property {($parent: Element) => void} init
+ * @property {() => Element} element
+ */
+
+/**
+ * @param {string} label
+ * @param {string} icon
+ * @param {string} htmlContent
+ * @return {Popup}
+ */
 function newOptionsPopup(label, icon, htmlContent) {
+	/** @type Element */
 	var element;
 
 	const toggle = () => {
@@ -121,6 +160,7 @@ function newOptionsPopup(label, icon, htmlContent) {
 				</div>
 			</div>`,
 		toggle: toggle,
+		/** @param {Element} $parent */
 		init($parent) {
 			element = $parent.querySelector(`.js-popup-${label}`);
 
@@ -149,21 +189,27 @@ const months = [
 	"December",
 ];
 
+/** @param {Date} date */
 function toMonthString(date) {
 	return months[date.getMonth()];
 }
 
-function fromMonthString(string) {
+/** @param {string} input */
+function fromMonthString(input) {
 	for (const i in months) {
-		if (months[i] === string) {
+		if (months[i] === input) {
 			return Number(i);
 		}
 	}
 }
 
-function nextMonth(string) {
+/**
+ * @param {string} input
+ * @return {[string, boolean]}
+ */
+function nextMonth(input) {
 	for (const i in months) {
-		if (months[i] === string) {
+		if (months[i] === input) {
 			if (Number(i) == 11) {
 				return [months[0], true];
 			}
@@ -172,9 +218,13 @@ function nextMonth(string) {
 	}
 }
 
-function prevMonth(string) {
+/**
+ * @param {string} input
+ * @return {[string, boolean]}
+ */
+function prevMonth(input) {
 	for (const i in months) {
-		if (months[i] === string) {
+		if (months[i] === input) {
 			if (Number(i) == 0) {
 				return [months[11], true];
 			}
@@ -183,6 +233,7 @@ function prevMonth(string) {
 	}
 }
 
+/** @param {Date} date */
 function daysInMonth(date) {
 	const d = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 	return d.getDate();
@@ -241,9 +292,16 @@ const datePickerHTML = `
 	</div>
 `;
 
+/**
+ * @typedef {Object} DatePickerContent
+ * @property {(date: Date) => void} setDate
+ */
+
+/** @param {string} timeZone */
 function newDatePicker(timeZone) {
 	let $month, $calendar, $hour, $minute;
 
+	/** @return {number} */
 	const getDay = () => {
 		for (const child of $calendar.children) {
 			if (child.classList.contains("date-picker-day-selected")) {
@@ -252,6 +310,7 @@ function newDatePicker(timeZone) {
 		}
 	};
 
+	/** @param {Date} date */
 	const setDay = (date) => {
 		const firstDay = new Date(date.getTime());
 		firstDay.setDate(1);
@@ -288,6 +347,7 @@ function newDatePicker(timeZone) {
 		return new Date(year, month, day, hour, minute);
 	};
 
+	/** @param {Date} date */
 	const setDate = (date) => {
 		const year = date.getFullYear();
 		const month = toMonthString(date);
@@ -297,6 +357,7 @@ function newDatePicker(timeZone) {
 		$minute.value = pad(date.getMinutes());
 	};
 
+	/** @type {DatePickerContent} */
 	let content;
 	const apply = () => {
 		content.setDate(toUTC(getDate(), timeZone));
@@ -309,6 +370,10 @@ function newDatePicker(timeZone) {
 
 	return {
 		html: datePickerHTML,
+		/**
+		 * @param {Popup} popup
+		 * @param {DatePickerContent} c
+		 */
 		init(popup, c) {
 			const $parent = popup.element();
 			content = c;
@@ -337,19 +402,22 @@ function newDatePicker(timeZone) {
 				setDay(new Date(year, fromMonthString(month2), getDay()));
 			});
 
-			$calendar.addEventListener("click", (event) => {
-				if (!event.target.classList.contains("date-picker-day-btn")) {
-					return;
-				}
+			$calendar.addEventListener("click", (e) => {
+				const target = e.target;
+				if (target instanceof HTMLElement) {
+					if (!target.classList.contains("date-picker-day-btn")) {
+						return;
+					}
 
-				if (event.target.innerHTML === "") {
-					return;
-				}
+					if (target.innerHTML === "") {
+						return;
+					}
 
-				for (const child of $calendar.children) {
-					child.classList.remove("date-picker-day-selected");
+					for (const child of $calendar.children) {
+						child.classList.remove("date-picker-day-selected");
+					}
+					target.classList.add("date-picker-day-selected");
 				}
-				event.target.classList.add("date-picker-day-selected");
 			});
 
 			$parent.querySelector(".js-next-hour").addEventListener("click", () => {
@@ -400,9 +468,25 @@ function newDatePicker(timeZone) {
 	};
 }
 
+/**
+ * @typedef {Object} SelectMonitorContent
+ * @property {(monitors: string[]) => void} setMonitors
+ * @property {() => void} reset
+ */
+
+/** @typedef {import("./modal.js").NewModalSelectFunc} NewModalSelectFunc */
+
+/**
+ * @param {Monitors} monitors
+ * @param {boolean} remember
+ * @param {NewModalSelectFunc} newModalSelect2
+ */
 function newSelectMonitor(monitors, remember, newModalSelect2 = newModalSelect) {
+	/** @type {string[]} */
 	let monitorNames = [];
+	/** @type {Object.<string, string>} */
 	let monitorNameToID = {};
+	/** @type {Object.<string, string>} */
 	let monitorIDToName = {};
 	for (const { id, name } of sortByName(monitors)) {
 		monitorNames.push(name);
@@ -418,6 +502,10 @@ function newSelectMonitor(monitors, remember, newModalSelect2 = newModalSelect) 
 			<button id="${btnID}" class="options-menu-btn">
 				<img class="icon" src="assets/icons/feather/video.svg">
 			</button>`,
+		/**
+		 * @param {Element} $parent
+		 * @param {SelectMonitorContent} content
+		 */
 		init($parent, content) {
 			const onSelect = (selected) => {
 				const monitorID = monitorNameToID[selected];
@@ -445,6 +533,7 @@ function newSelectMonitor(monitors, remember, newModalSelect2 = newModalSelect) 
 	};
 }
 
+/*
 function newGroupPicker(groups) {
 	let options = [];
 	let nameToID = {};
@@ -470,8 +559,13 @@ function newGroupPicker(groups) {
 			selectOne.init(popup);
 		},
 	};
-}
+}*/
 
+/**
+ * @param {string[]} options
+ * @param {(selected: string) => void} onSelect
+ * @param {string} alias
+ */
 function newSelectOne(options, onSelect, alias) {
 	options.sort();
 	let optionsHTML = "";
@@ -496,6 +590,7 @@ function newSelectOne(options, onSelect, alias) {
 				<span class="select-one-label">Groups</span>
 				${optionsHTML}
 			</div>`,
+		/** @param {Popup} popup */
 		init(popup) {
 			const $parent = popup.element();
 			const element = $parent.querySelector(".select-one");
@@ -507,28 +602,35 @@ function newSelectOne(options, onSelect, alias) {
 					.classList.add("select-one-item-selected");
 			}
 
-			element.addEventListener("click", (event) => {
-				if (!event.target.classList.contains("select-one-item")) {
-					return;
+			element.addEventListener("click", (e) => {
+				const target = e.target;
+				if (target instanceof HTMLElement) {
+					if (!target.classList.contains("select-one-item")) {
+						return;
+					}
+
+					// Clear selection.
+					const fields = element.querySelectorAll(".select-one-item");
+					for (const field of fields) {
+						field.classList.remove("select-one-item-selected");
+					}
+
+					target.classList.add("select-one-item-selected");
+
+					const selected = target.attributes["data"].value;
+					onSelect(selected);
+
+					localStorage.setItem(alias, selected);
 				}
-
-				// Clear selection.
-				const fields = element.querySelectorAll(".select-one-item");
-				for (const field of fields) {
-					field.classList.remove("select-one-item-selected");
-				}
-
-				event.target.classList.add("select-one-item-selected");
-
-				const selected = event.target.attributes["data"].value;
-				onSelect(selected);
-
-				localStorage.setItem(alias, selected);
 			});
 		},
 	};
 }
 
+/**
+ * @param {number} n
+ * @return string
+ */
 function pad(n) {
 	return n < 10 ? "0" + n : n;
 }

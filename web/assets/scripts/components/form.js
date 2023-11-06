@@ -22,12 +22,28 @@ import { uniqueID } from "../libs/common.js";
  * element()   Returns field element. optional
  */
 
+/**
+ * @typedef {Object} Field
+ * @property {string} html
+ * @property {($parent: Element) => void} init
+ * @property {() => any} value
+ * @property {(input: any, special: any, special2: any) => void} set
+ * @property {(input: string) => string} validate
+ * @property {() => HTMLElement=} element
+ */
+
+/** @typedef {Object.<string, Field>} Fields */
+
+/**
+ * @param {Fields} fields
+ */
 function newForm(fields) {
 	let buttons = {};
 	return {
 		buttons() {
 			return buttons;
 		},
+		/** @param {string} type */
 		addButton(type) {
 			switch (type) {
 				case "save": {
@@ -79,10 +95,11 @@ function newForm(fields) {
 					<div class="form-button-wrapper">${htmlButtons}</div>
 				</ul>`;
 		},
+		/** @param {Element} $parent */
 		init($parent) {
 			for (const item of Object.values(fields)) {
 				if (item && item.init) {
-					item.init($parent);
+					item.init($parent); // TODO: remove @parent
 				}
 			}
 			for (const btn of Object.values(buttons)) {
@@ -95,6 +112,7 @@ function newForm(fields) {
 function newSaveBtn() {
 	let element, onClick;
 	return {
+		/** @param {() => void} func */
 		onClick(func) {
 			onClick = func;
 		},
@@ -110,6 +128,7 @@ function newSaveBtn() {
 					<span>Save</span>
 				</button>`;
 		},
+		/** @param {HTMLElement} $parent */
 		init($parent) {
 			element = $parent.querySelector(".js-save-btn");
 			element.addEventListener("click", () => {
@@ -122,6 +141,7 @@ function newSaveBtn() {
 function newDeleteBtn() {
 	let element, onClick;
 	return {
+		/** @param {() => void} func */
 		onClick(func) {
 			onClick = func;
 		},
@@ -137,6 +157,7 @@ function newDeleteBtn() {
 					<span>Delete</span>
 				</button>`;
 		},
+		/** @param {HTMLElement} $parent */
 		init($parent) {
 			element = $parent.querySelector(".js-delete-btn");
 			element.addEventListener("click", () => {
@@ -146,16 +167,28 @@ function newDeleteBtn() {
 	};
 }
 
+/** @typedef {[RegExp, string]} InputRule */
+
 const inputRules = {
+	/** @type InputRule */
 	noSpaces: [/\s/, "cannot contain spaces"],
+	/** @type InputRule */
 	notEmpty: [/^s*$/, "cannot be empty"],
+	/** @type InputRule */
 	englishOnly: [/[^\dA-Za-z]/, "english charaters only"],
+	/** @type InputRule */
 	noUppercase: [/[^\da-z]/, "uppercase not allowed"],
 };
 
 /* Form field templates. */
 const fieldTemplate = {
-	text(label, placeholder, initial) {
+	/**
+	 * @param {string} label
+	 * @param {string} placeholder
+	 * @param {string} initial
+	 * @return {Field}
+	 */
+	text(label, placeholder, initial = "") {
 		return newField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
@@ -169,7 +202,13 @@ const fieldTemplate = {
 			},
 		);
 	},
-	integer(label, placeholder, initial) {
+	/**
+	 * @param {string} label
+	 * @param {string} placeholder
+	 * @param {string} initial
+	 * @return {Field}
+	 */
+	integer(label, placeholder, initial = "") {
 		return newField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
@@ -186,7 +225,13 @@ const fieldTemplate = {
 			},
 		);
 	},
-	number(label, placeholder, initial) {
+	/**
+	 * @param {string} label
+	 * @param {string} placeholder
+	 * @param {string} initial
+	 * @return {Field}
+	 */
+	number(label, placeholder, initial = "") {
 		return newField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
@@ -202,10 +247,21 @@ const fieldTemplate = {
 			},
 		);
 	},
-	toggle(label, initial) {
+	/**
+	 * @param {string} label
+	 * @param {boolean} initial
+	 * @return {Field}
+	 */
+	toggle(label, initial = false) {
 		return newToggleField(label, initial);
 	},
-	select(label, options, initial) {
+	/**
+	 * @param {string} label
+	 * @param {string[]} options
+	 * @param {string} initial
+	 * @return {Field}
+	 */
+	select(label, options, initial = "") {
 		return newField(
 			[],
 			{
@@ -217,7 +273,13 @@ const fieldTemplate = {
 			},
 		);
 	},
-	selectCustom(label, options, initial) {
+	/**
+	 * @param {string} label
+	 * @param {string[]} options
+	 * @param {string} initial
+	 * @return {Field}
+	 */
+	selectCustom(label, options, initial = "") {
 		return newSelectCustomField([inputRules.notEmpty], options, {
 			label: label,
 			initial: initial,
@@ -225,6 +287,31 @@ const fieldTemplate = {
 	},
 };
 
+/**
+ * @typedef {Object} Options
+ * @property {boolean=} errorField
+ * @property {boolean=} numberField
+ * @property {string=} input
+ * @property {string[]=} select
+ * @property {string=} min
+ * @property {string=} max
+ * @property {string=} step
+ * @property {boolean=} custom
+ */
+
+/**
+ * @typedef {Object} Values
+ * @property {string} label
+ * @property {string=} placeholder
+ * @property {string=} initial
+ */
+
+/**
+ * @param {InputRule[]} inputRules
+ * @param {Options} options
+ * @param {Values} values
+ * @return {Field}
+ */
 function newField(inputRules, options, values) {
 	let element, $input, $error;
 	const { errorField, numberField, min, max } = options;
@@ -242,7 +329,7 @@ function newField(inputRules, options, values) {
 		if (min && input < min) {
 			return `min value: ${min}`;
 		}
-		if (max && Number(input) > max) {
+		if (max && Number(input) > Number(max)) {
 			return `max value: ${max}`;
 		}
 		return "";
@@ -291,7 +378,13 @@ function newField(inputRules, options, values) {
 	};
 }
 
-function newHTMLfield(options, id, label, placeholder) {
+/**
+ * @param {Options} options
+ * @param {string} id
+ * @param {string} label
+ * @param {string} placeholder
+ */
+function newHTMLfield(options, id, label, placeholder = "") {
 	let { errorField, input, select, min, max, step, custom } = options;
 
 	placeholder ? "" : (placeholder = "");
@@ -344,6 +437,11 @@ function newHTMLfield(options, id, label, placeholder) {
 	`;
 }
 
+/**
+ * @param {string} label
+ * @param {boolean} initial
+ * @return {Field}
+ */
 function newToggleField(label, initial) {
 	let element, $input;
 
@@ -368,13 +466,23 @@ function newToggleField(label, initial) {
 				$input.value = input;
 			}
 		},
+		validate() {
+			return "";
+		},
 		element() {
 			return element;
 		},
 	};
 }
 
-// New select field with button to add custom value.
+/**
+ * New select field with button to add custom value.
+ *
+ * @param {InputRule[]} inputRules
+ * @param {string[]} options
+ * @param {Values} values
+ * @return {Field}
+ */
 function newSelectCustomField(inputRules, options, values) {
 	let $input, $error, validate;
 	const id = uniqueID();
@@ -385,7 +493,7 @@ function newSelectCustomField(inputRules, options, values) {
 	const set = (input) => {
 		if (input === "") {
 			$input.value = values.initial;
-			if (inputRules > 0) {
+			if (inputRules.length > 0) {
 				$error.innerHTML = "";
 			}
 			return;
@@ -431,9 +539,7 @@ function newSelectCustomField(inputRules, options, values) {
 			const element = document.querySelector(`#js-${id}`);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
-				if (inputRules > 0) {
-					$error.innerHTML = validate(value());
-				}
+				$error.innerHTML = validate(value());
 			});
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const input = prompt("Custom value");
@@ -448,6 +554,7 @@ function newSelectCustomField(inputRules, options, values) {
 	};
 }
 
+/** @return {Field} */
 function newPasswordField() {
 	const newID = uniqueID();
 	const repeatID = uniqueID();
@@ -466,6 +573,7 @@ function newPasswordField() {
 		</li>`;
 	};
 
+	/** @type {() => string} */
 	const validate = () => {
 		if (!isEmpty($newInput.value) && isEmpty($repeatInput.value)) {
 			return "repeat password";
@@ -510,12 +618,6 @@ function newPasswordField() {
 			$repeatInput.value = input;
 			checkPassword();
 		},
-		reset() {
-			$newInput.value = "";
-			$repeatInput.value = "";
-			$newError.textContent = "";
-			$repeatError.textContent = "";
-		},
 		init($parent) {
 			[$newInput, $newError] = $getInputAndError(
 				$parent.querySelector("#js-" + newID),
@@ -535,12 +637,14 @@ function newPasswordField() {
 	};
 }
 
+/** @param {Element} $parent */
 function $getInputAndError($parent) {
 	return [$parent.querySelector(".js-input"), $parent.querySelector(".js-error")];
 }
 
-function isEmpty(string) {
-	return string === "" || string === null;
+/** @param {string} input */
+function isEmpty(input) {
+	return input === "" || input === null;
 }
 
 export {

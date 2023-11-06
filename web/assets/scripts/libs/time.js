@@ -1,3 +1,7 @@
+/**
+ * @param {Date} date
+ * @param {string} timeZone
+ */
 function toUTC(date, timeZone) {
 	try {
 		const tmp1 = new Date(date.toLocaleString("en-US", { timeZone: "utc" }));
@@ -21,6 +25,10 @@ function toUTC(date, timeZone) {
 	}
 }
 
+/**
+ * @param {Date} date
+ * @param {string} timeZone
+ */
 function fromUTC(date, timeZone) {
 	try {
 		const tmp1 = new Date(date.toLocaleString("en-US", { timeZone: "utc" }));
@@ -44,10 +52,14 @@ function fromUTC(date, timeZone) {
 	}
 }
 
-function fromUTC2(date, timezone) {
+/**
+ * @param {Date} date
+ * @param {string} timeZone
+ */
+function fromUTC2(date, timeZone) {
 	// "MM/DD/YY, hh:mm:ss"
 	const str = date.toLocaleString("en-US", {
-		timeZone: timezone,
+		timeZone: timeZone,
 		hour12: false,
 		year: "numeric",
 		month: "2-digit",

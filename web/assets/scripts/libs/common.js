@@ -4,6 +4,11 @@ async function sendAlert(msg, response) {
 	alert(`${msg}: ${response.status}, ${await response.text()}`);
 }
 
+/**
+	@param {RequestInfo | URL} url
+	@param {string} msg:
+	@return {Promise<any>}
+ */
 async function fetchGet(url, msg) {
 	const response = await fetch(url, { method: "get" });
 	if (response.status !== 200) {
@@ -13,6 +18,13 @@ async function fetchGet(url, msg) {
 	return await response.json();
 }
 
+/**
+	@param {RequestInfo | URL} url
+	@param {any} data
+	@param {string} token
+	@param {string} msg:
+	@return {Promise<boolean>}
+ */
 async function fetchPost(url, data, token, msg) {
 	const response = await fetch(url, {
 		body: JSON.stringify(data),
@@ -29,6 +41,13 @@ async function fetchPost(url, data, token, msg) {
 	return true;
 }
 
+/**
+	@param {RequestInfo | URL} url
+	@param {any} data
+	@param {string} token
+	@param {string} msg:
+	@return {Promise<boolean>}
+ */
 async function fetchPut(url, data, token, msg) {
 	const response = await fetch(url, {
 		body: JSON.stringify(data),
@@ -46,6 +65,12 @@ async function fetchPut(url, data, token, msg) {
 	return true;
 }
 
+/**
+	@param {RequestInfo | URL} url
+	@param {string} token
+	@param {string} msg:
+	@return {Promise<boolean>}
+ */
 async function fetchDelete(url, token, msg) {
 	const response = await fetch(url, {
 		headers: {
@@ -60,18 +85,23 @@ async function fetchDelete(url, token, msg) {
 	return true;
 }
 
+/**
+ * @param {Object.<string, { name: string }>} input
+ * @return {any[]}
+ */
 function sortByName(input) {
-	input = Object.values(input);
-	input.sort((a, b) => {
+	const ret = Object.values(input);
+	ret.sort((a, b) => {
 		if (a["name"] > b["name"]) {
 			return 1;
 		}
 		return -1;
 	});
-	return input;
+	return ret;
 }
 
 let idCount = 0;
+/** @returm string */
 function uniqueID() {
 	idCount++;
 	return "uid" + idCount;
@@ -82,17 +112,36 @@ function uidReset() {
 	idCount = 0;
 }
 
-// Returns function that converts monitor ID to name.
+/**
+ * @typedef {Object} Monitor
+ * @property {string} id
+ * @property {string} name
+ */
+
+/**
+ * @typedef {Object.<string, Monitor>} Monitors
+ */
+
+/**
+ * Returns a function that converts monitor ID to name.
+ *
+ * @param {Monitors} monitors
+ * @return {(id: string) => string}
+ */
 function newMonitorNameByID(monitors) {
 	return (id) => {
 		for (const monitor of Object.values(monitors)) {
-			if (monitor["id"] === id) {
+			if (monitor.id === id) {
 				return monitor.name;
 			}
 		}
 	};
 }
 
+/**
+ * @param {string} key
+ * @param {string} value
+ */
 function setHashParam(key, value) {
 	let url = new URL("http://dummy.com");
 	url.search = window.location.hash.slice(1);
@@ -100,6 +149,9 @@ function setHashParam(key, value) {
 	window.location.hash = url.search.slice(1).replace("%2C", ",");
 }
 
+/**
+ * @param {string} key
+ */
 function getHashParam(key) {
 	const hash = window.location.hash;
 	if (!hash) {
@@ -116,7 +168,6 @@ function getHashParam(key) {
 	return value;
 }
 
-// Removes empty values from object.
 function removeEmptyValues(obj) {
 	for (let field in obj) {
 		let v = obj[field];
@@ -127,10 +178,18 @@ function removeEmptyValues(obj) {
 	return obj;
 }
 
+/**
+ * @param {number} input
+ * @param {number} max
+ */
 function normalize(input, max) {
 	return Math.floor((1000000 * input) / max);
 }
 
+/**
+ * @param {number} input
+ * @param {number} max
+ */
 function denormalize(input, max) {
 	return Math.round((input * max) / 1000000);
 }

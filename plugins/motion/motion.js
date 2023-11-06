@@ -14,6 +14,7 @@ import { newModal } from "./components/modal.js";
 export function motion() {
 	// @ts-ignore
 	const monitorsInfo = MonitorsInfo; // eslint-disable-line no-undef
+
 	const hasSubStream = (monitorID) => {
 		if (monitorsInfo[monitorID] && monitorsInfo[monitorID].hasSubStream) {
 			return monitorsInfo[monitorID].hasSubStream;
@@ -119,7 +120,7 @@ function _motion(hls, hasSubStream) {
 	};
 }
 
-const zonePreviewHtml = (zones) => {
+function zonePreviewHtml(zones) {
 	// Arbitrary colors to differentiate between zones.
 	const colorMap = [
 		"red",
@@ -151,7 +152,7 @@ const zonePreviewHtml = (zones) => {
 			</svg>`;
 	}
 	return html;
-};
+}
 
 function newZonePointsRenderer($points, updatePreview) {
 	const html = (zone) => {

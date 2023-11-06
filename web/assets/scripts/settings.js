@@ -1006,6 +1006,7 @@ function init() {
 	if (isAdmin) {
 		const renderer = newRenderer(document.querySelector(".js-content"));
 
+		/** @type {import("./components/form.js").InputRule} */
 		const maxLength24 = [/^.{25}/, "maximum length is 24 characters"];
 		const monitorFields = {
 			id: newField(
@@ -1027,7 +1028,7 @@ function init() {
 			enable: fieldTemplate.toggle("Enable monitor", true),
 			source: newSourceField(["rtsp"]),
 			sourcertsp: newSourceRTSP(),
-			alwaysRecord: fieldTemplate.toggle("Always record", "false"),
+			alwaysRecord: fieldTemplate.toggle("Always record", false),
 			videoLength: fieldTemplate.number("Video length (min)", "15", "15"),
 			//timestampOffset: fieldTemplate.integer("Timestamp offset (ms)", "500", "500"),
 			/* SETTINGS_LAST_FIELD */
