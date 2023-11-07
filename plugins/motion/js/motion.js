@@ -1,20 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// @ts-check
 
-// @ts-ignore
 import Hls from "./vendor/hls.js";
-// @ts-ignore
 import { uniqueID, normalize, denormalize } from "./libs/common.js";
-// @ts-ignore
 import { newForm, fieldTemplate } from "./components/form.js";
-// @ts-ignore
 import { newFeed } from "./components/feed.js";
-// @ts-ignore
 import { newModal } from "./components/modal.js";
 
 export function motion() {
 	// @ts-ignore
 	const monitorsInfo = MonitorsInfo; // eslint-disable-line no-undef
 
+	/** @param {string} monitorID */
 	const hasSubStream = (monitorID) => {
 		if (monitorsInfo[monitorID] && monitorsInfo[monitorID].hasSubStream) {
 			return monitorsInfo[monitorID].hasSubStream;
@@ -25,16 +22,20 @@ export function motion() {
 	return _motion(Hls, hasSubStream);
 }
 
+/**
+ * @param {typeof Hls} hls
+ * @param {(montitorID: string) => boolean} hasSubStream
+ */
 function _motion(hls, hasSubStream) {
 	const fields = {
-		enable: fieldTemplate.toggle("Enable motion detection", "false"),
-		feedRate: fieldTemplate.integer("Feed rate (fps)", "", 2),
+		enable: fieldTemplate.toggle("Enable motion detection", false),
+		feedRate: fieldTemplate.integer("Feed rate (fps)", "", "2"),
 		/*frameScale: fieldTemplate.select(
 			"Frame scale",
 			["full", "half", "third", "quarter", "sixth", "eighth"],
 			"full"
 		),*/
-		duration: fieldTemplate.integer("Trigger duration (sec)", "", 120),
+		duration: fieldTemplate.integer("Trigger duration (sec)", "", "120"),
 		zones: zones(hls, hasSubStream),
 	};
 
@@ -44,12 +45,15 @@ function _motion(hls, hasSubStream) {
 	let value = {};
 
 	let isRendered = false;
+	/** @param {Element} element */
 	const render = (element) => {
 		if (isRendered) {
 			return;
 		}
 		element.insertAdjacentHTML("beforeend", modal.html);
-		element.querySelector(".js-modal").style.maxWidth = "12rem";
+		/** @type {HTMLElement} */
+		const $modal = element.querySelector(".js-modal");
+		$modal.style.maxWidth = "12rem";
 
 		const $modalContent = modal.init(element);
 		form.init($modalContent);
@@ -107,6 +111,7 @@ function _motion(hls, hasSubStream) {
 			}
 			return "";
 		},
+		/** @param {Element} $parent */
 		init($parent) {
 			const element = $parent.querySelector("#" + id);
 			element
@@ -120,6 +125,19 @@ function _motion(hls, hasSubStream) {
 	};
 }
 
+/**
+ * @typedef {Object} Zone
+ * @property {[number, number][]} area
+ * @property {boolean} enable
+ * @property {boolean} preview
+ * @property {number} sensitivity
+ * @property {number} thresholdMax
+ * @property {number} thresholdMin
+ */
+
+/** @typedef {Object.<number,Zone>} Zones */
+
+/** @param {Zones} zones */
 function zonePreviewHtml(zones) {
 	// Arbitrary colors to differentiate between zones.
 	const colorMap = [
@@ -134,13 +152,14 @@ function zonePreviewHtml(zones) {
 	];
 	let html = "";
 	for (const i of Object.keys(zones)) {
+		/** @type {Zone} */
 		const zone = zones[i];
 		if (!zone.preview) {
 			continue;
 		}
 		let points = "";
-		for (const p of zone.area) {
-			points += `${p[0]},${p[1]} `;
+		for (const [x, y] of zone.area) {
+			points += `${x},${y} `;
 		}
 		html += `
 			<svg
@@ -154,8 +173,14 @@ function zonePreviewHtml(zones) {
 	return html;
 }
 
+/**
+ * @param {Element} $points
+ * @param {() => void} updatePreview
+ */
 function newZonePointsRenderer($points, updatePreview) {
+	/** @param {Zone} zone */
 	const html = (zone) => {
+		/** @param {string} value */
 		const inputPointHtml = (value) => {
 			return `
 				<input
@@ -166,6 +191,7 @@ function newZonePointsRenderer($points, updatePreview) {
 					value="${value}"
 				/>`;
 		};
+		/** @param {Zone} zone */
 		const pointsHtml = (zone) => {
 			let html = "";
 			for (const point of Object.entries(zone.area)) {
@@ -173,13 +199,17 @@ function newZonePointsRenderer($points, updatePreview) {
 				const [x, y] = point[1];
 				html += `
 					<div class="js-modal-point motion-modal-point">
-						${inputPointHtml(x)}
+						${inputPointHtml(String(x))}
 						<span class="motion-modal-points-label">${index}</span>
-						${inputPointHtml(y)}
+						${inputPointHtml(String(y))}
 					</div>`;
 			}
 			return html;
 		};
+		/**
+		 * @param {string} classID
+		 * @param {string} icon
+		 */
 		const editBtnHtml = (classID, icon) => {
 			return `
 				<button
@@ -196,26 +226,33 @@ function newZonePointsRenderer($points, updatePreview) {
 				${editBtnHtml("js-points-minus", "assets/icons/feather/minus.svg")}
 			</div>`;
 	};
+	/** @param {Zone} zone */
 	const render = (zone) => {
 		$points.innerHTML = html(zone);
 		updatePreview();
 
 		for (const element of $points.querySelectorAll(".js-modal-point")) {
-			element.onchange = () => {
-				const index = element.querySelector("span").innerHTML;
-				const $points = element.querySelectorAll("input");
-				const x = Number.parseInt($points[0].value);
-				const y = Number.parseInt($points[1].value);
-				zone.area[index] = [x, y];
-				updatePreview();
-			};
+			if (element instanceof HTMLElement) {
+				element.onchange = () => {
+					const index = element.querySelector("span").innerHTML;
+					const $points = element.querySelectorAll("input");
+					const x = Number.parseInt($points[0].value);
+					const y = Number.parseInt($points[1].value);
+					zone.area[index] = [x, y];
+					updatePreview();
+				};
+			}
 		}
 
-		$points.querySelector(".js-points-plus").onclick = () => {
+		/** @type {HTMLElement} */
+		const $pointsPlus = $points.querySelector(".js-points-plus");
+		$pointsPlus.onclick = () => {
 			zone.area.push([50, 50]);
 			render(zone);
 		};
-		$points.querySelector(".js-points-minus").onclick = () => {
+		/** @type {HTMLElement} */
+		const $pointsMinus = $points.querySelector(".js-points-minus");
+		$pointsMinus.onclick = () => {
 			if (zone.area.length > 3) {
 				zone.area.pop();
 				render(zone);
@@ -223,15 +260,28 @@ function newZonePointsRenderer($points, updatePreview) {
 		};
 	};
 	return {
+		/** @param {Zone} zone */
 		render(zone) {
 			render(zone);
 		},
 	};
 }
 
+/**
+ * @typedef {import("./components/form.js").Field} Field
+ * @typedef {import("./components/feed.js").Feed} Feed
+ * @typedef {import("./components/modal.js").Modal} Modal
+ */
+
+/**
+ * @param {typeof Hls} hls
+ * @param {(monitorID: string) => void} hasSubStream
+ * @return {Field}
+ */
 function zones(hls, hasSubStream) {
-	let modal,
-		$modalContent,
+	/** @type {Modal} */
+	let modal;
+	let $modalContent,
 		$enable,
 		$sensitivity,
 		$thresholdMin,
@@ -240,11 +290,17 @@ function zones(hls, hasSubStream) {
 		$feed,
 		$points,
 		$zoneSelect,
-		pointsRenderer,
-		zones,
-		feed;
+		pointsRenderer;
+	/** @type {Zone[]} */
+	let zones;
+	/** @type {Feed} */
+	let feed;
 
-	const renderModal = (element, feed) => {
+	/**
+	 * @param {Element} element
+	 * @param {string} feedHTML
+	 */
+	const renderModal = (element, feedHTML) => {
 		const html = `
 			<li class="form-field">
 				<div class="form-field-select-container">
@@ -312,7 +368,7 @@ function zones(hls, hasSubStream) {
 					</select>
 				</div>
 				<div style="position: relative; margin-top: 0.2rem;">
-					<div class="js-feed">${feed.html}</div>
+					<div class="js-feed">${feedHTML}</div>
 					<div
 						class="js-feed-overlay"
 						style="position: absolute; height: 100%; width: 100%; top: 0;"
@@ -390,6 +446,7 @@ function zones(hls, hasSubStream) {
 		loadZone();
 	};
 
+	/** @param {number} index */
 	const setSelectedZoneIndex = (index) => {
 		return ($zoneSelect.value = `zone ${index}`);
 	};
@@ -419,6 +476,7 @@ function zones(hls, hasSubStream) {
 		return html;
 	};
 
+	/** @return {Zone} */
 	const newZone = () => {
 		return {
 			enable: true,
@@ -451,19 +509,6 @@ function zones(hls, hasSubStream) {
 					</button>
 				</div>
 			</li> `,
-		value() {
-			return normalizeZones(zones);
-		},
-		set(input, _, f) {
-			fields = f;
-			zones = input === "" ? [newZone()] : denormalizeZones(input);
-
-			if (rendered) {
-				setSelectedZoneIndex(0);
-				$zoneSelect.innerHTML = zoneSelectHTML();
-				loadZone();
-			}
-		},
 		init($parent) {
 			const element = $parent.querySelector(`#${id}`);
 			element
@@ -483,7 +528,7 @@ function zones(hls, hasSubStream) {
 						$feed.innerHTML = feed.html;
 					} else {
 						// Render modal.
-						renderModal(element, feed);
+						renderModal(element, feed.html);
 						modal.onClose(() => {
 							feed.destroy();
 						});
@@ -494,9 +539,23 @@ function zones(hls, hasSubStream) {
 					feed.init($modalContent);
 				});
 		},
+		value() {
+			return normalizeZones(zones);
+		},
+		set(input, _, f) {
+			fields = f;
+			zones = input === "" ? [newZone()] : denormalizeZones(input);
+
+			if (rendered) {
+				setSelectedZoneIndex(0);
+				$zoneSelect.innerHTML = zoneSelectHTML();
+				loadZone();
+			}
+		},
 	};
 }
 
+/** @param {Zone[]} zones  */
 function normalizeZones(zones) {
 	for (const zone of zones) {
 		for (let i = 0; i < zone.area.length; i++) {
@@ -507,6 +566,7 @@ function normalizeZones(zones) {
 	return zones;
 }
 
+/** @param {Zone[]} zones  */
 function denormalizeZones(zones) {
 	for (const zone of zones) {
 		for (let i = 0; i < zone.area.length; i++) {

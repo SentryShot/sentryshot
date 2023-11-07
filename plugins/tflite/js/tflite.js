@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// @ts-check
 
-// @ts-ignore
 import Hls from "./vendor/hls.js";
-// @ts-ignore
 import { uniqueID, normalize, denormalize } from "./libs/common.js";
-// @ts-ignore
 import { newForm, newField, inputRules, fieldTemplate } from "./components/form.js";
-// @ts-ignore
 import { newFeed } from "./components/feed.js";
-// @ts-ignore
 import { newModal } from "./components/modal.js";
 
 const Detectors = JSON.parse(`$detectorsJSON`);
@@ -16,6 +12,8 @@ const Detectors = JSON.parse(`$detectorsJSON`);
 export function tflite() {
 	// @ts-ignore
 	const monitorsInfo = MonitorsInfo; // eslint-disable-line no-undef
+
+	/** @param {string} monitorID */
 	const hasSubStream = (monitorID) => {
 		if (monitorsInfo[monitorID] && monitorsInfo[monitorID].hasSubStream) {
 			return monitorsInfo[monitorID].hasSubStream;
@@ -26,11 +24,25 @@ export function tflite() {
 	return _tflite(Hls, Detectors, hasSubStream);
 }
 
+/**
+ * @typedef {Object} Detector
+ * @property {number} width
+ * @property {number} height
+ * @property {string[]} labels
+ */
+
+/** @typedef {Object.<string, Detector>} Detectors */
+
+/**
+ * @param {typeof Hls} hls
+ * @param {Detectors} detectors
+ * @param {(montitorID: string) => boolean} hasSubStream
+ */
 function _tflite(hls, detectors, hasSubStream) {
 	let detectorNames = Object.keys(detectors);
 
 	const fields = {
-		enable: fieldTemplate.toggle("Enable object detection", "false"),
+		enable: fieldTemplate.toggle("Enable object detection", false),
 		thresholds: thresholds(detectors),
 		crop: crop(hls, detectors, hasSubStream),
 		mask: mask(hls, hasSubStream),
@@ -50,11 +62,11 @@ function _tflite(hls, detectors, hasSubStream) {
 			{
 				label: "Feed rate (fps)",
 				placeholder: "",
-				initial: 0.2,
+				initial: "0.2",
 			},
 		),
 		duration: fieldTemplate.integer("Trigger duration (sec)", "", "120"),
-		useSubStream: fieldTemplate.toggle("Use sub stream", "true"),
+		useSubStream: fieldTemplate.toggle("Use sub stream", true),
 		//preview: preview(),
 	};
 
@@ -64,12 +76,15 @@ function _tflite(hls, detectors, hasSubStream) {
 	let value = {};
 
 	let isRendered = false;
+	/** @param {Element} element */
 	const render = (element) => {
 		if (isRendered) {
 			return;
 		}
 		element.insertAdjacentHTML("beforeend", modal.html);
-		element.querySelector(".js-modal").style.maxWidth = "12rem";
+		/** @type {HTMLElement} */
+		const $modal = element.querySelector(".js-modal");
+		$modal.style.maxWidth = "12rem";
 
 		const $modalContent = modal.init(element);
 		form.init($modalContent);
@@ -133,6 +148,7 @@ function _tflite(hls, detectors, hasSubStream) {
 			}
 			return "";
 		},
+		/** @param {Element} $parent */
 		init($parent) {
 			const element = $parent.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
@@ -144,7 +160,12 @@ function _tflite(hls, detectors, hasSubStream) {
 	};
 }
 
+/** @param {Detectors} detectors */
 function thresholds(detectors) {
+	/**
+	 * @param {string} label
+	 * @param {string} val
+	 */
 	const newField = (label, val) => {
 		const id = uniqueID();
 		return {
@@ -161,16 +182,13 @@ function thresholds(detectors) {
 					/>
 				</li>`,
 			init() {
+				/** @type {HTMLInputElement} */
 				const element = document.querySelector(`#${id}`);
 				element.addEventListener("change", () => {
-					// @ts-ignore
-					if (element.value < 0) {
-						// @ts-ignore
-						element.value = 0;
-						// @ts-ignore
-					} else if (element.value > 100) {
-						// @ts-ignore
-						element.value = 100;
+					if (Number(element.value) < 0) {
+						element.value = "0";
+					} else if (Number(element.value) > 100) {
+						element.value = "100";
 					}
 				});
 			},
@@ -181,10 +199,11 @@ function thresholds(detectors) {
 			label() {
 				return label;
 			},
+			/** @param {string} input */
 			validate(input) {
-				if (0 > input) {
+				if (0 > Number(input)) {
 					return "min value: 0";
-				} else if (input > 100) {
+				} else if (Number(input) > 100) {
 					return "max value: 100";
 				} else {
 					return "";
@@ -195,6 +214,7 @@ function thresholds(detectors) {
 
 	let value, modal, fields, $modalContent, validateErr;
 	let isRendered = false;
+	/** @param {Element} element */
 	const render = (element) => {
 		if (isRendered) {
 			return;
@@ -225,8 +245,10 @@ function thresholds(detectors) {
 
 	const defaultThresh = 100;
 
+	/** @param {string} detectorName */
 	const setValue = (detectorName) => {
 		// Get labels from the detector.
+		/** @type {string[]} */
 		let labelNames = detectors[detectorName].labels;
 
 		var labels = {};
@@ -299,6 +321,7 @@ function thresholds(detectors) {
 		validate() {
 			return validateErr;
 		},
+		/** @param {Element} $parent */
 		init($parent) {
 			const element = $parent.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
@@ -316,7 +339,20 @@ function thresholds(detectors) {
 	};
 }
 
+/**
+ * @typedef {Object} Crop
+ * @property {number} x
+ * @property {number} y
+ * @property {number} size
+ */
+
+/**
+ * @param {typeof Hls} hls
+ * @param {Detectors} detectors
+ * @param {(monitorID: string) => boolean} hasSubStream
+ */
 function crop(hls, detectors, hasSubStream) {
+	/** @param {string} name */
 	const detectorAspectRatio = (name) => {
 		const detector = detectors[name];
 		return detector["width"] / detector["height"];
@@ -327,13 +363,17 @@ function crop(hls, detectors, hasSubStream) {
 
 	const modal = newModal("Crop");
 
-	const renderModal = (element, feed) => {
+	/**
+	 * @param {Element} element
+	 * @param {string} feedHTML
+	 */
+	const renderModal = (element, feedHTML) => {
 		const html = `
 			<li id="tfliteCrop-preview" class="form-field">
 				<label class="form-field-label" for="tfliteCrop-preview" style="width: auto;">Preview</label>
 				<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
 					<div class="js-feed tfliteCrop-preview-feed">
-						${feed.html}
+						${feedHTML}
 					</div>
 					<div class="js-preview-padding" style="background: white;"></div>
 					<svg
@@ -467,6 +507,7 @@ function crop(hls, detectors, hasSubStream) {
 			/>`;
 	};
 
+	/** @param {Crop} input */
 	const set = (input) => {
 		value = input;
 		$x.value = input.x;
@@ -478,6 +519,7 @@ function crop(hls, detectors, hasSubStream) {
 	const id = uniqueID();
 	let monitorFields = {};
 
+	/** @type {Crop} */
 	const default_value = {
 		x: normalize(0, 100),
 		y: normalize(0, 100),
@@ -521,8 +563,8 @@ function crop(hls, detectors, hasSubStream) {
 			tfliteFields = f;
 			monitorFields = mf;
 		},
+		/** @param {Element} $parent */
 		init($parent) {
-			var feed;
 			const element = $parent.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const subInputEnabled = hasSubStream(monitorFields.id.value());
@@ -531,14 +573,14 @@ function crop(hls, detectors, hasSubStream) {
 					audioEnabled: "false",
 					subInputEnabled: subInputEnabled,
 				};
-				feed = newFeed(hls, monitor, true);
+				const feed = newFeed(hls, monitor, true);
 
 				if (rendered) {
 					// Update feed and preview.
 					$feed.innerHTML = feed.html;
 					$overlay.innerHTML = renderPreviewOverlay();
 				} else {
-					renderModal(element, feed);
+					renderModal(element, feed.html);
 					modal.onClose(() => {
 						feed.destroy();
 					});
@@ -552,6 +594,7 @@ function crop(hls, detectors, hasSubStream) {
 	};
 }
 
+/** @param {Crop} crop */
 function normalizeCrop(crop) {
 	crop.x = normalize(crop.x, 100);
 	crop.y = normalize(crop.y, 100);
@@ -559,6 +602,7 @@ function normalizeCrop(crop) {
 	return crop;
 }
 
+/** @param {Crop} crop */
 function denormalizeCrop(crop) {
 	crop.x = denormalize(crop.x, 100);
 	crop.y = denormalize(crop.y, 100);
@@ -566,14 +610,29 @@ function denormalizeCrop(crop) {
 	return crop;
 }
 
+/**
+ * @typedef {Object} Mask
+ * @property {boolean} enable
+ * @property {[number,number][]} area
+ */
+
+/**
+ * @param {typeof Hls} hls
+ * @param {(monitorID: string) => boolean} hasSubStream
+ */
 function mask(hls, hasSubStream) {
 	let fields = {};
-	let value = {};
+	/** @type {Mask} */
+	let value;
 	let $enable, $overlay, $points, $modalContent, $feed;
 
 	const modal = newModal("Mask");
 
-	const renderModal = (element, feed) => {
+	/**
+	 * @param {Element} element
+	 * @param {string} feedHTML
+	 */
+	const renderModal = (element, feedHTML) => {
 		const html = `
 			<li class="js-enable tfliteMask-enabled form-field">
 				<label class="form-field-label" for="tfliteMask-enable">Enable mask</label>
@@ -587,7 +646,7 @@ function mask(hls, hasSubStream) {
 			<li id="tfliteMask-preview" class="form-field">
 				<label class="form-field-label" for="tfliteMask-preview">Preview</label>
 				<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
-					<div class="js-feed tfliteCrop-preview-feed">${feed.html}</div>
+					<div class="js-feed tfliteCrop-preview-feed">${feedHTML}</div>
 					<svg
 						class="js-tflite-overlay tfliteMask-preview-overlay"
 						viewBox="0 0 100 100"
@@ -701,6 +760,7 @@ function mask(hls, hasSubStream) {
 		renderPreview();
 	};
 
+	/** @return {Mask} */
 	const initialValue = () => {
 		return {
 			enable: false,
@@ -744,6 +804,7 @@ function mask(hls, hasSubStream) {
 				renderValue();
 			}
 		},
+		/** @param {Element} $parent */
 		init($parent) {
 			var feed;
 			const element = $parent.querySelector(`#${id}`);
@@ -760,7 +821,7 @@ function mask(hls, hasSubStream) {
 					// Update feed.
 					$feed.innerHTML = feed.html;
 				} else {
-					renderModal(element, feed);
+					renderModal(element, feed.html);
 					modal.onClose(() => {
 						feed.destroy();
 					});
@@ -774,6 +835,7 @@ function mask(hls, hasSubStream) {
 	};
 }
 
+/** @param {Mask} mask */
 function denormalizeMask(mask) {
 	for (let i = 0; i < mask.area.length; i++) {
 		const [x, y] = mask.area[i];
@@ -782,6 +844,7 @@ function denormalizeMask(mask) {
 	return mask;
 }
 
+/** @param {Mask} mask */
 function normalizeMask(mask) {
 	for (let i = 0; i < mask.area.length; i++) {
 		const [x, y] = mask.area[i];

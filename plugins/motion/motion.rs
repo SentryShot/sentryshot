@@ -63,7 +63,7 @@ pub struct MotionPlugin {
     logger: DynLogger,
 }
 
-const MOTION_MJS_FILE: &[u8] = include_bytes!("./motion.js");
+const MOTION_MJS_FILE: &[u8] = include_bytes!("./js/motion.js");
 
 #[async_trait]
 impl Plugin for MotionPlugin {

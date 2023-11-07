@@ -28,7 +28,7 @@ import { uniqueID } from "../libs/common.js";
  * @property {($parent: Element) => void} init
  * @property {() => any} value
  * @property {(input: any, special: any, special2: any) => void} set
- * @property {(input: string) => string} validate
+ * @property {(input: string) => string=} validate
  * @property {() => HTMLElement=} element
  */
 

@@ -121,7 +121,7 @@ impl TflitePlugin {
     }
 }
 
-const TFLITE_MJS_FILE: &[u8] = include_bytes!("./tflite.js");
+const TFLITE_MJS_FILE: &[u8] = include_bytes!("./js/tflite.js");
 
 #[async_trait]
 impl Plugin for TflitePlugin {

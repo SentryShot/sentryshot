@@ -8,7 +8,7 @@ const hlsConfig = {
 };
 
 /**
- * @typedef {Object} HLS
+ * @typedef {typeof import("../vendor/hls.js").default} HLS
  * @typedef {Object} Monitor
  */
 
@@ -19,10 +19,18 @@ const hlsConfig = {
  */
 
 /**
+ * @typedef {Object} Feed
+ * @property {string} html
+ * @property {($parent: HTMLElement) => void} init
+ * @property {() => void} destroy
+ */
+
+/**
  * @param {HLS} Hls
  * @param {Monitor} monitor
  * @param {boolean} preferLowRes
  * @param {Button[]} buttons
+ * @return {Feed}
  */
 function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 	const id = monitor["id"];
@@ -66,7 +74,6 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 					playsinline
 				></video>
 			</div>`,
-		/** @param {HTMLElement} $parent */
 		init($parent) {
 			const element = $parent.querySelector(`#${elementID}`);
 			const $overlay = element.querySelector(`.js-overlay`);
