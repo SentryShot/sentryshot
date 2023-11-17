@@ -1,6 +1,8 @@
 ## unreleased
 
--   zone editor redesign !4
+## `v0.1.2`
+
+-   zone editor redesign #4
 -   add jsdoc type checking
 -   add typescript as a linter
 -   use `.js` as the javascript file extension
