@@ -6,7 +6,19 @@
 
 <br>
 
+On first start you have to enable one of the authentication plugins in `configs/sentryshot.toml`
+
+``` diff
+[[plugin]]
+name = "auth_none"
+-enable = false
++enable = true
+```
+
+[releases](https://codeberg.org/SentryShot/sentryshot/releases)
+
 ## Docker Install
+
 
 ```
 docker run -it \
