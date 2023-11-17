@@ -6,6 +6,7 @@ import { uniqueID, normalize, denormalize } from "./libs/common.js";
 import { newForm, newField, inputRules, fieldTemplate } from "./components/form.js";
 import { newFeed } from "./components/feed.js";
 import { newModal } from "./components/modal.js";
+import { newPolygonEditor } from "./components/polygonEditor.js";
 
 const Detectors = JSON.parse(`$detectorsJSON`);
 
@@ -122,14 +123,12 @@ function _tflite(hls, detectors, hasSubStream) {
 		html: `
 				<li id="${id}" class="form-field" style="display:flex;">
 					<label class="form-field-label">TFlite</label>
-					<div>
-						<button class="js-edit-btn form-field-edit-btn">
-							<img
-								class="form-field-edit-btn-img"
-								src="assets/icons/feather/edit-3.svg"
-							/>
-						</button>
-					</div>
+					<button class="js-edit-btn form-field-edit-btn">
+						<img
+							class="form-field-edit-btn-img"
+							src="assets/icons/feather/edit-3.svg"
+						/>
+					</button>
 				</li> `,
 		value() {
 			return value;
@@ -567,11 +566,10 @@ function crop(hls, detectors, hasSubStream) {
 		init($parent) {
 			const element = $parent.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				const subInputEnabled = hasSubStream(monitorFields.id.value());
 				const monitor = {
 					id: monitorFields.id.value(),
 					audioEnabled: "false",
-					subInputEnabled: subInputEnabled,
+					hasSubStream: hasSubStream(monitorFields.id.value()),
 				};
 				const feed = newFeed(hls, monitor, true);
 
@@ -624,9 +622,14 @@ function mask(hls, hasSubStream) {
 	let fields = {};
 	/** @type {Mask} */
 	let value;
-	let $enable, $overlay, $points, $modalContent, $feed;
+
+	/** @type {HTMLSelectElement} */
+	let $enable;
+	let $overlay, $modalContent, $feed;
 
 	const modal = newModal("Mask");
+
+	let editor;
 
 	/**
 	 * @param {Element} element
@@ -651,124 +654,184 @@ function mask(hls, hasSubStream) {
 						class="js-tflite-overlay tfliteMask-preview-overlay"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
-						style="opacity: 0.7;"
 					></svg>
 				</div>
 			</li>
-			<li class="js-points form-field tfliteMask-points-grid"></li>`;
+			<li class="form-field" style="display: flex; flex-wrap: wrap; justify-content: space-between">
+				<div class="tfliteMask-step-sizes">
+					<button
+						class="js-1x tfliteMask-step-size"
+						style="
+							border-top-left-radius: 0.25rem;
+							border-bottom-left-radius: 0.25rem;
+							border-right-style: solid;
+						"
+					>1x</button>
+					<button
+						class="js-4x tfliteMask-step-size tfliteMask-step-size-selected"
+						style="border-style: hidden solid;"
+					>4x</button>
+					<button
+						class="js-10x tfliteMask-step-size"
+						style="border-style: hidden solid;"
+					>10x</button>
+					<button
+						class="js-20x tfliteMask-step-size"
+						style="
+							border-top-right-radius: 0.25rem;
+							border-bottom-right-radius: 0.25rem;
+							border-left-style: solid;
+						"
+					>20x</button>
+				</div>
+				<div class="tfliteMask-xy-wrapper">
+					<input type="number" min="0" max="100" class="js-x"/>
+					<input type="number" min="0" max="100" class="js-y"/>
+				</div>
+			</li>`;
 
 		$modalContent = modal.init(element);
 		$modalContent.innerHTML = html;
 		$feed = $modalContent.querySelector(".js-feed");
 
 		$enable = $modalContent.querySelector(".js-enable .js-input");
+		$enable.value = String(value.enable);
 		$enable.addEventListener("change", () => {
 			value.enable = $enable.value == "true";
 		});
 
 		$overlay = $modalContent.querySelector(".js-tflite-overlay");
-		$points = $modalContent.querySelector(".js-points");
 
-		renderValue();
-		renderPreview();
-	};
+		/** @type {HTMLElement} */
+		const $x1 = $modalContent.querySelector(".js-1x");
+		/** @type {HTMLElement} */
+		const $x4 = $modalContent.querySelector(".js-4x");
+		/** @type {HTMLElement} */
+		const $x10 = $modalContent.querySelector(".js-10x");
+		/** @type {HTMLElement} */
+		const $x20 = $modalContent.querySelector(".js-20x");
 
-	const renderPreview = () => {
-		let points = "";
-		for (const p of value.area) {
-			points += p[0] + "," + p[1] + " ";
-		}
-		$overlay.innerHTML = `
-				<polygon
-					style="fill: black;"
-					points="${points}"
-				/>`;
-	};
+		/** @type {HTMLInputElement} */
+		const $x = $modalContent.querySelector(".js-x");
+		/** @type {HTMLInputElement} */
+		const $y = $modalContent.querySelector(".js-y");
 
-	const renderValue = () => {
-		$enable.value = value.enable;
-
-		let html = "";
-		for (const point of Object.entries(value.area)) {
-			const index = point[0];
-			const [x, y] = point[1];
-			html += `
-				<div class="js-point tfliteMask-point">
-					<input
-						class="tfliteMask-point-input"
-						type="number"
-						min="0"
-						max="100"
-						value="${x}"
-					/>
-					<span class="tfliteMask-point-label">${index}</span>
-					<input
-						class="tfliteMask-point-input"
-						type="number"
-						min="0"
-						max="100"
-						value="${y}"
-					/>
-				</div>`;
-		}
-		html += `
-			<div style="display: flex; column-gap: 0.2rem;">
-				<button
-					class="js-plus form-field-edit-btn tfliteMask-button"
-					style="margin: 0;"
-				>
-					<img
-						class="form-field-edit-btn-img"
-						src="assets/icons/feather/plus.svg"
-					/>
-				</button>
-				<button
-					class="js-minus form-field-edit-btn tfliteMask-button"
-					style="margin: 0;"
-				>
-					<img
-						class="form-field-edit-btn-img"
-						src="assets/icons/feather/minus.svg"
-					/>
-				</button>
-			</div>`;
-
-		$points.innerHTML = html;
-
-		for (const element of $points.querySelectorAll(".js-point")) {
-			element.addEventListener("change", () => {
-				const index = element.querySelector("span").innerHTML;
-				const $points = element.querySelectorAll("input");
-				const x = Number.parseInt($points[0].value);
-				const y = Number.parseInt($points[1].value);
-				value.area[index] = [x, y];
-				renderPreview();
-			});
-		}
-
-		$points.querySelector(".js-plus").addEventListener("click", () => {
-			value.area.push([50, 50]);
-			renderValue();
+		editor = newPolygonEditor($overlay, {
+			opacity: 0.4,
+			stepSize: 4,
+			onChange: (_, x, y) => {
+				$x.value = String(x);
+				$y.value = String(y);
+			},
 		});
-		$points.querySelector(".js-minus").addEventListener("click", () => {
-			if (value.area.length > 3) {
-				value.area.pop();
-				renderValue();
+		editor.set(value.area);
+
+		/** @param {number} v */
+		const setStepSize = (v) => {
+			const selectedClass = "tfliteMask-step-size-selected";
+			$x1.classList.remove(selectedClass);
+			$x4.classList.remove(selectedClass);
+			$x10.classList.remove(selectedClass);
+			$x20.classList.remove(selectedClass);
+
+			switch (v) {
+				case 1: {
+					$x1.classList.add(selectedClass);
+					break;
+				}
+				case 4: {
+					$x4.classList.add(selectedClass);
+					break;
+				}
+				case 10: {
+					$x10.classList.add(selectedClass);
+					break;
+				}
+				case 20: {
+					$x20.classList.add(selectedClass);
+					break;
+				}
+			}
+
+			editor.setStepSize(v);
+		};
+
+		$x1.addEventListener("click", () => {
+			setStepSize(1);
+		});
+		$x4.addEventListener("click", () => {
+			setStepSize(4);
+		});
+		$x10.addEventListener("click", () => {
+			setStepSize(10);
+		});
+		$x20.addEventListener("click", () => {
+			setStepSize(20);
+		});
+
+		$x.addEventListener("change", () => {
+			$x.value = String(Math.min(100, Math.max(0, Number($x.value))));
+			editor.setIndex(editor.selected(), Number($x.value), Number($y.value));
+		});
+		$y.addEventListener("change", () => {
+			$y.value = String(Math.min(100, Math.max(0, Number($y.value))));
+			editor.setIndex(editor.selected(), Number($x.value), Number($y.value));
+		});
+
+		let shiftPressed = false;
+		let ctrlPressed = false;
+		function checkKeys() {
+			if (ctrlPressed && shiftPressed) {
+				setStepSize(20);
+			} else if (shiftPressed) {
+				setStepSize(10);
+			} else if (ctrlPressed) {
+				setStepSize(1);
+			} else {
+				setStepSize(4);
+			}
+		}
+
+		window.addEventListener("keydown", (e) => {
+			switch (e.key) {
+				case "Shift": {
+					shiftPressed = true;
+					checkKeys();
+					break;
+				}
+				case "Control": {
+					ctrlPressed = true;
+					checkKeys();
+					break;
+				}
 			}
 		});
-
-		renderPreview();
+		window.addEventListener("keyup", (e) => {
+			switch (e.key) {
+				case "Shift": {
+					shiftPressed = false;
+					checkKeys();
+					break;
+				}
+				case "Control": {
+					ctrlPressed = false;
+					checkKeys();
+					break;
+				}
+			}
+		});
 	};
 
 	/** @return {Mask} */
 	const initialValue = () => {
 		return {
-			enable: false,
 			area: [
-				[50, 15],
-				[85, 15],
-				[85, 50],
+				[30, 20],
+				[70, 20],
+				[70, 80],
+				[30, 80],
 			],
+			enable: false,
 		};
 	};
 
@@ -795,13 +858,20 @@ function mask(hls, hasSubStream) {
 			</li> `,
 
 		value() {
+			if (rendered) {
+				return normalizeMask({
+					enable: $enable.value === "true",
+					area: editor.value(),
+				});
+			}
 			return normalizeMask(value);
 		},
 		set(input, _, f) {
 			fields = f;
 			value = input === "" ? initialValue() : denormalizeMask(input);
 			if (rendered) {
-				renderValue();
+				$enable.value = String(value.enable);
+				editor.set(value.area);
 			}
 		},
 		/** @param {Element} $parent */
@@ -809,11 +879,10 @@ function mask(hls, hasSubStream) {
 			var feed;
 			const element = $parent.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				const subInputEnabled = hasSubStream(fields.id.value());
 				const monitor = {
 					id: fields.id.value(),
 					audioEnabled: "false",
-					subInputEnabled: subInputEnabled,
+					hasSubStream: hasSubStream(fields.id.value()),
 				};
 				feed = newFeed(hls, monitor, true);
 
@@ -902,7 +971,7 @@ $style.innerHTML = `
 		width: 100%;
 		min-width: 0;
 		display: flex;
-		background: black;
+		background: white;
 	}
 	.tfliteCrop-preview-overlay {
 		position: absolute;
@@ -937,48 +1006,47 @@ $style.innerHTML = `
 	}
 
 	/* Mask. */
-	.tfliteMask-preview-feed {
-		width: 100%;
-		min-width: 0;
-		display: flex;
-		background: black;
-	}
 	.tfliteMask-preview-overlay {
 		position: absolute;
 		height: 100%;
 		width: 100%;
 		top: 0;
+		z-index: 1;
+		user-select: none;
+		overflow: visible;
 	}
-	.tfliteMask-points-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(3.6rem, 3.7rem));
-		column-gap: 0.1rem;
-		row-gap: 0.1rem;
-	}
-	.tfliteMask-point {
+
+
+	.tfliteMask-step-sizes {
 		display: flex;
-		background: var(--color2);
-		padding: 0.15rem;
-		border-radius: 0.15rem;
 	}
-	.tfliteMask-point-label {
-		font-size: 0.7rem;
+
+	.tfliteMask-step-size {
+		background: var(--color2);
 		color: var(--color-text);
-		margin-left: 0.1rem;
-		margin-right: 0.1rem;
+		font-size: 0.6rem;
+		padding: 0.07rem 0.15rem;
+		border-width: 0.02rem;
+		border-color: var(--color3);
 	}
-	.tfliteMask-point-input {
-		text-align: center;
-		font-size: 0.5rem;
-		border-style: none;
-		border-radius: 5px;
-		min-width: 0;
-	}
-	.tfliteMask-button {
-		background: var(--color2);
-	}
-	.tfliteMask-button:hover {
+
+	.tfliteMask-step-size:hover {
 		background: var(--color1);
-	}`;
+	}
+
+	.tfliteMask-step-size-selected {
+		background: var(--color1);
+	}
+
+
+	.tfliteMask-xy-wrapper {
+		display: flex;
+	}
+	.tfliteMask-xy-wrapper > input {
+		width: 1.3rem;
+		font-size: 0.6rem;
+		text-align: center;
+	}
+`;
 
 document.querySelector("head").append($style);

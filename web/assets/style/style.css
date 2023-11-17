@@ -194,9 +194,6 @@ progress[value]::-moz-progress-bar {
 	--topbar-height: 1.4rem;
 	--size-minus-topbar: calc(100% - var(--topbar-height));
 	--gridsize: 1;
-
-	/* Disable pull down to refresh */
-	overscroll-behavior-y: contain;
 }
 
 body {
@@ -223,6 +220,10 @@ input {
 
 a:focus {
 	outline: none;
+}
+
+img {
+	pointer-events: none;
 }
 
 /* Mobile portrait mode */
@@ -685,7 +686,8 @@ a:focus {
 
 .modal-content {
 	height: 100%;
-	overflow-y: auto;
+	overflow-y: visible;
+	background: var(--color3);
 }
 
 /* Modal select */

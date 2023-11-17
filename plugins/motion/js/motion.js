@@ -6,6 +6,7 @@ import { uniqueID, normalize, denormalize } from "./libs/common.js";
 import { newForm, fieldTemplate } from "./components/form.js";
 import { newFeed } from "./components/feed.js";
 import { newModal } from "./components/modal.js";
+import { newPolygonEditor } from "./components/polygonEditor.js";
 
 export function motion() {
 	// @ts-ignore
@@ -89,8 +90,11 @@ function _motion(hls, hasSubStream) {
 			<li id="${id}" class="form-field" style="display:flex;">
 				<label class="form-field-label">Motion detection</label>
 				<div>
-					<button class="form-field-edit-btn" style="background: var(--color2);">
-						<img class="form-field-edit-btn-img" src="assets/icons/feather/edit-3.svg"/>
+					<button class="form-field-edit-btn">
+						<img
+							class="form-field-edit-btn-img"
+							src="assets/icons/feather/edit-3.svg"
+						/>
 					</button>
 				</div>
 			</li> `,
@@ -125,9 +129,11 @@ function _motion(hls, hasSubStream) {
 	};
 }
 
+/** @typedef {[number, number][]} ZoneArea */
+
 /**
- * @typedef {Object} Zone
- * @property {[number, number][]} area
+ * @typedef {Object} ZoneData
+ * @property {ZoneArea} area
  * @property {boolean} enable
  * @property {boolean} preview
  * @property {number} sensitivity
@@ -135,136 +141,114 @@ function _motion(hls, hasSubStream) {
  * @property {number} thresholdMin
  */
 
-/** @typedef {Object.<number,Zone>} Zones */
-
-/** @param {Zones} zones */
-function zonePreviewHtml(zones) {
-	// Arbitrary colors to differentiate between zones.
-	const colorMap = [
-		"red",
-		"green",
-		"blue",
-		"yellow",
-		"purple",
-		"orange",
-		"grey",
-		"cyan",
-	];
-	let html = "";
-	for (const i of Object.keys(zones)) {
-		/** @type {Zone} */
-		const zone = zones[i];
-		if (!zone.preview) {
-			continue;
-		}
-		let points = "";
-		for (const [x, y] of zone.area) {
-			points += `${x},${y} `;
-		}
-		html += `
-			<svg
-				viewBox="0 0 100 100"
-				preserveAspectRatio="none"
-				style="position: absolute; width: 100%; height: 100%; opacity: 0.2;"
-			>
-				<polygon points="${points}" style=" fill: ${colorMap[i]};"/>
-			</svg>`;
-	}
-	return html;
-}
-
-/**
- * @param {Element} $points
- * @param {() => void} updatePreview
- */
-function newZonePointsRenderer($points, updatePreview) {
-	/** @param {Zone} zone */
-	const html = (zone) => {
-		/** @param {string} value */
-		const inputPointHtml = (value) => {
-			return `
+/** @param {string} feedHTML */
+function zonesModalHTML(feedHTML) {
+	return `
+		<li class="form-field">
+			<div class="form-field-select-container">
+				<select	class="js-zone-select form-field-select"></select>
+				<div
+					class="js-add-zone form-field-edit-btn"
+					style="background: var(--color2)"
+				>
+					<img class="form-field-edit-btn-img" src="assets/icons/feather/plus.svg"/>
+				</div>
+				<div
+					class="js-remove-zone form-field-edit-btn"
+					style="margin-left: 0.2rem; background: var(--color2)"
+				>
+					<img class="form-field-edit-btn-img" src="assets/icons/feather/minus.svg"/>
+				</div>
+			</div>
+		</li>
+		<li class="form-field">
+			<label class="form-field-label" for="modal-enable">Enable</label>
+			<div class="form-field-select-container">
+				<select class="js-enable form-field-select">
+					<option>true</option>
+					<option>false</option>
+				</select>
+			</div>
+		</li>
+		<li class="form-field">
+			<label for="motion-modal-sensitivity" class="form-field-label">Sensitivity</label>
+			<input
+				id="motion-modal-sensitivity"
+				class="js-sensitivity settings-input-text"
+				type="number"
+				min="0"
+				max="100"
+				step="any"
+			/>
+		</li>
+		<li class="form-field">
+			<label class="form-field-label">Threshold Min-Max</label>
+			<div style="display: flex; width: 100%;">
 				<input
-					class="motion-modal-input-point"
+					class="js-threshold-min settings-input-text"
+					style="margin-right: 1rem;"
 					type="number"
 					min="0"
 					max="100"
-					value="${value}"
-				/>`;
-		};
-		/** @param {Zone} zone */
-		const pointsHtml = (zone) => {
-			let html = "";
-			for (const point of Object.entries(zone.area)) {
-				const index = point[0];
-				const [x, y] = point[1];
-				html += `
-					<div class="js-modal-point motion-modal-point">
-						${inputPointHtml(String(x))}
-						<span class="motion-modal-points-label">${index}</span>
-						${inputPointHtml(String(y))}
-					</div>`;
-			}
-			return html;
-		};
-		/**
-		 * @param {string} classID
-		 * @param {string} icon
-		 */
-		const editBtnHtml = (classID, icon) => {
-			return `
+					step="any"
+				/>
+				<input
+					class="js-threshold-max settings-input-text"
+					type="number"
+					min="0"
+					max="100"
+					step="any"
+				/>
+			</div>
+		</li>
+		<li class="form-field">
+			<label class="form-field-label" for="modal-preview">Preview</label>
+			<div class="form-field-select-container">
+				<select class="js-preview form-field-select">
+					<option>true</option>
+					<option>false</option>
+				</select>
+			</div>
+			<div style="position: relative; margin-top: 0.2rem;">
+				<div class="js-feed" style="background: white;">${feedHTML}</div>
+				<div
+					class="js-feed-overlay"
+					style="position: absolute; height: 100%; width: 100%; top: 0;"
+				></div>
+			</div>
+		</li>
+		<li class="form-field" style="display: flex; flex-wrap: wrap; justify-content: space-between">
+			<div class="motion-step-sizes">
 				<button
-					class="${classID} form-field-edit-btn"
-					style="margin: 0; background: var(--color2);"
-				>
-					<img class="form-field-edit-btn-img" src="${icon}">
-				</button>`;
-		};
-		return `
-			${pointsHtml(zone)}
-			<div style="display: flex; column-gap: 0.2rem;">
-				${editBtnHtml("js-points-plus", "assets/icons/feather/plus.svg")}
-				${editBtnHtml("js-points-minus", "assets/icons/feather/minus.svg")}
-			</div>`;
-	};
-	/** @param {Zone} zone */
-	const render = (zone) => {
-		$points.innerHTML = html(zone);
-		updatePreview();
-
-		for (const element of $points.querySelectorAll(".js-modal-point")) {
-			if (element instanceof HTMLElement) {
-				element.onchange = () => {
-					const index = element.querySelector("span").innerHTML;
-					const $points = element.querySelectorAll("input");
-					const x = Number.parseInt($points[0].value);
-					const y = Number.parseInt($points[1].value);
-					zone.area[index] = [x, y];
-					updatePreview();
-				};
-			}
-		}
-
-		/** @type {HTMLElement} */
-		const $pointsPlus = $points.querySelector(".js-points-plus");
-		$pointsPlus.onclick = () => {
-			zone.area.push([50, 50]);
-			render(zone);
-		};
-		/** @type {HTMLElement} */
-		const $pointsMinus = $points.querySelector(".js-points-minus");
-		$pointsMinus.onclick = () => {
-			if (zone.area.length > 3) {
-				zone.area.pop();
-				render(zone);
-			}
-		};
-	};
-	return {
-		/** @param {Zone} zone */
-		render(zone) {
-			render(zone);
-		},
-	};
+					class="js-1x motion-step-size"
+					style="
+						border-top-left-radius: 0.25rem;
+						border-bottom-left-radius: 0.25rem;
+						border-right-style: solid;
+					"
+				>1x</button>
+				<button
+					class="js-4x motion-step-size motion-step-size-selected"
+					style="border-style: hidden solid;"
+				>4x</button>
+				<button
+					class="js-10x motion-step-size"
+					style="border-style: hidden solid;"
+				>10x</button>
+				<button
+					class="js-20x motion-step-size"
+					style="
+						border-top-right-radius: 0.25rem;
+						border-bottom-right-radius: 0.25rem;
+						border-left-style: solid;
+					"
+				>20x</button>
+			</div>
+			<div class="motion-xy-wrapper">
+				<input type="number" min="0" max="100" class="js-x"/>
+				<input type="number" min="0" max="100" class="js-y"/>
+			</div>
+		</li>`;
 }
 
 /**
@@ -281,6 +265,8 @@ function newZonePointsRenderer($points, updatePreview) {
 function zones(hls, hasSubStream) {
 	/** @type {Modal} */
 	let modal;
+	/** @type {ZoneData[]} */
+	let value;
 	let $modalContent,
 		$enable,
 		$sensitivity,
@@ -288,9 +274,11 @@ function zones(hls, hasSubStream) {
 		$thresholdMax,
 		$preview,
 		$feed,
-		$points,
-		$zoneSelect,
-		pointsRenderer;
+		$feedOverlay,
+		$zoneSelect;
+	let stepSize = 4;
+	/** @type {OnChangeFunc} */
+	let onZoneChange;
 	/** @type {Zone[]} */
 	let zones;
 	/** @type {Feed} */
@@ -301,83 +289,7 @@ function zones(hls, hasSubStream) {
 	 * @param {string} feedHTML
 	 */
 	const renderModal = (element, feedHTML) => {
-		const html = `
-			<li class="form-field">
-				<div class="form-field-select-container">
-					<select	class="js-zone-select form-field-select"></select>
-					<div
-						class="js-add-zone form-field-edit-btn"
-						style="background: var(--color2)"
-					>
-						<img class="form-field-edit-btn-img" src="assets/icons/feather/plus.svg"/>
-					</div>
-					<div
-						class="js-remove-zone form-field-edit-btn"
-						style="margin-left: 0.2rem; background: var(--color2)"
-					>
-						<img class="form-field-edit-btn-img" src="assets/icons/feather/minus.svg"/>
-					</div>
-				</div>
-			</li>
-			<li class="form-field">
-				<label class="form-field-label" for="modal-enable">Enable</label>
-				<div class="form-field-select-container">
-					<select class="js-enable form-field-select">
-						<option>true</option>
-						<option>false</option>
-					</select>
-				</div>
-			</li>
-			<li class="form-field">
-				<label for="motion-modal-sensitivity" class="form-field-label">Sensitivity</label>
-				<input
-					id="motion-modal-sensitivity"
-					class="js-sensitivity settings-input-text"
-					type="number"
-					min="0"
-					max="100"
-					step="any"
-				/>
-			</li>
-			<li class="form-field">
-				<label class="form-field-label">Threshold Min-Max</label>
-				<div style="display: flex; width: 100%;">
-					<input
-						class="js-threshold-min settings-input-text"
-						style="margin-right: 1rem;"
-						type="number"
-						min="0"
-						max="100"
-						step="any"
-					/>
-					<input
-						class="js-threshold-max settings-input-text"
-						type="number"
-						min="0"
-						max="100"
-						step="any"
-					/>
-				</div>
-			</li>
-			<li class="form-field">
-				<label class="form-field-label" for="modal-preview">Preview</label>
-				<div class="form-field-select-container">
-					<select class="js-preview form-field-select">
-						<option>true</option>
-						<option>false</option>
-					</select>
-				</div>
-				<div style="position: relative; margin-top: 0.2rem;">
-					<div class="js-feed">${feedHTML}</div>
-					<div
-						class="js-feed-overlay"
-						style="position: absolute; height: 100%; width: 100%; top: 0;"
-					></div>
-				</div>
-			</li>
-			<li class="js-points form-field motion-modal-points-grid"></li>`;
-
-		modal = newModal("Zones", html);
+		modal = newModal("Zones", zonesModalHTML(feedHTML));
 
 		element.insertAdjacentHTML("beforeend", modal.html);
 		$modalContent = modal.init(element);
@@ -386,35 +298,157 @@ function zones(hls, hasSubStream) {
 
 		$enable = $modalContent.querySelector(".js-enable");
 		$enable.addEventListener("change", () => {
-			getSelectedZone().enable = $enable.value === "true";
+			getSelectedZone().setEnable($enable.value === "true");
 		});
 
 		$sensitivity = $modalContent.querySelector(".js-sensitivity");
 
 		$thresholdMin = $modalContent.querySelector(".js-threshold-min");
 		$thresholdMin.addEventListener("change", () => {
-			const threshold = Number.parseFloat($thresholdMin.value);
-			if (threshold >= 0 && threshold <= 100) {
-				getSelectedZone().thresholdMin = threshold;
-			}
+			getSelectedZone().setThresholdMin(
+				Math.min(100, Math.max($thresholdMin.value, 0)),
+			);
 		});
 		$thresholdMax = $modalContent.querySelector(".js-threshold-max");
 		$thresholdMax.addEventListener("change", () => {
-			const threshold = Number.parseFloat($thresholdMax.value);
-			if (threshold >= 0 && threshold <= 100) {
-				getSelectedZone().thresholdMax = threshold;
-			}
+			getSelectedZone().setThresholdMax(
+				Math.min(100, Math.max($thresholdMax.value, 0)),
+			);
 		});
 
 		$feed = $modalContent.querySelector(".js-feed");
-		const $feedOverlay = $modalContent.querySelector(".js-feed-overlay");
+		$feedOverlay = $modalContent.querySelector(".js-feed-overlay");
+
+		/** @type {HTMLElement} */
+		const $x1 = $modalContent.querySelector(".js-1x");
+		/** @type {HTMLElement} */
+		const $x4 = $modalContent.querySelector(".js-4x");
+		/** @type {HTMLElement} */
+		const $x10 = $modalContent.querySelector(".js-10x");
+		/** @type {HTMLElement} */
+		const $x20 = $modalContent.querySelector(".js-20x");
+
+		/** @type {HTMLInputElement} */
+		const $x = $modalContent.querySelector(".js-x");
+		/** @type {HTMLInputElement} */
+		const $y = $modalContent.querySelector(".js-y");
+
+		onZoneChange = (_, x, y) => {
+			$x.value = x.toString();
+			$y.value = y.toString();
+		};
+
+		zones = denormalizeZones(value).map((z) =>
+			newZone($feedOverlay, z, stepSize, onZoneChange),
+		);
+		value = undefined;
+
+		/** @param {number} v */
+		const setStepSize = (v) => {
+			const selectedClass = "motion-step-size-selected";
+			$x1.classList.remove(selectedClass);
+			$x4.classList.remove(selectedClass);
+			$x10.classList.remove(selectedClass);
+			$x20.classList.remove(selectedClass);
+
+			switch (v) {
+				case 1: {
+					$x1.classList.add(selectedClass);
+					break;
+				}
+				case 4: {
+					$x4.classList.add(selectedClass);
+					break;
+				}
+				case 10: {
+					$x10.classList.add(selectedClass);
+					break;
+				}
+				case 20: {
+					$x20.classList.add(selectedClass);
+					break;
+				}
+			}
+			stepSize = v;
+			for (const zone of zones) {
+				zone.setStepSize(stepSize);
+			}
+		};
+
+		$x1.addEventListener("click", () => {
+			setStepSize(1);
+		});
+		$x4.addEventListener("click", () => {
+			setStepSize(4);
+		});
+		$x10.addEventListener("click", () => {
+			setStepSize(10);
+		});
+		$x20.addEventListener("click", () => {
+			setStepSize(20);
+		});
+
+		$x.addEventListener("change", () => {
+			$x.value = String(Math.min(100, Math.max(0, Number($x.value))));
+			getSelectedZone().setXY(Number($x.value), Number($y.value));
+		});
+		$y.addEventListener("change", () => {
+			$y.value = String(Math.min(100, Math.max(0, Number($y.value))));
+			getSelectedZone().setXY(Number($x.value), Number($y.value));
+		});
+
+		let shiftPressed = false;
+		let ctrlPressed = false;
+		function checkKeys() {
+			if (ctrlPressed && shiftPressed) {
+				setStepSize(20);
+			} else if (shiftPressed) {
+				setStepSize(10);
+			} else if (ctrlPressed) {
+				setStepSize(1);
+			} else {
+				setStepSize(4);
+			}
+		}
+
+		window.addEventListener("keydown", (e) => {
+			switch (e.key) {
+				case "Shift": {
+					shiftPressed = true;
+					checkKeys();
+					break;
+				}
+				case "Control": {
+					ctrlPressed = true;
+					checkKeys();
+					break;
+				}
+			}
+		});
+		window.addEventListener("keyup", (e) => {
+			switch (e.key) {
+				case "Shift": {
+					shiftPressed = false;
+					checkKeys();
+					break;
+				}
+				case "Control": {
+					ctrlPressed = false;
+					checkKeys();
+					break;
+				}
+			}
+		});
+
 		const updatePreview = () => {
-			$feedOverlay.innerHTML = zonePreviewHtml(zones);
+			for (const zone of zones) {
+				zone.update();
+			}
 		};
 
 		$preview = $modalContent.querySelector(".js-preview");
 		$preview.addEventListener("change", () => {
-			getSelectedZone().preview = $preview.value === "true";
+			getSelectedZone().setPreview($preview.value === "true");
 			updatePreview();
 		});
 
@@ -423,33 +457,36 @@ function zones(hls, hasSubStream) {
 		});
 
 		$modalContent.querySelector(".js-add-zone").addEventListener("click", () => {
-			zones.push(newZone());
+			zones.push(newZone($feedOverlay, defaultZone(), stepSize, onZoneChange));
 			$zoneSelect.innerHTML = zoneSelectHTML();
 			setSelectedZoneIndex(zones.length - 1);
 			loadZone();
+			updatePreview();
 		});
 
 		$modalContent.querySelector(".js-remove-zone").addEventListener("click", () => {
 			if (zones.length > 1 && confirm("delete zone?")) {
+				getSelectedZone().destroy();
 				const index = getSelectedZoneIndex();
 				zones.splice(index, 1);
 				$zoneSelect.innerHTML = zoneSelectHTML();
 				setSelectedZoneIndex(zones.length - 1);
 				loadZone();
+				updatePreview();
 			}
 		});
 
-		$points = $modalContent.querySelector(".js-points");
-		pointsRenderer = newZonePointsRenderer($points, updatePreview);
-
 		$zoneSelect.innerHTML = zoneSelectHTML();
 		loadZone();
+
+		updatePreview();
 	};
 
 	/** @param {number} index */
 	const setSelectedZoneIndex = (index) => {
 		return ($zoneSelect.value = `zone ${index}`);
 	};
+	/** @return {number} */
 	const getSelectedZoneIndex = () => {
 		return $zoneSelect.value.slice(5, 6);
 	};
@@ -457,15 +494,37 @@ function zones(hls, hasSubStream) {
 		return zones[getSelectedZoneIndex()];
 	};
 
+	// The selected zone must be on top.
+	let zIndex = 0;
+	const updateZindex = () => {
+		zIndex += 1;
+		getSelectedZone().setZindex(zIndex);
+	};
+
 	const loadZone = () => {
 		const selectedZone = getSelectedZone();
-		$enable.value = selectedZone.enable.toString();
-		$sensitivity.value = selectedZone.sensitivity.toString();
-		$thresholdMin.value = selectedZone.thresholdMin.toString();
-		$thresholdMax.value = selectedZone.thresholdMax.toString();
-		$preview.value = selectedZone.preview.toString();
+		$enable.value = selectedZone.enable().toString();
+		$sensitivity.value = selectedZone.sensitivity().toString();
+		$thresholdMin.value = selectedZone.thresholdMin().toString();
+		$thresholdMax.value = selectedZone.thresholdMax().toString();
+		$preview.value = selectedZone.preview().toString();
+		updateZindex();
 
-		pointsRenderer.render(selectedZone);
+		const colorMap = [
+			"red",
+			"green",
+			"blue",
+			"yellow",
+			"purple",
+			"orange",
+			"grey",
+			"cyan",
+		];
+		for (const [i, zone] of zones.entries()) {
+			zone.setColor(colorMap[i]);
+			zone.setEnabled(false);
+		}
+		getSelectedZone().setEnabled(true);
 	};
 
 	const zoneSelectHTML = () => {
@@ -476,8 +535,8 @@ function zones(hls, hasSubStream) {
 		return html;
 	};
 
-	/** @return {Zone} */
-	const newZone = () => {
+	/** @return {ZoneData} */
+	const defaultZone = () => {
 		return {
 			enable: true,
 			preview: true,
@@ -485,9 +544,10 @@ function zones(hls, hasSubStream) {
 			thresholdMin: 10,
 			thresholdMax: 100,
 			area: [
-				[50, 15],
-				[85, 15],
-				[85, 50],
+				[30, 20],
+				[70, 20],
+				[70, 80],
+				[30, 80],
 			],
 		};
 	};
@@ -515,11 +575,10 @@ function zones(hls, hasSubStream) {
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {
 					// On open modal.
-					const subInputEnabled = hasSubStream(fields.id.value());
 					const monitor = {
 						id: fields.id.value(),
 						audioEnabled: "false",
-						subInputEnabled: subInputEnabled,
+						hasSubStream: hasSubStream(fields.id.value()),
 					};
 					feed = newFeed(hls, monitor, true);
 
@@ -527,7 +586,6 @@ function zones(hls, hasSubStream) {
 						// Update feed.
 						$feed.innerHTML = feed.html;
 					} else {
-						// Render modal.
 						renderModal(element, feed.html);
 						modal.onClose(() => {
 							feed.destroy();
@@ -540,13 +598,21 @@ function zones(hls, hasSubStream) {
 				});
 		},
 		value() {
-			return normalizeZones(zones);
+			if (rendered) {
+				return normalizeZones(zones.map((z) => z.value()));
+			}
+			return value;
 		},
 		set(input, _, f) {
 			fields = f;
-			zones = input === "" ? [newZone()] : denormalizeZones(input);
-
+			value = input === "" ? normalizeZones([defaultZone()]) : input;
 			if (rendered) {
+				for (const zone of zones) {
+					zone.destroy();
+				}
+				zones = denormalizeZones(value).map((z) =>
+					newZone($feedOverlay, z, stepSize, onZoneChange),
+				);
 				setSelectedZoneIndex(0);
 				$zoneSelect.innerHTML = zoneSelectHTML();
 				loadZone();
@@ -555,7 +621,140 @@ function zones(hls, hasSubStream) {
 	};
 }
 
-/** @param {Zone[]} zones  */
+/**
+ * @typedef {Object} Zone
+ * @property {() => ZoneData} value
+ * @property {() => ZoneArea} area
+ * @property {() => boolean} enable
+ * @property {() => number} sensitivity
+ * @property {() => number} thresholdMin
+ * @property {() => number} thresholdMax
+ * @property {() => boolean} preview
+ * @property {(v: ZoneArea) => void} setArea
+ * @property {(v: boolean) => void} setEnable
+ * @property {(v: number) =>  void} setSensitivity
+ * @property {(v: number) =>  void} setThresholdMin
+ * @property {(v: number) =>  void} setThresholdMax
+ * @property {(v: boolean) => void} setPreview
+ * @property {(v: string) =>  void} setColor
+ * @property {() => void} update
+ * @property {() => void} destroy
+ * @property {(v: number) => void} setZindex
+ * @property {(enabled: boolean) => void} setEnabled
+ * @property {(x: number, y: number) => void} setXY
+ * @property {(stepSize: number) => void} setStepSize
+ */
+
+/** @typedef {import("./components/polygonEditor.js").OnChangeFunc} OnChangeFunc */
+
+/**
+ * @param {Element} $parent
+ * @param {ZoneData} value
+ * @param {number} stepSize
+ * @param {OnChangeFunc} onChange
+ * @return {Zone}
+ */
+function newZone($parent, value, stepSize, onChange) {
+	const html = () => {
+		return `
+		<svg
+			viewBox="0 0 100 100"
+			preserveAspectRatio="none"
+			style="position: absolute; width: 100%; height: 100%; overflow: visible"
+		>
+		</svg>`.trim();
+	};
+
+	let template = document.createElement("template");
+	template.innerHTML = html();
+	const element = template.content.firstChild;
+	$parent.append(element);
+
+	// @ts-ignore
+	const editor = newPolygonEditor(element, {
+		stepSize: stepSize,
+		onChange: onChange,
+		visible: value.preview,
+	});
+	editor.set(value.area);
+
+	return {
+		value() {
+			return value;
+		},
+		area() {
+			return value.area;
+		},
+		enable() {
+			return value.enable;
+		},
+		sensitivity() {
+			return value.sensitivity;
+		},
+
+		thresholdMin() {
+			return value.thresholdMin;
+		},
+
+		thresholdMax() {
+			return value.thresholdMax;
+		},
+
+		preview() {
+			return value.preview;
+		},
+		/** @param {ZoneArea} v */
+		setArea(v) {
+			value.area = v;
+		},
+		/** @param {boolean} v */
+		setEnable(v) {
+			value.enable = v;
+		},
+		/** @param {number} v */
+		setSensitivity(v) {
+			value.sensitivity = v;
+		},
+		/** @param {number} v */
+		setThresholdMin(v) {
+			value.thresholdMin = v;
+		},
+		/** @param {number} v */
+		setThresholdMax(v) {
+			value.thresholdMax = v;
+		},
+		/** @param {boolean} v */
+		setPreview(v) {
+			value.preview = v;
+			editor.visible(v);
+		},
+		/** @param {string} v */
+		setColor(v) {
+			editor.setColor(v);
+		},
+		update() {
+			editor.set(value.area);
+		},
+		destroy() {
+			element.remove();
+		},
+		setZindex(v) {
+			// @ts-ignore
+			element.style.zIndex = v.toString();
+		},
+		setEnabled(enabled) {
+			editor.enabled(enabled);
+		},
+		setXY(x, y) {
+			editor.setIndex(editor.selected(), x, y);
+		},
+		setStepSize(v) {
+			editor.setStepSize(v);
+		},
+	};
+}
+
+/** @param {ZoneData[]} zones  */
 function normalizeZones(zones) {
 	for (const zone of zones) {
 		for (let i = 0; i < zone.area.length; i++) {
@@ -566,7 +765,7 @@ function normalizeZones(zones) {
 	return zones;
 }
 
-/** @param {Zone[]} zones  */
+/** @param {ZoneData[]} zones  */
 function denormalizeZones(zones) {
 	for (const zone of zones) {
 		for (let i = 0; i < zone.area.length; i++) {
@@ -604,5 +803,35 @@ $style.innerHTML = `
 		border-style: none;
 		border-radius: 5px;
 		min-width: 0;
+	}
+	.motion-step-sizes {
+		display: flex;
+	}
+
+	.motion-step-size {
+		background: var(--color2);
+		color: var(--color-text);
+		font-size: 0.6rem;
+		padding: 0.07rem 0.15rem;
+		border-width: 0.02rem;
+		border-color: var(--color3);
+	}
+
+	.motion-step-size:hover {
+		background: var(--color1);
+	}
+
+	.motion-step-size-selected {
+		background: var(--color1);
+	}
+
+
+	.motion-xy-wrapper {
+		display: flex;
+	}
+	.motion-xy-wrapper > input {
+		width: 1.3rem;
+		font-size: 0.6rem;
+		text-align: center;
 	}`;
 document.querySelector("head").append($style);

@@ -257,8 +257,8 @@ impl SourceRtsp {
             .demuxed()
             .map_err(SourceRtspRunError::Demuxed)?;
 
-        // Buffer 4 frame to reduce dropped frames.
-        let (feed_tx, _) = broadcast::channel(4);
+        // Buffer 10 frame to reduce dropped frames.
+        let (feed_tx, _) = broadcast::channel(10);
 
         let mut hls_writer: Option<H264Writer> = None;
         loop {

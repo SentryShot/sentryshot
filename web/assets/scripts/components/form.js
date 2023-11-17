@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// @ts-check
 
 import { uniqueID } from "../libs/common.js";
 
@@ -443,7 +444,9 @@ function newHTMLfield(options, id, label, placeholder = "") {
  * @return {Field}
  */
 function newToggleField(label, initial) {
-	let element, $input;
+	let element;
+	/** @type {HTMLInputElement} */
+	let $input;
 
 	const id = uniqueID();
 	const options = {
@@ -454,17 +457,14 @@ function newToggleField(label, initial) {
 		html: newHTMLfield(options, id, label),
 		init() {
 			element = document.querySelector(`#js-${id}`);
+			// @ts-ignore
 			[$input] = $getInputAndError(element);
 		},
 		value() {
 			return $input.value === "true";
 		},
 		set(input) {
-			if (input === "") {
-				$input.value = initial ? initial : "";
-			} else {
-				$input.value = input;
-			}
+			$input.value = input === "" ? initial.toString() : input;
 		},
 		validate() {
 			return "";
