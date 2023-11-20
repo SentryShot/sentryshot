@@ -23,6 +23,15 @@ tokio-util.workspace = true
 
 
 [dev-dependencies]
+criterion.workspace = true
 pretty_assertions.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
 tempfile.workspace = true
 test-case.workspace = true
+
+
+[[bench]]
+name = "logdb"
+path = "./bench.rs"
+harness = false

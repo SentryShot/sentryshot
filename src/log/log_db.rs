@@ -55,6 +55,10 @@ const DATA_SIZE: usize = 47;
 pub struct LogDbHandle(Mutex<LogDb>);
 
 impl LogDbHandle {
+    pub async fn save_log_testing(&self, entry: LogEntryWithTime) {
+        self.save_log(entry).await.unwrap()
+    }
+
     async fn save_log(&self, entry: LogEntryWithTime) -> Result<(), SaveLogError> {
         self.0.lock().await.save_log(entry).await
     }
@@ -1416,53 +1420,6 @@ mod tests {
             Err(TimeToIdError::InvalidTime)
         ))
     }
-
-    /*
-    func BenchmarkDBInsert(b *testing.B) {
-        store := newTestStore(b, "")
-
-        testEntry := Entry{
-            Level:     LevelDebug,
-            Msg:       "....................................",
-            Src:       "monitor",
-            MonitorID: "abcde",
-        }
-
-        b.ResetTimer()
-        for i := 0; i < 100000; i++ {
-            testEntry.Time = UnixMicro(i)
-            err := store.saveLog(testEntry)
-            require.NoError(b, err)
-        }
-    }
-
-    func BenchmarkDBQuery(b *testing.B) {
-        store := newTestStore(b, "")
-
-        testEntry := Entry{
-            Level:     LevelDebug,
-            Msg:       "....................................",
-            Src:       "monitor",
-            MonitorID: "abcde",
-        }
-
-        for i := 0; i < 10000; i++ {
-            testEntry.Time = UnixMicro(i)
-            err := store.saveLog(testEntry)
-            require.NoError(b, err)
-        }
-
-        b.ResetTimer()
-        for i := 0; i < b.N; i++ {
-            entries, err := store.Query(Query{
-                Limit:    1,
-                Monitors: []string{""},
-            })
-            require.NoError(b, err)
-            require.Equal(b, 0, len(entries))
-        }
-    }
-    */
 
     #[tokio::test]
     async fn test_new_chunk_encoder_version_error() {
