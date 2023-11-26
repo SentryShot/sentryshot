@@ -1210,6 +1210,7 @@ dependencies = [
  "criterion",
  "csv",
  "futures",
+ "pin-project",
  "pretty_assertions",
  "rand",
  "rand_chacha",

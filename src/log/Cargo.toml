@@ -16,6 +16,7 @@ csv.path = "../csv"
 
 bytesize.workspace = true
 futures.workspace = true
+pin-project.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

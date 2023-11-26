@@ -1,5 +1,7 @@
 ## unreleased
 
+-   add log file read buffering
+
 ## `v0.1.2`
 
 -   zone editor redesign #4

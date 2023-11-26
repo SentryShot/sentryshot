@@ -42,6 +42,18 @@ pub fn logdb_query(c: &mut Criterion) {
     });
 
     let mut group = c.benchmark_group("logdb_query");
+    group.bench_with_input(BenchmarkId::new("query_20", ""), &h, |b, h| {
+        b.to_async(&rt).iter(|| async {
+            let entries =
+                h.db.query(LogQuery {
+                    limit: Some(NonZeroUsize::new(20).unwrap()),
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+            assert_eq!(entries.len(), 20);
+        });
+    });
     group.sample_size(10);
     group.bench_with_input(BenchmarkId::new("query_all", ""), &h, |b, h| {
         b.to_async(&rt).iter(|| async {

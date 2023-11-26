@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 pub mod log_db;
+pub mod rev_buf_reader;
 
 use common::{ILogger, LogEntry, LogLevel, LogSource, MonitorId, NonEmptyString};
 use serde::{Deserialize, Serialize};

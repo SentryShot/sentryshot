@@ -1,4 +1,5 @@
 use super::{LogEntryWithTime, Logger, UnixMicro};
+use crate::rev_buf_reader::RevBufReader;
 use bytesize::ByteSize;
 use common::{
     DynLogger, LogEntry, LogLevel, LogSource, MonitorId, ParseLogLevelError, ParseLogSourceError,
@@ -436,12 +437,15 @@ fn chunk_id_to_paths(log_dir: &Path, chunk_id: &str) -> (PathBuf, PathBuf) {
 
 struct ChunkDecoder {
     n_entries: usize,
-    data_file: File,
-    msg_file: File,
+    data_file: RevBufReader<File>,
+    msg_file: RevBufReader<File>,
 }
 
 #[derive(Debug, Error)]
 enum NewChunkDecoderError {
+    #[error("create reader: {0}")]
+    CreateReader(std::io::Error),
+
     #[error("open data file: {0}")]
     OpenDataFile(std::io::Error),
 
@@ -489,6 +493,9 @@ impl ChunkDecoder {
             .open(msg_path)
             .await
             .map_err(OpenMsgFile)?;
+
+        let msg_file = RevBufReader::new(msg_file).await.map_err(CreateReader)?;
+        let data_file = RevBufReader::new(data_file).await.map_err(CreateReader)?;
 
         Ok(Self {
             msg_file,
