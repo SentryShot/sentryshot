@@ -50,7 +50,7 @@ function _tflite(hls, detectors, hasSubStream) {
 		detectorName: fieldTemplate.select(
 			"Detector",
 			detectorNames,
-			detectorNames.at(-1), // Last item.
+			detectorNames.at(-1) // Last item.
 		),
 		feedRate: newField(
 			[inputRules.notEmpty, inputRules.noSpaces],
@@ -64,7 +64,7 @@ function _tflite(hls, detectors, hasSubStream) {
 				label: "Feed rate (fps)",
 				placeholder: "",
 				initial: "0.2",
-			},
+			}
 		),
 		duration: fieldTemplate.integer("Trigger duration (sec)", "", "120"),
 		useSubStream: fieldTemplate.toggle("Use sub stream", true),

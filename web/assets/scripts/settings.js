@@ -224,7 +224,7 @@ function newCategory(category, title) {
 				$wrapper.classList.remove("settings-category-selected");
 				// @ts-ignore
 				for (const element of document.querySelectorAll(
-					".js-set-settings-category",
+					".js-set-settings-category"
 				)) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
@@ -359,7 +359,7 @@ function newMonitor(token, fields) {
 			"api/monitor",
 			monitor,
 			token,
-			"failed to save monitor",
+			"failed to save monitor"
 		);
 		if (!ok) {
 			return;
@@ -369,7 +369,7 @@ function newMonitor(token, fields) {
 			"api/monitor/restart?id=" + id,
 			monitor,
 			token,
-			"failed to restart monitor",
+			"failed to restart monitor"
 		);
 
 		load();
@@ -380,7 +380,7 @@ function newMonitor(token, fields) {
 		const ok = await fetchDelete(
 			"api/monitor?" + params,
 			token,
-			"failed to delete monitor",
+			"failed to delete monitor"
 		);
 		if (!ok) {
 			return;
@@ -663,7 +663,7 @@ function newAccount(token, fields) {
 			"api/account",
 			removeEmptyValues(account),
 			token,
-			"failed to save account",
+			"failed to save account"
 		);
 		if (!ok) {
 			return;
@@ -677,7 +677,7 @@ function newAccount(token, fields) {
 		const ok = await fetchDelete(
 			"api/account?" + params,
 			token,
-			"failed to delete account",
+			"failed to delete account"
 		);
 		if (!ok) {
 			return;
@@ -864,7 +864,7 @@ function newSourceField(options) {
 					custom: true,
 				},
 				id,
-				"Source",
+				"Source"
 			);
 		})(),
 		init() {
@@ -900,7 +900,7 @@ function newSourceRTSP() {
 			{
 				label: "Main stream",
 				placeholder: "rtsp://x.x.x.x/main",
-			},
+			}
 		),
 		subStream: newField(
 			[],
@@ -910,7 +910,7 @@ function newSourceRTSP() {
 			{
 				label: "Sub stream",
 				placeholder: "rtsp://x.x.x.x/sub (optional)",
-			},
+			}
 		),
 	};
 
@@ -1022,7 +1022,7 @@ function init() {
 				},
 				{
 					label: "ID",
-				},
+				}
 			),
 			name: fieldTemplate.text("Name", "my_monitor"),
 			enable: fieldTemplate.toggle("Enable monitor", true),
@@ -1071,7 +1071,7 @@ function init() {
 					label: "Username",
 					placeholder: "name",
 					initial: "",
-				},
+				}
 			),
 			isAdmin: fieldTemplate.toggle("Admin"),
 			password: newPasswordField(),

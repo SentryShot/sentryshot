@@ -167,7 +167,7 @@ describe("newField", () => {
 				label: "a",
 				placeholder: "b",
 				initial: "c",
-			},
+			}
 		);
 	};
 	test("rendering", () => {
@@ -523,10 +523,10 @@ describe("passwordField", () => {
 			field.init($div);
 
 			[$newInput, $newError] = $getInputAndError(
-				document.querySelector("#js-uid1"),
+				document.querySelector("#js-uid1")
 			);
 			[$repeatInput, $repeatError] = $getInputAndError(
-				document.querySelector("#js-uid2"),
+				document.querySelector("#js-uid2")
 			);
 		});
 		const change = new Event("change");

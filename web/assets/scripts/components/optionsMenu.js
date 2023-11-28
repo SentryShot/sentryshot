@@ -55,7 +55,7 @@ const newOptionsBtn = {
 			return Number(
 				getComputedStyle(document.documentElement)
 					.getPropertyValue("--gridsize")
-					.trim(),
+					.trim()
 			);
 		};
 		const setGridSize = (value) => {

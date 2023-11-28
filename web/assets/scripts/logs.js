@@ -27,7 +27,7 @@ function newLogger(formatLog) {
 				levels: levels,
 				sources: sources,
 				monitors: monitors,
-			}),
+			})
 		);
 
 		// Use relative path.
@@ -65,7 +65,7 @@ function newLogger(formatLog) {
 				monitors: monitors,
 				time: currentTime,
 				limit: 20,
-			}),
+			})
 		);
 		const logs = await fetchGet("api/log/query?" + query, "could not get logs");
 
@@ -153,7 +153,7 @@ function newFormater(monitorNameByID, timeZone) {
 	const unixToDateStr = (unixMillisecond) => {
 		const { YY, MM, DD, hh, mm, ss } = fromUTC2(
 			new Date(unixMillisecond / 1000),
-			timeZone,
+			timeZone
 		);
 		return `${YY}-${MM}-${DD}_${hh}:${mm}:${ss}`;
 	};
@@ -408,7 +408,7 @@ async function init() {
 		level: fieldTemplate.select(
 			"Level",
 			["error", "warning", "info", "debug"],
-			"info",
+			"info"
 		),
 		monitor: newMonitorPicker(monitors),
 		sources: newMultiSelect("Sources", logSources, logSources),

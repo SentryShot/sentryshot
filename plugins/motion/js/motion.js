@@ -306,13 +306,13 @@ function zones(hls, hasSubStream) {
 		$thresholdMin = $modalContent.querySelector(".js-threshold-min");
 		$thresholdMin.addEventListener("change", () => {
 			getSelectedZone().setThresholdMin(
-				Math.min(100, Math.max($thresholdMin.value, 0)),
+				Math.min(100, Math.max($thresholdMin.value, 0))
 			);
 		});
 		$thresholdMax = $modalContent.querySelector(".js-threshold-max");
 		$thresholdMax.addEventListener("change", () => {
 			getSelectedZone().setThresholdMax(
-				Math.min(100, Math.max($thresholdMax.value, 0)),
+				Math.min(100, Math.max($thresholdMax.value, 0))
 			);
 		});
 
@@ -339,7 +339,7 @@ function zones(hls, hasSubStream) {
 		};
 
 		zones = denormalizeZones(value).map((z) =>
-			newZone($feedOverlay, z, stepSize, onZoneChange),
+			newZone($feedOverlay, z, stepSize, onZoneChange)
 		);
 		value = undefined;
 
@@ -611,7 +611,7 @@ function zones(hls, hasSubStream) {
 					zone.destroy();
 				}
 				zones = denormalizeZones(value).map((z) =>
-					newZone($feedOverlay, z, stepSize, onZoneChange),
+					newZone($feedOverlay, z, stepSize, onZoneChange)
 				);
 				setSelectedZoneIndex(0);
 				$zoneSelect.innerHTML = zoneSelectHTML();

@@ -908,9 +908,7 @@ img {
 	justify-content: center;
 	visibility: hidden;
 	opacity: 0.1;
-	transition:
-		visibility 0.8s,
-		opacity 0.7s;
+	transition: visibility 0.8s, opacity 0.7s;
 	transition-timing-function: ease-in;
 }
 
@@ -956,9 +954,7 @@ img {
 .player-overlay-checkbox:hover ~ .player-overlay {
 	visibility: visible;
 	opacity: 0.8;
-	transition:
-		visibility 0s,
-		opacity 0.1s;
+	transition: visibility 0s, opacity 0.1s;
 }
 
 .player-play-btn {
