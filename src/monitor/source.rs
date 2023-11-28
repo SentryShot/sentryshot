@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::monitor::log_monitor;
+use crate::log_monitor;
 use common::{
     monitor::{Protocol, RtspUrl, SourceRtspConfig},
     time::DurationH264,

@@ -12,6 +12,7 @@ doctest = false
 
 [dependencies]
 common.path = "../common"
+monitor.path = "../monitor"
 
 async-trait.workspace = true
 axum.workspace = true

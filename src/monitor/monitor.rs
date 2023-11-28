@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+mod recorder;
+mod source;
+
 use crate::{recorder::new_recorder, source::SourceRtsp};
 use async_trait::async_trait;
 use common::{
     monitor::{MonitorConfig, MonitorConfigs, SourceConfig},
     time::{Duration, UnixNano},
-    Cancelled, DynEnvConfig, DynLogger, DynMonitor, EnvConfig, Event, LogEntry, LogLevel,
-    MonitorId, NonEmptyString, Source, StreamType,
+    Cancelled, DynEnvConfig, DynLogger, EnvConfig, Event, LogEntry, LogLevel, MonitorId,
+    NonEmptyString, Source, StreamType,
 };
 use hls::HlsServer;
-use plugin::types::DynMonitorHooks;
+use sentryshot_convert::Frame;
 use serde::Serialize;
 use std::{
     collections::HashMap,
@@ -23,8 +26,8 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-type Monitors = HashMap<MonitorId, DynMonitor>;
-struct Monitor {
+type Monitors = HashMap<MonitorId, Arc<Monitor>>;
+pub struct Monitor {
     token: CancellationToken,
     config: MonitorConfig,
     shutdown_complete: Mutex<mpsc::Receiver<()>>,
@@ -33,9 +36,8 @@ struct Monitor {
     send_event_tx: mpsc::Sender<Event>,
 }
 
-#[async_trait]
-impl common::Monitor for Monitor {
-    fn config(&self) -> &MonitorConfig {
+impl Monitor {
+    pub fn config(&self) -> &MonitorConfig {
         &self.config
     }
 
@@ -50,41 +52,43 @@ impl common::Monitor for Monitor {
         self.shutdown_complete.lock().await.recv().await;
     }
 
-    async fn source_main(&self) -> Result<Arc<Source>, Cancelled> {
+    pub async fn source_main(&self) -> Result<Arc<Source>, Cancelled> {
         let (res_tx, res_rx) = oneshot::channel();
         tokio::select! {
             _ = self.token.cancelled() => return Err(Cancelled),
             _ = self.source_main_tx.send(res_tx) => {}
         }
         tokio::select! {
-            _ = self.token.cancelled() => return Err(Cancelled),
+            _ = self.token.cancelled() => Err(Cancelled),
             res = res_rx => {
-                let Ok(res)  = res else {
-                    return Err(Cancelled);
-                };
-                return Ok(res);
+                if let Ok(res) = res {
+                    Ok(res)
+                } else {
+                    Err(Cancelled)
+                }
             }
         }
     }
 
-    async fn source_sub(&self) -> Result<Option<Arc<Source>>, Cancelled> {
+    pub async fn source_sub(&self) -> Result<Option<Arc<Source>>, Cancelled> {
         let (res_tx, res_rx) = oneshot::channel();
         tokio::select! {
             _ = self.token.cancelled() => return Err(Cancelled),
             _ = self.source_sub_tx.send(res_tx) => {}
         }
         tokio::select! {
-            _ = self.token.cancelled() => return Err(Cancelled),
+            _ = self.token.cancelled() => Err(Cancelled),
             res = res_rx => {
-                let Ok(res)  = res else {
-                    return Err(Cancelled);
-                };
-                return Ok(res);
+                if let Ok(res) = res {
+                    Ok(res)
+                } else {
+                    Err(Cancelled)
+                }
             }
         }
     }
 
-    async fn send_event(&self, event: Event) {
+    pub async fn send_event(&self, event: Event) {
         tokio::select! {
             _ = self.token.cancelled() => {},
             _ = self.send_event_tx.send(event) => {},
@@ -94,7 +98,7 @@ impl common::Monitor for Monitor {
 
 impl Monitor {
     #[cfg(test)]
-    fn empty() -> DynMonitor {
+    fn empty() -> Arc<Monitor> {
         use common::monitor::{Config, Protocol, SourceRtspConfig};
         use serde_json::Value;
 
@@ -509,15 +513,14 @@ pub struct MonitorInfo {
     has_sub_stream: bool,
 }
 
-/*pub struct MonitorGetter(pub Arc<Mutex<MonitorManager>>);
+pub type DynMonitorHooks = Arc<dyn MonitorHooks + Send + Sync>;
 
 #[async_trait]
-impl common::MonitorGetter for MonitorGetter {
-    async fn monitor(&self, id: &MonitorId) -> Option<DynMonitor> {
-        let manager = self.0.lock().await;
-        manager.started_monitors.get(id).cloned()
-    }
-}*/
+pub trait MonitorHooks {
+    async fn on_monitor_start(&self, token: CancellationToken, monitor: Arc<Monitor>);
+    // Blocking.
+    fn on_thumb_save(&self, config: &MonitorConfig, frame: Frame) -> Frame;
+}
 
 #[cfg(test)]
 mod tests {

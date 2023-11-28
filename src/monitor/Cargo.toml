@@ -7,7 +7,7 @@ license.workspace = true
 
 [lib]
 name = "monitor"
-path = "lib.rs"
+path = "monitor.rs"
 doctest = false
 
 [dependencies]
@@ -15,7 +15,6 @@ common.path = "../common"
 hls.path = "../hls"
 log.path = "../log"
 recording.path = "../recording"
-plugin.path = "../plugin"
 
 async-trait.workspace = true
 bytesize.workspace = true

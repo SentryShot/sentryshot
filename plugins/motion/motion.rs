@@ -10,9 +10,10 @@ mod zone;
 use crate::{config::MotionConfig, zone::Zone};
 use async_trait::async_trait;
 use common::{
-    time::UnixNano, Cancelled, DynLogger, DynMonitor, DynMsgLogger, Event, LogEntry, LogLevel,
-    LogSource, MonitorId, MsgLogger, Source,
+    time::UnixNano, Cancelled, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, LogSource,
+    MonitorId, MsgLogger, Source,
 };
+use monitor::Monitor;
 use plugin::{types::Assets, Application, Plugin, PreLoadPlugin};
 use recording::{FrameRateLimiter, FrameRateLimiterError};
 use sentryshot_convert::{
@@ -77,7 +78,7 @@ impl Plugin for MotionPlugin {
         );
     }
 
-    async fn on_monitor_start(&self, token: CancellationToken, monitor: DynMonitor) {
+    async fn on_monitor_start(&self, token: CancellationToken, monitor: Arc<Monitor>) {
         let msg_logger = Arc::new(MotionLogger {
             logger: self.logger.to_owned(),
             monitor_id: monitor.config().id().to_owned(),
@@ -146,7 +147,7 @@ impl MotionPlugin {
         &self,
         token: CancellationToken,
         msg_logger: DynMsgLogger,
-        monitor: DynMonitor,
+        monitor: Arc<Monitor>,
     ) -> Result<(), StartError> {
         use StartError::*;
 
@@ -190,7 +191,7 @@ impl MotionPlugin {
     async fn run(
         &self,
         msg_logger: &DynMsgLogger,
-        monitor: &DynMonitor,
+        monitor: &Arc<Monitor>,
         config: &MotionConfig,
         source: &Arc<Source>,
     ) -> Result<(), RunError> {

@@ -12,14 +12,15 @@ mod model;
 use crate::{config::TfliteConfig, detector::DetectorManager};
 use async_trait::async_trait;
 use common::{
-    time::UnixNano, Cancelled, Detection, Detections, DynEnvConfig, DynLogger, DynMonitor,
-    DynMsgLogger, Event, H264Data, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
-    RectangleNormalized, Region, Source,
+    time::UnixNano, Cancelled, Detection, Detections, DynEnvConfig, DynLogger, DynMsgLogger, Event,
+    H264Data, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
+    Source,
 };
 use config::{Crop, Mask};
 use detector::{DetectError, Detector, DetectorName, Thresholds};
 use hyper::{body::HttpBody, http::uri::InvalidUri};
 use hyper_rustls::HttpsConnectorBuilder;
+use monitor::Monitor;
 use plugin::{types::Assets, Application, Plugin, PreLoadPlugin};
 use recording::{denormalize, vertex_inside_poly2, FrameRateLimiter, FrameRateLimiterError};
 use sentryshot_convert::{
@@ -144,7 +145,7 @@ impl Plugin for TflitePlugin {
         );
     }
 
-    async fn on_monitor_start(&self, token: CancellationToken, monitor: DynMonitor) {
+    async fn on_monitor_start(&self, token: CancellationToken, monitor: Arc<Monitor>) {
         let msg_logger = Arc::new(TfliteMonitorLogger {
             logger: self.logger.to_owned(),
             monitor_id: monitor.config().id().to_owned(),
@@ -215,7 +216,7 @@ impl TflitePlugin {
         &self,
         token: &CancellationToken,
         msg_logger: DynMsgLogger,
-        monitor: DynMonitor,
+        monitor: Arc<Monitor>,
     ) -> Result<(), StartError> {
         use StartError::*;
         let config = monitor.config();
@@ -267,7 +268,7 @@ impl TflitePlugin {
     async fn run(
         &self,
         msg_logger: &DynMsgLogger,
-        monitor: &DynMonitor,
+        monitor: &Arc<Monitor>,
         config: &TfliteConfig,
         source: &Arc<Source>,
         detector: &Detector,

@@ -9,7 +9,6 @@ use bytes::Bytes;
 use bytesize::{ByteSize, MB};
 pub use event::*;
 use http::{HeaderMap, HeaderValue};
-use monitor::MonitorConfig;
 use sentryshot_padded_bytes::PaddedBytes;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -506,22 +505,6 @@ pub struct ValidateResponse {
 pub struct ValidateLoginResponse {
     pub is_admin: bool,
     pub token: String,
-}
-
-/*pub type DynMonitorGetter = Arc<dyn MonitorGetter + Send + Sync>;
-#[async_trait]
-pub trait MonitorGetter {
-    async fn monitor(&self, id: &MonitorId) -> Option<DynMonitor>;
-}*/
-
-pub type DynMonitor = Arc<dyn Monitor + Send + Sync>;
-#[async_trait]
-pub trait Monitor {
-    fn config(&self) -> &MonitorConfig;
-    async fn stop(&self);
-    async fn source_main(&self) -> Result<Arc<Source>, Cancelled>;
-    async fn source_sub(&self) -> Result<Option<Arc<Source>>, Cancelled>;
-    async fn send_event(&self, _event: Event);
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

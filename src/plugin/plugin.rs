@@ -9,10 +9,11 @@ pub mod types;
 use async_trait::async_trait;
 use axum::Router;
 use common::{
-    monitor::MonitorConfig, DynAuth, DynEnvConfig, DynLogger, DynMonitor, EnvPlugin, LogEntry,
-    LogLevel, LogSource,
+    monitor::MonitorConfig, DynAuth, DynEnvConfig, DynLogger, EnvPlugin, LogEntry, LogLevel,
+    LogSource,
 };
 use libloading::{Library, Symbol};
+use monitor::{Monitor, MonitorHooks};
 use sentryshot_util::Frame;
 use std::{
     path::{Path, PathBuf},
@@ -22,7 +23,7 @@ use std::{
 use thiserror::Error;
 use tokio::{runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
-use types::{Assets, MonitorHooks, NewAuthFn, Templates};
+use types::{Assets, NewAuthFn, Templates};
 
 pub trait PreLoadPlugin {
     fn add_log_source(&self) -> Option<LogSource> {
@@ -49,7 +50,7 @@ pub trait Plugin {
     ) {
     }*/
 
-    async fn on_monitor_start(&self, _token: CancellationToken, _monitor: DynMonitor) {}
+    async fn on_monitor_start(&self, _token: CancellationToken, _monitor: Arc<Monitor>) {}
     fn on_thumb_save(&self, _config: &MonitorConfig, frame: Frame) -> Frame {
         frame
     }
@@ -228,7 +229,7 @@ impl PluginManager {
 
 #[async_trait]
 impl MonitorHooks for PluginManager {
-    async fn on_monitor_start(&self, token: CancellationToken, monitor: DynMonitor) {
+    async fn on_monitor_start(&self, token: CancellationToken, monitor: Arc<Monitor>) {
         let plugins = self.plugins.clone();
         for plugin in plugins {
             // Execute every call in a co-routine to avoid blocking.

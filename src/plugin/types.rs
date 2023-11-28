@@ -1,19 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use async_trait::async_trait;
 use axum::{
     extract::State,
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use common::{monitor::MonitorConfig, DynAuth, DynLogger, DynMonitor, Username};
+use common::{DynAuth, DynLogger, Username};
 use http::{header, Request, StatusCode};
-use sentryshot_util::Frame;
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashMap, path::Path, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, path::Path};
 use thiserror::Error;
 use tokio::runtime::Handle;
-use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Error)]
 pub enum NewAuthError {
@@ -114,13 +111,4 @@ pub async fn csrf<B>(State(auth): State<DynAuth>, request: Request<B>, next: Nex
     }
 
     next.run(request).await
-}
-
-pub type DynMonitorHooks = Arc<dyn MonitorHooks + Send + Sync>;
-
-#[async_trait]
-pub trait MonitorHooks {
-    async fn on_monitor_start(&self, token: CancellationToken, monitor: DynMonitor);
-    // Blocking.
-    fn on_thumb_save(&self, config: &MonitorConfig, frame: Frame) -> Frame;
 }

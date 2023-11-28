@@ -12,6 +12,7 @@ crate-type = ["dylib"]
 
 [dependencies]
 common.path = "../../src/common"
+monitor.path = "../../src/monitor"
 plugin.path = "../../src/plugin"
 recording.path = "../../src/recording"
 
