@@ -3,13 +3,15 @@
 mod recorder;
 mod source;
 
+pub use source::{DecoderError, Source, SubscribeDecodedError};
+
 use crate::{recorder::new_recorder, source::SourceRtsp};
 use async_trait::async_trait;
 use common::{
     monitor::{MonitorConfig, MonitorConfigs, SourceConfig},
     time::{Duration, UnixNano},
     Cancelled, DynEnvConfig, DynLogger, EnvConfig, Event, LogEntry, LogLevel, MonitorId,
-    NonEmptyString, Source, StreamType,
+    NonEmptyString, StreamType,
 };
 use hls::HlsServer;
 use sentryshot_convert::Frame;

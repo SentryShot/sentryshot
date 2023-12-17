@@ -13,22 +13,17 @@ use crate::{config::TfliteConfig, detector::DetectorManager};
 use async_trait::async_trait;
 use common::{
     time::UnixNano, Cancelled, Detection, Detections, DynEnvConfig, DynLogger, DynMsgLogger, Event,
-    H264Data, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
-    Source,
+    LogEntry, LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
 };
 use config::{Crop, Mask};
 use detector::{DetectError, Detector, DetectorName, Thresholds};
 use hyper::{body::HttpBody, http::uri::InvalidUri};
 use hyper_rustls::HttpsConnectorBuilder;
-use monitor::Monitor;
+use monitor::{DecoderError, Monitor, Source, SubscribeDecodedError};
 use plugin::{types::Assets, Application, Plugin, PreLoadPlugin};
-use recording::{denormalize, vertex_inside_poly2, FrameRateLimiter, FrameRateLimiterError};
+use recording::{denormalize, vertex_inside_poly2, FrameRateLimiter};
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
-};
-use sentryshot_ffmpeg_h264::{
-    H264BuilderError, H264Decoder, H264DecoderBuilder, Packet, PaddedBytes, Ready,
-    ReceiveFrameError, SendPacketError,
 };
 use sentryshot_filter::{crop, pad, CropError, PadError};
 use sentryshot_scale::{CreateScalerError, Scaler, ScalerError};
@@ -40,11 +35,7 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
-use tokio::{
-    io::AsyncWriteExt,
-    runtime::Handle,
-    sync::{broadcast, mpsc},
-};
+use tokio::{io::AsyncWriteExt, runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -180,8 +171,11 @@ enum RunError {
     #[error("{0}")]
     Cancelled(#[from] Cancelled),
 
-    #[error("new h264 decoder: {0}")]
-    NewH264Decoder(#[from] H264BuilderError),
+    #[error("subscribe: {0}")]
+    Subscribe(#[from] SubscribeDecodedError),
+
+    #[error("decoder: {0}")]
+    DecoderError(#[from] DecoderError),
 
     #[error("input size zero")]
     InputSizeZero,
@@ -191,15 +185,6 @@ enum RunError {
 
     #[error("calculate outputs: {0}")]
     CalculateOutputs(#[from] CalculateOutputsError),
-
-    #[error("dropped frames")]
-    DroppedFrames,
-
-    #[error("{0}")]
-    SendFrame(#[from] SendPacketError),
-
-    #[error("decode frame: {0}")]
-    DecodeFrame(#[from] DecodeFrameError),
 
     #[error("process frame: {0}")]
     ProcessFrame(#[from] ProcessFrameError),
@@ -278,8 +263,6 @@ impl TflitePlugin {
         let params = muxer.params();
         let width = params.width;
         let height = params.height;
-        let extradata = params.extra_data.to_owned();
-        let h264_decoder = H264DecoderBuilder::new().avcc(PaddedBytes::new(extradata))?;
 
         let inputs = Inputs {
             input_width: NonZeroU16::new(width).ok_or(InputSizeZero)?,
@@ -288,13 +271,10 @@ impl TflitePlugin {
             output_height: detector.height(),
         };
 
-        let mut feed = new_decoder_limiter(
-            self.rt_handle.clone(),
-            msg_logger.clone(),
-            h264_decoder,
-            FrameRateLimiter::new(u64::try_from(*config.feed_rate.as_h264())?),
-            source.subscribe().await?,
-        );
+        let rate_limiter = FrameRateLimiter::new(u64::try_from(*config.feed_rate.as_h264())?);
+        let mut feed = source
+            .subscribe_decoded(self.rt_handle.clone(), Some(rate_limiter))
+            .await?;
 
         let (outputs, uncrop) = calculate_outputs(config.crop, &inputs)?;
 
@@ -346,100 +326,6 @@ impl TflitePlugin {
 struct State {
     outputs: Outputs,
     frame_processed: Vec<u8>,
-}
-
-#[derive(Debug, Error)]
-enum DecodeFrameError {
-    #[error("receive frame: {0}")]
-    ReceiveFrame(#[from] ReceiveFrameError),
-
-    #[error("try from: {0}")]
-    TryFrom(#[from] std::num::TryFromIntError),
-
-    #[error("frame rate limiter: {0}")]
-    FrameRateLimiter(#[from] FrameRateLimiterError),
-}
-
-fn new_decoder_limiter(
-    rt_handle: Handle,
-    msg_logger: DynMsgLogger,
-    mut h264_decoder: H264Decoder<Ready>,
-    mut frame_rate_limiter: FrameRateLimiter,
-    mut feed: broadcast::Receiver<H264Data>,
-) -> mpsc::Receiver<Result<Frame, RunError>> {
-    let (frame_tx, frame_rx) = mpsc::channel(1);
-
-    rt_handle.clone().spawn(async move {
-        use RunError::*;
-        loop {
-            use broadcast::error::RecvError;
-            let frame = match feed.recv().await {
-                Ok(v) => v,
-                Err(RecvError::Closed) => {
-                    msg_logger.log(LogLevel::Debug, "feed closed");
-                    _ = frame_tx.send(Err(Cancelled(common::Cancelled))).await;
-                    return;
-                }
-                Err(RecvError::Lagged(_)) => {
-                    _ = frame_tx.send(Err(DroppedFrames)).await;
-                    return;
-                }
-            };
-
-            // State juggling to avoid lifetime issue.
-            let avcc = frame.avcc.clone();
-            let result = rt_handle
-                .spawn_blocking(move || {
-                    h264_decoder
-                        .send_packet(Packet::new(&avcc).with_pts(*frame.pts))
-                        .map(|_| h264_decoder)
-                })
-                .await
-                .unwrap();
-            h264_decoder = match result {
-                Ok(v) => v,
-                Err(e) => {
-                    _ = frame_tx.send(Err(SendFrame(e))).await;
-                    return;
-                }
-            };
-
-            loop {
-                let mut frame_decoded = Frame::new();
-                match h264_decoder.receive_frame(&mut frame_decoded) {
-                    Ok(_) => {}
-                    Err(ReceiveFrameError::Eagain) => break,
-                    Err(e) => {
-                        _ = frame_tx
-                            .send(Err(DecodeFrame(DecodeFrameError::ReceiveFrame(e))))
-                            .await;
-                        return;
-                    }
-                };
-                let pts = match u64::try_from(frame_decoded.pts()) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        _ = frame_tx.send(Err(TryFrom(e))).await;
-                        return;
-                    }
-                };
-                let discard = match frame_rate_limiter.discard(pts) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        _ = frame_tx
-                            .send(Err(DecodeFrame(DecodeFrameError::FrameRateLimiter(e))))
-                            .await;
-                        return;
-                    }
-                };
-                if !discard {
-                    _ = frame_tx.send(Ok(frame_decoded)).await;
-                }
-            }
-        }
-    });
-
-    frame_rx
 }
 
 #[derive(Debug)]

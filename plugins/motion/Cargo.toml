@@ -18,8 +18,6 @@ recording.path = "../../src/recording"
 
 async-trait.workspace = true
 sentryshot_convert.workspace = true
-sentryshot_ffmpeg_h264.workspace = true
-sentryshot_filter.workspace = true
 sentryshot_util.workspace = true
 serde.workspace = true
 serde_json.workspace = true

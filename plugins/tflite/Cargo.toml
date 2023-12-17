@@ -23,7 +23,6 @@ hyper.workspace = true
 hyper-rustls.workspace = true
 sha2.workspace = true
 sentryshot_convert.workspace = true
-sentryshot_ffmpeg_h264.workspace = true
 sentryshot_filter.workspace = true
 sentryshot_scale.workspace = true
 sentryshot_util.workspace = true

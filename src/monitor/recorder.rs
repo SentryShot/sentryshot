@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::DynMonitorHooks;
+use crate::{source::Source, DynMonitorHooks};
 use common::{
     monitor::MonitorConfig,
     time::{Duration, DurationH264, UnixH264, UnixNano, MINUTE},
     Cancelled, DynHlsMuxer, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, MonitorId,
-    MsgLogger, SegmentFinalized, Source, TrackParameters,
+    MsgLogger, SegmentFinalized, TrackParameters,
 };
 use recording::{Header, NewVideoWriterError, RecordingData, VideoWriter, WriteSampleError};
 use sentryshot_convert::{

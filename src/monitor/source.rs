@@ -4,21 +4,107 @@ use crate::log_monitor;
 use common::{
     monitor::{Protocol, RtspUrl, SourceRtspConfig},
     time::DurationH264,
-    Cancelled, DynHlsMuxer, DynLogger, DynMsgLogger, Feed, H264Data, LogEntry, LogLevel, MonitorId,
-    MsgLogger, Source, StreamType,
+    Cancelled, DynHlsMuxer, DynLogger, DynMsgLogger, H264Data, LogEntry, LogLevel, MonitorId,
+    MsgLogger, StreamType,
 };
 use futures::StreamExt;
 use hls::{
     track_params_from_video_params, H264Writer, HlsServer, ParseParamsError,
     SegmenterWriteH264Error,
 };
+use recording::{FrameRateLimiter, FrameRateLimiterError};
 use retina::codec::ParametersRef;
-use sentryshot_ffmpeg_h264::PaddedBytes;
+use sentryshot_convert::Frame;
+use sentryshot_ffmpeg_h264::{
+    H264BuilderError, H264Decoder, H264DecoderBuilder, Packet, PaddedBytes, Ready,
+    ReceiveFrameError, SendPacketError,
+};
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::{
+    runtime::Handle,
+    sync::{broadcast, mpsc, oneshot},
+};
 use tokio_util::sync::CancellationToken;
 use url::Url;
+
+// A 'broadcast' channel is used instead of a 'watch' channel to detect dropped frames.
+pub type Feed = broadcast::Receiver<H264Data>;
+pub type FeedDecoded = mpsc::Receiver<Result<Frame, DecoderError>>;
+
+pub struct Source {
+    stream_type: StreamType,
+    get_muxer_tx: mpsc::Sender<oneshot::Sender<DynHlsMuxer>>,
+    subscribe_tx: mpsc::Sender<oneshot::Sender<Feed>>,
+}
+
+impl Source {
+    pub fn new(
+        stream_type: StreamType,
+        get_muxer_tx: mpsc::Sender<oneshot::Sender<DynHlsMuxer>>,
+        subscribe_tx: mpsc::Sender<oneshot::Sender<Feed>>,
+    ) -> Self {
+        Self {
+            stream_type,
+            get_muxer_tx,
+            subscribe_tx,
+        }
+    }
+
+    pub fn stream_type(&self) -> &StreamType {
+        &self.stream_type
+    }
+
+    // Returns the HLS muxer for this source. Will block until the source has started.
+    pub async fn muxer(&self) -> Result<DynHlsMuxer, Cancelled> {
+        let (res_tx, res_rx) = oneshot::channel();
+        if self.get_muxer_tx.send(res_tx).await.is_err() {
+            return Err(Cancelled);
+        }
+        let Ok(muxer) = res_rx.await else {
+            return Err(Cancelled);
+        };
+        Ok(muxer)
+    }
+
+    // Subscribe to the raw feed. Will block until the source has started.
+    pub async fn subscribe(&self) -> Result<Feed, Cancelled> {
+        let (res_tx, res_rx) = oneshot::channel();
+        if self.subscribe_tx.send(res_tx).await.is_err() {
+            return Err(Cancelled);
+        }
+        let Ok(feed) = res_rx.await else {
+            return Err(Cancelled);
+        };
+        Ok(feed)
+    }
+
+    // Subscribe to a decoded feed. Currently creates a new decoder for each
+    // call but this may change. Will block until the source has started.
+    pub async fn subscribe_decoded(
+        &self,
+        rt_handle: Handle,
+        limiter: Option<FrameRateLimiter>,
+    ) -> Result<FeedDecoded, SubscribeDecodedError> {
+        let feed = self.subscribe().await?;
+
+        // We could grab the extradata strait from the source instead.
+        let muxer = self.muxer().await?;
+        let extradata = muxer.params().extra_data.clone();
+
+        let h264_decoder = H264DecoderBuilder::new().avcc(PaddedBytes::new(extradata))?;
+        Ok(new_decoder(rt_handle, feed, h264_decoder, limiter))
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum SubscribeDecodedError {
+    #[error("{0}")]
+    Cancelled(#[from] Cancelled),
+
+    #[error("new h264 decoder: {0}")]
+    NewH264Decoder(#[from] H264BuilderError),
+}
 
 struct SourceLogger {
     logger: DynLogger,
@@ -404,4 +490,106 @@ fn creds_from_url(url: &Url) -> Option<retina::client::Credentials> {
     } else {
         None
     }
+}
+
+#[derive(Debug, Error)]
+pub enum DecoderError {
+    #[error("{0}")]
+    Cancelled(#[from] Cancelled),
+
+    #[error("dropped frames")]
+    DroppedFrames,
+
+    #[error("{0}")]
+    SendFrame(#[from] SendPacketError),
+
+    #[error("receive frame: {0}")]
+    ReceiveFrame(#[from] ReceiveFrameError),
+
+    #[error("try from: {0}")]
+    TryFrom(#[from] std::num::TryFromIntError),
+
+    #[error("frame rate limiter: {0}")]
+    FrameRateLimiter(#[from] FrameRateLimiterError),
+}
+
+fn new_decoder(
+    rt_handle: Handle,
+    mut feed: Feed,
+    mut h264_decoder: H264Decoder<Ready>,
+    mut frame_rate_limiter: Option<FrameRateLimiter>,
+) -> FeedDecoded {
+    let (frame_tx, frame_rx) = mpsc::channel(1);
+
+    rt_handle.clone().spawn(async move {
+        use DecoderError::*;
+        loop {
+            use broadcast::error::RecvError;
+            let frame = match feed.recv().await {
+                Ok(v) => v,
+                Err(RecvError::Closed) => {
+                    _ = frame_tx.send(Err(Cancelled(common::Cancelled))).await;
+                    return;
+                }
+                Err(RecvError::Lagged(_)) => {
+                    _ = frame_tx.send(Err(DroppedFrames)).await;
+                    return;
+                }
+            };
+
+            // State juggling to avoid lifetime issue.
+            let avcc = frame.avcc.clone();
+            let result = rt_handle
+                .spawn_blocking(move || {
+                    h264_decoder
+                        .send_packet(Packet::new(&avcc).with_pts(*frame.pts))
+                        .map(|_| h264_decoder)
+                })
+                .await
+                .unwrap();
+            h264_decoder = match result {
+                Ok(v) => v,
+                Err(e) => {
+                    _ = frame_tx.send(Err(SendFrame(e))).await;
+                    return;
+                }
+            };
+
+            loop {
+                let mut frame_decoded = Frame::new();
+                match h264_decoder.receive_frame(&mut frame_decoded) {
+                    Ok(_) => {}
+                    Err(ReceiveFrameError::Eagain) => break,
+                    Err(e) => {
+                        _ = frame_tx.send(Err(ReceiveFrame(e))).await;
+                        return;
+                    }
+                };
+                let pts = match u64::try_from(frame_decoded.pts()) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        _ = frame_tx.send(Err(TryFrom(e))).await;
+                        return;
+                    }
+                };
+
+                let discard = if let Some(limiter) = &mut frame_rate_limiter {
+                    match limiter.discard(pts) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            _ = frame_tx.send(Err(FrameRateLimiter(e))).await;
+                            return;
+                        }
+                    }
+                } else {
+                    false
+                };
+                if !discard {
+                    _ = frame_tx.send(Ok(frame_decoded)).await;
+                }
+            }
+        }
+    });
+
+    frame_rx
 }

@@ -1,6 +1,7 @@
 ## unreleased
 
 -   add log file read buffering
+-   add central stream decoder
 
 ## `v0.1.2`
 

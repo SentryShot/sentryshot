@@ -11,25 +11,18 @@ use crate::{config::MotionConfig, zone::Zone};
 use async_trait::async_trait;
 use common::{
     time::UnixNano, Cancelled, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, LogSource,
-    MonitorId, MsgLogger, Source,
+    MonitorId, MsgLogger,
 };
-use monitor::Monitor;
+use monitor::{DecoderError, Monitor, Source, SubscribeDecodedError};
 use plugin::{types::Assets, Application, Plugin, PreLoadPlugin};
-use recording::{FrameRateLimiter, FrameRateLimiterError};
+use recording::FrameRateLimiter;
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
-};
-use sentryshot_ffmpeg_h264::{
-    H264BuilderError, H264Decoder, H264DecoderBuilder, Packet, PaddedBytes, Ready,
-    ReceiveFrameError, SendPacketError,
 };
 use sentryshot_util::ImageCopyToBufferError;
 use std::{borrow::Cow, sync::Arc, time::Duration};
 use thiserror::Error;
-use tokio::{
-    runtime::Handle,
-    sync::{broadcast, mpsc},
-};
+use tokio::{runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use zone::Zones;
 
@@ -129,17 +122,14 @@ enum RunError {
     #[error("try_from: {0}")]
     TryFrom(#[from] std::num::TryFromIntError),
 
-    #[error("new h264 decoder: {0}")]
-    NewH264Decoder(#[from] H264BuilderError),
+    #[error("subscribe: {0}")]
+    Subscribe(#[from] SubscribeDecodedError),
 
-    #[error("dropped frames")]
-    DroppedFrames,
+    #[error("decoder: {0}")]
+    DecoderError(#[from] DecoderError),
 
-    #[error("{0}")]
-    SendFrame(#[from] SendPacketError),
-
-    #[error("process frame: {0}")]
-    ProcessFrame(#[from] DecodeFrameError),
+    #[error("convert frame: {0}")]
+    ConvertFrame(#[from] ConvertFrameError),
 }
 
 impl MotionPlugin {
@@ -195,14 +185,10 @@ impl MotionPlugin {
         config: &MotionConfig,
         source: &Arc<Source>,
     ) -> Result<(), RunError> {
-        use RunError::*;
-
         let muxer = source.muxer().await?;
         let params = muxer.params();
         let width = params.width;
         let height = params.height;
-        let extradata = params.extra_data.to_owned();
-        let h264_decoder = H264DecoderBuilder::new().avcc(PaddedBytes::new(extradata))?;
 
         let zones: Vec<Zone> = config
             .zones
@@ -215,104 +201,71 @@ impl MotionPlugin {
             })
             .collect();
 
+        let limiter = FrameRateLimiter::new(u64::try_from(*config.feed_rate.as_h264())?);
+
         let raw_frame_size = usize::from(width) * usize::from(height);
         let mut state = State {
-            h264_decoder,
-            frame_rate_limiter: FrameRateLimiter::new(u64::try_from(*config.feed_rate.as_h264())?),
             zones: Zones(zones),
             raw_frame: vec![0; raw_frame_size],
             prev_raw_frame: vec![0; raw_frame_size],
             raw_frame_diff: vec![0; raw_frame_size],
         };
 
-        let mut feed = source.subscribe().await?;
+        let mut feed = source
+            .subscribe_decoded(self.rt_handle.clone(), Some(limiter))
+            .await?;
         let mut first_frame = true;
         loop {
-            use broadcast::error::RecvError;
-            let frame = match feed.recv().await {
-                Ok(v) => v,
-                Err(RecvError::Closed) => {
-                    msg_logger.log(LogLevel::Debug, "feed closed");
-                    return Err(Cancelled(common::Cancelled));
-                }
-                Err(RecvError::Lagged(_)) => {
-                    return Err(DroppedFrames);
-                }
-            };
+            let frame = feed
+                .recv()
+                .await
+                .expect("channel should send error before closing")?;
 
-            // State juggling to avoid lifetime issue.
-            let avcc = frame.avcc.clone();
-            state = self
+            let detections: Vec<_>;
+            (detections, state) = self
                 .rt_handle
-                .spawn_blocking(move || {
-                    state
-                        .h264_decoder
-                        .send_packet(Packet::new(&avcc).with_pts(*frame.pts))
-                        .map(|_| (state))
+                .spawn_blocking(move || -> Result<_, RunError> {
+                    convert_frame(&mut state.raw_frame, frame)?;
+                    let detections = state.zones.analyze(
+                        &state.raw_frame,
+                        &state.prev_raw_frame,
+                        &mut state.raw_frame_diff,
+                    );
+                    Ok((detections, state))
                 })
                 .await
                 .unwrap()?;
 
-            loop {
-                let has_new_frame: bool;
-                (state, has_new_frame) = self
-                    .rt_handle
-                    .spawn_blocking(move || decode_frame(&mut state).map(|v| (state, v)))
-                    .await
-                    .unwrap()?;
-                if !has_new_frame {
-                    break;
-                }
+            std::mem::swap(&mut state.raw_frame, &mut state.prev_raw_frame);
 
-                let detections: Vec<_>;
-                (detections, state) = self
-                    .rt_handle
-                    .spawn_blocking(|| {
-                        (
-                            state.zones.analyze(
-                                &state.raw_frame,
-                                &state.prev_raw_frame,
-                                &mut state.raw_frame_diff,
-                            ),
-                            state,
-                        )
+            // First frame is compared to an empty frame and reports 99% motion.
+            if first_frame {
+                first_frame = false;
+                continue;
+            }
+
+            for (zone, score) in detections {
+                msg_logger.log(
+                    LogLevel::Debug,
+                    &format!("detection: zone:{} score:{:.2}", zone, score),
+                );
+
+                let time = UnixNano::now();
+                //t := time.Now().Add(-d.config.timestampOffset)
+                monitor
+                    .send_event(Event {
+                        time,
+                        duration: *config.feed_rate,
+                        rec_duration: *config.duration,
+                        detections: Vec::new(),
                     })
-                    .await
-                    .unwrap();
-
-                std::mem::swap(&mut state.raw_frame, &mut state.prev_raw_frame);
-
-                // First frame will be compared to an empty frame and report 99% motion.
-                if first_frame {
-                    first_frame = false;
-                    break;
-                }
-
-                for (zone, score) in detections {
-                    msg_logger.log(
-                        LogLevel::Debug,
-                        &format!("detection: zone:{} score:{:.2}", zone, score),
-                    );
-
-                    let time = UnixNano::now();
-                    //t := time.Now().Add(-d.config.timestampOffset)
-                    monitor
-                        .send_event(Event {
-                            time,
-                            duration: *config.feed_rate,
-                            rec_duration: *config.duration,
-                            detections: Vec::new(),
-                        })
-                        .await;
-                }
+                    .await;
             }
         }
     }
 }
 
 struct State {
-    h264_decoder: H264Decoder<Ready>,
-    frame_rate_limiter: FrameRateLimiter,
     zones: Zones,
     raw_frame: Vec<u8>,
     prev_raw_frame: Vec<u8>,
@@ -320,16 +273,7 @@ struct State {
 }
 
 #[derive(Debug, Error)]
-enum DecodeFrameError {
-    #[error("receive frame: {0}")]
-    ReceiveFrame(#[from] ReceiveFrameError),
-
-    #[error("try from: {0}")]
-    TryFrom(#[from] std::num::TryFromIntError),
-
-    #[error("frame rate limiter: {0}")]
-    FrameRateLimiter(#[from] FrameRateLimiterError),
-
+enum ConvertFrameError {
     #[error("new converter: {0}")]
     NewConverter(#[from] NewConverterError),
 
@@ -340,23 +284,7 @@ enum DecodeFrameError {
     CopyToBuffer(#[from] ImageCopyToBufferError),
 }
 
-fn decode_frame(s: &mut State) -> Result<bool, DecodeFrameError> {
-    let mut frame_buf = Frame::new();
-    match s.h264_decoder.receive_frame(&mut frame_buf) {
-        Ok(_) => {}
-        Err(ReceiveFrameError::Eagain) => {
-            return Ok(false);
-        }
-        Err(e) => Err(e)?,
-    };
-    if s.frame_rate_limiter
-        .discard(u64::try_from(frame_buf.pts())?)?
-    {
-        return Ok(false);
-    }
-
-    let mut gray_frame = Frame::new();
-
+fn convert_frame(raw_frame: &mut Vec<u8>, frame_buf: Frame) -> Result<(), ConvertFrameError> {
     let mut converter = PixelFormatConverter::new(
         frame_buf.width(),
         frame_buf.height(),
@@ -365,11 +293,12 @@ fn decode_frame(s: &mut State) -> Result<bool, DecodeFrameError> {
         PixelFormat::GRAY8,
     )?;
 
+    let mut gray_frame = Frame::new();
     converter.convert(&frame_buf, &mut gray_frame)?;
 
-    gray_frame.copy_to_buffer(&mut s.raw_frame, 1)?;
+    gray_frame.copy_to_buffer(raw_frame, 1)?;
 
-    Ok(true)
+    Ok(())
 }
 
 fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {

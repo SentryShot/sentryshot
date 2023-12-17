@@ -24,10 +24,7 @@ use std::{
 };
 use thiserror::Error;
 use time::{DurationH264, UnixH264};
-use tokio::{
-    io::AsyncRead,
-    sync::{broadcast, mpsc, oneshot},
-};
+use tokio::io::AsyncRead;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct EnvPlugin {
@@ -702,58 +699,6 @@ pub struct TrackParameters {
     pub height: u16,
     pub codec: String,
     pub extra_data: Vec<u8>,
-}
-
-// A 'broadcast' channel is used instead of a 'watch' channel to detect dropped frames.
-pub type Feed = broadcast::Receiver<H264Data>;
-
-pub struct Source {
-    stream_type: StreamType,
-    get_muxer_tx: mpsc::Sender<oneshot::Sender<DynHlsMuxer>>,
-    subscribe_tx: mpsc::Sender<oneshot::Sender<Feed>>,
-}
-
-impl Source {
-    pub fn new(
-        stream_type: StreamType,
-        get_muxer_tx: mpsc::Sender<oneshot::Sender<DynHlsMuxer>>,
-        subscribe_tx: mpsc::Sender<oneshot::Sender<Feed>>,
-    ) -> Self {
-        Self {
-            stream_type,
-            get_muxer_tx,
-            subscribe_tx,
-        }
-    }
-
-    pub fn stream_type(&self) -> &StreamType {
-        &self.stream_type
-    }
-
-    // Returns the HLS muxer for this source. Will block until the source has started.
-    pub async fn muxer(&self) -> Result<DynHlsMuxer, Cancelled> {
-        let (res_tx, res_rx) = oneshot::channel();
-        if self.get_muxer_tx.send(res_tx).await.is_err() {
-            return Err(Cancelled);
-        }
-        let Ok(muxer) = res_rx.await else {
-            return Err(Cancelled);
-        };
-        Ok(muxer)
-    }
-
-    // Subscribe to the raw feed. Will block until the source has started.
-    #[allow(unused)]
-    pub async fn subscribe(&self) -> Result<Feed, Cancelled> {
-        let (res_tx, res_rx) = oneshot::channel();
-        if self.subscribe_tx.send(res_tx).await.is_err() {
-            return Err(Cancelled);
-        }
-        let Ok(channel) = res_rx.await else {
-            return Err(Cancelled);
-        };
-        Ok(channel)
-    }
 }
 
 #[derive(Debug, Error)]
