@@ -17,8 +17,32 @@ const LevelWarning = "warning";
 const LevelInfo = "info";
 const LevelDebug = "debug";
 
+/**
+ * @typedef {Object} LogEntry
+ * @property {string} level
+ * @property {string} source
+ * @property {string} message
+ * @property {Number} time
+ */
+
+/**
+ * @typedef {Object} Logger
+ * @property {() => Promise<void>} init
+ * @property {() => void} reset
+ * @property {() => Promise<void>} lazyLoadSavedLogs
+ * @property {(level: string) => void} setLevel
+ * @property {(sources: string[]) => void} setSources
+ * @property {(monitors: string[]) => void} setMonitors
+ */
+
+/**
+ * @param {Formatter} formatLog
+ * @returns {Logger}
+ */
 function newLogger(formatLog) {
 	const $logList = document.querySelector("#log-list");
+
+	/** @type WebSocket */
 	let logStream;
 
 	const startLogFeed = () => {
@@ -55,8 +79,15 @@ function newLogger(formatLog) {
 	};
 
 	let lastLog = false;
+	/** @type {Number} */
 	let currentTime;
-	let levels, sources, monitors;
+	/** @type {string[]} */
+	let levels;
+	/** @type {string[]} */
+	let sources;
+	/** @type {string[]} */
+	let monitors;
+
 	const loadSavedLogs = async () => {
 		let query = new URLSearchParams(
 			removeEmptyValues({
@@ -67,6 +98,7 @@ function newLogger(formatLog) {
 				limit: 20,
 			})
 		);
+		/** @type {LogEntry[]} */
 		const logs = await fetchGet("api/log/query?" + query, "could not get logs");
 
 		if (logs.length === 0) {
@@ -84,13 +116,12 @@ function newLogger(formatLog) {
 		}
 	};
 
-	let loading;
+	let loading = false;
 	const lazyLoadSavedLogs = async () => {
 		while (
 			!loading &&
 			!lastLog &&
 			$logList.lastChild &&
-			// @ts-ignore
 			$logList.lastChild.getBoundingClientRect().top < window.screen.height * 3
 		) {
 			loading = true;
@@ -149,7 +180,21 @@ function newLogger(formatLog) {
 	};
 }
 
+/** @typedef {import("./libs/common.js").MonitorNameByID} MonitorNameByID */
+
+/**
+ * @callback Formatter
+ * @param {LogEntry} log
+ * @returns {string}
+ */
+
+/**
+ * @param {MonitorNameByID} monitorNameByID
+ * @param {string} timeZone
+ * @returns {Formatter}
+ */
 function newFormater(monitorNameByID, timeZone) {
+	/** @param {number} unixMillisecond */
 	const unixToDateStr = (unixMillisecond) => {
 		const { YY, MM, DD, hh, mm, ss } = fromUTC2(
 			new Date(unixMillisecond / 1000),
@@ -195,7 +240,17 @@ function newFormater(monitorNameByID, timeZone) {
 	};
 }
 
+/**
+ * @param {string} label
+ * @param {string[]} values
+ * @returns {Field}
+ */
 function newMultiSelect(label, values, initial) {
+	/**
+	 * @param {string} id
+	 * @param {string} name
+	 * @return {Field}
+	 */
 	const newField = (id, name) => {
 		let $checkbox;
 		return {
@@ -220,6 +275,7 @@ function newMultiSelect(label, values, initial) {
 		};
 	};
 
+	/** @type {Object<string, Field>} */
 	let fields = {};
 
 	values.sort();
@@ -275,6 +331,11 @@ function newMultiSelect(label, values, initial) {
 	};
 }
 
+/** @typedef {import("./components/form.js").Field} Field */
+
+/**
+ * @returns {Field}
+ */
 function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 	let monitorNames = [];
 	let monitorNameToID = {};
@@ -344,6 +405,9 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 	};
 }
 
+/**
+ * @param {Logger} logger
+ */
 function newLogSelector(logger, formFields) {
 	const form = newForm(formFields);
 

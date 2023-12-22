@@ -119,6 +119,12 @@ function uidReset() {
  */
 
 /**
+ * @callback MonitorNameByID
+ * @param {string} id
+ * @returns {string}
+ */
+
+/**
  * @typedef {Object.<string, Monitor>} Monitors
  */
 
@@ -126,7 +132,7 @@ function uidReset() {
  * Returns a function that converts monitor ID to name.
  *
  * @param {Monitors} monitors
- * @return {(id: string) => string}
+ * @return {MonitorNameByID}
  */
 function newMonitorNameByID(monitors) {
 	return (id) => {
