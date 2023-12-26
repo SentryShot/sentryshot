@@ -6,7 +6,7 @@
 		"cover": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
 		"format": "npx prettier -w './{,!(.cache|coverage)/**/!(vendor)/}*.{js,mjs,css}'",
 		"lint-js": "npx eslint './{,!(.cache|coverage)/**/!(vendor)/}*.{js,mjs}' --cache=true --cache-location=./node_modules/.cache/eslint",
-		"lint-js-fix": "npx eslint './{,!(.cache|coverage)/**/!(vendor)/}*.{js,mjs}' --fix --cache=true --cache-location=./node_modules/.cache/eslint",
+		"lint-js-fix": "npx eslint --fix './{,!(.cache|coverage)/**/!(vendor)/}*.{js,mjs}' --fix --cache=true --cache-location=./node_modules/.cache/eslint",
 		"lint-css": "npx stylelint './{,!(.cache|coverage)/**/!(vendor)/}*.css' --cache=true --cache-location=./node_modules/.cache/stylelint",
 		"lint-css-fix": "npx stylelint './{,!(.cache|coverage)/**/!(vendor)/}*.css' --fix --cache=true --cache-location=./node_modules/.cache/stylelint",
 		"ts": "npx tsc ./plugins/**/**/**.js ./web/**/**/**.js --lib es2021 --allowJs --checkJs --noEmit --downlevelIteration"

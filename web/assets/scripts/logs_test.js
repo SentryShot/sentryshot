@@ -190,10 +190,9 @@ describe("logSelector", () => {
 	test("rendering", () => {
 		uidReset();
 		const logger = {
-			setLevel() {},
-			setSources() {},
-			setMonitors() {},
-			reset() {},
+			async init() {},
+			async lazyLoadSavedLogs() {},
+			async set() {},
 		};
 		const fields = {
 			level: {
@@ -210,6 +209,7 @@ describe("logSelector", () => {
 			},
 		};
 
+		// @ts-ignore
 		const logSelector = newLogSelector(logger, fields);
 
 		document.body.innerHTML = `
@@ -245,11 +245,10 @@ describe("logSelector", () => {
 	});
 
 	describe("logic", () => {
-		let loggerReset,
-			levelValue,
+		let levelValue,
 			sourcesValue,
 			monitorValue,
-			loggerLevel,
+			loggerLevels,
 			loggerSources,
 			loggerMonitors,
 			logSelector,
@@ -261,7 +260,7 @@ describe("logSelector", () => {
 					return levelValue;
 				},
 				set() {
-					levelValue = "1";
+					levelValue = "info";
 				},
 			},
 			sources: {
@@ -282,23 +281,19 @@ describe("logSelector", () => {
 			},
 		};
 		const logger = {
-			setLevel(input) {
-				loggerLevel = input;
-			},
-			setSources(input) {
-				loggerSources = input;
-			},
-			setMonitors(input) {
-				loggerMonitors = input;
-			},
-			reset() {
-				loggerReset = true;
+			async init() {},
+			async lazyLoadSavedLogs() {},
+			async set(levels, sources, monitors) {
+				loggerLevels = levels;
+				loggerSources = sources;
+				loggerMonitors = monitors;
 			},
 		};
 
 		beforeEach(() => {
 			uidReset();
 
+			// @ts-ignore
 			logSelector = newLogSelector(logger, fields);
 			document.body.innerHTML = `
 				<div>
@@ -310,40 +305,26 @@ describe("logSelector", () => {
 			logSelector.init(element);
 		});
 		test("initial", () => {
-			expect(levelValue).toBe("1");
+			expect(levelValue).toBe("info");
 			expect(sourcesValue).toBe("2");
 			expect(monitorValue).toBe("3");
-			expect(loggerLevel).toBe("1");
+			expect(loggerLevels).toEqual(["error", "warning", "info"]);
 			expect(loggerSources).toBe("2");
 			expect(loggerMonitors).toEqual(["3"]);
-			expect(loggerReset).toBe(true);
-		});
-		test("reset", () => {
-			levelValue = "x";
-			sourcesValue = "x";
-			loggerReset = false;
-
-			element.querySelector(".js-reset").click();
-			expect(loggerLevel).toBe("1");
-			expect(loggerSources).toBe("2");
-			expect(loggerMonitors).toEqual(["3"]);
-			expect(loggerReset).toBe(true);
 		});
 		test("apply", () => {
-			levelValue = "a";
+			levelValue = "warning";
 			sourcesValue = "b";
 			monitorValue = "c";
-			loggerReset = false;
 
 			const $list = element.querySelector(".js-list");
 			expect($list.classList.contains("log-list-open")).toBe(false);
 
 			element.querySelector(".js-apply").click();
 			expect($list.classList.contains("log-list-open")).toBe(true);
-			expect(loggerLevel).toBe("a");
+			expect(loggerLevels).toEqual(["error", "warning"]);
 			expect(loggerSources).toBe("b");
 			expect(loggerMonitors).toEqual(["c"]);
-			expect(loggerReset).toBe(true);
 
 			element.querySelector(".js-back").click();
 			expect($list.classList.contains("log-list-open")).toBe(false);

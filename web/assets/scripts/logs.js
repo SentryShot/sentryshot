@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-check
+
 import {
-	fetchGet,
 	uniqueID,
 	sortByName,
 	newMonitorNameByID,
@@ -21,6 +22,7 @@ const LevelDebug = "debug";
  * @typedef {Object} LogEntry
  * @property {string} level
  * @property {string} source
+ * @property {string} monitorID
  * @property {string} message
  * @property {Number} time
  */
@@ -28,11 +30,8 @@ const LevelDebug = "debug";
 /**
  * @typedef {Object} Logger
  * @property {() => Promise<void>} init
- * @property {() => void} reset
  * @property {() => Promise<void>} lazyLoadSavedLogs
- * @property {(level: string) => void} setLevel
- * @property {(sources: string[]) => void} setSources
- * @property {(monitors: string[]) => void} setMonitors
+ * @property {(levels: string[], sources: string[], monitors: string[]) => Promise<void>} set
  */
 
 /**
@@ -54,16 +53,17 @@ function newLogger(formatLog) {
 			})
 		);
 
+		const proto = window.location.protocol === "http:" ? "ws:" : "wss:";
 		// Use relative path.
 		const path = window.location.pathname.replace("logs", "api/log/feed");
-		logStream = new WebSocket("wss://" + window.location.host + path + "?" + query);
+		logStream = new WebSocket(`${proto}//${window.location.host}${path}?` + query);
 
 		logStream.addEventListener("open", () => {
 			console.log("connected...");
 		});
 
 		logStream.addEventListener("error", (error) => {
-			console.log(error);
+			console.error(error);
 		});
 
 		logStream.addEventListener("message", ({ data }) => {
@@ -88,7 +88,28 @@ function newLogger(formatLog) {
 	/** @type {string[]} */
 	let monitors;
 
+	/** @type {AbortController | undefined} */
+	let fetchInProgress;
+	/** @type {Promise<void> | undefined} */
+	let loadInProgress;
+	let stopped = false;
+
 	const loadSavedLogs = async () => {
+		if (fetchInProgress) {
+			return;
+		}
+
+		fetchInProgress = new AbortController();
+
+		loadInProgress = fetchLogs(fetchInProgress.signal);
+		await loadInProgress;
+
+		loadInProgress = undefined;
+		fetchInProgress = undefined;
+	};
+
+	/** @param {AbortSignal} abortSignal */
+	const fetchLogs = async (abortSignal) => {
 		let query = new URLSearchParams(
 			removeEmptyValues({
 				levels: levels,
@@ -98,84 +119,93 @@ function newLogger(formatLog) {
 				limit: 20,
 			})
 		);
-		/** @type {LogEntry[]} */
-		const logs = await fetchGet("api/log/query?" + query, "could not get logs");
 
-		if (logs.length === 0) {
-			lastLog = true;
-			console.log("last log.");
-			return;
-		}
+		// Use relative path.
+		const path = window.location.pathname.replace("logs", "api/log/query");
+		const url = `${path}?` + query;
 
-		for (const log of logs) {
-			currentTime = log.time;
+		try {
+			const response = await fetch(url, {
+				method: "get",
+				signal: abortSignal,
+			});
 
-			const line = document.createElement("span");
-			line.textContent = formatLog(log);
-			$logList.append(line);
+			if (response.status !== 200) {
+				alert(`could not get logs: ${response.status}, ${await response.text()}`);
+				return;
+			}
+			const logs = await response.json();
+
+			if (logs.length === 0) {
+				lastLog = true;
+				console.log("last log.");
+				return;
+			}
+
+			for (const log of logs) {
+				currentTime = log.time;
+
+				const line = document.createElement("span");
+				line.textContent = formatLog(log);
+				$logList.append(line);
+			}
+		} catch (error) {
+			if (error instanceof DOMException && error.name === "AbortError") {
+				return;
+			}
+			console.error(error);
 		}
 	};
 
-	let loading = false;
 	const lazyLoadSavedLogs = async () => {
 		while (
-			!loading &&
+			!stopped &&
+			!fetchInProgress &&
 			!lastLog &&
 			$logList.lastChild &&
+			// @ts-ignore
 			$logList.lastChild.getBoundingClientRect().top < window.screen.height * 3
 		) {
-			loading = true;
 			await loadSavedLogs();
-			loading = false;
 		}
 	};
 
-	const init = async () => {
+	const reset = async () => {
+		stopped = true;
+
+		if (fetchInProgress !== undefined) {
+			fetchInProgress.abort();
+		}
+		if (loadInProgress !== undefined) {
+			await loadInProgress;
+		}
+		if (logStream) {
+			logStream.close();
+		}
+
+		lastLog = false;
+		currentTime = undefined;
+		$logList.innerHTML = "";
+
+		stopped = false;
+
 		startLogFeed();
 		await loadSavedLogs();
 		lazyLoadSavedLogs();
 	};
 
 	return {
-		init: init,
-		reset() {
-			if (logStream) {
-				logStream.close();
-			}
-			lastLog = false;
-			currentTime = undefined;
-			$logList.innerHTML = "";
-			init();
+		async init() {
+			startLogFeed();
+			await loadSavedLogs();
+			lazyLoadSavedLogs();
 		},
 		lazyLoadSavedLogs: lazyLoadSavedLogs,
-		setLevel(input) {
-			switch (input) {
-				case "error": {
-					levels = [LevelError];
-					break;
-				}
-				case "warning": {
-					levels = [LevelError, LevelWarning];
-					break;
-				}
-				case "info": {
-					levels = [LevelError, LevelWarning, LevelInfo];
-					break;
-				}
-				case "debug": {
-					levels = [LevelError, LevelWarning, LevelInfo, LevelDebug];
-					break;
-				}
-				default: {
-					console.log("invalid level:" + input);
-				}
-			}
-		},
-		setSources(input) {
-			sources = input;
-		},
-		setMonitors(input) {
-			monitors = input;
+		async set(l, s, m) {
+			levels = l;
+			sources = s;
+			monitors = m;
+			await reset();
 		},
 	};
 }
@@ -243,6 +273,7 @@ function newFormater(monitorNameByID, timeZone) {
 /**
  * @param {string} label
  * @param {string[]} values
+ * @param {string[]} initial
  * @returns {Field}
  */
 function newMultiSelect(label, values, initial) {
@@ -375,6 +406,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 			const element = $parent.querySelector(`#${elementID}`);
 			$input = element.querySelector(`#${inputID}`);
 
+			/** @param {string} selected */
 			const onSelect = (selected) => {
 				$input.value = selected;
 			};
@@ -385,6 +417,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 				modal.open();
 			});
 			$input.addEventListener("change", (event) => {
+				// @ts-ignore
 				modal.set(event.target.value);
 			});
 		},
@@ -405,18 +438,44 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 	};
 }
 
+/** @typedef {import("./components/form.js").Fields} Fields */
+
 /**
  * @param {Logger} logger
+ * @param {Fields} formFields
  */
 function newLogSelector(logger, formFields) {
 	const form = newForm(formFields);
 
 	let $sidebar;
-	const apply = () => {
-		logger.setLevel(form.fields["level"].value());
-		logger.setSources(form.fields["sources"].value());
-		logger.setMonitors([form.fields["monitor"].value()]);
-		logger.reset();
+	const apply = async () => {
+		const level = form.fields["level"].value();
+		let levels;
+		switch (level) {
+			case "error": {
+				levels = [LevelError];
+				break;
+			}
+			case "warning": {
+				levels = [LevelError, LevelWarning];
+				break;
+			}
+			case "info": {
+				levels = [LevelError, LevelWarning, LevelInfo];
+				break;
+			}
+			case "debug": {
+				levels = [LevelError, LevelWarning, LevelInfo, LevelDebug];
+				break;
+			}
+			default: {
+				console.error("invalid level:" + level);
+			}
+		}
+
+		const sources = form.fields["sources"].value();
+		const monitors = [form.fields["monitor"].value()];
+		await logger.set(levels, sources, monitors);
 	};
 
 	const html = `
@@ -431,6 +490,7 @@ function newLogSelector(logger, formFields) {
 		</div>`;
 
 	return {
+		/** @param {Element} $parent */
 		init($parent) {
 			$sidebar = $parent.querySelector(".js-sidebar");
 			const $list = $parent.querySelector(".js-list");

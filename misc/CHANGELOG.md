@@ -1,5 +1,6 @@
 ## unreleased
 
+-   fix logs page race condition
 -   add log file read buffering
 -   add central stream decoder
 
