@@ -681,9 +681,10 @@ impl MsgLogger for TfliteLogger {
 
 async fn fetch(url: &Url) -> Result<Vec<u8>, FetchError> {
     use FetchError::*;
+
     let uri = url.as_str().parse()?;
     let https = HttpsConnectorBuilder::new()
-        .with_native_roots()
+        .with_webpki_roots()
         .https_or_http()
         .enable_http1()
         .build();

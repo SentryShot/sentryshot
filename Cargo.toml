@@ -58,7 +58,7 @@ http = "0.2.9"
 httpdate = "1.0.2"
 http-body = "0.4.5"
 hyper = "0.14.23"
-hyper-rustls = { version ="0.24.1", default-features = false, features = ["native-tokio", "http1"] }
+hyper-rustls = { version ="0.24.1", default-features = false, features = ["tokio-runtime", "webpki-roots",  "http1"] }
 jpeg-encoder = "0.5.1"
 libloading = "0.7.4"
 mime_guess = { version = "2.0.4", default-features = false }

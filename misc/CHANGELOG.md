@@ -1,5 +1,6 @@
 ## unreleased
 
+-   use webpki root certificates instead of native
 -   fix logs page race condition
 -   add log file read buffering
 -   add central stream decoder
