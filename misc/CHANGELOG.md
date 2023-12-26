@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.1.3`
+
 -   use webpki root certificates instead of native
 -   fix logs page race condition
 -   add log file read buffering
