@@ -1,5 +1,7 @@
 ## unreleased
 
+-   BREAKING: empty and missing CSV queries now have the same behavior
+
 ## `v0.1.3`
 
 -   use webpki root certificates instead of native

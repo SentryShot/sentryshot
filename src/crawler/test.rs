@@ -77,7 +77,7 @@ async fn test_recording_by_query(input: &str, want: &str) {
         recording_id: input.parse().unwrap(),
         limit: 1,
         reverse: false,
-        monitors: None,
+        monitors: Vec::new(),
         include_data: false,
     };
     let recordings = match Crawler::new(Box::new(crawler_test_fs()))
@@ -111,7 +111,7 @@ async fn test_recording_by_query_reverse(input: &str, want: &str) {
         recording_id: input.parse().unwrap(),
         limit: 1,
         reverse: true,
-        monitors: None,
+        monitors: Vec::new(),
         include_data: false,
     };
     let recordings = match Crawler::new(Box::new(crawler_test_fs()))
@@ -137,7 +137,7 @@ async fn test_recording_by_query_multiple() {
             recording_id: "9999-01-01_01-01-01_".parse().unwrap(),
             limit: 5,
             reverse: false,
-            monitors: None,
+            monitors: Vec::new(),
             include_data: false,
         })
         .await
@@ -166,7 +166,7 @@ async fn test_recording_by_query_monitors() {
             recording_id: "2003-02-01_01-01-11_m1".parse().unwrap(),
             limit: 1,
             reverse: false,
-            monitors: Some(vec!["m1".to_owned()]),
+            monitors: vec!["m1".to_owned()],
             include_data: false,
         })
         .await
@@ -202,7 +202,7 @@ async fn test_recording_by_query_data() {
             recording_id: "9999-01-01_01-01-01_m1".parse().unwrap(),
             limit: 1,
             reverse: false,
-            monitors: None,
+            monitors: Vec::new(),
             include_data: true,
         })
         .await
@@ -222,7 +222,7 @@ async fn test_recording_by_query_missing_data() {
             recording_id: "2002-01-01_01-01-01_m1".parse().unwrap(),
             limit: 1,
             reverse: true,
-            monitors: None,
+            monitors: Vec::new(),
             include_data: true,
         })
         .await

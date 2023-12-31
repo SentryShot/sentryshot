@@ -223,10 +223,7 @@ impl LogDb {
 
             let (entry, _) = decoder.decode(i).await?;
 
-            if !level_in_levels(&entry.level, &q.levels)
-                || !source_in_souces(&entry.source, &q.sources)
-                || !monitor_id_in_monitor_ids(&entry.monitor_id, &q.monitors)
-            {
+            if !q.entry_matches_filter(&entry) {
                 continue;
             }
 
@@ -383,19 +380,45 @@ enum PurgeError {
 pub struct LogQuery {
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_csv_option")]
-    pub levels: Option<Vec<LogLevel>>,
+    pub levels: Vec<LogLevel>,
 
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_csv_option")]
-    pub sources: Option<Vec<LogSource>>,
+    pub sources: Vec<LogSource>,
 
     pub time: Option<UnixMicro>,
 
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_csv_option")]
-    pub monitors: Option<Vec<MonitorId>>,
+    pub monitors: Vec<MonitorId>,
 
     pub limit: Option<NonZeroUsize>,
+}
+
+impl LogQuery {
+    pub fn entry_matches_filter(&self, entry: &LogEntryWithTime) -> bool {
+        level_in_levels(&entry.level, &self.levels)
+            && source_in_souces(&entry.source, &self.sources)
+            && monitor_id_in_monitor_ids(&entry.monitor_id, &self.monitors)
+    }
+}
+
+// Returns true if level is in levels or if levels is empty.
+fn level_in_levels(level: &LogLevel, levels: &[LogLevel]) -> bool {
+    levels.is_empty() || levels.contains(level)
+}
+
+// Returns true if source is in sources or if sources is empty.
+fn source_in_souces(source: &LogSource, sources: &[LogSource]) -> bool {
+    sources.is_empty() || sources.contains(source)
+}
+
+// Returns true if monitor_id is in monitors or if monitor_ids is empty.
+fn monitor_id_in_monitor_ids(monitor_id: &Option<MonitorId>, monitors_ids: &[MonitorId]) -> bool {
+    let Some(monitor_id) = monitor_id else {
+        return true;
+    };
+    monitors_ids.is_empty() || monitors_ids.contains(monitor_id)
 }
 
 #[derive(Debug, Error)]
@@ -927,51 +950,6 @@ async fn get_file_size(path: &Path) -> u64 {
     metadata.len()
 }
 
-// Returns true if level is in levels or if levels is empty.
-fn level_in_levels(level: &LogLevel, levels: &Option<Vec<LogLevel>>) -> bool {
-    let Some(levels) = levels else {
-        return true;
-    };
-    for l in levels {
-        if l == level {
-            return true;
-        }
-    }
-    false
-}
-
-// Returns true if source is in sources or if sources is empty.
-fn source_in_souces(source: &LogSource, sources: &Option<Vec<LogSource>>) -> bool {
-    let Some(sources) = sources else {
-        return true;
-    };
-    for src in sources {
-        if src == source {
-            return true;
-        }
-    }
-    false
-}
-
-// Returns true if monitor_id is in monitors or if monitor_ids is empty.
-fn monitor_id_in_monitor_ids(
-    monitor_id: &Option<MonitorId>,
-    monitors_ids: &Option<Vec<MonitorId>>,
-) -> bool {
-    let Some(monitor_id) = monitor_id else {
-        return true;
-    };
-    let Some(monitors) = monitors_ids else {
-        return true;
-    };
-    for id in monitors {
-        if id == monitor_id {
-            return true;
-        }
-    }
-    false
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1027,8 +1005,8 @@ mod tests {
 
     #[test_case(
         LogQuery{
-            levels: Some(vec![LogLevel::Warning]),
-            sources: Some(vec!["s1".parse().unwrap()]),
+            levels: vec![LogLevel::Warning],
+            sources: vec!["s1".parse().unwrap()],
             ..Default::default()
         },
         &[msg2()];
@@ -1036,8 +1014,8 @@ mod tests {
     )]
     #[test_case(
         LogQuery{
-            levels: Some(vec![LogLevel::Error, LogLevel::Warning]),
-            sources: Some(vec!["s1".parse().unwrap()]),
+            levels: vec![LogLevel::Error, LogLevel::Warning],
+            sources: vec!["s1".parse().unwrap()],
             ..Default::default()
         },
         &[msg1(), msg2()];
@@ -1045,8 +1023,8 @@ mod tests {
     )]
     #[test_case(
         LogQuery{
-            levels:  Some(vec![LogLevel::Error, LogLevel::Info]),
-            sources: Some(vec!["s1".parse().unwrap()]),
+            levels:  vec![LogLevel::Error, LogLevel::Info],
+            sources: vec!["s1".parse().unwrap()],
             ..Default::default()
         },
         &[msg1()];
@@ -1054,8 +1032,8 @@ mod tests {
     )]
     #[test_case(
         LogQuery{
-            levels: Some(vec![LogLevel::Error, LogLevel::Info]),
-            sources: Some(vec!["s1".parse().unwrap(), "s2".parse().unwrap()]),
+            levels: vec![LogLevel::Error, LogLevel::Info],
+            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
             ..Default::default()
         },
         &[msg1(), msg3()];
@@ -1063,9 +1041,9 @@ mod tests {
     )]
     #[test_case(
         LogQuery{
-            levels: Some(vec![LogLevel::Error, LogLevel::Info]),
-            sources: Some(vec!["s1".parse().unwrap(), "s2".parse().unwrap()]),
-            monitors: Some(vec!["m1".parse().unwrap()]),
+            levels: vec![LogLevel::Error, LogLevel::Info],
+            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
+            monitors: vec!["m1".parse().unwrap()],
             ..Default::default()
         },
         &[msg1()];
@@ -1073,9 +1051,9 @@ mod tests {
     )]
     #[test_case(
         LogQuery{
-            levels: Some(vec![LogLevel::Error, LogLevel::Info]),
-            sources: Some(vec!["s1".parse().unwrap(), "s2".parse().unwrap()]),
-            monitors: Some(vec!["m1".parse().unwrap(), "m2".parse().unwrap()]),
+            levels: vec![LogLevel::Error, LogLevel::Info],
+            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
+            monitors: vec!["m1".parse().unwrap(), "m2".parse().unwrap()],
             ..Default::default()
         },
         &[msg1(), msg3()];
@@ -1083,8 +1061,8 @@ mod tests {
     )]
     #[test_case(
         LogQuery{
-            levels: Some(vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug]),
-            sources: Some(vec!["s1".parse().unwrap(), "s2".parse().unwrap()]),
+            levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
+            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
             ..Default::default()
         },
         &[msg1(), msg2(), msg3()];
@@ -1097,8 +1075,8 @@ mod tests {
     )]
     #[test_case(
         LogQuery{
-            levels: Some(vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug]),
-            sources: Some(vec!["s1".parse().unwrap(), "s2".parse().unwrap()]),
+            levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
+            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
             limit: Some(NonZeroUsize::new(2).unwrap()),
             ..Default::default()
         },
@@ -1107,7 +1085,7 @@ mod tests {
     )]
     #[test_case(
         LogQuery{
-            levels: Some(vec![LogLevel::Info]),
+            levels: vec![LogLevel::Info],
             limit: Some(NonZeroUsize::new(1).unwrap()),
             ..Default::default()
         },
@@ -1116,8 +1094,8 @@ mod tests {
     )]
     #[test_case(
         LogQuery{
-            levels: Some(vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug]),
-            sources: Some(vec!["s1".parse().unwrap(), "s2".parse().unwrap()]),
+            levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
+            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
             time: Some(UnixMicro::from(4000)),
             ..Default::default()
         },
@@ -1126,8 +1104,8 @@ mod tests {
     )]
     #[test_case(
         LogQuery{
-            levels: Some(vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug]),
-            sources: Some(vec!["s1".parse().unwrap(), "s2".parse().unwrap()]),
+            levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
+            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
             time: Some(UnixMicro::from(3500)),
             ..Default::default()
         },

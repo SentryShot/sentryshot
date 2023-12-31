@@ -55,11 +55,11 @@ pub fn logdb_query(c: &mut Criterion) {
         });
     });
     group.sample_size(10);
-    group.bench_with_input(BenchmarkId::new("query_all", ""), &h, |b, h| {
+    group.bench_with_input(BenchmarkId::new("scan_all", ""), &h, |b, h| {
         b.to_async(&rt).iter(|| async {
             let entries =
                 h.db.query(LogQuery {
-                    monitors: Some(Vec::new()),
+                    monitors: vec!["x".parse().unwrap()],
                     limit: Some(NonZeroUsize::new(1).unwrap()),
                     ..Default::default()
                 })

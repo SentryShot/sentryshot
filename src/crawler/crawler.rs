@@ -53,7 +53,7 @@ pub struct CrawlerQuery {
 
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_csv_option")]
-    monitors: Option<Vec<String>>,
+    monitors: Vec<String>,
 
     // If event data should be read from file and included.
     #[serde(rename = "include-data")]
@@ -273,7 +273,10 @@ impl Dir {
 
         let mut all_files = Vec::new();
         for entry in monitor_dirs {
-            if !monitor_selected(&query.monitors, entry.name().to_str().unwrap()) {
+            let Some(name) = entry.name().to_str() else {
+                continue
+            };
+            if !monitor_selected(&query.monitors, name) {
                 continue;
             }
 
@@ -402,10 +405,7 @@ impl Dir {
     }
 }
 
-fn monitor_selected(monitors: &Option<Vec<String>>, monitor: &str) -> bool {
-    let Some(monitors) = monitors else {
-        return true;
-    };
+fn monitor_selected(monitors: &[String], monitor: &str) -> bool {
     if monitors.is_empty() {
         return true;
     }

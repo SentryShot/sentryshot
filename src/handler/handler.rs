@@ -302,28 +302,8 @@ pub async fn log_feed_handler(
                 Err(RecvError::Lagged(_)) => continue,
             };
 
-            // Filter level.
-            if let Some(levels) = &q.levels {
-                if !levels.contains(&entry.level) {
-                    continue;
-                }
-            }
-
-            // Filter source.
-            if let Some(sources) = &q.sources {
-                if !sources.contains(&entry.source) {
-                    continue;
-                }
-            }
-
-            // Filter monitor id.
-            if let Some(monitors) = &q.monitors {
-                let Some(monitor_id) = &entry.monitor_id else {
-                    continue
-                };
-                if !monitors.contains(monitor_id) {
-                    continue;
-                }
+            if !q.entry_matches_filter(&entry) {
+                continue;
             }
 
             // Validate auth before each message.
