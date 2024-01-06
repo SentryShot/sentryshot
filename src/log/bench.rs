@@ -1,5 +1,5 @@
 use bytesize::ByteSize;
-use common::{LogLevel, LogSource};
+use common::{LogLevel, LogSource, MonitorId};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use log::{
     log_db::{LogDb, LogDbHandle, LogQuery},
@@ -118,9 +118,18 @@ impl Helper {
             "tflite".parse().unwrap(),
         ];
 
+        let monitor_ids: &[MonitorId] = &[
+            "wrd7d".parse().unwrap(),
+            "bhybr".parse().unwrap(),
+            "qtxcr".parse().unwrap(),
+            "9xw67".parse().unwrap(),
+            "5pqs5".parse().unwrap(),
+            "5smuc".parse().unwrap(),
+            "7p6tu".parse().unwrap(),
+            "fvjqm".parse().unwrap(),
+        ];
+
         self.count += 1;
-        let monitor_id_len = self.rng.gen_range(6..=8);
-        let monitor_id = Alphanumeric.sample_string(&mut self.rng, monitor_id_len);
 
         // 10% of messages are identical.
         let message = if self.count % 100 <= 10 {
@@ -135,7 +144,7 @@ impl Helper {
         LogEntryWithTime {
             level: levels[self.rng.gen_range(0..levels.len())],
             source: sources[self.rng.gen_range(0..sources.len())].clone(),
-            monitor_id: Some(monitor_id.parse().unwrap()),
+            monitor_id: Some(monitor_ids[self.rng.gen_range(0..monitor_ids.len())].clone()),
             message: message.parse().unwrap(),
             time: UnixMicro::from(self.count),
         }
