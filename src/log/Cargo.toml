@@ -26,6 +26,7 @@ tokio-util.workspace = true
 [dev-dependencies]
 criterion.workspace = true
 pretty_assertions.workspace = true
+pretty-hex.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 tempfile.workspace = true

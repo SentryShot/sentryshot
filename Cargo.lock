@@ -1201,6 +1201,7 @@ dependencies = [
  "csv",
  "futures",
  "pin-project",
+ "pretty-hex",
  "pretty_assertions",
  "rand",
  "rand_chacha",

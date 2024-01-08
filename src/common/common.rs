@@ -126,7 +126,7 @@ pub enum LogLevel {
 }
 
 impl LogLevel {
-    pub fn as_u8(&self) -> u8 {
+    pub fn to_u8(&self) -> u8 {
         match self {
             LogLevel::Error => 16,
             LogLevel::Warning => 24,
@@ -188,6 +188,12 @@ pub const MONITOR_ID_MAX_LENGTH: usize = 24;
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MonitorId(String);
 
+impl MonitorId {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 impl fmt::Display for MonitorId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -245,6 +251,10 @@ impl LogSource {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }
 

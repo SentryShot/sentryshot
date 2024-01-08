@@ -3,23 +3,24 @@ use crate::rev_buf_reader::RevBufReader;
 use bytesize::ByteSize;
 use common::{
     DynLogger, LogEntry, LogLevel, LogSource, MonitorId, ParseLogLevelError, ParseLogSourceError,
-    ParseMonitorIdError, ParseNonEmptyStringError, LOG_SOURCE_MAX_LENGTH, MONITOR_ID_MAX_LENGTH,
+    ParseMonitorIdError, ParseNonEmptyStringError,
 };
 use csv::deserialize_csv_option;
 use futures::TryFutureExt;
 use serde::Deserialize;
 use std::{
     cmp::Ordering,
-    io::SeekFrom,
+    io::{ErrorKind::UnexpectedEof, SeekFrom},
     num::NonZeroUsize,
     path::{Path, PathBuf},
+    string::FromUtf8Error,
     sync::Arc,
     time::Duration,
 };
 use thiserror::Error;
 use tokio::{
     fs::File,
-    io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BufReader},
     sync::{mpsc, Mutex},
 };
 use tokio_util::sync::CancellationToken;
@@ -27,6 +28,7 @@ use tokio_util::sync::CancellationToken;
 // chunk {
 //     file.data
 //     file.msg
+//     file.tag
 // }
 //
 // file.data {
@@ -34,24 +36,29 @@ use tokio_util::sync::CancellationToken;
 //     [data]
 // }
 //
-// data {
+// data { before: 47 after: 19
 //     time u64
-//     src [srcMaxLength; u8]
-//     monitorID [idMaxLength; u8]
+//     src tag_index_u16
+//     monitorID tag_index_u16
 //     msgOffset u32
 //     msgSize u16
 //     level u8
 // }
+//
+// file.tag {
+//     version u8
+//     [(tag_size_u8, tag); 256]
+// }
 
-// 16666 minutes or 27.7 hours.
-const CHUNK_DURATION: u64 = 1_000_000 * SECOND;
-const SECOND: u64 = 100_000;
+// 1666 minutes or 27.7 hours.
+const CHUNK_DURATION: u64 = 100_000 * SECOND;
+const SECOND: u64 = 1_000_000;
 
-const CHUNK_API_VERSION: u8 = 0;
+const CHUNK_API_VERSION: u8 = 1;
 const CHUNK_ID_LENGTH: usize = 5;
 const CHUNK_HEADER_LENGTH: u64 = 1;
 
-const DATA_SIZE: usize = 47;
+const DATA_SIZE: usize = 19;
 
 pub struct LogDbHandle(Mutex<LogDb>);
 
@@ -131,7 +138,7 @@ pub struct LogDb {
 #[derive(Debug, Error)]
 pub enum NewLogDbError {
     #[error("make log directory: {0} {1}")]
-    MakeLogDir(String, std::io::Error),
+    MakeLogDir(PathBuf, std::io::Error),
 }
 
 impl LogDb {
@@ -142,8 +149,10 @@ impl LogDb {
         disk_space: ByteSize,
         min_disk_usage: ByteSize,
     ) -> Result<LogDbHandle, NewLogDbError> {
+        let log_dir = log_dir.join(format!("v{}", CHUNK_API_VERSION));
+
         std::fs::create_dir_all(&log_dir)
-            .map_err(|e| NewLogDbError::MakeLogDir(log_dir.to_string_lossy().to_string(), e))?;
+            .map_err(|e| NewLogDbError::MakeLogDir(log_dir.to_owned(), e))?;
 
         Ok(LogDbHandle(Mutex::new(Self {
             log_dir,
@@ -306,14 +315,17 @@ impl LogDb {
             return Ok(());
         };
 
-        let (data_path, msg_path) = chunk_id_to_paths(&self.log_dir, chunk_to_remove);
+        let (data_path, msg_path, tag_path) = chunk_id_to_paths(&self.log_dir, chunk_to_remove);
 
         tokio::fs::remove_file(&data_path)
             .await
-            .map_err(|e| RemoveDataFile(data_path.to_string_lossy().to_string(), e))?;
+            .map_err(|e| RemoveDataFile(data_path, e))?;
         tokio::fs::remove_file(&msg_path)
             .await
-            .map_err(|e| RemoveMsgFile(msg_path.to_string_lossy().to_string(), e))?;
+            .map_err(|e| RemoveMsgFile(msg_path, e))?;
+        tokio::fs::remove_file(&tag_path)
+            .await
+            .map_err(|e| RemoveTagFile(tag_path, e))?;
 
         Ok(())
     }
@@ -370,10 +382,13 @@ enum PurgeError {
     ListChunks(std::io::Error),
 
     #[error("remove data file: {0} {1}")]
-    RemoveDataFile(String, std::io::Error),
+    RemoveDataFile(PathBuf, std::io::Error),
 
     #[error("remove msg file: {0} {1}")]
-    RemoveMsgFile(String, std::io::Error),
+    RemoveMsgFile(PathBuf, std::io::Error),
+
+    #[error("remove tag file: {0} {1}")]
+    RemoveTagFile(PathBuf, std::io::Error),
 }
 
 #[derive(Default, Deserialize)]
@@ -452,16 +467,18 @@ async fn dir_size(path: PathBuf) -> Result<ByteSize, DirSizeError> {
     .unwrap()
 }
 
-fn chunk_id_to_paths(log_dir: &Path, chunk_id: &str) -> (PathBuf, PathBuf) {
+fn chunk_id_to_paths(log_dir: &Path, chunk_id: &str) -> (PathBuf, PathBuf, PathBuf) {
     let data_path = log_dir.join(chunk_id.to_owned() + ".data");
     let msg_path = log_dir.join(chunk_id.to_owned() + ".msg");
-    (data_path, msg_path)
+    let tag_path = log_dir.join(chunk_id.to_owned() + ".tag");
+    (data_path, msg_path, tag_path)
 }
 
 struct ChunkDecoder {
     n_entries: usize,
     data_file: RevBufReader<File>,
     msg_file: RevBufReader<File>,
+    tag_cache: TagCache<File>,
 }
 
 #[derive(Debug, Error)]
@@ -472,17 +489,23 @@ enum NewChunkDecoderError {
     #[error("open data file: {0}")]
     OpenDataFile(std::io::Error),
 
+    #[error("open tag file: {0}")]
+    OpenTagFile(std::io::Error),
+
     #[error("read version: {0}")]
     ReadVersion(std::io::Error),
 
-    #[error("unknown chunk api version")]
-    UnknownChunkVersion,
+    #[error("unexpected chunk api version: {0}")]
+    UnexpectedChunkVersion(u8),
 
     #[error("data file metadata: {0}")]
     DataFileMetadata(std::io::Error),
 
     #[error("open msg file: {0}")]
     OpenMsgFile(std::io::Error),
+
+    #[error("create tag cache: {0}")]
+    CreateTagCache(#[from] TagCacheError),
 
     #[error("calculate entries: {0}")]
     CalculateEntries(#[from] CalculateEntriesError),
@@ -491,7 +514,7 @@ enum NewChunkDecoderError {
 impl ChunkDecoder {
     async fn new(log_dir: &Path, chunk_id: &str) -> Result<Self, NewChunkDecoderError> {
         use NewChunkDecoderError::*;
-        let (data_path, msg_path) = chunk_id_to_paths(log_dir, chunk_id);
+        let (data_path, msg_path, tag_path) = chunk_id_to_paths(log_dir, chunk_id);
 
         let mut data_file = tokio::fs::OpenOptions::new()
             .read(true)
@@ -505,8 +528,8 @@ impl ChunkDecoder {
             .await
             .map_err(ReadVersion)?;
 
-        if version[0] != 0 {
-            return Err(UnknownChunkVersion);
+        if version[0] != CHUNK_API_VERSION {
+            return Err(UnexpectedChunkVersion(version[0]));
         }
 
         let data_file_size = data_file.metadata().await.map_err(DataFileMetadata)?.len();
@@ -520,10 +543,19 @@ impl ChunkDecoder {
         let msg_file = RevBufReader::new(msg_file).await.map_err(CreateReader)?;
         let data_file = RevBufReader::new(data_file).await.map_err(CreateReader)?;
 
+        let tag_file = tokio::fs::OpenOptions::new()
+            .read(true)
+            .open(tag_path)
+            .await
+            .map_err(OpenTagFile)?;
+
+        let tag_cache = TagCache::new(tag_file).await?;
+
         Ok(Self {
             msg_file,
             data_file,
             n_entries: calculate_n_entries(data_file_size)?,
+            tag_cache,
         })
     }
 
@@ -566,7 +598,7 @@ impl ChunkDecoder {
             .await
             .map_err(Read)?;
 
-        Ok(decode_entry(&raw_entry, &mut self.msg_file).await?)
+        Ok(decode_entry(&raw_entry, &mut self.msg_file, &mut self.tag_cache).await?)
     }
 }
 
@@ -667,6 +699,9 @@ enum NewChunkEncoderError {
     #[error("seek to msg end: {0}")]
     SeekToMsgEnd(std::io::Error),
 
+    #[error("open tag file: {0}")]
+    OpenTagFile(std::io::Error),
+
     #[error("new chunk decoder: {0}")]
     NewChunkDecoder(#[from] NewChunkDecoderError),
 
@@ -678,6 +713,9 @@ enum NewChunkEncoderError {
 
     #[error("{0}")]
     TryFromInt(#[from] std::num::TryFromIntError),
+
+    #[error("create tag cache: {0}")]
+    CreateTagCache(#[from] TagCacheError),
 }
 
 struct ChunkEncoder {
@@ -685,6 +723,7 @@ struct ChunkEncoder {
     data_file: File,
     msg_file: File,
     msg_pos: u32,
+    tag_cache: TagCache<File>,
 }
 
 impl ChunkEncoder {
@@ -693,7 +732,7 @@ impl ChunkEncoder {
         chunk_id: String,
     ) -> Result<(Self, UnixMicro), NewChunkEncoderError> {
         use NewChunkEncoderError::*;
-        let (data_path, msg_path) = chunk_id_to_paths(&log_dir, &chunk_id);
+        let (data_path, msg_path, tag_path) = chunk_id_to_paths(&log_dir, &chunk_id);
 
         let mut data_end = CHUNK_HEADER_LENGTH;
         let data_file_size = get_file_size(&data_path).await;
@@ -750,12 +789,23 @@ impl ChunkEncoder {
             .await
             .map_err(SeekToMsgEnd)?;
 
+        let tag_file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .open(tag_path)
+            .await
+            .map_err(OpenTagFile)?;
+
+        let tag_cache = TagCache::new(tag_file).await?;
+
         Ok((
             Self {
                 chunk_id,
                 msg_file,
                 data_file,
                 msg_pos,
+                tag_cache,
             },
             prev_entry_time,
         ))
@@ -763,7 +813,14 @@ impl ChunkEncoder {
 
     async fn encode(&mut self, entry: &LogEntryWithTime) -> Result<(), EncodeError> {
         let mut buf = Vec::with_capacity(DATA_SIZE);
-        encode_entry(&mut buf, entry, &mut self.msg_file, &mut self.msg_pos).await?;
+        encode_entry(
+            &mut buf,
+            entry,
+            &mut self.msg_file,
+            &mut self.msg_pos,
+            &mut self.tag_cache,
+        )
+        .await?;
 
         self.data_file
             .write_all(&buf)
@@ -796,6 +853,9 @@ enum EncodeEntryError {
     #[error("flush: {0}")]
     Flush(std::io::Error),
 
+    #[error("tag cache: {0}")]
+    TagCache(#[from] TagCacheError),
+
     #[error("{0}")]
     TryIntError(#[from] std::num::TryFromIntError),
 
@@ -803,50 +863,46 @@ enum EncodeEntryError {
     Add,
 }
 
-async fn encode_entry(
+async fn encode_entry<W, RW>(
     buf: &mut (impl AsyncWrite + Unpin),
     entry: &LogEntryWithTime,
-    msg_file: &mut (impl AsyncWrite + Unpin),
+    msg_file: &mut W,
     msg_offset: &mut u32,
-) -> Result<(), EncodeEntryError> {
+    tag_cache: &mut TagCache<RW>,
+) -> Result<(), EncodeEntryError>
+where
+    W: AsyncWrite + Unpin,
+    RW: AsyncRead + AsyncWrite + Unpin,
+{
     use EncodeEntryError::*;
-    let src_length = entry.source.len();
-
-    let id_length = {
-        if let Some(monitor_id) = &entry.monitor_id {
-            monitor_id.len()
-        } else {
-            0
-        }
-    };
 
     // Write message and newline.
     msg_file.write_all(entry.message.as_bytes()).await?;
     msg_file.write_all(&[b'\n']).await?;
-    msg_file.flush().await.map_err(EncodeEntryError::Flush)?;
+    msg_file.flush().await.map_err(Flush)?;
 
     // Time.
-    buf.write_all(entry.time.to_be_bytes().as_slice()).await?;
+    buf.write_u64(*entry.time).await?;
 
     // Source.
-    buf.write_all(entry.source.as_bytes()).await?;
-    buf.write_all(&b" ".repeat(LOG_SOURCE_MAX_LENGTH - src_length))
-        .await?;
+    let source_index = tag_cache.insert(&entry.source).await?;
+    buf.write_u16(source_index).await?;
 
     // Monitor ID.
-    if let Some(monitor_id) = &entry.monitor_id {
-        buf.write_all(monitor_id.as_bytes()).await?;
-    }
-    buf.write_all(&b" ".repeat(MONITOR_ID_MAX_LENGTH - id_length))
-        .await?;
+    let monitor_id = match &entry.monitor_id {
+        Some(v) => v,
+        None => "",
+    };
+    let monitor_id_index = tag_cache.insert(monitor_id).await?;
+    buf.write_u16(monitor_id_index).await?;
 
     // Message offset and size.
-    buf.write_all(&msg_offset.to_be_bytes()).await?;
-    buf.write_all(&u16::try_from(entry.message.len())?.to_be_bytes())
-        .await?;
+    buf.write_u32(*msg_offset).await?;
+    buf.write_u16(u16::try_from(entry.message.len())?).await?;
 
     // Level.
-    buf.write_all(&entry.level.as_u8().to_be_bytes()).await?;
+    buf.write_u8(entry.level.to_u8()).await?;
+    buf.flush().await.map_err(Flush)?;
 
     // *msg_offset += entry.message.len() + 1
     *msg_offset = msg_offset
@@ -862,8 +918,11 @@ enum DecodeEntryError {
     #[error("{0}")]
     TryFromSlice(#[from] std::array::TryFromSliceError),
 
-    #[error("{0}")]
-    FromUtf8(#[from] std::string::FromUtf8Error),
+    #[error("source tag does not exist")]
+    GetSourceTag,
+
+    #[error("monitor id tag does not exist")]
+    GetMonitorIdTag,
 
     #[error("seek: {0}")]
     Seek(std::io::Error),
@@ -882,21 +941,30 @@ enum DecodeEntryError {
 
     #[error("parse log message: {0}")]
     ParseLogMessage(#[from] ParseNonEmptyStringError),
+
+    #[error("{0}")]
+    FromUtf8(#[from] std::string::FromUtf8Error),
 }
 
-async fn decode_entry<T: AsyncRead + AsyncSeek + Unpin>(
+async fn decode_entry<RS, RW>(
     buf: &[u8; DATA_SIZE],
-    msg_file: &mut T,
-) -> Result<(LogEntryWithTime, u32), DecodeEntryError> {
+    msg_file: &mut RS,
+    tag_cache: &mut TagCache<RW>,
+) -> Result<(LogEntryWithTime, u32), DecodeEntryError>
+where
+    RS: AsyncRead + AsyncSeek + Unpin,
+    RW: AsyncRead + AsyncWrite + Unpin,
+{
     use DecodeEntryError::*;
 
     let time = u64::from_be_bytes(buf[..8].try_into()?);
-    let source = String::from_utf8(buf[8..16].to_owned())?;
-    let monitor_id = String::from_utf8(buf[16..40].to_owned())?;
-    let monitor_id = monitor_id.trim();
-    let msg_offset = u32::from_be_bytes(buf[40..44].try_into()?);
-    let msg_size = u16::from_be_bytes(buf[44..46].try_into()?);
-    let level = buf[46].to_owned();
+    let source_index = u16::from_be_bytes(buf[8..10].try_into()?);
+    let source = tag_cache.get(source_index).ok_or(GetSourceTag)?;
+    let monitor_id_index = u16::from_be_bytes(buf[10..12].try_into()?);
+    let monitor_id = tag_cache.get(monitor_id_index).ok_or(GetMonitorIdTag)?;
+    let msg_offset = u32::from_be_bytes(buf[12..16].try_into()?);
+    let msg_size = u16::from_be_bytes(buf[16..18].try_into()?);
+    let level = buf[18].to_owned();
 
     msg_file
         .seek(SeekFrom::Start(msg_offset.into()))
@@ -906,18 +974,16 @@ async fn decode_entry<T: AsyncRead + AsyncSeek + Unpin>(
     let mut msg_buf = vec![0; msg_size.into()];
     msg_file.read_exact(&mut msg_buf).map_err(Read).await?;
 
-    let monitor_id = {
-        if monitor_id.is_empty() {
-            None
-        } else {
-            Some(monitor_id.parse()?)
-        }
+    let monitor_id = if monitor_id.is_empty() {
+        None
+    } else {
+        Some(monitor_id.parse()?)
     };
 
     Ok((
         LogEntryWithTime {
             time: UnixMicro::from(time),
-            source: source.trim().parse()?,
+            source: source.parse()?,
             monitor_id,
             level: LogLevel::try_from(level)?,
             message: String::from_utf8(msg_buf)?.parse()?,
@@ -950,11 +1016,98 @@ async fn get_file_size(path: &Path) -> u64 {
     metadata.len()
 }
 
+#[derive(Debug, Error)]
+enum TagCacheError {
+    #[error("read tag size: {0}")]
+    ReadSize(std::io::Error),
+
+    #[error("read tag: {0}")]
+    ReadTag(std::io::Error),
+
+    #[error("parse tag: {0}")]
+    ParseTag(#[from] FromUtf8Error),
+
+    #[error("cache is full")]
+    CacheFull,
+
+    #[error("write tag size")]
+    WriteSize(std::io::Error),
+
+    #[error("write tag: {0}")]
+    WriteTag(std::io::Error),
+
+    #[error("flush: {0}")]
+    Flush(std::io::Error),
+}
+
+struct TagCache<RW: AsyncRead + Unpin> {
+    file: RW,
+    tags: Vec<String>,
+}
+
+impl<RW> TagCache<RW>
+where
+    RW: AsyncRead + AsyncWrite + Unpin,
+{
+    async fn new(mut file: RW) -> Result<Self, TagCacheError> {
+        let tags = read_tags(&mut file).await?;
+        Ok(Self { file, tags })
+    }
+
+    async fn insert(&mut self, tag: &str) -> Result<u16, TagCacheError> {
+        use TagCacheError::*;
+        if self.tags.len() >= u16::MAX.into() {
+            return Err(CacheFull);
+        }
+        if let Some(index) = self.tags.iter().position(|t| t == tag) {
+            return Ok(u16::try_from(index).expect("index to fit u16"));
+        }
+
+        let size = u8::try_from(tag.len()).expect("size to fit u8");
+        self.file.write_u8(size).await.map_err(WriteSize)?;
+
+        self.file.write(tag.as_bytes()).await.map_err(WriteTag)?;
+        self.file.flush().await.map_err(Flush)?;
+
+        let index = self.tags.len();
+        self.tags.push(tag.to_string());
+
+        Ok(u16::try_from(index).expect("index to fit u16"))
+    }
+
+    fn get(&self, index: u16) -> Option<&str> {
+        self.tags.get(usize::from(index)).map(|v| &**v)
+    }
+}
+
+async fn read_tags<R>(file: R) -> Result<Vec<String>, TagCacheError>
+where
+    R: AsyncRead + Unpin,
+{
+    use TagCacheError::*;
+    let mut file = BufReader::new(file);
+    let mut tags = Vec::new();
+    loop {
+        let size = match file.read_u8().await {
+            Ok(v) => v,
+            Err(e) => match e.kind() {
+                UnexpectedEof => break,
+                _ => return Err(ReadSize(e)),
+            },
+        };
+        let mut tag = vec![0; size.into()];
+        file.read_exact(&mut tag).await.map_err(ReadTag)?;
+        tags.push(String::from_utf8(tag)?);
+    }
+    Ok(tags)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use std::io::Cursor;
+    use pretty_hex::pretty_hex;
+    use std::{collections::HashMap, io::Cursor};
     use tempfile::tempdir;
     use test_case::test_case;
 
@@ -1219,7 +1372,13 @@ mod tests {
         assert_eq!(want, got);
 
         let file_want = b"a\nb\n".to_vec();
-        let file_got = std::fs::read(temp_dir.path().join("00000.msg")).unwrap();
+        let file_got = std::fs::read(
+            temp_dir
+                .path()
+                .join(format!("v{}", CHUNK_API_VERSION))
+                .join("00000.msg"),
+        )
+        .unwrap();
         assert_eq!(file_want, file_got);
     }
 
@@ -1345,26 +1504,38 @@ mod tests {
         let mut buf = Vec::with_capacity(DATA_SIZE);
         let mut msg_buf = Cursor::new(Vec::new());
         let mut msg_pos = 0;
+        let mut tag_cache = TagCache::new(Cursor::new(Vec::new())).await.unwrap();
 
-        encode_entry(&mut buf, &test_entry(), &mut msg_buf, &mut msg_pos)
-            .await
-            .unwrap();
+        let test_entry = test_entry();
+        encode_entry(
+            &mut buf,
+            &test_entry,
+            &mut msg_buf,
+            &mut msg_pos,
+            &mut tag_cache,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(test_entry.source.as_str(), tag_cache.get(0).unwrap());
+        assert_eq!(
+            test_entry.monitor_id.unwrap().as_str(),
+            tag_cache.get(1).unwrap()
+        );
 
         let want = vec![
             0, 0, 0, 0, 0, 0, 0, 5, // Time.
-            b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', // Src.
-            b'a', b'a', b'b', b'b', b'c', b'c', b'd', b'd', // Monitor ID.
-            b'e', b'e', b'f', b'f', b'g', b'g', b'h', b'h', //
-            b'i', b'i', b'j', b'j', b'k', b'k', b'l', b'l', //
+            0, 0, // Source tag index.
+            0, 1, // Monitor id tag index.
             0, 0, 0, 0, // Message offset.
             0, 1,  // Message size.
             48, // Level.
         ];
 
-        assert_eq!(want, buf);
+        assert_eq!(pretty_hex(&want), pretty_hex(&buf));
         assert_eq!(vec![b'a', b'\n'], msg_buf.into_inner());
         assert_eq!(
-            test_entry().message.len() + 1,
+            test_entry.message.len() + 1,
             usize::try_from(msg_pos).unwrap()
         );
     }
@@ -1374,16 +1545,25 @@ mod tests {
         let mut buf = Cursor::new(Vec::new());
         let mut msg_buf = Cursor::new(Vec::new());
         let mut msg_pos: u32 = 10;
+        let mut tag_cache = TagCache::new(Cursor::new(Vec::new())).await.unwrap();
 
         msg_buf.seek(SeekFrom::Start(10)).await.unwrap();
 
-        encode_entry(&mut buf, &test_entry(), &mut msg_buf, &mut msg_pos)
-            .await
-            .unwrap();
+        encode_entry(
+            &mut buf,
+            &test_entry(),
+            &mut msg_buf,
+            &mut msg_pos,
+            &mut tag_cache,
+        )
+        .await
+        .unwrap();
 
         let buf: [u8; DATA_SIZE] = buf.into_inner().try_into().unwrap();
 
-        let (entry, msg_offset) = decode_entry(&buf, &mut msg_buf).await.unwrap();
+        let (entry, msg_offset) = decode_entry(&buf, &mut msg_buf, &mut tag_cache)
+            .await
+            .unwrap();
         assert_eq!(test_entry(), entry);
         assert_eq!(10, msg_offset);
     }
@@ -1416,7 +1596,7 @@ mod tests {
         assert!(matches!(
             ChunkEncoder::new(log_dir.path().to_owned(), chunk_id.to_owned()).await,
             Err(NewChunkEncoderError::NewChunkDecoder(
-                NewChunkDecoderError::UnknownChunkVersion
+                NewChunkDecoderError::UnexpectedChunkVersion(255)
             ))
         ))
     }
@@ -1430,7 +1610,7 @@ mod tests {
 
         assert!(matches!(
             ChunkDecoder::new(log_dir.path(), chunk_id).await,
-            Err(NewChunkDecoderError::UnknownChunkVersion)
+            Err(NewChunkDecoderError::UnexpectedChunkVersion(255))
         ))
     }
 
@@ -1454,14 +1634,20 @@ mod tests {
         let want = vec![
             "00000.data".to_owned(),
             "00000.msg".to_owned(),
+            "00000.tag".to_owned(),
             "11111.data".to_owned(),
             "11111.msg".to_owned(),
+            "11111.tag".to_owned(),
         ];
         assert_eq!(want, list_files(log_dir));
 
         db.prune().await.unwrap();
 
-        let want = vec!["11111.data".to_owned(), "11111.msg".to_owned()];
+        let want = vec![
+            "11111.data".to_owned(),
+            "11111.msg".to_owned(),
+            "11111.tag".to_owned(),
+        ];
         assert_eq!(want, list_files(log_dir));
 
         drop(db);
@@ -1477,7 +1663,7 @@ mod tests {
         let db = LogDb::new(
             shutdown_complete_tx,
             log_dir.to_owned(),
-            ByteSize::kb(10),
+            ByteSize::kb(15),
             ByteSize(0),
         )
         .unwrap();
@@ -1504,7 +1690,7 @@ mod tests {
             shutdown_complete_tx,
             log_dir.to_owned(),
             ByteSize(0),
-            ByteSize(100),
+            ByteSize(150),
         )
         .unwrap();
 
@@ -1559,17 +1745,22 @@ mod tests {
         })
     */
 
-    // Each chunk is 100 bytes.
+    fn version_dir(log_dir: &Path) -> PathBuf {
+        log_dir.join(format!("v{}", CHUNK_API_VERSION))
+    }
+
+    // Each chunk is 150 bytes.
     fn write_test_chunk(log_dir: &Path, chunk_id: &str) {
-        let (data_path, msg_path) = chunk_id_to_paths(log_dir, chunk_id);
+        let (data_path, msg_path, tag_path) = chunk_id_to_paths(&version_dir(log_dir), chunk_id);
         std::fs::write(data_path, [0].repeat(50)).unwrap();
         std::fs::write(msg_path, [0].repeat(50)).unwrap();
+        std::fs::write(tag_path, [0].repeat(50)).unwrap();
     }
 
     async fn chunk_count(log_dir: &Path) -> usize {
         let (_shutdown_complete, _) = mpsc::channel::<()>(1);
         let db = LogDb {
-            log_dir: log_dir.to_owned(),
+            log_dir: version_dir(log_dir),
             encoder: None,
             prev_entry_time: UnixMicro::from(0),
             disk_space: ByteSize(0),
@@ -1579,8 +1770,8 @@ mod tests {
         db.list_chunks().await.unwrap().len()
     }
 
-    fn list_files(path: &Path) -> Vec<String> {
-        let files = std::fs::read_dir(path).unwrap();
+    fn list_files(log_dir: &Path) -> Vec<String> {
+        let files = std::fs::read_dir(version_dir(log_dir)).unwrap();
 
         let mut file_names = Vec::new();
         for file in files {
@@ -1589,5 +1780,36 @@ mod tests {
         }
         file_names.sort();
         file_names
+    }
+
+    #[test_case(&["a", "", "bb", "ccc", "🦀🦀", "bb"])]
+    #[tokio::test]
+    async fn test_tags(tags: &[&str]) {
+        let mut file = Vec::new();
+        let mut cache = TagCache::new(Cursor::new(&mut file)).await.unwrap();
+
+        // Insert the tags and keep track of the indexes.
+        let mut tag_map = HashMap::new();
+        for tag in tags {
+            let index = cache.insert(tag).await.unwrap();
+            tag_map.insert(index, tag.to_string());
+        }
+
+        // Check that each index exists.
+        for (index, tag) in &tag_map {
+            assert_eq!(cache.get(*index).unwrap(), tag)
+        }
+
+        // Crate another cache and check if the tags were read correctly.
+        let cache = TagCache::new(Cursor::new(&mut file)).await.unwrap();
+        for (index, tag) in &tag_map {
+            assert_eq!(cache.get(*index).unwrap(), tag)
+        }
+
+        // Test read_tags.
+        let read_tags = read_tags(Cursor::new(&mut file)).await.unwrap();
+        for (i, tag) in read_tags.into_iter().enumerate() {
+            assert_eq!(tag_map[&u16::try_from(i).unwrap()], tag)
+        }
     }
 }
