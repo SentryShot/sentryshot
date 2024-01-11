@@ -53,7 +53,7 @@ services:
 
 ## Tarball Install
 
-The only requirement is a system with `glibc 2.34+` Check with `ld -v`
+Requires a system with `glibc 2.34+` Check with `ld -v`. `libusb-1.0` is not included.
 
 Download a tarball from the [releases](https://codeberg.org/SentryShot/sentryshot/releases) page.
 
@@ -75,7 +75,9 @@ Help wanted for proper install instructions.
 - [rust](https://www.rust-lang.org/tools/install) 1.65+
 - [ffmpeg](https://ffmpeg.org/download.html) 
 - [tflite](https://www.tensorflow.org/lite/guide/build_cmake#build_tensorflow_lite_c_library)
+- `libusb-1.0-0-dev`
 - git
+
 
 
 ```

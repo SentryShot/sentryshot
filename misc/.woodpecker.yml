@@ -30,6 +30,8 @@ steps:
 
             awk '/^## / { if (p) { exit }; if ($2 == "`${CI_COMMIT_TAG}`") { p=1; next } } p && NF' "./misc/CHANGELOG.md" > release-notes.txt
             cat ./release-notes.txt
+
+            ./misc/utils.sh download-debian-libusb
         when:
             event: [tag]
 

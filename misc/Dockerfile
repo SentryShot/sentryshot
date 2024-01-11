@@ -1,12 +1,16 @@
 FROM debian:bookworm-slim AS base
 
+# Use "./misc/utils.sh download-debian-libusb"
+
 # amd64-specific stage
 FROM base AS build-amd64
 COPY build/x86_64 /app/
+COPY libusb/x86_64-linux-gnu/libusb-1.0.so.0 /usr/lib/x86_64-linux-gnu/
 
 # arm64-specific stage
 FROM base AS build-arm64
 COPY build/aarch64 /app/
+COPY libusb/aarch64-linux-gnu/libusb-1.0.so.0 /usr/lib/aarch64-linux-gnu/
 
 # common steps
 FROM build-${TARGETARCH} AS build
