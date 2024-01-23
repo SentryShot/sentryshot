@@ -74,7 +74,8 @@ Help wanted for proper install instructions.
 
 - [rust](https://www.rust-lang.org/tools/install) 1.65+
 - [ffmpeg](https://ffmpeg.org/download.html) 
-- [tflite](https://www.tensorflow.org/lite/guide/build_cmake#build_tensorflow_lite_c_library)
+* [libtensorflowlite_c](https://www.tensorflow.org/lite/guide/build_cmake#build_tensorflow_lite_c_library)
+- [libedgetpu](https://github.com/google-coral/libedgetpu)
 - `libusb-1.0-0-dev`
 - git
 

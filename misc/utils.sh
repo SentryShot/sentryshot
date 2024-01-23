@@ -245,6 +245,8 @@ build_target() {
 	cp "$FFLIBS"/libavcodec.so.?? "$output_dir"/libs/
 	printf "./build/%s/libs/libtensorflowlite_c.so\n" "$target"
 	cp "$TFLITELIB"/libtensorflowlite_c.so "$output_dir"/libs/
+	printf "./build/%s/libs/libedgetpu.so.1\n" "$target"
+	cp "$EDGETPULIB"/libedgetpu.so.1.0 "$output_dir"/libs/libedgetpu.so.1
 	chmod 644 "$output_dir"/libs/*
 
 	exit 0

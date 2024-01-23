@@ -36,6 +36,7 @@ You can install everything manually instead. Most things don't require a very sp
 * [node 18+](https://nodejs.org)
 * [libavutil+libavcodec](https://ffmpeg.org)
 * [libtensorflowlite_c](https://www.tensorflow.org/lite/guide/build_cmake#build_tensorflow_lite_c_library)
+* [libedgetpu](https://github.com/google-coral/libedgetpu)
 * [shellcheck](https://www.shellcheck.net)
 * pkg-config
 
