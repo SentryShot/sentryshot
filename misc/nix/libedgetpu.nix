@@ -31,7 +31,7 @@ let
       cmakeFlags = [
         "-DABSL_BUILD_TEST_HELPERS=ON"
         "-DABSL_USE_EXTERNAL_GOOGLETEST=ON"
-        "-DBUILD_SHARED_LIBS=ON"
+        "-DBUILD_SHARED_LIBS=OFF"
       ];
       strictDeps = true;
       nativeBuildInputs = [ cmake ];

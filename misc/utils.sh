@@ -228,13 +228,16 @@ build_target() {
 	printf "./build/%s/sentryshot\n" "$target"
 	output="$output_dir"/sentryshot
 	cp "$target_dir"/"$target"-unknown-linux-gnu/release/sentryshot "$output"
-	patch_elf "$output" "$target"
+	patch_rpath "$output"
+	patch_interpreter "$output" "$target"
 
 	# Copy plugins.
 	for plugin in $plugins; do
 		printf "./build/%s/plugins/%s\n" "$target" "$plugin"
 		# Cargo doesn't let you specify the output file: https://github.com/rust-lang/cargo/issues/9778
-		cp "$target_dir"/"$target"-unknown-linux-gnu/release/lib"$plugin".so "$output_dir"/plugins/"$plugin"
+		output="$output_dir"/plugins/"$plugin"
+		cp "$target_dir"/"$target"-unknown-linux-gnu/release/lib"$plugin".so "$output"
+		patch_rpath "$output"
 	done
 
 	# Copy libs.
@@ -249,11 +252,16 @@ build_target() {
 	cp "$EDGETPULIB"/libedgetpu.so.1.0 "$output_dir"/libs/libedgetpu.so.1
 	chmod 644 "$output_dir"/libs/*
 
+	for lib in "$output_dir"/libs/*; do
+		# Remove the nix runpath.
+		patchelf --remove-rpath "$lib"
+	done
+
 	exit 0
 }
 
 # Removes the nix interpreter prefix.
-patch_elf() {
+patch_interpreter() {
 	file=$1
 	target=$2
 
@@ -265,6 +273,11 @@ patch_elf() {
 		patchelf --set-interpreter "/lib/ld-linux-aarch64.so.1" "$file"
 		;;
 	esac
+}
+
+patch_rpath() {
+	# shellcheck disable=SC2016
+	patchelf --set-rpath '$ORIGIN/libs:$ORIGIN/../libs' "$1"
 }
 
 build_target_nix() {
