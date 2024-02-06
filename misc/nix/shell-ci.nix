@@ -15,11 +15,12 @@ let
     pkgs.nodejs-18_x
     pkgs.shellcheck
   ];
-  buildInputs = [ ffmpeg tflite libedgetpu ];
+  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 ];
 
   # Debug builds don't work without this.
   hardeningDisable = [ "fortify" ];
-  LD_LIBRARY_PATH = "${ffmpeg}/lib:${tflite}/lib:${libedgetpu}/lib";
+
+  LD_LIBRARY_PATH = "${ffmpeg}/lib:${tflite}/lib:${libedgetpu}/lib:${pkgs.libusb1}/lib";
 
   FFLIBS = "${ffmpeg}/lib";
   TFLITELIB = "${tflite}/lib";

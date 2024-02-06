@@ -8,9 +8,9 @@ let
   libedgetpu = pkgs.callPackage ./libedgetpu.nix {};
 in pkgs.mkShell {
   nativeBuildInputs = [ pkgs.rust-bin.stable."1.65.0".minimal pkgs.pkg-config ];
-  buildInputs = [ ffmpeg tflite libedgetpu ];
+  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 ];
 
-  LD_LIBRARY_PATH = "${ffmpeg}/lib:${tflite}/lib:${libedgetpu}/lib";
+  LD_LIBRARY_PATH = "${ffmpeg}/lib:${tflite}/lib:${libedgetpu}/lib:${pkgs.libusb1}/lib";
 
   FFLIBS = "${ffmpeg}/lib";
   TFLITELIB = "${tflite}/lib";

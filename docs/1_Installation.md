@@ -73,11 +73,13 @@ Help wanted for proper install instructions.
 #### Dependencies
 
 - [rust](https://www.rust-lang.org/tools/install) 1.65+
-- [ffmpeg](https://ffmpeg.org/download.html) 
 * [libtensorflowlite_c](https://www.tensorflow.org/lite/guide/build_cmake#build_tensorflow_lite_c_library)
 - [libedgetpu](https://github.com/google-coral/libedgetpu)
+- `libavutil-dev`
+- `libavcodec-dev`
 - `libusb-1.0-0-dev`
-- git
+- `git`
+- `pkg-config`
 
 
 
@@ -90,6 +92,6 @@ cd sentryshot
 ./misc/utils build-target x86_64
 
 # Make a tarball.
-tar -czvf "./build/sentryshot-x86_64.tar.gz" -C "./build/x86_64" .
+tar -czvf "./build/sentryshot-x86_64.tar.gz" -C "./build/x86_64"
 ```
 [Tarball Install](#tarball-install)
