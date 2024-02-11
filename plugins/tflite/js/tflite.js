@@ -518,11 +518,13 @@ function crop(hls, detectors, hasSubStream) {
 	const id = uniqueID();
 	let monitorFields = {};
 
-	/** @type {Crop} */
-	const default_value = {
-		x: normalize(0, 100),
-		y: normalize(0, 100),
-		size: normalize(100, 100),
+	/** @returns {Crop} */
+	const defaultValue = () => {
+		return {
+			x: 0,
+			y: 0,
+			size: 100,
+		};
 	};
 
 	return {
@@ -555,7 +557,7 @@ function crop(hls, detectors, hasSubStream) {
 			};
 		},
 		set(input, f, mf) {
-			value = input === "" ? default_value : denormalizeCrop(input);
+			value = input === "" ? defaultValue() : denormalizeCrop(input);
 			if (rendered) {
 				set(value);
 			}
