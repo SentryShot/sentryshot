@@ -16,12 +16,14 @@ use std::{
     fmt::Debug,
     num::{NonZeroU16, NonZeroU32, NonZeroU8},
     ops::Deref,
-    path::{Path, PathBuf},
+    path::Path,
     str::FromStr,
     sync::Arc,
     time::Duration,
 };
-use tflite_lib::NewDetectorError;
+use tflite_lib::{
+    debug_device, edgetpu_verbosity, list_edgetpu_devices, EdgetpuDevice, NewDetectorError,
+};
 use thiserror::Error;
 use tokio::{
     runtime::Handle,
@@ -57,7 +59,7 @@ struct RawDetectorConfigEdgeTpu {
     model: Url,
     sha256sum: ModelChecksum,
     label_map: Url,
-    device: PathBuf,
+    device: String,
 }
 
 type DetectorConfigs = HashMap<DetectorName, DetectorConfig>;
@@ -268,6 +270,8 @@ impl DetectorManager {
         let raw_config = std::fs::read_to_string(config_path).map_err(ReadConfig)?;
         let detector_configs = parse_raw_detector_configs(&raw_config)?;
 
+        edgetpu_verbosity(get_log_level());
+
         parse_detector_configs(
             &rt_handle,
             shutdown_complete_tx,
@@ -286,6 +290,20 @@ impl DetectorManager {
     #[allow(unused)]
     pub(crate) async fn get_detector(&self, name: &DetectorName) -> Option<Arc<Detector>> {
         self.detectors.get(name).cloned()
+    }
+}
+
+fn get_log_level() -> u8 {
+    if let Ok(log_level) = std::env::var("EDGETPU_LOG_LEVEL") {
+        let log_level: u8 = log_level
+            .parse()
+            .expect("EDGETPU_LOG_LEVEL is not a valid number");
+        if log_level > 10 {
+            panic!("EDGETPU_LOG_LEVEL is not a number between 0 and 10")
+        }
+        log_level
+    } else {
+        0
     }
 }
 
@@ -339,6 +357,42 @@ async fn parse_detector_configs(
         )?;
         detectors.insert(cpu.name, Arc::new(detector));
     }
+
+    let mut device_cache = DeviceCache::new();
+    for edgetpu in configs.detector_edgetpu {
+        if !edgetpu.enable {
+            logger.log(
+                LogLevel::Debug,
+                &format!("detector '{}' disabled", edgetpu.name),
+            );
+            continue;
+        }
+        let model_path = model_cache.get(&edgetpu.model, &edgetpu.sha256sum).await?;
+        let label_map = label_cache.get(&edgetpu.label_map).await?;
+        if detector_configs.contains_key(&edgetpu.name) {
+            return Err(Duplicate(edgetpu.name));
+        };
+        let config = DetectorConfig {
+            width: edgetpu.width,
+            height: edgetpu.height,
+            labels: label_map.values().cloned().collect(),
+        };
+        detector_configs.insert(edgetpu.name.clone(), config);
+        let detector = new_edgetpu_detector(
+            rt_handle.clone(),
+            shutdown_complete_tx.clone(),
+            logger.clone(),
+            edgetpu.name.clone(),
+            edgetpu.width,
+            edgetpu.height,
+            &model_path,
+            label_map,
+            edgetpu.device,
+            &mut device_cache,
+        )?;
+        detectors.insert(edgetpu.name, Arc::new(detector));
+    }
+
     Ok(DetectorManager {
         detectors,
         configs: detector_configs,
@@ -366,7 +420,7 @@ fn new_cpu_detector(
         let _shutdown_complete_tx = _shutdown_complete_tx.clone();
         let rt_handle2 = rt_handle.clone();
         let detect_rx = detect_rx.clone();
-        let mut detector = tflite_lib::Detector::new(model_path)?;
+        let mut detector = tflite_lib::Detector::new(model_path, None)?;
         let label_map = label_map.clone();
 
         rt_handle.spawn(async move {
@@ -385,6 +439,60 @@ fn new_cpu_detector(
             }
         });
     }
+    Ok(Detector {
+        rt_handle,
+        detect_tx,
+        width,
+        height,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn new_edgetpu_detector(
+    rt_handle: Handle,
+    _shutdown_complete_tx: mpsc::Sender<()>,
+    logger: DynMsgLogger,
+    name: DetectorName,
+    width: NonZeroU16,
+    height: NonZeroU16,
+    model_path: &Path,
+    label_map: LabelMap,
+    device_path: String,
+    device_cache: &mut DeviceCache,
+) -> Result<Detector, NewDetectorError> {
+    logger.log(LogLevel::Info, &format!("starting detector '{}'", name));
+
+    let Some(device) = device_cache.device(&device_path) else {
+        let err = debug_device(device_path, device_cache.devices());
+        return Err(NewDetectorError::DebugDevice(err));
+    };
+    let mut detector = match tflite_lib::Detector::new(model_path, Some(device)) {
+        Ok(v) => v,
+        Err(e) => {
+            if matches!(e, NewDetectorError::EdgetpuDelegateCreate) {
+                debug_device(device_path, device_cache.devices());
+            }
+            return Err(e);
+        }
+    };
+
+    let (detect_tx, detect_rx) = async_channel::bounded::<DetectRequest>(1);
+    let rt_handle2 = rt_handle.clone();
+    rt_handle.spawn(async move {
+        let _shutdown_complete_tx = _shutdown_complete_tx;
+        while let Ok(req) = detect_rx.recv().await {
+            let result;
+            (detector, result) = rt_handle2
+                .spawn_blocking(move || {
+                    let result = detector.detect(&req.data);
+                    (detector, result)
+                })
+                .await
+                .unwrap();
+            let result = result.map(|v| parse_detections(&label_map, v));
+            _ = req.res.send(result);
+        }
+    });
     Ok(Detector {
         rt_handle,
         detect_tx,
@@ -434,6 +542,20 @@ fn parse_rect(top: f32, left: f32, bottom: f32, right: f32) -> Option<RectangleN
         width: NonZeroU32::new(right - left)?,
         height: NonZeroU32::new(bottom - top)?,
     })
+}
+
+struct DeviceCache(Option<Vec<EdgetpuDevice>>);
+
+impl DeviceCache {
+    fn new() -> Self {
+        Self(None)
+    }
+    fn devices(&mut self) -> &[EdgetpuDevice] {
+        self.0.get_or_insert_with(list_edgetpu_devices)
+    }
+    fn device(&mut self, path: &str) -> Option<&EdgetpuDevice> {
+        self.devices().iter().find(|device| device.path == path)
+    }
 }
 
 #[cfg(test)]

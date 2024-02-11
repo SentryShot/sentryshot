@@ -1,6 +1,16 @@
-use std::{ffi::CString, fmt::Debug, path::Path, slice::from_raw_parts};
+use std::{
+    ffi::{c_uint, CStr, CString, NulError},
+    fmt::{Debug, Display, Formatter},
+    os::raw::c_int,
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+    slice::{self, from_raw_parts},
+    str::FromStr,
+    time::Duration,
+};
 use tflite_sys::{
-    c_detector_allocate, c_detector_detect, c_detector_free, c_detector_load_model, CDetector,
+    c_detector_allocate, c_detector_detect, c_detector_free, c_detector_load_model, c_free_devices,
+    c_list_devices, c_poke_devices, c_probe_device, CDetector,
 };
 use thiserror::Error;
 
@@ -8,6 +18,12 @@ use thiserror::Error;
 pub enum NewDetectorError {
     #[error("detector is null")]
     DetectorNull,
+
+    #[error("path to string: {0}")]
+    PathToString(PathBuf),
+
+    #[error("convert to CString: {0}")]
+    ConvertToCString(#[from] NulError),
 
     #[error("create from file")]
     CreateFromFile,
@@ -24,15 +40,25 @@ pub enum NewDetectorError {
     #[error("output tensor count")]
     OutputTensorCount,
 
+    #[error("create edgetpu delegate")]
+    EdgetpuDelegateCreate,
+
     #[error("load model: {0}")]
     LoadModel(i32),
+
+    #[error("probe device: {0}, '{1}'")]
+    ProbeDevice(ProbeDeviceError, String),
+
+    #[error("debug device: {0}")]
+    DebugDevice(#[from] DebugDeviceError),
 }
 
-const ERROR_CREATE_FROM_FILE: i32 = 10000;
-const ERROR_INTERPRETER_CREATE: i32 = 10001;
-const ERROR_INPUT_TENSOR_COUNT: i32 = 10002;
-const ERROR_INPUT_TENSOR_TYPE: i32 = 10003;
-const ERROR_OUTPUT_TENSOR_COUNT: i32 = 10004;
+const ERROR_CREATE_FROM_FILE: c_int = 10000;
+const ERROR_INTERPRETER_CREATE: c_int = 10001;
+const ERROR_INPUT_TENSOR_COUNT: c_int = 10002;
+const ERROR_INPUT_TENSOR_TYPE: c_int = 10003;
+const ERROR_OUTPUT_TENSOR_COUNT: c_int = 10004;
+const ERROR_EDGETPU_DELEGATE_CREATE: c_int = 10005;
 
 #[derive(Debug, Error)]
 pub enum DetectError {
@@ -59,10 +85,16 @@ pub struct Detector {
 unsafe impl Send for Detector {}
 
 impl Detector {
-    pub fn new(model_path: &Path) -> Result<Self, NewDetectorError> {
+    pub fn new(
+        model_path: &Path,
+        edgetpu: Option<&EdgetpuDevice>,
+    ) -> Result<Self, NewDetectorError> {
         use NewDetectorError::*;
-        let model_path = model_path.to_str().unwrap();
-        let model_path = CString::new(model_path).unwrap();
+        let model_path = model_path
+            .to_str()
+            .ok_or_else(|| NewDetectorError::PathToString(model_path.to_path_buf()))?;
+        let model_path = CString::new(model_path)?;
+
         unsafe {
             let c_detector = c_detector_allocate();
             if c_detector.is_null() {
@@ -70,8 +102,28 @@ impl Detector {
             }
 
             let mut input_tensor_size = 0;
-            let res =
-                c_detector_load_model(c_detector, model_path.as_ptr(), &mut input_tensor_size);
+            let res = match edgetpu {
+                Some(device) => {
+                    if let Err(e) = probe_device(&device.path) {
+                        return Err(ProbeDevice(e, device.path.to_owned()));
+                    };
+                    let path = CString::new(device.path.to_owned())?;
+                    c_detector_load_model(
+                        c_detector,
+                        model_path.as_ptr(),
+                        &mut input_tensor_size,
+                        path.as_ptr(),
+                        device.typ.as_uint(),
+                    )
+                }
+                None => c_detector_load_model(
+                    c_detector,
+                    model_path.as_ptr(),
+                    &mut input_tensor_size,
+                    std::ptr::null(),
+                    0,
+                ),
+            };
             if res != 0 {
                 return Err(match res {
                     ERROR_CREATE_FROM_FILE => CreateFromFile,
@@ -79,6 +131,7 @@ impl Detector {
                     ERROR_INPUT_TENSOR_COUNT => InputTensorCount,
                     ERROR_INPUT_TENSOR_TYPE => InputTensorCount,
                     ERROR_OUTPUT_TENSOR_COUNT => OutputTensorCount,
+                    ERROR_EDGETPU_DELEGATE_CREATE => EdgetpuDelegateCreate,
                     _ => LoadModel(res),
                 });
             }
@@ -222,11 +275,335 @@ pub struct Detection {
 }
 
 impl Debug for Detection {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "score={:.2} class={} area=[{:.2}, {:.2}, {:.2}, {:.2}]",
             self.score, self.class, self.top, self.left, self.bottom, self.right,
         )
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EdgetpuDeviceType {
+    Pci,
+    Usb,
+}
+
+impl EdgetpuDeviceType {
+    fn as_uint(&self) -> c_uint {
+        match self {
+            EdgetpuDeviceType::Pci => 0,
+            EdgetpuDeviceType::Usb => 1,
+        }
+    }
+}
+
+impl Display for EdgetpuDeviceType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EdgetpuDeviceType::Pci => write!(f, "PCI"),
+            EdgetpuDeviceType::Usb => write!(f, "USB"),
+        }
+    }
+}
+
+pub struct EdgetpuDevice {
+    pub typ: EdgetpuDeviceType,
+    pub path: String,
+}
+
+impl Display for EdgetpuDevice {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.typ, self.path)
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("unknown edgetpu device type '{0}', expected 'usb' or 'pci'")]
+pub struct UnknownEdgetpuDeviceType(String);
+
+impl FromStr for EdgetpuDeviceType {
+    type Err = UnknownEdgetpuDeviceType;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "usb" => Ok(Self::Usb),
+            "pci" => Ok(Self::Pci),
+            _ => Err(UnknownEdgetpuDeviceType(s.to_owned())),
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum DebugDeviceError {
+    #[error("failed to find device: '{0}'")]
+    DeviceNotFound(String),
+
+    #[error("device exists but something went wrong: '{0}'")]
+    Exists(String),
+}
+
+pub fn debug_device(path: String, devices: &[EdgetpuDevice]) -> DebugDeviceError {
+    print_device(&path, devices);
+    use DebugDeviceError::*;
+    if !Path::new(&path).exists() {
+        return DeviceNotFound(path);
+    }
+    Exists(path)
+}
+
+fn print_device(path: &str, devices: &[EdgetpuDevice]) {
+    println!("Found {} edgetpu devices", devices.len());
+    for device in devices {
+        println!("{}", device)
+    }
+    let Some(parent) = Path::new(path).parent() else {
+        println!("device path does not have a parent: {:?}", path);
+        return;
+    };
+    let parent = parent.to_str().unwrap_or("");
+    println!("ls -la {}", parent);
+    let result = Command::new("ls")
+        .arg("-la")
+        .arg(parent)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn();
+    if let Err(e) = result {
+        println!("{}", e)
+    }
+    std::thread::sleep(Duration::from_millis(100));
+}
+
+pub fn list_edgetpu_devices() -> Vec<EdgetpuDevice> {
+    poke_devices();
+
+    let mut devices = Vec::new();
+    unsafe {
+        let mut num_devices = 0;
+        let devices_ptr = c_list_devices(&mut num_devices);
+        for device in slice::from_raw_parts(devices_ptr, num_devices) {
+            let typ = match device.type_ {
+                0 => EdgetpuDeviceType::Pci,
+                1 => EdgetpuDeviceType::Usb,
+                _ => panic!(
+                    "libedgetpu returned a unknown device type: {}",
+                    device.type_
+                ),
+            };
+
+            let path = CStr::from_ptr(device.path);
+            let path = match path.to_str() {
+                Ok(v) => v.to_owned(),
+                Err(_) => panic!(
+                    "libedgetpu returned a device path that isn't a valid string: {:?}",
+                    path
+                ),
+            };
+            devices.push(EdgetpuDevice { typ, path })
+        }
+        c_free_devices(devices_ptr);
+    }
+    devices
+}
+
+// Sets verbosity of operating logs related to edge TPU.
+// Verbosity level can be set to [0-10], in which 10 is the most verbose.
+pub fn edgetpu_verbosity(verbosity: u8) {
+    unsafe { tflite_sys::edgetpu_verbosity(verbosity.into()) }
+}
+
+#[derive(Debug, Error)]
+pub enum ProbeDeviceError {
+    #[error("failed to parse path")]
+    ParsePath,
+
+    #[error("init libusb: {0}")]
+    InitLibUsb(LibUsbError),
+
+    #[error("get device list: {0}")]
+    GetDeviceList(LibUsbError),
+
+    #[error("get port numbers: {0}")]
+    GetPortNumbers(LibUsbError),
+
+    #[error("open: {0}")]
+    OpenDevice(LibUsbError),
+
+    #[error("device not found")]
+    NotFound,
+}
+
+const ERROR_USB_INIT: c_int = 20000;
+const ERROR_USB_GET_DEVICE_LIST: c_int = 20001;
+const ERROR_USB_GET_PORT_NUMBERS: c_int = 20002;
+const ERROR_USB_OPEN_DEVICE: c_int = 20003;
+const ERROR_USB_NOT_FOUND: c_int = 20004;
+
+fn probe_device(path: &str) -> Result<(), ProbeDeviceError> {
+    use ProbeDeviceError::*;
+    let device_path = match DevicePath::new(path) {
+        Some(v) => v,
+        None => return Err(ParsePath),
+    };
+
+    unsafe {
+        let mut err2: c_int = 0;
+        let err = c_probe_device(
+            &mut err2,
+            device_path.bus_number.into(),
+            device_path
+                .port_numbers
+                .len()
+                .try_into()
+                .expect("length to fit cint"),
+            device_path.port_numbers.as_ptr(),
+        );
+        if err == 0 {
+            return Ok(());
+        }
+        Err(match err {
+            ERROR_USB_INIT => InitLibUsb(err.into()),
+            ERROR_USB_GET_DEVICE_LIST => GetDeviceList(err.into()),
+            ERROR_USB_GET_PORT_NUMBERS => GetPortNumbers(err.into()),
+            ERROR_USB_OPEN_DEVICE => OpenDevice(err.into()),
+            ERROR_USB_NOT_FOUND => NotFound,
+            _ => panic!("unexpected error code: {0}", err),
+        })
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum LibUsbError {
+    #[error("input/output error")]
+    Io,
+
+    #[error("invalid parameter")]
+    InvaidParam,
+
+    #[error("access denied (insufficient permissions)")]
+    Access,
+
+    #[error("no such device (it may have been disconnected)")]
+    NoDevice,
+
+    #[error("entity not found")]
+    NotFound,
+
+    #[error("resource busy")]
+    Busy,
+
+    #[error("operation timed out")]
+    Timeout,
+
+    #[error("overflow")]
+    Overflow,
+
+    #[error("pipe error")]
+    Pipe,
+
+    #[error("system call interrupted (perhaps due to signal)")]
+    Interrupted,
+
+    #[error("insufficient memory")]
+    NoMem,
+
+    #[error("operation not supported or unimplemented on this platform")]
+    NotSupported,
+
+    #[error("unknown error: {0}")]
+    Unknown(c_int),
+}
+
+impl From<c_int> for LibUsbError {
+    fn from(err: c_int) -> Self {
+        match err {
+            -1 => Self::Io,
+            -2 => Self::InvaidParam,
+            -3 => Self::Access,
+            -4 => Self::NoDevice,
+            -5 => Self::NotFound,
+            -6 => Self::Busy,
+            -7 => Self::Timeout,
+            -8 => Self::Overflow,
+            -9 => Self::Pipe,
+            -10 => Self::Interrupted,
+            -11 => Self::NoMem,
+            -12 => Self::NotSupported,
+            _ => Self::Unknown(err),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct DevicePath {
+    bus_number: u8,
+    port_numbers: Vec<u8>,
+}
+
+// Max depth for USB 3 is 7.
+const MAX_USB_PATH_DEPTH: usize = 7;
+const USB_PATH_PREFIX: &str = "/sys/bus/usb/devices/";
+
+impl DevicePath {
+    fn new(path: &str) -> Option<Self> {
+        let path = path.strip_prefix(USB_PATH_PREFIX)?;
+        let mut parts = path.split('-');
+        let bus_number = parts.next()?.parse().ok()?;
+        let port_numbers: Vec<u8> = parts
+            .next()?
+            .split('.')
+            .map(|v| v.parse::<u8>())
+            .collect::<Result<_, _>>()
+            .ok()?;
+
+        if parts.count() != 0 || port_numbers.is_empty() || port_numbers.len() > MAX_USB_PATH_DEPTH
+        {
+            return None;
+        }
+
+        Some(Self {
+            bus_number,
+            port_numbers,
+        })
+    }
+}
+
+fn poke_devices() {
+    unsafe { c_poke_devices() }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("", None; "empty")]
+    #[test_case("/sys/bus/usb/devices", None; "empty2")]
+    #[test_case("/sys/bus/usb/devices/1", None; "bus_only")]
+    #[test_case("/sys/bus/usb/devices/1-", None; "bus_only2")]
+    #[test_case(
+        "/sys/bus/usb/devices/1-1",
+        Some(DevicePath { bus_number: 1, port_numbers: vec![1] });
+        "1 port"
+    )]
+    #[test_case(
+        "/sys/bus/usb/devices/1-1.2",
+        Some(DevicePath { bus_number: 1, port_numbers: vec![1, 2] });
+        "2 ports"
+    )]
+    #[test_case(
+        "/sys/bus/usb/devices/1-1.2.3.4.5.6.7",
+        Some(DevicePath { bus_number: 1, port_numbers: vec![1, 2, 3, 4, 5, 6, 7] });
+        "7 ports"
+    )]
+    #[test_case("/sys/bus/usb/devices/1-1.2.3.4.5.6.7.8", None; "8 ports")]
+    #[test_case("/sys/bus/usb/devices/X-1", None; "letter")]
+    #[test_case("/sys/bus/usb/devices/1-X", None; "letter2")]
+    #[test_case("/sys/bus/usb/devices/1-1.X", None; "letter3")]
+    #[test_case("/sys/bus/usb/devices/1-1.2.3-1", None; "3 parts")]
+    fn test_parse_device_path(input: &str, want: Option<DevicePath>) {
+        assert_eq!(want, DevicePath::new(input))
     }
 }

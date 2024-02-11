@@ -1,5 +1,6 @@
 ## unreleased
 
+-   add tflite edgetpu support
 -   BREAKING: the tflite plugin now depend on `libedgetpu` and `libusb-1.0-0-dev`
 -   BREAKING: empty and missing CSV queries now have the same behavior
 

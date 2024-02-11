@@ -19,6 +19,10 @@ pub const __USE_POSIX199506: u32 = 1;
 pub const __USE_XOPEN2K: u32 = 1;
 pub const __USE_XOPEN2K8: u32 = 1;
 pub const _ATFILE_SOURCE: u32 = 1;
+pub const __WORDSIZE: u32 = 64;
+pub const __WORDSIZE_TIME64_COMPAT32: u32 = 1;
+pub const __SYSCALL_WORDSIZE: u32 = 64;
+pub const __TIMESIZE: u32 = 64;
 pub const __USE_MISC: u32 = 1;
 pub const __USE_ATFILE: u32 = 1;
 pub const __USE_FORTIFY_LEVEL: u32 = 0;
@@ -30,27 +34,25 @@ pub const __STDC_IEC_559_COMPLEX__: u32 = 1;
 pub const __STDC_ISO_10646__: u32 = 201706;
 pub const __GNU_LIBRARY__: u32 = 6;
 pub const __GLIBC__: u32 = 2;
-pub const __GLIBC_MINOR__: u32 = 31;
+pub const __GLIBC_MINOR__: u32 = 34;
 pub const _SYS_CDEFS_H: u32 = 1;
 pub const __glibc_c99_flexarr_available: u32 = 1;
-pub const __WORDSIZE: u32 = 64;
-pub const __WORDSIZE_TIME64_COMPAT32: u32 = 1;
-pub const __SYSCALL_WORDSIZE: u32 = 64;
-pub const __LONG_DOUBLE_USES_FLOAT128: u32 = 0;
+pub const __LDOUBLE_REDIRECTS_TO_FLOAT128_ABI: u32 = 0;
 pub const __HAVE_GENERIC_SELECTION: u32 = 1;
 pub const __GLIBC_USE_LIB_EXT2: u32 = 0;
 pub const __GLIBC_USE_IEC_60559_BFP_EXT: u32 = 0;
 pub const __GLIBC_USE_IEC_60559_BFP_EXT_C2X: u32 = 0;
+pub const __GLIBC_USE_IEC_60559_EXT: u32 = 0;
 pub const __GLIBC_USE_IEC_60559_FUNCS_EXT: u32 = 0;
 pub const __GLIBC_USE_IEC_60559_FUNCS_EXT_C2X: u32 = 0;
 pub const __GLIBC_USE_IEC_60559_TYPES_EXT: u32 = 0;
 pub const _BITS_TYPES_H: u32 = 1;
-pub const __TIMESIZE: u32 = 64;
 pub const _BITS_TYPESIZES_H: u32 = 1;
 pub const __OFF_T_MATCHES_OFF64_T: u32 = 1;
 pub const __INO_T_MATCHES_INO64_T: u32 = 1;
 pub const __RLIM_T_MATCHES_RLIM64_T: u32 = 1;
 pub const __STATFS_MATCHES_STATFS64: u32 = 1;
+pub const __KERNEL_OLD_TIMEVAL_MATCHES_TIMEVAL64: u32 = 1;
 pub const __FD_SETSIZE: u32 = 1024;
 pub const _BITS_TIME64_H: u32 = 1;
 pub const _BITS_WCHAR_H: u32 = 1;
@@ -208,6 +210,7 @@ pub type __id_t = ::std::os::raw::c_uint;
 pub type __time_t = ::std::os::raw::c_long;
 pub type __useconds_t = ::std::os::raw::c_uint;
 pub type __suseconds_t = ::std::os::raw::c_long;
+pub type __suseconds64_t = ::std::os::raw::c_long;
 pub type __daddr_t = ::std::os::raw::c_int;
 pub type __key_t = ::std::os::raw::c_int;
 pub type __clockid_t = ::std::os::raw::c_int;
@@ -254,11 +257,16 @@ pub struct CDetector {
 extern "C" {
     pub fn c_detector_allocate() -> *mut CDetector;
 }
+pub const edgetpu_device_type_EDGETPU_APEX_PCI: edgetpu_device_type = 0;
+pub const edgetpu_device_type_EDGETPU_APEX_USB: edgetpu_device_type = 1;
+pub type edgetpu_device_type = ::std::os::raw::c_uint;
 extern "C" {
     pub fn c_detector_load_model(
         d: *mut CDetector,
         model_path: *const ::std::os::raw::c_char,
         input_tensor_size: *mut usize,
+        device: *const ::std::os::raw::c_char,
+        device_type: edgetpu_device_type,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -278,4 +286,62 @@ extern "C" {
 }
 extern "C" {
     pub fn c_detector_free(d: *mut CDetector);
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct edgetpu_device {
+    pub type_: edgetpu_device_type,
+    pub path: *const ::std::os::raw::c_char,
+}
+#[test]
+fn bindgen_test_layout_edgetpu_device() {
+    const UNINIT: ::std::mem::MaybeUninit<edgetpu_device> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<edgetpu_device>(),
+        16usize,
+        concat!("Size of: ", stringify!(edgetpu_device))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<edgetpu_device>(),
+        8usize,
+        concat!("Alignment of ", stringify!(edgetpu_device))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).type_) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(edgetpu_device),
+            "::",
+            stringify!(type_)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).path) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(edgetpu_device),
+            "::",
+            stringify!(path)
+        )
+    );
+}
+extern "C" {
+    pub fn c_list_devices(num_devices: *mut usize) -> *mut edgetpu_device;
+}
+extern "C" {
+    pub fn c_free_devices(dev: *mut edgetpu_device);
+}
+extern "C" {
+    pub fn c_probe_device(
+        ret: *mut ::std::os::raw::c_int,
+        device_bus_number: ::std::os::raw::c_int,
+        device_ports_len: ::std::os::raw::c_int,
+        device_ports: *const u8,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn c_poke_devices();
 }

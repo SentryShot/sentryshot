@@ -14,3 +14,4 @@ doctest = false
 tflite_sys.path="./tflite_sys"
 
 thiserror.workspace = true
+test-case.workspace = true

@@ -130,6 +130,9 @@ extern int TfLiteInterpreterInvoke(TfLiteInterpreter *interpreter);
 /// data including a dimensionality (or NULL if not currently defined).
 typedef struct TfLiteTensor TfLiteTensor;
 
+/// Free memory of tensor `t`.
+void TfLiteTensorFree(TfLiteTensor *t);
+
 /// Returns the tensor associated with the input index.
 /// REQUIRES: 0 <= input_index < TfLiteInterpreterGetInputTensorCount(tensor)
 extern TfLiteTensor *
@@ -167,3 +170,80 @@ extern int TfLiteTensorCopyFromBuffer(TfLiteTensor *tensor,
 /// has yet to be called, or if the output tensor is dynamically sized and the
 /// interpreter hasn't been invoked.
 extern void *TfLiteTensorData(const TfLiteTensor *tensor);
+
+// EDGETPU.
+
+/// TfLiteOpaqueDelegateStruct: unconditionally opaque version of
+/// TfLiteDelegate; allows delegation of nodes to alternative backends.
+///
+/// This is an abstract type that is intended to have the same
+/// role as TfLiteDelegate, but without exposing the implementation
+/// details of how delegates are implemented.
+///
+/// WARNING: This is an experimental type and subject to change.
+typedef struct TfLiteOpaqueDelegateStruct TfLiteOpaqueDelegateStruct;
+
+/// TfLiteOpaqueDelegate: conditionally opaque version of
+/// TfLiteDelegate; allows delegation of nodes to alternative backends.
+/// For TF Lite in Play Services, this is an opaque type,
+/// but for regular TF Lite, this is just a typedef for TfLiteDelegate.
+///
+/// WARNING: This is an experimental type and subject to change.
+typedef TfLiteOpaqueDelegateStruct TfLiteOpaqueDelegate;
+
+/// Adds a delegate to be applied during `TfLiteInterpreter` creation.
+///
+/// If delegate application fails, interpreter creation will also fail with an
+/// associated error logged.
+///
+/// \note The caller retains ownership of the delegate and should ensure that it
+/// remains valid for the duration of any created interpreter's lifetime.
+///
+/// If you are NOT using "TensorFlow Lite in Play Services", and NOT building
+/// with `TFLITE_WITH_STABLE_ABI` or `TFLITE_USE_OPAQUE_DELEGATE` macros
+/// enabled, it is possible to pass a `TfLiteDelegate*` rather than a
+/// `TfLiteOpaqueDelegate*` to this function, since in those cases,
+/// `TfLiteOpaqueDelegate` is just a typedef alias for `TfLiteDelegate`.
+/// This is for compatibility with existing source code
+/// and existing delegates.  For new delegates, it is recommended to
+/// use `TfLiteOpaqueDelegate` rather than `TfLiteDelegate`.  (See
+/// `TfLiteOpaqueDelegate` in tensorflow/lite/core/c/c_api_types.h.)
+extern void
+TfLiteInterpreterOptionsAddDelegate(TfLiteInterpreterOptions *options,
+                                    TfLiteOpaqueDelegate *delegate);
+
+enum edgetpu_device_type {
+  EDGETPU_APEX_PCI = 0,
+  EDGETPU_APEX_USB = 1,
+};
+
+struct edgetpu_option {
+  const char *name;
+  const char *value;
+};
+
+// Creates a delegate which handles all edge TPU custom ops inside
+// `tflite::Interpreter`. Options must be available only during the call of this
+// function.
+TfLiteOpaqueDelegate *
+edgetpu_create_delegate(enum edgetpu_device_type type, const char *name,
+                        const struct edgetpu_option *options,
+                        size_t num_options);
+
+// Frees delegate returned by `edgetpu_create_delegate`.
+void edgetpu_free_delegate(TfLiteOpaqueDelegate *delegate);
+
+struct edgetpu_device {
+  enum edgetpu_device_type type;
+  const char *path;
+};
+
+// Returns array of connected edge TPU devices.
+struct edgetpu_device *edgetpu_list_devices(size_t *num_devices);
+
+// Frees array returned by `edgetpu_list_devices`.
+void edgetpu_free_devices(struct edgetpu_device *dev);
+
+// Sets verbosity of operating logs related to edge TPU.
+// Verbosity level can be set to [0-10], in which 10 is the most verbose.
+void edgetpu_verbosity(int verbosity);

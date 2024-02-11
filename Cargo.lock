@@ -2313,6 +2313,7 @@ dependencies = [
 name = "tflite_lib"
 version = "0.1.3"
 dependencies = [
+ "test-case",
  "tflite_sys",
  "thiserror",
 ]

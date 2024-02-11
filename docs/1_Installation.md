@@ -46,6 +46,8 @@ services:
     volumes:
       - /docker/sentryshot/configs:/app/configs
       - /docker/sentryshot/storage:/app/storage
+    #devices:
+    #  - "/sys/bus/usb/devices/x"
 ```
 
 <br>

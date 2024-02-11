@@ -19,7 +19,6 @@ label_map = "https://codeberg.org/Curid/TF-CCTV/raw/branch/master/labels/mscoco-
 threads = 1
 
 
-# NOT IMPLEMENTED.
 [[detector_edgetpu]]
 enable = false
 name = "edgetpu_detector1"
@@ -28,12 +27,18 @@ height = 340
 model = "https://codeberg.org/Curid/TF-CCTV/raw/branch/master/models/cctv3.3/gray_cctv3_340x340_edgetpu.tflite"
 sha256sum = "2816b5f401b0ac168584c83554e06e4744c86ecd688c857289438093d32a20ef"
 label_map = "https://codeberg.org/Curid/TF-CCTV/raw/branch/master/labels/person-map.txt"
-device = "/dev/x"
+device = "/sys/bus/usb/devices/x"
 
 
+# WebUI documentation: ./plugins/tflite/README.md
+#
+#
 # The sha256sum is for the tflite file.
 # The label maps are sanitized and don't need a checksum.
 #
 # Each monitor can only saturate a single thread.
 #
-# WebUI documentation: ./plugins/tflite/README.md
+# Passing edgetpu devices into docker containers can be a bit buggy.
+# There are two environment variables you can use for debugging
+# `EDGETPU_LOG_LEVEL=10` and `LIBUSB_DEBUG=4`
+# https://github.com/google-coral/edgetpu/issues/536

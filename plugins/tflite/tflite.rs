@@ -94,7 +94,7 @@ impl TflitePlugin {
         let tflite_logger = Arc::new(TfliteLogger {
             logger: logger.clone(),
         });
-        let detector_manager = DetectorManager::new(
+        let detector_manager = match DetectorManager::new(
             rt_handle.clone(),
             _shutdown_complete_tx.clone(),
             tflite_logger,
@@ -102,7 +102,13 @@ impl TflitePlugin {
             env.config_dir(),
         )
         .await
-        .unwrap();
+        {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("Failed to create tflite detector manager: {}", e);
+                std::process::exit(1);
+            }
+        };
 
         Self {
             rt_handle,
