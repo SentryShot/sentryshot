@@ -15,16 +15,17 @@ let
     pkgs.nodejs-18_x
     pkgs.shellcheck
   ];
-  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 ];
+  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 pkgs.openh264 ];
 
   # Debug builds don't work without this.
   hardeningDisable = [ "fortify" ];
 
-  LD_LIBRARY_PATH = "${ffmpeg}/lib:${tflite}/lib:${libedgetpu}/lib:${pkgs.libusb1}/lib";
+  LD_LIBRARY_PATH = "${ffmpeg}/lib:${tflite}/lib:${libedgetpu}/lib:${pkgs.libusb1}/lib:${pkgs.openh264}/lib";
 
   FFLIBS = "${ffmpeg}/lib";
   TFLITELIB = "${tflite}/lib";
   EDGETPULIB= "${libedgetpu}/lib";
+  OPENH264LIB= "${pkgs.openh264}/lib";
   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "clang";
   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-args=-fuse-ld=mold";
   #CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-args=-fuse-ld=$mold,-Wl,-rpath,$ORIGIN/libs:$ORIGIN/../libs";

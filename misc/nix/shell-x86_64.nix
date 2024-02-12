@@ -8,13 +8,14 @@ let
   libedgetpu = pkgs.callPackage ./libedgetpu.nix {};
 in pkgs.mkShell {
   nativeBuildInputs = [ pkgs.rust-bin.stable."1.65.0".minimal pkgs.pkg-config ];
-  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 ];
+  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 pkgs.openh246 ];
 
-  LD_LIBRARY_PATH = "${ffmpeg}/lib:${tflite}/lib:${libedgetpu}/lib:${pkgs.libusb1}/lib";
+  LD_LIBRARY_PATH = "${ffmpeg}/lib:${tflite}/lib:${libedgetpu}/lib:${pkgs.libusb1}/lib:${pkgs.openh264}/lib";
 
   FFLIBS = "${ffmpeg}/lib";
   TFLITELIB = "${tflite}/lib";
   EDGETPULIB= "${libedgetpu}/lib";
+  OPENH264LIB= "${pkgs.openh264}/lib";
   CARGO_BUILD_TARGET = "x86_64-unknown-linux-gnu";
   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "${pkgs.stdenv.cc.targetPrefix}cc";
   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-args=-Wl,-rpath,$ORIGIN/libs:$ORIGIN/../libs";

@@ -250,6 +250,8 @@ build_target() {
 	cp "$TFLITELIB"/libtensorflowlite_c.so "$output_dir"/libs/
 	printf "./build/%s/libs/libedgetpu.so.1\n" "$target"
 	cp "$EDGETPULIB"/libedgetpu.so.1.0 "$output_dir"/libs/libedgetpu.so.1
+	printf "./build/%s/libs/libopenh264.so.6\n" "$target"
+	cp "$OPENH264LIB"/libopenh264.so.6 "$output_dir"/libs/
 	chmod 644 "$output_dir"/libs/*
 
 	for lib in "$output_dir"/libs/*; do
