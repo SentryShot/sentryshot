@@ -365,7 +365,7 @@ download_debian_libusb() {
 	mkdir -p "./libusb/temp"
 	wget "http://ftp.de.debian.org/debian/pool/main/libu/libusb-1.0/libusb-1.0-0_1.0.26-1_amd64.deb" -O "./libusb/temp/libusb.deb"
 	if ! printf "0a8a6c4a7d944538f2820cbde2a313f2fe6f94c21ffece9e6f372fc2ab8072e1 ./libusb/temp/libusb.deb" | sha256sum -c; then
-		printf "invalid amd64 libusb checksum"
+		printf "invalid amd64 libusb checksum\n"
 		exit 1
 	fi
 	dpkg-deb -X "./libusb/temp/libusb.deb" "./libusb/temp"
@@ -376,7 +376,7 @@ download_debian_libusb() {
 	mkdir -p "./libusb/temp"
 	wget "http://ftp.de.debian.org/debian/pool/main/libu/libusb-1.0/libusb-1.0-0_1.0.26-1_arm64.deb" -O "./libusb/temp/libusb.deb"
 	if ! printf "e0648086b231c9204514d31480d517cb1b51e301ac39e69335a67d01ec785608 ./libusb/temp/libusb.deb" | sha256sum -c; then
-		printf "invalid aarch64 libusb checksum"
+		printf "invalid aarch64 libusb checksum\n"
 		exit 1
 	fi
 	dpkg-deb -X "./libusb/temp/libusb.deb" "./libusb/temp"

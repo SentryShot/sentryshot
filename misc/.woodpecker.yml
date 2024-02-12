@@ -14,8 +14,13 @@ steps:
         image: codeberg.org/sentryshot/sentryshot-build-aarch64:v0.0.1
         commands: |
             # Prebuilt library because I couldn't get it to cross-compile.
-            curl https://codeberg.org/api/packages/SentryShot/generic/tflite/0.0.1/libtensorflowlite_c.so \
-                -o ./misc/nix/aarch64-tflite/out/libtensorflowlite_c.so
+            tflite="./misc/nix/aarch64-tflite/out/libtensorflowlite_c.so"
+            curl https://codeberg.org/api/packages/SentryShot/generic/tflite/0.0.1/libtensorflowlite_c.so -o "$tflite"
+            if ! printf "8f9acc6e4cace0f541ee4cd41fe553b0aa66a0a37be3ffde23224ca37c720067 %s" "$tflite" | sha256sum -c; then
+                printf "invalid aarch64 tflite checksum\n"
+                exit 1
+            fi
+
             nix-shell /shell.nix --command './misc/utils.sh build-target-aarch64'
         when:
             event: [tag]
