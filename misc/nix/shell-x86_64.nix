@@ -1,14 +1,14 @@
 let
   # glibc 2.34 nixos-22.05
   pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/380be19fbd2d9079f677978361792cb25e8a3635.tar.gz")
-  { overlays = [ (import (fetchTarball "https://github.com/oxalica/rust-overlay/archive/c707d9606ff9acea7f9508f5ad8218e36a96b126.tar.gz")) ];};
+  { overlays = [ (import (fetchTarball "https://github.com/oxalica/rust-overlay/archive/e6679d2ff9136d00b3a7168d2bf1dff9e84c5758.tar.gz")) ];};
   ffmpeg = ( pkgs.callPackage ./ffmpeg.nix {} );
   bazel_5 = ( pkgs.callPackage ./bazel_5.nix { buildJdk = pkgs.jdk11_headless; runJdk = pkgs.jdk11_headless; });
   tflite = ( pkgs.callPackage ./tflite.nix { bazel_5 = bazel_5; });
   libedgetpu = pkgs.callPackage ./libedgetpu.nix {};
 in pkgs.mkShell {
-  nativeBuildInputs = [ pkgs.rust-bin.stable."1.65.0".minimal pkgs.pkg-config ];
-  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 pkgs.openh246 ];
+  nativeBuildInputs = [ pkgs.rust-bin.stable."1.75.0".minimal pkgs.pkg-config ];
+  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 pkgs.openh264 ];
 
   LD_LIBRARY_PATH = "${ffmpeg}/lib:${tflite}/lib:${libedgetpu}/lib:${pkgs.libusb1}/lib:${pkgs.openh264}/lib";
 

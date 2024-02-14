@@ -4,8 +4,10 @@ let
   hostPlatform = stdenv.hostPlatform;
   pythonEnv = buildPackages.python3.withPackages (ps: [ ps.numpy ]);
   bazelDepsSha256ByBuildAndHost = {
+    # The checksums are unreliable.
     x86_64-linux = {
-      x86_64-linux = "sha256-QlHy5FcgAfdbST3WLShI3wL416n2T1u8a0ceGq9f638=";
+      #x86_64-linux = "sha256-QlHy5FcgAfdbST3WLShI3wL416n2T1u8a0ceGq9f638=";
+      x86_64-linux = "sha256-u3a3szxS2o+jRLqO94ks2h6xzpiAdlsaWRQSfQH9S2c";
       aarch64-linux = "sha256-sOIYpp98wJRz3RGvPasyNEJ05W29913Lsm+oi/aq/Ag=";
     };
     aarch64-linux = {

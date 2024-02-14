@@ -1,17 +1,17 @@
 steps:
     run:
-        image: codeberg.org/sentryshot/sentryshot-ci:v0.0.1
+        image: codeberg.org/sentryshot/sentryshot-ci:v0.2.0
         commands: "nix-shell /shell.nix --command 'npm install && ./misc/utils.sh ci'"
         when:
             event: [push, pull_request]
 
     build-x86_64:
-        image: codeberg.org/sentryshot/sentryshot-build-x86_64:v0.0.1
+        image: codeberg.org/sentryshot/sentryshot-build-x86_64:v0.2.0
         commands: "nix-shell /shell.nix --command './misc/utils.sh build-target x86_64'"
         when:
             event: [tag]
     build-aarch64:
-        image: codeberg.org/sentryshot/sentryshot-build-aarch64:v0.0.1
+        image: codeberg.org/sentryshot/sentryshot-build-aarch64:v0.2.0
         commands: |
             # Prebuilt library because I couldn't get it to cross-compile.
             tflite="./misc/nix/aarch64-tflite/out/libtensorflowlite_c.so"

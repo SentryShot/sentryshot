@@ -1,5 +1,6 @@
 ## unreleased
 
+-   BREAKING: update toolchain to Rust 1.75
 -   fix default tflite crop size
 -   add tflite edgetpu support
 -   BREAKING: the tflite plugin now depend on `libedgetpu` and `libusb-1.0-0-dev`
