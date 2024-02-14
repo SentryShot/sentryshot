@@ -301,7 +301,7 @@ impl LogDb {
         }
 
         let chunks = self.list_chunks().await.map_err(ListChunks)?;
-        let Some(chunk_to_remove) = chunks.get(0) else {
+        let Some(chunk_to_remove) = chunks.first() else {
             // No chunks.
             return Ok(());
         };

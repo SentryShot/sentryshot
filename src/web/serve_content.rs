@@ -715,7 +715,7 @@ fn parse_range(s: Option<String>, size: u64) -> Result<Vec<HttpRange>, ParseRang
 }
 
 fn trim_text_proto_string(s: Option<String>) -> Option<String> {
-    let Some(mut s) = s else { return None };
+    let mut s = s?;
     while !s.is_empty() && is_ascii_space(s.as_bytes()[0]) {
         s = s[1..].to_string();
     }

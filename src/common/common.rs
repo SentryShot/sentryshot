@@ -422,7 +422,7 @@ pub trait Authenticator {
     //Logout() http.Handler
 }
 
-//// Set account details request.
+/// Set account details request.
 #[derive(Clone, Debug, Deserialize)]
 pub struct AccountSetRequest {
     pub id: String,

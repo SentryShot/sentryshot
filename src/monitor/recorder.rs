@@ -163,7 +163,7 @@ pub fn new_recorder(
                                 shutdown_complete,
                                 Duration::from_secs(3),
                             ).await;
-                            _ = on_session_exit_tx.send(())
+                            _ = on_session_exit_tx.send(()).await
                         });
                     }
                 }
@@ -508,10 +508,10 @@ async fn generate_thumbnail(
     );
     //r.logf(log.LevelInfo, "generating thumbnail: %v", thumbPath)
 
-    let Some(first_part) = first_segment.parts().get(0) else {
+    let Some(first_part) = first_segment.parts().first() else {
         return Err(NoPart);
     };
-    let Some(first_sample) = first_part.video_samples.get(0) else {
+    let Some(first_sample) = first_part.video_samples.first() else {
         return Err(NoSample);
     };
     if !first_sample.random_access_present {

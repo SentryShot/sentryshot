@@ -178,7 +178,7 @@ impl<'de> Deserialize<'de> for HlsQuery {
         let msn_and_part = match (msn, part) {
             (Some(msn), Some(part)) => Some((msn, part)),
             (Some(_), None) | (None, Some(_)) => {
-                return Err(PartHlsQueryError::BothOrNeitherMsnAndPart).map_err(Error::custom);
+                return Err(Error::custom(PartHlsQueryError::BothOrNeitherMsnAndPart));
             }
             (None, None) => None,
         };
