@@ -35,7 +35,7 @@ pub trait Fs {
     // Calls open and uses read_dir_file on the returned file.
     fn read_dir(&self) -> Result<Vec<Entry>, FsError> {
         let Open::Dir(mut dir) = self.open(Path::new("."))? else {
-            return Err(FsError::NotADirectory)
+            return Err(FsError::NotADirectory);
         };
         let mut list = dir.read_dir_file()?;
         list.sort_by_key(|v| v.name().to_owned());

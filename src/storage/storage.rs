@@ -389,7 +389,7 @@ async fn delete_recording(
         let entry = entry.map_err(DirEntry)?;
 
         let Ok(name) = entry.file_name().into_string() else {
-            continue
+            continue;
         };
         if !name.starts_with(rec_id.as_str()) {
             continue;

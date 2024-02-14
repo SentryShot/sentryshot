@@ -49,7 +49,7 @@ impl Plugin for ThumbScalePlugin {
         }
         let Ok(temp) = serde_json::from_value::<Temp>(config.raw.to_owned()) else {
             log(LogLevel::Warning, "config is not set");
-            return frame
+            return frame;
         };
         let scale = temp.thumb_scale;
         println!("SCALE {scale}");

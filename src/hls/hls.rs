@@ -111,7 +111,7 @@ impl HlsServer {
             return Err(Cancelled);
         };
 
-        let Ok(res) = res_rx.await else  {
+        let Ok(res) = res_rx.await else {
             return Err(Cancelled);
         };
         Ok(res)

@@ -141,7 +141,7 @@ impl FsTester {
         // Read entier directory.
         self.dirs.push(dir.to_owned());
         let Some(mut d) = self.open_dir(&dir) else {
-            return
+            return;
         };
         let list = match d.read_dir_file() {
             Ok(v) => v,
@@ -192,7 +192,7 @@ impl FsTester {
         }
 
         // Reopen directory, read a second time, make sure contents match.
-        let Some(mut d)  = self.open_dir(&dir) else {
+        let Some(mut d) = self.open_dir(&dir) else {
             return;
         };
         let list2 = match d.read_dir_file() {

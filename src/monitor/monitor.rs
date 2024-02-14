@@ -269,7 +269,7 @@ impl MonitorManager {
     // Stops monitor (if running) and starts it again.
     pub async fn monitor_restart(&mut self, id: &MonitorId) -> Result<(), MonitorRestartError> {
         use MonitorRestartError::*;
-        let Some(raw_config) =  self.configs.get(id) else {
+        let Some(raw_config) = self.configs.get(id) else {
             return Err(NotExist(id.to_string()));
         };
 

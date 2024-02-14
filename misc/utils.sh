@@ -332,12 +332,12 @@ lint_css_fix() {
 
 format_backend() {
 	printf "format backend\\n"
-	cargo fmt --check --all || error "format frontend failed"
+	cargo fmt --check --all || error "format backend failed"
 }
 
 format_backend_fix() {
 	printf "format backend\\n"
-	cargo fmt --all || error "format frontend failed"
+	cargo fmt --all || error "format backend failed"
 }
 
 lint_backend() {

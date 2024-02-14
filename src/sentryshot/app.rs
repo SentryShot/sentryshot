@@ -520,7 +520,7 @@ fn time_zone() -> Option<String> {
     let mut dirs = vec![PathBuf::from("/usr/share/zoneinfo")];
     while let Some(dir) = dirs.pop() {
         let Ok(entries) = std::fs::read_dir(dir) else {
-            continue
+            continue;
         };
         for entry in entries {
             let Ok(entry) = entry else {

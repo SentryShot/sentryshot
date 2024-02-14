@@ -60,7 +60,7 @@ fn part_target_duration(
 
     for sog in segments {
         let SegmentOrGap::Segment(seg) = sog else {
-            continue
+            continue;
         };
 
         for part in seg.parts() {
@@ -465,7 +465,7 @@ impl Playlist {
         if self.next_segment_tx.send(req).await.is_err() {
             return None;
         };
-        let Ok(res) = res_rx.await else  {
+        let Ok(res) = res_rx.await else {
             return None;
         };
 
@@ -597,7 +597,7 @@ impl PlaylistState {
                 let Some(part) = self.parts_by_name.get(&req.part_name) else {
                     // TODO: LOG
                     _ = req.res_tx.send(MUXER_FILE_RESPONSE_ERROR);
-                    continue
+                    continue;
                 };
 
                 _ = req.res_tx.send(MuxerFileResponse {
@@ -623,8 +623,8 @@ impl PlaylistState {
 
         for sop in &self.segments {
             let SegmentOrGap::Segment(seg) = sop else {
-                    continue
-                };
+                continue;
+            };
 
             if segment_id != seg.id() {
                 continue;

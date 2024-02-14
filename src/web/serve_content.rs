@@ -347,7 +347,7 @@ enum CondResult {
 
 fn get_header(headers: &HeaderMap, name: HeaderName) -> Option<String> {
     let Some(header) = headers.get(name) else {
-        return None
+        return None;
     };
     let Ok(header) = header.to_str() else {
         return None;
@@ -484,7 +484,7 @@ fn check_if_range(
         return CondResult::None;
     }
 
-    let Some(ir) = get_header(headers,header::IF_RANGE) else {
+    let Some(ir) = get_header(headers, header::IF_RANGE) else {
         return CondResult::None;
     };
 
@@ -635,9 +635,7 @@ fn parse_range(s: Option<String>, size: u64) -> Result<Vec<HttpRange>, ParseRang
 
     for ra in s[B.len()..].split(',') {
         let ra = trim_text_proto_string(Some(ra.to_owned()));
-        let Some(ra) = ra else {
-            continue
-        };
+        let Some(ra) = ra else { continue };
 
         let i = ra.chars().position(|c| c == '-').ok_or(InvalidRange)?;
 
@@ -717,9 +715,7 @@ fn parse_range(s: Option<String>, size: u64) -> Result<Vec<HttpRange>, ParseRang
 }
 
 fn trim_text_proto_string(s: Option<String>) -> Option<String> {
-    let Some(mut s) = s else {
-        return None
-    };
+    let Some(mut s) = s else { return None };
     while !s.is_empty() && is_ascii_space(s.as_bytes()[0]) {
         s = s[1..].to_string();
     }

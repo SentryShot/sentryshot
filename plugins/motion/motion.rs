@@ -158,7 +158,7 @@ impl MotionPlugin {
 
         let Some(config) = MotionConfig::parse(config.raw.to_owned())? else {
             // Motion detection is disabled.
-            return Ok(())
+            return Ok(());
         };
 
         loop {

@@ -141,7 +141,7 @@ impl BasicAuth {
             return None;
         };
 
-        let Ok(auth_header_str) =  auth_header.to_str() else {
+        let Ok(auth_header_str) = auth_header.to_str() else {
             return None;
         };
 
@@ -215,10 +215,10 @@ impl Authenticator for BasicAuth {
 
         let token_matches = || {
             let Some(csrf_header) = headers.get("X-CSRF-TOKEN") else {
-                return false
+                return false;
             };
             let Ok(csrf_string) = csrf_header.to_str() else {
-                return false
+                return false;
             };
             csrf_string == valid_login.token
         };

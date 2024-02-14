@@ -945,7 +945,7 @@ fn time_to_id(time: UnixMicro) -> Result<String, TimeToIdError> {
 
 async fn get_file_size(path: &Path) -> u64 {
     let Ok(metadata) = tokio::fs::metadata(path).await else {
-        return 0
+        return 0;
     };
     metadata.len()
 }

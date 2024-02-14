@@ -20,7 +20,7 @@ impl MotionConfig {
             motion: serde_json::Value,
         }
         let Ok(temp) = serde_json::from_value::<Temp>(raw) else {
-            return Ok(None)
+            return Ok(None);
         };
         if temp.motion == serde_json::Value::Object(serde_json::Map::new()) {
             return Ok(None);

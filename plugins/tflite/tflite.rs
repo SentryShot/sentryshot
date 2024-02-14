@@ -227,7 +227,7 @@ impl TflitePlugin {
 
         let Some(config) = TfliteConfig::parse(config.raw.to_owned())? else {
             // Motion detection is disabled.
-            return Ok(())
+            return Ok(());
         };
 
         let detector_name = config.detector_name.to_owned();
@@ -309,7 +309,7 @@ impl TflitePlugin {
 
             // Continue if there are no detections.
             let Some(d) = detections.first() else {
-                continue
+                continue;
             };
 
             msg_logger.log(

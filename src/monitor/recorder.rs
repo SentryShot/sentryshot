@@ -61,11 +61,11 @@ pub fn new_recorder(
 
         fn get_timer_end(timer_end: UnixNano) -> std::time::Duration {
             let Some(timer_end) = Duration::until(timer_end) else {
-                    return std::time::Duration::MAX;
-                };
+                return std::time::Duration::MAX;
+            };
             let Some(timer_end) = timer_end.as_std() else {
-                    return std::time::Duration::from_nanos(0);
-                };
+                return std::time::Duration::from_nanos(0);
+            };
             timer_end
         }
 

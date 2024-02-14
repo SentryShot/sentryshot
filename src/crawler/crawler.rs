@@ -183,12 +183,12 @@ impl Crawler {
 }
 
 fn read_data_file(fs: Box<dyn Fs>) -> Option<RecordingData> {
-    let Ok(Open::File(mut file)) = fs.open(&PathBuf::from("."))  else {
+    let Ok(Open::File(mut file)) = fs.open(&PathBuf::from(".")) else {
         return None;
     };
 
     let Ok(raw_data) = file.read() else {
-        return None
+        return None;
     };
 
     let Ok(data) = serde_json::from_slice::<RecordingData>(&raw_data) else {
@@ -274,7 +274,7 @@ impl Dir {
         let mut all_files = Vec::new();
         for entry in monitor_dirs {
             let Some(name) = entry.name().to_str() else {
-                continue
+                continue;
             };
             if !monitor_selected(&query.monitors, name) {
                 continue;
