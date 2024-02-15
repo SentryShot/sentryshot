@@ -4,6 +4,9 @@ version = "6.4.2"
 edition.workspace = true
 rust-version.workspace = true
 
+[lints]
+workspace = true
+
 [lib]
 name = "rust_embed"
 path = "embed.rs"

@@ -5,10 +5,12 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "sentryshot"
 path = "./main.rs"
-
 
 [dependencies]
 common.path = "../common"

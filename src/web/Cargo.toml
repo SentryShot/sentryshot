@@ -5,6 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 [lib]
 name = "web"
 path = "lib.rs"
@@ -14,7 +17,6 @@ doctest = false
 common.path = "../common"
 log.path = "../log"
 monitor.path = "../monitor"
-
 
 axum.workspace = true
 futures.workspace = true

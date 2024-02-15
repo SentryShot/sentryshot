@@ -5,11 +5,13 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 [lib]
 name = "handler"
 path = "handler.rs"
 doctest = false
-
 
 [dependencies]
 common.path = "../common"
