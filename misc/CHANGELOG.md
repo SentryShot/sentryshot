@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.0`
+
 -   BREAKING: update toolchain to Rust 1.75
 -   fix default tflite crop size
 -   add tflite edgetpu support
