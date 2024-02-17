@@ -179,6 +179,7 @@ impl<R: AsyncRead + AsyncSeek> AsyncBufRead for RevBufReader<R> {
                         return read(self, cx, new_pos);
                     }
 
+                    #[allow(clippy::as_conversions)]
                     me.inner.start_seek(SeekFrom::Start(new_pos as u64))?;
                     return seek(self, cx, new_pos);
                 }
@@ -246,7 +247,11 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for RevBufReader<R> {
 }
 
 // https://github.com/tokio-rs/tokio/blob/master/tokio/tests/io_buf_reader.rs
-#[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+#[allow(
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation,
+    clippy::as_conversions
+)]
 #[cfg(test)]
 mod tests {
     use super::*;

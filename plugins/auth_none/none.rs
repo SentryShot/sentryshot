@@ -288,16 +288,16 @@ mod tests {
 
     fn test_admin() -> Account {
         Account {
-            id: "1".to_string(),
+            id: "1".to_owned(),
             username: "admin".parse().unwrap(),
             password: PASS1.to_owned(),
             is_admin: true,
-            token: "token1".to_string(),
+            token: "token1".to_owned(),
         }
     }
     fn test_user() -> Account {
         Account {
-            id: "2".to_string(),
+            id: "2".to_owned(),
             username: "user".parse().unwrap(),
             password: PASS2.to_owned(),
             is_admin: false,
@@ -382,7 +382,7 @@ mod tests {
         // Save to file.
         let file = fs::File::open(temp_dir.path().join("accounts.json")).unwrap();
         let accounts: HashMap<String, Account> = serde_json::from_reader(file).unwrap();
-        let account = accounts.get("1").unwrap();
+        let account = &accounts["1"];
         assert_eq!(req.id, account.id);
         assert_eq!(req.username, account.username);
         assert_eq!(req.is_admin, account.is_admin);

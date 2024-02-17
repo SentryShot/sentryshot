@@ -1,4 +1,4 @@
-#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_possible_truncation, clippy::as_conversions)]
 
 use crate::*;
 use pretty_assertions::assert_eq;

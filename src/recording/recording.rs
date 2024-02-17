@@ -132,7 +132,7 @@ pub fn normalize_polygon(input: &Polygon, w: u16, h: u16) -> PolygonNormalized {
 }
 
 #[must_use]
-#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
 pub fn normalize(input: u16, max: u16) -> u32 {
     ((1_000_000 * u64::from(input)) / u64::from(max)) as u32
 }
@@ -149,7 +149,7 @@ pub fn denormalize_polygon(input: &PolygonNormalized, w: u16, h: u16) -> Polygon
 }
 
 #[must_use]
-#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
 pub fn denormalize(input: u32, max: u16) -> u16 {
     (div_ceil(u64::from(input) * u64::from(max), 1_000_000)) as u16
 }
@@ -297,7 +297,11 @@ impl Deref for DurationSec {
 }
 
 // Calculates frame duration from feed rate (fps).
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::as_conversions
+)]
 fn feed_rate_to_duration(feed_rate: f32) -> Duration {
     if feed_rate == 0.0 {
         return Duration::from(0);

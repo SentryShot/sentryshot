@@ -61,7 +61,7 @@ impl UnixNano {
     }
 
     #[must_use]
-    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_sign_loss, clippy::as_conversions)]
     pub fn as_chrono(&self) -> Option<NaiveDateTime> {
         let sec = self.0 / SECOND;
         let nanosec = self.0 % SECOND;
@@ -138,7 +138,7 @@ impl From<i64> for Duration {
     }
 }
 
-#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
 impl From<f64> for Duration {
     fn from(v: f64) -> Self {
         Self(v as i64)
@@ -156,6 +156,7 @@ impl Deref for Duration {
 // The number of time units that pass per second.
 pub const H264_TIMESCALE: u32 = 90000;
 
+#[allow(clippy::as_conversions)]
 pub const H264_SECOND: i64 = H264_TIMESCALE as i64;
 pub const H264_MILLISECOND: i64 = H264_SECOND / 1000;
 
@@ -208,7 +209,7 @@ impl UnixH264 {
     }
 
     #[must_use]
-    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_sign_loss, clippy::as_conversions)]
     pub fn as_chrono(&self) -> Option<NaiveDateTime> {
         let nanos = *self.as_nanos();
         let sec = nanos / SECOND;
@@ -273,7 +274,7 @@ impl DurationH264 {
     }
 
     #[must_use]
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
     pub fn as_secs_f64(&self) -> f64 {
         let ts = self.as_nanos();
         let sec = ts / SECOND;

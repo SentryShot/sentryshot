@@ -311,7 +311,7 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
         .await
         .map_err(CreateDir)?;
 
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
     let video_length = Duration::from(c.config.video_length() * (MINUTE as f64));
 
     c.logger

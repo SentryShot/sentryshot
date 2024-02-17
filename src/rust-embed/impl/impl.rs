@@ -61,8 +61,8 @@ fn find_attribute_values(ast: &syn::DeriveInput, attr_name: &str) -> Vec<String>
 }
 
 fn impl_rust_embed(ast: &syn::DeriveInput) -> TokenStream2 {
-    match ast.data {
-        Data::Struct(ref data) => match data.fields {
+    match &ast.data {
+        Data::Struct(data) => match data.fields {
             Fields::Unit => {}
             _ => panic!("RustEmbed can only be derived for unit structs"),
         },

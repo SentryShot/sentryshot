@@ -1199,7 +1199,7 @@ mod tests {
             source: "x".parse().unwrap(),
             monitor_id: None,
             time: UnixMicro::from(time),
-            message: msg.to_string().parse().unwrap(),
+            message: msg.to_owned().parse().unwrap(),
         }
     }
 

@@ -525,7 +525,11 @@ fn parse_detections(label_map: &LabelMap, input: Vec<tflite_lib::Detection>) -> 
 }
 
 fn parse_rect(top: f32, left: f32, bottom: f32, right: f32) -> Option<RectangleNormalized> {
-    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    #[allow(
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation,
+        clippy::as_conversions
+    )]
     fn scale(v: f32) -> u32 {
         (v * 1_000_000.0) as u32
     }

@@ -339,7 +339,7 @@ where
             SeekFrom::Current(n) => (self.pos, n),
         };
 
-        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_sign_loss, clippy::as_conversions)]
         let new_pos = if offset >= 0 {
             base_pos.checked_add(offset as u64)
         } else {
@@ -442,7 +442,7 @@ pub struct MetaCursor {
 }
 
 impl AsyncRead for MetaCursor {
-    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
     fn poll_read(
         mut self: Pin<&mut Self>,
         _: &mut Context<'_>,
@@ -498,6 +498,7 @@ impl AsyncSeek for MetaCursor {
 }
 
 impl std::io::Seek for MetaCursor {
+    #[allow(clippy::as_conversions)]
     fn seek(&mut self, style: std::io::SeekFrom) -> std::io::Result<u64> {
         let (base_pos, offset) = match style {
             SeekFrom::Start(n) => {

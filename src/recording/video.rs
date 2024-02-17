@@ -12,6 +12,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, As
 const FLAG_RANDOM_ACCESS_PRESENT: u8 = 0b1000_0000;
 
 const SAMPLE_SIZE_U8: u8 = 25;
+#[allow(clippy::as_conversions)]
 pub const SAMPLE_SIZE: usize = SAMPLE_SIZE_U8 as usize;
 
 // Sample .

@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod test;
 
+use std::io::Write;
+
 use thiserror::Error;
 
 // Mpeg box type.
@@ -54,7 +56,7 @@ impl Boxes {
     }
 
     // Marshal box including children.
-    pub fn marshal(&self, w: &mut impl std::io::Write) -> Result<(), Mp4Error> {
+    pub fn marshal<W: Write>(&self, w: &mut W) -> Result<(), Mp4Error> {
         let size = self.size();
 
         write_box_info(w, size, self.mp4_box.box_type())?;
@@ -71,11 +73,7 @@ impl Boxes {
     }
 }
 
-pub fn write_box_info(
-    w: &mut impl std::io::Write,
-    size: usize,
-    typ: BoxType,
-) -> Result<(), Mp4Error> {
+pub fn write_box_info<W: Write>(w: &mut W, size: usize, typ: BoxType) -> Result<(), Mp4Error> {
     w.write_all(
         &u32::try_from(size)
             .map_err(|e| Mp4Error::FromInt("write box info".to_owned(), e))?
@@ -85,10 +83,7 @@ pub fn write_box_info(
     Ok(())
 }
 
-pub fn write_single_box(
-    w: &mut impl std::io::Write,
-    b: &dyn ImmutableBox,
-) -> Result<usize, Mp4Error> {
+pub fn write_single_box<W: Write>(w: &mut W, b: &dyn ImmutableBox) -> Result<usize, Mp4Error> {
     let size = 8 + b.size();
 
     write_box_info(w, size, b.box_type())?;
@@ -154,7 +149,7 @@ impl FullBox {
 }
 
 #[must_use]
-#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
 pub fn u32_to_flags(v: u32) -> [u8; 3] {
     [(v >> 16) as u8, (v >> 8) as u8, v as u8]
 }
@@ -235,7 +230,7 @@ impl ImmutableBox for Ctts {
 
 pub const TYPE_DINF: BoxType = *b"dinf";
 
-pub struct Dinf {}
+pub struct Dinf;
 
 impl ImmutableBox for Dinf {
     fn box_type(&self) -> BoxType {
@@ -403,7 +398,7 @@ impl ImmutableBox for Mdat {
 
 pub const TYPE_MDIA: BoxType = *b"mdia";
 
-pub struct Mdia {}
+pub struct Mdia;
 
 impl ImmutableBox for Mdia {
     fn box_type(&self) -> BoxType {
@@ -516,7 +511,7 @@ impl ImmutableBox for Mfhd {
 
 pub const TYPE_MINF: BoxType = *b"minf";
 
-pub struct Minf {}
+pub struct Minf;
 
 impl ImmutableBox for Minf {
     fn box_type(&self) -> BoxType {
@@ -536,7 +531,7 @@ impl ImmutableBox for Minf {
 
 pub const TYPE_MOOF: BoxType = *b"moof";
 
-pub struct Moof {}
+pub struct Moof;
 
 impl ImmutableBox for Moof {
     fn box_type(&self) -> BoxType {
@@ -556,7 +551,7 @@ impl ImmutableBox for Moof {
 
 pub const TYPE_MOOV: BoxType = *b"moov";
 
-pub struct Moov {}
+pub struct Moov;
 
 impl ImmutableBox for Moov {
     fn box_type(&self) -> BoxType {
@@ -576,7 +571,7 @@ impl ImmutableBox for Moov {
 
 pub const TYPE_MVEX: BoxType = *b"mvex";
 
-pub struct Mvex {}
+pub struct Mvex;
 
 impl ImmutableBox for Mvex {
     fn box_type(&self) -> BoxType {
@@ -847,7 +842,7 @@ impl ImmutableBox for AvcC {
 
 pub const TYPE_STBL: BoxType = *b"stbl";
 
-pub struct Stbl {}
+pub struct Stbl;
 
 impl ImmutableBox for Stbl {
     fn box_type(&self) -> BoxType {
@@ -1273,7 +1268,7 @@ impl ImmutableBox for Tkhd {
 
 pub const TYPE_TRAF: BoxType = *b"traf";
 
-pub struct Traf {}
+pub struct Traf;
 
 impl ImmutableBox for Traf {
     fn box_type(&self) -> BoxType {
@@ -1293,7 +1288,7 @@ impl ImmutableBox for Traf {
 
 pub const TYPE_TRAK: BoxType = *b"trak";
 
-pub struct Trak {}
+pub struct Trak;
 
 impl ImmutableBox for Trak {
     fn box_type(&self) -> BoxType {

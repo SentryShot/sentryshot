@@ -90,7 +90,11 @@ impl<'de> Deserialize<'de> for NonZeroGb {
         if temp.0 == 0.0 {
             return Err(serde::de::Error::custom("cannot be zero"));
         }
-        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+        #[allow(
+            clippy::cast_sign_loss,
+            clippy::cast_possible_truncation,
+            clippy::as_conversions
+        )]
         Ok(Self(ByteSize((temp.0 * 1000.0) as u64 * MB)))
     }
 }
@@ -348,7 +352,7 @@ impl Deref for NonEmptyString {
     }
 }
 
-pub struct DummyLogger {}
+pub struct DummyLogger;
 
 #[must_use]
 pub fn new_dummy_logger() -> Arc<DummyLogger> {

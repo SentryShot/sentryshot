@@ -214,7 +214,11 @@ pub enum ParseOutputTensorsError {
     RectBounds(usize),
 }
 
-#[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+#[allow(
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation,
+    clippy::as_conversions
+)]
 fn parse_output_tensors(
     t0: &[u8],
     t1: &[u8],
@@ -400,7 +404,7 @@ pub fn list_edgetpu_devices() -> Vec<EdgetpuDevice> {
             let path = path
                 .to_str()
                 .expect("libedgetpu returned a device path that isn't a valid string: {path:?}")
-                .to_string();
+                .to_owned();
             devices.push(EdgetpuDevice { typ, path });
         }
         c_free_devices(devices_ptr);

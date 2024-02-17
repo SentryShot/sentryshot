@@ -293,7 +293,7 @@ impl SourceRtsp {
             retina::client::SessionOptions::default()
                 .creds(creds)
                 .session_group(session_group.clone())
-                .user_agent("temp".to_string())
+                .user_agent("temp".to_owned())
                 .teardown(retina::client::TeardownPolicy::Always),
         )
         .await

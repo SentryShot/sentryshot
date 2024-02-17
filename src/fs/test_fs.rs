@@ -373,7 +373,7 @@ impl FsTester {
 
     // Checks that various invalid forms of file's name cannot be opened using t.fsys.Open.
     fn check_open(&self, file: &str) {
-        let mut bad = Vec::from([("/".to_owned() + file), (file.to_string() + "/.")]);
+        let mut bad = Vec::from([("/".to_owned() + file), (file.to_owned() + "/.")]);
         if file == "." {
             bad.push("/".to_owned());
         }

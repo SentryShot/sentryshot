@@ -221,7 +221,11 @@ impl<'a> Disk<'a> {
         Ok(updated_usage)
     }
 
-    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::as_conversions
+    )]
     async fn calculate_disk_usage(&self) -> Result<DiskUsage, UsageBytesError> {
         let used = self.disk_usage.bytes(self.recordings_dir.clone()).await?;
         let percent = (((used * 100) as f64) / (self.max_disk_usage.as_u64() as f64)) as f32;

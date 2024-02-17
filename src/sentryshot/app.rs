@@ -552,5 +552,5 @@ fn time_zone() -> Option<String> {
             }
         }
     }
-    zone.map(|v| v.to_string_lossy().to_string().trim().to_string())
+    zone.map(|v| v.to_string_lossy().to_string().trim().to_owned())
 }

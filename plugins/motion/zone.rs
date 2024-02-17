@@ -44,7 +44,11 @@ pub struct Zone {
 }
 
 impl Zone {
-    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    #[allow(
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation,
+        clippy::as_conversions
+    )]
     pub(crate) fn new(width: u16, height: u16, config: &ZoneConfig) -> Self {
         let polygon = denormalize_polygon(&config.area, width, height);
         let mask_image = create_inverted_mask(&polygon, width, height);
@@ -60,7 +64,7 @@ impl Zone {
         }
     }
 
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
     fn check_diff(&self, diff: &[u8]) -> (f32, bool) {
         let mut n_changed_pixels = 0;
         for (i, is_masked) in self.mask.iter().enumerate() {
