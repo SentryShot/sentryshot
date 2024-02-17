@@ -39,12 +39,12 @@ use std::{
 use tokio::{runtime::Handle, sync::Mutex};
 
 #[no_mangle]
-pub fn version() -> String {
+pub extern "Rust" fn version() -> String {
     plugin::get_version()
 }
 
 #[no_mangle]
-pub fn pre_load() -> Box<dyn PreLoadPlugin> {
+pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
     Box::new(PreLoadAuthBasic)
 }
 
@@ -61,7 +61,7 @@ impl PreLoadPlugin for PreLoadAuthBasic {
 }
 
 #[no_mangle]
-pub fn load(app: &dyn Application) -> Arc<dyn Plugin> {
+pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(AuthBasicPlugin { auth: app.auth() })
 }
 
@@ -225,7 +225,7 @@ impl Authenticator for BasicAuth {
 
         Some(ValidateResponse {
             is_admin: valid_login.is_admin,
-            token: valid_login.token.to_owned(),
+            token: valid_login.token.clone(),
             token_valid: token_matches(),
         })
     }
@@ -264,7 +264,7 @@ impl Authenticator for BasicAuth {
             accont.id = req.id;
             accont.username = req.username;
             if let Some(new_password) = req.plain_password {
-                accont.password = generate_password_hash(&self.rt_handle, new_password).await
+                accont.password = generate_password_hash(&self.rt_handle, new_password).await;
             }
             accont.is_admin = req.is_admin;
             accont.token = gen_token();
@@ -445,7 +445,7 @@ pub fn log_failed_login(logger: &DynLogger, username: &str) {
         level: LogLevel::Warning,
         source: "auth".parse().unwrap(),
         monitor_id: None,
-        message: format!("failed login: username: '{}' ", username)
+        message: format!("failed login: username: '{username}' ")
             .parse()
             .unwrap(),
     });
@@ -482,7 +482,7 @@ mod tests {
         }
     }
 
-    fn new_test_auth<'a>() -> (TempDir, BasicAuth) {
+    fn new_test_auth() -> (TempDir, BasicAuth) {
         let temp_dir = tempdir().unwrap();
 
         let accounts_path = temp_dir.path().join("accounts.json");
@@ -544,14 +544,14 @@ mod tests {
 
         let mut headers = HeaderMap::new();
         headers.insert("Authorization", auth_header.0.encode());
-        headers.insert("X-CSRF-TOKEN", HeaderValue::from_str(&token).unwrap());
+        headers.insert("X-CSRF-TOKEN", HeaderValue::from_str(token).unwrap());
 
         let result = auth.validate_request(&headers).await;
         assert_eq!(login_valid, result.is_some());
 
         if let Some(valid_login) = result {
             assert_eq!(is_admin, valid_login.is_admin);
-            assert_eq!(token_valid, valid_login.token_valid)
+            assert_eq!(token_valid, valid_login.token_valid);
         }
     }
 
@@ -578,7 +578,7 @@ mod tests {
             ),
         ]);
 
-        assert_eq!(want, auth.accounts().await)
+        assert_eq!(want, auth.accounts().await);
     }
 
     #[tokio::test]
@@ -628,7 +628,7 @@ mod tests {
         // Missing Id.
         match auth
             .account_set(AccountSetRequest {
-                id: "".to_owned(),
+                id: String::new(),
                 username: "admin".parse().unwrap(),
                 plain_password: Some("pass".to_owned()),
                 is_admin: false,
@@ -671,6 +671,6 @@ mod tests {
                 .await
                 .account_by_name(&"2".parse().unwrap()),
             "user was not deleted"
-        )
+        );
     }
 }

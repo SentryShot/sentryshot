@@ -136,7 +136,7 @@ parse_command() {
 		test_js
 		lint_css_fix
 		format_backend_fix
-		lint_backend
+		lint_backend_fix
 		test_backend
 		printf "all passed!"
 		exit 0
@@ -342,7 +342,14 @@ format_backend_fix() {
 
 lint_backend() {
 	printf "lint backend\\n"
-	cargo clippy --workspace --no-deps -- -D warnings || error "clippy failed"
+	cargo clippy --workspace --no-deps --all-targets -- -D warnings || error "clippy failed"
+	git ls-files | grep \.sh$ | xargs shellcheck || error "shellcheck failed"
+}
+
+lint_backend_fix() {
+	printf "lint backend\\n"
+	cargo clippy --workspace --no-deps --all-targets --fix --allow-staged --allow-dirty -- -D warnings || error "clippy failed"
+	cargo clippy --workspace --no-deps --all-targets -- -D warnings || error "clippy failed"
 	git ls-files | grep \.sh$ | xargs shellcheck || error "shellcheck failed"
 }
 

@@ -39,6 +39,7 @@ pub struct Source {
 }
 
 impl Source {
+    #[must_use]
     pub fn new(
         stream_type: StreamType,
         get_muxer_tx: mpsc::Sender<oneshot::Sender<DynHlsMuxer>>,
@@ -51,6 +52,7 @@ impl Source {
         }
     }
 
+    #[must_use]
     pub fn stream_type(&self) -> &StreamType {
         &self.stream_type
     }
@@ -135,7 +137,7 @@ impl MsgLogger for SourceLogger {
         self.logger.log(LogEntry {
             level,
             source: "monitor".parse().unwrap(),
-            monitor_id: Some(self.monitor_id.to_owned()),
+            monitor_id: Some(self.monitor_id.clone()),
             message: format!(
                 "({}) {} source: {}",
                 self.stream_type.name(),
@@ -144,10 +146,11 @@ impl MsgLogger for SourceLogger {
             )
             .parse()
             .unwrap(),
-        })
+        });
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub struct SourceRtsp {
     msg_logger: DynMsgLogger,
     hls_server: Arc<HlsServer>,
@@ -159,7 +162,7 @@ pub struct SourceRtsp {
 
 impl SourceRtsp {
     #[allow(clippy::new_ret_no_self, clippy::too_many_arguments)]
-    pub async fn new(
+    pub fn new(
         token: CancellationToken,
         shutdown_complete: mpsc::Sender<()>,
         logger: DynLogger,
@@ -175,7 +178,7 @@ impl SourceRtsp {
 
         let msg_logger = Arc::new(SourceLogger::new(
             logger,
-            monitor_id.to_owned(),
+            monitor_id.clone(),
             "rtsp".to_owned(),
             stream_type,
         ));
@@ -206,13 +209,13 @@ impl SourceRtsp {
                         source.log(LogLevel::Debug, "cancelled");
                     }
                     Err(e) => {
-                        source.log(LogLevel::Error, &format!("crashed: {}", e));
+                        source.log(LogLevel::Error, &format!("crashed: {e}"));
                     }
                 };
 
                 tokio::select! {
-                    _ = token2.cancelled() => {}
-                    _ = tokio::time::sleep(tokio::time::Duration::from_secs(20)) => {}
+                    () = token2.cancelled() => {}
+                    () = tokio::time::sleep(tokio::time::Duration::from_secs(20)) => {}
                 }
             }
         });
@@ -228,7 +231,7 @@ impl SourceRtsp {
             let mut subscribe_requests: Vec<oneshot::Sender<_>> = Vec::new();
             loop {
                 tokio::select! {
-                    _ = token.cancelled() => return,
+                    () = token.cancelled() => return,
                    res = started_rx.recv() => {
                         let Some((m, f)) = res else {
                             return
@@ -271,9 +274,10 @@ impl SourceRtsp {
     }
 
     fn log(&self, level: LogLevel, msg: &str) {
-        self.msg_logger.log(level, msg)
+        self.msg_logger.log(level, msg);
     }
 
+    #[allow(clippy::too_many_lines, clippy::similar_names)]
     async fn run(
         &self,
         token: CancellationToken,
@@ -285,7 +289,7 @@ impl SourceRtsp {
 
         let session_group = Arc::new(retina::client::SessionGroup::default());
         let mut session = retina::client::Session::describe(
-            url.to_owned(),
+            url.clone(),
             retina::client::SessionOptions::default()
                 .creds(creds)
                 .session_group(session_group.clone())
@@ -349,7 +353,7 @@ impl SourceRtsp {
         let mut hls_writer: Option<H264Writer> = None;
         loop {
             tokio::select! {
-                _ = token.cancelled() => {
+                () = token.cancelled() => {
                     return Err(SourceRtspRunError::Cancelled(Cancelled));
                 },
                 pkt = session.next() => {
@@ -467,9 +471,10 @@ enum RemoveCreds {
 }
 
 fn remove_creds_from_url(mut url: Url) -> Result<Url, RemoveCreds> {
-    url.set_username("").map_err(|_| RemoveCreds::SetUsername)?;
+    url.set_username("")
+        .map_err(|()| RemoveCreds::SetUsername)?;
     url.set_password(None)
-        .map_err(|_| RemoveCreds::SetPassword)?;
+        .map_err(|()| RemoveCreds::SetPassword)?;
     Ok(url)
 }
 
@@ -485,7 +490,7 @@ fn creds_from_url(url: &Url) -> Option<retina::client::Credentials> {
     } else if !username.is_empty() {
         Some(retina::client::Credentials {
             username: username.to_owned(),
-            password: "".to_owned(),
+            password: String::new(),
         })
     } else {
         None
@@ -543,7 +548,7 @@ fn new_decoder(
                 .spawn_blocking(move || {
                     h264_decoder
                         .send_packet(Packet::new(&avcc).with_pts(*frame.pts))
-                        .map(|_| h264_decoder)
+                        .map(|()| h264_decoder)
                 })
                 .await
                 .unwrap();
@@ -558,7 +563,7 @@ fn new_decoder(
             loop {
                 let mut frame_decoded = Frame::new();
                 match h264_decoder.receive_frame(&mut frame_decoded) {
-                    Ok(_) => {}
+                    Ok(()) => {}
                     Err(ReceiveFrameError::Eagain) => break,
                     Err(e) => {
                         _ = frame_tx.send(Err(ReceiveFrame(e))).await;

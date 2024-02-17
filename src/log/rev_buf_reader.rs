@@ -38,22 +38,21 @@ pub(crate) struct RevBufReader<R> {
 impl<R: AsyncRead + AsyncSeek> RevBufReader<R> {
     /// Creates a new `RevBufReader` with a default buffer capacity. The default is currently 32KIB,
     /// but may change in the future.
-    pub(crate) async fn new(inner: R) -> Result<Self, std::io::Error> {
-        //Self::with_capacity(131072, inner).await
-        //Self::with_capacity(65535, inner).await
-        Self::with_capacity(32768, inner).await
-        //Self::with_capacity(16384, inner).await
-        //Self::with_capacity(8192, inner).await
-        //Self::with_capacity(4096, inner).await
+    pub(crate) fn new(inner: R) -> Self {
+        //Self::with_capacity(131072, inner)
+        //Self::with_capacity(65535, inner)
+        Self::with_capacity(32768, inner)
+        //Self::with_capacity(16384, inner)
+        //Self::with_capacity(8192, inner)
+        //Self::with_capacity(4096, inner)
     }
 
     /// Creates a new `RevBufReader` with the specified buffer capacity.
-    pub(crate) async fn with_capacity(capacity: usize, inner: R) -> Result<Self, std::io::Error> {
-        let buffer = vec![0; capacity];
-        Ok(Self {
+    pub(crate) fn with_capacity(capacity: usize, inner: R) -> Self {
+        Self {
             inner,
             inner_pos: 0,
-            buf: buffer.into_boxed_slice(),
+            buf: vec![0; capacity].into_boxed_slice(),
             buf_start: 0,
             buf_pos: 0,
             buf_end: 0,
@@ -61,7 +60,7 @@ impl<R: AsyncRead + AsyncSeek> RevBufReader<R> {
             prev_seek_pos: 0,
             read_state: ReadState::Init,
             seek_state: SeekState::Init,
-        })
+        }
     }
 
     /// Gets a reference to the underlying reader.
@@ -247,6 +246,7 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for RevBufReader<R> {
 }
 
 // https://github.com/tokio-rs/tokio/blob/master/tokio/tests/io_buf_reader.rs
+#[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,9 +335,7 @@ mod tests {
     #[tokio::test]
     async fn test_buffered_reader() {
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-        let mut reader = RevBufReader::with_capacity(2, Cursor::new(inner))
-            .await
-            .unwrap();
+        let mut reader = RevBufReader::with_capacity(2, Cursor::new(inner));
 
         let mut buf = [0, 0, 0];
         let nread = reader.read(&mut buf).await.unwrap();
@@ -374,9 +372,7 @@ mod tests {
     #[tokio::test]
     async fn test_buffered_reader_seek() {
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-        let mut reader = RevBufReader::with_capacity(2, Cursor::new(inner))
-            .await
-            .unwrap();
+        let mut reader = RevBufReader::with_capacity(2, Cursor::new(inner));
 
         assert_eq!(reader.seek(SeekFrom::Start(3)).await.unwrap(), 3);
         assert_eq!(run_fill_buf!(reader).unwrap(), &[0, 1][..]);
@@ -431,9 +427,7 @@ mod tests {
             }
         }
 
-        let mut reader = RevBufReader::with_capacity(5, PositionReader { pos: 0 })
-            .await
-            .unwrap();
+        let mut reader = RevBufReader::with_capacity(5, PositionReader { pos: 0 });
         assert_eq!(run_fill_buf!(reader).unwrap(), &[0, 1, 2, 3, 4][..]);
         assert_eq!(
             reader.seek(SeekFrom::Start(u64::MAX - 5)).await.unwrap(),
@@ -485,7 +479,7 @@ mod tests {
         let inner = ShortReader {
             lengths: vec![0, 1, 2, 0, 1, 0],
         };
-        let mut reader = RevBufReader::new(inner).await.unwrap();
+        let mut reader = RevBufReader::new(inner);
         let mut buf = [0, 0];
         assert_eq!(reader.read(&mut buf).await.unwrap(), 0);
         assert_eq!(reader.read(&mut buf).await.unwrap(), 1);
@@ -499,9 +493,7 @@ mod tests {
     #[tokio::test]
     async fn maybe_pending() {
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-        let mut reader = RevBufReader::with_capacity(2, MaybePending::new(inner))
-            .await
-            .unwrap();
+        let mut reader = RevBufReader::with_capacity(2, MaybePending::new(inner));
 
         let mut buf = [0, 0, 0];
         let nread = reader.read(&mut buf).await.unwrap();
@@ -538,7 +530,7 @@ mod tests {
     #[tokio::test]
     async fn maybe_pending_buf_read() {
         let inner = MaybePending::new(&[0, 1, 2, 3, 1, 0]);
-        let mut reader = RevBufReader::with_capacity(2, inner).await.unwrap();
+        let mut reader = RevBufReader::with_capacity(2, inner);
         let mut v = Vec::new();
         reader.read_until(3, &mut v).await.unwrap();
         assert_eq!(v, [0, 1, 2, 3]);
@@ -587,12 +579,12 @@ mod tests {
                 mut self: Pin<&mut Self>,
                 cx: &mut Context<'_>,
             ) -> Poll<std::io::Result<&[u8]>> {
-                let this: *mut Self = &mut *self as *mut _;
+                let this: *mut Self = std::ptr::addr_of_mut!(*self);
                 Pin::new(&mut unsafe { &mut *this }.inner).poll_fill_buf(cx)
             }
 
             fn consume(mut self: Pin<&mut Self>, amt: usize) {
-                Pin::new(&mut self.inner).consume(amt)
+                Pin::new(&mut self.inner).consume(amt);
             }
         }
 
@@ -618,9 +610,7 @@ mod tests {
         }
 
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-        let mut reader = RevBufReader::with_capacity(2, MaybePendingSeek::new(inner))
-            .await
-            .unwrap();
+        let mut reader = RevBufReader::with_capacity(2, MaybePendingSeek::new(inner));
 
         assert_eq!(reader.seek(SeekFrom::Start(3)).await.unwrap(), 3);
         assert_eq!(run_fill_buf!(reader).unwrap(), &[0, 1][..]);

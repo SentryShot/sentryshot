@@ -23,7 +23,7 @@ fn trait_works_generic() {
 fn trait_works_generic_helper<E: RustEmbed>() {
     let mut num_files = 0;
     let files = E::load();
-    for (file, _) in files.iter() {
+    for file in files.keys() {
         assert!(files.get(file).is_some());
         num_files += 1;
     }

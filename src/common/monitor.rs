@@ -6,9 +6,11 @@ use std::{collections::HashMap, ops::Deref, str::FromStr};
 use thiserror::Error;
 use url::Url;
 
+#[allow(clippy::module_name_repetitions)]
 pub type MonitorConfigs = HashMap<MonitorId, MonitorConfig>;
 
 #[derive(Clone, Debug, PartialEq)]
+#[allow(clippy::module_name_repetitions)]
 pub struct MonitorConfig {
     pub config: Config,
     pub source: SourceConfig,
@@ -26,19 +28,23 @@ impl MonitorConfig {
     */
 
     // Monitor ID.
+    #[must_use]
     pub fn id(&self) -> &MonitorId {
         &self.config.id
     }
 
     // Name returns the monitor name.
+    #[must_use]
     pub fn name(&self) -> &NonEmptyString {
         &self.config.name
     }
 
+    #[must_use]
     pub fn enabled(&self) -> bool {
         self.config.enable
     }
 
+    #[must_use]
     pub fn has_sub_stream(&self) -> bool {
         match &self.source {
             SourceConfig::Rtsp(v) => v.sub_stream.is_some(),
@@ -51,10 +57,12 @@ impl MonitorConfig {
             return c.v["videoLength"]
         }
     */
+    #[must_use]
     pub fn always_record(&self) -> bool {
         self.config.always_record
     }
 
+    #[must_use]
     pub fn video_length(&self) -> f64 {
         self.config.video_length
     }
@@ -101,10 +109,10 @@ impl<'de> Deserialize<'de> for MonitorConfig {
     {
         use serde::de::Error;
         let value = serde_json::Value::deserialize(deserializer)?;
-        let config: Config = serde_json::from_value(value.to_owned()).map_err(Error::custom)?;
+        let config: Config = serde_json::from_value(value.clone()).map_err(Error::custom)?;
 
         let sources: SourcesDeserializer =
-            serde_json::from_value(value.to_owned()).map_err(Error::custom)?;
+            serde_json::from_value(value.clone()).map_err(Error::custom)?;
 
         let source = match config.source {
             SelectedSource::Rtsp => SourceConfig::Rtsp(sources.source_rtsp.map_err(Error::custom)?),

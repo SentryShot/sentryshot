@@ -41,6 +41,7 @@ pub struct Boxes {
 
 impl Boxes {
     // Size returns the total size of the box including children.
+    #[must_use]
     pub fn size(&self) -> usize {
         let mut total = self.mp4_box.size() + 8;
 
@@ -140,6 +141,7 @@ impl FullBox {
         self.get_flags() & flag != 0
     }
 
+    #[allow(clippy::unused_self)]
     fn field_size(&self) -> usize {
         4
     }
@@ -151,6 +153,8 @@ impl FullBox {
     }
 }
 
+#[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn u32_to_flags(v: u32) -> [u8; 3] {
     [(v >> 16) as u8, (v >> 8) as u8, v as u8]
 }
@@ -281,7 +285,7 @@ pub struct Url {
     pub location: String,
 }
 
-pub const URL_NOPT: u32 = 0x000001;
+pub const URL_NOPT: u32 = 0x0000_0001;
 
 impl ImmutableBox for Url {
     fn box_type(&self) -> BoxType {
@@ -299,7 +303,7 @@ impl ImmutableBox for Url {
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         if !self.full_box.check_flag(URL_NOPT) {
-            w.write_all((self.location.to_owned() + "\0").as_bytes())?;
+            w.write_all((self.location.clone() + "\0").as_bytes())?;
         }
         Ok(())
     }
@@ -369,7 +373,7 @@ impl ImmutableBox for Hdlr {
         for reserved in &self.reserved {
             w.write_all(&reserved.to_be_bytes())?;
         }
-        w.write_all((self.name.to_owned() + "\0").as_bytes())?;
+        w.write_all((self.name.clone() + "\0").as_bytes())?;
         Ok(())
     }
 }
@@ -441,9 +445,10 @@ impl ImmutableBox for Mdhd {
     }
 
     fn size(&self) -> usize {
-        match self.full_box.version == 0 {
-            true => 24,
-            false => 36,
+        if let true = self.full_box.version == 0 {
+            24
+        } else {
+            36
         }
     }
 
@@ -467,16 +472,16 @@ impl ImmutableBox for Mdhd {
         }
 
         if self.pad {
-            w.write_all(&[(0b00000001 << 7
-                | (self.language[0] & 0b00011111) << 2
-                | (self.language[1] & 0b00011111) >> 3)])?;
+            w.write_all(&[(0b0000_0001 << 7
+                | (self.language[0] & 0b0001_1111) << 2
+                | (self.language[1] & 0b0001_1111) >> 3)])?;
         } else {
             w.write_all(&[
-                ((self.language[0] & 0b00011111) << 2 | (self.language[1] & 0b00011111) >> 3)
+                ((self.language[0] & 0b0001_1111) << 2 | (self.language[1] & 0b0001_1111) >> 3)
             ])?;
         }
 
-        w.write_all(&[(self.language[1] << 5 | self.language[2] & 0b00011111)])?;
+        w.write_all(&[(self.language[1] << 5 | self.language[2] & 0b0001_1111)])?;
         w.write_all(&self.pre_defined.to_be_bytes())?;
         Ok(())
     }
@@ -616,9 +621,10 @@ impl ImmutableBox for Mvhd {
     }
 
     fn size(&self) -> usize {
-        match self.full_box.version == 0 {
-            true => 100,
-            false => 112,
+        if let true = self.full_box.version == 0 {
+            100
+        } else {
+            112
         }
     }
 
@@ -788,15 +794,15 @@ impl ImmutableBox for AvcC {
     fn size(&self) -> usize {
         let mut total = 7;
         for sets in &self.sequence_parameter_sets {
-            total += sets.field_size()
+            total += sets.field_size();
         }
         for sets in &self.picture_parameter_sets {
-            total += sets.field_size()
+            total += sets.field_size();
         }
         if self.reserved3 != 0 {
             total += 4;
             for sets in &self.sequence_parameter_sets_ext {
-                total += sets.field_size()
+                total += sets.field_size();
             }
         }
         total
@@ -807,8 +813,8 @@ impl ImmutableBox for AvcC {
         w.write_all(&self.profile.to_be_bytes())?;
         w.write_all(&self.profile_compatibility.to_be_bytes())?;
         w.write_all(&self.level.to_be_bytes())?;
-        w.write_all(&[self.reserved << 2 | self.length_size_minus_one & 0b00000011])?;
-        w.write_all(&[self.reserved2 << 5 | self.num_of_sequence_parameter_sets & 0b00011111])?;
+        w.write_all(&[self.reserved << 2 | self.length_size_minus_one & 0b0000_0011])?;
+        w.write_all(&[self.reserved2 << 5 | self.num_of_sequence_parameter_sets & 0b0001_1111])?;
         for sets in &self.sequence_parameter_sets {
             sets.marshal_field(w)?;
         }
@@ -825,9 +831,9 @@ impl ImmutableBox for AvcC {
             panic!("fmp4 each values of profile and high_profile_fields_enabled are inconsistent")
         }
         if self.reserved3 != 0 {
-            w.write_all(&[self.reserved3 << 2 | self.chroma_format & 0b00000011])?;
-            w.write_all(&[self.reserved4 << 3 | self.bitdepth_luma_minus_8 & 0b00000111])?;
-            w.write_all(&[self.reserved5 << 3 | self.bitdepth_chroma_minus_8 & 0b00000111])?;
+            w.write_all(&[self.reserved3 << 2 | self.chroma_format & 0b0000_0011])?;
+            w.write_all(&[self.reserved4 << 3 | self.bitdepth_luma_minus_8 & 0b0000_0111])?;
+            w.write_all(&[self.reserved5 << 3 | self.bitdepth_chroma_minus_8 & 0b0000_0111])?;
             w.write_all(&self.num_of_sequence_parameter_set_ext.to_be_bytes())?;
             for sets in &self.sequence_parameter_sets_ext {
                 sets.marshal_field(w)?;
@@ -1126,11 +1132,11 @@ pub struct Tfhd {
     pub default_sample_flags: u32,
 }
 
-pub const TFHD_BASE_DATA_OFFSET_PRESENT: u32 = 0x000001;
-pub const TFHD_SAMPLE_DESCRIPTION_INDEX_PRESENT: u32 = 0x000002;
-pub const TFHD_DEFAULT_SAMPLE_DURATION_PRESENT: u32 = 0x000008;
-pub const TFHD_DEFAULT_SAMPLE_SIZE_PRESENT: u32 = 0x000010;
-pub const TFHD_DEFAULT_SAMPLE_FLAGS_PRESENT: u32 = 0x000020;
+pub const TFHD_BASE_DATA_OFFSET_PRESENT: u32 = 0x0000_0001;
+pub const TFHD_SAMPLE_DESCRIPTION_INDEX_PRESENT: u32 = 0x0000_0002;
+pub const TFHD_DEFAULT_SAMPLE_DURATION_PRESENT: u32 = 0x0000_0008;
+pub const TFHD_DEFAULT_SAMPLE_SIZE_PRESENT: u32 = 0x0000_0010;
+pub const TFHD_DEFAULT_SAMPLE_FLAGS_PRESENT: u32 = 0x0000_0020;
 
 impl ImmutableBox for Tfhd {
     fn box_type(&self) -> BoxType {
@@ -1140,25 +1146,25 @@ impl ImmutableBox for Tfhd {
     fn size(&self) -> usize {
         let mut total: usize = self.full_box.field_size() + 4;
         if self.full_box.check_flag(TFHD_BASE_DATA_OFFSET_PRESENT) {
-            total += 8
+            total += 8;
         }
         if self
             .full_box
             .check_flag(TFHD_SAMPLE_DESCRIPTION_INDEX_PRESENT)
         {
-            total += 4
+            total += 4;
         }
         if self
             .full_box
             .check_flag(TFHD_DEFAULT_SAMPLE_DURATION_PRESENT)
         {
-            total += 4
+            total += 4;
         }
         if self.full_box.check_flag(TFHD_DEFAULT_SAMPLE_SIZE_PRESENT) {
-            total += 4
+            total += 4;
         }
         if self.full_box.check_flag(TFHD_DEFAULT_SAMPLE_FLAGS_PRESENT) {
-            total += 4
+            total += 4;
         }
         total
     }
@@ -1347,27 +1353,28 @@ pub struct TrunEntry {
     pub sample_composition_time_offset_v1: i32,
 }
 
-pub const TRUN_DATA_OFFSET_PRESENT: u32 = 0b000000000001;
-pub const TRUN_FIRST_SAMPLE_FLAGS_PRESENT: u32 = 0b000000000100;
-pub const TRUN_SAMPLE_DURATION_PRESENT: u32 = 0b000100000000;
-pub const TRUN_SAMPLE_SIZE_PRESENT: u32 = 0b001000000000;
-pub const TRUN_SAMPLE_FLAGS_PRESENT: u32 = 0b010000000000;
-pub const TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT: u32 = 0b100000000000;
+pub const TRUN_DATA_OFFSET_PRESENT: u32 = 0b0000_0000_0001;
+pub const TRUN_FIRST_SAMPLE_FLAGS_PRESENT: u32 = 0b0000_0000_0100;
+pub const TRUN_SAMPLE_DURATION_PRESENT: u32 = 0b0001_0000_0000;
+pub const TRUN_SAMPLE_SIZE_PRESENT: u32 = 0b0010_0000_0000;
+pub const TRUN_SAMPLE_FLAGS_PRESENT: u32 = 0b0100_0000_0000;
+pub const TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT: u32 = 0b1000_0000_0000;
 
 impl TrunEntry {
+    #[allow(clippy::unused_self)]
     fn field_size(&self, full_box: &FullBox) -> usize {
         let mut total = 0;
         if full_box.check_flag(TRUN_SAMPLE_DURATION_PRESENT) {
-            total += 4
+            total += 4;
         }
         if full_box.check_flag(TRUN_SAMPLE_SIZE_PRESENT) {
-            total += 4
+            total += 4;
         }
         if full_box.check_flag(TRUN_SAMPLE_FLAGS_PRESENT) {
-            total += 4
+            total += 4;
         }
         if full_box.check_flag(TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT) {
-            total += 4
+            total += 4;
         }
         total
     }
@@ -1416,13 +1423,13 @@ impl ImmutableBox for Trun {
     fn size(&self) -> usize {
         let mut total = 8;
         if self.full_box.check_flag(TRUN_DATA_OFFSET_PRESENT) {
-            total += 4
+            total += 4;
         }
         if self.full_box.check_flag(TRUN_FIRST_SAMPLE_FLAGS_PRESENT) {
-            total += 4
+            total += 4;
         }
         for entry in &self.entries {
-            total += entry.field_size(&self.full_box)
+            total += entry.field_size(&self.full_box);
         }
         total
     }

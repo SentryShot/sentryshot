@@ -23,7 +23,7 @@ async fn handle_assets_ok() {
         "application/json",
         response.headers().get(header::CONTENT_TYPE).unwrap()
     );
-    assert_eq!("test", to_bytes(response.into_body()).await.unwrap())
+    assert_eq!("test", to_bytes(response.into_body()).await.unwrap());
 }
 
 #[tokio::test]
@@ -35,5 +35,5 @@ async fn handle_assets_404() {
         .into_response();
 
     assert_eq!(StatusCode::NOT_FOUND, response.status());
-    assert_eq!("404", to_bytes(response.into_body()).await.unwrap())
+    assert_eq!("404", to_bytes(response.into_body()).await.unwrap());
 }

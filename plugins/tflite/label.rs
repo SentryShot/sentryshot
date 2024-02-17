@@ -72,11 +72,11 @@ impl LabelCache {
             return Ok(labels.to_owned());
         }
         self.logger
-            .log(LogLevel::Info, &format!("downloading labelmap '{}'", url));
+            .log(LogLevel::Info, &format!("downloading labelmap '{url}'"));
         let raw = self.fetcher.fetch(url).await?;
         let raw_string = String::from_utf8(raw)?;
         let labels = parse_labels(&raw_string)?;
-        self.label_maps.insert(url.to_owned(), labels.to_owned());
+        self.label_maps.insert(url.to_owned(), labels.clone());
         self.save_to_disk()?;
         Ok(labels)
     }
@@ -85,7 +85,7 @@ impl LabelCache {
         use LabelCacheError::*;
         let raw = serde_json::to_vec_pretty(&self.label_maps).map_err(SerializeLabelsSets)?;
 
-        let mut temp_path = self.path.to_owned();
+        let mut temp_path = self.path.clone();
         temp_path.set_extension("tmp");
 
         std::fs::write(&temp_path, raw).map_err(WriteFile)?;
@@ -160,6 +160,6 @@ mod tests {
             (8, "boat".parse().unwrap()),
             (9, "traffic light".parse().unwrap()),
         ]);
-        assert_eq!(want, got)
+        assert_eq!(want, got);
     }
 }

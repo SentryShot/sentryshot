@@ -88,7 +88,12 @@ features = ["fs" ,"macros", "rt-multi-thread", "signal", "sync", "time"]
 
 
 [workspace.lints.clippy]
-#pedantic = "warn"
+pedantic = "warn"
+enum_glob_use = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+no_effect_underscore_binding = "allow"
+similar_names = "allow"
 
 
 # Strip plugins to reduce size.

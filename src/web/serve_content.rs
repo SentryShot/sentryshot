@@ -34,6 +34,7 @@ use tokio_util::io::ReaderStream;
 // ServeMP4Content uses it to handle requests using If-Match, If-None-Match, or If-Range.
 //
 // Content must be seeked to the beginning of the file.
+#[allow(clippy::too_many_lines)]
 pub async fn serve_mp4_content<RS>(
     method: &Method,
     headers: &HeaderMap,
@@ -50,7 +51,7 @@ where
     set_last_modified(&mut response_headers, &last_modified);
 
     let range_req =
-        match check_preconditions(method, headers, response_headers.to_owned(), last_modified) {
+        match check_preconditions(method, headers, response_headers.clone(), &last_modified) {
             PreconditionsResult::Done(response) => return response,
             PreconditionsResult::Range(v) => v,
         };
@@ -67,7 +68,7 @@ where
             if matches!(e, ParseRangeError::NoOverlap) {
                 response_headers.insert(
                     header::CONTENT_RANGE,
-                    HeaderValue::from_str(&format!("bytes */{}", size)).unwrap(),
+                    HeaderValue::from_str(&format!("bytes */{size}")).unwrap(),
                 );
             }
             return (
@@ -235,12 +236,12 @@ fn check_preconditions(
     method: &Method,
     headers: &HeaderMap,
     response_headers: HeaderMap,
-    last_modified: LastModified,
+    last_modified: &LastModified,
 ) -> PreconditionsResult {
     // This function carefully follows RFC 7232 section 6.
     let mut ch = check_if_match(headers);
     if ch == CondResult::None {
-        ch = check_if_unmodified_since(headers, Some(&last_modified))
+        ch = check_if_unmodified_since(headers, Some(last_modified));
     }
     if ch == CondResult::False {
         return PreconditionsResult::Done(
@@ -255,7 +256,7 @@ fn check_preconditions(
 
     match check_if_none_match(headers) {
         CondResult::None => {
-            if check_if_modified_since(method, headers, Some(&last_modified)) == CondResult::False {
+            if check_if_modified_since(method, headers, Some(last_modified)) == CondResult::False {
                 return PreconditionsResult::Done(not_modified_response(response_headers));
             }
         }
@@ -277,7 +278,7 @@ fn check_preconditions(
 
     let mut range_header = get_header(headers, header::RANGE);
     if range_header.is_some()
-        && check_if_range(method, headers, Some(&last_modified)) == CondResult::False
+        && check_if_range(method, headers, Some(last_modified)) == CondResult::False
     {
         range_header = None;
     }
@@ -313,7 +314,7 @@ fn scan_etag(s: String) -> Option<(String, String)> {
         c == 0x21 || (0x23..0x7e).contains(&c) || c >= 0x80 {
         } else if c == b'"' {
             return Some((
-                String::from_utf8(s.as_bytes()[..i + 1].to_owned()).unwrap(),
+                String::from_utf8(s.as_bytes()[..=i].to_owned()).unwrap(),
                 String::from_utf8(s.as_bytes()[i + 1..].to_owned()).unwrap(),
             ));
         } else {
@@ -326,14 +327,14 @@ fn scan_etag(s: String) -> Option<(String, String)> {
 
 // Reports whether a and b match using strong ETag comparison.
 // Assumes a and b are valid ETags.
-fn etag_strong_match(a: String, b: String) -> bool {
+fn etag_strong_match(a: &str, b: &str) -> bool {
     a == b && !a.is_empty() && a.as_bytes()[0] == b'"'
 }
 
 // Reports whether a and b match using weak ETag comparison.
 // Assumes a and b are valid ETags.
-fn etag_weak_match(a: String, b: String) -> bool {
-    a.strip_prefix("W/").unwrap_or(&a) == b.strip_prefix("W/").unwrap_or(&b)
+fn etag_weak_match(a: &str, b: &str) -> bool {
+    a.strip_prefix("W/").unwrap_or(a) == b.strip_prefix("W/").unwrap_or(b)
 }
 
 // condResult is the result of an HTTP request precondition check.
@@ -379,11 +380,11 @@ fn check_if_match(headers: &HeaderMap) -> CondResult {
 
         let etag2 = get_header(headers, header::ETAG);
         if let Some(etag2) = etag2 {
-            if etag_strong_match(etag, etag2) {
+            if etag_strong_match(&etag, &etag2) {
                 return CondResult::True;
             }
         }
-        im = Some(remain)
+        im = Some(remain);
     }
 
     CondResult::False
@@ -401,8 +402,7 @@ fn check_if_unmodified_since(headers: &HeaderMap, modified: Option<&LastModified
     if let Some(since) = if_unmodified_since {
         let precondition = modified
             .as_ref()
-            .map(|time| since.precondition_passes(time))
-            .unwrap_or(false);
+            .is_some_and(|time| since.precondition_passes(time));
 
         if !precondition {
             return CondResult::False;
@@ -438,12 +438,12 @@ fn check_if_none_match(headers: &HeaderMap) -> CondResult {
         };
 
         if let Some(etag2) = get_header(headers, header::ETAG) {
-            if etag_weak_match(etag, etag2) {
+            if etag_weak_match(&etag, &etag2) {
                 return CondResult::False;
             }
         }
 
-        buf = Some(remain)
+        buf = Some(remain);
     }
     CondResult::True
 }
@@ -464,9 +464,7 @@ fn check_if_modified_since(
     if let Some(since) = if_modified_since {
         let unmodified = modified
             .as_ref()
-            .map(|time| !since.is_modified(time))
-            // no last_modified means its always modified
-            .unwrap_or(false);
+            .is_some_and(|time| !since.is_modified(time));
         if unmodified {
             return CondResult::False;
         }
@@ -490,7 +488,7 @@ fn check_if_range(
 
     if let Some((etag, _)) = scan_etag(ir) {
         if let Some(etag2) = get_header(headers, header::ETAG) {
-            if etag_strong_match(etag, etag2) {
+            if etag_strong_match(&etag, &etag2) {
                 return CondResult::True;
             }
         }
@@ -528,7 +526,7 @@ impl IfModifiedSince {
         self.0 < last_modified.0
     }
 
-    /// convert a header value into a IfModifiedSince, invalid values are silentely ignored
+    /// convert a header value into a `IfModifiedSince`, invalid values are silentely ignored
     fn from_header_value(value: &HeaderValue) -> Option<IfModifiedSince> {
         std::str::from_utf8(value.as_bytes())
             .ok()
@@ -545,7 +543,7 @@ impl IfUnmodifiedSince {
         self.0 >= last_modified.0
     }
 
-    /// Convert a header value into a IfModifiedSince, invalid values are silentely ignored
+    /// Convert a header value into a `IfModifiedSince`, invalid values are silentely ignored
     fn from_header_value(value: &HeaderValue) -> Option<IfUnmodifiedSince> {
         std::str::from_utf8(value.as_bytes())
             .ok()
@@ -618,6 +616,7 @@ enum ParseRangeError {
 
 // parses a Range header string as per RFC 7233.
 // errNoOverlap is returned if none of the ranges overlap.
+#[allow(clippy::items_after_statements)]
 fn parse_range(s: Option<String>, size: u64) -> Result<Vec<HttpRange>, ParseRangeError> {
     use ParseRangeError::*;
     let Some(s) = s else {
@@ -662,12 +661,12 @@ fn parse_range(s: Option<String>, size: u64) -> Result<Vec<HttpRange>, ParseRang
                     return Err(InvalidRange);
                 }
                 if i >= size {
-                    i = size - 1
+                    i = size - 1;
                 }
-                r.length = i - r.start + 1
+                r.length = i - r.start + 1;
             } else {
                 // If no end is specified, range extends to end of the file.
-                r.length = size - r.start
+                r.length = size - r.start;
             }
         } else {
             // If no start is specified, end specifies the
@@ -683,7 +682,7 @@ fn parse_range(s: Option<String>, size: u64) -> Result<Vec<HttpRange>, ParseRang
             }
             let mut i: u64 = end.parse().map_err(|_| InvalidRange)?;
             if i > size {
-                i = size
+                i = size;
             }
             r.start = size - i;
             r.length = size - r.start;
@@ -720,7 +719,7 @@ fn trim_text_proto_string(s: Option<String>) -> Option<String> {
         s = s[1..].to_string();
     }
     while !s.is_empty() && is_ascii_space(*s.as_bytes().last().unwrap()) {
-        s = s.as_bytes().last().unwrap().to_string()
+        s = s.as_bytes().last().unwrap().to_string();
     }
     if s.is_empty() {
         return None;

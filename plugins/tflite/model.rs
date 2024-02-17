@@ -85,7 +85,7 @@ impl ModelCache {
             return Ok(model_path.to_owned());
         }
         self.logger
-            .log(LogLevel::Info, &format!("downloading model '{}'", url));
+            .log(LogLevel::Info, &format!("downloading model '{url}'"));
         let raw_model = self.fetcher.fetch(url).await?;
 
         let checksum_got = calculate_checksum(&raw_model);
@@ -111,7 +111,7 @@ impl ModelChecksum {
     pub(crate) fn as_string(&self) -> String {
         let mut s = String::with_capacity(self.0.len() * 2);
         for &b in &self.0 {
-            write!(&mut s, "{:02x}", b).unwrap();
+            write!(&mut s, "{b:02x}").unwrap();
         }
         s
     }
@@ -125,7 +125,7 @@ impl Debug for ModelChecksum {
 
 impl Display for ModelChecksum {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -199,6 +199,6 @@ mod tests {
             "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81"
                 .parse()
                 .unwrap()
-        )
+        );
     }
 }

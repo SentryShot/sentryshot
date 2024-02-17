@@ -65,27 +65,27 @@ pub enum NewVideoReaderError {
     TryFromInt(#[from] std::num::TryFromIntError),
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub async fn new_video_reader(
     recording_path: PathBuf,
     cache: &Option<Arc<Mutex<VideoCache>>>,
 ) -> Result<VideoReader<MetaCursor, tokio::fs::File>, NewVideoReaderError> {
     use NewVideoReaderError::*;
-    let mut meta_path = recording_path.to_owned();
+    let mut meta_path = recording_path.clone();
     meta_path.set_extension("meta");
 
-    let mut mdat_path = recording_path.to_owned();
+    let mut mdat_path = recording_path.clone();
     mdat_path.set_extension("mdat");
 
     let meta = {
         if let Some(cache) = cache {
             let mut cache = cache.lock().await;
-            match cache.get(&recording_path) {
-                Some(v) => v,
-                None => {
-                    let meta = Arc::new(read_video_metadata(&meta_path).await?);
-                    cache.add(recording_path, meta.clone());
-                    meta
-                }
+            if let Some(v) = cache.get(&recording_path) {
+                v
+            } else {
+                let meta = Arc::new(read_video_metadata(&meta_path).await?);
+                cache.add(recording_path, meta.clone());
+                meta
             }
         } else {
             Arc::new(read_video_metadata(&meta_path).await?)
@@ -114,6 +114,7 @@ where
     RS1: AsyncRead + AsyncSeek,
     RS2: AsyncRead + AsyncSeek,
 {
+    #[allow(clippy::too_many_lines)]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -338,6 +339,7 @@ where
             SeekFrom::Current(n) => (self.pos, n),
         };
 
+        #[allow(clippy::cast_sign_loss)]
         let new_pos = if offset >= 0 {
             base_pos.checked_add(offset as u64)
         } else {
@@ -440,6 +442,7 @@ pub struct MetaCursor {
 }
 
 impl AsyncRead for MetaCursor {
+    #[allow(clippy::cast_possible_truncation)]
     fn poll_read(
         mut self: Pin<&mut Self>,
         _: &mut Context<'_>,
@@ -505,6 +508,7 @@ impl std::io::Seek for MetaCursor {
             SeekFrom::Current(n) => (self.pos, n),
         };
 
+        #[allow(clippy::cast_sign_loss)]
         let new_pos = if offset >= 0 {
             base_pos.checked_add(offset as u64)
         } else {
@@ -534,6 +538,7 @@ const VIDEO_CACHE_SIZE: usize = 10;
 
 impl VideoCache {
     // NewVideoCache creates a video cache.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             items: HashMap::new(),
@@ -568,7 +573,7 @@ impl VideoCache {
 
     // Get item by key and update its age if it exists.
     fn get(&mut self, key: &Path) -> Option<Arc<VideoMetadata>> {
-        for (item_key, item) in self.items.iter_mut() {
+        for (item_key, item) in &mut self.items {
             if item_key == key {
                 self.age += 1;
                 item.age = self.age;

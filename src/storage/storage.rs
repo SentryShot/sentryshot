@@ -46,6 +46,7 @@ impl<'a> StoragePruner<'a> {
     }
 
     // Checks if disk usage is above 99% and if true deletes all files from the oldest day.
+    #[allow(clippy::items_after_statements)]
     async fn prune(&self) -> Result<(), PruneError> {
         use PruneError::*;
         let usage = self.disk.usage(Duration::from_minutes(10)).await?;
@@ -57,11 +58,11 @@ impl<'a> StoragePruner<'a> {
         const DAY_DEPTH: u8 = 3;
 
         // Find the oldest day.
-        let mut path = self.recordings_dir.to_owned();
+        let mut path = self.recordings_dir.clone();
 
         let mut depth = 1;
         while depth <= DAY_DEPTH {
-            let path2 = path.to_owned();
+            let path2 = path.clone();
             let entries = tokio::task::spawn_blocking(move || std::fs::read_dir(path2))
                 .await
                 .unwrap()
@@ -69,7 +70,7 @@ impl<'a> StoragePruner<'a> {
 
             let mut list = Vec::new();
             for entry in entries {
-                list.push(entry.map_err(DirEntry)?)
+                list.push(entry.map_err(DirEntry)?);
             }
 
             if list.is_empty() {
@@ -83,12 +84,12 @@ impl<'a> StoragePruner<'a> {
                     .await
                     .map_err(RemoveDirAll)?;
 
-                path = self.recordings_dir.to_owned();
+                path = self.recordings_dir.clone();
                 depth = 1;
                 continue;
             }
 
-            list.sort_by_key(|v| v.path());
+            list.sort_by_key(std::fs::DirEntry::path);
             let first_file = list[0].file_name();
             path = path.join(first_file);
 
@@ -99,7 +100,7 @@ impl<'a> StoragePruner<'a> {
             level: LogLevel::Info,
             source: "app".parse().unwrap(),
             monitor_id: None,
-            message: format!("pruning storage: deleting {:?}", path)
+            message: format!("pruning storage: deleting {path:?}")
                 .parse()
                 .unwrap(),
         });
@@ -116,15 +117,15 @@ impl<'a> StoragePruner<'a> {
     pub async fn prune_loop(&self, token: CancellationToken, interval: std::time::Duration) {
         loop {
             tokio::select! {
-                _ = token.cancelled() => return,
-                _ = tokio::time::sleep(interval) => {
+                () = token.cancelled() => return,
+                () = tokio::time::sleep(interval) => {
                     if let Err(e) = self.prune().await {
                         self.logger.log(LogEntry{
                             level: LogLevel::Error,
                             source: "app".parse().unwrap(),
                             monitor_id: None,
-                            message: format!("could not prune storage: {}", e).parse().unwrap(),
-                        })
+                            message: format!("could not prune storage: {e}").parse().unwrap(),
+                        });
                     }
                 }
             }
@@ -168,6 +169,7 @@ pub enum UsageError {
 }
 
 impl<'a> Disk<'a> {
+    #[must_use]
     pub fn new(recordings_dir: PathBuf, max_disk_usage: ByteSize) -> Self {
         Self {
             recordings_dir,
@@ -194,7 +196,7 @@ impl<'a> Disk<'a> {
 
         if let Some(cache) = &*self.cache.lock().await {
             if cache.last_update.after(max_time) {
-                return Ok(cache.usage.to_owned());
+                return Ok(cache.usage);
             }
         }
 
@@ -204,7 +206,7 @@ impl<'a> Disk<'a> {
         // Check if it was updated while we were waiting for the update lock.
         if let Some(cache) = &*self.cache.lock().await {
             if cache.last_update.after(max_time) {
-                return Ok(cache.usage.to_owned());
+                return Ok(cache.usage);
             }
         }
         // Still outdated.
@@ -212,18 +214,16 @@ impl<'a> Disk<'a> {
         let updated_usage = self.calculate_disk_usage().await?;
 
         *self.cache.lock().await = Some(DiskCache {
-            usage: updated_usage.to_owned(),
+            usage: updated_usage,
             last_update: UnixNano::now(),
         });
 
         Ok(updated_usage)
     }
 
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     async fn calculate_disk_usage(&self) -> Result<DiskUsage, UsageBytesError> {
-        let used = self
-            .disk_usage
-            .bytes(self.recordings_dir.to_owned())
-            .await?;
+        let used = self.disk_usage.bytes(self.recordings_dir.clone()).await?;
         let percent = (((used * 100) as f64) / (self.max_disk_usage.as_u64() as f64)) as f32;
         let max = self.max_disk_usage.as_u64() / GB;
         Ok(DiskUsage {
@@ -301,14 +301,14 @@ impl DiskUsager for DiskUsageBytes {
 
             let mut dirs = vec![path];
             while let Some(dir) = dirs.pop() {
-                for entry in std::fs::read_dir(&dir).map_err(|e| ReadDir(e, dir.to_owned()))? {
+                for entry in std::fs::read_dir(&dir).map_err(|e| ReadDir(e, dir.clone()))? {
                     let entry = entry.map_err(DirEntry)?;
                     let metadata = entry.metadata().map_err(Metadata)?;
 
                     total += metadata.len();
 
                     if metadata.is_dir() {
-                        dirs.push(dir.join(entry.file_name()))
+                        dirs.push(dir.join(entry.file_name()));
                     }
                 }
             }
@@ -421,13 +421,13 @@ mod tests {
         DiskUsage { used, percent, max }
     }
 
-    #[test_case(  11*MB,  100*MB, du(       11000000, 11.0,       0); "MB")]
-    #[test_case(2345*MB,   10*GB, du(     2345000000, 23.45,     10); "GB2")]
-    #[test_case(  22*GB,  100*GB, du(    22000000000, 22.0,     100); "GB1")]
-    #[test_case( 234*GB, 1000*GB, du(   234000000000, 23.4,    1000); "GB0")]
-    #[test_case(2345*GB,   10*TB, du(  2345000000000, 23.45,  10000); "TB2")]
-    #[test_case(  22*TB,  100*TB, du( 22000000000000, 22.0,  100000); "TB1")]
-    #[test_case( 234*TB, 1000*TB, du(234000000000000, 23.4, 1000000); "default")]
+    #[test_case(  11*MB,  100*MB, du(         11_000_000, 11.0,         0); "MB")]
+    #[test_case(2345*MB,   10*GB, du(      2_345_000_000, 23.45,       10); "GB2")]
+    #[test_case(  22*GB,  100*GB, du(     22_000_000_000, 22.0,       100); "GB1")]
+    #[test_case( 234*GB, 1000*GB, du(    234_000_000_000, 23.4,      1000); "GB0")]
+    #[test_case(2345*GB,   10*TB, du(  2_345_000_000_000, 23.45,    10000); "TB2")]
+    #[test_case(  22*TB,  100*TB, du( 22_000_000_000_000, 22.0,   100_000); "TB1")]
+    #[test_case( 234*TB, 1000*TB, du(234_000_000_000_000, 23.4, 1_000_000); "default")]
     #[tokio::test]
     async fn test_disk(used: u64, space: u64, want: DiskUsage) {
         let d = Disk {
@@ -476,7 +476,7 @@ mod tests {
         let update_lock = d.update_lock.lock().await;
 
         let (result_tx, result_rx) = oneshot::channel();
-        let d2 = d.to_owned();
+        let d2 = d.clone();
         tokio::spawn(async move {
             let usage = d2.usage(Duration::from_hours(1)).await.unwrap();
             result_tx.send(usage).unwrap();
@@ -552,11 +552,11 @@ mod tests {
         //tempDir := t.TempDir()
 
         let m = StoragePruner {
-            recordings_dir: recordings_dir.to_owned(),
+            recordings_dir: recordings_dir.clone(),
             disk: Arc::new(Disk {
                 recordings_dir,
                 max_disk_usage: ByteSize(GB),
-                disk_usage: &StubDiskUsage(1000000000),
+                disk_usage: &StubDiskUsage(1_000_000_000),
                 cache: Mutex::new(None),
                 update_lock: Mutex::new(()),
             }),
@@ -595,7 +595,7 @@ mod tests {
             for entry in entries {
                 let entry = entry.unwrap();
                 if entry.metadata().unwrap().is_dir() {
-                    dirs.push(dir.join(entry.file_name()))
+                    dirs.push(dir.join(entry.file_name()));
                 }
             }
         }

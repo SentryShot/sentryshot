@@ -40,12 +40,12 @@ use tokio_util::sync::CancellationToken;
 use url::Url;
 
 #[no_mangle]
-pub fn version() -> String {
+pub extern "Rust" fn version() -> String {
     plugin::get_version()
 }
 
 #[no_mangle]
-pub fn pre_load() -> Box<dyn PreLoadPlugin> {
+pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
     Box::new(PreLoadAuthNone)
 }
 struct PreLoadAuthNone;
@@ -56,7 +56,7 @@ impl PreLoadPlugin for PreLoadAuthNone {
 }
 
 #[no_mangle]
-pub fn load(app: &dyn Application) -> Arc<dyn Plugin> {
+pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     // This is very dirty and may break horribly.
     // Tokio normally forbids multiple runtimes, but plugins have a different
     // static namespace and tokio can't access the globals from the other runtime.
@@ -87,7 +87,7 @@ pub struct TflitePlugin {
 impl TflitePlugin {
     async fn new(
         rt_handle: Handle,
-        _shutdown_complete_tx: mpsc::Sender<()>,
+        shutdown_complete_tx: mpsc::Sender<()>,
         logger: DynLogger,
         env: DynEnvConfig,
     ) -> Self {
@@ -96,7 +96,7 @@ impl TflitePlugin {
         });
         let detector_manager = match DetectorManager::new(
             rt_handle.clone(),
-            _shutdown_complete_tx.clone(),
+            shutdown_complete_tx.clone(),
             tflite_logger,
             &Fetch,
             env.config_dir(),
@@ -105,14 +105,14 @@ impl TflitePlugin {
         {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("Failed to create tflite detector manager: {}", e);
+                eprintln!("Failed to create tflite detector manager: {e}");
                 std::process::exit(1);
             }
         };
 
         Self {
             rt_handle,
-            _shutdown_complete_tx,
+            _shutdown_complete_tx: shutdown_complete_tx,
             logger,
             detector_manager,
         }
@@ -144,7 +144,7 @@ impl Plugin for TflitePlugin {
 
     async fn on_monitor_start(&self, token: CancellationToken, monitor: Arc<Monitor>) {
         let msg_logger = Arc::new(TfliteMonitorLogger {
-            logger: self.logger.to_owned(),
+            logger: self.logger.clone(),
             monitor_id: monitor.config().id().to_owned(),
         });
 
@@ -154,7 +154,7 @@ impl Plugin for TflitePlugin {
                 msg_logger.log(LogLevel::Debug, "cancelled");
             }
             Err(e) => {
-                msg_logger.log(LogLevel::Error, &format!("start: {}", e));
+                msg_logger.log(LogLevel::Error, &format!("start: {e}"));
             }
         };
     }
@@ -225,16 +225,15 @@ impl TflitePlugin {
             &format!("using {}-stream", source.stream_type().name()),
         );
 
-        let Some(config) = TfliteConfig::parse(config.raw.to_owned())? else {
+        let Some(config) = TfliteConfig::parse(config.raw.clone())? else {
             // Motion detection is disabled.
             return Ok(());
         };
 
-        let detector_name = config.detector_name.to_owned();
+        let detector_name = config.detector_name.clone();
         let detector = self
             .detector_manager
             .get_detector(&detector_name)
-            .await
             .ok_or(GetDetector(detector_name))?;
 
         loop {
@@ -243,15 +242,14 @@ impl TflitePlugin {
                 .run(&msg_logger, &monitor, &config, &source, &detector)
                 .await
             {
-                Ok(_) => {}
-                Err(RunError::Cancelled(_)) => {}
-                Err(e) => msg_logger.log(LogLevel::Error, &format!("run: {}", e)),
+                Ok(()) | Err(RunError::Cancelled(_)) => {}
+                Err(e) => msg_logger.log(LogLevel::Error, &format!("run: {e}")),
             }
 
             let _enter = self.rt_handle.enter();
             tokio::select! {
-                _ = token.cancelled() => return Err(Cancelled(common::Cancelled)),
-                _ = tokio::time::sleep(Duration::from_secs(3)) => {}
+                () = token.cancelled() => return Err(Cancelled(common::Cancelled)),
+                () = tokio::time::sleep(Duration::from_secs(3)) => {}
             }
         }
     }
@@ -299,7 +297,7 @@ impl TflitePlugin {
 
             state = self
                 .rt_handle
-                .spawn_blocking(move || process_frame(&mut state, frame).map(|_| state))
+                .spawn_blocking(move || process_frame(&mut state, frame).map(|()| state))
                 .await
                 .unwrap()?;
 
@@ -380,6 +378,7 @@ enum CalculateOutputsError {
     Zero,
 }
 
+#[allow(clippy::items_after_statements, clippy::similar_names)]
 fn calculate_outputs(crop: Crop, i: &Inputs) -> Result<(Outputs, Uncrop), CalculateOutputsError> {
     use CalculateOutputsError::*;
     let crop_x = denormalize(crop.x, 100);
@@ -428,14 +427,14 @@ fn calculate_outputs(crop: Crop, i: &Inputs) -> Result<(Outputs, Uncrop), Calcul
     }
 
     if i.input_width.get() < scaled_width {
-        return Err(ScaledWidth(i.input_width.get(), scaled_width as f64));
+        return Err(ScaledWidth(i.input_width.get(), f64::from(scaled_width)));
     }
 
     let crop_size = u64::from(crop_size);
     let uncrop_x_fn = move |input: u32| -> u32 {
         let input = u64::from(input);
         let crop_x = u64::from(crop_x);
-        let output = ((padding_x_multiplier * input * crop_size) / 1000000)
+        let output = ((padding_x_multiplier * input * crop_size) / 1_000_000)
             + (padding_x_multiplier * crop_x);
         u32::try_from(output).unwrap()
     };
@@ -443,7 +442,7 @@ fn calculate_outputs(crop: Crop, i: &Inputs) -> Result<(Outputs, Uncrop), Calcul
     let uncrop_y_fn = move |input: u32| -> u32 {
         let input = u64::from(input);
         let crop_y = u64::from(crop_y);
-        let output = ((padding_y_multiplier * input * crop_size) / 1000000)
+        let output = ((padding_y_multiplier * input * crop_size) / 1_000_000)
             + (padding_y_multiplier * crop_y);
         u32::try_from(output).unwrap()
     };
@@ -581,11 +580,10 @@ fn parse_detections(
     use ParseDetectionsError::*;
     let mut parsed = Vec::new();
     for detection in detections {
-        if let Some(threshold) = thresholds.get(&detection.label) {
-            if detection.score < threshold.as_f32() {
-                continue;
-            }
-        } else {
+        let Some(threshold) = thresholds.get(&detection.label) else {
+            continue;
+        };
+        if detection.score < threshold.as_f32() {
             continue;
         }
 
@@ -622,7 +620,7 @@ fn parse_detections(
                 }),
                 polygon: None,
             },
-        })
+        });
     }
     Ok(parsed)
 }
@@ -647,9 +645,9 @@ impl MsgLogger for TfliteMonitorLogger {
         self.logger.log(LogEntry {
             level,
             source: "tflite".parse().unwrap(),
-            monitor_id: Some(self.monitor_id.to_owned()),
+            monitor_id: Some(self.monitor_id.clone()),
             message: msg.parse().unwrap(),
-        })
+        });
     }
 }
 
@@ -681,10 +679,11 @@ impl MsgLogger for TfliteLogger {
             source: "tflite".parse().unwrap(),
             monitor_id: None,
             message: msg.parse().unwrap(),
-        })
+        });
     }
 }
 
+#[allow(clippy::similar_names)]
 async fn fetch(url: &Url) -> Result<Vec<u8>, FetchError> {
     use FetchError::*;
 
@@ -713,6 +712,7 @@ impl Fetcher for Fetch {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -775,6 +775,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::items_after_statements)]
     fn test_parse_detections() {
         let reverse = Uncrop {
             uncrop_x_fn: Box::new(|v| v * 2),
@@ -816,6 +817,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::items_after_statements)]
     fn test_parse_detections_mask() {
         let reverse = Uncrop {
             uncrop_x_fn: Box::new(|v| v),

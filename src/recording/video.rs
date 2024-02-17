@@ -9,7 +9,7 @@ use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 
 // Sample flags.
-const FLAG_RANDOM_ACCESS_PRESENT: u8 = 0b10000000;
+const FLAG_RANDOM_ACCESS_PRESENT: u8 = 0b1000_0000;
 
 const SAMPLE_SIZE_U8: u8 = 25;
 pub const SAMPLE_SIZE: usize = SAMPLE_SIZE_U8 as usize;
@@ -52,7 +52,7 @@ impl Sample {
     pub fn encode(&self) -> Result<Vec<u8>, std::num::TryFromIntError> {
         let mut flags: u8 = 0;
         if self.random_access_present {
-            flags |= FLAG_RANDOM_ACCESS_PRESENT
+            flags |= FLAG_RANDOM_ACCESS_PRESENT;
         }
 
         let mut out = Vec::with_capacity(SAMPLE_SIZE);
@@ -72,6 +72,7 @@ impl Sample {
 }
 
 // Writes videos in our custom format.
+#[allow(clippy::module_name_repetitions)]
 pub struct VideoWriter<'a, W: AsyncWrite + Unpin> {
     meta: &'a mut W, // Output file.
     mdat: &'a mut W, // Output file.
@@ -210,9 +211,9 @@ impl<T: AsyncRead + AsyncSeek + Unpin> MetaReader<T> {
 
         let mut buf = [0; SAMPLE_SIZE];
         let mut samples = vec![Sample::default(); self.sample_count];
-        for sample in samples.iter_mut() {
+        for sample in &mut samples {
             self.file.read_exact(&mut buf).await.map_err(Read)?;
-            *sample = Sample::from_bytes(&buf)
+            *sample = Sample::from_bytes(&buf);
         }
 
         Ok(samples)
@@ -288,14 +289,16 @@ impl Header {
     }
 
     // Marshaled size.
+    #[must_use]
     pub fn size(&self) -> usize {
         15 + self.extra_data.len()
     }
 
     pub fn marshal(&self) -> Result<Vec<u8>, std::num::TryFromIntError> {
+        const API_VERSION: u8 = 1;
+
         let mut out = Vec::with_capacity(self.size());
 
-        const API_VERSION: u8 = 1;
         out.push(API_VERSION);
 
         // Start time.
@@ -315,11 +318,12 @@ impl Header {
         Ok(out)
     }
 
+    #[must_use]
     pub fn params(&self) -> TrackParameters {
         TrackParameters {
             width: self.width,
             height: self.height,
-            extra_data: self.extra_data.to_owned(),
+            extra_data: self.extra_data.clone(),
         }
     }
 }
@@ -346,39 +350,40 @@ mod tests {
         let mut mdat = Vec::new();
 
         let test_header = Header {
-            start_time: UnixH264::from(1000000000),
+            start_time: UnixH264::from(1_000_000_000),
             width: 1920,
             height: 1080,
             extra_data: vec![0, 1],
         };
 
-        let mut w = VideoWriter::new(&mut meta, &mut mdat, test_header.to_owned())
+        let mut w = VideoWriter::new(&mut meta, &mut mdat, test_header.clone())
             .await
             .unwrap();
 
         let parts = vec![Arc::new(PartFinalized {
             video_samples: Arc::new(vec![
                 VideoSample {
-                    ntp: UnixH264::from(100000000000000000_i64),
-                    pts: DurationH264::from(100000000000000000_i64),
-                    dts: DurationH264::from(100000001000000000_i64),
+                    ntp: UnixH264::from(100_000_000_000_000_000_i64),
+                    pts: DurationH264::from(100_000_000_000_000_000_i64),
+                    dts: DurationH264::from(100_000_001_000_000_000_i64),
                     random_access_present: true,
                     avcc: Arc::new(PaddedBytes::new(vec![3, 4])),
-                    duration: DurationH264::from(1000000000),
+                    duration: DurationH264::from(1_000_000_000),
                 },
                 VideoSample {
-                    ntp: UnixH264::from(300000000000000000_i64),
-                    pts: DurationH264::from(300000000000000000_i64),
-                    dts: DurationH264::from(300000001000000000_i64),
+                    ntp: UnixH264::from(300_000_000_000_000_000_i64),
+                    pts: DurationH264::from(300_000_000_000_000_000_i64),
+                    dts: DurationH264::from(300_000_001_000_000_000_i64),
                     random_access_present: false,
                     avcc: Arc::new(PaddedBytes::new(vec![5, 6, 7])),
-                    duration: DurationH264::from(1000000000),
+                    duration: DurationH264::from(1_000_000_000),
                 },
             ]),
             ..Default::default()
         })];
         w.write_parts(&parts).await.unwrap();
 
+        #[rustfmt::skip]
         let want_meta = vec![
             1, // Version.
             0, 0, 0, 0, 0x3b, 0x9a, 0xca, 0, // Start time.
@@ -388,7 +393,7 @@ mod tests {
             0, 1, // Extra data.
             //
             // Sample 1.
-            0b10000000, // Flags.
+            0b1000_0000, // Flags.
             1, 0x63, 0x45, 0x78, 0x5d, 0x8a, 0, 0, // PTS.
             0xc4, 0x65, 0x36, 0, // DTS offset.
             0x3b, 0x9a, 0xca, 0, // Duration.
@@ -396,7 +401,7 @@ mod tests {
             0, 0, 0, 2, // Size.
             //
             // Sample 2.
-            0b00000000, // Flags.
+            0b0000_0000, // Flags.
             4, 0x29, 0xd0, 0x69, 0x18, 0x9e, 0, 0, // PTS.
             0xc4, 0x65, 0x36, 0, // Dts offset.
             0x3b, 0x9a, 0xca, 0, // Duration.
@@ -418,17 +423,17 @@ mod tests {
         let want_samples = vec![
             Sample {
                 random_access_present: true,
-                pts: UnixH264::from(100000000000000000),
-                dts_offset: DurationH264::from(-1000000000),
-                duration: DurationH264::from(1000000000),
+                pts: UnixH264::from(100_000_000_000_000_000),
+                dts_offset: DurationH264::from(-1_000_000_000),
+                duration: DurationH264::from(1_000_000_000),
                 data_size: 2,
                 data_offset: 0,
             },
             Sample {
                 random_access_present: false,
-                pts: UnixH264::from(300000000000000000),
-                dts_offset: DurationH264::from(-1000000000),
-                duration: DurationH264::from(1000000000),
+                pts: UnixH264::from(300_000_000_000_000_000),
+                dts_offset: DurationH264::from(-1_000_000_000),
+                duration: DurationH264::from(1_000_000_000),
                 data_size: 3,
                 data_offset: 2,
             },

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#![allow(clippy::unused_async)]
+
 #[cfg(test)]
 mod test;
 
@@ -62,7 +64,7 @@ pub async fn template_handler(
 
     let (is_admin, token) = match s.auth.validate_request(&headers).await {
         Some(valid_login) => (valid_login.is_admin, valid_login.token),
-        None => (false, "".to_owned()),
+        None => (false, String::new()),
     };
 
     let data = s
@@ -149,7 +151,7 @@ pub async fn hls_handler(
                 headers,
                 Response::builder()
                     .status(StatusCode::BAD_REQUEST)
-                    .body(format!("parse path: {}", e))
+                    .body(format!("parse path: {e}"))
                     .unwrap(),
             )
                 .into_response()
@@ -191,6 +193,7 @@ pub enum ParsePathError {
     InvalidFileName,
 }
 
+#[allow(clippy::case_sensitive_file_extension_comparisons)]
 fn parse_path(path: String) -> Result<(String, String), ParsePathError> {
     use ParsePathError::*;
     if path.ends_with(".m3u8")
@@ -212,7 +215,7 @@ fn parse_path(path: String) -> Result<(String, String), ParsePathError> {
                 .to_owned(),
         ))
     } else {
-        Ok((path, "".to_owned()))
+        Ok((path, String::new()))
     }
 }
 
@@ -227,7 +230,7 @@ pub async fn account_delete_handler(
 ) -> (StatusCode, String) {
     use AuthAccountDeleteError::*;
     match auth.account_delete(&query.id).await {
-        Ok(_) => (StatusCode::OK, "".to_string()),
+        Ok(()) => (StatusCode::OK, String::new()),
         Err(e @ AccountNotExist(_)) => (StatusCode::NOT_FOUND, e.to_string()),
         Err(SaveAccounts(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
@@ -270,7 +273,7 @@ pub async fn recording_query_handler(
                 level: LogLevel::Error,
                 source: "app".parse().unwrap(),
                 monitor_id: None,
-                message: format!("crawler: could not process recording query: {}", e)
+                message: format!("crawler: could not process recording query: {e}")
                     .parse()
                     .unwrap(),
             });
@@ -291,6 +294,8 @@ pub async fn log_feed_handler(
     query: Query<LogQuery>,
     ws: WebSocketUpgrade,
 ) -> Response {
+    use axum::extract::ws::Message;
+
     let q = query.0;
     ws.on_upgrade(move |mut socket| async move {
         let mut feed = s.logger.subscribe();
@@ -318,7 +323,6 @@ pub async fn log_feed_handler(
             let entry_json =
                 serde_json::to_string(&entry).expect("serializing `log::Entry` to never fail");
 
-            use axum::extract::ws::Message;
             if let Err(e) = socket.send(Message::Text(entry_json)).await {
                 if e.to_string() == "IO error: Broken pipe (os error 32)" {
                     return;
@@ -355,7 +359,7 @@ pub async fn monitor_delete_handler(
     query: Query<MonitorIdQuery>,
 ) -> (StatusCode, String) {
     match monitor_manager.lock().await.monitor_delete(&query.id).await {
-        Ok(_) => (StatusCode::OK, "".to_owned()),
+        Ok(()) => (StatusCode::OK, String::new()),
         Err(e @ MonitorDeleteError::NotExist(_)) => (StatusCode::NOT_FOUND, e.to_string()),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
@@ -423,7 +427,7 @@ pub async fn recording_thumbnail_handler(
 
     let file = match tokio::fs::OpenOptions::new().read(true).open(path).await {
         Ok(v) => v,
-        Err(e) => return (StatusCode::NOT_FOUND, format!("open file: {}", e)).into_response(),
+        Err(e) => return (StatusCode::NOT_FOUND, format!("open file: {e}")).into_response(),
     };
 
     let stream = ReaderStream::new(file);
@@ -464,7 +468,7 @@ pub async fn recording_video_handler(
                 level: LogLevel::Error,
                 source: "app".parse().unwrap(),
                 monitor_id: None,
-                message: format!("video request: {}", e).parse().unwrap(),
+                message: format!("video request: {e}").parse().unwrap(),
             });
             return (StatusCode::INTERNAL_SERVER_ERROR, "see logs for details").into_response();
         }

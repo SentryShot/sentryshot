@@ -77,6 +77,7 @@ pub struct Crawler {
 }
 
 impl Crawler {
+    #[must_use]
     pub fn new(fs: DynFs) -> Self {
         Self { fs }
     }
@@ -92,7 +93,7 @@ impl Crawler {
         let mut recordings = Vec::new();
         let mut file = self.find_recording(query, cache)?;
         while recordings.len() < query.limit {
-            let Some(mut prev_file) = file.to_owned() else {
+            let Some(mut prev_file) = file.clone() else {
                 // Last recording is reached.
                 return Ok(recordings);
             };
@@ -110,9 +111,12 @@ impl Crawler {
 
             let data = if query.include_data {
                 let file_fs = file.as_ref().unwrap().fs.clone();
-                tokio::task::spawn_blocking(|| read_data_file(file_fs))
-                    .await
-                    .unwrap()
+                tokio::task::spawn_blocking(|| {
+                    let file_fs: Box<dyn Fs> = file_fs;
+                    read_data_file(&*file_fs)
+                })
+                .await
+                .unwrap()
             } else {
                 None
             };
@@ -139,7 +143,7 @@ impl Crawler {
         cache: &mut Cache,
     ) -> Result<Option<Dir>, CrawlerError> {
         if query.recording_id.len() < 10 {
-            return Err(CrawlerError::InvalidValue(query.recording_id.to_owned()));
+            return Err(CrawlerError::InvalidValue(query.recording_id.clone()));
         }
 
         let root = Dir {
@@ -153,7 +157,7 @@ impl Crawler {
         // Try to find exact file.
         let mut current = root;
         for val in query.recording_id.year_month_day() {
-            let mut parent = current.to_owned();
+            let mut parent = current.clone();
             match current.child_by_exact_name(query, cache, &val)? {
                 Some(exact) => current = exact,
                 None => {
@@ -182,7 +186,7 @@ impl Crawler {
     }
 }
 
-fn read_data_file(fs: Box<dyn Fs>) -> Option<RecordingData> {
+fn read_data_file(fs: &dyn Fs) -> Option<RecordingData> {
     let Ok(Open::File(mut file)) = fs.open(&PathBuf::from(".")) else {
         return None;
     };
@@ -234,8 +238,8 @@ impl Dir {
 
         if self.depth == MONITOR_DEPTH {
             let mut children = self.find_all_files(query)?;
-            children.sort_by_key(|v| v.name.to_owned());
-            cache.insert(self.path.to_owned(), children.to_owned());
+            children.sort_by_key(|v| v.name.clone());
+            cache.insert(self.path.clone(), children.clone());
             return Ok(children);
         }
 
@@ -244,11 +248,8 @@ impl Dir {
         let mut children = Vec::new();
 
         for entry in entries {
-            let dir = match entry {
-                Entry::Dir(v) => v,
-                Entry::File(_) => continue,
-                Entry::Symlink(_) => continue,
-            };
+            let Entry::Dir(dir) = entry else { continue };
+
             let path = self.path.join(dir.name());
             let file_fs = self.fs.sub(dir.name())?;
             children.push(Dir {
@@ -257,10 +258,10 @@ impl Dir {
                 path,
                 parent: Some(Box::new(self.to_owned())),
                 depth: self.depth + 1,
-            })
+            });
         }
 
-        cache.insert(self.path.to_owned(), children.to_owned());
+        cache.insert(self.path.clone(), children.clone());
 
         Ok(children)
     }
@@ -296,7 +297,7 @@ impl Dir {
 
                 let json_path = monitor_path.join(file.name());
 
-                let mut path = json_path.to_owned();
+                let mut path = json_path.clone();
                 path.set_extension("");
 
                 let file_fs = montor_fs.sub(file.name())?;
@@ -307,7 +308,7 @@ impl Dir {
                     path,
                     parent: Some(Box::new(self.to_owned())),
                     depth: self.depth + 2,
-                })
+                });
             }
         }
         Ok(all_files)
@@ -361,7 +362,7 @@ impl Dir {
                 return sibling.find_file_deep(query, cache);
             };
             if query.reverse {
-                current = first_child.to_owned()
+                current = first_child.to_owned();
             } else {
                 current = last_child.to_owned();
             }

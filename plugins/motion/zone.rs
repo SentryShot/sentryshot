@@ -22,7 +22,7 @@ pub type Detections = Vec<(usize, f32)>;
 
 fn diff_frames(frame1: &[u8], frame2: &[u8], diff: &mut [u8]) {
     for i in 0..frame1.len() {
-        diff[i] = u8::abs_diff(frame1[i], frame2[i])
+        diff[i] = u8::abs_diff(frame1[i], frame2[i]);
     }
 }
 
@@ -30,6 +30,7 @@ use recording::{create_inverted_mask, denormalize_polygon};
 
 use crate::config::ZoneConfig;
 
+#[allow(clippy::struct_field_names)]
 #[derive(Debug, PartialEq)]
 pub struct Zone {
     mask: Vec<bool>,
@@ -43,6 +44,7 @@ pub struct Zone {
 }
 
 impl Zone {
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     pub(crate) fn new(width: u16, height: u16, config: &ZoneConfig) -> Self {
         let polygon = denormalize_polygon(&config.area, width, height);
         let mask_image = create_inverted_mask(&polygon, width, height);
@@ -58,6 +60,7 @@ impl Zone {
         }
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn check_diff(&self, diff: &[u8]) -> (f32, bool) {
         let mut n_changed_pixels = 0;
         for (i, is_masked) in self.mask.iter().enumerate() {
@@ -89,6 +92,7 @@ fn parse_mask_image(img: &Vec<Vec<bool>>) -> (Vec<bool>, u64) {
     (mask, zone_size)
 }
 
+#[allow(clippy::float_cmp, clippy::needless_pass_by_value)]
 #[cfg(test)]
 mod tests {
     use super::*;

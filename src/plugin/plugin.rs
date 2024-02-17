@@ -112,7 +112,7 @@ pub fn pre_load_plugins(
         let plugin_path = {
             // The long name is use in development builds.
             let short = plugin_dir.join(plugin_name);
-            let long = plugin_dir.join(format!("lib{}.so", plugin_name));
+            let long = plugin_dir.join(format!("lib{plugin_name}.so"));
             if short.exists() {
                 short
             } else if long.exists() {
@@ -145,11 +145,11 @@ pub fn pre_load_plugins(
                         eprint!("\n\nERROR: Only a single autentication plugin is allowed.\n\n");
                         process::exit(1);
                     }
-                    pre_loaded_plugins.new_auth_fn = Some(new_auth_fn)
+                    pre_loaded_plugins.new_auth_fn = Some(new_auth_fn);
                 }
 
                 if let Some(source) = plugin.add_log_source() {
-                    pre_loaded_plugins.log_sources.push(source)
+                    pre_loaded_plugins.log_sources.push(source);
                 }
             }
 
@@ -168,10 +168,12 @@ pub fn pre_load_plugins(
 }
 
 impl PreLoadedPlugins {
+    #[must_use]
     pub fn log_sources(&self) -> &[LogSource] {
         &self.log_sources
     }
 
+    #[must_use]
     pub fn new_auth_fn(&self) -> NewAuthFn {
         let Some(new_auth_fn) = self.new_auth_fn else {
             eprint!("\n\nERROR: No authentication plugin enabled.\n\n");
@@ -199,7 +201,7 @@ impl PluginManager {
         };
         let mut plugins = Vec::new();
         for (name, load_fn) in prepared_plugins.load_fns {
-            log(format!("loading plugin {}", name));
+            log(format!("loading plugin {name}"));
             let plugin = load_fn(app);
             plugins.push(plugin);
         }
@@ -249,6 +251,7 @@ impl MonitorHooks for PluginManager {
     }
 }
 
+#[must_use]
 pub fn get_version() -> String {
     let version = format!(
         "v{}_r{}",

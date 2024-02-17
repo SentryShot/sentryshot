@@ -105,9 +105,9 @@ impl Detector {
             let res = match edgetpu {
                 Some(device) => {
                     if let Err(e) = probe_device(&device.path) {
-                        return Err(ProbeDevice(e, device.path.to_owned()));
+                        return Err(ProbeDevice(e, device.path.clone()));
                     };
-                    let path = CString::new(device.path.to_owned())?;
+                    let path = CString::new(device.path.clone())?;
                     c_detector_load_model(
                         c_detector,
                         model_path.as_ptr(),
@@ -129,7 +129,7 @@ impl Detector {
                     ERROR_CREATE_FROM_FILE => CreateFromFile,
                     ERROR_INTERPRETER_CREATE => InterpreterCreate,
                     ERROR_INPUT_TENSOR_COUNT => InputTensorCount,
-                    ERROR_INPUT_TENSOR_TYPE => InputTensorCount,
+                    ERROR_INPUT_TENSOR_TYPE => InputTensorType,
                     ERROR_OUTPUT_TENSOR_COUNT => OutputTensorCount,
                     ERROR_EDGETPU_DELEGATE_CREATE => EdgetpuDelegateCreate,
                     _ => LoadModel(res),
@@ -214,6 +214,7 @@ pub enum ParseOutputTensorsError {
     RectBounds(usize),
 }
 
+#[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
 fn parse_output_tensors(
     t0: &[u8],
     t1: &[u8],
@@ -291,7 +292,7 @@ pub enum EdgetpuDeviceType {
 }
 
 impl EdgetpuDeviceType {
-    fn as_uint(&self) -> c_uint {
+    fn as_uint(self) -> c_uint {
         match self {
             EdgetpuDeviceType::Pci => 0,
             EdgetpuDeviceType::Usb => 1,
@@ -344,9 +345,10 @@ pub enum DebugDeviceError {
     Exists(String),
 }
 
+#[must_use]
 pub fn debug_device(path: String, devices: &[EdgetpuDevice]) -> DebugDeviceError {
-    print_device(&path, devices);
     use DebugDeviceError::*;
+    print_device(&path, devices);
     if !Path::new(&path).exists() {
         return DeviceNotFound(path);
     }
@@ -356,14 +358,14 @@ pub fn debug_device(path: String, devices: &[EdgetpuDevice]) -> DebugDeviceError
 fn print_device(path: &str, devices: &[EdgetpuDevice]) {
     println!("Found {} edgetpu devices", devices.len());
     for device in devices {
-        println!("{}", device)
+        println!("{device}");
     }
     let Some(parent) = Path::new(path).parent() else {
-        println!("device path does not have a parent: {:?}", path);
+        println!("device path does not have a parent: {path:?}");
         return;
     };
     let parent = parent.to_str().unwrap_or("");
-    println!("ls -la {}", parent);
+    println!("ls -la {parent}");
     let result = Command::new("ls")
         .arg("-la")
         .arg(parent)
@@ -371,11 +373,12 @@ fn print_device(path: &str, devices: &[EdgetpuDevice]) {
         .stderr(Stdio::inherit())
         .spawn();
     if let Err(e) = result {
-        println!("{}", e)
+        println!("{e}");
     }
     std::thread::sleep(Duration::from_millis(100));
 }
 
+#[must_use]
 pub fn list_edgetpu_devices() -> Vec<EdgetpuDevice> {
     poke_devices();
 
@@ -394,14 +397,11 @@ pub fn list_edgetpu_devices() -> Vec<EdgetpuDevice> {
             };
 
             let path = CStr::from_ptr(device.path);
-            let path = match path.to_str() {
-                Ok(v) => v.to_owned(),
-                Err(_) => panic!(
-                    "libedgetpu returned a device path that isn't a valid string: {:?}",
-                    path
-                ),
-            };
-            devices.push(EdgetpuDevice { typ, path })
+            let path = path
+                .to_str()
+                .expect("libedgetpu returned a device path that isn't a valid string: {path:?}")
+                .to_string();
+            devices.push(EdgetpuDevice { typ, path });
         }
         c_free_devices(devices_ptr);
     }
@@ -443,9 +443,8 @@ const ERROR_USB_NOT_FOUND: c_int = 20004;
 
 fn probe_device(path: &str) -> Result<(), ProbeDeviceError> {
     use ProbeDeviceError::*;
-    let device_path = match DevicePath::new(path) {
-        Some(v) => v,
-        None => return Err(ParsePath),
+    let Some(device_path) = DevicePath::new(path) else {
+        return Err(ParsePath);
     };
 
     unsafe {
@@ -469,7 +468,7 @@ fn probe_device(path: &str) -> Result<(), ProbeDeviceError> {
             ERROR_USB_GET_PORT_NUMBERS => GetPortNumbers(err.into()),
             ERROR_USB_OPEN_DEVICE => OpenDevice(err.into()),
             ERROR_USB_NOT_FOUND => NotFound,
-            _ => panic!("unexpected error code: {0}", err),
+            _ => panic!("unexpected error code: {err}"),
         })
     }
 }
@@ -554,7 +553,7 @@ impl DevicePath {
         let port_numbers: Vec<u8> = parts
             .next()?
             .split('.')
-            .map(|v| v.parse::<u8>())
+            .map(str::parse)
             .collect::<Result<_, _>>()
             .ok()?;
 
@@ -574,11 +573,13 @@ fn poke_devices() {
     unsafe { c_poke_devices() }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 #[cfg(test)]
 mod tests {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::needless_pass_by_value)]
     #[test_case("", None; "empty")]
     #[test_case("/sys/bus/usb/devices", None; "empty2")]
     #[test_case("/sys/bus/usb/devices/1", None; "bus_only")]
@@ -604,6 +605,6 @@ mod tests {
     #[test_case("/sys/bus/usb/devices/1-1.X", None; "letter3")]
     #[test_case("/sys/bus/usb/devices/1-1.2.3-1", None; "3 parts")]
     fn test_parse_device_path(input: &str, want: Option<DevicePath>) {
-        assert_eq!(want, DevicePath::new(input))
+        assert_eq!(want, DevicePath::new(input));
     }
 }

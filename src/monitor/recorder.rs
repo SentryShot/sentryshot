@@ -34,7 +34,11 @@ struct RecordingSession {
     on_exit_rx: mpsc::Receiver<()>,
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    clippy::module_name_repetitions
+)]
 pub fn new_recorder(
     token: CancellationToken,
     shutdown_complete: mpsc::Sender<()>,
@@ -49,7 +53,7 @@ pub fn new_recorder(
 
     let logger = Arc::new(RecorderMsgLogger::new(logger, monitor_id));
 
-    let logger2 = logger.to_owned();
+    let logger2 = logger.clone();
     let log = move |level: LogLevel, msg: &str| logger2.log(level, msg);
 
     // Recorder actor.
@@ -59,6 +63,7 @@ pub fn new_recorder(
         let prev_seg = Arc::new(Mutex::new(0));
         let event_cache = Arc::new(EventCache::new());
 
+        #[allow(clippy::items_after_statements)]
         fn get_timer_end(timer_end: UnixNano) -> std::time::Duration {
             let Some(timer_end) = Duration::until(timer_end) else {
                 return std::time::Duration::MAX;
@@ -74,7 +79,7 @@ pub fn new_recorder(
             // Is recording.
             if let Some(session) = &mut recording_session {
                 tokio::select! {
-                    _ = token.cancelled() => {
+                    () = token.cancelled() => {
                         // Wait for session to exit.
                         _ = session.on_exit_rx.recv().await;
                         return;
@@ -92,12 +97,12 @@ pub fn new_recorder(
 
                         if end.after(session.timer_end) {
                             log(LogLevel::Debug, "new event, already recording, updating timer");
-                            session.timer_end = end
+                            session.timer_end = end;
                         }
                         event_cache.push(event).await;
                     }
 
-                    _ = sleep(get_timer_end(session.timer_end)) => {
+                    () = sleep(get_timer_end(session.timer_end)) => {
                         log(LogLevel::Debug, "timer reached end, canceling session");
                         session.token.cancel();
 
@@ -114,7 +119,7 @@ pub fn new_recorder(
                 }
             } else {
                 tokio::select! {
-                    _ = token.cancelled() => {
+                    () = token.cancelled() => {
                         return
                     }
 
@@ -163,7 +168,7 @@ pub fn new_recorder(
                                 shutdown_complete,
                                 Duration::from_secs(3),
                             ).await;
-                            _ = on_session_exit_tx.send(()).await
+                            _ = on_session_exit_tx.send(()).await;
                         });
                     }
                 }
@@ -190,8 +195,8 @@ impl MsgLogger for RecorderMsgLogger {
         self.logger.log(LogEntry {
             level,
             source: "monitor".parse().unwrap(),
-            monitor_id: Some(self.monitor_id.to_owned()),
-            message: format!("recorder: {0}", msg).parse().unwrap(),
+            monitor_id: Some(self.monitor_id.clone()),
+            message: format!("recorder: {msg}").parse().unwrap(),
         });
     }
 }
@@ -202,18 +207,18 @@ async fn run_recording_session(
     restart_sleep: Duration,
 ) {
     loop {
-        if let Err(e) = run_recording(c.to_owned()).await {
+        if let Err(e) = run_recording(c.clone()).await {
             if !matches!(e, RunRecordingError::Cancelled(_)) {
                 c.logger
-                    .log(LogLevel::Error, &format!("recording crashed: {0}", e));
+                    .log(LogLevel::Error, &format!("recording crashed: {e}"));
             }
 
             tokio::select! {
-                _ = c.token.cancelled() => {
+                () = c.token.cancelled() => {
                     return
                 }
-                _ = sleep(restart_sleep.as_std().unwrap()) => {
-                    c.logger.log(LogLevel::Debug, "recovering after crash")
+                () = sleep(restart_sleep.as_std().unwrap()) => {
+                    c.logger.log(LogLevel::Debug, "recovering after crash");
                 }
             }
         } else {
@@ -306,10 +311,11 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
         .await
         .map_err(CreateDir)?;
 
+    #[allow(clippy::cast_precision_loss)]
     let video_length = Duration::from(c.config.video_length() * (MINUTE as f64));
 
     c.logger
-        .log(LogLevel::Info, &format!("starting recording: {:?}", rec_id));
+        .log(LogLevel::Info, &format!("starting recording: {rec_id:?}"));
 
     let params = muxer.params();
 
@@ -317,16 +323,16 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
         c.hooks.clone(),
         &c.logger,
         c.config,
-        file_path.to_owned(),
+        file_path.clone(),
         &first_segment,
-        muxer.params().extra_data.to_owned(),
+        muxer.params().extra_data.clone(),
     )
     .await;
     if let Err(e) = result {
         c.logger.log(
             LogLevel::Error,
             &format!("failed to generate thumbnail: {}", &e),
-        )
+        );
     }
 
     let (new_prev_seg, end_time) = generate_video(
@@ -341,10 +347,10 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
     *c.prev_seg.lock().await = new_prev_seg;
 
     c.logger
-        .log(LogLevel::Info, &format!("video generated: {:?}", rec_id));
+        .log(LogLevel::Info, &format!("video generated: {rec_id:?}"));
 
     save_recording(
-        c.logger.to_owned(),
+        c.logger.clone(),
         file_path,
         c.event_cache,
         start_time.as_nanos(),
@@ -420,7 +426,7 @@ async fn generate_video(
         start_time,
         width: params.width,
         height: params.height,
-        extra_data: params.extra_data.to_owned(),
+        extra_data: params.extra_data.clone(),
     };
 
     let mut w = VideoWriter::new(&mut meta, &mut mdat, header).await?;
@@ -504,7 +510,7 @@ async fn generate_thumbnail(
 
     logger.log(
         LogLevel::Info,
-        &format!("generating thumbnail: {:?}", thumb_path),
+        &format!("generating thumbnail: {thumb_path:?}"),
     );
     //r.logf(log.LevelInfo, "generating thumbnail: %v", thumbPath)
 
@@ -520,7 +526,7 @@ async fn generate_thumbnail(
 
     let mut avcc = first_sample.avcc.clone();
     let jpeg_buf = tokio::task::spawn_blocking(move || {
-        avcc_to_jpeg(hooks, config, &avcc, PaddedBytes::new(extradata))
+        avcc_to_jpeg(&hooks, &config, &avcc, PaddedBytes::new(extradata))
     })
     .await
     .unwrap()?;
@@ -574,8 +580,8 @@ enum AvccToJpegError {
 }
 
 fn avcc_to_jpeg(
-    hooks: DynMonitorHooks,
-    config: MonitorConfig,
+    hooks: &DynMonitorHooks,
+    config: &MonitorConfig,
     avcc: &PaddedBytes,
     extradata: PaddedBytes,
 ) -> Result<Vec<u8>, AvccToJpegError> {
@@ -588,7 +594,7 @@ fn avcc_to_jpeg(
     let mut frame = Frame::new();
     h264_decoder.receive_frame(&mut frame)?;
 
-    let frame = hooks.on_thumb_save(&config, frame);
+    let frame = hooks.on_thumb_save(config, frame);
 
     let mut converter = PixelFormatConverter::new(
         frame.width(),
@@ -642,7 +648,7 @@ async fn save_recording(
 ) -> Result<(), SaveRecordingError> {
     use SaveRecordingError::*;
     let rec_id = file_path.file_name().unwrap().to_string_lossy().to_string();
-    logger.log(LogLevel::Info, &format!("saving recording: {:?}", rec_id));
+    logger.log(LogLevel::Info, &format!("saving recording: {rec_id:?}"));
     //r.logf(log.LevelInfo, "saving recording: %v", filepath.Base(filePath))
 
     let events = event_cache.query_and_prune(start_time, end_time).await;
@@ -660,7 +666,7 @@ async fn save_recording(
         return
     }*/
 
-    let mut data_path = file_path.to_owned();
+    let mut data_path = file_path.clone();
     data_path.set_extension("json");
 
     let mut data_file = tokio::fs::OpenOptions::new()
@@ -675,7 +681,7 @@ async fn save_recording(
 
     //go r.hooks.RecSaved(r, filePath, data)
 
-    logger.log(LogLevel::Info, &format!("recording saved: {:?}", rec_id));
+    logger.log(LogLevel::Info, &format!("recording saved: {rec_id:?}"));
 
     Ok(())
 }
@@ -688,7 +694,7 @@ impl EventCache {
     }
 
     async fn push(&self, event: Event) {
-        self.0.lock().await.push(event)
+        self.0.lock().await.push(event);
     }
 
     async fn query_and_prune(&self, start: UnixNano, end: UnixNano) -> Vec<Event> {
@@ -702,7 +708,7 @@ impl EventCache {
             }
 
             if event.time.before(end) {
-                return_events.push(event.to_owned());
+                return_events.push(event.clone());
             }
 
             new_events.push(event);
@@ -1090,7 +1096,7 @@ mod tests {
 
         save_recording(
             new_dummy_msg_logger(),
-            file_path.to_owned(),
+            file_path.clone(),
             event_cache,
             start,
             end,
@@ -1099,7 +1105,7 @@ mod tests {
         .unwrap();
         //r.saveRecording(filePath, start, end)
 
-        let mut data_path = file_path.to_owned();
+        let mut data_path = file_path.clone();
         data_path.set_extension("json");
         let b = std::fs::read(data_path).unwrap();
         //b, err := os.ReadFile(filePath + ".json")

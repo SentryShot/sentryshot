@@ -26,19 +26,16 @@ use std::{
 //	if err := fstest.TestFS(myFS, "file/that/should/be/present"); err != nil {
 //		t.Fatal(err)
 //	}
-pub fn test_file_system(
-    fsys: Box<dyn Fs>,
-    expected: Vec<PathBuf>,
-) -> Result<(), TestFileSystemError> {
-    test_fs(fsys.clone(), &expected)?;
-    for name in &expected {
+pub fn test_file_system(fsys: &dyn Fs, expected: &[PathBuf]) -> Result<(), TestFileSystemError> {
+    test_fs(fsys.clone(), expected)?;
+    for name in expected {
         if let Some(i) = index(name.to_str().unwrap(), '/') {
             let name_s = name.to_str().unwrap();
             let dir = &name_s[..i];
-            let dir_slash = &name_s[..i + 1];
+            let dir_slash = &name_s[..=i];
 
             let mut sub_expected = Vec::new();
-            for name in &expected {
+            for name in expected {
                 let name = name.to_str().unwrap();
                 if let Some(stripped) = name.strip_prefix(dir_slash) {
                     sub_expected.push(PathBuf::from(stripped.to_owned()));
@@ -47,7 +44,7 @@ pub fn test_file_system(
             let sub = fsys
                 .sub(Path::new(dir))
                 .map_err(|e| TestFileSystemError::TestFsSub(dir.to_owned(), e.to_string()))?;
-            test_file_system(sub, sub_expected)?;
+            test_file_system(&*sub, &sub_expected)?;
             break;
         }
     }
@@ -55,15 +52,15 @@ pub fn test_file_system(
     Ok(())
 }
 
-fn test_fs(fsys: Box<dyn Fs>, expected: &Vec<PathBuf>) -> Result<(), TestFileSystemError> {
+fn test_fs(fsys: Box<dyn Fs>, expected: &[PathBuf]) -> Result<(), TestFileSystemError> {
     let mut t = FsTester {
         fsys,
         err_text: Vec::new(),
         dirs: Vec::new(),
         files: Vec::new(),
     };
-    t.check_dir(PathBuf::from("."));
-    t.check_open(".".to_owned());
+    t.check_dir(Path::new("."));
+    t.check_open(".");
     let mut found = HashSet::new();
     for dir in &t.dirs {
         found.insert(dir.to_owned());
@@ -84,7 +81,7 @@ fn test_fs(fsys: Box<dyn Fs>, expected: &Vec<PathBuf>) -> Result<(), TestFileSys
             list = list[..10].to_owned();
             list.push(PathBuf::from("..."));
         }
-        t.errorf(format!(
+        t.errorf(&format!(
             "expected empty file system found files:\n{}",
             list.iter()
                 .map(|v| v.to_str().unwrap())
@@ -95,7 +92,7 @@ fn test_fs(fsys: Box<dyn Fs>, expected: &Vec<PathBuf>) -> Result<(), TestFileSys
 
     for name in expected {
         if !found.contains(name) {
-            t.errorf(format!("expected but not found: {:?}", name));
+            t.errorf(&format!("expected but not found: {name:?}"));
         }
     }
     if t.err_text.is_empty() {
@@ -116,7 +113,7 @@ struct FsTester {
 }
 
 impl FsTester {
-    fn errorf(&mut self, msg: String) {
+    fn errorf(&mut self, msg: &str) {
         if !self.err_text.is_empty() {
             self.err_text.push(b'\n');
         }
@@ -127,33 +124,33 @@ impl FsTester {
         match self.fsys.open(dir) {
             Ok(Open::Dir(dir)) => Some(dir),
             Ok(_) => {
-                self.errorf(format!("{:?}: Open did not return a ReadDirFile", dir));
+                self.errorf(&format!("{dir:?}: Open did not return a ReadDirFile"));
                 None
             }
             Err(e) => {
-                self.errorf(format!("open_dir: {:?}: {}", dir, e));
+                self.errorf(&format!("open_dir: {dir:?}: {e}"));
                 None
             }
         }
     }
 
-    fn check_dir(&mut self, dir: PathBuf) {
+    fn check_dir(&mut self, dir: &Path) {
         // Read entier directory.
-        self.dirs.push(dir.to_owned());
-        let Some(mut d) = self.open_dir(&dir) else {
+        self.dirs.push(dir.to_path_buf());
+        let Some(mut d) = self.open_dir(dir) else {
             return;
         };
         let list = match d.read_dir_file() {
             Ok(v) => v,
             Err(e) => {
-                self.errorf(format!("{:?}: read_dir_file: {}", dir, e));
+                self.errorf(&format!("{dir:?}: read_dir_file: {e}"));
                 return;
             }
         };
 
         // Check all children.
         let prefix = if dir.to_str().unwrap() == "." {
-            "".to_owned()
+            String::new()
         } else {
             dir.to_str().unwrap().to_owned() + "/"
         };
@@ -161,49 +158,46 @@ impl FsTester {
             let name = info.name();
             let name = name.to_str().unwrap();
             if name == "." || name == ".." || name.is_empty() {
-                self.errorf(format!(
-                    "{:?}: read_dir: child has invalid name: {}",
-                    dir, name
+                self.errorf(&format!(
+                    "{dir:?}: read_dir: child has invalid name: {name}"
                 ));
                 return;
             } else if name.contains('/') {
-                self.errorf(format!(
-                    "{:?}: read_dir: child name contans slash: {}",
-                    dir, name
+                self.errorf(&format!(
+                    "{dir:?}: read_dir: child name contans slash: {name}"
                 ));
                 return;
             } else if name.contains('\\') {
-                self.errorf(format!(
-                    "{:?}: read_dir: child name contans backslash: {}",
-                    dir, name
+                self.errorf(&format!(
+                    "{dir:?}: read_dir: child name contans backslash: {name}"
                 ));
                 return;
             }
 
-            let path_string = prefix.to_owned() + name;
+            let path_string = prefix.clone() + name;
             let path = PathBuf::from(&path_string);
             self.check_stat(&path, info);
-            self.check_open(path_string);
+            self.check_open(&path_string);
             if info.is_dir() {
-                self.check_dir(path);
+                self.check_dir(&path);
             } else {
-                self.check_file(path);
+                self.check_file(&path);
             }
         }
 
         // Reopen directory, read a second time, make sure contents match.
-        let Some(mut d) = self.open_dir(&dir) else {
+        let Some(mut d) = self.open_dir(dir) else {
             return;
         };
         let list2 = match d.read_dir_file() {
             Ok(v) => v,
             Err(e) => {
-                self.errorf(format!("{:?}: second open+read_dir_file: {}", dir, e));
+                self.errorf(&format!("{dir:?}: second open+read_dir_file: {e}"));
                 return;
             }
         };
         self.check_dir_list(
-            &dir,
+            dir,
             "first open+read_dir_file(-1) vs second open+read_dir_file",
             &list,
             &list2,
@@ -212,11 +206,12 @@ impl FsTester {
 
     // Checks that a direct stat of path matches entry,
     // which was found in the parent's directory listing.
+    #[allow(clippy::similar_names)]
     fn check_stat(&mut self, path: &Path, entry: &Entry) {
         let file = match self.fsys.open(path) {
             Ok(v) => v,
             Err(e) => {
-                self.errorf(format!("{:?}: open: {}", path, e));
+                self.errorf(&format!("{path:?}: open: {e}"));
                 return;
             }
         };
@@ -228,10 +223,9 @@ impl FsTester {
 
         // Note: mismatch here is OK for symlink, because Open dereferences symlink.
         if fentry != fientry && !entry.is_symlink() {
-            self.errorf(format!(
-                "{:?}: mismatch:\n\tentry = {}\n\tfile.stat() = {}",
-                path, fentry, fientry
-            ))
+            self.errorf(&format!(
+                "{path:?}: mismatch:\n\tentry = {fentry}\n\tfile.stat() = {fientry}"
+            ));
         }
 
         let finfo = format_info2(&info);
@@ -240,17 +234,15 @@ impl FsTester {
             // Open deferences symlink, so info itself may differ.
             let feentry = format_entry(entry);
             if fentry != feentry {
-                self.errorf(format!(
-                    "{:?}: mismatch\n\tentry = {}\n\tentry.info() = {}\n",
-                    path, fentry, feentry,
+                self.errorf(&format!(
+                    "{path:?}: mismatch\n\tentry = {fentry}\n\tentry.info() = {feentry}\n",
                 ));
             }
         } else {
             let feinfo = format_info(entry);
             if feinfo != finfo {
-                self.errorf(format!(
-                    "{:?}: mismatch\n\tentry = {}\n\tentry.stat() = {}\n",
-                    path, feinfo, finfo,
+                self.errorf(&format!(
+                    "{path:?}: mismatch\n\tentry = {feinfo}\n\tentry.stat() = {finfo}\n",
                 ));
             }
         }
@@ -259,14 +251,14 @@ impl FsTester {
         let info2 = match self.fsys.open(path) {
             Ok(file) => file,
             Err(e) => {
-                self.errorf(format!("{:?}: stat open: {}", path, e));
+                self.errorf(&format!("{path:?}: stat open: {e}"));
                 return;
             }
         };
 
         let finfo2 = format_info2(&info2);
         if finfo2 != finfo {
-            self.errorf(format!("{:?}: stat(...) = {}\n\t {}", path, finfo2, finfo));
+            self.errorf(&format!("{path:?}: stat(...) = {finfo2}\n\t {finfo}"));
         }
 
         /*let info2 = match self.fsys.open(path) {
@@ -308,19 +300,16 @@ impl FsTester {
 
         let mut diffs = Vec::new();
         for entry2 in list2 {
-            let entry1 = match old.remove(&entry2.name()) {
-                Some(v) => v.to_owned(),
-                None => {
-                    diffs.push(format!("+ {}", format_entry(entry2)));
-                    continue;
-                }
+            let Some(entry1) = old.remove(&entry2.name()) else {
+                diffs.push(format!("+ {}", format_entry(entry2)));
+                continue;
             };
             if format_entry(entry1) != format_entry(entry2) {
                 diffs.push(format!(
                     "- {}+ {}",
                     format_entry(entry1),
                     format_entry(entry2)
-                ))
+                ));
             }
         }
 
@@ -340,7 +329,7 @@ impl FsTester {
             return fi[1]+" "+fj[0] < fj[1]+" "+fi[0]
         })*/
 
-        self.errorf(format!(
+        self.errorf(&format!(
             "{:?}: diff {}:\n\t{}",
             dir,
             desc,
@@ -349,14 +338,14 @@ impl FsTester {
     }
 
     // Checks that basic file reading works correctly.
-    fn check_file(&mut self, file: PathBuf) {
-        self.files.push(file.to_owned());
+    fn check_file(&mut self, file: &Path) {
+        self.files.push(file.to_path_buf());
 
         // Read entire file.
-        let f = match self.fsys.open(&file) {
+        let f = match self.fsys.open(file) {
             Ok(f) => f,
             Err(e) => {
-                self.errorf(format!("{:?}: open: {}", file, e));
+                self.errorf(&format!("{file:?}: open: {e}"));
                 return;
             }
         };
@@ -367,7 +356,7 @@ impl FsTester {
         let _data = match f.read() {
             Ok(v) => v,
             Err(e) => {
-                self.errorf(format!("{:?}: open+read: {}", file, e));
+                self.errorf(&format!("{file:?}: open+read: {e}"));
                 return;
             }
         };
@@ -383,32 +372,33 @@ impl FsTester {
     }*/
 
     // Checks that various invalid forms of file's name cannot be opened using t.fsys.Open.
-    fn check_open(&self, file: String) {
-        let mut bad = Vec::from([("/".to_owned() + &file), (file.to_owned() + "/.")]);
+    fn check_open(&self, file: &str) {
+        let mut bad = Vec::from([("/".to_owned() + file), (file.to_string() + "/.")]);
         if file == "." {
             bad.push("/".to_owned());
         }
-        if let Some(i) = index(&file, '/') {
+        if let Some(i) = index(file, '/') {
             let a = String::from_utf8(file.as_bytes()[..i].to_vec()).unwrap();
             let b = String::from_utf8(file.as_bytes()[i + 1..].to_vec()).unwrap();
-            bad.push(format!("{}//{}", a, b));
-            bad.push(format!("{}/./{}", a, b));
-            bad.push(format!("{}\\{}", a, b));
-            bad.push(format!("{}/../{}", a, file));
+            bad.push(format!("{a}//{b}"));
+            bad.push(format!("{a}/./{b}"));
+            bad.push(format!("{a}\\{b}"));
+            bad.push(format!("{a}/../{file}"));
         }
-        if let Some(i) = last_index(&file, '/') {
+        if let Some(i) = last_index(file, '/') {
             let a = String::from_utf8(file.as_bytes()[..i].to_vec()).unwrap();
             let b = String::from_utf8(file.as_bytes()[i + 1..].to_vec()).unwrap();
-            bad.push(format!("{}//{}", a, b));
-            bad.push(format!("{}/./{}", a, b));
-            bad.push(format!("{}\\{}", a, b));
-            bad.push(format!("{}/../{}", a, file));
+            bad.push(format!("{a}//{b}"));
+            bad.push(format!("{a}/./{b}"));
+            bad.push(format!("{a}\\{b}"));
+            bad.push(format!("{a}/../{file}"));
         }
 
         for b in &bad {
-            if self.fsys.open(Path::new(b)).is_ok() {
-                panic!("{}: Open({}) succeeded, want error", file, b);
-            }
+            assert!(
+                self.fsys.open(Path::new(b)).is_err(),
+                "{file}: Open({b}) succeeded, want error"
+            );
         }
     }
 }

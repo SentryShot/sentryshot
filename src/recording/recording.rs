@@ -43,6 +43,7 @@ pub enum RecordingIdError {
 pub struct RecordingId(String);
 
 impl RecordingId {
+    #[must_use]
     pub fn year_month_day(&self) -> [PathBuf; 3] {
         [
             PathBuf::from(&self.0[..4]),   // Year.
@@ -55,14 +56,17 @@ impl RecordingId {
         &self.0[20..]
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
+    #[must_use]
     pub fn as_path(&self) -> &Path {
         Path::new(&self.0)
     }
 
+    #[must_use]
     pub fn as_full_path(&self) -> PathBuf {
         let [year, month, day] = self.year_month_day();
         year.join(month)
@@ -71,10 +75,12 @@ impl RecordingId {
             .join(self.as_path())
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -114,6 +120,7 @@ impl<'de> Deserialize<'de> for RecordingId {
     }
 }
 
+#[must_use]
 pub fn normalize_polygon(input: &Polygon, w: u16, h: u16) -> PolygonNormalized {
     input
         .iter()
@@ -124,10 +131,13 @@ pub fn normalize_polygon(input: &Polygon, w: u16, h: u16) -> PolygonNormalized {
         .collect()
 }
 
+#[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn normalize(input: u16, max: u16) -> u32 {
     ((1_000_000 * u64::from(input)) / u64::from(max)) as u32
 }
 
+#[must_use]
 pub fn denormalize_polygon(input: &PolygonNormalized, w: u16, h: u16) -> Polygon {
     input
         .iter()
@@ -138,6 +148,8 @@ pub fn denormalize_polygon(input: &PolygonNormalized, w: u16, h: u16) -> Polygon
         .collect()
 }
 
+#[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn denormalize(input: u32, max: u16) -> u16 {
     (div_ceil(u64::from(input) * u64::from(max), 1_000_000)) as u16
 }
@@ -154,6 +166,7 @@ fn div_ceil(a: u64, b: u64) -> u64 {
 
 // CreateMask creates an image mask from a polygon.
 // Pixels outside the polygon are masked.
+#[must_use]
 pub fn create_mask(poly: &Polygon, w: u16, h: u16) -> Vec<Vec<bool>> {
     let mut img = vec![vec![false; usize::from(w)]; usize::from(h)];
     for y in 0..w {
@@ -166,6 +179,7 @@ pub fn create_mask(poly: &Polygon, w: u16, h: u16) -> Vec<Vec<bool>> {
 
 // CreateInvertedMask creates an image mask from a polygon.
 // Pixels inside the polygon are masked.
+#[must_use]
 pub fn create_inverted_mask(poly: &Polygon, w: u16, h: u16) -> Vec<Vec<bool>> {
     let mut img = vec![vec![false; usize::from(w)]; usize::from(h)];
     for y in 0..h {
@@ -177,6 +191,7 @@ pub fn create_inverted_mask(poly: &Polygon, w: u16, h: u16) -> Vec<Vec<bool>> {
 }
 
 // Returns true if point is inside polygon.
+#[must_use]
 pub fn vertex_inside_poly(x: u16, y: u16, poly: &Polygon) -> bool {
     if poly.is_empty() {
         return false;
@@ -200,6 +215,7 @@ pub fn vertex_inside_poly(x: u16, y: u16, poly: &Polygon) -> bool {
 }
 
 // Returns true if point is inside polygon. All parameters are normalized.
+#[must_use]
 pub fn vertex_inside_poly2(x: u32, y: u32, poly: &PolygonNormalized) -> bool {
     if poly.is_empty() {
         return false;
@@ -227,6 +243,7 @@ pub fn vertex_inside_poly2(x: u32, y: u32, poly: &PolygonNormalized) -> bool {
 pub struct FeedRateSec(Duration);
 
 impl FeedRateSec {
+    #[must_use]
     pub fn new(v: Duration) -> Self {
         Self(v)
     }
@@ -255,6 +272,7 @@ impl Deref for FeedRateSec {
 pub struct DurationSec(Duration);
 
 impl DurationSec {
+    #[must_use]
     pub fn new(v: Duration) -> Self {
         Self(v)
     }
@@ -279,6 +297,7 @@ impl Deref for DurationSec {
 }
 
 // Calculates frame duration from feed rate (fps).
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 fn feed_rate_to_duration(feed_rate: f32) -> Duration {
     if feed_rate == 0.0 {
         return Duration::from(0);
@@ -307,6 +326,7 @@ pub enum FrameRateLimiterError {
 }
 
 impl FrameRateLimiter {
+    #[must_use]
     pub fn new(max_rate: u64) -> Self {
         FrameRateLimiter {
             max_rate,
@@ -387,7 +407,7 @@ mod tests {
         assert_eq!(normalized, got);
 
         let got = denormalize(normalized, max);
-        assert_eq!(value, got)
+        assert_eq!(value, got);
     }
 
     #[test]
@@ -442,8 +462,8 @@ mod tests {
         for (input, want) in cases {
             let mask = create_mask(input, 7, 7);
 
-            let got = image_to_text(mask);
-            let want = want.replace(" ", "");
+            let got = image_to_text(&mask);
+            let want = want.replace(' ', "");
             assert_eq!(want, got);
         }
     }
@@ -500,8 +520,8 @@ mod tests {
         for (input, want) in cases {
             let mask = create_inverted_mask(input, 7, 7);
 
-            let got = image_to_text(mask);
-            let want = want.replace(" ", "");
+            let got = image_to_text(&mask);
+            let want = want.replace(' ', "");
             assert_eq!(want, got);
         }
     }
@@ -511,7 +531,8 @@ mod tests {
         assert!(!vertex_inside_poly(0, 0, &Vec::new()));
     }
 
-    fn image_to_text(img: Vec<Vec<bool>>) -> String {
+    #[allow(clippy::needless_range_loop)]
+    fn image_to_text(img: &[Vec<bool>]) -> String {
         let mut text = String::new();
         let max_y = img.len();
         let max_x = img[0].len();
@@ -520,9 +541,9 @@ mod tests {
             for x in 0..max_x {
                 let pixel = img[y][x];
                 if pixel {
-                    text.push('_')
+                    text.push('_');
                 } else {
-                    text.push('X')
+                    text.push('X');
                 }
             }
         }
@@ -530,11 +551,11 @@ mod tests {
     }
 
     #[test_case(0.0, 0)]
-    #[test_case(1.0, 1 * SECOND)]
+    #[test_case(1.0, SECOND)]
     #[test_case(2.0, 500 * MILLISECOND)]
     #[test_case(0.5, 2 * SECOND)]
     fn test_feed_rate_to_duration(input: f32, want: i64) {
-        assert_eq!(Duration::from(want), feed_rate_to_duration(input))
+        assert_eq!(Duration::from(want), feed_rate_to_duration(input));
     }
     /*cases := []struct {
         input    float64

@@ -27,12 +27,12 @@ use tokio_util::sync::CancellationToken;
 use zone::Zones;
 
 #[no_mangle]
-pub fn version() -> String {
+pub extern "Rust" fn version() -> String {
     plugin::get_version()
 }
 
 #[no_mangle]
-pub fn pre_load() -> Box<dyn PreLoadPlugin> {
+pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
     Box::new(PreLoadAuthNone)
 }
 struct PreLoadAuthNone;
@@ -43,7 +43,7 @@ impl PreLoadPlugin for PreLoadAuthNone {
 }
 
 #[no_mangle]
-pub fn load(app: &dyn Application) -> Arc<dyn Plugin> {
+pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(MotionPlugin {
         rt_handle: app.rt_handle(),
         _shutdown_complete_tx: app.shutdown_complete_tx(),
@@ -73,7 +73,7 @@ impl Plugin for MotionPlugin {
 
     async fn on_monitor_start(&self, token: CancellationToken, monitor: Arc<Monitor>) {
         let msg_logger = Arc::new(MotionLogger {
-            logger: self.logger.to_owned(),
+            logger: self.logger.clone(),
             monitor_id: monitor.config().id().to_owned(),
         });
 
@@ -83,7 +83,7 @@ impl Plugin for MotionPlugin {
                 msg_logger.log(LogLevel::Debug, "cancelled");
             }
             Err(e) => {
-                msg_logger.log(LogLevel::Error, &format!("start: {}", e));
+                msg_logger.log(LogLevel::Error, &format!("start: {e}"));
             }
         };
     }
@@ -99,9 +99,9 @@ impl MsgLogger for MotionLogger {
         self.logger.log(LogEntry {
             level,
             source: "motion".parse().unwrap(),
-            monitor_id: Some(self.monitor_id.to_owned()),
+            monitor_id: Some(self.monitor_id.clone()),
             message: msg.parse().unwrap(),
-        })
+        });
     }
 }
 
@@ -156,7 +156,7 @@ impl MotionPlugin {
             &format!("using {}-stream", source.stream_type().name()),
         );
 
-        let Some(config) = MotionConfig::parse(config.raw.to_owned())? else {
+        let Some(config) = MotionConfig::parse(config.raw.clone())? else {
             // Motion detection is disabled.
             return Ok(());
         };
@@ -164,16 +164,15 @@ impl MotionPlugin {
         loop {
             msg_logger.log(LogLevel::Debug, "run");
             match self.run(&msg_logger, &monitor, &config, &source).await {
-                Ok(_) => {}
-                Err(RunError::Cancelled(_)) => {}
-                Err(e) => msg_logger.log(LogLevel::Error, &format!("run: {}", e)),
+                Ok(()) | Err(RunError::Cancelled(_)) => {}
+                Err(e) => msg_logger.log(LogLevel::Error, &format!("run: {e}")),
             }
             let _enter = self.rt_handle.enter();
             tokio::select! {
-                _ = token.cancelled() => {
+                () = token.cancelled() => {
                     return Err(Cancelled(common::Cancelled));
                 }
-                _ = tokio::time::sleep(Duration::from_secs(3)) => {}
+                () = tokio::time::sleep(Duration::from_secs(3)) => {}
             }
         }
     }
@@ -225,7 +224,7 @@ impl MotionPlugin {
             (detections, state) = self
                 .rt_handle
                 .spawn_blocking(move || -> Result<_, RunError> {
-                    convert_frame(&mut state.raw_frame, frame)?;
+                    convert_frame(&mut state.raw_frame, &frame)?;
                     let detections = state.zones.analyze(
                         &state.raw_frame,
                         &state.prev_raw_frame,
@@ -247,7 +246,7 @@ impl MotionPlugin {
             for (zone, score) in detections {
                 msg_logger.log(
                     LogLevel::Debug,
-                    &format!("detection: zone:{} score:{:.2}", zone, score),
+                    &format!("detection: zone:{zone} score:{score:.2}"),
                 );
 
                 let time = UnixNano::now();
@@ -284,7 +283,7 @@ enum ConvertFrameError {
     CopyToBuffer(#[from] ImageCopyToBufferError),
 }
 
-fn convert_frame(raw_frame: &mut Vec<u8>, frame_buf: Frame) -> Result<(), ConvertFrameError> {
+fn convert_frame(raw_frame: &mut Vec<u8>, frame_buf: &Frame) -> Result<(), ConvertFrameError> {
     let mut converter = PixelFormatConverter::new(
         frame_buf.width(),
         frame_buf.height(),
@@ -294,7 +293,7 @@ fn convert_frame(raw_frame: &mut Vec<u8>, frame_buf: Frame) -> Result<(), Conver
     )?;
 
     let mut gray_frame = Frame::new();
-    converter.convert(&frame_buf, &mut gray_frame)?;
+    converter.convert(frame_buf, &mut gray_frame)?;
 
     gray_frame.copy_to_buffer(raw_frame, 1)?;
 

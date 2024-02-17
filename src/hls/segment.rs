@@ -10,6 +10,7 @@ use common::{
 };
 use std::{mem, sync::Arc};
 
+#[allow(clippy::struct_field_names)]
 pub struct Segment {
     id: u64,
     start_time: UnixH264,
@@ -25,7 +26,7 @@ pub struct Segment {
 }
 
 impl Segment {
-    pub async fn new(
+    pub fn new(
         id: u64,
         start_time: UnixH264,
         start_dts: DurationH264,

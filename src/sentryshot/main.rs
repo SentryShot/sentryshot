@@ -25,25 +25,25 @@ async fn main() {
         std::process::exit(1);
     };
     let Some(subcommand) = subcommand else {
-        print!("{}", HELP);
+        print!("{HELP}");
         std::process::exit(1);
     };
     match subcommand.as_str() {
         "run" => {
             if pargs.contains(["-h", "--help"]) {
-                print!("{}", HELP_RUN);
+                print!("{HELP_RUN}");
                 std::process::exit(1);
             }
             let config = pargs
                 .value_from_str("--config")
                 .unwrap_or_else(|_| PathBuf::from(DEFAULT_CONFIG_PATH));
             if let Err(e) = run(rt_handle, &config).await {
-                eprintln!("failed to run app: {}", e);
+                eprintln!("failed to run app: {e}");
             };
         }
         "rec2mp4" => {
             if pargs.contains(["-h", "--help"]) {
-                print!("{}", HELP_REC2MP4);
+                print!("{HELP_REC2MP4}");
                 std::process::exit(1);
             }
             let Ok(path) = pargs.free_from_str() else {
@@ -51,11 +51,11 @@ async fn main() {
                 std::process::exit(1);
             };
             if let Err(e) = rec_to_mp4(path).await {
-                eprintln!("error: {}", e);
+                eprintln!("error: {e}");
             }
         }
         v => {
-            println!("invalid subcommand '{}'", v);
+            println!("invalid subcommand '{v}'");
             std::process::exit(1);
         }
     }

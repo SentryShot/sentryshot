@@ -53,11 +53,12 @@ const CHUNK_HEADER_LENGTH: u64 = 1;
 
 const DATA_SIZE: usize = 47;
 
+#[allow(clippy::module_name_repetitions)]
 pub struct LogDbHandle(Mutex<LogDb>);
 
 impl LogDbHandle {
     pub async fn save_log_testing(&self, entry: LogEntryWithTime) {
-        self.save_log(entry).await.unwrap()
+        self.save_log(entry).await.unwrap();
     }
 
     async fn save_log(&self, entry: LogEntryWithTime) -> Result<(), SaveLogError> {
@@ -77,12 +78,12 @@ impl LogDbHandle {
         let mut feed = logger.subscribe();
         loop {
             tokio::select! {
-                _ = token.cancelled() => return,
+                () = token.cancelled() => return,
                 log = feed.recv() => {
                     let Ok(log) = log else {
                         return
                     };
-                    if let Err(e) = self.save_log(log.to_owned()).await {
+                    if let Err(e) = self.save_log(log.clone()).await {
                         eprintln!("could not save log: {} {}", log.message, e);
                     }
                 }
@@ -96,16 +97,16 @@ impl LogDbHandle {
         const HOUR: u64 = 60 * MINUTE;
         loop {
             tokio::select! {
-                _ = token.cancelled() => return,
-                _ = tokio::time::sleep(Duration::from_secs(HOUR)) => {
+                () = token.cancelled() => return,
+                () = tokio::time::sleep(Duration::from_secs(HOUR)) => {
                     if let Err(e) = self.prune().await {
-                        let msg = format!("could not purge logs: {}", e);
+                        let msg = format!("could not purge logs: {e}");
                         logger.log(LogEntry{
                             level: LogLevel::Error,
                             source:   "app".parse().unwrap(),
                             monitor_id: None,
                             message: msg.parse().unwrap(),
-                        })
+                        });
                     }
                 }
             }
@@ -137,7 +138,7 @@ pub enum NewLogDbError {
 impl LogDb {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(
-        _shutdown_complete: mpsc::Sender<()>,
+        shutdown_complete: mpsc::Sender<()>,
         log_dir: PathBuf,
         disk_space: ByteSize,
         min_disk_usage: ByteSize,
@@ -151,7 +152,7 @@ impl LogDb {
             prev_entry_time: UnixMicro::from(0),
             disk_space,
             min_disk_usage,
-            _shutdown_complete,
+            _shutdown_complete: shutdown_complete,
         })))
     }
 
@@ -160,7 +161,7 @@ impl LogDb {
 
         if self.encoder.is_none() || chunk_id != self.encoder.as_ref().unwrap().chunk_id {
             let (encoder, prev_entry_time) =
-                ChunkEncoder::new(self.log_dir.to_owned(), chunk_id).await?;
+                ChunkEncoder::new(self.log_dir.clone(), chunk_id).await?;
             self.encoder = Some(encoder);
             self.prev_entry_time = prev_entry_time;
         }
@@ -188,10 +189,10 @@ impl LogDb {
         //for i := len(chunkIDs) - 1; i >= 0; i-- {
         for chunk_id in chunk_ids.iter().rev() {
             if let Err(e) = self.query_chunk(&q, &mut entries, chunk_id).await {
-                eprintln!("log store warning: {}", e);
+                eprintln!("log store warning: {e}");
             }
             // Time is only relevant for the first iteration.
-            q.time = None
+            q.time = None;
         }
 
         Ok(entries)
@@ -267,7 +268,7 @@ impl LogDb {
     }
 
     async fn list_chunks(&self) -> Result<Vec<String>, std::io::Error> {
-        let log_dir = self.log_dir.to_owned();
+        let log_dir = self.log_dir.clone();
 
         tokio::task::spawn_blocking(|| {
             let mut chunks = Vec::new();
@@ -276,12 +277,15 @@ impl LogDb {
                 let name = file
                     .file_name()
                     .into_string()
-                    .unwrap_or_else(|_| "".to_owned());
+                    .unwrap_or_else(|_| String::new());
 
-                if name.len() < CHUNK_ID_LENGTH + 5 || !name.ends_with(".data") {
+                let is_data_file = Path::new(&name)
+                    .extension()
+                    .map_or(false, |ext| ext.eq_ignore_ascii_case("data"));
+                if name.len() < CHUNK_ID_LENGTH + 5 || !is_data_file {
                     continue;
                 }
-                chunks.push(name[..CHUNK_ID_LENGTH].to_owned())
+                chunks.push(name[..CHUNK_ID_LENGTH].to_owned());
             }
             chunks.sort();
 
@@ -294,7 +298,7 @@ impl LogDb {
     // Prunes a single chunk if needed.
     async fn prune(&self) -> Result<(), PurgeError> {
         use PurgeError::*;
-        let dir_size = dir_size(self.log_dir.to_owned()).await?;
+        let dir_size = dir_size(self.log_dir.clone()).await?;
 
         if dir_size <= ByteSize(self.disk_space.as_u64() / 100) || dir_size <= self.min_disk_usage {
             return Ok(());
@@ -396,16 +400,17 @@ pub struct LogQuery {
 }
 
 impl LogQuery {
+    #[must_use]
     pub fn entry_matches_filter(&self, entry: &LogEntryWithTime) -> bool {
-        level_in_levels(&entry.level, &self.levels)
+        level_in_levels(entry.level, &self.levels)
             && source_in_souces(&entry.source, &self.sources)
             && monitor_id_in_monitor_ids(&entry.monitor_id, &self.monitors)
     }
 }
 
 // Returns true if level is in levels or if levels is empty.
-fn level_in_levels(level: &LogLevel, levels: &[LogLevel]) -> bool {
-    levels.is_empty() || levels.contains(level)
+fn level_in_levels(level: LogLevel, levels: &[LogLevel]) -> bool {
+    levels.is_empty() || levels.contains(&level)
 }
 
 // Returns true if source is in sources or if sources is empty.
@@ -466,9 +471,6 @@ struct ChunkDecoder {
 
 #[derive(Debug, Error)]
 enum NewChunkDecoderError {
-    #[error("create reader: {0}")]
-    CreateReader(std::io::Error),
-
     #[error("open data file: {0}")]
     OpenDataFile(std::io::Error),
 
@@ -517,8 +519,8 @@ impl ChunkDecoder {
             .await
             .map_err(OpenMsgFile)?;
 
-        let msg_file = RevBufReader::new(msg_file).await.map_err(CreateReader)?;
-        let data_file = RevBufReader::new(data_file).await.map_err(CreateReader)?;
+        let msg_file = RevBufReader::new(msg_file);
+        let data_file = RevBufReader::new(data_file);
 
         Ok(Self {
             msg_file,
@@ -753,8 +755,8 @@ impl ChunkEncoder {
         Ok((
             Self {
                 chunk_id,
-                msg_file,
                 data_file,
+                msg_file,
                 msg_pos,
             },
             prev_entry_time,
@@ -936,7 +938,7 @@ pub enum TimeToIdError {
 // Output is padded with zeros if needed.
 fn time_to_id(time: UnixMicro) -> Result<String, TimeToIdError> {
     let shifted = *time / CHUNK_DURATION;
-    let padded = format!("{:0>width$}", shifted, width = CHUNK_ID_LENGTH);
+    let padded = format!("{shifted:0>CHUNK_ID_LENGTH$}");
     if padded.len() > CHUNK_ID_LENGTH {
         return Err(TimeToIdError::InvalidTime);
     }
@@ -1160,15 +1162,15 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let db = new_test_db(temp_dir.path());
 
-        db.save_log(msg1.to_owned()).await.unwrap();
+        db.save_log(msg1.clone()).await.unwrap();
         let entries = db.query(empty_query()).await.unwrap();
         assert_eq!(msg1, entries[0]);
 
-        db.save_log(msg2.to_owned()).await.unwrap();
+        db.save_log(msg2.clone()).await.unwrap();
         let entries = db.query(empty_query()).await.unwrap();
-        assert_eq!(vec![msg2.to_owned(), msg1.to_owned()], entries);
+        assert_eq!(vec![msg2.clone(), msg1.clone()], entries);
 
-        db.save_log(msg3.to_owned()).await.unwrap();
+        db.save_log(msg3.clone()).await.unwrap();
         let entries = db.query(empty_query()).await.unwrap();
         assert_eq!(vec![msg3, msg2, msg1], entries);
     }
@@ -1182,9 +1184,9 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let db = new_test_db(temp_dir.path());
 
-        db.save_log(msg1.to_owned()).await.unwrap();
-        db.save_log(msg2.to_owned()).await.unwrap();
-        db.save_log(msg3.to_owned()).await.unwrap();
+        db.save_log(msg1.clone()).await.unwrap();
+        db.save_log(msg2.clone()).await.unwrap();
+        db.save_log(msg3.clone()).await.unwrap();
 
         let entries = db.query(empty_query()).await.unwrap();
 
@@ -1209,10 +1211,10 @@ mod tests {
         let temp_dir = tempdir().unwrap();
 
         let db = new_test_db(temp_dir.path());
-        db.save_log(msg1.to_owned()).await.unwrap();
+        db.save_log(msg1.clone()).await.unwrap();
 
         let db = new_test_db(temp_dir.path());
-        db.save_log(msg2.to_owned()).await.unwrap();
+        db.save_log(msg2.clone()).await.unwrap();
 
         let want = vec![msg2, msg1];
         let got = db.query(empty_query()).await.unwrap();
@@ -1260,33 +1262,33 @@ mod tests {
         let msg8 = new_test_entry(CHUNK_DURATION * 2);
         let msg9 = new_test_entry(CHUNK_DURATION * 2 + 1);
 
-        db.save_log(msg1.to_owned()).await.unwrap();
-        db.save_log(msg2.to_owned()).await.unwrap();
-        db.save_log(msg3.to_owned()).await.unwrap();
-        db.save_log(msg4.to_owned()).await.unwrap();
-        db.save_log(msg5.to_owned()).await.unwrap();
-        db.save_log(msg6.to_owned()).await.unwrap();
-        db.save_log(msg7.to_owned()).await.unwrap();
-        db.save_log(msg8.to_owned()).await.unwrap();
-        db.save_log(msg9.to_owned()).await.unwrap();
+        db.save_log(msg1.clone()).await.unwrap();
+        db.save_log(msg2.clone()).await.unwrap();
+        db.save_log(msg3.clone()).await.unwrap();
+        db.save_log(msg4.clone()).await.unwrap();
+        db.save_log(msg5.clone()).await.unwrap();
+        db.save_log(msg6.clone()).await.unwrap();
+        db.save_log(msg7.clone()).await.unwrap();
+        db.save_log(msg8.clone()).await.unwrap();
+        db.save_log(msg9.clone()).await.unwrap();
 
         #[rustfmt::skip]
         let cases = vec![
             (0,              vec![&msg9, &msg8, &msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (**&msg9.time+1, vec![&msg9, &msg8, &msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (**&msg9.time,   vec![&msg8, &msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (**&msg8.time,   vec![&msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (**&msg8.time-1, vec![&msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (**&msg7.time+1, vec![&msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (**&msg7.time,   vec![&msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (**&msg6.time,   vec![&msg5, &msg4, &msg3, &msg2, &msg1]),
-            (**&msg5.time,   vec![&msg4, &msg3, &msg2, &msg1]),
-            (**&msg5.time-1, vec![&msg4, &msg3, &msg2, &msg1]),
-            (**&msg4.time+1, vec![&msg4, &msg3, &msg2, &msg1]),
-            (**&msg4.time,   vec![&msg3, &msg2, &msg1]),
-            (**&msg3.time,   vec![&msg2, &msg1]),
-            (**&msg2.time,   vec![&msg1]),
-            (**&msg1.time,   vec![]),
+            (*msg9.time+1, vec![&msg9, &msg8, &msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
+            (*msg9.time,   vec![&msg8, &msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
+            (*msg8.time,   vec![&msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
+            (*msg8.time-1, vec![&msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
+            (*msg7.time+1, vec![&msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
+            (*msg7.time,   vec![&msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
+            (*msg6.time,   vec![&msg5, &msg4, &msg3, &msg2, &msg1]),
+            (*msg5.time,   vec![&msg4, &msg3, &msg2, &msg1]),
+            (*msg5.time-1, vec![&msg4, &msg3, &msg2, &msg1]),
+            (*msg4.time+1, vec![&msg4, &msg3, &msg2, &msg1]),
+            (*msg4.time,   vec![&msg3, &msg2, &msg1]),
+            (*msg3.time,   vec![&msg2, &msg1]),
+            (*msg2.time,   vec![&msg1]),
+            (*msg1.time,   vec![]),
         ];
 
         for (input_time, want) in cases {
@@ -1304,13 +1306,16 @@ mod tests {
                 })
                 .await
                 .unwrap();
-            let want: Vec<LogEntryWithTime> = want.into_iter().map(|x| x.to_owned()).collect();
+            let want: Vec<LogEntryWithTime> = want
+                .into_iter()
+                .map(std::borrow::ToOwned::to_owned)
+                .collect();
             assert_eq!(want, got);
         }
     }
 
-    #[test]
-    fn test_new_store_mkdir() {
+    #[tokio::test]
+    async fn test_new_store_mkdir() {
         let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
         let temp_dir = tempdir().unwrap();
 
@@ -1319,7 +1324,7 @@ mod tests {
 
         LogDb::new(
             shutdown_complete_tx,
-            new_dir.to_owned(),
+            new_dir.clone(),
             ByteSize(0),
             ByteSize(0),
         )
@@ -1327,7 +1332,7 @@ mod tests {
 
         std::fs::metadata(new_dir).unwrap();
 
-        _ = shutdown_complete_rx.recv();
+        let _ = shutdown_complete_rx.recv().await;
     }
 
     fn test_entry() -> LogEntryWithTime {
@@ -1389,8 +1394,8 @@ mod tests {
     }
 
     #[test_case(UnixMicro::from(0), "00000"; "a")]
-    #[test_case(UnixMicro::from(1000334455000111), "10003"; "b")]
-    #[test_case(UnixMicro::from(1122334455000111), "11223"; "c")]
+    #[test_case(UnixMicro::from(1_000_334_455_000_111), "10003"; "b")]
+    #[test_case(UnixMicro::from(1_122_334_455_000_111), "11223"; "c")]
     #[test_case(UnixMicro::from(CHUNK_DURATION - 1), "00000"; "d")]
     #[test_case(UnixMicro::from(CHUNK_DURATION), "00001"; "e")]
     #[test_case(UnixMicro::from(CHUNK_DURATION + 1), "00001"; "f")]
@@ -1401,9 +1406,9 @@ mod tests {
     #[test]
     fn test_time_to_id_error() {
         assert!(matches!(
-            time_to_id(UnixMicro::from(12345678901234567)),
+            time_to_id(UnixMicro::from(12_345_678_901_234_567)),
             Err(TimeToIdError::InvalidTime)
-        ))
+        ));
     }
 
     #[tokio::test]
@@ -1418,7 +1423,7 @@ mod tests {
             Err(NewChunkEncoderError::NewChunkDecoder(
                 NewChunkDecoderError::UnknownChunkVersion
             ))
-        ))
+        ));
     }
 
     #[tokio::test]
@@ -1431,7 +1436,7 @@ mod tests {
         assert!(matches!(
             ChunkDecoder::new(log_dir.path(), chunk_id).await,
             Err(NewChunkDecoderError::UnknownChunkVersion)
-        ))
+        ));
     }
 
     #[tokio::test]
@@ -1465,7 +1470,7 @@ mod tests {
         assert_eq!(want, list_files(log_dir));
 
         drop(db);
-        _ = shutdown_complete_rx.recv().await
+        _ = shutdown_complete_rx.recv().await;
     }
 
     #[tokio::test]
@@ -1491,7 +1496,7 @@ mod tests {
         assert_eq!(1, chunk_count(log_dir).await);
 
         drop(db);
-        _ = shutdown_complete_rx.recv().await
+        _ = shutdown_complete_rx.recv().await;
     }
 
     #[tokio::test]
@@ -1517,7 +1522,7 @@ mod tests {
         assert_eq!(1, chunk_count(log_dir).await);
 
         drop(db);
-        _ = shutdown_complete_rx.recv().await
+        _ = shutdown_complete_rx.recv().await;
     }
 
     #[tokio::test]
@@ -1538,7 +1543,7 @@ mod tests {
         db.prune().await.unwrap();
 
         drop(db);
-        _ = shutdown_complete_rx.recv().await
+        _ = shutdown_complete_rx.recv().await;
     }
     /*
         t.Run("diskSpaceErr", func(t *testing.T) {
@@ -1567,14 +1572,14 @@ mod tests {
     }
 
     async fn chunk_count(log_dir: &Path) -> usize {
-        let (_shutdown_complete, _) = mpsc::channel::<()>(1);
+        let (shutdown_complete, _) = mpsc::channel::<()>(1);
         let db = LogDb {
             log_dir: log_dir.to_owned(),
             encoder: None,
             prev_entry_time: UnixMicro::from(0),
             disk_space: ByteSize(0),
             min_disk_usage: ByteSize(0),
-            _shutdown_complete,
+            _shutdown_complete: shutdown_complete,
         };
         db.list_chunks().await.unwrap().len()
     }

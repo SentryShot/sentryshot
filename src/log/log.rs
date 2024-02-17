@@ -23,6 +23,7 @@ pub struct Logger {
 
 impl Logger {
     /// Creates a new logger.
+    #[must_use]
     pub fn new(sources: Vec<LogSource>) -> Self {
         let (feed, _) = broadcast::channel(64);
 
@@ -35,10 +36,12 @@ impl Logger {
     }
 
     /// Subscribes to the log feed and returns a channel that receives all log entries.
+    #[must_use]
     pub fn subscribe(&self) -> broadcast::Receiver<LogEntryWithTime> {
         self.feed.subscribe()
     }
 
+    #[must_use]
     pub fn sources(&self) -> &Vec<LogSource> {
         &self.sources
     }
@@ -88,6 +91,7 @@ impl UnixMicro {
         )
     }
 
+    #[must_use]
     pub fn checked_add(&self, rhs: Self) -> Option<Self> {
         Some(Self(self.0.checked_add(rhs.0)?))
     }
@@ -156,6 +160,7 @@ fn make_ascii_titlecase(s: &mut str) {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -242,17 +247,15 @@ mod tests {
     fn source_parse(input: &str, want: ParseLogSourceError) {
         assert_eq!(
             want,
-            LogSource::from_str(input).err().expect("expected error")
-        )
+            LogSource::from_str(input).expect_err("expected error")
+        );
     }
 
     #[test_case("", ParseNonEmptyStringError::Empty; "empty")]
     fn message_parse(input: &str, want: ParseNonEmptyStringError) {
         assert_eq!(
             want,
-            NonEmptyString::from_str(input)
-                .err()
-                .expect("expected error")
-        )
+            NonEmptyString::from_str(input).expect_err("expected error")
+        );
     }
 }

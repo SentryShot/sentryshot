@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[must_use]
 pub fn dir_fs(dir: PathBuf) -> DynFs {
     Box::new(DirFs(dir))
 }

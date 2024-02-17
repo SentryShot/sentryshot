@@ -41,7 +41,7 @@ fn target_duration(segments: &VecDeque<SegmentOrGap>) -> i64 {
     for sog in segments {
         let v = div_up(sog.duration().as_nanos(), SECOND);
         if v > ret {
-            ret = v
+            ret = v;
         }
     }
 
@@ -65,14 +65,14 @@ fn part_target_duration(
 
         for part in seg.parts() {
             if part.rendered_duration > ret {
-                ret = part.rendered_duration
+                ret = part.rendered_duration;
             }
         }
     }
 
     for part in next_segment_parts {
         if part.rendered_duration > ret {
-            ret = part.rendered_duration
+            ret = part.rendered_duration;
         }
     }
 
@@ -97,6 +97,7 @@ struct PlaylistState {
 }
 
 #[derive(Debug)]
+#[allow(clippy::struct_field_names)]
 pub struct Playlist {
     playlist_tx: mpsc::Sender<PlaylistRequest>,
     segment_tx: mpsc::Sender<SegmentRequest>,
@@ -109,6 +110,7 @@ pub struct Playlist {
 }
 
 impl Playlist {
+    #[allow(clippy::too_many_lines)]
     pub fn new(token: CancellationToken, logger: DynLogger, segment_count: usize) -> Self {
         let (playlist_tx, mut playlist_rx) = mpsc::channel::<PlaylistRequest>(1);
         let (segment_tx, mut segment_rx) = mpsc::channel::<SegmentRequest>(1);
@@ -141,7 +143,7 @@ impl Playlist {
 
             loop {
                 tokio::select! {
-                    _ = state.token.cancelled() => {
+                    () = state.token.cancelled() => {
                         return;
                     }
                     req = playlist_rx.recv() => {
@@ -161,7 +163,7 @@ impl Playlist {
                         let body = match state.full_playlist(req.is_delta_update) {
                             Ok(v) => v,
                             Err(e) => {
-                                state.log(LogLevel::Error, &format!("full playlist: {}", e));
+                                state.log(LogLevel::Error, &format!("full playlist: {e}"));
                                 _ = req.res_tx.send(MUXER_FILE_RESPONSE_ERROR);
                                 continue
                             },
@@ -203,7 +205,7 @@ impl Playlist {
                         };
 
 
-                        state.segment_finalized(req.segment);
+                        state.segment_finalized(&req.segment);
                         _ = req.done_tx.send(());
                     }
 
@@ -246,7 +248,7 @@ impl Playlist {
                         let body = match state.full_playlist(req.is_delta_update) {
                             Ok(v) => v,
                             Err(e) => {
-                                state.log(LogLevel::Error, &format!("full playlist: {}", e));
+                                state.log(LogLevel::Error, &format!("full playlist: {e}"));
                                 _ = req.res_tx.send(MUXER_FILE_RESPONSE_ERROR);
 
                                 continue
@@ -310,7 +312,7 @@ impl Playlist {
                         if let Some(seg) = seg() {
                             req.res_tx.send(seg).unwrap();
                         } else {
-                            state.next_segments_on_hold.push(req)
+                            state.next_segments_on_hold.push(req);
                         }
                     }
 
@@ -354,6 +356,7 @@ impl Playlist {
         _ = done_rx.await;
     }
 
+    #[allow(clippy::case_sensitive_file_extension_comparisons)]
     pub async fn file(&self, name: &str, query: &HlsQuery) -> MuxerFileResponse {
         if name == "stream.m3u8" {
             return self.playlist_reader(query).await;
@@ -371,6 +374,7 @@ impl Playlist {
         MUXER_FILE_RESPONSE_NOT_FOUND
     }
 
+    #[allow(clippy::similar_names)]
     async fn playlist_reader(&self, query: &HlsQuery) -> MuxerFileResponse {
         if let Some((msn, part)) = query.msn_and_part {
             let (res_tx, res_rx) = oneshot::channel();
@@ -405,6 +409,7 @@ impl Playlist {
         res
     }
 
+    #[allow(clippy::similar_names)]
     async fn segment_reader(&self, file_name: &str) -> MuxerFileResponse {
         if file_name.starts_with("seg") {
             let base = file_name
@@ -458,6 +463,7 @@ impl Playlist {
         Ok(())
     }
 
+    #[allow(clippy::similar_names)]
     pub async fn next_segment(&self, prev_id: u64) -> Option<Arc<SegmentFinalized>> {
         let (res_tx, res_rx) = oneshot::channel();
         let req = NextSegmentRequest { prev_id, res_tx };
@@ -527,8 +533,8 @@ impl PlaylistState {
             level,
             source: "app".parse().unwrap(),
             monitor_id: None,
-            message: format!("hls playlist: {}", msg).parse().unwrap(),
-        })
+            message: format!("hls playlist: {msg}").parse().unwrap(),
+        });
     }
 
     fn check_pending(&mut self) {
@@ -558,7 +564,7 @@ impl PlaylistState {
                     let body = match self.full_playlist(req.is_delta_update) {
                         Ok(v) => v,
                         Err(e) => {
-                            self.log(LogLevel::Error, &format!("full playlist: {}", e));
+                            self.log(LogLevel::Error, &format!("full playlist: {e}"));
                             _ = req.res_tx.send(MUXER_FILE_RESPONSE_ERROR);
                             continue;
                         }
@@ -664,12 +670,12 @@ impl PlaylistState {
         None
     }
 
-    fn segment_finalized(&mut self, segment: Arc<SegmentFinalized>) {
+    fn segment_finalized(&mut self, segment: &Arc<SegmentFinalized>) {
         // add initial gaps, required by iOS.
         if self.segments.is_empty() {
             for _ in 0..7 {
                 self.segments
-                    .push_back(SegmentOrGap::Gap(Gap(segment.duration())))
+                    .push_back(SegmentOrGap::Gap(Gap(segment.duration())));
             }
         }
 
@@ -713,7 +719,7 @@ impl PlaylistState {
             }
         }
 
-        self.check_pending()
+        self.check_pending();
     }
 
     fn full_playlist(&self, is_delta_update: bool) -> Result<Vec<u8>, FullPlaylistError> {
@@ -721,7 +727,7 @@ impl PlaylistState {
         cnt += "#EXT-X-VERSION:9\n";
 
         let target_duration = target_duration(&self.segments);
-        cnt += &format!("#EXT-X-TARGETDURATION:{}\n", target_duration);
+        cnt += &format!("#EXT-X-TARGETDURATION:{target_duration}\n");
 
         let skip_boundary = f64::from(u32::try_from(target_duration)?) * 6.0;
 
@@ -747,7 +753,7 @@ impl PlaylistState {
         // response to the _HLS_skip Delivery Directive.  Its value is the
         // Skip Boundary, a decimal-floating-point number of seconds.  The
         // Skip Boundary MUST be at least six times the Target Duration.
-        cnt += &format!(",CAN-SKIP-UNTIL={}", skip_boundary);
+        cnt += &format!(",CAN-SKIP-UNTIL={skip_boundary}");
 
         cnt += "\n";
 
@@ -759,9 +765,7 @@ impl PlaylistState {
         cnt += &format!("#EXT-X-MEDIA-SEQUENCE:{}\n", self.segment_delete_count);
 
         let mut skipped = 0;
-        if !is_delta_update {
-            cnt += "#EXT-X-MAP:URI=\"init.mp4\"\n";
-        } else {
+        if is_delta_update {
             let mut cur_duration = DurationH264::from(0);
             let mut shown = 0;
             for sog in &self.segments {
@@ -774,7 +778,9 @@ impl PlaylistState {
                 shown += 1;
             }
             skipped = (self.segments.len()) - shown;
-            cnt += &format!("#EXT-X-SKIP:SKIPPED-SEGMENTS={}\n", skipped);
+            cnt += &format!("#EXT-X-SKIP:SKIPPED-SEGMENTS={skipped}\n");
+        } else {
+            cnt += "#EXT-X-MAP:URI=\"init.mp4\"\n";
         }
 
         for (i, sog) in self.segments.iter().enumerate() {
@@ -798,9 +804,9 @@ impl PlaylistState {
                                 part.name(),
                             );
                             if part.is_independent {
-                                cnt += ",INDEPENDENT=YES"
+                                cnt += ",INDEPENDENT=YES";
                             }
-                            cnt += "\n"
+                            cnt += "\n";
                         }
                     }
 
@@ -822,9 +828,9 @@ impl PlaylistState {
                 part.name(),
             );
             if part.is_independent {
-                cnt += ",INDEPENDENT=YES"
+                cnt += ",INDEPENDENT=YES";
             }
-            cnt += "\n"
+            cnt += "\n";
         }
 
         // preload hint must always be present
@@ -838,6 +844,7 @@ impl PlaylistState {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub fn primary_playlist(codec: &str) -> MuxerFileResponse {
     let body = [
         "#EXTM3U\n",
@@ -882,7 +889,7 @@ mod tests {
 #EXT-X-STREAM-INF:BANDWIDTH=200000,CODECS=\"avc1.640016\"
 stream.m3u8
 ";
-        assert_eq!(want_body, String::from_utf8(got_body).unwrap())
+        assert_eq!(want_body, String::from_utf8(got_body).unwrap());
     }
 
     fn new_empty_playlist_state() -> PlaylistState {
@@ -916,7 +923,7 @@ stream.m3u8
 #EXT-X-SKIP:SKIPPED-SEGMENTS=0
 #EXT-X-PRELOAD-HINT:TYPE=PART,URI=\"part0.mp4\"
 ";
-        assert_eq!(want, String::from_utf8(got).unwrap())
+        assert_eq!(want, String::from_utf8(got).unwrap());
     }
 
     #[test]
@@ -932,6 +939,6 @@ stream.m3u8
 #EXT-X-MAP:URI=\"init.mp4\"
 #EXT-X-PRELOAD-HINT:TYPE=PART,URI=\"part0.mp4\"
 ";
-        assert_eq!(want, String::from_utf8(got).unwrap())
+        assert_eq!(want, String::from_utf8(got).unwrap());
     }
 }

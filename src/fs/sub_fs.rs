@@ -14,11 +14,11 @@ impl SubFs {
         if !valid_path(name) {
             return Err(FsError::InvalidPath(name.to_owned()));
         }
-        Ok(clean(self.dir.join(name)))
+        Ok(clean(&self.dir.join(name)))
     }
 
     // Shorten maps name, which should start with self.dir, back to the suffix after self.dir.
-    fn shorten(&self, path: PathBuf) -> PathBuf {
+    fn shorten(&self, path: &Path) -> PathBuf {
         if path == self.dir {
             return PathBuf::from(".");
         }
@@ -39,7 +39,7 @@ impl SubFs {
     // Shortens any reported names in PathErrors by stripping f.dir.
     fn fix_err(&self, e: FsError) -> FsError {
         match e {
-            FsError::InvalidPath(path) => FsError::InvalidPath(self.shorten(path)),
+            FsError::InvalidPath(path) => FsError::InvalidPath(self.shorten(&path)),
             _ => e,
         }
     }
@@ -83,7 +83,7 @@ impl Fs for SubFs {
 // Getting Dot-Dot Right,”
 // https://9p.io/sys/doc/lexnames.html
 #[allow(clippy::if_same_then_else)]
-fn clean(path: PathBuf) -> PathBuf {
+fn clean(path: &Path) -> PathBuf {
     if path == PathBuf::from("") {
         return PathBuf::from(".");
     }
@@ -99,7 +99,7 @@ fn clean(path: PathBuf) -> PathBuf {
     let (mut out, mut r, mut dotdot) = if rooted {
         ("/".to_owned(), 1, 1)
     } else {
-        ("".to_owned(), 0, 0)
+        (String::new(), 0, 0)
     };
 
     let path_s = path.to_str().unwrap();
@@ -136,7 +136,7 @@ fn clean(path: PathBuf) -> PathBuf {
             // real path element.
             // add slash if needed
             if rooted && out.len() != 1 || !rooted && !out.is_empty() {
-                out.push('/')
+                out.push('/');
             }
 
             // copy element
@@ -207,14 +207,16 @@ mod tests {
         ];
 
         for (path, result) in cleantests {
-            let s = clean(PathBuf::from(path));
-            if s != PathBuf::from(result) {
-                panic!("Clean({}) = {:?}, want {}", path, s, result);
-            }
-            let s = clean(PathBuf::from(result));
-            if s != PathBuf::from(result) {
-                panic!("Clean({}) = {:?}, want {}", result, s, result)
-            }
+            let s = clean(Path::new(path));
+            assert!(
+                s == PathBuf::from(result),
+                "Clean({path}) = {s:?}, want {result}"
+            );
+            let s = clean(Path::new(result));
+            assert!(
+                s == PathBuf::from(result),
+                "Clean({result}) = {s:?}, want {result}"
+            );
         }
     }
 }

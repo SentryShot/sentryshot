@@ -12,12 +12,12 @@ use serde::Deserialize;
 use std::{borrow::Cow, num::NonZeroU16, sync::Arc};
 
 #[no_mangle]
-pub fn version() -> String {
+pub extern "Rust" fn version() -> String {
     plugin::get_version()
 }
 
 #[no_mangle]
-pub fn load(app: &dyn Application) -> Arc<dyn Plugin> {
+pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(ThumbScalePlugin {
         logger: app.logger(),
     })
@@ -38,16 +38,17 @@ impl Plugin for ThumbScalePlugin {
                 level,
                 source: "recorder".parse().unwrap(),
                 monitor_id: Some(config.id().to_owned()),
-                message: format!("thumb scale: {}", msg).parse().unwrap(),
-            })
+                message: format!("thumb scale: {msg}").parse().unwrap(),
+            });
         };
 
         #[derive(Deserialize)]
+        #[allow(clippy::items_after_statements)]
         struct Temp {
             #[serde(rename = "thumbScale")]
             thumb_scale: String,
         }
-        let Ok(temp) = serde_json::from_value::<Temp>(config.raw.to_owned()) else {
+        let Ok(temp) = serde_json::from_value::<Temp>(config.raw.clone()) else {
             log(LogLevel::Warning, "config is not set");
             return frame;
         };
@@ -61,7 +62,7 @@ impl Plugin for ThumbScalePlugin {
             "sixth" => 6,
             "eighth" => 8,
             _ => {
-                log(LogLevel::Warning, &format!("invalid config: '{}'", scale));
+                log(LogLevel::Warning, &format!("invalid config: '{scale}'"));
                 return frame;
             }
         };
@@ -77,24 +78,21 @@ impl Plugin for ThumbScalePlugin {
 
         log(
             LogLevel::Info,
-            &format!(
-                "downscaling {}x{} to {}x{}",
-                src_width, src_height, dst_width, dst_height
-            ),
+            &format!("downscaling {src_width}x{src_height} to {dst_width}x{dst_height}"),
         );
 
         let result = Scaler::new(src_width, src_height, pix_fmt, dst_width, dst_height);
         let mut scaler = match result {
             Ok(v) => v,
             Err(e) => {
-                log(LogLevel::Error, &format!("failed to crate scaler: '{}'", e));
+                log(LogLevel::Error, &format!("failed to crate scaler: '{e}'"));
                 return frame;
             }
         };
 
         let mut frame2 = Frame::new();
         if let Err(e) = scaler.scale(&frame, &mut frame2) {
-            log(LogLevel::Error, &format!("failed to scale frame: '{}'", e));
+            log(LogLevel::Error, &format!("failed to scale frame: '{e}'"));
             return frame;
         };
 

@@ -119,12 +119,12 @@ mod tests {
             }],
         };
 
-        assert_eq!(want, got)
+        assert_eq!(want, got);
     }
 
     #[test]
     fn test_parse_empty() {
-        let raw = serde_json::Value::String("".to_owned());
+        let raw = serde_json::Value::String(String::new());
         assert!(MotionConfig::parse(raw).unwrap().is_none());
     }
 

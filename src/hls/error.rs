@@ -1,3 +1,5 @@
+#![allow(clippy::module_name_repetitions)]
+
 use common::Cancelled;
 use thiserror::Error;
 

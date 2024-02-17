@@ -9,7 +9,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use std::{env, path::Path};
 use syn::{Data, DeriveInput, Fields, Lit, Meta, MetaNameValue};
 
-fn generate_assets(ident: &syn::Ident, folder_path: String) -> TokenStream2 {
+fn generate_assets(ident: &syn::Ident, folder_path: &str) -> TokenStream2 {
     extern crate rust_embed_utils;
 
     let mut map_values = Vec::<TokenStream2>::new();
@@ -70,9 +70,10 @@ fn impl_rust_embed(ast: &syn::DeriveInput) -> TokenStream2 {
     };
 
     let mut folder_paths = find_attribute_values(ast, "folder");
-    if folder_paths.len() != 1 {
-        panic!("#[derive(RustEmbed)] must contain one attribute like this #[folder = \"public/\"]");
-    }
+    assert!(
+        folder_paths.len() == 1,
+        "#[derive(RustEmbed)] must contain one attribute like this #[folder = \"public/\"]"
+    );
     let folder_path = folder_paths.remove(0);
 
     // Base relative paths on the Cargo.toml location
@@ -95,7 +96,7 @@ fn impl_rust_embed(ast: &syn::DeriveInput) -> TokenStream2 {
         panic!("{}", message);
     };
 
-    generate_assets(&ast.ident, folder_path)
+    generate_assets(&ast.ident, &folder_path)
 }
 
 #[proc_macro_derive(RustEmbed, attributes(folder))]

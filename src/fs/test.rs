@@ -8,7 +8,7 @@ use std::{
 
 #[test]
 fn test_map_fs() {
-    let m: Box<dyn Fs> = Box::new(MapFs(HashMap::from([
+    let m: &dyn Fs = &MapFs(HashMap::from([
         (
             PathBuf::from("hello"),
             MapEntry {
@@ -25,10 +25,10 @@ fn test_map_fs() {
                 is_symlink: false,
             },
         ),
-    ])));
-    let want = vec![PathBuf::from("hello"), PathBuf::from("fortune/k/ken.txt")];
+    ]));
+    let want = &[PathBuf::from("hello"), PathBuf::from("fortune/k/ken.txt")];
     if let Err(e) = test_file_system(m, want) {
-        println!("{}", e);
+        println!("{e}");
         panic!("");
     }
 }
@@ -67,14 +67,14 @@ fn test_dir_fs() {
     test_files_path.push("testdata");
     test_files_path.push("dirfs");
 
-    let fs = dir_fs(PathBuf::from(test_files_path));
-    let want = vec!["a", "b", "dir/x"]
+    let fs = dir_fs(test_files_path);
+    let want: Vec<_> = vec!["a", "b", "dir/x"]
         .into_iter()
         .map(PathBuf::from)
         .collect();
 
-    if let Err(e) = test_file_system(fs.clone(), want) {
-        println!("{}", e);
+    if let Err(e) = test_file_system(&*fs.clone(), &want) {
+        println!("{e}");
         panic!("");
     }
 
@@ -101,14 +101,13 @@ fn test_dir_fs() {
 
     // Test that Open does not accept backslash as separator.
     let d = dir_fs(PathBuf::from("."));
-    if d.open(Path::new("testdata\\dirfs")).is_ok() {
-        panic!("open testdata\\dirfs succeeded");
-    }
+    assert!(
+        d.open(Path::new("testdata\\dirfs")).is_err(),
+        "open testdata\\dirfs succeeded"
+    );
 
     // Test that Open does not open Windows device files.
-    if d.open(Path::new("NUL")).is_ok() {
-        panic!("open NUL succeeded");
-    }
+    assert!(d.open(Path::new("NUL")).is_err(), "open NUL succeeded");
 }
 
 /*fn test_dir_fs_root_dir() {

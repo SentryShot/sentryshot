@@ -46,7 +46,7 @@ pub fn generate_mp4(
     mp4::write_single_box(&mut m.out, &ftyp)?;
 
     for sample in samples {
-        m.write_sample(sample);
+        m.write_sample(&sample);
     }
 
     m.finalize(params).unwrap();
@@ -72,7 +72,8 @@ struct Muxer<'a> {
 }
 
 impl Muxer<'_> {
-    fn write_sample(&mut self, sample: Sample) {
+    #[allow(clippy::similar_names)]
+    fn write_sample(&mut self, sample: &Sample) {
         //duration := sample.Next - sample.DTS
         //delta := hls.NanoToTimescale(duration, hls.VideoTimescale)
         let delta = sample.duration.as_u32().unwrap();
@@ -82,7 +83,7 @@ impl Muxer<'_> {
             self.stts.push(mp4::SttsEntry {
                 sample_count: 1,
                 sample_delta: delta,
-            })
+            });
         }
 
         let pts = sample.pts.checked_sub(self.start_time).unwrap();
@@ -112,7 +113,7 @@ impl Muxer<'_> {
                 sample_count: 1,
                 sample_offset_v0: 0,
                 sample_offset_v1: cts,
-            })
+            });
         }
 
         if self.first_sample {
@@ -139,9 +140,11 @@ impl Muxer<'_> {
             .checked_add_duration(sample.duration)
             .unwrap();
 
-        self.first_sample = false
+        self.first_sample = false;
     }
 
+    // TODO
+    #[allow(clippy::items_after_statements, clippy::unnecessary_wraps)]
     fn finalize(&mut self, params: &TrackParameters) -> Result<(), ()> {
         /*
            moov
@@ -161,7 +164,7 @@ impl Muxer<'_> {
                         duration_v0: u32::try_from(duration.as_millis()).unwrap(),
                         rate: 65536,
                         volume: 256,
-                        matrix: [0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000],
+                        matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
                         next_track_id: VIDEO_TRACK_ID + 1,
                         ..Default::default()
                     }),
@@ -175,7 +178,7 @@ impl Muxer<'_> {
         const MDAT_HEADER_SIZE: u32 = 8;
         let mdat_offset: u32 = FTYP_SIZE + u32::try_from(moov.size()).unwrap() + MDAT_HEADER_SIZE;
 
-        for stco in self.stco.iter_mut() {
+        for stco in &mut self.stco {
             *stco += mdat_offset;
         }
         /*for i := 0; i < len(m.stco); i++ {
@@ -191,7 +194,7 @@ impl Muxer<'_> {
                         duration_v0: u32::try_from(duration.as_millis()).unwrap(),
                         rate: 65536,
                         volume: 256,
-                        matrix: [0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000],
+                        matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
                         next_track_id: VIDEO_TRACK_ID + 1,
                         ..Default::default()
                     }),
@@ -235,7 +238,7 @@ impl Muxer<'_> {
                         duration_v0: u32::try_from(duration.as_millis()).unwrap(),
                         width: u32::from(params.width) * 65536,
                         height: u32::from(params.height) * 65536,
-                        matrix: [0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000],
+                        matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
                         ..Default::default()
                     }),
                     children: vec![],
@@ -294,14 +297,14 @@ impl Muxer<'_> {
                 mp4::Boxes {
                     mp4_box: Box::new(mp4::Stts {
                         full_box: mp4::FullBox::default(),
-                        entries: self.stts.to_owned(),
+                        entries: self.stts.clone(),
                     }),
                     children: vec![],
                 },
                 mp4::Boxes {
                     mp4_box: Box::new(mp4::Stss {
                         full_box: mp4::FullBox::default(),
-                        sample_numbers: self.stss.to_owned(),
+                        sample_numbers: self.stss.clone(),
                     }),
                     children: vec![],
                 },
@@ -311,14 +314,14 @@ impl Muxer<'_> {
                             version: 1,
                             flags: [0, 0, 0],
                         },
-                        entries: self.ctts.to_owned(),
+                        entries: self.ctts.clone(),
                     }),
                     children: vec![],
                 },
                 mp4::Boxes {
                     mp4_box: Box::new(mp4::Stsc {
                         full_box: mp4::FullBox::default(),
-                        entries: self.stsc.to_owned(),
+                        entries: self.stsc.clone(),
                     }),
                     children: vec![],
                 },
@@ -327,14 +330,14 @@ impl Muxer<'_> {
                         full_box: mp4::FullBox::default(),
                         sample_size: 0,
                         sample_count: u32::try_from(self.stsz.len()).unwrap(),
-                        entry_sizes: self.stsz.to_owned(),
+                        entry_sizes: self.stsz.clone(),
                     }),
                     children: vec![],
                 },
                 mp4::Boxes {
                     mp4_box: Box::new(mp4::Stco {
                         full_box: mp4::FullBox::default(),
-                        chunk_offsets: self.stco.to_owned(),
+                        chunk_offsets: self.stco.clone(),
                     }),
                     children: vec![],
                 },
@@ -363,7 +366,7 @@ impl Muxer<'_> {
                                     version: 0,
                                     flags: [0, 0, 1],
                                 },
-                                location: "".to_owned(),
+                                location: String::new(),
                             }),
                             children: vec![],
                         }],
@@ -398,15 +401,15 @@ fn generate_stsd(params: &TrackParameters) -> mp4::Boxes {
                 },
                 width: params.width,
                 height: params.height,
-                horiz_resolution: 4718592,
-                vert_resolution: 4718592,
+                horiz_resolution: 4_718_592,
+                vert_resolution: 4_718_592,
                 frame_count: 1,
                 depth: 24,
                 pre_defined3: -1,
                 ..Default::default()
             }),
             children: vec![mp4::Boxes {
-                mp4_box: Box::new(MyAvcC(params.extra_data.to_owned())),
+                mp4_box: Box::new(MyAvcC(params.extra_data.clone())),
                 children: vec![],
             }],
         }],
@@ -440,6 +443,7 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_generate_mp4() {
         let samples = vec![
             Sample {

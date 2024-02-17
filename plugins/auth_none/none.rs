@@ -30,12 +30,12 @@ use std::{
 use tokio::{runtime::Handle, sync::Mutex};
 
 #[no_mangle]
-pub fn version() -> String {
+pub extern "Rust" fn version() -> String {
     plugin::get_version()
 }
 
 #[no_mangle]
-pub fn pre_load() -> Box<dyn PreLoadPlugin> {
+pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
     Box::new(PreLoadAuthNone)
 }
 
@@ -52,7 +52,7 @@ impl PreLoadPlugin for PreLoadAuthNone {
 }
 
 #[no_mangle]
-pub fn load(_app: &dyn Application) -> Arc<dyn Plugin> {
+pub extern "Rust" fn load(_app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(AuthNonePlugin)
 }
 struct AuthNonePlugin;
@@ -106,7 +106,7 @@ impl Authenticator for NoneAuth {
     async fn validate_request(&self, _: &HeaderMap<HeaderValue>) -> Option<ValidateResponse> {
         Some(ValidateResponse {
             is_admin: true,
-            token: "".to_owned(),
+            token: String::new(),
             token_valid: true,
         })
     }
@@ -145,7 +145,7 @@ impl Authenticator for NoneAuth {
             accont.id = req.id;
             accont.username = req.username;
             if let Some(new_password) = req.plain_password {
-                accont.password = generate_password_hash(&self.rt_handle, new_password).await
+                accont.password = generate_password_hash(&self.rt_handle, new_password).await;
             }
             accont.is_admin = req.is_admin;
             accont.token = gen_token();
@@ -305,7 +305,7 @@ mod tests {
         }
     }
 
-    fn new_test_auth<'a>() -> (TempDir, NoneAuth) {
+    fn new_test_auth() -> (TempDir, NoneAuth) {
         let temp_dir = tempdir().unwrap();
 
         let accounts_path = temp_dir.path().join("accounts.json");
@@ -354,7 +354,7 @@ mod tests {
             ),
         ]);
 
-        assert_eq!(want, auth.accounts().await)
+        assert_eq!(want, auth.accounts().await);
     }
 
     #[tokio::test]
@@ -404,7 +404,7 @@ mod tests {
         // Missing Id.
         match auth
             .account_set(AccountSetRequest {
-                id: "".to_owned(),
+                id: String::new(),
                 username: "admin".parse().unwrap(),
                 plain_password: Some("pass".to_owned()),
                 is_admin: false,
@@ -447,6 +447,6 @@ mod tests {
                 .await
                 .account_by_name(&"2".parse().unwrap()),
             "user was not deleted"
-        )
+        );
     }
 }

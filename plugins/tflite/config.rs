@@ -94,8 +94,8 @@ impl Percent {
         }
     }
 
-    pub(crate) fn as_f32(&self) -> f32 {
-        self.0 as f32
+    pub(crate) fn as_f32(self) -> f32 {
+        f32::from(self.0)
     }
 }
 
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_parse_config_empty() {
-        let raw = serde_json::Value::String("".to_owned());
+        let raw = serde_json::Value::String(String::new());
         assert!(TfliteConfig::parse(raw).unwrap().is_none());
     }
 

@@ -37,7 +37,7 @@ impl HlsServer {
             let mut muxers: HashMap<String, Arc<HlsMuxer>> = HashMap::new();
             loop {
                 tokio::select! {
-                    _ = token.cancelled() => return,
+                    () = token.cancelled() => return,
 
                     req = new_muxer_rx.recv() =>  {
                         let Some(req) = req else {
@@ -48,8 +48,8 @@ impl HlsServer {
                             old_muxer.cancel();
                         }
                         let (muxer, writer) = HlsMuxer::new(
-                            req.token,
-                            logger.clone(),
+                            &req.token,
+                            &logger,
                             HLS_SEGMENT_COUNT,
                             HLS_SEGMENT_DURATION,
                             HLS_PART_DURATION,
@@ -80,6 +80,7 @@ impl HlsServer {
 
     // Creates muxer and returns a H264Writer to it.
     // Stops and replaces existing muxer if present.
+    #[allow(clippy::similar_names)]
     pub async fn new_muxer(
         &self,
         token: CancellationToken,
@@ -103,6 +104,7 @@ impl HlsServer {
         Ok(res)
     }
 
+    #[allow(clippy::similar_names)]
     pub async fn muxer_by_name(&self, name: String) -> Result<Option<Arc<HlsMuxer>>, Cancelled> {
         let (res_tx, res_rx) = oneshot::channel();
         let req = MuxerByNameRequest { name, res_tx };
@@ -122,7 +124,7 @@ const HLS_SEGMENT_COUNT: usize = 3;
 const HLS_SEGMENT_DURATION: DurationH264 = DurationH264::new(900 * H264_MILLISECOND);
 const HLS_PART_DURATION: DurationH264 = DurationH264::new(300 * H264_MILLISECOND);
 
-const MB: u64 = 1000000;
+const MB: u64 = 1_000_000;
 const HLS_SEGMENT_MAX_SIZE: u64 = 50 * MB;
 
 struct NewMuxerRequest {

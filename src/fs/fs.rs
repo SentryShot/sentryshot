@@ -81,6 +81,7 @@ pub enum Entry {
 
 #[allow(unused)]
 impl Entry {
+    #[must_use]
     pub fn name(&self) -> &Path {
         match self {
             Entry::Dir(v) => v.name(),

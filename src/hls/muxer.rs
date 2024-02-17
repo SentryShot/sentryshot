@@ -24,6 +24,7 @@ impl std::fmt::Debug for MuxerFileResponse {
 }
 
 #[derive(Debug)]
+#[allow(clippy::module_name_repetitions)]
 pub struct HlsMuxer {
     token: CancellationToken,
     playlist: Arc<Playlist>,
@@ -36,8 +37,8 @@ pub struct HlsMuxer {
 
 impl HlsMuxer {
     pub fn new(
-        parent_token: CancellationToken,
-        logger: DynLogger,
+        parent_token: &CancellationToken,
+        logger: &DynLogger,
         segment_count: usize,
         segment_duration: DurationH264,
         part_duration: DurationH264,
@@ -73,7 +74,7 @@ impl HlsMuxer {
     }
 
     pub fn cancel(&self) {
-        self.token.cancel()
+        self.token.cancel();
     }
 
     pub async fn file(&self, name: &str, query: &HlsQuery) -> MuxerFileResponse {
@@ -143,6 +144,7 @@ pub trait NextSegmentGetter {
 }
 
 // Response of the Muxer's File() fn.
+#[allow(clippy::module_name_repetitions)]
 pub struct MuxerFileResponse {
     pub status: StatusCode,
     pub headers: Option<HashMap<HeaderName, HeaderValue>>,

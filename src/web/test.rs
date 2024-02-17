@@ -16,7 +16,7 @@ async fn test_serve_mp4() {
         &headers,
         UNIX_EPOCH,
         10,
-        Cursor::new(file.to_owned()),
+        Cursor::new(file.clone()),
     )
     .await;
 
@@ -103,11 +103,9 @@ async fn test_serve_mp4_range(r: &str, code: StatusCode, ranges: Vec<WantRange>)
         let got_body = response.into_body().data().await.unwrap().unwrap().to_vec();
         assert_eq!(want_body, got_body);
 
-        if got_content_type == "multipart/byteranges" {
-            panic!(
-                "range={} content-type = {}; unexpected multipart/byteranges",
-                r, got_content_type,
-            );
-        }
+        assert!(
+            got_content_type != "multipart/byteranges",
+            "range={r} content-type = {got_content_type}; unexpected multipart/byteranges",
+        );
     }
 }

@@ -10,7 +10,8 @@ pub struct FileEntry {
     pub full_path: String,
 }
 
-pub fn get_files(root: String) -> Vec<FileEntry> {
+#[must_use]
+pub fn get_files(root: &str) -> Vec<FileEntry> {
     let mut files = Vec::<FileEntry>::new();
 
     let mut dirs = vec![PathBuf::from(&root)];
@@ -20,7 +21,7 @@ pub fn get_files(root: String) -> Vec<FileEntry> {
                 dirs.push(entry.path());
             } else {
                 files.push(FileEntry {
-                    relative_path: path_to_str(entry.path().strip_prefix(&root).unwrap()),
+                    relative_path: path_to_str(entry.path().strip_prefix(root).unwrap()),
                     full_path: path_to_str(
                         std::fs::canonicalize(entry.path()).expect("Could not get full path"),
                     ),
@@ -41,7 +42,7 @@ fn path_to_str<P: AsRef<std::path::Path>>(p: P) -> String {
 /// A file embedded into the binary
 pub type EmbeddedFile = Cow<'static, [u8]>;
 
-/// HashMap of filepath and `EmbeddedFile` pairs.
+/// `HashMap` of filepath and `EmbeddedFile` pairs.
 pub type EmbeddedFiles = HashMap<String, EmbeddedFile>;
 
 pub fn read_file_from_fs(file_path: &Path) -> io::Result<EmbeddedFile> {

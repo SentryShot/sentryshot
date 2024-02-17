@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#![allow(clippy::module_name_repetitions)]
+
 use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+#[allow(clippy::module_name_repetitions)]
 pub enum FsError {
     #[error("open: not exist")]
     OpenNotExist,

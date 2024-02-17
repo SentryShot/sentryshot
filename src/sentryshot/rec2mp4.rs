@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use recording::{new_video_reader, NewVideoReaderError};
-use std::{collections::VecDeque, path::PathBuf};
+use std::{
+    collections::VecDeque,
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
 use tokio::sync::mpsc;
 
@@ -37,14 +40,17 @@ pub async fn rec_to_mp4(path: PathBuf) -> Result<(), RecToMp4Error> {
             }
 
             let file_name = entry.file_name().to_string_lossy().to_string();
-            if !file_name.ends_with(".meta") {
+            let is_meta_file = Path::new(&file_name)
+                .extension()
+                .map_or(false, |ext| ext.eq_ignore_ascii_case("meta"));
+            if !is_meta_file {
                 continue;
             }
 
             let mut recording_path = entry.path();
             recording_path.set_extension("");
 
-            let mut mdat_path = recording_path.to_owned();
+            let mut mdat_path = recording_path.clone();
             mdat_path.set_extension("mdat");
 
             if !mdat_path.exists() {
@@ -56,7 +62,7 @@ pub async fn rec_to_mp4(path: PathBuf) -> Result<(), RecToMp4Error> {
     }
 
     let n_recordings = recording_paths.len();
-    println!("Found {} new recordings", n_recordings);
+    println!("Found {n_recordings} new recordings");
 
     if n_recordings == 0 {
         return Ok(());
@@ -69,7 +75,7 @@ pub async fn rec_to_mp4(path: PathBuf) -> Result<(), RecToMp4Error> {
         tokio::spawn(async move {
             results_tx
                 .send(ConvertResult {
-                    recording_path: recording_path.to_owned(),
+                    recording_path: recording_path.clone(),
                     res: convert(recording_path).await,
                 })
                 .await
@@ -77,14 +83,14 @@ pub async fn rec_to_mp4(path: PathBuf) -> Result<(), RecToMp4Error> {
     }
 
     for i in 1..=n_recordings {
-        println!("[{}/{}]", i, n_recordings);
+        println!("[{i}/{n_recordings}]");
         let result = results_rx.recv().await.unwrap();
         let path = result.recording_path.to_string_lossy();
         if let Err(e) = result.res {
             println!("[ERR] {} {}", path, &e);
             continue;
         }
-        println!("[OK] {}.mp4", path);
+        println!("[OK] {path}.mp4");
     }
 
     Ok(())
@@ -109,9 +115,9 @@ enum ConvertError {
 
 async fn convert(recording_path: PathBuf) -> Result<(), ConvertError> {
     use ConvertError::*;
-    let mut video_reader = new_video_reader(recording_path.to_owned(), &None).await?;
+    let mut video_reader = new_video_reader(recording_path.clone(), &None).await?;
 
-    let mut mp4_path = recording_path.to_owned();
+    let mut mp4_path = recording_path.clone();
     mp4_path.set_extension("mp4");
 
     let mut file = tokio::fs::OpenOptions::new()

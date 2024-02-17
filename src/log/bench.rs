@@ -10,9 +10,12 @@ use rand::{
     Rng, SeedableRng,
 };
 use rand_chacha::ChaCha8Rng;
-use std::{num::NonZeroUsize, path::Path, sync::RwLock};
+use std::{num::NonZeroUsize, path::Path};
 use tempfile::tempdir;
-use tokio::{runtime::Runtime, sync::mpsc};
+use tokio::{
+    runtime::Runtime,
+    sync::{mpsc, RwLock},
+};
 
 pub fn logdb_insert(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
@@ -21,8 +24,8 @@ pub fn logdb_insert(c: &mut Criterion) {
     let h = RwLock::new(Helper::new(temp_dir.path()));
     c.bench_with_input(BenchmarkId::new("insert", ""), &h, |b, h| {
         b.to_async(&rt).iter(|| async {
-            let entry = h.write().unwrap().random_entry();
-            h.read().unwrap().db.save_log_testing(entry).await
+            let entry = h.write().await.random_entry();
+            h.read().await.db.save_log_testing(entry).await;
         });
     });
 }
@@ -36,7 +39,7 @@ pub fn logdb_query(c: &mut Criterion) {
     let h = rt.block_on(async {
         for _ in 0..100_000 {
             let entry = h.random_entry();
-            h.db.save_log_testing(entry).await
+            h.db.save_log_testing(entry).await;
         }
         h
     });

@@ -57,11 +57,11 @@ impl Monitor {
     pub async fn source_main(&self) -> Result<Arc<Source>, Cancelled> {
         let (res_tx, res_rx) = oneshot::channel();
         tokio::select! {
-            _ = self.token.cancelled() => return Err(Cancelled),
+            () = self.token.cancelled() => return Err(Cancelled),
             _ = self.source_main_tx.send(res_tx) => {}
         }
         tokio::select! {
-            _ = self.token.cancelled() => Err(Cancelled),
+            () = self.token.cancelled() => Err(Cancelled),
             res = res_rx => {
                 if let Ok(res) = res {
                     Ok(res)
@@ -75,11 +75,11 @@ impl Monitor {
     pub async fn source_sub(&self) -> Result<Option<Arc<Source>>, Cancelled> {
         let (res_tx, res_rx) = oneshot::channel();
         tokio::select! {
-            _ = self.token.cancelled() => return Err(Cancelled),
+            () = self.token.cancelled() => return Err(Cancelled),
             _ = self.source_sub_tx.send(res_tx) => {}
         }
         tokio::select! {
-            _ = self.token.cancelled() => Err(Cancelled),
+            () = self.token.cancelled() => Err(Cancelled),
             res = res_rx => {
                 if let Ok(res) = res {
                     Ok(res)
@@ -92,7 +92,7 @@ impl Monitor {
 
     pub async fn send_event(&self, event: Event) {
         tokio::select! {
-            _ = self.token.cancelled() => {},
+            () = self.token.cancelled() => {},
             _ = self.send_event_tx.send(event) => {},
         }
     }
@@ -141,7 +141,7 @@ pub fn log_monitor(logger: &DynLogger, level: LogLevel, id: &MonitorId, msg: &st
         source: "monitor".parse().unwrap(),
         monitor_id: Some(id.to_owned()),
         message: msg.parse().unwrap(),
-    })
+    });
 }
 
 #[derive(Debug, Error)]
@@ -214,7 +214,7 @@ pub struct MonitorManager {
 }
 
 impl MonitorManager {
-    pub async fn new(
+    pub fn new(
         config_path: PathBuf,
         env: DynEnvConfig,
         logger: DynLogger,
@@ -233,7 +233,10 @@ impl MonitorManager {
             }
 
             let name = entry.file_name().to_string_lossy().to_string();
-            if !name.ends_with(".json") {
+            let is_json_file = Path::new(&name)
+                .extension()
+                .map_or(false, |ext| ext.eq_ignore_ascii_case("json"));
+            if !is_json_file {
                 continue;
             }
 
@@ -349,6 +352,7 @@ impl MonitorManager {
 
     // Returns common information about the monitors.
     // This will be accessesable by normal users.
+    #[must_use]
     pub fn monitors_info(&self) -> HashMap<MonitorId, MonitorInfo> {
         let mut configs = HashMap::new();
         for raw_conf in self.configs.values() {
@@ -375,6 +379,7 @@ impl MonitorManager {
     }
 
     // Configurations for all monitors.
+    #[must_use]
     pub fn monitor_configs(&self) -> MonitorConfigs {
         let mut configs = MonitorConfigs::new();
         for (id, raw_conf) in &self.configs {
@@ -406,7 +411,6 @@ impl MonitorManager {
                     conf.to_owned(),
                     StreamType::Main,
                 )
-                .await
                 .expect("source main should never be None");
 
                 let source_sub = SourceRtsp::new(
@@ -417,8 +421,7 @@ impl MonitorManager {
                     config.id().to_owned(),
                     conf.to_owned(),
                     StreamType::Sub,
-                )
-                .await;
+                );
 
                 (Arc::new(source_main), source_sub.map(Arc::new))
             }
@@ -431,7 +434,7 @@ impl MonitorManager {
             self.logger.clone(),
             config.id().to_owned(),
             source_main.clone(),
-            config.to_owned(),
+            config.clone(),
             self.env.recordings_dir().to_owned(),
         );
 
@@ -443,7 +446,7 @@ impl MonitorManager {
                     rec_duration: Duration::from(1_000_000_000_000_000),
                     detections: Vec::new(),
                 })
-                .await
+                .await;
         }
 
         let (source_main_tx, mut source_main_rx) = mpsc::channel(1);
@@ -464,7 +467,7 @@ impl MonitorManager {
             let _shutdown_complete = shutdown_complete_tx;
             loop {
                 tokio::select! {
-                    _ = monitor_token2.cancelled() => return,
+                    () = monitor_token2.cancelled() => return,
                     res = source_main_rx.recv() => {
                         let Some(res) = res else {
                             return
@@ -492,7 +495,7 @@ impl MonitorManager {
 
         // Stop monitors.
         for (_, monitor) in self.started_monitors.drain() {
-            monitor.stop().await
+            monitor.stop().await;
         }
 
         // Break circular reference.
@@ -524,6 +527,7 @@ pub trait MonitorHooks {
     fn on_thumb_save(&self, config: &MonitorConfig, frame: Frame) -> Frame;
 }
 
+#[allow(clippy::needless_pass_by_value)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -579,8 +583,8 @@ mod tests {
     fn source_parse(input: &str, want: ParseMonitorIdError) {
         assert_eq!(
             want,
-            MonitorId::from_str(input).err().expect("expected error")
-        )
+            MonitorId::from_str(input).expect_err("expected error")
+        );
     }
 
     fn prepare_dir() -> (TempDir, PathBuf) {
@@ -627,44 +631,42 @@ mod tests {
         (temp_dir, test_config_dir)
     }
 
-    async fn new_test_manager() -> (TempDir, PathBuf, MonitorManager) {
+    fn new_test_manager() -> (TempDir, PathBuf, MonitorManager) {
         let (temp_dir, config_dir) = prepare_dir();
 
         let token = CancellationToken::new();
         let manager = MonitorManager::new(
-            config_dir.to_owned(),
+            config_dir.clone(),
             StubEnvConfig::empty(),
             new_dummy_logger(),
             //nil,
             //&Hooks{Migrate: func(RawConfig) error { return nil }},
             Arc::new(HlsServer::new(token, new_dummy_logger())),
         )
-        .await
         .unwrap();
 
         (temp_dir, config_dir, manager)
     }
 
     fn read_config(path: PathBuf) -> MonitorConfig {
-        let json = fs::read(path.to_owned()).unwrap();
+        let json = fs::read(path).unwrap();
         serde_json::from_slice(&json).unwrap()
     }
 
     #[tokio::test]
     async fn test_new_manager_ok() {
-        let (_temp_dir, config_dir, _) = new_test_manager().await;
+        let (_temp_dir, config_dir, _) = new_test_manager();
 
         let token = CancellationToken::new();
         let manager = MonitorManager::new(
-            config_dir.to_owned(),
+            config_dir.clone(),
             StubEnvConfig::empty(),
             new_dummy_logger(),
             Arc::new(HlsServer::new(token, new_dummy_logger())),
         )
-        .await
         .unwrap();
 
-        let want = manager.configs[&"1".parse().unwrap()].to_owned();
+        let want = manager.configs[&"1".parse().unwrap()].clone();
         let got = read_config(config_dir.join("1.json"));
         assert_eq!(want, got);
     }
@@ -684,15 +686,14 @@ mod tests {
                 //&video.Server{},
                 //&Hooks{Migrate: func(RawConfig) error { return nil }},
                 Arc::new(HlsServer::new(token, new_dummy_logger())),
-            )
-            .await,
+            ),
             Err(NewMonitorManagerError::Deserialize(..))
-        ))
+        ));
     }
 
     #[tokio::test]
     async fn test_monitor_set_create_new() {
-        let (_temp_dir, config_dir, mut manager) = new_test_manager().await;
+        let (_temp_dir, config_dir, mut manager) = new_test_manager();
 
         let config = MonitorConfig {
             config: Config {
@@ -737,7 +738,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_monitor_set_update() {
-        let (_temp_dir, config_dir, mut manager) = new_test_manager().await;
+        let (_temp_dir, config_dir, mut manager) = new_test_manager();
 
         let one = "1".parse().unwrap();
         let old_monitor = &manager.configs[&one];
@@ -787,12 +788,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_monitor_delete_ok() {
-        let (_temp_dir, config_dir, mut manager) = new_test_manager().await;
+        let (_temp_dir, config_dir, mut manager) = new_test_manager();
 
         let one: MonitorId = "1".parse().unwrap();
         manager
             .started_monitors
-            .insert(one.to_owned(), Monitor::empty());
+            .insert(one.clone(), Monitor::empty());
 
         manager.monitor_delete(&one).await.unwrap();
 
@@ -802,11 +803,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_monitor_delete_exist_error() {
-        let (_, _, mut manager) = new_test_manager().await;
+        let (_, _, mut manager) = new_test_manager();
         assert!(matches!(
             manager.monitor_delete(&"nil".parse().unwrap()).await,
             Err(MonitorDeleteError::NotExist(_))
-        ))
+        ));
     }
 
     /*
@@ -884,7 +885,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_monitor_configs() {
-        let (_, _, manager) = new_test_manager().await;
+        let (_, _, manager) = new_test_manager();
 
         let got = manager.monitor_configs();
         let want: HashMap<MonitorId, MonitorConfig> = HashMap::from([
@@ -956,17 +957,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_manager_drop() {
-        let (_, _, mut manager) = new_test_manager().await;
+        let (_, _, mut manager) = new_test_manager();
         manager.started_monitors = Monitors::from([
             ("1".parse().unwrap(), Monitor::empty()),
             ("2".parse().unwrap(), Monitor::empty()),
         ]);
-        manager.stop().await
+        manager.stop().await;
     }
 
     #[tokio::test]
     async fn test_restart_monitor_not_exist_error() {
-        let (_, _, mut manager) = new_test_manager().await;
+        let (_, _, mut manager) = new_test_manager();
         assert!(matches!(
             manager.monitor_restart(&"x".parse().unwrap()).await,
             Err(MonitorRestartError::NotExist(_))

@@ -33,10 +33,12 @@ impl<'a> Templater<'a> {
         }
     }
 
+    #[must_use]
     pub fn logger(&self) -> &Arc<Logger> {
         &self.logger
     }
 
+    #[must_use]
     pub fn get_template(&self, name: &str) -> Option<upon::TemplateRef> {
         self.engine.get_template(name)
     }
@@ -47,6 +49,8 @@ impl<'a> Templater<'a> {
         is_admin: bool,
         csrf_token: String,
     ) -> HashMap<String, upon::Value> {
+        use upon::Value;
+
         make_ascii_titlecase(&mut current_page);
         let log_sources_json = serde_json::to_string(&self.logger.sources())
             .expect("Vec<String> serialization to never fail");
@@ -55,12 +59,11 @@ impl<'a> Templater<'a> {
         let monitors_json = if is_admin {
             serde_json::to_string(&manager.monitor_configs()).expect("serialization to never fail")
         } else {
-            "".to_owned()
+            String::new()
         };
         let monitors_info_json =
             serde_json::to_string(&manager.monitors_info()).expect("serialization to never fail");
 
-        use upon::Value;
         HashMap::from([
             ("groups_json".to_owned(), Value::String("{}".to_owned())),
             ("monitors_json".to_owned(), Value::String(monitors_json)),
@@ -68,7 +71,7 @@ impl<'a> Templater<'a> {
                 "monitors_info_json".to_owned(),
                 Value::String(monitors_info_json),
             ),
-            ("tz".to_owned(), Value::String(self.time_zone.to_owned())),
+            ("tz".to_owned(), Value::String(self.time_zone.clone())),
             (
                 "log_sources_json".to_owned(),
                 Value::String(log_sources_json),

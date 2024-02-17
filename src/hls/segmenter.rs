@@ -80,7 +80,7 @@ impl Segmenter {
             self.sample_durations.insert(du);
             self.adjusted_part_duration =
                 find_compatible_part_duration(self.part_duration, &self.sample_durations)
-                    .ok_or(AdjustPartDurationError::Error)?
+                    .ok_or(AdjustPartDurationError::Error)?;
         }
         Ok(())
     }
@@ -123,18 +123,15 @@ impl Segmenter {
             } else {
                 // create first segment.
                 let next_segment_id = self.segment_id_counter.next_id();
-                self.current_segment.insert(
-                    Segment::new(
-                        next_segment_id,
-                        sample_ntp,
-                        sample_dts,
-                        self.muxer_start_time,
-                        self.segment_max_size,
-                        self.playlist.clone(),
-                        &mut self.part_id_counter,
-                    )
-                    .await,
-                )
+                self.current_segment.insert(Segment::new(
+                    next_segment_id,
+                    sample_ntp,
+                    sample_dts,
+                    self.muxer_start_time,
+                    self.segment_max_size,
+                    self.playlist.clone(),
+                    &mut self.part_id_counter,
+                ))
             }
         };
 
@@ -165,18 +162,15 @@ impl Segmenter {
                 self.first_segment_finalized = true;
 
                 // Create next segment.
-                self.current_segment = Some(
-                    Segment::new(
-                        self.segment_id_counter.next_id(),
-                        sample_ntp,
-                        sample_dts,
-                        self.muxer_start_time,
-                        self.segment_max_size,
-                        self.playlist.clone(),
-                        &mut self.part_id_counter,
-                    )
-                    .await,
-                );
+                self.current_segment = Some(Segment::new(
+                    self.segment_id_counter.next_id(),
+                    sample_ntp,
+                    sample_dts,
+                    self.muxer_start_time,
+                    self.segment_max_size,
+                    self.playlist.clone(),
+                    &mut self.part_id_counter,
+                ));
 
                 /*if paramsChanged {
                     m.lastVideoParams = videoParams

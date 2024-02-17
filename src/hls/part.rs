@@ -70,7 +70,7 @@ impl mp4::ImmutableBox for MyMdat {
 
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), mp4::Mp4Error> {
         for sample in self.0.iter() {
-            w.write_all(&sample.avcc)?
+            w.write_all(&sample.avcc)?;
         }
         Ok(())
     }
@@ -122,7 +122,7 @@ fn generate_traf(
             sample_flags: flags,
             sample_composition_time_offset_v0: 0,
             sample_composition_time_offset_v1: off,
-        })
+        });
     }
 
     Ok(mp4::Boxes {
@@ -182,6 +182,7 @@ fn generate_traf(
 
 // fmp4 part.
 #[derive(Clone)]
+#[allow(clippy::module_name_repetitions)]
 pub struct MuxerPart {
     pub muxer_start_time: i64,
     pub id: u64,
@@ -225,7 +226,16 @@ impl MuxerPart {
     }
 
     pub fn finalize(mut self) -> Result<PartFinalized, PartFinalizeError> {
-        if !self.video_samples.is_empty() {
+        if self.video_samples.is_empty() {
+            Ok(PartFinalized {
+                muxer_start_time: self.muxer_start_time,
+                id: self.id,
+                is_independent: self.is_independent,
+                video_samples: Arc::new(Vec::new()),
+                rendered_content: self.rendered_content,
+                rendered_duration: self.rendered_duration,
+            })
+        } else {
             let video_samples = Arc::new(mem::take(&mut self.video_samples));
             Ok(PartFinalized {
                 muxer_start_time: self.muxer_start_time,
@@ -238,23 +248,14 @@ impl MuxerPart {
                     video_samples,
                 )?),
             })
-        } else {
-            Ok(PartFinalized {
-                muxer_start_time: self.muxer_start_time,
-                id: self.id,
-                is_independent: self.is_independent,
-                video_samples: Arc::new(Vec::new()),
-                rendered_content: self.rendered_content,
-                rendered_duration: self.rendered_duration,
-            })
         }
     }
 
     pub fn write_h264(&mut self, sample: VideoSample) {
         if sample.random_access_present {
-            self.is_independent = true
+            self.is_independent = true;
         }
-        self.video_samples.push(sample)
+        self.video_samples.push(sample);
     }
 }
 

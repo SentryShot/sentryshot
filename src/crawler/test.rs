@@ -86,16 +86,16 @@ async fn test_recording_by_query(input: &str, want: &str) {
     {
         Ok(v) => v,
         Err(e) => {
-            println!("{}", e);
+            println!("{e}");
             panic!("{e}");
         }
     };
 
-    if want == "" {
+    if want.is_empty() {
         assert!(recordings.is_empty());
     } else {
         let got = &recordings.first().unwrap().id;
-        assert_eq!(want, got)
+        assert_eq!(want, got);
     }
 }
 
@@ -120,13 +120,13 @@ async fn test_recording_by_query_reverse(input: &str, want: &str) {
     {
         Ok(v) => v,
         Err(e) => {
-            println!("{}", e);
+            println!("{e}");
             panic!("{e}");
         }
     };
 
     let got = &recordings.first().unwrap().id;
-    assert_eq!(want, got)
+    assert_eq!(want, got);
 }
 
 #[tokio::test]
@@ -209,7 +209,7 @@ async fn test_recording_by_query_data() {
         .unwrap();
 
     let want: RecordingData = serde_json::from_str(CRAWLER_TEST_DATA).unwrap();
-    println!("{:?}", rec);
+    println!("{rec:?}");
     let got = rec[0].data.as_ref().unwrap();
     assert_eq!(&want, got);
 }

@@ -2,6 +2,7 @@ use crate::{error::GenerateInitError, types::VIDEO_TRACK_ID};
 use bytes::Bytes;
 use common::{time::H264_TIMESCALE, TrackParameters};
 
+#[allow(clippy::module_name_repetitions)]
 pub fn generate_init(params: &TrackParameters) -> Result<Bytes, GenerateInitError> {
     /*
        - ftyp
@@ -26,7 +27,7 @@ pub fn generate_init(params: &TrackParameters) -> Result<Bytes, GenerateInitErro
         children: vec![],
     };
 
-    let trak = generate_trak(params)?;
+    let trak = generate_trak(params);
 
     let moov = mp4::Boxes {
         mp4_box: Box::new(mp4::Moov {}),
@@ -36,7 +37,7 @@ pub fn generate_init(params: &TrackParameters) -> Result<Bytes, GenerateInitErro
                     timescale: 1000,
                     rate: 65536,
                     volume: 256,
-                    matrix: [0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000],
+                    matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
                     next_track_id: 2,
                     ..mp4::Mvhd::default()
                 }),
@@ -66,7 +67,8 @@ pub fn generate_init(params: &TrackParameters) -> Result<Bytes, GenerateInitErro
     Ok(Bytes::from(buf))
 }
 
-fn generate_trak(params: &TrackParameters) -> Result<mp4::Boxes, std::num::TryFromIntError> {
+#[allow(clippy::too_many_lines)]
+fn generate_trak(params: &TrackParameters) -> mp4::Boxes {
     /*
        trak
        - tkhd
@@ -105,8 +107,8 @@ fn generate_trak(params: &TrackParameters) -> Result<mp4::Boxes, std::num::TryFr
                         },
                         width: params.width,
                         height: params.height,
-                        horiz_resolution: 4718592,
-                        vert_resolution: 4718592,
+                        horiz_resolution: 4_718_592,
+                        vert_resolution: 4_718_592,
                         frame_count: 1,
                         depth: 24,
                         pre_defined3: -1,
@@ -114,14 +116,14 @@ fn generate_trak(params: &TrackParameters) -> Result<mp4::Boxes, std::num::TryFr
                     }),
                     children: vec![
                         mp4::Boxes {
-                            mp4_box: Box::new(MyAvcC(params.extra_data.to_owned())),
+                            mp4_box: Box::new(MyAvcC(params.extra_data.clone())),
                             children: vec![],
                         },
                         mp4::Boxes {
                             mp4_box: Box::new(mp4::Btrt {
                                 buffer_size_db: 0,
-                                max_bitrate: 1000000,
-                                avg_bitrate: 1000000,
+                                max_bitrate: 1_000_000,
+                                avg_bitrate: 1_000_000,
                             }),
                             children: vec![],
                         },
@@ -174,7 +176,7 @@ fn generate_trak(params: &TrackParameters) -> Result<mp4::Boxes, std::num::TryFr
                                 version: 0,
                                 flags: [0, 0, 1],
                             },
-                            location: "".to_owned(),
+                            location: String::new(),
                         }),
                         children: vec![],
                     }],
@@ -184,7 +186,7 @@ fn generate_trak(params: &TrackParameters) -> Result<mp4::Boxes, std::num::TryFr
         ],
     };
 
-    let trak = mp4::Boxes {
+    mp4::Boxes {
         mp4_box: Box::new(mp4::Trak {}),
         children: vec![
             mp4::Boxes {
@@ -196,7 +198,7 @@ fn generate_trak(params: &TrackParameters) -> Result<mp4::Boxes, std::num::TryFr
                     track_id: VIDEO_TRACK_ID,
                     width: u32::from(params.width) * 65536,
                     height: u32::from(params.height) * 65536,
-                    matrix: [0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000],
+                    matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
                     ..mp4::Tkhd::default()
                 }),
                 children: vec![],
@@ -224,8 +226,7 @@ fn generate_trak(params: &TrackParameters) -> Result<mp4::Boxes, std::num::TryFr
                 ],
             },
         ],
-    };
-    Ok(trak)
+    }
 }
 
 struct MyAvcC(Vec<u8>);
@@ -252,6 +253,7 @@ mod tests {
     use pretty_hex::pretty_hex;
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_generate_init() {
         let params = TrackParameters {
             width: 650,
@@ -261,7 +263,7 @@ mod tests {
                 0xa4, 0x3b, 0xe4, 0x88, 0xc0, 0x44, 0x0, 0x0, 0x3, 0x0, 0x4, 0x0, 0x0, 0x3, 0x0,
                 0x60, 0x3c, 0x58, 0xb6, 0x58, 0x1, 0x0, 0x0,
             ],
-            codec: "".to_owned(),
+            codec: String::new(),
         };
 
         let got = generate_init(&params).unwrap();

@@ -1,12 +1,14 @@
+#![allow(clippy::cast_possible_truncation)]
+
 use crate::*;
 use pretty_assertions::assert_eq;
 use test_case::test_case;
 
 #[test_case(
         Box::new(Btrt{
-            buffer_size_db: 0x12345678,
-            max_bitrate: 0x3456789a,
-            avg_bitrate: 0x56789abc,
+            buffer_size_db: 0x1234_5678,
+            max_bitrate: 0x3456_789a,
+            avg_bitrate: 0x5678_9abc,
         }),
         &[
             0x12, 0x34, 0x56, 0x78, // buffer_size_db.
@@ -22,13 +24,13 @@ use test_case::test_case;
             },
             entries: vec![
                 CttsEntry{
-                    sample_count: 0x01234567,
-                    sample_offset_v0: 0x12345678,
+                    sample_count: 0x0123_4567,
+                    sample_offset_v0: 0x1234_5678,
                     sample_offset_v1: 0,
                 },
                 CttsEntry{
-                    sample_count: 0x89abcdef,
-                    sample_offset_v0: 0x789abcde,
+                    sample_count: 0x89ab_cdef,
+                    sample_offset_v0: 0x789a_bcde,
                     sample_offset_v1: 0,
                 },
             ],
@@ -51,14 +53,14 @@ use test_case::test_case;
             },
             entries: vec![
                 CttsEntry{
-                    sample_count: 0x01234567,
+                    sample_count: 0x0123_4567,
                     sample_offset_v0: 0,
-                    sample_offset_v1: 0x12345678,
+                    sample_offset_v1: 0x1234_5678,
                 },
                 CttsEntry{
-                    sample_count: 0x89abcdef,
+                    sample_count: 0x89ab_cdef,
                     sample_offset_v0: 0,
-                    sample_offset_v1: -0x789abcde,
+                    sample_offset_v1: -0x789a_bcde,
                 },
             ],
         }),
@@ -79,7 +81,7 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            entry_count: 0x12345678,
+            entry_count: 0x1234_5678,
         }),
         &[
             0,                // version
@@ -93,7 +95,7 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 1],
             },
-            location: "".to_owned(),
+            location: String::new(),
         }),
         &[
             0,                // version
@@ -103,7 +105,7 @@ use test_case::test_case;
 #[test_case(
         Box::new(Ftyp{
             major_brand:   [b'a', b'b', b'e', b'm'],
-            minor_version: 0x12345678,
+            minor_version: 0x1234_5678,
             compatible_brands: vec![
                 CompatibleBrandElem(*b"abcd"),
                 CompatibleBrandElem(*b"efgh"),
@@ -122,7 +124,7 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            pre_defined: 0x12345678,
+            pre_defined: 0x1234_5678,
             handler_type: *b"abem",
             reserved: [0, 0, 0],
             name: "Abema".to_owned(),
@@ -171,12 +173,12 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            creation_time_v0: 0x12345678,
-            modification_time_v0: 0x23456789,
+            creation_time_v0: 0x1234_5678,
+            modification_time_v0: 0x2345_6789,
             creation_time_v1: 0,
             modification_time_v1: 0,
-            timescale: 0x01020304,
-            duration_v0: 0x02030405,
+            timescale: 0x0102_0304,
+            duration_v0: 0x0203_0405,
             duration_v1: 0,
             pad: true,
             language: [b'j' - 0x60, b'p' - 0x60, b'n' - 0x60], // 0x0a, 0x10, 0x0e
@@ -201,11 +203,11 @@ use test_case::test_case;
             },
             creation_time_v0: 0,
             modification_time_v0: 0,
-            creation_time_v1: 0x123456789abcdef0,
-            modification_time_v1: 0x23456789abcdef01,
-            timescale: 0x01020304,
+            creation_time_v1: 0x1234_5678_9abc_def0,
+            modification_time_v1: 0x2345_6789_abcd_ef01,
+            timescale: 0x0102_0304,
             duration_v0: 0,
-            duration_v1: 0x0203040506070809,
+            duration_v1: 0x0203_0405_0607_0809,
             pad: true,
             language: [b'j' - 0x60, b'p' - 0x60, b'n' - 0x60], // 0x0a, 0x10, 0x0e
             pre_defined: 0,
@@ -231,7 +233,7 @@ use test_case::test_case;
             creation_time_v1: 0,
             modification_time_v0: 0,
             modification_time_v1: 0,
-            timescale: 0x01020304,
+            timescale: 0x0102_0304,
             duration_v0: 0,
             duration_v1: 0,
             pad: false,
@@ -256,7 +258,7 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            sequence_number: 0x12345678,
+            sequence_number: 0x1234_5678,
         }),
         &[
             0,                // version
@@ -274,20 +276,20 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            creation_time_v0: 0x01234567,
-            modification_time_v0: 0x23456789,
+            creation_time_v0: 0x0123_4567,
+            modification_time_v0: 0x2345_6789,
             creation_time_v1: 0,
             modification_time_v1: 0,
-            timescale: 0x456789ab,
-            duration_v0: 0x6789abcd,
+            timescale: 0x4567_89ab,
+            duration_v0: 0x6789_abcd,
             duration_v1: 0,
-            rate: -0x01234567,
+            rate: -0x0123_4567,
             volume: 0x0123,
             reserved: 0,
             reserved2: [0; 2],
             matrix: [0; 9],
             pre_defined: [0;6],
-            next_track_id: 0xabcdef01,
+            next_track_id: 0xabcd_ef01,
         }),
         &[
             0,                // version
@@ -316,18 +318,18 @@ use test_case::test_case;
             },
             creation_time_v0: 0,
             modification_time_v0: 0,
-            creation_time_v1: 0x0123456789abcdef,
-            modification_time_v1: 0x23456789abcdef01,
-            timescale: 0x89abcdef,
+            creation_time_v1: 0x0123_4567_89ab_cdef,
+            modification_time_v1: 0x2345_6789_abcd_ef01,
+            timescale: 0x89ab_cdef,
             duration_v0: 0,
-            duration_v1: 0x456789abcdef0123,
-            rate: -0x01234567,
+            duration_v1: 0x4567_89ab_cdef_0123,
+            rate: -0x0123_4567,
             volume: 0x0123,
             reserved: 0,
             reserved2: [0; 2],
             matrix: [0; 9],
             pre_defined: [0; 6],
-            next_track_id: 0xabcdef01,
+            next_track_id: 0xabcd_ef01,
         }),
         &[
             1,                // version
@@ -355,13 +357,13 @@ use test_case::test_case;
                 data_reference_index: 0x1234,
             },
             pre_defined: 0x0101,
-            pre_defined2: [0x01000001, 0x01000002, 0x01000003],
+            pre_defined2: [0x0100_0001, 0x0100_0002, 0x0100_0003],
             reserved: 0,
             width: 0x0102,
             height: 0x0103,
-            horiz_resolution: 0x01000004,
-            vert_resolution: 0x01000005,
-            reserved2: 0x01000006,
+            horiz_resolution: 0x0100_0004,
+            vert_resolution: 0x0100_0005,
+            reserved2: 0x0100_0006,
             frame_count: 0x0104,
             compressor_name: [8, b'a', b'b', b'e', b'm', b'a', 0x00, b't', b'v',
                 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -549,7 +551,7 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            chunk_offsets: vec![0x01234567, 0x89abcdef],
+            chunk_offsets: vec![0x0123_4567, 0x89ab_cdef],
         }),
         &[
             0,                // version
@@ -566,8 +568,8 @@ use test_case::test_case;
                 flags: [0, 0, 0],
             },
             entries: vec![
-                StscEntry{first_chunk: 0x01234567, samples_per_chunk: 0x23456789, sample_description_index: 0x456789ab},
-                StscEntry{first_chunk: 0x6789abcd, samples_per_chunk: 0x89abcdef, sample_description_index: 0xabcdef01},
+                StscEntry{first_chunk: 0x0123_4567, samples_per_chunk: 0x2345_6789, sample_description_index: 0x4567_89ab},
+                StscEntry{first_chunk: 0x6789_abcd, samples_per_chunk: 0x89ab_cdef, sample_description_index: 0xabcd_ef01},
             ],
         }),
         &[
@@ -588,7 +590,7 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            entry_count: 0x01234567,
+            entry_count: 0x0123_4567,
         }),
         &[
             0,                // version
@@ -602,7 +604,7 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            sample_numbers: vec![0x01234567, 0x89abcdef],
+            sample_numbers: vec![0x0123_4567, 0x89ab_cdef],
         }),
         &[
             0,                // version
@@ -618,7 +620,7 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            sample_size:  0x01234567,
+            sample_size:  0x0123_4567,
             sample_count: 2,
             entry_sizes: vec![],
         }),
@@ -637,7 +639,7 @@ use test_case::test_case;
             },
             sample_size: 0,
             sample_count: 2,
-            entry_sizes:  vec![0x01234567, 0x23456789],
+            entry_sizes:  vec![0x0123_4567, 0x2345_6789],
         }),
         &[
             0,                // version
@@ -655,8 +657,8 @@ use test_case::test_case;
                 flags: [0, 0, 0],
             },
             entries: vec![
-                SttsEntry{sample_count: 0x01234567, sample_delta: 0x23456789},
-                SttsEntry{sample_count: 0x456789ab, sample_delta: 0x6789abcd},
+                SttsEntry{sample_count: 0x0123_4567, sample_delta: 0x2345_6789},
+                SttsEntry{sample_count: 0x4567_89ab, sample_delta: 0x6789_abcd},
             ],
         }),
         &[
@@ -675,7 +677,7 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            base_media_decode_time_v0: 0x01234567,
+            base_media_decode_time_v0: 0x0123_4567,
             base_media_decode_time_v1: 0,
         }),
         &[
@@ -691,7 +693,7 @@ use test_case::test_case;
                 flags: [0, 0, 0],
             },
             base_media_decode_time_v0: 0,
-            base_media_decode_time_v1: 0x0123456789abcdef,
+            base_media_decode_time_v1: 0x0123_4567_89ab_cdef,
         }),
         &[
             1,                // version
@@ -705,7 +707,7 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            track_id: 0x08404649,
+            track_id: 0x0840_4649,
             base_data_offset: 0,
             sample_descroption_index: 0,
             default_sample_duration: 0,
@@ -728,10 +730,10 @@ use test_case::test_case;
                     (TFHD_BASE_DATA_OFFSET_PRESENT | TFHD_DEFAULT_SAMPLE_DURATION_PRESENT) as u8,
                 ],
             },
-            track_id: 0x08404649,
-            base_data_offset: 0x0123456789abcdef,
+            track_id: 0x0840_4649,
+            base_data_offset: 0x0123_4567_89ab_cdef,
             sample_descroption_index: 0,
-            default_sample_duration: 0x23456789,
+            default_sample_duration: 0x2345_6789,
             default_sample_size: 0,
             default_sample_flags: 0,
         }),
@@ -749,13 +751,13 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            creation_time_v0: 0x01234567,
-            modification_time_v0: 0x12345678,
+            creation_time_v0: 0x0123_4567,
+            modification_time_v0: 0x1234_5678,
             creation_time_v1: 0,
             modification_time_v1: 0,
-            track_id: 0x23456789,
-            reserved0: 0x3456789a,
-            duration_v0: 0x456789ab,
+            track_id: 0x2345_6789,
+            reserved0: 0x3456_789a,
+            duration_v0: 0x4567_89ab,
             duration_v1: 0,
             reserved1: [0, 0],
             layer: 23456,  // 0x5ba0
@@ -763,12 +765,12 @@ use test_case::test_case;
             volume: 0x0100,
             reserved2: 0,
             matrix: [
-                0x00010000, 0, 0,
-                0, 0x00010000, 0,
-                0, 0, 0x40000000,
+                0x0001_0000, 0, 0,
+                0, 0x0001_0000, 0,
+                0, 0, 0x4000_0000,
             ],
-            width:  125829120,
-            height: 70778880,
+            width:  125_829_120,
+            height: 70_778_880,
         }),
         &[
             0,                // version
@@ -798,24 +800,24 @@ use test_case::test_case;
             },
             creation_time_v0: 0,
             modification_time_v0: 0,
-            creation_time_v1: 0x0123456789abcdef,
-            modification_time_v1: 0x123456789abcdef0,
-            track_id: 0x23456789,
-            reserved0: 0x3456789a,
+            creation_time_v1: 0x0123_4567_89ab_cdef,
+            modification_time_v1: 0x1234_5678_9abc_def0,
+            track_id: 0x2345_6789,
+            reserved0: 0x3456_789a,
             duration_v0: 0,
-            duration_v1: 0x456789abcdef0123,
+            duration_v1: 0x4567_89ab_cdef_0123,
             reserved1: [0, 0],
             layer: 23456,  // 0x5ba0
             alternate_group: -23456, // 0xdba0
             volume: 0x0100,
             reserved2: 0,
             matrix: [
-                0x00010000, 0, 0,
-                0, 0x00010000, 0,
-                0, 0, 0x40000000,
+                0x0001_0000, 0, 0,
+                0, 0x0001_0000, 0,
+                0, 0, 0x4000_0000,
             ],
-            width:  125829120,
-            height: 70778880,
+            width:  125_829_120,
+            height: 70_778_880,
         }),
         &[
             1,                // version
@@ -845,11 +847,11 @@ use test_case::test_case;
                 version: 0,
                 flags: [0, 0, 0],
             },
-            track_id: 0x01234567,
-            default_sample_description_index: 0x23456789,
-            default_sample_duration: 0x456789ab,
-            default_sample_size: 0x6789abcd,
-            default_sample_flags: 0x89abcdef,
+            track_id: 0x0123_4567,
+            default_sample_description_index: 0x2345_6789,
+            default_sample_duration: 0x4567_89ab,
+            default_sample_size: 0x6789_abcd,
+            default_sample_flags: 0x89ab_cdef,
         }),
         &[
             0,                // version
@@ -910,7 +912,7 @@ use test_case::test_case;
                 flags: [0, 2, 4],
             },
             data_offset: 0,
-            first_sample_flags: 0x02468ace,
+            first_sample_flags: 0x0246_8ace,
             entries: vec![
                 TrunEntry{
                     sample_duration: 0,
@@ -1051,9 +1053,9 @@ fn test_box_types(src: Box<dyn ImmutableBox>, bin: &[u8]) {
         children: vec![],
     };
 
-    let mut buf = Vec::<u8>::with_capacity(size as usize);
+    let mut buf = Vec::<u8>::with_capacity(size);
     boxes.mp4_box.marshal(&mut buf).unwrap();
 
-    assert_eq!(size as usize, buf.len());
+    assert_eq!({ size }, buf.len());
     assert_eq!(bin, buf);
 }

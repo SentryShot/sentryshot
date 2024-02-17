@@ -158,6 +158,7 @@ pub(crate) enum DetectError {
 }
 
 impl Detector {
+    #[allow(clippy::similar_names)]
     pub(crate) async fn detect(&self, data: Vec<u8>) -> Result<Detections, DetectError> {
         use DetectError::*;
         let (res_tx, res_rx) = oneshot::channel();
@@ -166,11 +167,11 @@ impl Detector {
         let _enter = self.rt_handle.enter();
         tokio::select!(
             _ = self.detect_tx.send(req) => {},
-            _ = tokio::time::sleep(Duration::from_secs(1)) => return Err(DetectorTimeout),
+            () = tokio::time::sleep(Duration::from_secs(1)) => return Err(DetectorTimeout),
         );
 
         let res = tokio::select!(
-            _ = tokio::time::sleep(Duration::from_secs(1)) => return Err(DetectionTimeout),
+            () = tokio::time::sleep(Duration::from_secs(1)) => return Err(DetectionTimeout),
             v = res_rx => v,
         );
         if let Ok(res) = res {
@@ -288,7 +289,7 @@ impl DetectorManager {
     }
 
     #[allow(unused)]
-    pub(crate) async fn get_detector(&self, name: &DetectorName) -> Option<Arc<Detector>> {
+    pub(crate) fn get_detector(&self, name: &DetectorName) -> Option<Arc<Detector>> {
         self.detectors.get(name).cloned()
     }
 }
@@ -298,9 +299,10 @@ fn get_log_level() -> u8 {
         let log_level: u8 = log_level
             .parse()
             .expect("EDGETPU_LOG_LEVEL is not a valid number");
-        if log_level > 10 {
-            panic!("EDGETPU_LOG_LEVEL is not a number between 0 and 10")
-        }
+        assert!(
+            log_level <= 10,
+            "EDGETPU_LOG_LEVEL is not a number between 0 and 10"
+        );
         log_level
     } else {
         0
@@ -346,14 +348,14 @@ async fn parse_detector_configs(
         detector_configs.insert(cpu.name.clone(), config);
         let detector = new_cpu_detector(
             rt_handle.clone(),
-            shutdown_complete_tx.clone(),
-            logger.clone(),
-            cpu.name.clone(),
+            &shutdown_complete_tx,
+            &logger,
+            &cpu.name,
             cpu.width,
             cpu.height,
             &model_path,
             cpu.threads,
-            label_map,
+            &label_map,
         )?;
         detectors.insert(cpu.name, Arc::new(detector));
     }
@@ -381,8 +383,8 @@ async fn parse_detector_configs(
         let detector = new_edgetpu_detector(
             rt_handle.clone(),
             shutdown_complete_tx.clone(),
-            logger.clone(),
-            edgetpu.name.clone(),
+            &logger,
+            &edgetpu.name,
             edgetpu.width,
             edgetpu.height,
             &model_path,
@@ -402,29 +404,26 @@ async fn parse_detector_configs(
 #[allow(clippy::too_many_arguments)]
 fn new_cpu_detector(
     rt_handle: Handle,
-    _shutdown_complete_tx: mpsc::Sender<()>,
-    logger: DynMsgLogger,
-    name: DetectorName,
+    shutdown_complete_tx: &mpsc::Sender<()>,
+    logger: &DynMsgLogger,
+    name: &DetectorName,
     width: NonZeroU16,
     height: NonZeroU16,
     model_path: &Path,
     threads: NonZeroU8,
-    label_map: LabelMap,
+    label_map: &LabelMap,
 ) -> Result<Detector, NewDetectorError> {
     let (detect_tx, detect_rx) = async_channel::bounded::<DetectRequest>(1);
     for i in 0..threads.get() {
-        logger.log(
-            LogLevel::Info,
-            &format!("starting detector '{}' T{}", name, i),
-        );
-        let _shutdown_complete_tx = _shutdown_complete_tx.clone();
+        logger.log(LogLevel::Info, &format!("starting detector '{name}' T{i}"));
+        let shutdown_complete_tx = shutdown_complete_tx.clone();
         let rt_handle2 = rt_handle.clone();
         let detect_rx = detect_rx.clone();
         let mut detector = tflite_lib::Detector::new(model_path, None)?;
         let label_map = label_map.clone();
 
         rt_handle.spawn(async move {
-            let _shutdown_complete_tx = _shutdown_complete_tx;
+            let _shutdown_complete_tx = shutdown_complete_tx;
             while let Ok(req) = detect_rx.recv().await {
                 let result;
                 (detector, result) = rt_handle2
@@ -450,9 +449,9 @@ fn new_cpu_detector(
 #[allow(clippy::too_many_arguments)]
 fn new_edgetpu_detector(
     rt_handle: Handle,
-    _shutdown_complete_tx: mpsc::Sender<()>,
-    logger: DynMsgLogger,
-    name: DetectorName,
+    shutdown_complete_tx: mpsc::Sender<()>,
+    logger: &DynMsgLogger,
+    name: &DetectorName,
     width: NonZeroU16,
     height: NonZeroU16,
     model_path: &Path,
@@ -460,7 +459,7 @@ fn new_edgetpu_detector(
     device_path: String,
     device_cache: &mut DeviceCache,
 ) -> Result<Detector, NewDetectorError> {
-    logger.log(LogLevel::Info, &format!("starting detector '{}'", name));
+    logger.log(LogLevel::Info, &format!("starting detector '{name}'"));
 
     let Some(device) = device_cache.device(&device_path) else {
         let err = debug_device(device_path, device_cache.devices());
@@ -470,7 +469,7 @@ fn new_edgetpu_detector(
         Ok(v) => v,
         Err(e) => {
             if matches!(e, NewDetectorError::EdgetpuDelegateCreate) {
-                debug_device(device_path, device_cache.devices());
+                let _ = debug_device(device_path, device_cache.devices());
             }
             return Err(e);
         }
@@ -479,7 +478,7 @@ fn new_edgetpu_detector(
     let (detect_tx, detect_rx) = async_channel::bounded::<DetectRequest>(1);
     let rt_handle2 = rt_handle.clone();
     rt_handle.spawn(async move {
-        let _shutdown_complete_tx = _shutdown_complete_tx;
+        let _shutdown_complete_tx = shutdown_complete_tx;
         while let Ok(req) = detect_rx.recv().await {
             let result;
             (detector, result) = rt_handle2
@@ -506,7 +505,7 @@ fn parse_detections(label_map: &LabelMap, input: Vec<tflite_lib::Detection>) -> 
         if let Some(label) = label_map.get(&class) {
             label.to_owned()
         } else {
-            format!("unknown{}", class).parse().unwrap()
+            format!("unknown{class}").parse().unwrap()
         }
     };
     input
@@ -526,6 +525,7 @@ fn parse_detections(label_map: &LabelMap, input: Vec<tflite_lib::Detection>) -> 
 }
 
 fn parse_rect(top: f32, left: f32, bottom: f32, right: f32) -> Option<RectangleNormalized> {
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     fn scale(v: f32) -> u32 {
         (v * 1_000_000.0) as u32
     }
@@ -586,7 +586,7 @@ mod tests {
             label_map = \"file:///13\"
             device = \"14\"
         ";
-        let got = parse_raw_detector_configs(&raw).unwrap();
+        let got = parse_raw_detector_configs(raw).unwrap();
         let want = RawDetectorConfigs {
             detector_cpu: vec![RawDetectorConfigCpu {
                 enable: false,

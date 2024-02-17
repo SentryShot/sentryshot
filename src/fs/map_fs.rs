@@ -17,6 +17,7 @@ pub struct MapEntry {
 }
 
 impl Fs for MapFs {
+    #[allow(clippy::similar_names)]
     fn open(&self, name: &Path) -> Result<Open, FsError> {
         if !valid_path(name) {
             return Err(FsError::InvalidPath(name.to_owned()));
@@ -92,9 +93,9 @@ impl Fs for MapFs {
                 file: MapEntry {
                     ..Default::default()
                 },
-            })
+            });
         }
-        list.sort_by_key(|v| v.name.to_owned());
+        list.sort_by_key(|v| v.name.clone());
 
         Ok(Open::Dir(Box::new(MapDir {
             name: PathBuf::from(elem),
@@ -133,7 +134,7 @@ impl File for MapEntryInfo {
     }
 
     fn read(&mut self) -> Result<Vec<u8>, FsError> {
-        Ok(self.file.data.to_owned())
+        Ok(self.file.data.clone())
     }
 }
 
@@ -158,7 +159,7 @@ impl File for OpenMapFile {
     }
 
     fn read(&mut self) -> Result<Vec<u8>, FsError> {
-        Ok(self.map_file_info.file.data.to_owned())
+        Ok(self.map_file_info.file.data.clone())
     }
 }
 

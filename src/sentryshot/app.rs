@@ -80,7 +80,7 @@ pub enum RunError {
 
 pub async fn run(rt_handle: Handle, config_path: &PathBuf) -> Result<(), RunError> {
     // Initialize app.
-    let (mut app, pre_loaded_plugins) = App::new(rt_handle.clone(), config_path).await?;
+    let (mut app, pre_loaded_plugins) = App::new(rt_handle.clone(), config_path)?;
     let mut plugin_manager = PluginManager::new(pre_loaded_plugins, &app);
     app.setup_routes(&mut plugin_manager)?;
 
@@ -108,8 +108,7 @@ pub struct App {
 }
 
 impl App {
-    #[allow(clippy::too_many_lines)]
-    pub async fn new(
+    pub fn new(
         rt_handle: Handle,
         config_path: &PathBuf,
     ) -> Result<(App, PreLoadedPlugins), RunError> {
@@ -156,8 +155,7 @@ impl App {
             Box::new(env.clone()),
             logger.clone(),
             hls_server.clone(),
-        )
-        .await?;
+        )?;
         let monitor_manager = Arc::new(Mutex::new(monitor_manager));
 
         let crawler = Arc::new(Crawler::new(dir_fs(env.recordings_dir().to_path_buf())));
@@ -183,6 +181,7 @@ impl App {
         ))
     }
 
+    #[allow(clippy::similar_names)]
     pub fn setup_routes(&mut self, plugin_manager: &mut PluginManager) -> Result<(), RunError> {
         let mut assets = Asset::load();
         plugin_manager.edit_assets_hooks(&mut assets);

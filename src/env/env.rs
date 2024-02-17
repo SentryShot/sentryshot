@@ -136,7 +136,7 @@ fn generate_config(path: &Path, cwd: &Path) -> Result<(), GenerateEnvConfigError
     fs::create_dir_all(config_dir).map_err(CreateDir)?;
 
     let mut file = File::create(path).map_err(CreateFile)?;
-    write!(file, "{}", config).map_err(WriteFile)?;
+    write!(file, "{config}").map_err(WriteFile)?;
 
     Ok(())
 }
@@ -274,7 +274,7 @@ mod tests {
     fn test_config() {
         let temp_dir = TempDir::new().unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
-        std::fs::create_dir(&temp_dir.path().join("plugins")).unwrap();
+        std::fs::create_dir(temp_dir.path().join("plugins")).unwrap();
         let config_file = temp_dir.path().join("configs").join("env.toml");
 
         generate_config(&config_file, temp_dir.path()).unwrap();
@@ -283,7 +283,7 @@ mod tests {
     #[test]
     fn test_parse_config_ok() {
         let temp_dir = TempDir::new().unwrap();
-        std::fs::create_dir(&temp_dir.path().join("plugins")).unwrap();
+        std::fs::create_dir(temp_dir.path().join("plugins")).unwrap();
         let storage_dir = temp_dir.path().join("storage");
         let config_dir = temp_dir.path().join("config");
         let plugin_dir = temp_dir.path().join("plugin");
@@ -296,12 +296,11 @@ mod tests {
         let config = format!(
             "
             port = 2020
-            storage_dir = \"{}\"
-            config_dir = \"{}\"
-            plugin_dir = \"/{}\"
+            storage_dir = \"{storage_dir}\"
+            config_dir = \"{config_dir}\"
+            plugin_dir = \"/{plugin_dir}\"
             max_disk_usage = 1
         ",
-            storage_dir, config_dir, plugin_dir,
         );
 
         let storage_dir: PathBuf = storage_dir.parse().unwrap();
@@ -311,7 +310,7 @@ mod tests {
             recordings_dir: storage_dir.join("recordings"),
             config_dir: config_dir.parse().unwrap(),
             plugin_dir: plugin_dir.parse().unwrap(),
-            max_disk_usage: NonZeroGb::new(ByteSize(1 * GB)).unwrap(),
+            max_disk_usage: NonZeroGb::new(ByteSize(GB)).unwrap(),
             plugin: None,
         };
         let got = parse_config(&config).unwrap();
@@ -335,9 +334,9 @@ mod tests {
         ";
 
         assert!(matches!(
-            parse_config(&config),
+            parse_config(config),
             Err(ParseEnvConfigError::PathNotAbsolute(..))
-        ))
+        ));
     }
     #[test]
     fn test_parse_config_config_dir_abs_error() {
@@ -350,9 +349,9 @@ mod tests {
         ";
 
         assert!(matches!(
-            parse_config(&config),
+            parse_config(config),
             Err(ParseEnvConfigError::PathNotAbsolute(..))
-        ))
+        ));
     }
     #[test]
     fn test_parse_config_plugin_dir_abs_error() {
@@ -365,8 +364,8 @@ mod tests {
         ";
 
         assert!(matches!(
-            parse_config(&config),
+            parse_config(config),
             Err(ParseEnvConfigError::PathNotAbsolute(..))
-        ))
+        ));
     }
 }

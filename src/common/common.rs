@@ -33,10 +33,12 @@ pub struct EnvPlugin {
 }
 
 impl EnvPlugin {
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    #[must_use]
     pub fn enable(&self) -> bool {
         self.enable
     }
@@ -55,6 +57,7 @@ pub trait EnvConfig {
 }
 
 impl NonZeroGb {
+    #[must_use]
     pub fn new(size: ByteSize) -> Option<Self> {
         if size.0 == 0 {
             None
@@ -87,11 +90,12 @@ impl<'de> Deserialize<'de> for NonZeroGb {
         if temp.0 == 0.0 {
             return Err(serde::de::Error::custom("cannot be zero"));
         }
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
         Ok(Self(ByteSize((temp.0 * 1000.0) as u64 * MB)))
     }
 }
 
-/// Thread safe dyn 'ILogger'.
+/// Thread safe dyn '`ILogger`'.
 pub type DynLogger = Arc<dyn ILogger + Send + Sync>;
 
 pub trait ILogger {
@@ -126,6 +130,7 @@ pub enum LogLevel {
 }
 
 impl LogLevel {
+    #[must_use]
     pub fn as_u8(&self) -> u8 {
         match self {
             LogLevel::Error => 16,
@@ -239,10 +244,12 @@ pub const LOG_SOURCE_MAX_LENGTH: usize = 8;
 pub struct LogSource(String);
 
 impl LogSource {
+    #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -343,6 +350,7 @@ impl Deref for NonEmptyString {
 
 pub struct DummyLogger {}
 
+#[must_use]
 pub fn new_dummy_logger() -> Arc<DummyLogger> {
     Arc::new(DummyLogger {})
 }
@@ -386,6 +394,7 @@ impl Deref for Username {
 }
 
 impl Username {
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -511,13 +520,16 @@ pub enum StreamType {
 }
 
 impl StreamType {
+    #[must_use]
     pub fn is_main(&self) -> bool {
         *self == StreamType::Main
     }
+    #[must_use]
     pub fn is_sub(&self) -> bool {
         *self == StreamType::Sub
     }
 
+    #[must_use]
     pub fn name(&self) -> &str {
         if self.is_main() {
             "main"
@@ -568,6 +580,7 @@ impl PartFinalized {
     }
 }
 
+#[must_use]
 pub fn part_name(id: u64) -> String {
     ["part", &id.to_string()].join("")
 }
@@ -586,6 +599,7 @@ pub struct SegmentFinalized {
 }
 
 impl SegmentFinalized {
+    #[must_use]
     pub fn new(
         id: u64,
         start_time: UnixH264,
@@ -602,26 +616,32 @@ impl SegmentFinalized {
         }
     }
 
+    #[must_use]
     pub fn id(&self) -> u64 {
         self.id
     }
 
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    #[must_use]
     pub fn parts(&self) -> &Vec<Arc<PartFinalized>> {
         &self.parts
     }
 
+    #[must_use]
     pub fn duration(&self) -> DurationH264 {
         self.duration
     }
 
+    #[must_use]
     pub fn reader(&self) -> Box<dyn AsyncRead + Send + Unpin> {
         Box::new(PartsReader::new(self.parts.clone()))
     }
 
+    #[must_use]
     pub fn start_time(&self) -> UnixH264 {
         self.start_time
     }
@@ -634,6 +654,7 @@ pub struct PartsReader {
 }
 
 impl PartsReader {
+    #[must_use]
     pub fn new(parts: Vec<Arc<PartFinalized>>) -> Self {
         Self {
             parts,
@@ -675,7 +696,7 @@ impl AsyncRead for PartsReader {
 
             if self.cur_pos == part_len {
                 self.cur_part += 1;
-                self.cur_pos = 0
+                self.cur_pos = 0;
             }
 
             // If buffer is full.
@@ -726,6 +747,7 @@ impl MsgLogger for DummyMsgLogger {
     fn log(&self, _: LogLevel, _: &str) {}
 }
 
+#[must_use]
 pub fn new_dummy_msg_logger() -> Arc<impl MsgLogger> {
     Arc::new(DummyMsgLogger {})
 }
