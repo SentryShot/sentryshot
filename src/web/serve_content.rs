@@ -34,7 +34,7 @@ use tokio_util::io::ReaderStream;
 // ServeMP4Content uses it to handle requests using If-Match, If-None-Match, or If-Range.
 //
 // Content must be seeked to the beginning of the file.
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, clippy::unwrap_used)]
 pub async fn serve_mp4_content<RS>(
     method: &Method,
     headers: &HeaderMap,
@@ -289,6 +289,7 @@ fn check_preconditions(
 // Determines if a syntactically valid ETag is present at s. If so,
 // the ETag and remaining text after consuming ETag is returned.
 // Otherwise, it returns "", "".
+#[allow(clippy::unwrap_used)]
 fn scan_etag(s: String) -> Option<(String, String)> {
     let s = trim_text_proto_string(Some(s));
     let mut start = 0;
@@ -552,6 +553,7 @@ impl IfUnmodifiedSince {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 fn set_last_modified(headers: &mut HeaderMap, modtime: &LastModified) {
     headers.insert(
         header::LAST_MODIFIED,
@@ -713,6 +715,7 @@ fn parse_range(s: Option<String>, size: u64) -> Result<Vec<HttpRange>, ParseRang
     Ok(ranges)
 }
 
+#[allow(clippy::unwrap_used)]
 fn trim_text_proto_string(s: Option<String>) -> Option<String> {
     let mut s = s?;
     while !s.is_empty() && is_ascii_space(s.as_bytes()[0]) {
@@ -736,7 +739,7 @@ struct CountingWriter(u64);
 
 impl Write for CountingWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0 += u64::try_from(buf.len()).unwrap();
+        self.0 += u64::try_from(buf.len()).expect("len to fit u64");
         Ok(buf.len())
     }
 

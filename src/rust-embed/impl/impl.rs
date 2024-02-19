@@ -1,5 +1,7 @@
 #![recursion_limit = "1024"]
 #![forbid(unsafe_code)]
+#![allow(clippy::unwrap_used)]
+
 #[macro_use]
 extern crate quote;
 extern crate proc_macro;

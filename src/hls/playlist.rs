@@ -171,6 +171,7 @@ impl Playlist {
 
                         _ = req.res_tx.send(MuxerFileResponse{
                             status: StatusCode::OK,
+                            #[allow(clippy::unwrap_used)]
                             headers: Some(HashMap::from([(
                                 HeaderName::from_bytes(b"Content-Type").unwrap(),
                                 HeaderValue::from_str("application/x-mpegURL").unwrap(),
@@ -192,7 +193,9 @@ impl Playlist {
                         _ = req.res_tx.send(MuxerFileResponse{
                             status: StatusCode::OK,
                             headers: Some(HashMap::from([(
+                                #[allow(clippy::unwrap_used)]
                                 HeaderName::from_bytes(b"Content-Type").unwrap(),
+                                #[allow(clippy::unwrap_used)]
                                 HeaderValue::from_str("video/mp4").unwrap()
                             )])),
                             body: Some(segment.reader()),
@@ -258,7 +261,9 @@ impl Playlist {
                         _ = req.res_tx.send(MuxerFileResponse{
                             status: StatusCode::OK,
                             headers: Some(HashMap::from([(
+                                #[allow(clippy::unwrap_used)]
                                 HeaderName::from_bytes(b"Content-Type").unwrap(),
+                                #[allow(clippy::unwrap_used)]
                                 HeaderValue::from_str("application/x-mpegURL").unwrap()
                             )])),
                             body: Some(Box::new(Cursor::new(body))),
@@ -273,6 +278,7 @@ impl Playlist {
 
 
                         let base = req.part_name.strip_suffix(".mp4").expect("part_name to have suffix");
+                        #[allow(clippy::unwrap_used)]
                         if let Some(part) = state.parts_by_name.get(base) {
                             _ = req.res_tx.send(MuxerFileResponse{
                                 status: StatusCode::OK,
@@ -310,7 +316,7 @@ impl Playlist {
                             None
                         };
                         if let Some(seg) = seg() {
-                            req.res_tx.send(seg).unwrap();
+                            req.res_tx.send(seg).expect("sender should still be alive");
                         } else {
                             state.next_segments_on_hold.push(req);
                         }
@@ -529,12 +535,12 @@ struct PartFinalizedRequest {
 
 impl PlaylistState {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry {
+        self.logger.log(LogEntry::new(
             level,
-            source: "app".parse().unwrap(),
-            monitor_id: None,
-            message: format!("hls playlist: {msg}").parse().unwrap(),
-        });
+            "app",
+            None,
+            format!("hls playlist: {msg}"),
+        ));
     }
 
     fn check_pending(&mut self) {
@@ -554,6 +560,7 @@ impl PlaylistState {
                 false
             })*/
             let mut i = 0;
+            #[allow(clippy::unwrap_used)]
             while i < self.playlists_on_hold.len() {
                 if self.has_part(
                     self.playlists_on_hold[i].msn,
@@ -595,6 +602,7 @@ impl PlaylistState {
             false
         })*/
         let mut i = 0;
+        #[allow(clippy::unwrap_used)]
         while i < self.parts_on_hold.len() {
             if self.next_part_id <= self.parts_on_hold[i].part_id {
                 i += 1;
@@ -687,11 +695,13 @@ impl PlaylistState {
         self.next_segment_parts.clear();
 
         if self.segments.len() > self.segment_count {
-            let to_delete = self.segments.pop_front().unwrap();
+            let to_delete = self.segments.pop_front().expect("len > 0");
 
             if let SegmentOrGap::Segment(to_delete_seg) = to_delete {
                 for part in to_delete_seg.parts() {
-                    self.parts_by_name.remove(&part.name()).unwrap();
+                    self.parts_by_name
+                        .remove(&part.name())
+                        .expect("part should exist in lookup table");
                 }
             }
 
@@ -699,7 +709,7 @@ impl PlaylistState {
         }
 
         for done in self.seg_final_on_hold.drain(..) {
-            done.send(()).unwrap();
+            done.send(()).expect("sender should still be alive");
         }
 
         /*
@@ -713,7 +723,9 @@ impl PlaylistState {
         while i < self.next_segments_on_hold.len() {
             if segment.id() > self.next_segments_on_hold[i].prev_id {
                 let req = self.next_segments_on_hold.swap_remove(i);
-                req.res_tx.send(segment.clone()).unwrap();
+                req.res_tx
+                    .send(segment.clone())
+                    .expect("sender should still be alive");
             } else {
                 i += 1;
             }
@@ -857,6 +869,7 @@ pub fn primary_playlist(codec: &str) -> MuxerFileResponse {
     .join("")
     .into_bytes();
 
+    #[allow(clippy::unwrap_used)]
     MuxerFileResponse {
         status: StatusCode::OK,
         headers: Some(HashMap::from([(
@@ -867,6 +880,7 @@ pub fn primary_playlist(codec: &str) -> MuxerFileResponse {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

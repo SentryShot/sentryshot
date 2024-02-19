@@ -43,6 +43,7 @@ struct PreLoadAuthNone;
 
 impl PreLoadPlugin for PreLoadAuthNone {
     fn add_log_source(&self) -> Option<LogSource> {
+        #[allow(clippy::unwrap_used)]
         Some("auth".parse().unwrap())
     }
 
@@ -221,7 +222,7 @@ impl BasicAuthData {
                 Ok(())
             })
             .await
-            .unwrap()
+            .expect("join")
     }
 
     #[cfg(test)]
@@ -241,11 +242,11 @@ async fn generate_password_hash(rt_handle: &Handle, plain_password: String) -> S
             let salt = SaltString::generate(&mut OsRng);
             Argon2::default()
                 .hash_password(plain_password.as_bytes(), &salt)
-                .unwrap()
+                .expect("panic if password generation fails")
                 .to_string()
         })
         .await
-        .unwrap()
+        .expect("join")
 }
 
 // Generates a CSRF-token.
@@ -276,6 +277,7 @@ func (a *Authenticator) MyToken() http.Handler {
 }
 */
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

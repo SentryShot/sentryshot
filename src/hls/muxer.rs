@@ -54,7 +54,7 @@ impl HlsMuxer {
                 .expect("time went backwards")
                 .as_nanos(),
         )
-        .unwrap();
+        .expect("time should fit i64");
 
         let segmenter = Segmenter::new(
             now,
@@ -106,6 +106,7 @@ impl HlsMuxer {
             }
 
             let body = Box::new(Cursor::new(self.init_content.lock().await.clone()));
+            #[allow(clippy::unwrap_used)]
             return MuxerFileResponse {
                 status: StatusCode::OK,
                 headers: Some(HashMap::from([(

@@ -22,7 +22,7 @@ impl<'a> Templater<'a> {
     ) -> Self {
         let mut engine = upon::Engine::new();
         for (k, v) in templates {
-            engine.add_template(k, v).unwrap();
+            engine.add_template(k, v).expect("template should compile");
         }
 
         Self {

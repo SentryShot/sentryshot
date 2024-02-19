@@ -192,12 +192,7 @@ impl PluginManager {
     pub fn new(prepared_plugins: PreLoadedPlugins, app: &dyn Application) -> Self {
         let logger = app.logger();
         let log = |msg: String| {
-            logger.log(LogEntry {
-                level: LogLevel::Info,
-                source: "app".parse().unwrap(),
-                monitor_id: None,
-                message: msg.parse().unwrap(),
-            });
+            logger.log(LogEntry::new(LogLevel::Info, "app", None, msg));
         };
         let mut plugins = Vec::new();
         for (name, load_fn) in prepared_plugins.load_fns {

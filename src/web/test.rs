@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#![allow(clippy::unwrap_used)]
+
 use crate::serve_mp4_content;
 use http::{header, HeaderMap, HeaderValue, Method, StatusCode};
 use http_body::Body;

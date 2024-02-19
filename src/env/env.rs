@@ -40,7 +40,7 @@ impl EnvConf {
         if !file_exist {
             print!(
                 "\n\nGenerating '{}' and exiting..\n\n\n",
-                config_path.to_str().unwrap()
+                config_path.to_string_lossy()
             );
 
             let cwd = std::env::current_dir().map_err(GetCwd)?;
@@ -128,7 +128,7 @@ fn generate_config(path: &Path, cwd: &Path) -> Result<(), GenerateEnvConfigError
 
     let config = engine
         .get_template("config")
-        .unwrap()
+        .expect("template should just have been added")
         .render(data)
         .map_err(RenderTemplate)?;
 
@@ -263,6 +263,7 @@ fn parse_config(env_toml: &str) -> Result<EnvConf, ParseEnvConfigError> {
     })
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

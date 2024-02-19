@@ -4,13 +4,25 @@ use crate::video::{Sample, TrackParameters};
 use common::time::{DurationH264, UnixH264, H264_TIMESCALE};
 use hls::VIDEO_TRACK_ID;
 use mp4::Mp4Error;
-use std::io::Write;
+use std::{io::Write, num::TryFromIntError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum GenerateMp4Error {
     #[error("mp4: {0}")]
     Mp4(#[from] Mp4Error),
+
+    #[error("from int: {0}")]
+    FromInt(#[from] TryFromIntError),
+
+    #[error("add")]
+    Add,
+
+    #[error("subtract")]
+    Sub,
+
+    #[error("write: {0}")]
+    Write(#[from] std::io::Error),
 }
 
 // Generates mp4 to writer from samples.
@@ -26,7 +38,6 @@ pub fn generate_mp4(
         //videoTrack: videoTrack,
         start_time,
         end_time: UnixH264::from(0),
-        first_sample: true,
         dts_shift: 0,
         mdat_pos: 0,
         stts: Vec::new(),
@@ -46,10 +57,10 @@ pub fn generate_mp4(
     mp4::write_single_box(&mut m.out, &ftyp)?;
 
     for sample in samples {
-        m.write_sample(&sample);
+        m.write_sample(&sample)?;
     }
 
-    m.finalize(params).unwrap();
+    m.finalize(params)?;
 
     //return int64(m.mdatPos), nil
     Ok(m.mdat_pos)
@@ -60,7 +71,6 @@ struct Muxer<'a> {
 
     start_time: UnixH264,
     end_time: UnixH264,
-    first_sample: bool,
     dts_shift: i64,
     mdat_pos: u32,
     stts: Vec<mp4::SttsEntry>,
@@ -73,12 +83,20 @@ struct Muxer<'a> {
 
 impl Muxer<'_> {
     #[allow(clippy::similar_names)]
-    fn write_sample(&mut self, sample: &Sample) {
+    fn write_sample(&mut self, sample: &Sample) -> Result<(), GenerateMp4Error> {
+        use GenerateMp4Error::*;
         //duration := sample.Next - sample.DTS
         //delta := hls.NanoToTimescale(duration, hls.VideoTimescale)
-        let delta = sample.duration.as_u32().unwrap();
-        if !self.stts.is_empty() && self.stts.last().unwrap().sample_delta == delta {
-            self.stts.last_mut().unwrap().sample_count += 1;
+        let delta = sample.duration.as_u32()?;
+        if let Some(last) = self.stts.last_mut() {
+            if last.sample_delta == delta {
+                last.sample_count += 1;
+            } else {
+                self.stts.push(mp4::SttsEntry {
+                    sample_count: 1,
+                    sample_delta: delta,
+                });
+            }
         } else {
             self.stts.push(mp4::SttsEntry {
                 sample_count: 1,
@@ -86,13 +104,18 @@ impl Muxer<'_> {
             });
         }
 
-        let pts = sample.pts.checked_sub(self.start_time).unwrap();
-        let dts = sample.dts().unwrap().checked_sub(self.start_time).unwrap();
+        let pts = sample.pts.checked_sub(self.start_time).ok_or(Sub)?;
+        let dts = sample
+            .dts()
+            .ok_or(Sub)?
+            .checked_sub(self.start_time)
+            .ok_or(Sub)?;
         //pts := hls.NanoToTimescale(sample.PTS-m.startTime, hls.VideoTimescale)
         //dts := hls.NanoToTimescale(sample.DTS-m.startTime, hls.VideoTimescale)
 
-        if self.first_sample {
-            self.dts_shift = *pts.checked_sub(dts).unwrap();
+        let first_sample = self.stsc.is_empty();
+        if first_sample {
+            self.dts_shift = *pts.checked_sub(dts).ok_or(Sub)?;
         }
         /*if m.firstSample {
             m.dtsShift = pts - dts
@@ -100,14 +123,21 @@ impl Muxer<'_> {
 
         let cts = i32::try_from(
             (*pts)
-                .checked_sub(dts.checked_add(self.dts_shift).unwrap())
-                .unwrap(),
-        )
-        .unwrap();
+                .checked_sub(dts.checked_add(self.dts_shift).ok_or(Add)?)
+                .ok_or(Add)?,
+        )?;
         //cts := pts - (dts + m.dtsShift)
 
-        if !self.ctts.is_empty() && self.ctts.last().unwrap().sample_offset_v1 == cts {
-            self.ctts.last_mut().unwrap().sample_count += 1;
+        if let Some(last) = self.ctts.last_mut() {
+            if last.sample_offset_v1 == cts {
+                last.sample_count += 1;
+            } else {
+                self.ctts.push(mp4::CttsEntry {
+                    sample_count: 1,
+                    sample_offset_v0: 0,
+                    sample_offset_v1: cts,
+                });
+            }
         } else {
             self.ctts.push(mp4::CttsEntry {
                 sample_count: 1,
@@ -116,43 +146,46 @@ impl Muxer<'_> {
             });
         }
 
-        if self.first_sample {
+        if let Some(last_stsc) = self.stsc.last_mut() {
+            last_stsc.samples_per_chunk += 1;
+        } else {
             self.stco.push(self.mdat_pos);
             self.stsc.push(mp4::StscEntry {
                 first_chunk: 1,
                 samples_per_chunk: 1,
                 sample_description_index: 1,
             });
-        } else {
-            self.stsc.last_mut().unwrap().samples_per_chunk += 1;
         }
 
         self.mdat_pos += sample.data_size;
         self.stsz.push(sample.data_size);
 
         if sample.random_access_present {
-            self.stss.push(u32::try_from(self.stsz.len()).unwrap());
+            self.stss.push(u32::try_from(self.stsz.len())?);
         }
 
         self.end_time = sample
             .dts()
-            .unwrap()
+            .ok_or(Sub)?
             .checked_add_duration(sample.duration)
-            .unwrap();
+            .ok_or(Add)?;
 
-        self.first_sample = false;
+        Ok(())
     }
 
-    // TODO
-    #[allow(clippy::items_after_statements, clippy::unnecessary_wraps)]
-    fn finalize(&mut self, params: &TrackParameters) -> Result<(), ()> {
+    #[allow(clippy::items_after_statements)]
+    fn finalize(&mut self, params: &TrackParameters) -> Result<(), GenerateMp4Error> {
         /*
            moov
            - mvhd
            - trak (video)
         */
 
-        let duration = DurationH264::from(self.end_time.checked_sub(self.start_time).unwrap());
+        let duration = DurationH264::from(
+            self.end_time
+                .checked_sub(self.start_time)
+                .ok_or(GenerateMp4Error::Sub)?,
+        );
         //duration := time.Duration(m.endTime - m.startTime)
 
         let moov = mp4::Boxes {
@@ -161,7 +194,7 @@ impl Muxer<'_> {
                 mp4::Boxes {
                     mp4_box: Box::new(mp4::Mvhd {
                         timescale: 1000,
-                        duration_v0: u32::try_from(duration.as_millis()).unwrap(),
+                        duration_v0: u32::try_from(duration.as_millis())?,
                         rate: 65536,
                         volume: 256,
                         matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
@@ -170,13 +203,13 @@ impl Muxer<'_> {
                     }),
                     children: vec![],
                 },
-                self.generate_trak(duration, params),
+                self.generate_trak(duration, params)?,
             ],
         };
 
         const FTYP_SIZE: u32 = 20;
         const MDAT_HEADER_SIZE: u32 = 8;
-        let mdat_offset: u32 = FTYP_SIZE + u32::try_from(moov.size()).unwrap() + MDAT_HEADER_SIZE;
+        let mdat_offset: u32 = FTYP_SIZE + u32::try_from(moov.size())? + MDAT_HEADER_SIZE;
 
         for stco in &mut self.stco {
             *stco += mdat_offset;
@@ -191,7 +224,7 @@ impl Muxer<'_> {
                 mp4::Boxes {
                     mp4_box: Box::new(mp4::Mvhd {
                         timescale: 1000,
-                        duration_v0: u32::try_from(duration.as_millis()).unwrap(),
+                        duration_v0: u32::try_from(duration.as_millis())?,
                         rate: 65536,
                         volume: 256,
                         matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
@@ -200,22 +233,26 @@ impl Muxer<'_> {
                     }),
                     children: vec![],
                 },
-                self.generate_trak(duration, params),
+                self.generate_trak(duration, params)?,
             ],
         };
 
-        moov.marshal(&mut self.out).unwrap();
+        moov.marshal(&mut self.out)?;
 
-        self.out
-            .write_all(&(self.mdat_pos.checked_add(8).unwrap()).to_be_bytes())
-            .unwrap();
-        self.out.write_all(b"mdat").unwrap();
+        self.out.write_all(
+            &(self.mdat_pos.checked_add(8).ok_or(GenerateMp4Error::Add)?).to_be_bytes(),
+        )?;
+        self.out.write_all(b"mdat")?;
 
         Ok(())
     }
 
     #[allow(clippy::let_and_return)]
-    fn generate_trak(&self, duration: DurationH264, params: &TrackParameters) -> mp4::Boxes {
+    fn generate_trak(
+        &self,
+        duration: DurationH264,
+        params: &TrackParameters,
+    ) -> Result<mp4::Boxes, TryFromIntError> {
         /*
            trak
            - tkhd
@@ -235,7 +272,7 @@ impl Muxer<'_> {
                             flags: [0, 0, 3],
                         },
                         track_id: VIDEO_TRACK_ID,
-                        duration_v0: u32::try_from(duration.as_millis()).unwrap(),
+                        duration_v0: u32::try_from(duration.as_millis())?,
                         width: u32::from(params.width) * 65536,
                         height: u32::from(params.height) * 65536,
                         matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
@@ -250,7 +287,7 @@ impl Muxer<'_> {
                             mp4_box: Box::new(mp4::Mdhd {
                                 timescale: H264_TIMESCALE,
                                 language: *b"und",
-                                duration_v0: duration.as_u32().unwrap(),
+                                duration_v0: duration.as_u32()?,
                                 ..Default::default()
                             }),
                             children: vec![],
@@ -263,17 +300,17 @@ impl Muxer<'_> {
                             }),
                             children: vec![],
                         },
-                        self.generate_minf(params),
+                        self.generate_minf(params)?,
                     ],
                 },
             ],
         };
 
-        trak
+        Ok(trak)
     }
 
     #[allow(clippy::let_and_return)]
-    fn generate_minf(&self, params: &TrackParameters) -> mp4::Boxes {
+    fn generate_minf(&self, params: &TrackParameters) -> Result<mp4::Boxes, TryFromIntError> {
         /*
            minf
            - vmhd
@@ -329,7 +366,7 @@ impl Muxer<'_> {
                     mp4_box: Box::new(mp4::Stsz {
                         full_box: mp4::FullBox::default(),
                         sample_size: 0,
-                        sample_count: u32::try_from(self.stsz.len()).unwrap(),
+                        sample_count: u32::try_from(self.stsz.len())?,
                         entry_sizes: self.stsz.clone(),
                     }),
                     children: vec![],
@@ -376,7 +413,7 @@ impl Muxer<'_> {
             ],
         };
 
-        minf
+        Ok(minf)
     }
 }
 
@@ -435,6 +472,7 @@ impl mp4::ImmutableBox for MyAvcC {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

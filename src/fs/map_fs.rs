@@ -17,7 +17,7 @@ pub struct MapEntry {
 }
 
 impl Fs for MapFs {
-    #[allow(clippy::similar_names)]
+    #[allow(clippy::similar_names, clippy::unwrap_used)]
     fn open(&self, name: &Path) -> Result<Open, FsError> {
         if !valid_path(name) {
             return Err(FsError::InvalidPath(name.to_owned()));

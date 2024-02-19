@@ -11,6 +11,7 @@ pub struct FileEntry {
 }
 
 #[must_use]
+#[allow(clippy::unwrap_used)]
 pub fn get_files(root: &str) -> Vec<FileEntry> {
     let mut files = Vec::<FileEntry>::new();
 

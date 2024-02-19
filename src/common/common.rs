@@ -116,6 +116,28 @@ pub struct LogEntry {
     pub message: NonEmptyString,
 }
 
+impl LogEntry {
+    #[allow(clippy::unwrap_used, clippy::needless_pass_by_value)]
+    #[must_use]
+    pub fn new(
+        level: LogLevel,
+        source: &'static str,
+        monitor_id: Option<MonitorId>,
+        message: String,
+    ) -> Self {
+        let source: LogSource = source.parse().expect("source should be valid");
+        let message: NonEmptyString = message
+            .parse()
+            .unwrap_or("invalid_message".parse().unwrap());
+        Self {
+            level,
+            source,
+            monitor_id,
+            message,
+        }
+    }
+}
+
 /// Severity of the log message.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]

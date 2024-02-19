@@ -124,6 +124,7 @@ pub(crate) struct Crop {
     pub size: u32,
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

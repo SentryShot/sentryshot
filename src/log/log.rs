@@ -24,6 +24,7 @@ pub struct Logger {
 impl Logger {
     /// Creates a new logger.
     #[must_use]
+    #[allow(clippy::unwrap_used)]
     pub fn new(sources: Vec<LogSource>) -> Self {
         let (feed, _) = broadcast::channel(64);
 
@@ -160,7 +161,7 @@ fn make_ascii_titlecase(s: &mut str) {
     }
 }
 
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value, clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

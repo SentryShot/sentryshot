@@ -246,6 +246,7 @@ impl mp4::ImmutableBox for MyAvcC {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -138,6 +138,7 @@ pub trait Symlink {
     fn name(&self) -> &Path;
 }
 
+#[allow(clippy::unwrap_used)]
 fn valid_path(name: &Path) -> bool {
     let mut name = name.to_str().unwrap();
     if name == "." {
@@ -151,6 +152,7 @@ fn valid_path(name: &Path) -> bool {
         while i < name.len() && name.as_bytes()[i] != b'/' {
             i += 1;
         }
+        #[allow(clippy::unwrap_used)]
         let elem = String::from_utf8(name.as_bytes()[..i].to_owned()).unwrap();
         if elem.is_empty() || elem == "." || elem == ".." {
             return false;

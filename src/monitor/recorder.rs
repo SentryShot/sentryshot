@@ -192,12 +192,12 @@ impl RecorderMsgLogger {
 
 impl MsgLogger for RecorderMsgLogger {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry {
+        self.logger.log(LogEntry::new(
             level,
-            source: "monitor".parse().unwrap(),
-            monitor_id: Some(self.monitor_id.clone()),
-            message: format!("recorder: {msg}").parse().unwrap(),
-        });
+            "monitor",
+            Some(self.monitor_id.clone()),
+            format!("recorder: {msg}"),
+        ));
     }
 }
 
@@ -217,7 +217,7 @@ async fn run_recording_session(
                 () = c.token.cancelled() => {
                     return
                 }
-                () = sleep(restart_sleep.as_std().unwrap()) => {
+                () = sleep(restart_sleep.as_std().expect("valid time")) => {
                     c.logger.log(LogLevel::Debug, "recovering after crash");
                 }
             }
@@ -246,6 +246,9 @@ enum RunRecordingError {
 
     #[error("save recording: {0}")]
     SaveRecording(#[from] SaveRecordingError),
+
+    #[error("chrono")]
+    Chrono,
 }
 
 #[derive(Clone)]
@@ -282,30 +285,20 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
     let fmt1 = start_time
         .as_nanos()
         .as_chrono()
-        .unwrap()
+        .ok_or(Chrono)?
         .format("%Y/%m/%d")
         .to_string();
 
     let file_dir = c.recordings_dir.join(fmt1).join(&*monitor_id);
-    /*fileDir := filepath.Join(
-        r.Env.RecordingsDir(),
-        startTime.Format("2006/01/02/")+monitorID,
-    )*/
 
     let fmt2 = start_time
         .as_nanos()
         .as_chrono()
-        .unwrap()
+        .ok_or(Chrono)?
         .format("%Y-%m-%d_%H-%M-%S_")
         .to_string();
+    let rec_id = fmt2.clone() + &*monitor_id;
     let file_path = file_dir.join(fmt2 + &*monitor_id);
-    /*filePath := filepath.Join(
-        fileDir,
-        startTime.Format("2006-01-02_15-04-05_")+monitorID,
-    )*/
-
-    let rec_id = file_path.file_name().unwrap();
-    //basePath := filepath.Base(filePath)
 
     tokio::fs::create_dir_all(file_dir)
         .await
@@ -351,6 +344,7 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
 
     save_recording(
         c.logger.clone(),
+        &rec_id,
         file_path,
         c.event_cache,
         start_time.as_nanos(),
@@ -360,8 +354,6 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
 
     Ok(())
 }
-
-//type nextSegmentFunc func(uint64) (*hls.Segment, error)
 
 #[derive(Debug, Error)]
 enum GenerateVideoError {
@@ -399,8 +391,7 @@ async fn generate_video(
     let stop_time = first_segment
         .start_time()
         .checked_add_duration(max_duration)
-        .unwrap();
-    //stopTime := firstSegment.StartTime.Add(maxDuration)
+        .ok_or(GenerateVideoError::Add)?;
 
     let mut meta_path = file_path.to_owned();
     meta_path.set_extension("meta");
@@ -437,10 +428,6 @@ async fn generate_video(
         .start_time()
         .checked_add_duration(first_segment.duration())
         .ok_or(Add)?;
-
-    /*if err := writeSegment(firstSegment); err != nil {
-        return 0, nil, err
-    }*/
 
     loop {
         if token.is_cancelled() {
@@ -506,13 +493,11 @@ async fn generate_thumbnail(
     use GenerateThumbnailError::*;
     let mut thumb_path = file_path;
     thumb_path.set_extension("jpeg");
-    //thumbPath := filePath + ".jpeg"
 
     logger.log(
         LogLevel::Info,
         &format!("generating thumbnail: {thumb_path:?}"),
     );
-    //r.logf(log.LevelInfo, "generating thumbnail: %v", thumbPath)
 
     let Some(first_part) = first_segment.parts().first() else {
         return Err(NoPart);
@@ -529,7 +514,7 @@ async fn generate_thumbnail(
         avcc_to_jpeg(&hooks, &config, &avcc, PaddedBytes::new(extradata))
     })
     .await
-    .unwrap()?;
+    .expect("join")?;
 
     let mut file = tokio::fs::OpenOptions::new()
         .create_new(true)
@@ -547,7 +532,6 @@ async fn generate_thumbnail(
             thumb_path.file_name().unwrap_or_default()
         ),
     );
-    //r.logf(log.LevelDebug, "thumbnail generated: %v", filepath.Base(thumbPath))
 
     Ok(())
 }
@@ -641,15 +625,14 @@ enum SaveRecordingError {
 
 async fn save_recording(
     logger: DynMsgLogger,
+    rec_id: &str,
     file_path: PathBuf,
     event_cache: Arc<EventCache>,
     start_time: UnixNano,
     end_time: UnixNano,
 ) -> Result<(), SaveRecordingError> {
     use SaveRecordingError::*;
-    let rec_id = file_path.file_name().unwrap().to_string_lossy().to_string();
     logger.log(LogLevel::Info, &format!("saving recording: {rec_id:?}"));
-    //r.logf(log.LevelInfo, "saving recording: %v", filepath.Base(filePath))
 
     let events = event_cache.query_and_prune(start_time, end_time).await;
 
@@ -660,11 +643,6 @@ async fn save_recording(
     };
 
     let json = serde_json::to_vec_pretty(&data)?;
-    /*json, err := json.MarshalIndent(data, "", "    ")
-    if err != nil {
-        r.logf(log.LevelError, "marshal event data: %w", err)
-        return
-    }*/
 
     let mut data_path = file_path.clone();
     data_path.set_extension("json");
@@ -719,6 +697,7 @@ impl EventCache {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use std::num::NonZeroU32;
@@ -1058,44 +1037,15 @@ mod tests {
                 detections: Vec::new(),
             },
         ])));
-        /*r.events = &storage.Events{
-            storage.Event{
-                Time: time.Time{},
-            },
-            storage.Event{
-                Time: time.Time{}.Add(2 * time.Minute),
-                Detections: []storage.Detection{
-                    {
-                        Label: "10",
-                        Score: 9,
-                        Region: &storage.Region{
-                            Rect: &ffmpeg.Rect{1, 2, 3, 4},
-                            Polygon: &ffmpeg.Polygon{
-                                ffmpeg.Point{5, 6},
-                                ffmpeg.Point{7, 8},
-                            },
-                        },
-                    },
-                },
-                Duration: 11,
-            },
-            storage.Event{
-                Time: time.Time{}.Add(11 * time.Minute),
-            },
-        }
-        */
 
         let start = UnixNano::from(MINUTE);
-        //start := time.Time{}.Add(1 * time.Minute)
         let end = UnixNano::from(11 * MINUTE);
-        //end := time.Time{}.Add(11 * time.Minute)
         let tempdir = tempdir().unwrap();
-        //tempdir := r.Env.TempDir
         let file_path = tempdir.path().join("file");
-        //filePath := tempdir + "file"
 
         save_recording(
             new_dummy_msg_logger(),
+            "file",
             file_path.clone(),
             event_cache,
             start,
@@ -1103,12 +1053,10 @@ mod tests {
         )
         .await
         .unwrap();
-        //r.saveRecording(filePath, start, end)
 
         let mut data_path = file_path.clone();
         data_path.set_extension("json");
         let b = std::fs::read(data_path).unwrap();
-        //b, err := os.ReadFile(filePath + ".json")
 
         let want = "{
   \"start\": 60000000000,

@@ -38,6 +38,7 @@ pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
 struct PreLoadAuthNone;
 impl PreLoadPlugin for PreLoadAuthNone {
     fn add_log_source(&self) -> Option<LogSource> {
+        #[allow(clippy::unwrap_used)]
         Some("motion".parse().unwrap())
     }
 }
@@ -61,6 +62,7 @@ const MOTION_MJS_FILE: &[u8] = include_bytes!("./js/motion.js");
 
 #[async_trait]
 impl Plugin for MotionPlugin {
+    #[allow(clippy::unwrap_used)]
     fn edit_assets(&self, assets: &mut Assets) {
         let js = assets["scripts/settings.js"].to_vec();
         *assets.get_mut("scripts/settings.js").unwrap() = Cow::Owned(modify_settings_js(js));
@@ -96,12 +98,12 @@ struct MotionLogger {
 
 impl MsgLogger for MotionLogger {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry {
+        self.logger.log(LogEntry::new(
             level,
-            source: "motion".parse().unwrap(),
-            monitor_id: Some(self.monitor_id.clone()),
-            message: msg.parse().unwrap(),
-        });
+            "motion",
+            Some(self.monitor_id.clone()),
+            msg.to_owned(),
+        ));
     }
 }
 
@@ -151,15 +153,15 @@ impl MotionPlugin {
             }
         };
 
-        msg_logger.log(
-            LogLevel::Info,
-            &format!("using {}-stream", source.stream_type().name()),
-        );
-
         let Some(config) = MotionConfig::parse(config.raw.clone())? else {
             // Motion detection is disabled.
             return Ok(());
         };
+
+        msg_logger.log(
+            LogLevel::Info,
+            &format!("using {}-stream", source.stream_type().name()),
+        );
 
         loop {
             msg_logger.log(LogLevel::Debug, "run");
@@ -233,7 +235,7 @@ impl MotionPlugin {
                     Ok((detections, state))
                 })
                 .await
-                .unwrap()?;
+                .expect("join")?;
 
             std::mem::swap(&mut state.raw_frame, &mut state.prev_raw_frame);
 
@@ -300,6 +302,7 @@ fn convert_frame(raw_frame: &mut Vec<u8>, frame_buf: &Frame) -> Result<(), Conve
     Ok(())
 }
 
+#[allow(clippy::unwrap_used)]
 fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
     const IMPORT_STATEMENT: &str = "import { motion } from \"./motion.js\";";
     const TARGET: &str = "/* SETTINGS_LAST_FIELD */";

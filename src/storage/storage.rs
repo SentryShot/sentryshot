@@ -65,7 +65,7 @@ impl<'a> StoragePruner<'a> {
             let path2 = path.clone();
             let entries = tokio::task::spawn_blocking(move || std::fs::read_dir(path2))
                 .await
-                .unwrap()
+                .expect("join")
                 .map_err(ReadDir)?;
 
             let mut list = Vec::new();
@@ -96,14 +96,12 @@ impl<'a> StoragePruner<'a> {
             depth += 1;
         }
 
-        self.logger.log(LogEntry {
-            level: LogLevel::Info,
-            source: "app".parse().unwrap(),
-            monitor_id: None,
-            message: format!("pruning storage: deleting {path:?}")
-                .parse()
-                .unwrap(),
-        });
+        self.logger.log(LogEntry::new(
+            LogLevel::Info,
+            "app",
+            None,
+            format!("pruning storage: deleting {path:?}"),
+        ));
 
         // Delete all files from that day
         tokio::fs::remove_dir_all(&path)
@@ -120,12 +118,12 @@ impl<'a> StoragePruner<'a> {
                 () = token.cancelled() => return,
                 () = tokio::time::sleep(interval) => {
                     if let Err(e) = self.prune().await {
-                        self.logger.log(LogEntry{
-                            level: LogLevel::Error,
-                            source: "app".parse().unwrap(),
-                            monitor_id: None,
-                            message: format!("could not prune storage: {e}").parse().unwrap(),
-                        });
+                        self.logger.log(LogEntry::new(
+                            LogLevel::Error,
+                            "app",
+                            None,
+                            format!("failed to prune storage: {e}"),
+                        ));
                     }
                 }
             }
@@ -319,7 +317,7 @@ impl DiskUsager for DiskUsageBytes {
             Ok(total)
         })
         .await
-        .unwrap()
+        .expect("join")
     }
 }
 
@@ -386,7 +384,7 @@ async fn delete_recording(
     let rec_dir2 = rec_dir.to_owned();
     let entries = tokio::task::spawn_blocking(move || std::fs::read_dir(rec_dir2))
         .await
-        .unwrap()
+        .expect("join")
         .map_err(ReadDir)?;
 
     for entry in entries {
@@ -411,6 +409,7 @@ async fn delete_recording(
     Ok(())
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

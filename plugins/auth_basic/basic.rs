@@ -52,6 +52,7 @@ struct PreLoadAuthBasic;
 
 impl PreLoadPlugin for PreLoadAuthBasic {
     fn add_log_source(&self) -> Option<LogSource> {
+        #[allow(clippy::unwrap_used)]
         Some("auth".parse().unwrap())
     }
 
@@ -202,7 +203,7 @@ impl BasicAuth {
                     .is_ok()
             })
             .await
-            .unwrap()
+            .expect("join")
     }
 }
 
@@ -344,7 +345,7 @@ impl BasicAuthData {
                 Ok(())
             })
             .await
-            .unwrap()
+            .expect("join")
     }
 
     fn account_by_name(&self, name: &Username) -> Option<Account> {
@@ -370,11 +371,11 @@ async fn generate_password_hash(rt_handle: &Handle, plain_password: String) -> S
             let salt = SaltString::generate(&mut OsRng);
             Argon2::default()
                 .hash_password(plain_password.as_bytes(), &salt)
-                .unwrap()
+                .expect("panic if password generation fails")
                 .to_string()
         })
         .await
-        .unwrap()
+        .expect("join")
 }
 
 // Generates a CSRF-token.
@@ -401,6 +402,7 @@ fn edit_templates(tmpls: &mut Templates) {
     *sidebar = sidebar.replace(target, &(logout_button.to_owned() + target));
 }
 
+#[allow(clippy::unwrap_used)]
 async fn logout(State(auth): State<DynAuth>, headers: HeaderMap) -> impl IntoResponse {
     let auth_is_valid = auth.validate_request(&headers).await.is_some();
     if auth_is_valid {
@@ -441,16 +443,15 @@ func (a *Authenticator) MyToken() http.Handler {
 
 // LogFailedLogin finds and logs the ip.
 pub fn log_failed_login(logger: &DynLogger, username: &str) {
-    logger.log(LogEntry {
-        level: LogLevel::Warning,
-        source: "auth".parse().unwrap(),
-        monitor_id: None,
-        message: format!("failed login: username: '{username}' ")
-            .parse()
-            .unwrap(),
-    });
+    logger.log(LogEntry::new(
+        LogLevel::Warning,
+        "auth",
+        None,
+        format!("failed login: username: '{username}' "),
+    ));
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

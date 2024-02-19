@@ -27,11 +27,13 @@ struct ThumbScalePlugin {
 }
 #[async_trait]
 impl Plugin for ThumbScalePlugin {
+    #[allow(clippy::unwrap_used)]
     fn edit_assets(&self, assets: &mut Assets) {
         let js = assets["scripts/settings.js"].to_vec();
         *assets.get_mut("scripts/settings.js").unwrap() = Cow::Owned(modify_settings_js(js));
     }
 
+    #[allow(clippy::unwrap_used)]
     fn on_thumb_save(&self, config: &MonitorConfig, frame: Frame) -> Frame {
         let log = |level: LogLevel, msg: &str| {
             self.logger.log(LogEntry {
@@ -109,7 +111,7 @@ fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
 			\"full\",
 		),";
 
-    let tpl = String::from_utf8(tpl).unwrap();
+    let tpl = String::from_utf8(tpl).expect("template should be valid utf8");
     let tpl = tpl.replace(TARGET, &(JAVASCRIPT.to_owned() + TARGET));
     tpl.as_bytes().to_owned()
 }

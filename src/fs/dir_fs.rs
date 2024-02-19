@@ -28,6 +28,7 @@ impl Fs for DirFs {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 fn open_file(path: &Path) -> Result<Open, std::io::Error> {
     let metadata = std::fs::metadata(path)?;
     if metadata.is_dir() {
@@ -81,6 +82,7 @@ impl Dir for DirFsDir {
         &self.name
     }
 
+    #[allow(clippy::unwrap_used)]
     fn read_dir_file(&mut self) -> Result<Vec<Entry>, FsError> {
         let mut files: Vec<Entry> = Vec::new();
         for file in std::fs::read_dir(&self.path)? {

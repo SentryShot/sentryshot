@@ -432,7 +432,7 @@ fn new_cpu_detector(
                         (detector, result)
                     })
                     .await
-                    .unwrap();
+                    .expect("join");
                 let result = result.map(|v| parse_detections(&label_map, v));
                 _ = req.res.send(result);
             }
@@ -487,7 +487,7 @@ fn new_edgetpu_detector(
                     (detector, result)
                 })
                 .await
-                .unwrap();
+                .expect("join");
             let result = result.map(|v| parse_detections(&label_map, v));
             _ = req.res.send(result);
         }
@@ -505,6 +505,7 @@ fn parse_detections(label_map: &LabelMap, input: Vec<tflite_lib::Detection>) -> 
         if let Some(label) = label_map.get(&class) {
             label.to_owned()
         } else {
+            #[allow(clippy::unwrap_used)]
             format!("unknown{class}").parse().unwrap()
         }
     };
@@ -562,6 +563,7 @@ impl DeviceCache {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

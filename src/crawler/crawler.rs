@@ -98,8 +98,8 @@ impl Crawler {
                 return Ok(recordings);
             };
 
-            let first = recordings.is_empty();
-            file = if first && prev_file.name != query.recording_id.as_path() {
+            let first_file = recordings.is_empty();
+            file = if first_file && prev_file.name != query.recording_id.as_path() {
                 self.find_recording(query, cache)?
             } else {
                 match prev_file.sibling(query, cache) {
@@ -108,31 +108,31 @@ impl Crawler {
                     Err(e) => return Err(e),
                 }
             };
+            let Some(file) = &file else {
+                // Last recording is reached.
+                return Ok(recordings);
+            };
 
             let data = if query.include_data {
-                let file_fs = file.as_ref().unwrap().fs.clone();
+                let file_fs = file.fs.clone();
                 tokio::task::spawn_blocking(|| {
                     let file_fs: Box<dyn Fs> = file_fs;
                     read_data_file(&*file_fs)
                 })
                 .await
-                .unwrap()
+                .expect("join")
             } else {
                 None
             };
 
-            recordings.push(CrawlerRecording {
-                id: file
-                    .as_ref()
-                    .unwrap()
-                    .path
-                    .file_name()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_owned(),
-                data,
-            });
+            let id = file
+                .path
+                .file_name()
+                .expect("file should have a name")
+                .to_string_lossy()
+                .to_string();
+
+            recordings.push(CrawlerRecording { id, data });
         }
         Ok(recordings)
     }
@@ -291,24 +291,28 @@ impl Dir {
                     return Err(CrawlerError::UnexpectedDir(monitor_path));
                 };
 
-                if file.name().extension().unwrap() != "json" {
-                    continue;
+                if let Some(ext) = file.name().extension() {
+                    if ext != "json" {
+                        continue;
+                    }
+
+                    let json_path = monitor_path.join(file.name());
+
+                    let mut path = json_path.clone();
+                    path.set_extension("");
+
+                    let file_fs = montor_fs.sub(file.name())?;
+
+                    all_files.push(Dir {
+                        fs: file_fs,
+                        name: PathBuf::from(
+                            file.name().to_string_lossy().trim_end_matches(".json"),
+                        ),
+                        path,
+                        parent: Some(Box::new(self.to_owned())),
+                        depth: self.depth + 2,
+                    });
                 }
-
-                let json_path = monitor_path.join(file.name());
-
-                let mut path = json_path.clone();
-                path.set_extension("");
-
-                let file_fs = montor_fs.sub(file.name())?;
-
-                all_files.push(Dir {
-                    fs: file_fs,
-                    name: PathBuf::from(file.name().to_string_lossy().trim_end_matches(".json")),
-                    path,
-                    parent: Some(Box::new(self.to_owned())),
-                    depth: self.depth + 2,
-                });
             }
         }
         Ok(all_files)

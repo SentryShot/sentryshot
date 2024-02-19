@@ -58,6 +58,7 @@ pub struct LogDbHandle(Mutex<LogDb>);
 
 impl LogDbHandle {
     pub async fn save_log_testing(&self, entry: LogEntryWithTime) {
+        #[allow(clippy::unwrap_used)]
         self.save_log(entry).await.unwrap();
     }
 
@@ -100,13 +101,12 @@ impl LogDbHandle {
                 () = token.cancelled() => return,
                 () = tokio::time::sleep(Duration::from_secs(HOUR)) => {
                     if let Err(e) = self.prune().await {
-                        let msg = format!("could not purge logs: {e}");
-                        logger.log(LogEntry{
-                            level: LogLevel::Error,
-                            source:   "app".parse().unwrap(),
-                            monitor_id: None,
-                            message: msg.parse().unwrap(),
-                        });
+                        logger.log(LogEntry::new(
+                            LogLevel::Error,
+                            "app",
+                            None,
+                            format!("could not purge logs: {e}"),
+                        ));
                     }
                 }
             }
@@ -159,12 +159,21 @@ impl LogDb {
     async fn save_log(&mut self, mut entry: LogEntryWithTime) -> Result<(), SaveLogError> {
         let chunk_id = time_to_id(entry.time)?;
 
-        if self.encoder.is_none() || chunk_id != self.encoder.as_ref().unwrap().chunk_id {
+        let encoder = if let Some(encoder) = &mut self.encoder {
+            if chunk_id == encoder.chunk_id {
+                encoder
+            } else {
+                let (encoder, prev_entry_time) =
+                    ChunkEncoder::new(self.log_dir.clone(), chunk_id).await?;
+                self.prev_entry_time = prev_entry_time;
+                self.encoder.insert(encoder)
+            }
+        } else {
             let (encoder, prev_entry_time) =
                 ChunkEncoder::new(self.log_dir.clone(), chunk_id).await?;
-            self.encoder = Some(encoder);
             self.prev_entry_time = prev_entry_time;
-        }
+            self.encoder.insert(encoder)
+        };
 
         if entry.time <= self.prev_entry_time {
             entry.time = self
@@ -173,7 +182,6 @@ impl LogDb {
                 .ok_or(SaveLogError::IncrementPrevTime)?;
         }
 
-        let encoder = self.encoder.as_mut().unwrap();
         encoder.encode(&entry).await?;
 
         self.prev_entry_time = entry.time;
@@ -292,7 +300,7 @@ impl LogDb {
             Ok(chunks)
         })
         .await
-        .unwrap()
+        .expect("join")
     }
 
     // Prunes a single chunk if needed.
@@ -454,7 +462,7 @@ async fn dir_size(path: PathBuf) -> Result<ByteSize, DirSizeError> {
         Ok(ByteSize(total))
     })
     .await
-    .unwrap()
+    .expect("join")
 }
 
 fn chunk_id_to_paths(log_dir: &Path, chunk_id: &str) -> (PathBuf, PathBuf) {
@@ -952,6 +960,7 @@ async fn get_file_size(path: &Path) -> u64 {
     metadata.len()
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

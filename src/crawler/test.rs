@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#![allow(clippy::unwrap_used)]
+
 use fs::{MapEntry, MapFs};
 use pretty_assertions::assert_eq;
 use recording::RecordingData;

@@ -155,14 +155,7 @@ impl Segmenter {
                 >= self.segment_duration
             /*|| paramsChanged*/
             {
-                let current_segment = self.current_segment.take().unwrap();
-                let finalized_segment = current_segment.finalize(next_dts).await?;
-                self.playlist.on_segment_finalized(finalized_segment).await;
-
-                self.first_segment_finalized = true;
-
-                // Create next segment.
-                self.current_segment = Some(Segment::new(
+                let next_segment = Segment::new(
                     self.segment_id_counter.next_id(),
                     sample_ntp,
                     sample_dts,
@@ -170,7 +163,13 @@ impl Segmenter {
                     self.segment_max_size,
                     self.playlist.clone(),
                     &mut self.part_id_counter,
-                ));
+                );
+                let prev_segment = std::mem::replace(current_segment, next_segment);
+
+                let finalized_segment = prev_segment.finalize(next_dts).await?;
+                self.playlist.on_segment_finalized(finalized_segment).await;
+
+                self.first_segment_finalized = true;
 
                 /*if paramsChanged {
                     m.lastVideoParams = videoParams

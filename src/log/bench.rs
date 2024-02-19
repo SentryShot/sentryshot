@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 use bytesize::ByteSize;
 use common::{LogLevel, LogSource, MonitorId};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};

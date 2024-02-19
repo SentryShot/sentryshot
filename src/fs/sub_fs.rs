@@ -18,6 +18,7 @@ impl SubFs {
     }
 
     // Shorten maps name, which should start with self.dir, back to the suffix after self.dir.
+    #[allow(clippy::unwrap_used)]
     fn shorten(&self, path: &Path) -> PathBuf {
         if path == self.dir {
             return PathBuf::from(".");
@@ -82,7 +83,7 @@ impl Fs for SubFs {
 // See also Rob Pike, “Lexical File Names in Plan 9 or
 // Getting Dot-Dot Right,”
 // https://9p.io/sys/doc/lexnames.html
-#[allow(clippy::if_same_then_else)]
+#[allow(clippy::if_same_then_else, clippy::unwrap_used)]
 fn clean(path: &Path) -> PathBuf {
     if path == PathBuf::from("") {
         return PathBuf::from(".");

@@ -51,6 +51,7 @@ pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
 struct PreLoadAuthNone;
 impl PreLoadPlugin for PreLoadAuthNone {
     fn add_log_source(&self) -> Option<LogSource> {
+        #[allow(clippy::unwrap_used)]
         Some("tflite".parse().unwrap())
     }
 }
@@ -63,7 +64,7 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .unwrap()
+        .expect("runtime should start")
         .block_on(async {
             Arc::new(
                 TflitePlugin::new(
@@ -128,13 +129,13 @@ impl Plugin for TflitePlugin {
         let detectors_json = serde_json::to_string_pretty(detectors).expect("infallible");
 
         let js = assets["scripts/settings.js"].to_vec();
-        *assets.get_mut("scripts/settings.js").unwrap() = Cow::Owned(modify_settings_js(js));
+        *assets.get_mut("scripts/settings.js").expect("exist") = Cow::Owned(modify_settings_js(js));
 
         assets.insert(
             "scripts/tflite.js".to_owned(),
             Cow::Owned(
                 String::from_utf8(TFLITE_MJS_FILE.to_owned())
-                    .unwrap()
+                    .expect("js file should be valid utf8")
                     .replace("$detectorsJSON", &detectors_json)
                     .as_bytes()
                     .to_owned(),
@@ -299,7 +300,7 @@ impl TflitePlugin {
                 .rt_handle
                 .spawn_blocking(move || process_frame(&mut state, frame).map(|()| state))
                 .await
-                .unwrap()?;
+                .expect("join")?;
 
             let detections = detector.detect(state.frame_processed.clone()).await?;
             let detections =
@@ -436,6 +437,7 @@ fn calculate_outputs(crop: Crop, i: &Inputs) -> Result<(Outputs, Uncrop), Calcul
         let crop_x = u64::from(crop_x);
         let output = ((padding_x_multiplier * input * crop_size) / 1_000_000)
             + (padding_x_multiplier * crop_x);
+        #[allow(clippy::unwrap_used)]
         u32::try_from(output).unwrap()
     };
 
@@ -444,6 +446,7 @@ fn calculate_outputs(crop: Crop, i: &Inputs) -> Result<(Outputs, Uncrop), Calcul
         let crop_y = u64::from(crop_y);
         let output = ((padding_y_multiplier * input * crop_size) / 1_000_000)
             + (padding_y_multiplier * crop_y);
+        #[allow(clippy::unwrap_used)]
         u32::try_from(output).unwrap()
     };
 
@@ -629,7 +632,7 @@ fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
     const IMPORT_STATEMENT: &str = "import { tflite } from \"./tflite.js\";";
     const TARGET: &str = "/* SETTINGS_LAST_FIELD */";
 
-    let tpl = String::from_utf8(tpl).unwrap();
+    let tpl = String::from_utf8(tpl).expect("template should be valid utf8");
     let tpl = tpl.replace(TARGET, &("tflite: tflite(),\n".to_owned() + TARGET));
     let tpl = IMPORT_STATEMENT.to_owned() + &tpl;
     tpl.as_bytes().to_owned()
@@ -642,12 +645,12 @@ struct TfliteMonitorLogger {
 
 impl MsgLogger for TfliteMonitorLogger {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry {
+        self.logger.log(LogEntry::new(
             level,
-            source: "tflite".parse().unwrap(),
-            monitor_id: Some(self.monitor_id.clone()),
-            message: msg.parse().unwrap(),
-        });
+            "tflite",
+            Some(self.monitor_id.clone()),
+            msg.to_owned(),
+        ));
     }
 }
 
@@ -674,12 +677,8 @@ struct TfliteLogger {
 
 impl MsgLogger for TfliteLogger {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry {
-            level,
-            source: "tflite".parse().unwrap(),
-            monitor_id: None,
-            message: msg.parse().unwrap(),
-        });
+        self.logger
+            .log(LogEntry::new(level, "tflite", None, msg.to_owned()));
     }
 }
 
@@ -712,7 +711,7 @@ impl Fetcher for Fetch {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

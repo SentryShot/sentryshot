@@ -100,6 +100,7 @@ impl Monitor {
 
 impl Monitor {
     #[cfg(test)]
+    #[allow(clippy::unwrap_used)]
     fn empty() -> Arc<Monitor> {
         use common::monitor::{Config, Protocol, SourceRtspConfig};
         use serde_json::Value;
@@ -136,12 +137,12 @@ impl Monitor {
 }
 
 pub fn log_monitor(logger: &DynLogger, level: LogLevel, id: &MonitorId, msg: &str) {
-    logger.log(LogEntry {
+    logger.log(LogEntry::new(
         level,
-        source: "monitor".parse().unwrap(),
-        monitor_id: Some(id.to_owned()),
-        message: msg.parse().unwrap(),
-    });
+        "monitor",
+        Some(id.to_owned()),
+        msg.to_owned(),
+    ));
 }
 
 #[derive(Debug, Error)]
@@ -527,7 +528,7 @@ pub trait MonitorHooks {
     fn on_thumb_save(&self, config: &MonitorConfig, frame: Frame) -> Frame;
 }
 
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value, clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

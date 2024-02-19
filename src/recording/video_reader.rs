@@ -31,6 +31,7 @@ where
     #[pin]
     mdat: RS2,
 
+    // TODO: replace with usize.
     meta_size: u64,
     mdat_size: u64,
     pos: u64, // current reading index
@@ -114,7 +115,7 @@ where
     RS1: AsyncRead + AsyncSeek,
     RS2: AsyncRead + AsyncSeek,
 {
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines, clippy::unwrap_used)]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -407,7 +408,7 @@ async fn read_video_metadata(meta_path: &Path) -> Result<VideoMetadata, ReadVide
             Ok((meta_buf, mdat_size))
         })
         .await
-        .unwrap()?
+        .expect("join")?
     };
 
     Ok(VideoMetadata {
@@ -559,7 +560,11 @@ impl VideoCache {
 
         if self.items.len() >= self.max_size {
             // Delete the oldest item.
-            let (key, _) = self.items.iter().min_by_key(|(_, v)| v.age).unwrap();
+            let (key, _) = self
+                .items
+                .iter()
+                .min_by_key(|(_, v)| v.age)
+                .expect("len > max_size");
             self.items.remove(&key.to_owned());
         }
 
@@ -591,6 +596,7 @@ impl Default for VideoCache {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use std::{io::Cursor, time::UNIX_EPOCH};

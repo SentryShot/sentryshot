@@ -233,7 +233,7 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for RevBufReader<R> {
             }
             SeekState::Start(SeekFrom::Start(pos)) => {
                 let me = self.as_mut().project();
-                *me.buf_pos = usize::try_from(pos).unwrap();
+                *me.buf_pos = usize::try_from(pos).expect("seek pos should fit usize");
                 *me.prev_seek_pos = *me.seek_pos;
                 *me.seek_pos = *me.buf_pos;
                 *me.seek_state = SeekState::Init;
@@ -250,7 +250,8 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for RevBufReader<R> {
 #[allow(
     clippy::cast_sign_loss,
     clippy::cast_possible_truncation,
-    clippy::as_conversions
+    clippy::as_conversions,
+    clippy::unwrap_used
 )]
 #[cfg(test)]
 mod tests {

@@ -20,6 +20,7 @@ pub enum RecToMp4Error {
     Metadata(std::io::Error),
 }
 
+#[allow(clippy::unwrap_used)]
 pub async fn rec_to_mp4(path: PathBuf) -> Result<(), RecToMp4Error> {
     use RecToMp4Error::*;
 

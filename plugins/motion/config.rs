@@ -75,6 +75,7 @@ pub(crate) struct ZoneConfig {
     pub(crate) area: PolygonNormalized,
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

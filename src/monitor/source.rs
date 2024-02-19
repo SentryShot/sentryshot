@@ -134,19 +134,17 @@ impl SourceLogger {
 
 impl MsgLogger for SourceLogger {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry {
+        self.logger.log(LogEntry::new(
             level,
-            source: "monitor".parse().unwrap(),
-            monitor_id: Some(self.monitor_id.clone()),
-            message: format!(
+            "monitor",
+            Some(self.monitor_id.clone()),
+            format!(
                 "({}) {} source: {}",
                 self.stream_type.name(),
                 self.source_name,
                 msg
-            )
-            .parse()
-            .unwrap(),
-        });
+            ),
+        ));
     }
 }
 
@@ -551,7 +549,7 @@ fn new_decoder(
                         .map(|()| h264_decoder)
                 })
                 .await
-                .unwrap();
+                .expect("join");
             h264_decoder = match result {
                 Ok(v) => v,
                 Err(e) => {

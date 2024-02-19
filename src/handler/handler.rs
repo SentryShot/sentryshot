@@ -49,12 +49,9 @@ pub async fn template_handler(
     let path = path.strip_prefix('/').unwrap_or(&path);
 
     let log = |msg: String| {
-        s.templater.logger().log(LogEntry {
-            level: LogLevel::Info,
-            source: "app".parse().unwrap(),
-            monitor_id: None,
-            message: msg.parse().unwrap(),
-        });
+        s.templater
+            .logger()
+            .log(LogEntry::new(LogLevel::Info, "app", None, msg));
     };
 
     let Some(template) = s.templater.get_template(path) else {
@@ -72,6 +69,7 @@ pub async fn template_handler(
     match template.render(data) {
         Ok(content) => {
             let body = boxed(Full::from(content));
+            #[allow(clippy::unwrap_used)]
             Response::builder()
                 .header(header::CONTENT_TYPE, "text/html; charset=UTF-8")
                 .body(body)
@@ -96,6 +94,7 @@ pub async fn asset_handler(
         Some(content) => {
             let body = boxed(Full::from(content.clone()));
             let mime = mime_guess::from_path(path).first_or_octet_stream();
+            #[allow(clippy::unwrap_used)]
             Response::builder()
                 .header(header::CONTENT_TYPE, mime.as_ref())
                 .body(body)
@@ -105,6 +104,7 @@ pub async fn asset_handler(
     }
 }
 
+#[allow(clippy::unwrap_used)]
 pub async fn hls_handler(
     Path(path): Path<String>,
     State(hls_server): State<Arc<HlsServer>>,
@@ -113,10 +113,7 @@ pub async fn hls_handler(
     query: Query<HlsQuery>,
 ) -> Response {
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "Server",
-        HeaderValue::from_str("server name TODO:").unwrap(),
-    );
+    headers.insert("Server", HeaderValue::from_str("sentryshot").unwrap());
     headers.insert(
         "Access-Control-Allow-Credentials",
         HeaderValue::from_str("true").unwrap(),
@@ -266,14 +263,12 @@ pub async fn recording_query_handler(
     match s.crawler.recordings_by_query(&query.0).await {
         Ok(v) => Ok(Json(v)),
         Err(e) => {
-            s.logger.log(LogEntry {
-                level: LogLevel::Error,
-                source: "app".parse().unwrap(),
-                monitor_id: None,
-                message: format!("crawler: could not process recording query: {e}")
-                    .parse()
-                    .unwrap(),
-            });
+            s.logger.log(LogEntry::new(
+                LogLevel::Error,
+                "app",
+                None,
+                format!("crawler: could not process recording query: {e}"),
+            ));
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -324,12 +319,12 @@ pub async fn log_feed_handler(
                 if e.to_string() == "IO error: Broken pipe (os error 32)" {
                     return;
                 }
-                s.logger.log(LogEntry {
-                    level: LogLevel::Error,
-                    source: "app".parse().unwrap(),
-                    monitor_id: None,
-                    message: format!("log feed: {e}").parse().unwrap(),
-                });
+                s.logger.log(LogEntry::new(
+                    LogLevel::Error,
+                    "app",
+                    None,
+                    format!("log feed: {e}"),
+                ));
                 return;
             }
         }
@@ -461,12 +456,12 @@ pub async fn recording_video_handler(
     let video = match new_video_reader(path, &Some(state.video_cache)).await {
         Ok(v) => v,
         Err(e) => {
-            state.logger.log(LogEntry {
-                level: LogLevel::Error,
-                source: "app".parse().unwrap(),
-                monitor_id: None,
-                message: format!("video request: {e}").parse().unwrap(),
-            });
+            state.logger.log(LogEntry::new(
+                LogLevel::Error,
+                "app",
+                None,
+                format!("video request: {e}"),
+            ));
             return (StatusCode::INTERNAL_SERVER_ERROR, "see logs for details").into_response();
         }
     };

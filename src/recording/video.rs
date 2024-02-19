@@ -150,7 +150,7 @@ impl<'a, W: AsyncWrite + Unpin> VideoWriter<'a, W> {
         self.mdat.write_all(&sample.avcc).await?;
         self.mdat_pos += u32::try_from(sample.avcc.len())?;
 
-        self.meta.write_all(&s.encode().unwrap()).await?;
+        self.meta.write_all(&s.encode()?).await?;
 
         Ok(())
     }
@@ -336,6 +336,7 @@ pub struct TrackParameters {
     pub extra_data: Vec<u8>,
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

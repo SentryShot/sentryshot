@@ -26,6 +26,7 @@ use std::{
 //	if err := fstest.TestFS(myFS, "file/that/should/be/present"); err != nil {
 //		t.Fatal(err)
 //	}
+#[allow(clippy::unwrap_used)]
 pub fn test_file_system(fsys: &dyn Fs, expected: &[PathBuf]) -> Result<(), TestFileSystemError> {
     test_fs(fsys.clone(), expected)?;
     for name in expected {
@@ -52,6 +53,7 @@ pub fn test_file_system(fsys: &dyn Fs, expected: &[PathBuf]) -> Result<(), TestF
     Ok(())
 }
 
+#[allow(clippy::unwrap_used)]
 fn test_fs(fsys: Box<dyn Fs>, expected: &[PathBuf]) -> Result<(), TestFileSystemError> {
     let mut t = FsTester {
         fsys,
@@ -134,6 +136,7 @@ impl FsTester {
         }
     }
 
+    #[allow(clippy::unwrap_used)]
     fn check_dir(&mut self, dir: &Path) {
         // Read entier directory.
         self.dirs.push(dir.to_path_buf());
@@ -372,6 +375,7 @@ impl FsTester {
     }*/
 
     // Checks that various invalid forms of file's name cannot be opened using t.fsys.Open.
+    #[allow(clippy::unwrap_used)]
     fn check_open(&self, file: &str) {
         let mut bad = Vec::from([("/".to_owned() + file), (file.to_owned() + "/.")]);
         if file == "." {

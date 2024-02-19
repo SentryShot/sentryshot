@@ -129,6 +129,7 @@ pub(crate) fn parse_labels(raw: &str) -> Result<LabelMap, ParseLabelsError> {
     Ok(labels)
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
