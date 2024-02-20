@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-// False positive: https://github.com/dtolnay/async-trait/issues/228#issuecomment-1374848487
-// RUSTC: remove in 1.69
-#![allow(where_clauses_object_safety)]
-
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,

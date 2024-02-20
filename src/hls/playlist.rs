@@ -544,21 +544,8 @@ impl PlaylistState {
     }
 
     fn check_pending(&mut self) {
+        // RUSTC: extract_if
         if self.has_content() {
-            /*self.playlistsOnHold.retain(|req| {
-                if !self.has_part(req.msnint, req.partint) {
-                    return true;
-                }
-                req.res.send(MuxerFileResponse {
-                    Status: StatusCode::OK,
-                    Header: HashMap::from([(
-                        "Content-Type".to_owned(),
-                        "application/x-mpegURL".to_owned(),
-                    )]),
-                    //Body: bytes.NewReader(p.fullPlaylist(req.isDeltaUpdate)),
-                });
-                false
-            })*/
             let mut i = 0;
             #[allow(clippy::unwrap_used)]
             while i < self.playlists_on_hold.len() {
@@ -589,18 +576,6 @@ impl PlaylistState {
             }
         }
 
-        /*self.partsOnHold.retain(|req| {
-            if self.nextPartID <= req.partID {
-                return true;
-            }
-            let part = self.partsByName.get(&req.partName).unwrap();
-            req.res.send(MuxerFileResponse {
-                Status: StatusCode::OK,
-                Header: HashMap::from([("Content-Type".to_owned(), "video/mp4".to_owned())]),
-                //Body: part.reader(),
-            });
-            false
-        })*/
         let mut i = 0;
         #[allow(clippy::unwrap_used)]
         while i < self.parts_on_hold.len() {

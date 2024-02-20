@@ -12,6 +12,7 @@ workspace = true
 name = "auth_none"
 path = "none.rs"
 crate-type = ["dylib"]
+doctest = false
 
 [dependencies]
 common.path = "../../src/common"

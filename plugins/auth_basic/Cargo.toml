@@ -12,6 +12,7 @@ workspace = true
 name = "auth_basic"
 path = "basic.rs"
 crate-type = ["dylib"]
+doctest = false
 
 [dependencies]
 common.path = "../../src/common"

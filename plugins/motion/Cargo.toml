@@ -12,6 +12,7 @@ workspace = true
 name = "motion"
 path = "motion.rs"
 crate-type = ["dylib"]
+doctest = false
 
 [dependencies]
 common.path = "../../src/common"
