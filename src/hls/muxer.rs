@@ -125,6 +125,11 @@ impl HlsMuxer {
     /*async fn wait_for_seg_finalized(&self) {
         self.playlist.wait_for_seg_finalized().await
     }*/
+
+    #[cfg(test)]
+    pub async fn playlist_state(&self) -> crate::playlist::PlaylistDebugState {
+        self.playlist.debug_state().await
+    }
 }
 
 #[async_trait]

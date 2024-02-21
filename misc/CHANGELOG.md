@@ -1,5 +1,6 @@
 ## unreleased
 
+-   hls: fix added delay with multiple clients
 -   hls: fix missing part duration
 
 ## `v0.2.0`

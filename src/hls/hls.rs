@@ -283,6 +283,103 @@ seg7.mp4
         );
     }
 
+    #[tokio::test]
+    async fn test_multiple_blocking_playlists() {
+        let token = CancellationToken::new();
+        let server = HlsServer::new(token.clone(), DummyLogger::new());
+
+        let params = TrackParameters {
+            width: 64,
+            height: 64,
+            codec: "test_codec".to_owned(),
+            extra_data: Vec::new(),
+        };
+
+        let (_, mut writer) = server
+            .new_muxer(token, "test".to_owned(), params)
+            .await
+            .unwrap();
+        let muxer = server
+            .muxer_by_name("test".to_owned())
+            .await
+            .unwrap()
+            .unwrap();
+
+        writer.test_write(0, Vec::new(), true).await;
+        writer.test_write(100_000, Vec::new(), true).await;
+
+        #[rustfmt::skip]
+            assert_eq!(
+"200 OK
+Some({\"content-type\": \"application/x-mpegURL\"})
+#EXTM3U
+#EXT-X-VERSION:9
+#EXT-X-TARGETDURATION:2
+#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=2.77778,CAN-SKIP-UNTIL=12
+#EXT-X-PART-INF:PART-TARGET=1.111111111
+#EXT-X-MEDIA-SEQUENCE:1
+#EXT-X-MAP:URI=\"init.mp4\"
+#EXT-X-GAP
+#EXTINF:1.11111,
+gap.mp4
+#EXT-X-GAP
+#EXTINF:1.11111,
+gap.mp4
+#EXT-X-GAP
+#EXTINF:1.11111,
+gap.mp4
+#EXT-X-GAP
+#EXTINF:1.11111,
+gap.mp4
+#EXT-X-GAP
+#EXTINF:1.11111,
+gap.mp4
+#EXT-X-GAP
+#EXTINF:1.11111,
+gap.mp4
+#EXT-X-PART:DURATION=1.11111,URI=\"part0.mp4\",INDEPENDENT=YES
+#EXTINF:1.11111,
+seg7.mp4
+#EXT-X-PRELOAD-HINT:TYPE=PART,URI=\"part1.mp4\"
+", get_playlist(&muxer, None).await
+            );
+
+        let muxer2 = muxer.clone();
+        let handle = tokio::spawn(async move {
+            get_playlist(&muxer2, Some((7, 1, false))).await;
+        });
+
+        let muxer2 = muxer.clone();
+        let handle2 = tokio::spawn(async move {
+            get_playlist(&muxer2, Some((7, 1, false))).await;
+        });
+
+        while muxer.playlist_state().await.num_playlists_on_hold != 2 {
+            tokio::task::yield_now().await;
+        }
+
+        writer.test_write(100_000_000, Vec::new(), false).await;
+
+        handle.await.unwrap();
+        handle2.await.unwrap();
+
+        assert_eq!(muxer.playlist_state().await.num_playlists_on_hold, 0);
+    }
+
+    /*async fn get_index(muxer: &HlsMuxer) -> String {
+        muxer
+            .file(
+                "index.m3u8",
+                &HlsQuery {
+                    msn_and_part: None,
+                    is_delta_update: false,
+                },
+            )
+            .await
+            .print()
+            .await
+    }*/
+
     async fn get_playlist(muxer: &HlsMuxer, opts: Option<(u64, u64, bool)>) -> String {
         let query = {
             if let Some((msn, part, is_delta_update)) = opts {

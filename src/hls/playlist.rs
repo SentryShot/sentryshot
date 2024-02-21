@@ -107,6 +107,8 @@ pub struct Playlist {
     blocking_part_tx: mpsc::Sender<BlockingPartRequest>,
     next_segment_tx: mpsc::Sender<NextSegmentRequest>,
     //wait_for_seg_final_tx: mpsc::Sender<oneshot::Sender<()>>,
+    #[cfg(test)]
+    debug_state_tx: mpsc::Sender<oneshot::Sender<PlaylistDebugState>>,
 }
 
 impl Playlist {
@@ -122,6 +124,9 @@ impl Playlist {
         let (blocking_part_tx, mut blocking_part_rx) = mpsc::channel::<BlockingPartRequest>(1);
         let (next_segment_tx, mut next_segment_rx) = mpsc::channel::<NextSegmentRequest>(1);
         //let (wait_for_seg_final_tx, mut wait_for_seg_final_rx) = mpsc::channel(1);
+        #[allow(unused)]
+        let (debug_state_tx, mut debug_state_rx) =
+            mpsc::channel::<oneshot::Sender<PlaylistDebugState>>(1);
 
         tokio::spawn(async move {
             let mut state = PlaylistState {
@@ -331,6 +336,12 @@ impl Playlist {
                         state.seg_final_on_hold.push(req);
                     }*/
 
+                    req = debug_state_rx.recv() => {
+                        #[allow(clippy::unwrap_used)]
+                        req.unwrap().send(PlaylistDebugState{
+                            num_playlists_on_hold: state.playlists_on_hold.len(),
+                        }).unwrap();
+                    }
 
                 }
             }
@@ -345,6 +356,8 @@ impl Playlist {
             blocking_part_tx,
             next_segment_tx,
             //wait_for_seg_final_tx,
+            #[cfg(test)]
+            debug_state_tx,
         }
     }
 
@@ -489,6 +502,14 @@ impl Playlist {
         self.wait_for_seg_final_tx.send(done_tx).await.unwrap();
         done_rx.await.unwrap();
     }*/
+
+    #[cfg(test)]
+    #[allow(clippy::unwrap_used)]
+    pub async fn debug_state(&self) -> PlaylistDebugState {
+        let (res_tx, res_rx) = oneshot::channel();
+        self.debug_state_tx.send(res_tx).await.unwrap();
+        res_rx.await.unwrap()
+    }
 }
 
 #[derive(Debug)]
@@ -533,6 +554,12 @@ struct PartFinalizedRequest {
     done_tx: oneshot::Sender<()>,
 }
 
+#[derive(Debug)]
+#[allow(unused, clippy::module_name_repetitions)]
+pub struct PlaylistDebugState {
+    pub num_playlists_on_hold: usize,
+}
+
 impl PlaylistState {
     fn log(&self, level: LogLevel, msg: &str) {
         self.logger.log(LogEntry::new(
@@ -571,8 +598,9 @@ impl PlaylistState {
                         )])),
                         body: Some(Box::new(Cursor::new(body))),
                     });
+                } else {
+                    i += 1;
                 }
-                i += 1;
             }
         }
 
