@@ -4,7 +4,7 @@ use crate::{
 };
 use bytes::Bytes;
 use common::{time::DurationH264, PartFinalized, VideoSample};
-use std::{mem, sync::Arc};
+use std::sync::Arc;
 
 fn generate_part(
     //muxer_start_time: i64,
@@ -189,8 +189,6 @@ pub struct MuxerPart {
 
     pub is_independent: bool,
     pub video_samples: Vec<VideoSample>,
-    pub rendered_content: Option<Bytes>,
-    pub rendered_duration: DurationH264,
 }
 
 impl std::fmt::Debug for MuxerPart {
@@ -212,8 +210,6 @@ impl MuxerPart {
             id,
             is_independent: false,
             video_samples: Vec::new(),
-            rendered_content: None,
-            rendered_duration: DurationH264::from(0),
         }
     }
 
@@ -225,30 +221,26 @@ impl MuxerPart {
         Some(total)
     }
 
-    pub fn finalize(mut self) -> Result<PartFinalized, PartFinalizeError> {
-        if self.video_samples.is_empty() {
-            Ok(PartFinalized {
-                muxer_start_time: self.muxer_start_time,
-                id: self.id,
-                is_independent: self.is_independent,
-                video_samples: Arc::new(Vec::new()),
-                rendered_content: self.rendered_content,
-                rendered_duration: self.rendered_duration,
-            })
+    pub fn finalize(self) -> Result<PartFinalized, PartFinalizeError> {
+        let rendered_duration = self.duration().ok_or(PartFinalizeError::Duration)?;
+        let video_samples = Arc::new(self.video_samples);
+        let rendered_content = if video_samples.is_empty() {
+            None
         } else {
-            let video_samples = Arc::new(mem::take(&mut self.video_samples));
-            Ok(PartFinalized {
-                muxer_start_time: self.muxer_start_time,
-                id: self.id,
-                is_independent: self.is_independent,
-                video_samples: video_samples.clone(),
-                rendered_duration: self.duration().ok_or(PartFinalizeError::Duration)?,
-                rendered_content: Some(generate_part(
-                    //self.muxer_start_time,
-                    video_samples,
-                )?),
-            })
-        }
+            Some(generate_part(
+                //self.muxer_start_time,
+                video_samples.clone(),
+            )?)
+        };
+
+        Ok(PartFinalized {
+            muxer_start_time: self.muxer_start_time,
+            id: self.id,
+            is_independent: self.is_independent,
+            video_samples: video_samples.clone(),
+            rendered_duration,
+            rendered_content,
+        })
     }
 
     pub fn write_h264(&mut self, sample: VideoSample) {

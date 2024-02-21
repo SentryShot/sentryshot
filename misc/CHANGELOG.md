@@ -1,5 +1,7 @@
 ## unreleased
 
+-   hls: fix missing part duration
+
 ## `v0.2.0`
 
 -   BREAKING: update toolchain to Rust 1.75

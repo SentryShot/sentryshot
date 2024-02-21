@@ -859,7 +859,7 @@ pub fn primary_playlist(codec: &str) -> MuxerFileResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::new_dummy_logger;
+    use common::DummyLogger;
     use pretty_assertions::assert_eq;
     use tokio::io::AsyncReadExt;
 
@@ -884,7 +884,7 @@ stream.m3u8
     fn new_empty_playlist_state() -> PlaylistState {
         PlaylistState {
             token: CancellationToken::new(),
-            logger: new_dummy_logger(),
+            logger: DummyLogger::new(),
             segment_count: 0,
             segments: VecDeque::new(),
             segment_delete_count: 0,

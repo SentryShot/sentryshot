@@ -535,7 +535,7 @@ mod tests {
     use bytesize::ByteSize;
     use common::{
         monitor::{Config, Protocol, SelectedSource, SourceConfig, SourceRtspConfig},
-        new_dummy_logger, NonZeroGb, ParseMonitorIdError,
+        DummyLogger, NonZeroGb, ParseMonitorIdError,
     };
     use pretty_assertions::assert_eq;
     use serde_json::json;
@@ -639,10 +639,10 @@ mod tests {
         let manager = MonitorManager::new(
             config_dir.clone(),
             StubEnvConfig::empty(),
-            new_dummy_logger(),
+            DummyLogger::new(),
             //nil,
             //&Hooks{Migrate: func(RawConfig) error { return nil }},
-            Arc::new(HlsServer::new(token, new_dummy_logger())),
+            Arc::new(HlsServer::new(token, DummyLogger::new())),
         )
         .unwrap();
 
@@ -662,8 +662,8 @@ mod tests {
         let manager = MonitorManager::new(
             config_dir.clone(),
             StubEnvConfig::empty(),
-            new_dummy_logger(),
-            Arc::new(HlsServer::new(token, new_dummy_logger())),
+            DummyLogger::new(),
+            Arc::new(HlsServer::new(token, DummyLogger::new())),
         )
         .unwrap();
 
@@ -683,10 +683,10 @@ mod tests {
             MonitorManager::new(
                 config_dir,
                 StubEnvConfig::empty(),
-                new_dummy_logger(),
+                DummyLogger::new(),
                 //&video.Server{},
                 //&Hooks{Migrate: func(RawConfig) error { return nil }},
-                Arc::new(HlsServer::new(token, new_dummy_logger())),
+                Arc::new(HlsServer::new(token, DummyLogger::new())),
             ),
             Err(NewMonitorManagerError::Deserialize(..))
         ));

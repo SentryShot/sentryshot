@@ -376,9 +376,11 @@ impl Deref for NonEmptyString {
 
 pub struct DummyLogger;
 
-#[must_use]
-pub fn new_dummy_logger() -> Arc<DummyLogger> {
-    Arc::new(DummyLogger {})
+impl DummyLogger {
+    #[must_use]
+    pub fn new() -> Arc<Self> {
+        Arc::new(DummyLogger {})
+    }
 }
 
 impl ILogger for DummyLogger {

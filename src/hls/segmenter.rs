@@ -14,11 +14,27 @@ use std::{collections::HashSet, sync::Arc};
 pub struct H264Writer(Segmenter);
 
 impl H264Writer {
+    #[must_use]
     pub fn new(segmenter: Segmenter) -> Self {
         Self(segmenter)
     }
     pub async fn write_h264(&mut self, data: H264Data) -> Result<(), SegmenterWriteH264Error> {
         self.0.write_h264(data).await
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::unwrap_used)]
+    pub async fn test_write(&mut self, pts: i64, avcc: Vec<u8>, random_access: bool) {
+        use sentryshot_padded_bytes::PaddedBytes;
+
+        self.write_h264(H264Data {
+            pts: DurationH264::new(pts),
+            dts: DurationH264::new(pts),
+            avcc: Arc::new(PaddedBytes::new(avcc)),
+            random_access_present: random_access,
+        })
+        .await
+        .unwrap();
     }
 }
 

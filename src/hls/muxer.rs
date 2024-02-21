@@ -10,6 +10,7 @@ use common::{time::DurationH264, DynLogger, SegmentFinalized, TrackParameters};
 use http::{HeaderName, HeaderValue, StatusCode};
 use std::{
     collections::HashMap,
+    fmt::Formatter,
     io::Cursor,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
@@ -18,7 +19,7 @@ use tokio::{io::AsyncRead, sync::Mutex};
 use tokio_util::sync::CancellationToken;
 
 impl std::fmt::Debug for MuxerFileResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {:?}", self.status, self.headers)
     }
 }
@@ -150,6 +151,22 @@ pub struct MuxerFileResponse {
     pub status: StatusCode,
     pub headers: Option<HashMap<HeaderName, HeaderValue>>,
     pub body: Option<Box<dyn AsyncRead + Send + Unpin>>,
+}
+
+impl MuxerFileResponse {
+    #[cfg(test)]
+    #[allow(clippy::unwrap_used)]
+    pub async fn print(mut self) -> String {
+        use tokio::io::AsyncReadExt;
+        let body = if let Some(body) = &mut self.body {
+            let mut buf = "\n".to_owned();
+            body.read_to_string(&mut buf).await.unwrap();
+            buf
+        } else {
+            String::new()
+        };
+        format!("{}\n{:?}{}", self.status, self.headers, body)
+    }
 }
 
 pub const MUXER_FILE_RESPONSE_CANCELLED: MuxerFileResponse = MuxerFileResponse {

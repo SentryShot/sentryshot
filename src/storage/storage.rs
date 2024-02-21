@@ -414,7 +414,7 @@ async fn delete_recording(
 mod tests {
     use super::*;
     use bytesize::{ByteSize, MB, TB};
-    use common::{new_dummy_logger, time::SECOND};
+    use common::{time::SECOND, DummyLogger};
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use test_case::test_case;
@@ -563,7 +563,7 @@ mod tests {
                 cache: Mutex::new(None),
                 update_lock: Mutex::new(()),
             }),
-            logger: new_dummy_logger(),
+            logger: DummyLogger::new(),
         };
 
         write_empty_dirs(temp_dir.path(), before);

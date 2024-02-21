@@ -451,7 +451,7 @@ pub fn log_failed_login(logger: &DynLogger, username: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::new_dummy_logger;
+    use common::DummyLogger;
     use pretty_assertions::assert_eq;
     use std::fs::File;
     use tempfile::{tempdir, TempDir};
@@ -502,7 +502,7 @@ mod tests {
         let auth = BasicAuth {
             data: Mutex::new(data),
             hash_lock: Mutex::new(()),
-            logger: new_dummy_logger(),
+            logger: DummyLogger::new(),
             rt_handle: tokio::runtime::Handle::current(),
         };
         (temp_dir, auth)
