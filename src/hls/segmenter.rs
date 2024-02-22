@@ -9,17 +9,24 @@ use common::{
     H264Data, VideoSample,
 };
 use std::{collections::HashSet, sync::Arc};
+use tokio_util::sync::DropGuard;
 
-// Opaque wrapper around segmenter.
-pub struct H264Writer(Segmenter);
+// Opaque wrapper around segmenter that will cancel the muxer when dropped.
+pub struct H264Writer {
+    segmenter: Segmenter,
+    _guard: DropGuard,
+}
 
 impl H264Writer {
     #[must_use]
-    pub fn new(segmenter: Segmenter) -> Self {
-        Self(segmenter)
+    pub fn new(segmenter: Segmenter, guard: DropGuard) -> Self {
+        Self {
+            segmenter,
+            _guard: guard,
+        }
     }
     pub async fn write_h264(&mut self, data: H264Data) -> Result<(), SegmenterWriteH264Error> {
-        self.0.write_h264(data).await
+        self.segmenter.write_h264(data).await
     }
 
     #[cfg(test)]

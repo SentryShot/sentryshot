@@ -66,12 +66,12 @@ impl HlsMuxer {
         );
 
         let muxer = Self {
-            token,
+            token: token.clone(),
             playlist,
             params,
             init_content: Mutex::new(Bytes::new()),
         };
-        (muxer, H264Writer::new(segmenter))
+        (muxer, H264Writer::new(segmenter, token.drop_guard()))
     }
 
     pub fn cancel(&self) {

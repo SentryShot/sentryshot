@@ -213,7 +213,7 @@ impl SourceRtsp {
 
                 tokio::select! {
                     () = token2.cancelled() => {}
-                    () = tokio::time::sleep(tokio::time::Duration::from_secs(20)) => {}
+                    () = tokio::time::sleep(tokio::time::Duration::from_secs(10)) => {}
                 }
             }
         });
