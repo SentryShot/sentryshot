@@ -79,58 +79,25 @@ fn part_target_duration(
     ret
 }
 
-struct PlaylistState {
-    token: CancellationToken,
-    logger: DynLogger,
-    segment_count: usize,
-    segments: VecDeque<SegmentOrGap>,
-    segment_delete_count: usize,
-    parts_by_name: HashMap<String, Arc<PartFinalized>>,
-    next_segment_id: u64,
-    next_segment_parts: Vec<Arc<PartFinalized>>,
-    next_part_id: u64,
-
-    playlists_on_hold: Vec<BlockingPlaylistRequest>,
-    parts_on_hold: Vec<BlockingPartRequest>,
-    seg_final_on_hold: Vec<oneshot::Sender<()>>,
-    next_segments_on_hold: Vec<NextSegmentRequest>,
-}
-
 #[derive(Debug)]
 #[allow(clippy::struct_field_names)]
 pub struct Playlist {
-    playlist_tx: mpsc::Sender<PlaylistRequest>,
-    segment_tx: mpsc::Sender<SegmentRequest>,
-    segment_finalized_tx: mpsc::Sender<SegmentFinalizedRequest>,
-    part_finalized_tx: mpsc::Sender<PartFinalizedRequest>,
-    blocking_playlist_tx: mpsc::Sender<BlockingPlaylistRequest>,
-    blocking_part_tx: mpsc::Sender<BlockingPartRequest>,
-    next_segment_tx: mpsc::Sender<NextSegmentRequest>,
-    //wait_for_seg_final_tx: mpsc::Sender<oneshot::Sender<()>>,
-    #[cfg(test)]
-    debug_state_tx: mpsc::Sender<oneshot::Sender<PlaylistDebugState>>,
+    tx: mpsc::Sender<Request>,
 }
 
 impl Playlist {
     #[allow(clippy::too_many_lines)]
     pub fn new(token: CancellationToken, logger: DynLogger, segment_count: usize) -> Self {
-        let (playlist_tx, mut playlist_rx) = mpsc::channel::<PlaylistRequest>(1);
-        let (segment_tx, mut segment_rx) = mpsc::channel::<SegmentRequest>(1);
-        let (segment_finalized_tx, mut segment_finalized_rx) =
-            mpsc::channel::<SegmentFinalizedRequest>(1);
-        let (part_finalized_tx, mut part_finalized_rx) = mpsc::channel::<PartFinalizedRequest>(1);
-        let (blocking_playlist_tx, mut blocking_playlist_rx) =
-            mpsc::channel::<BlockingPlaylistRequest>(1);
-        let (blocking_part_tx, mut blocking_part_rx) = mpsc::channel::<BlockingPartRequest>(1);
-        let (next_segment_tx, mut next_segment_rx) = mpsc::channel::<NextSegmentRequest>(1);
-        //let (wait_for_seg_final_tx, mut wait_for_seg_final_rx) = mpsc::channel(1);
-        #[allow(unused)]
-        let (debug_state_tx, mut debug_state_rx) =
-            mpsc::channel::<oneshot::Sender<PlaylistDebugState>>(1);
+        let (tx, rx) = mpsc::channel::<Request>(1);
+
+        let tx2 = tx.clone();
+        tokio::spawn(async move {
+            token.cancelled().await;
+            let _ = tx2.send(Request::Cancelled).await;
+        });
 
         tokio::spawn(async move {
-            let mut state = PlaylistState {
-                token,
+            PlaylistState {
                 logger: logger.clone(),
                 segment_count,
                 segments: VecDeque::new(),
@@ -144,221 +111,12 @@ impl Playlist {
                 parts_on_hold: Vec::new(),
                 seg_final_on_hold: Vec::new(),
                 next_segments_on_hold: Vec::new(),
-            };
-
-            loop {
-                tokio::select! {
-                    () = state.token.cancelled() => {
-                        return;
-                    }
-                    req = playlist_rx.recv() => {
-                        let Some(req) = req else {
-                            return
-                        };
-
-                        if !state.has_content() {
-                            _ = req.res_tx.send(MuxerFileResponse{
-                                status: StatusCode::NOT_FOUND,
-                                headers: None,
-                                body: None,
-                            });
-                            continue
-                        }
-
-                        let body = match state.full_playlist(req.is_delta_update) {
-                            Ok(v) => v,
-                            Err(e) => {
-                                state.log(LogLevel::Error, &format!("full playlist: {e}"));
-                                _ = req.res_tx.send(MUXER_FILE_RESPONSE_ERROR);
-                                continue
-                            },
-                        };
-
-                        _ = req.res_tx.send(MuxerFileResponse{
-                            status: StatusCode::OK,
-                            #[allow(clippy::unwrap_used)]
-                            headers: Some(HashMap::from([(
-                                HeaderName::from_bytes(b"Content-Type").unwrap(),
-                                HeaderValue::from_str("application/x-mpegURL").unwrap(),
-                            )])),
-                            body: Some(Box::new(Cursor::new(body))),
-                        });
-                    }
-
-                    req = segment_rx.recv() => {
-                        let Some(req) = req else {
-                            return
-                        };
-
-                        let Some(segment) = state.segment_by_name(&req.name) else {
-                            _ = req.res_tx.send(MUXER_FILE_RESPONSE_NOT_FOUND);
-                            continue
-                        };
-
-                        _ = req.res_tx.send(MuxerFileResponse{
-                            status: StatusCode::OK,
-                            headers: Some(HashMap::from([(
-                                #[allow(clippy::unwrap_used)]
-                                HeaderName::from_bytes(b"Content-Type").unwrap(),
-                                #[allow(clippy::unwrap_used)]
-                                HeaderValue::from_str("video/mp4").unwrap()
-                            )])),
-                            body: Some(segment.reader()),
-                        });
-                    }
-
-                    req = segment_finalized_rx.recv() => {
-                        let Some(req) = req else {
-                            return
-                        };
-
-
-                        state.segment_finalized(&req.segment);
-                        _ = req.done_tx.send(());
-                    }
-
-                    req = part_finalized_rx.recv() => {
-                        let Some(req) = req else {
-                            return
-                        };
-
-                        let part = req.part;
-                        state.parts_by_name.insert(part.name(), part.clone());
-                        state.next_segment_parts.push(part.clone());
-                        state.next_part_id = part.id + 1;
-
-                        state.check_pending();
-                        _ = req.done_tx.send(());
-                    }
-
-                    req = blocking_playlist_rx.recv() => {
-                        // If the _HLS_msn is greater than the Media Sequence Number of the last
-                        // Media Segment in the current Playlist plus two, or if the _HLS_part
-                        // exceeds the last Partial Segment in the current Playlist by the
-                        // Advance Part Limit, then the server SHOULD immediately return Bad
-                        // Request, such as HTTP 400.
-                        let Some(req) = req else {
-                            return
-                        };
-
-                        if req.msn > (state.next_segment_id + 1) {
-                            _ = req.res_tx.send(MUXER_FILE_RESPONSE_BAD_REQUEST);
-
-                            continue;
-                        }
-
-                        if !state.has_content() || !state.has_part(req.msn, req.part) {
-                            state.playlists_on_hold.push(req);
-
-                            continue
-                        }
-
-                        let body = match state.full_playlist(req.is_delta_update) {
-                            Ok(v) => v,
-                            Err(e) => {
-                                state.log(LogLevel::Error, &format!("full playlist: {e}"));
-                                _ = req.res_tx.send(MUXER_FILE_RESPONSE_ERROR);
-
-                                continue
-                            },
-                        };
-
-                        _ = req.res_tx.send(MuxerFileResponse{
-                            status: StatusCode::OK,
-                            headers: Some(HashMap::from([(
-                                #[allow(clippy::unwrap_used)]
-                                HeaderName::from_bytes(b"Content-Type").unwrap(),
-                                #[allow(clippy::unwrap_used)]
-                                HeaderValue::from_str("application/x-mpegURL").unwrap()
-                            )])),
-                            body: Some(Box::new(Cursor::new(body))),
-                        });
-
-                    }
-
-                    req = blocking_part_rx.recv()  => {
-                        let Some(mut req) = req else {
-                            return
-                        };
-
-
-                        let base = req.part_name.strip_suffix(".mp4").expect("part_name to have suffix");
-                        #[allow(clippy::unwrap_used)]
-                        if let Some(part) = state.parts_by_name.get(base) {
-                            _ = req.res_tx.send(MuxerFileResponse{
-                                status: StatusCode::OK,
-                                headers: Some(HashMap::from([(
-                                    HeaderName::from_bytes(b"Content-Type").unwrap(),
-                                    HeaderValue::from_str("video/mp4").unwrap()
-                                )])),
-                                body: Some(part.reader()),
-                            });
-                            continue;
-                        }
-
-                        if req.part_name == part_name(state.next_part_id) {
-                            req.part_id = state.next_part_id;
-                            state.parts_on_hold.push(req);
-                            continue;
-                        }
-
-                        _ = req.res_tx.send(MUXER_FILE_RESPONSE_NOT_FOUND);
-                    }
-
-                    req = next_segment_rx.recv() => {
-                       let Some(req) = req else {
-                            return
-                        };
-                        let seg = || {
-                            for sog in &state.segments {
-                                let SegmentOrGap::Segment(seg) = sog else {
-                                    continue;
-                                };
-                                if req.prev_id < seg.id() || req.prev_id >= state.next_segment_id {
-                                    return Some(seg.clone())
-                                }
-                            }
-                            None
-                        };
-                        if let Some(seg) = seg() {
-                            req.res_tx.send(seg).expect("sender should still be alive");
-                        } else {
-                            state.next_segments_on_hold.push(req);
-                        }
-                    }
-
-                    /*req = wait_for_seg_final_rx.recv() => {
-
-                        let Some(req) = req else {
-                            state.cleanup();
-                            return
-                        };
-                        state.seg_final_on_hold.push(req);
-                    }*/
-
-                    req = debug_state_rx.recv() => {
-                        #[allow(clippy::unwrap_used)]
-                        req.unwrap().send(PlaylistDebugState{
-                            num_playlists_on_hold: state.playlists_on_hold.len(),
-                        }).unwrap();
-                    }
-
-                }
             }
+            .start_actor(rx)
+            .await;
         });
 
-        Self {
-            playlist_tx,
-            segment_tx,
-            segment_finalized_tx,
-            part_finalized_tx,
-            blocking_playlist_tx,
-            blocking_part_tx,
-            next_segment_tx,
-            //wait_for_seg_final_tx,
-            #[cfg(test)]
-            debug_state_tx,
-        }
+        Self { tx }
     }
 
     pub async fn on_segment_finalized(&self, segment: SegmentFinalized) {
@@ -368,7 +126,7 @@ impl Playlist {
             done_tx,
         };
 
-        if self.segment_finalized_tx.send(req).await.is_err() {
+        if self.tx.send(Request::SegmentFinalized(req)).await.is_err() {
             // Cancelled.
             return;
         };
@@ -404,7 +162,7 @@ impl Playlist {
                 res_tx,
             };
 
-            if self.blocking_playlist_tx.send(req).await.is_err() {
+            if self.tx.send(Request::BlockingPlaylist(req)).await.is_err() {
                 return MUXER_FILE_RESPONSE_CANCELLED;
             }
             let Ok(res) = res_rx.await else {
@@ -419,7 +177,7 @@ impl Playlist {
             res_tx,
         };
 
-        if self.playlist_tx.send(req).await.is_err() {
+        if self.tx.send(Request::Playlist(req)).await.is_err() {
             return MUXER_FILE_RESPONSE_CANCELLED;
         }
         let Ok(res) = res_rx.await else {
@@ -441,7 +199,7 @@ impl Playlist {
                 res_tx,
             };
 
-            if self.segment_tx.send(req).await.is_err() {
+            if self.tx.send(Request::Segment(req)).await.is_err() {
                 return MUXER_FILE_RESPONSE_CANCELLED;
             }
             let Ok(res) = res_rx.await else {
@@ -457,7 +215,7 @@ impl Playlist {
                 res_tx,
             };
 
-            if self.blocking_part_tx.send(req).await.is_err() {
+            if self.tx.send(Request::BlockingPart(req)).await.is_err() {
                 return MUXER_FILE_RESPONSE_CANCELLED;
             }
             let Ok(res) = res_rx.await else {
@@ -465,7 +223,6 @@ impl Playlist {
             };
             return res;
         }
-
         MUXER_FILE_RESPONSE_NOT_FOUND
     }
 
@@ -473,7 +230,7 @@ impl Playlist {
         let (done_tx, done_rx) = oneshot::channel();
         let req = PartFinalizedRequest { part, done_tx };
 
-        if self.part_finalized_tx.send(req).await.is_err() {
+        if self.tx.send(Request::PartFinalized(req)).await.is_err() {
             return Err(Cancelled);
         }
         if done_rx.await.is_err() {
@@ -487,7 +244,7 @@ impl Playlist {
         let (res_tx, res_rx) = oneshot::channel();
         let req = NextSegmentRequest { prev_id, res_tx };
 
-        if self.next_segment_tx.send(req).await.is_err() {
+        if self.tx.send(Request::NextSegment(req)).await.is_err() {
             return None;
         };
         let Ok(res) = res_rx.await else {
@@ -497,48 +254,38 @@ impl Playlist {
         Some(res)
     }
 
-    /*pub async fn wait_for_seg_finalized(&self) {
-        let (done_tx, done_rx) = oneshot::channel();
-        self.wait_for_seg_final_tx.send(done_tx).await.unwrap();
-        done_rx.await.unwrap();
-    }*/
-
     #[cfg(test)]
     #[allow(clippy::unwrap_used)]
     pub async fn debug_state(&self) -> PlaylistDebugState {
         let (res_tx, res_rx) = oneshot::channel();
-        self.debug_state_tx.send(res_tx).await.unwrap();
+        self.tx.send(Request::DebugState(res_tx)).await.unwrap();
         res_rx.await.unwrap()
     }
 }
 
 #[derive(Debug)]
-struct BlockingPlaylistRequest {
+enum Request {
+    Playlist(PlaylistRequest),
+    Segment(SegmentRequest),
+    SegmentFinalized(SegmentFinalizedRequest),
+    PartFinalized(PartFinalizedRequest),
+    BlockingPlaylist(BlockingPlaylistRequest),
+    BlockingPart(BlockingPartRequest),
+    NextSegment(NextSegmentRequest),
+    #[cfg(test)]
+    DebugState(oneshot::Sender<PlaylistDebugState>),
+    Cancelled,
+}
+
+#[derive(Debug)]
+struct PlaylistRequest {
     is_delta_update: bool,
-    msn: u64,
-    part: u64,
-    res_tx: oneshot::Sender<MuxerFileResponse>,
-}
-
-struct SegmentRequest {
-    name: String,
-    res_tx: oneshot::Sender<MuxerFileResponse>,
-}
-
-struct BlockingPartRequest {
-    part_name: String,
-    part_id: u64,
     res_tx: oneshot::Sender<MuxerFileResponse>,
 }
 
 #[derive(Debug)]
-struct NextSegmentRequest {
-    prev_id: u64,
-    res_tx: oneshot::Sender<Arc<SegmentFinalized>>,
-}
-
-struct PlaylistRequest {
-    is_delta_update: bool,
+struct SegmentRequest {
+    name: String,
     res_tx: oneshot::Sender<MuxerFileResponse>,
 }
 
@@ -555,12 +302,212 @@ struct PartFinalizedRequest {
 }
 
 #[derive(Debug)]
+struct BlockingPlaylistRequest {
+    is_delta_update: bool,
+    msn: u64,
+    part: u64,
+    res_tx: oneshot::Sender<MuxerFileResponse>,
+}
+
+#[derive(Debug)]
+struct BlockingPartRequest {
+    part_name: String,
+    part_id: u64,
+    res_tx: oneshot::Sender<MuxerFileResponse>,
+}
+
+#[derive(Debug)]
+struct NextSegmentRequest {
+    prev_id: u64,
+    res_tx: oneshot::Sender<Arc<SegmentFinalized>>,
+}
+
+#[derive(Debug)]
 #[allow(unused, clippy::module_name_repetitions)]
 pub struct PlaylistDebugState {
     pub num_playlists_on_hold: usize,
 }
 
+struct PlaylistState {
+    logger: DynLogger,
+    segment_count: usize,
+    segments: VecDeque<SegmentOrGap>,
+    segment_delete_count: usize,
+    parts_by_name: HashMap<String, Arc<PartFinalized>>,
+    next_segment_id: u64,
+    next_segment_parts: Vec<Arc<PartFinalized>>,
+    next_part_id: u64,
+
+    playlists_on_hold: Vec<BlockingPlaylistRequest>,
+    parts_on_hold: Vec<BlockingPartRequest>,
+    seg_final_on_hold: Vec<oneshot::Sender<()>>,
+    next_segments_on_hold: Vec<NextSegmentRequest>,
+}
+
 impl PlaylistState {
+    async fn start_actor(mut self, mut rx: mpsc::Receiver<Request>) {
+        loop {
+            let Some(req) = rx.recv().await else {
+                // Muxer was dropped.
+                return;
+            };
+
+            match req {
+                Request::Playlist(req) => {
+                    if !self.has_content() {
+                        _ = req.res_tx.send(MuxerFileResponse {
+                            status: StatusCode::NOT_FOUND,
+                            headers: None,
+                            body: None,
+                        });
+                        continue;
+                    }
+
+                    let body = match self.full_playlist(req.is_delta_update) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            self.log(LogLevel::Error, &format!("full playlist: {e}"));
+                            _ = req.res_tx.send(MUXER_FILE_RESPONSE_ERROR);
+                            continue;
+                        }
+                    };
+
+                    _ = req.res_tx.send(MuxerFileResponse {
+                        status: StatusCode::OK,
+                        #[allow(clippy::unwrap_used)]
+                        headers: Some(HashMap::from([(
+                            HeaderName::from_bytes(b"Content-Type").unwrap(),
+                            HeaderValue::from_str("application/x-mpegURL").unwrap(),
+                        )])),
+                        body: Some(Box::new(Cursor::new(body))),
+                    });
+                }
+                Request::Segment(req) => {
+                    let Some(segment) = self.segment_by_name(&req.name) else {
+                        _ = req.res_tx.send(MUXER_FILE_RESPONSE_NOT_FOUND);
+                        continue;
+                    };
+
+                    _ = req.res_tx.send(MuxerFileResponse {
+                        status: StatusCode::OK,
+                        headers: Some(HashMap::from([(
+                            #[allow(clippy::unwrap_used)]
+                            HeaderName::from_bytes(b"Content-Type").unwrap(),
+                            #[allow(clippy::unwrap_used)]
+                            HeaderValue::from_str("video/mp4").unwrap(),
+                        )])),
+                        body: Some(segment.reader()),
+                    });
+                }
+                Request::SegmentFinalized(req) => {
+                    self.segment_finalized(&req.segment);
+                    _ = req.done_tx.send(());
+                }
+                Request::PartFinalized(req) => {
+                    let part = req.part;
+                    self.parts_by_name.insert(part.name(), part.clone());
+                    self.next_segment_parts.push(part.clone());
+                    self.next_part_id = part.id + 1;
+
+                    self.check_pending();
+                    _ = req.done_tx.send(());
+                }
+                Request::BlockingPlaylist(req) => {
+                    // If the _HLS_msn is greater than the Media Sequence Number of the last
+                    // Media Segment in the current Playlist plus two, or if the _HLS_part
+                    // exceeds the last Partial Segment in the current Playlist by the
+                    // Advance Part Limit, then the server SHOULD immediately return Bad
+                    // Request, such as HTTP 400.
+                    if req.msn > (self.next_segment_id + 1) {
+                        _ = req.res_tx.send(MUXER_FILE_RESPONSE_BAD_REQUEST);
+                        continue;
+                    }
+
+                    if !self.has_content() || !self.has_part(req.msn, req.part) {
+                        self.playlists_on_hold.push(req);
+                        continue;
+                    }
+
+                    let body = match self.full_playlist(req.is_delta_update) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            self.log(LogLevel::Error, &format!("full playlist: {e}"));
+                            _ = req.res_tx.send(MUXER_FILE_RESPONSE_ERROR);
+                            continue;
+                        }
+                    };
+
+                    _ = req.res_tx.send(MuxerFileResponse {
+                        status: StatusCode::OK,
+                        headers: Some(HashMap::from([(
+                            #[allow(clippy::unwrap_used)]
+                            HeaderName::from_bytes(b"Content-Type").unwrap(),
+                            #[allow(clippy::unwrap_used)]
+                            HeaderValue::from_str("application/x-mpegURL").unwrap(),
+                        )])),
+                        body: Some(Box::new(Cursor::new(body))),
+                    });
+                }
+                Request::BlockingPart(mut req) => {
+                    let base = req
+                        .part_name
+                        .strip_suffix(".mp4")
+                        .expect("part_name to have suffix");
+                    #[allow(clippy::unwrap_used)]
+                    if let Some(part) = self.parts_by_name.get(base) {
+                        _ = req.res_tx.send(MuxerFileResponse {
+                            status: StatusCode::OK,
+                            headers: Some(HashMap::from([(
+                                HeaderName::from_bytes(b"Content-Type").unwrap(),
+                                HeaderValue::from_str("video/mp4").unwrap(),
+                            )])),
+                            body: Some(part.reader()),
+                        });
+                        continue;
+                    }
+
+                    if req.part_name == part_name(self.next_part_id) {
+                        req.part_id = self.next_part_id;
+                        self.parts_on_hold.push(req);
+                        continue;
+                    }
+
+                    _ = req.res_tx.send(MUXER_FILE_RESPONSE_NOT_FOUND);
+                }
+                Request::NextSegment(req) => {
+                    let seg = || {
+                        for sog in &self.segments {
+                            let SegmentOrGap::Segment(seg) = sog else {
+                                continue;
+                            };
+                            if req.prev_id < seg.id() || req.prev_id >= self.next_segment_id {
+                                return Some(seg.clone());
+                            }
+                        }
+                        None
+                    };
+                    if let Some(seg) = seg() {
+                        req.res_tx.send(seg).expect("sender should still be alive");
+                    } else {
+                        self.next_segments_on_hold.push(req);
+                    }
+                }
+                #[cfg(test)]
+                Request::DebugState(req) => {
+                    #[allow(clippy::unwrap_used)]
+                    req.send(PlaylistDebugState {
+                        num_playlists_on_hold: self.playlists_on_hold.len(),
+                    })
+                    .unwrap();
+                }
+                Request::Cancelled => {
+                    // Token was cancelled.
+                    return;
+                }
+            };
+        }
+    }
+
     fn log(&self, level: LogLevel, msg: &str) {
         self.logger.log(LogEntry::new(
             level,
@@ -911,7 +858,6 @@ stream.m3u8
 
     fn new_empty_playlist_state() -> PlaylistState {
         PlaylistState {
-            token: CancellationToken::new(),
             logger: DummyLogger::new(),
             segment_count: 0,
             segments: VecDeque::new(),

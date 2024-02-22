@@ -1,7 +1,6 @@
 ## unreleased
 
--   hls: fix added delay with multiple clients
--   hls: fix missing part duration
+-   fix extra live feed delay with multiple clients
 
 ## `v0.2.0`
 
