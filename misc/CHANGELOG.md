@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.1`
+
 -   fix extra live feed delay with multiple clients
 
 ## `v0.2.0`
