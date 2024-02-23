@@ -1,5 +1,7 @@
 ## unreleased
 
+-   fix broken recoder recovery #14
+
 ## `v0.2.1`
 
 -   fix extra live feed delay with multiple clients

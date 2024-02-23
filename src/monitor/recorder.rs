@@ -208,6 +208,9 @@ async fn run_recording_session(
 ) {
     loop {
         if let Err(e) = run_recording(c.clone()).await {
+            // Reset prev_seg if the recorder encountered any error.
+            *c.prev_seg.lock().await = 0;
+
             if !matches!(e, RunRecordingError::Cancelled(_)) {
                 c.logger
                     .log(LogLevel::Error, &format!("recording crashed: {e}"));
