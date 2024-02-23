@@ -24,7 +24,6 @@ impl std::fmt::Debug for MuxerFileResponse {
     }
 }
 
-#[derive(Debug)]
 #[allow(clippy::module_name_repetitions)]
 pub struct HlsMuxer {
     token: CancellationToken,
