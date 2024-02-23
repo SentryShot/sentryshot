@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.2`
+
 -   fix broken recoder recovery #14
 
 ## `v0.2.1`
