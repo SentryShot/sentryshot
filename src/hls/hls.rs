@@ -7,21 +7,21 @@ mod segment;
 mod segmenter;
 mod types;
 
-pub use crate::error::SegmenterWriteH264Error;
-pub use error::ParseParamsError;
-pub use muxer::{HlsMuxer, NextSegmentGetter};
-pub use segmenter::H264Writer;
-pub use types::{track_params_from_video_params, VIDEO_TRACK_ID};
-
 use crate::error::PartHlsQueryError;
+pub use crate::error::SegmenterWriteH264Error;
 use common::{
     time::{DurationH264, H264_MILLISECOND},
     Cancelled, DynLogger, TrackParameters,
 };
+pub use error::ParseParamsError;
+pub use muxer::{HlsMuxer, NextSegmentGetter};
+pub use segmenter::H264Writer;
 use serde::Deserialize;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
+use types::MuxerIdCounter;
+pub use types::{track_params_from_video_params, VIDEO_TRACK_ID};
 
 pub struct HlsServer {
     new_muxer_tx: mpsc::Sender<NewMuxerRequest>,
@@ -35,6 +35,7 @@ impl HlsServer {
 
         tokio::spawn(async move {
             let mut muxers: HashMap<String, Arc<HlsMuxer>> = HashMap::new();
+            let mut muxer_id_counter = MuxerIdCounter::new();
             loop {
                 tokio::select! {
                     () = token.cancelled() => return,
@@ -55,6 +56,7 @@ impl HlsServer {
                             HLS_PART_DURATION,
                             HLS_SEGMENT_MAX_SIZE,
                             req.params,
+                            muxer_id_counter.next_id(),
                         );
 
                         let muxer = Arc::new(muxer);
@@ -211,7 +213,7 @@ impl<'de> Deserialize<'de> for HlsQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::DummyLogger;
+    use common::{DummyLogger, HlsMuxer};
     use pretty_assertions::assert_eq;
 
     #[tokio::test]
@@ -366,21 +368,64 @@ seg7.mp4
         assert_eq!(muxer.playlist_state().await.num_playlists_on_hold, 0);
     }
 
-    /*async fn get_index(muxer: &HlsMuxer) -> String {
-        muxer
-            .file(
-                "index.m3u8",
-                &HlsQuery {
-                    msn_and_part: None,
-                    is_delta_update: false,
-                },
-            )
-            .await
-            .print()
-            .await
-    }*/
+    #[tokio::test]
+    async fn test_next_segment() {
+        let token = CancellationToken::new();
+        let server = HlsServer::new(token.clone(), DummyLogger::new());
 
-    async fn get_playlist(muxer: &HlsMuxer, opts: Option<(u64, u64, bool)>) -> String {
+        let params = TrackParameters {
+            width: 64,
+            height: 64,
+            codec: "test_codec".to_owned(),
+            extra_data: Vec::new(),
+        };
+
+        let (muxer, mut writer) = server
+            .new_muxer(token.clone(), "test".to_owned(), params.clone())
+            .await
+            .unwrap();
+
+        assert_eq!(muxer.playlist_state().await.num_segments, 0);
+
+        writer.test_write(0, Vec::new(), true).await;
+        writer.test_write(1_000_000, Vec::new(), true).await;
+        writer.test_write(2_000_000, Vec::new(), true).await;
+        writer.test_write(3_000_000, Vec::new(), true).await;
+
+        // 7, 8, 9
+        assert_eq!(muxer.playlist_state().await.num_segments, 3);
+
+        let seg7 = muxer.next_segment(None).await.unwrap();
+        assert_eq!(seg7.id(), 7);
+        let seg8 = muxer.next_segment(Some(&seg7)).await.unwrap();
+        assert_eq!(seg8.id(), 8);
+        let seg9 = muxer.next_segment(Some(&seg8)).await.unwrap();
+        assert_eq!(seg9.id(), 9);
+
+        // Attempt to use segments from a different muxer.
+        let (muxer2, mut writer2) = server
+            .new_muxer(token, "test".to_owned(), params)
+            .await
+            .unwrap();
+
+        let muxer3 = muxer2.clone();
+        let pending = tokio::spawn(async move { muxer3.next_segment(Some(&seg9)).await.unwrap() });
+
+        while muxer2.playlist_state().await.num_segments_on_hold != 1 {
+            tokio::task::yield_now().await;
+        }
+
+        writer2.test_write(0, Vec::new(), true).await;
+        writer2.test_write(1_000_000, Vec::new(), true).await;
+        writer2.test_write(2_000_000, Vec::new(), true).await;
+        writer2.test_write(3_000_000, Vec::new(), true).await;
+        assert_eq!(muxer2.playlist_state().await.num_segments, 3);
+
+        assert_eq!(pending.await.unwrap().id(), 7);
+        assert_eq!(muxer2.next_segment(Some(&seg8)).await.unwrap().id(), 7);
+    }
+
+    async fn get_playlist(muxer: &muxer::HlsMuxer, opts: Option<(u64, u64, bool)>) -> String {
         let query = {
             if let Some((msn, part, is_delta_update)) = opts {
                 HlsQuery {

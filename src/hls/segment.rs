@@ -13,6 +13,7 @@ use std::{mem, sync::Arc};
 #[allow(clippy::struct_field_names)]
 pub struct Segment {
     id: u64,
+    muxer_id: u16,
     start_time: UnixH264,
     start_dts: DurationH264,
     muxer_start_time: i64,
@@ -26,8 +27,10 @@ pub struct Segment {
 }
 
 impl Segment {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: u64,
+        muxer_id: u16,
         start_time: UnixH264,
         start_dts: DurationH264,
         muxer_start_time: i64,
@@ -38,6 +41,7 @@ impl Segment {
         let first_part_id = part_id_counter.next_id();
         Self {
             id,
+            muxer_id,
             start_time,
             start_dts,
             muxer_start_time,
@@ -98,6 +102,7 @@ impl Segment {
 
         Ok(SegmentFinalized::new(
             self.id,
+            self.muxer_id,
             self.start_time,
             self.name,
             self.parts,

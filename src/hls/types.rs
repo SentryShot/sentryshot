@@ -24,6 +24,20 @@ impl IdCounter {
     }
 }
 
+pub struct MuxerIdCounter(u16);
+
+impl MuxerIdCounter {
+    pub fn new() -> Self {
+        Self(0)
+    }
+
+    pub fn next_id(&mut self) -> u16 {
+        let id = self.0;
+        self.0 = self.0.wrapping_add(1);
+        id
+    }
+}
+
 pub fn track_params_from_video_params(
     params: &VideoParameters,
 ) -> Result<TrackParameters, ParseParamsError> {
@@ -43,6 +57,14 @@ mod tests {
     #[test]
     fn test_id_counter() {
         let mut counter = IdCounter::new(0);
+        assert_eq!(0, counter.next_id());
+        assert_eq!(1, counter.next_id());
+        assert_eq!(2, counter.next_id());
+    }
+
+    #[test]
+    fn test_muxer_id_counter() {
+        let mut counter = MuxerIdCounter::new();
         assert_eq!(0, counter.next_id());
         assert_eq!(1, counter.next_id());
         assert_eq!(2, counter.next_id());

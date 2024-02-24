@@ -60,7 +60,7 @@ pub fn new_recorder(
     tokio::spawn(async move {
         let shutdown_complete = shutdown_complete;
 
-        let prev_seg = Arc::new(Mutex::new(0));
+        let prev_seg = Arc::new(Mutex::new(None));
         let event_cache = Arc::new(EventCache::new());
 
         #[allow(clippy::items_after_statements)]
@@ -208,9 +208,6 @@ async fn run_recording_session(
 ) {
     loop {
         if let Err(e) = run_recording(c.clone()).await {
-            // Reset prev_seg if the recorder encountered any error.
-            *c.prev_seg.lock().await = 0;
-
             if !matches!(e, RunRecordingError::Cancelled(_)) {
                 c.logger
                     .log(LogLevel::Error, &format!("recording crashed: {e}"));
@@ -260,7 +257,7 @@ struct RecordingContext {
     hooks: DynMonitorHooks,
     logger: DynMsgLogger,
     source_main: Arc<Source>,
-    prev_seg: Arc<Mutex<u64>>,
+    prev_seg: Arc<Mutex<Option<Arc<SegmentFinalized>>>>,
     config: MonitorConfig,
     recordings_dir: PathBuf,
     event_cache: Arc<EventCache>,
@@ -276,7 +273,7 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
     let muxer = c.source_main.muxer().await?;
 
     let first_segment = muxer
-        .next_segment(*c.prev_seg.lock().await)
+        .next_segment(c.prev_seg.lock().await.as_deref())
         .await
         .ok_or(common::Cancelled)?;
 
@@ -335,12 +332,12 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
         c.token,
         &file_path,
         &muxer,
-        &first_segment,
+        first_segment,
         params,
         video_length.as_h264(),
     )
     .await?;
-    *c.prev_seg.lock().await = new_prev_seg;
+    *c.prev_seg.lock().await = Some(new_prev_seg);
 
     c.logger
         .log(LogLevel::Info, &format!("video generated: {rec_id:?}"));
@@ -383,10 +380,10 @@ async fn generate_video(
     token: CancellationToken,
     file_path: &Path,
     muxer: &DynHlsMuxer,
-    first_segment: &SegmentFinalized,
+    first_segment: Arc<SegmentFinalized>,
     params: &TrackParameters,
     max_duration: DurationH264,
-) -> Result<(u64, UnixH264), GenerateVideoError> {
+) -> Result<(Arc<SegmentFinalized>, UnixH264), GenerateVideoError> {
     use GenerateVideoError::*;
 
     let start_time = first_segment.start_time();
@@ -426,7 +423,8 @@ async fn generate_video(
     let mut w = VideoWriter::new(&mut meta, &mut mdat, header).await?;
 
     w.write_parts(first_segment.parts()).await?;
-    let mut prev_seg_id = first_segment.id();
+
+    let mut prev_seg = first_segment.clone();
     let mut end_time = first_segment
         .start_time()
         .checked_add_duration(first_segment.duration())
@@ -434,26 +432,26 @@ async fn generate_video(
 
     loop {
         if token.is_cancelled() {
-            return Ok((prev_seg_id, end_time));
+            return Ok((prev_seg, end_time));
         }
 
-        let Some(seg) = muxer.next_segment(prev_seg_id).await else {
-            return Ok((prev_seg_id, end_time));
+        let Some(seg) = muxer.next_segment(Some(&prev_seg)).await else {
+            return Ok((prev_seg, end_time));
         };
 
-        if seg.id() != prev_seg_id + 1 {
-            return Err(SkippedSegment(seg.id(), prev_seg_id + 1));
+        if seg.id() != prev_seg.id() + 1 {
+            return Err(SkippedSegment(seg.id(), prev_seg.id() + 1));
         }
 
+        prev_seg = seg.clone();
         w.write_parts(seg.parts()).await?;
-        prev_seg_id = seg.id();
         end_time = seg
             .start_time()
             .checked_add_duration(seg.duration())
             .ok_or(Add)?;
 
         if seg.start_time().after(stop_time) {
-            return Ok((prev_seg_id, end_time));
+            return Ok((seg, end_time));
         }
     }
 }

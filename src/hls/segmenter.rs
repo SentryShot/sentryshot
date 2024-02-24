@@ -50,6 +50,7 @@ pub struct Segmenter {
     part_duration: DurationH264,
     segment_max_size: u64,
     playlist: Arc<Playlist>,
+    muxer_id: u16,
 
     muxer_start_time: i64,
     //last_video_params: Vec<Vec<u8>>,
@@ -69,6 +70,7 @@ impl Segmenter {
         part_duration: DurationH264,
         segment_max_size: u64,
         playlist: Arc<Playlist>,
+        muxer_id: u16,
     ) -> Self {
         Self {
             segment_duration,
@@ -76,6 +78,7 @@ impl Segmenter {
             segment_max_size,
             playlist,
             muxer_start_time,
+            muxer_id,
             //last_video_params: Vec::new(),
             current_segment: None,
             segment_id_counter: IdCounter::new(7), // 7 required by iOS.
@@ -145,9 +148,9 @@ impl Segmenter {
                 current_segment
             } else {
                 // create first segment.
-                let next_segment_id = self.segment_id_counter.next_id();
                 self.current_segment.insert(Segment::new(
-                    next_segment_id,
+                    self.segment_id_counter.next_id(),
+                    self.muxer_id,
                     sample_ntp,
                     sample_dts,
                     self.muxer_start_time,
@@ -180,6 +183,7 @@ impl Segmenter {
             {
                 let next_segment = Segment::new(
                     self.segment_id_counter.next_id(),
+                    self.muxer_id,
                     sample_ntp,
                     sample_dts,
                     self.muxer_start_time,

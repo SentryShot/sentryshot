@@ -81,12 +81,18 @@ fn part_target_duration(
 
 #[allow(clippy::struct_field_names)]
 pub struct Playlist {
+    muxer_id: u16,
     state: Arc<Mutex<PlaylistState>>,
 }
 
 impl Playlist {
     #[allow(clippy::too_many_lines)]
-    pub fn new(token: CancellationToken, logger: DynLogger, segment_count: usize) -> Self {
+    pub fn new(
+        token: CancellationToken,
+        logger: DynLogger,
+        segment_count: usize,
+        muxer_id: u16,
+    ) -> Self {
         let state = Arc::new(Mutex::new(PlaylistState {
             is_cancelled: false,
             logger,
@@ -118,7 +124,7 @@ impl Playlist {
             state.playlists_on_hold.clear();
         });
 
-        Self { state }
+        Self { muxer_id, state }
     }
 
     async fn get_state_lock(&self) -> Result<MutexGuard<PlaylistState>, Cancelled> {
@@ -337,17 +343,29 @@ impl Playlist {
     }
 
     #[allow(clippy::similar_names)]
-    pub async fn next_segment(&self, prev_id: u64) -> Option<Arc<SegmentFinalized>> {
+    pub async fn next_segment(
+        &self,
+        prev_seg: Option<&SegmentFinalized>,
+    ) -> Option<Arc<SegmentFinalized>> {
         let res_rx: oneshot::Receiver<Arc<SegmentFinalized>>;
         {
             let mut state = self.get_state_lock().await.ok()?;
+
+            let prev_id = match prev_seg {
+                Some(seg)
+                    if seg.muxer_id() == self.muxer_id && seg.id() < state.next_segment_id =>
+                {
+                    seg.id()
+                }
+                Some(_) | None => 0,
+            };
 
             let seg = || {
                 for sog in &state.segments {
                     let SegmentOrGap::Segment(seg) = sog else {
                         continue;
                     };
-                    if prev_id < seg.id() || prev_id >= state.next_segment_id {
+                    if prev_id < seg.id() {
                         return Some(seg.clone());
                     }
                 }
@@ -373,7 +391,17 @@ impl Playlist {
     pub async fn debug_state(&self) -> PlaylistDebugState {
         #[allow(clippy::unwrap_used)]
         let state = self.get_state_lock().await.unwrap();
+        let num_segments = state
+            .segments
+            .iter()
+            .filter(|sog| match sog {
+                SegmentOrGap::Segment(_) => true,
+                SegmentOrGap::Gap(_) => false,
+            })
+            .count();
         PlaylistDebugState {
+            num_segments,
+            num_segments_on_hold: state.next_segments_on_hold.len(),
             num_playlists_on_hold: state.playlists_on_hold.len(),
         }
     }
@@ -401,8 +429,10 @@ struct NextSegmentRequest {
 }
 
 #[derive(Debug)]
-#[allow(unused, clippy::module_name_repetitions)]
+#[allow(unused, clippy::module_name_repetitions, clippy::struct_field_names)]
 pub struct PlaylistDebugState {
+    pub num_segments: usize,
+    pub num_segments_on_hold: usize,
     pub num_playlists_on_hold: usize,
 }
 

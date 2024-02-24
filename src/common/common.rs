@@ -616,6 +616,7 @@ pub fn part_name(id: u64) -> String {
 #[derive(Debug)]
 pub struct SegmentFinalized {
     id: u64,
+    muxer_id: u16,
     start_time: UnixH264,
     //pub start_dts: i64,
     //muxer_start_time: i64,
@@ -630,6 +631,7 @@ impl SegmentFinalized {
     #[must_use]
     pub fn new(
         id: u64,
+        muxer_id: u16,
         start_time: UnixH264,
         name: String,
         parts: Vec<Arc<PartFinalized>>,
@@ -637,6 +639,7 @@ impl SegmentFinalized {
     ) -> Self {
         Self {
             id,
+            muxer_id,
             start_time,
             name,
             parts,
@@ -647,6 +650,11 @@ impl SegmentFinalized {
     #[must_use]
     pub fn id(&self) -> u64 {
         self.id
+    }
+
+    #[must_use]
+    pub fn muxer_id(&self) -> u16 {
+        self.muxer_id
     }
 
     #[must_use]
@@ -739,10 +747,13 @@ pub type DynHlsMuxer = Arc<dyn HlsMuxer + Send + Sync>;
 #[async_trait]
 pub trait HlsMuxer {
     fn params(&self) -> &TrackParameters;
-    async fn next_segment(&self, prev_id: u64) -> Option<Arc<SegmentFinalized>>;
+    async fn next_segment(
+        &self,
+        prev_seg: Option<&SegmentFinalized>,
+    ) -> Option<Arc<SegmentFinalized>>;
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TrackParameters {
     pub width: u16,
     pub height: u16,

@@ -36,6 +36,7 @@ pub struct HlsMuxer {
 }
 
 impl HlsMuxer {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         parent_token: &CancellationToken,
         logger: &DynLogger,
@@ -44,9 +45,15 @@ impl HlsMuxer {
         part_duration: DurationH264,
         segment_max_size: u64,
         params: TrackParameters,
+        id: u16,
     ) -> (Self, H264Writer) {
         let token = parent_token.child_token();
-        let playlist = Arc::new(Playlist::new(token.clone(), logger.clone(), segment_count));
+        let playlist = Arc::new(Playlist::new(
+            token.clone(),
+            logger.clone(),
+            segment_count,
+            id,
+        ));
 
         let now = i64::try_from(
             SystemTime::now()
@@ -62,6 +69,7 @@ impl HlsMuxer {
             part_duration,
             segment_max_size,
             playlist.clone(),
+            id,
         );
 
         let muxer = Self {
@@ -139,8 +147,11 @@ impl common::HlsMuxer for HlsMuxer {
 
     // Returns the first segment with a ID greater than prevID.
     // Will wait for new segments if the next segment isn't cached.
-    async fn next_segment(&self, prev_id: u64) -> Option<Arc<SegmentFinalized>> {
-        self.playlist.next_segment(prev_id).await
+    async fn next_segment(
+        &self,
+        prev_seg: Option<&SegmentFinalized>,
+    ) -> Option<Arc<SegmentFinalized>> {
+        self.playlist.next_segment(prev_seg).await
     }
 }
 
