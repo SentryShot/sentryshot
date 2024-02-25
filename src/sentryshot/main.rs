@@ -20,6 +20,11 @@ async fn main() {
 
     let mut pargs = pico_args::Arguments::from_env();
 
+    if pargs.contains(["-V", "--version"]) {
+        print!("{}", env!("CARGO_PKG_VERSION").to_owned());
+        std::process::exit(0);
+    }
+
     let Ok(subcommand) = pargs.subcommand() else {
         println!("invalid args");
         std::process::exit(1);
