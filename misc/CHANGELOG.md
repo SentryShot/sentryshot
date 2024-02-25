@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.4`
+
 -   cli: fix --version
 
 ## `v0.2.3`
