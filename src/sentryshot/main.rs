@@ -6,10 +6,10 @@ mod rec2mp4;
 use app::run;
 pub use rec2mp4::rec_to_mp4;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, process::ExitCode};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> ExitCode {
     #[cfg(tokio_unstable)]
     {
         println!("tokio tracing enabled");
@@ -22,48 +22,51 @@ async fn main() {
 
     if pargs.contains(["-V", "--version"]) {
         print!("{}", env!("CARGO_PKG_VERSION").to_owned());
-        std::process::exit(0);
+        return ExitCode::SUCCESS;
     }
 
     let Ok(subcommand) = pargs.subcommand() else {
         println!("invalid args");
-        std::process::exit(1);
+        return ExitCode::FAILURE;
     };
     let Some(subcommand) = subcommand else {
         print!("{HELP}");
-        std::process::exit(1);
+        return ExitCode::FAILURE;
     };
     match subcommand.as_str() {
         "run" => {
             if pargs.contains(["-h", "--help"]) {
                 print!("{HELP_RUN}");
-                std::process::exit(1);
+                return ExitCode::SUCCESS;
             }
             let config = pargs
                 .value_from_str("--config")
                 .unwrap_or_else(|_| PathBuf::from(DEFAULT_CONFIG_PATH));
             if let Err(e) = run(rt_handle, &config).await {
                 eprintln!("failed to run app: {e}");
+                return ExitCode::FAILURE;
             };
         }
         "rec2mp4" => {
             if pargs.contains(["-h", "--help"]) {
                 print!("{HELP_REC2MP4}");
-                std::process::exit(1);
+                return ExitCode::SUCCESS;
             }
             let Ok(path) = pargs.free_from_str() else {
                 println!("missing path");
-                std::process::exit(1);
+                return ExitCode::FAILURE;
             };
             if let Err(e) = rec_to_mp4(path).await {
                 eprintln!("error: {e}");
+                return ExitCode::FAILURE;
             }
         }
         v => {
             println!("invalid subcommand '{v}'");
-            std::process::exit(1);
+            return ExitCode::FAILURE;
         }
     }
+    ExitCode::SUCCESS
 }
 
 const DEFAULT_CONFIG_PATH: &str = "./configs/sentryshot.toml";
