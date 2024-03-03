@@ -243,10 +243,13 @@ impl TflitePlugin {
                 Err(e) => msg_logger.log(LogLevel::Error, &format!("run: {e}")),
             }
 
-            let _enter = self.rt_handle.enter();
+            let sleep = || {
+                let _enter = self.rt_handle.enter();
+                tokio::time::sleep(Duration::from_secs(3))
+            };
             tokio::select! {
                 () = token.cancelled() => return Err(Cancelled(common::Cancelled)),
-                () = tokio::time::sleep(Duration::from_secs(3)) => {}
+                () = sleep() => {}
             }
         }
     }

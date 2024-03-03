@@ -164,15 +164,18 @@ impl Detector {
         let (res_tx, res_rx) = oneshot::channel();
         let req = DetectRequest { data, res: res_tx };
 
-        let _enter = self.rt_handle.enter();
+        let sleep = || {
+            let _enter = self.rt_handle.enter();
+            tokio::time::sleep(Duration::from_secs(1))
+        };
         tokio::select!(
             _ = self.detect_tx.send(req) => {},
-            () = tokio::time::sleep(Duration::from_secs(1)) => return Err(DetectorTimeout),
+            () = sleep() => return Err(DetectorTimeout),
         );
 
         let res = tokio::select!(
-            () = tokio::time::sleep(Duration::from_secs(1)) => return Err(DetectionTimeout),
             v = res_rx => v,
+            () = sleep() => return Err(DetectionTimeout),
         );
         if let Ok(res) = res {
             Ok(res?)
