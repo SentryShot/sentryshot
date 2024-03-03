@@ -572,7 +572,7 @@ fn avcc_to_jpeg(
 ) -> Result<Vec<u8>, AvccToJpegError> {
     let mut decoder = H264DecoderBuilder::new().avcc(extradata)?;
 
-    decoder.send_packet(Packet::new(avcc))?;
+    decoder.send_packet(&Packet::new(avcc))?;
 
     let mut h264_decoder = decoder.drain()?;
 

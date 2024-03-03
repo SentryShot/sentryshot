@@ -545,7 +545,7 @@ fn new_decoder(
             let result = rt_handle
                 .spawn_blocking(move || {
                     h264_decoder
-                        .send_packet(Packet::new(&avcc).with_pts(*frame.pts))
+                        .send_packet(&Packet::new(&avcc).with_pts(*frame.pts))
                         .map(|()| h264_decoder)
                 })
                 .await

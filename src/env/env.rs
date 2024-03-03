@@ -130,6 +130,7 @@ fn generate_config(path: &Path, cwd: &Path) -> Result<(), GenerateEnvConfigError
         .get_template("config")
         .expect("template should just have been added")
         .render(data)
+        .to_string()
         .map_err(RenderTemplate)?;
 
     let config_dir = path.parent().ok_or(GetParentDir())?;

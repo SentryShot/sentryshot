@@ -66,7 +66,7 @@ pub async fn template_handler(
 
     let data = s.templater.get_data(path.to_owned(), is_admin, token).await;
 
-    match template.render(data) {
+    match template.render(data).to_string() {
         Ok(content) => {
             let body = boxed(Full::from(content));
             #[allow(clippy::unwrap_used)]
