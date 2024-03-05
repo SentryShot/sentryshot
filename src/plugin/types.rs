@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use axum::{
+    body::Body,
     extract::State,
     middleware::Next,
     response::{IntoResponse, Response},
@@ -61,46 +62,41 @@ pub struct ValidateLoginResponse {
 pub type Assets<'a> = HashMap<String, Cow<'a, [u8]>>;
 pub type Templates<'a> = HashMap<&'a str, String>;
 
+fn unauthorized() -> Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        [(header::WWW_AUTHENTICATE, "Basic realm=\"NVR\"")],
+        "Unauthorized.",
+    )
+        .into_response()
+}
+
 // Blocks unauthenticated requests.
-pub async fn user<B>(State(auth): State<DynAuth>, request: Request<B>, next: Next<B>) -> Response {
+pub async fn user(State(auth): State<DynAuth>, request: Request<Body>, next: Next) -> Response {
     let is_valid_user = auth.validate_request(request.headers()).await.is_some();
     if !is_valid_user {
-        return (
-            StatusCode::UNAUTHORIZED,
-            [(header::WWW_AUTHENTICATE, "Basic realm=\"NVR\"")],
-            "Unauthorized.",
-        )
-            .into_response();
+        return unauthorized();
     }
-
     next.run(request).await
 }
 
 // Only allows authenticated requests from accounts with admin privileges.
-pub async fn admin<B>(State(auth): State<DynAuth>, request: Request<B>, next: Next<B>) -> Response {
-    let is_valid_admin = || async {
-        let Some(valid_login) = auth.validate_request(request.headers()).await else {
-            return false;
-        };
-        valid_login.is_admin
-    };
-
-    if !is_valid_admin().await {
-        return (
-            StatusCode::UNAUTHORIZED,
-            [(header::WWW_AUTHENTICATE, "Basic realm=\"NVR\"")],
-            "Unauthorized.",
-        )
-            .into_response();
+pub async fn admin(State(auth): State<DynAuth>, request: Request<Body>, next: Next) -> Response {
+    match auth.validate_request(request.headers()).await {
+        Some(valid_login) => {
+            if !valid_login.is_admin {
+                return unauthorized();
+            }
+        }
+        None => return unauthorized(),
     }
-
     next.run(request).await
 }
 
 // Blocks invalid Cross-site request forgery tokens.
 // Each account has a unique token. The request needs to
 // have a matching token in the "X-CSRF-TOKEN" header.
-pub async fn csrf<B>(State(auth): State<DynAuth>, request: Request<B>, next: Next<B>) -> Response {
+pub async fn csrf(State(auth): State<DynAuth>, request: Request<Body>, next: Next) -> Response {
     let valid_login = auth
         .validate_request(request.headers())
         .await

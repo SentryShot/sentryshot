@@ -47,21 +47,17 @@ retina = { git = "https://github.com/Curid/retina", branch = "dts" }
 async-channel = "2.0.0"
 async-trait = "0.1.64"
 argon2 = "0.5.0"
-# TODO
-axum = { version = "0.6.20", default-features = false, features = ["json", "query", "ws"] }
+axum = { version = "0.7.0", default-features = false, features = ["tokio", "http2", "json", "query", "ws"] }
 bytes = "1.4.0"
 bytesize = "1.2.0"
 chrono = "0.4.24"
 console-subscriber = "0.2.0"
 criterion = { version="0.5.0", features = ["async_tokio"] }
 futures = "0.3.27"
-# TODO
-headers = "0.3.8"
-# TODO
-http = "0.2.9"
+headers = "0.4.0"
+http = "1.0.0"
 httpdate = "1.0.2"
-# TODO
-http-body = "0.4.5"
+http-body = "1.0.0"
 hyper = "0.14.23"
 hyper-rustls = { version ="0.24.1", default-features = false, features = ["tokio-runtime", "webpki-roots",  "http1"] }
 jpeg-encoder = "0.6.0"

@@ -3,7 +3,7 @@
 use axum::{
     middleware,
     response::Html,
-    routing::{any, delete, get, post, IntoMakeService},
+    routing::{any, delete, get, post},
     Router,
 };
 use bytesize::ByteSize;
@@ -12,7 +12,6 @@ use crawler::Crawler;
 use env::{EnvConf, EnvConfigNewError};
 use fs::dir_fs;
 use hls::HlsServer;
-use hyper::server::conn::AddrIncoming;
 use log::{
     log_db::{LogDb, LogDbHandle, NewLogDbError},
     Logger,
@@ -35,6 +34,7 @@ use std::{
 use storage::{Disk, StoragePruner};
 use thiserror::Error;
 use tokio::{
+    net::TcpListener,
     runtime::Handle,
     signal,
     sync::{mpsc, oneshot, Mutex},
@@ -402,9 +402,6 @@ impl App {
                 .await;
         });
 
-        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.env.port());
-        let server = axum::Server::bind(&addr).serve(self.router.into_make_service());
-
         self.logger.log(LogEntry {
             level: LogLevel::Info,
             source: "app".parse().expect("valid"),
@@ -429,13 +426,15 @@ impl App {
             drop(shutdown_complete_tx);
         });
 
-        let (server_exited_tx, server_exited_rx) = oneshot::channel::<()>();
+        let (server_exited_tx, server_exited_rx) = oneshot::channel();
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.env.port());
 
         tokio::spawn(start_server(
             self.token.child_token(),
             self.shutdown_complete_tx.clone(),
             server_exited_tx,
-            server,
+            addr,
+            self.router,
         ));
 
         // Shutdown conditions.
@@ -445,12 +444,16 @@ impl App {
             tokio::select! {
                 result = signal::ctrl_c() => {
                     match result {
-                        Ok(()) => println!("\nreceived interrupt, stopping..\n"),
-                        Err(e) => println!("\ninterrupt error: {e}"),
+                        Ok(()) => eprintln!("\nreceived interrupt, stopping..\n"),
+                        Err(e) => eprintln!("\ninterrupt error: {e}"),
                     }
                 }
-                _ = sigterm.recv() => println!("\nreceived terminate, stopping..\n"),
-                _ = server_exited_rx => {},
+                _ = sigterm.recv() => eprintln!("\nreceived terminate, stopping..\n"),
+                res = server_exited_rx => {
+                    if let Err(e) = res {
+                        eprintln!("server error: {e}");
+                    }
+                },
             }
             self.token.cancel();
         });
@@ -481,17 +484,32 @@ impl Application for App {
     }
 }
 
+#[derive(Debug, Error)]
+enum ServerError {
+    #[error("bind: {0}")]
+    Bind(std::io::Error),
+
+    #[error("{0}")]
+    Server(std::io::Error),
+}
+
 async fn start_server(
     token: CancellationToken,
     _shutdown_complete: mpsc::Sender<()>,
-    _exited: oneshot::Sender<()>,
-    server: axum::Server<AddrIncoming, IntoMakeService<Router>>,
+    on_exit: oneshot::Sender<Result<(), ServerError>>,
+    addr: SocketAddr,
+    router: Router,
 ) {
-    let graceful = server.with_graceful_shutdown(async { token.cancelled().await });
-
-    if let Err(e) = graceful.await {
-        println!("server crashed: {e:?}");
-    }
+    let listener = match TcpListener::bind(addr).await {
+        Ok(v) => v,
+        Err(e) => {
+            let _ = on_exit.send(Err(ServerError::Bind(e)));
+            return;
+        }
+    };
+    let graceful = axum::serve(listener, router)
+        .with_graceful_shutdown(async move { token.cancelled().await });
+    let _ = on_exit.send(graceful.await.map_err(ServerError::Server));
 }
 
 // TimeZone returns system time zone location.

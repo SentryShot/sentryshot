@@ -5,20 +5,14 @@ use argon2::{
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
 use async_trait::async_trait;
-use axum::{
-    body::{boxed, Full},
-    extract::State,
-    response::IntoResponse,
-    routing::get,
-    Router,
-};
+use axum::{extract::State, response::IntoResponse, routing::get, Router};
 use common::{
     Account, AccountObfuscated, AccountSetRequest, AccountsMap, AuthAccountDeleteError,
     AuthAccountSetError, AuthSaveToFileError, Authenticator, DynAuth, DynLogger, LogEntry,
     LogLevel, LogSource, Username, ValidateLoginResponse, ValidateResponse,
 };
 use headers::authorization::{Basic, Credentials};
-use http::{HeaderMap, HeaderValue, Response, StatusCode};
+use http::{header, HeaderMap, HeaderValue, StatusCode};
 use plugin::{
     types::{NewAuthError, NewAuthFn, Templates},
     Application, Plugin, PreLoadPlugin,
@@ -402,19 +396,22 @@ fn edit_templates(tmpls: &mut Templates) {
 async fn logout(State(auth): State<DynAuth>, headers: HeaderMap) -> impl IntoResponse {
     let auth_is_valid = auth.validate_request(&headers).await.is_some();
     if auth_is_valid {
-        Response::builder()
-            .header("WWW-Authenticate", "Basic realm=\"NVR\"")
-            .status(StatusCode::UNAUTHORIZED)
-            .body(boxed(Full::from("Enter any invalid login to logout")))
-            .unwrap()
+        (
+            StatusCode::UNAUTHORIZED,
+            [(header::WWW_AUTHENTICATE, "Basic realm=\"NVR\"")],
+            "Enter any invalid login to logout",
+        )
+            .into_response()
     } else {
         // User successfully logged out.
-        Response::builder()
-            .header("Location", "/logged-out")
-            .header("Cache-Control", "no-cache, no-store, must-revalidate")
-            .status(StatusCode::TEMPORARY_REDIRECT)
-            .body(boxed(Full::from("")))
-            .unwrap()
+        (
+            StatusCode::TEMPORARY_REDIRECT,
+            [
+                (header::LOCATION, "/logged-out"),
+                (header::CACHE_CONTROL, "no-cache, no-store, must-revalidate"),
+            ],
+        )
+            .into_response()
     }
 }
 

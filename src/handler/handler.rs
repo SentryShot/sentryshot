@@ -6,7 +6,7 @@
 mod test;
 
 use axum::{
-    body::{boxed, Full, StreamBody},
+    body::Body,
     extract::{Path, Query, State, WebSocketUpgrade},
     http::{header, HeaderMap, Method, StatusCode, Uri},
     response::{IntoResponse, Response},
@@ -67,14 +67,11 @@ pub async fn template_handler(
     let data = s.templater.get_data(path.to_owned(), is_admin, token).await;
 
     match template.render(data).to_string() {
-        Ok(content) => {
-            let body = boxed(Full::from(content));
-            #[allow(clippy::unwrap_used)]
-            Response::builder()
-                .header(header::CONTENT_TYPE, "text/html; charset=UTF-8")
-                .body(body)
-                .unwrap()
-        }
+        Ok(content) => (
+            [(header::CONTENT_TYPE, "text/html; charset=UTF-8")],
+            content,
+        )
+            .into_response(),
         Err(e) => {
             log(format!("handle_templates: render template '{path}': {e}"));
             (
@@ -92,13 +89,9 @@ pub async fn asset_handler(
 ) -> Response {
     match assets.get(path.as_str()) {
         Some(content) => {
-            let body = boxed(Full::from(content.clone()));
+            let body = Body::from(content.clone());
             let mime = mime_guess::from_path(path).first_or_octet_stream();
-            #[allow(clippy::unwrap_used)]
-            Response::builder()
-                .header(header::CONTENT_TYPE, mime.as_ref())
-                .body(body)
-                .unwrap()
+            ([(header::CONTENT_TYPE, mime.as_ref())], body).into_response()
         }
         None => (StatusCode::NOT_FOUND, "404").into_response(),
     }
@@ -165,7 +158,7 @@ pub async fn hls_handler(
 
     if let Some(body) = res.body {
         let stream = ReaderStream::new(body);
-        let body = StreamBody::new(stream);
+        let body = Body::from_stream(stream);
         (res.status, headers, body).into_response()
     } else {
         (headers, res.status).into_response()
@@ -423,7 +416,7 @@ pub async fn recording_thumbnail_handler(
     };
 
     let stream = ReaderStream::new(file);
-    let body = StreamBody::new(stream);
+    let body = Body::from_stream(stream);
 
     (([(header::CONTENT_TYPE, "image/jpeg")]), body).into_response()
 }

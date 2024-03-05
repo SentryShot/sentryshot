@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use axum::{
-    body::{boxed, Bytes, Full},
+    body::{Body, Bytes},
     response::{IntoResponse, Response},
 };
-use futures::Stream;
 use http::{header, HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
-use http_body::Body;
+use http_body::Frame;
 use httpdate::HttpDate;
 use pin_project::pin_project;
 use std::{
@@ -16,7 +15,7 @@ use std::{
     time::SystemTime,
 };
 use thiserror::Error;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, Take};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 // Replies to the request using the content in the
@@ -74,7 +73,7 @@ where
             return (
                 StatusCode::RANGE_NOT_SATISFIABLE,
                 response_headers,
-                boxed(Full::from(e.to_string())),
+                e.to_string(),
             )
                 .into_response();
         }
@@ -92,7 +91,7 @@ where
         return (
             StatusCode::RANGE_NOT_SATISFIABLE,
             response_headers,
-            boxed(Full::from("Cannot serve multipart range requests")),
+            "Cannot serve multipart range requests",
         )
             .into_response();
     }
@@ -114,7 +113,7 @@ where
             return (
                 StatusCode::RANGE_NOT_SATISFIABLE,
                 response_headers,
-                boxed(Full::from(e.to_string())),
+                e.to_string(),
             )
                 .into_response();
         }
@@ -220,8 +219,7 @@ where
         io.CopyN(w, sendContent, sendSize) //nolint:errcheck
     }*/
 
-    let body = AsyncReadBody::limited(content, send_size).boxed();
-
+    let body = axum::body::Body::new(AsyncReadBody::limited(content, send_size));
     (response_code, response_headers, body).into_response()
 }
 
@@ -245,12 +243,7 @@ fn check_preconditions(
     }
     if ch == CondResult::False {
         return PreconditionsResult::Done(
-            (
-                StatusCode::PRECONDITION_FAILED,
-                response_headers,
-                boxed(Full::from("1")),
-            )
-                .into_response(),
+            (StatusCode::PRECONDITION_FAILED, response_headers, "1").into_response(),
         );
     }
 
@@ -269,7 +262,7 @@ fn check_preconditions(
                 (
                     StatusCode::PRECONDITION_FAILED,
                     response_headers,
-                    boxed(Full::from("if none match")),
+                    "if none match",
                 )
                     .into_response(),
             );
@@ -897,42 +890,35 @@ fn random_boundary() -> String {
 /// Adapter that turns an [`impl AsyncRead`][tokio::io::AsyncRead] to an [`impl Body`][http_body::Body].
 #[derive(Debug)]
 #[pin_project]
-pub struct AsyncReadBody<T> {
+pub struct AsyncReadBody {
     #[pin]
-    reader: ReaderStream<T>,
+    body: Body,
 }
 
 const CAPACITY: usize = 65536;
 
-impl<T> AsyncReadBody<T>
-where
-    T: AsyncRead,
-{
-    fn limited(read: T, max_read_bytes: u64) -> AsyncReadBody<Take<T>> {
-        AsyncReadBody {
-            reader: ReaderStream::with_capacity(read.take(max_read_bytes), CAPACITY),
+impl AsyncReadBody {
+    fn limited<R>(read: R, max_read_bytes: u64) -> Self
+    where
+        R: AsyncRead + Send + 'static,
+    {
+        Self {
+            body: Body::from_stream(ReaderStream::with_capacity(
+                read.take(max_read_bytes),
+                CAPACITY,
+            )),
         }
     }
 }
 
-impl<T> Body for AsyncReadBody<T>
-where
-    T: AsyncRead,
-{
+impl http_body::Body for AsyncReadBody {
     type Data = Bytes;
-    type Error = std::io::Error;
+    type Error = axum::Error;
 
-    fn poll_data(
+    fn poll_frame(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
-        self.project().reader.poll_next(cx)
-    }
-
-    fn poll_trailers(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
-        Poll::Ready(Ok(None))
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        self.project().body.poll_frame(cx)
     }
 }

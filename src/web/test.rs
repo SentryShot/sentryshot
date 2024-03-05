@@ -3,8 +3,9 @@
 #![allow(clippy::unwrap_used)]
 
 use crate::serve_mp4_content;
+use axum::body::to_bytes;
 use http::{header, HeaderMap, HeaderValue, Method, StatusCode};
-use http_body::Body;
+
 use std::{io::Cursor, time::UNIX_EPOCH};
 use test_case::test_case;
 
@@ -22,8 +23,10 @@ async fn test_serve_mp4() {
     )
     .await;
 
-    let body = response.into_body().data().await.unwrap().unwrap().to_vec();
-    assert_eq!(file, body);
+    assert_eq!(
+        file,
+        to_bytes(response.into_body(), usize::MAX).await.unwrap()
+    );
 }
 
 const TEST_FILE_LEN: usize = 11;
@@ -102,8 +105,10 @@ async fn test_serve_mp4_range(r: &str, code: StatusCode, ranges: Vec<WantRange>)
     if ranges.len() == 1 {
         let rng = &ranges[0];
         let want_body = &file[rng.start..rng.end];
-        let got_body = response.into_body().data().await.unwrap().unwrap().to_vec();
-        assert_eq!(want_body, got_body);
+        assert_eq!(
+            want_body,
+            to_bytes(response.into_body(), usize::MAX).await.unwrap()
+        );
 
         assert!(
             got_content_type != "multipart/byteranges",
