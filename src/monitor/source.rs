@@ -365,12 +365,10 @@ impl SourceRtsp {
                             if let Some(hls_writer) = &mut hls_writer {
                                 let timestamp = frame.timestamp();
 
-                                let pts = timestamp.timestamp();
-                                let Some(dts) = timestamp.dts() else {
-                                    continue;
-                                };
+                                let pts = timestamp.pts();
+                                let dts = timestamp.dts();
+
                                 let dts_offset = pts - dts;
-                                let pts = timestamp.timestamp();
                                 let dts = pts - dts_offset;
 
                                 let data = H264Data{

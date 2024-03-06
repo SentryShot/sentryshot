@@ -194,7 +194,7 @@ checksum = "1236b4b292f6c4d6dc34604bb5120d85c3fe1d1aa596bd5cc52ca054d13e7b9e"
 dependencies = [
  "async-trait",
  "axum-core 0.4.3",
- "base64 0.21.7",
+ "base64",
  "bytes",
  "futures-util",
  "http 1.1.0",
@@ -273,12 +273,6 @@ dependencies = [
  "object",
  "rustc-demangle",
 ]
-
-[[package]]
-name = "base64"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
 name = "base64"
@@ -422,18 +416,18 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.1"
+version = "4.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c918d541ef2913577a0f9566e9ce27cb35b6df072075769e0b26cb5a554520da"
+checksum = "b230ab84b0ffdf890d5a10abdbc8b83ae1c4918275daea1ab8801f71536b2651"
 dependencies = [
  "clap_builder",
 ]
 
 [[package]]
 name = "clap_builder"
-version = "4.5.1"
+version = "4.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f3e7391dad68afb0c2ede1bf619f579a3dc9c2ec67f089baa397123a2f3d1eb"
+checksum = "ae129e2e766ae0ec03484e609954119f123cc1fe650337e155d03b022f24f7b4"
 dependencies = [
  "anstyle",
  "clap_lex",
@@ -940,9 +934,9 @@ dependencies = [
 
 [[package]]
 name = "h264-reader"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3c095862f1b74a6021f766321767e64fbec34fa76503debbe1da2c04ce23c2c"
+checksum = "bd118dcc322cc71cfc33254a19ebece92cfaaf6d4b4793fec3f7f44fbc4150df"
 dependencies = [
  "bitstream-io",
  "hex-slice",
@@ -1004,7 +998,7 @@ version = "7.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "765c9198f173dd59ce26ff9f95ef0aafd0a0fe01fb9d72841bc5066a4c06511d"
 dependencies = [
- "base64 0.21.7",
+ "base64",
  "byteorder",
  "flate2",
  "nom",
@@ -1017,7 +1011,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "322106e6bd0cba2d5ead589ddb8150a13d7c4217cf80d7c4f682ca994ccc6aa9"
 dependencies = [
- "base64 0.21.7",
+ "base64",
  "bytes",
  "headers-core",
  "http 1.1.0",
@@ -1062,7 +1056,7 @@ dependencies = [
  "common",
  "http 1.1.0",
  "mp4",
- "pretty-hex 0.4.1",
+ "pretty-hex",
  "pretty_assertions",
  "retina",
  "sentryshot_padded_bytes",
@@ -1100,7 +1094,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "643c9bbf6a4ea8a656d6b4cd53d34f79e3f841ad5203c1a55fb7d761923bc255"
 dependencies = [
- "base64 0.21.7",
+ "base64",
  "digest",
  "hex",
  "md-5",
@@ -1365,9 +1359,9 @@ checksum = "9c198f91728a82281a64e1f4f9eeb25d82cb32a5de251c6bd1b5154d63a8e7bd"
 
 [[package]]
 name = "libloading"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2caa5afb8bf9f3a2652760ce7d4f62d21c4d5a423e68466fca30df82f2330164"
+checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
 dependencies = [
  "cfg-if",
  "windows-targets 0.52.4",
@@ -1490,7 +1484,7 @@ dependencies = [
  "hls",
  "jpeg-encoder",
  "log 0.2.4",
- "pretty-hex 0.4.1",
+ "pretty-hex",
  "pretty_assertions",
  "recording",
  "retina",
@@ -1722,12 +1716,6 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 
 [[package]]
 name = "pretty-hex"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
-
-[[package]]
-name = "pretty-hex"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbc83ee4a840062f368f9096d80077a9841ec117e17e7f700df81958f1451254"
@@ -1875,7 +1863,7 @@ dependencies = [
  "hls",
  "mp4",
  "pin-project",
- "pretty-hex 0.4.1",
+ "pretty-hex",
  "pretty_assertions",
  "sentryshot_padded_bytes",
  "serde",
@@ -1931,10 +1919,10 @@ checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
 
 [[package]]
 name = "retina"
-version = "0.4.5"
-source = "git+https://github.com/Curid/retina?branch=dts#cec8b8676defcb52b9e5d58c6ebc3ea02e0f5afe"
+version = "0.4.7"
+source = "git+https://github.com/Curid/retina?branch=dts#4e3f5da44933df905c4adc582908c374ea4d8b06"
 dependencies = [
- "base64 0.13.1",
+ "base64",
  "bitstream-io",
  "bytes",
  "futures",
@@ -1944,7 +1932,7 @@ dependencies = [
  "log 0.4.21",
  "once_cell",
  "pin-project",
- "pretty-hex 0.3.0",
+ "pretty-hex",
  "rand",
  "rtsp-types",
  "sdp-types",
@@ -1984,9 +1972,9 @@ dependencies = [
 
 [[package]]
 name = "rtsp-types"
-version = "0.0.5"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a1aec90dc5d8dec85c14032885770801439acb1651b2f166745ce482a2ddeaf"
+checksum = "6c5c11e0af63f1ac6057f9029f7ddf1c677bade51e449f75be25c8b29f59474c"
 dependencies = [
  "cookie-factory",
  "nom",
@@ -2671,7 +2659,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "axum 0.6.20",
- "base64 0.21.7",
+ "base64",
  "bytes",
  "h2 0.3.24",
  "http 0.2.12",
