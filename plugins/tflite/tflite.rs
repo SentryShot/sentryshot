@@ -8,8 +8,8 @@ mod model;
 use crate::{config::TfliteConfig, detector::DetectorManager};
 use async_trait::async_trait;
 use common::{
-    time::UnixNano, Cancelled, Detection, Detections, DynEnvConfig, DynLogger, DynMsgLogger, Event,
-    LogEntry, LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
+    time::UnixNano, Detection, Detections, DynEnvConfig, DynLogger, DynMsgLogger, Event, LogEntry,
+    LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
 };
 use config::{Crop, Mask};
 use detector::{DetectError, Detector, DetectorName, Thresholds};
@@ -145,14 +145,8 @@ impl Plugin for TflitePlugin {
             monitor_id: monitor.config().id().to_owned(),
         });
 
-        match self.start(&token, msg_logger.clone(), monitor).await {
-            Ok(()) => {}
-            Err(StartError::Cancelled(_)) => {
-                msg_logger.log(LogLevel::Debug, "cancelled");
-            }
-            Err(e) => {
-                msg_logger.log(LogLevel::Error, &format!("start: {e}"));
-            }
+        if let Err(e) = self.start(&token, msg_logger.clone(), monitor).await {
+            msg_logger.log(LogLevel::Error, &format!("start: {e}"));
         };
     }
 }
@@ -164,16 +158,10 @@ enum StartError {
 
     #[error("get detector '{0}'")]
     GetDetector(DetectorName),
-
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
 }
 
 #[derive(Debug, Error)]
 enum RunError {
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
-
     #[error("subscribe: {0}")]
     Subscribe(#[from] SubscribeDecodedError),
 
@@ -209,12 +197,9 @@ impl TflitePlugin {
         use StartError::*;
         let config = monitor.config();
 
-        let source = {
-            if let Some(sub_stream) = monitor.source_sub().await? {
-                sub_stream
-            } else {
-                monitor.source_main().await?
-            }
+        let Some(source) = monitor.get_smallest_source().await else {
+            // Cancelled.
+            return Ok(());
         };
 
         msg_logger.log(
@@ -235,12 +220,11 @@ impl TflitePlugin {
 
         loop {
             msg_logger.log(LogLevel::Debug, "run");
-            match self
+            if let Err(e) = self
                 .run(&msg_logger, &monitor, &config, &source, &detector)
                 .await
             {
-                Ok(()) | Err(RunError::Cancelled(_)) => {}
-                Err(e) => msg_logger.log(LogLevel::Error, &format!("run: {e}")),
+                msg_logger.log(LogLevel::Error, &format!("run: {e}"));
             }
 
             let sleep = || {
@@ -248,7 +232,7 @@ impl TflitePlugin {
                 tokio::time::sleep(Duration::from_secs(3))
             };
             tokio::select! {
-                () = token.cancelled() => return Err(Cancelled(common::Cancelled)),
+                () = token.cancelled() => return Ok(()),
                 () = sleep() => {}
             }
         }
@@ -263,7 +247,10 @@ impl TflitePlugin {
         detector: &Detector,
     ) -> Result<(), RunError> {
         use RunError::*;
-        let muxer = source.muxer().await?;
+        let Some(muxer) = source.muxer().await else {
+            // Cancelled.
+            return Ok(());
+        };
         let params = muxer.params();
         let width = params.width;
         let height = params.height;
@@ -276,9 +263,14 @@ impl TflitePlugin {
         };
 
         let rate_limiter = FrameRateLimiter::new(u64::try_from(*config.feed_rate.as_h264())?);
-        let mut feed = source
+        let Some(feed) = source
             .subscribe_decoded(self.rt_handle.clone(), Some(rate_limiter))
-            .await?;
+            .await
+        else {
+            // Cancelled.
+            return Ok(());
+        };
+        let mut feed = feed?;
 
         let (outputs, uncrop) = calculate_outputs(config.crop, &inputs)?;
 
@@ -288,10 +280,11 @@ impl TflitePlugin {
         };
 
         loop {
-            let frame = feed
-                .recv()
-                .await
-                .expect("channel should send error before closing")?;
+            let Some(frame) = feed.recv().await else {
+                // Feed was cancelled.
+                return Ok(());
+            };
+            let frame = frame?;
 
             let time = UnixNano::now();
 

@@ -114,9 +114,6 @@ enum StartError {
 
 #[derive(Debug, Error)]
 enum RunError {
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
-
     #[error("try_from: {0}")]
     TryFrom(#[from] std::num::TryFromIntError),
 
@@ -141,12 +138,9 @@ impl MotionPlugin {
 
         let config = monitor.config();
 
-        let source = {
-            if let Some(sub_stream) = monitor.source_sub().await? {
-                sub_stream
-            } else {
-                monitor.source_main().await?
-            }
+        let Some(source) = monitor.get_smallest_source().await else {
+            // Cancelled.
+            return Ok(());
         };
 
         let Some(config) = MotionConfig::parse(config.raw.clone())? else {
@@ -161,10 +155,10 @@ impl MotionPlugin {
 
         loop {
             msg_logger.log(LogLevel::Debug, "run");
-            match self.run(&msg_logger, &monitor, &config, &source).await {
-                Ok(()) | Err(RunError::Cancelled(_)) => {}
-                Err(e) => msg_logger.log(LogLevel::Error, &format!("run: {e}")),
+            if let Err(e) = self.run(&msg_logger, &monitor, &config, &source).await {
+                msg_logger.log(LogLevel::Error, &format!("run: {e}"));
             }
+
             let sleep = || {
                 let _enter = self.rt_handle.enter();
                 tokio::time::sleep(Duration::from_secs(3))
@@ -185,7 +179,10 @@ impl MotionPlugin {
         config: &MotionConfig,
         source: &Arc<Source>,
     ) -> Result<(), RunError> {
-        let muxer = source.muxer().await?;
+        let Some(muxer) = source.muxer().await else {
+            // Cancelled.
+            return Ok(());
+        };
         let params = muxer.params();
         let width = params.width;
         let height = params.height;
@@ -211,21 +208,27 @@ impl MotionPlugin {
             raw_frame_diff: vec![0; raw_frame_size],
         };
 
-        let mut feed = source
+        let Some(feed) = source
             .subscribe_decoded(self.rt_handle.clone(), Some(limiter))
-            .await?;
+            .await
+        else {
+            // Cancelled.
+            return Ok(());
+        };
+        let mut feed = feed?;
+
         let mut first_frame = true;
         loop {
-            let frame = feed
-                .recv()
-                .await
-                .expect("channel should send error before closing")?;
+            let Some(frame) = feed.recv().await else {
+                // Feed was cancelled.
+                return Ok(());
+            };
 
             let detections: Vec<_>;
             (detections, state) = self
                 .rt_handle
                 .spawn_blocking(move || -> Result<_, RunError> {
-                    convert_frame(&mut state.raw_frame, &frame)?;
+                    convert_frame(&mut state.raw_frame, &frame?)?;
                     let detections = state.zones.analyze(
                         &state.raw_frame,
                         &state.prev_raw_frame,

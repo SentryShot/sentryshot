@@ -58,52 +58,54 @@ impl Source {
     }
 
     // Returns the HLS muxer for this source. Will block until the source has started.
-    pub async fn muxer(&self) -> Result<DynHlsMuxer, Cancelled> {
+    // Returns None if cancelled.
+    pub async fn muxer(&self) -> Option<DynHlsMuxer> {
         let (res_tx, res_rx) = oneshot::channel();
         if self.get_muxer_tx.send(res_tx).await.is_err() {
-            return Err(Cancelled);
+            return None;
         }
         let Ok(muxer) = res_rx.await else {
-            return Err(Cancelled);
+            return None;
         };
-        Ok(muxer)
+        Some(muxer)
     }
 
     // Subscribe to the raw feed. Will block until the source has started.
-    pub async fn subscribe(&self) -> Result<Feed, Cancelled> {
+    pub async fn subscribe(&self) -> Option<Feed> {
         let (res_tx, res_rx) = oneshot::channel();
         if self.subscribe_tx.send(res_tx).await.is_err() {
-            return Err(Cancelled);
+            return None;
         }
         let Ok(feed) = res_rx.await else {
-            return Err(Cancelled);
+            return None;
         };
-        Ok(feed)
+        Some(feed)
     }
 
     // Subscribe to a decoded feed. Currently creates a new decoder for each
     // call but this may change. Will block until the source has started.
+    // Will close channel when cancelled.
     pub async fn subscribe_decoded(
         &self,
         rt_handle: Handle,
         limiter: Option<FrameRateLimiter>,
-    ) -> Result<FeedDecoded, SubscribeDecodedError> {
+    ) -> Option<Result<FeedDecoded, SubscribeDecodedError>> {
         let feed = self.subscribe().await?;
 
         // We could grab the extradata strait from the source instead.
         let muxer = self.muxer().await?;
         let extradata = muxer.params().extra_data.clone();
 
-        let h264_decoder = H264DecoderBuilder::new().avcc(PaddedBytes::new(extradata))?;
-        Ok(new_decoder(rt_handle, feed, h264_decoder, limiter))
+        let h264_decoder = match H264DecoderBuilder::new().avcc(PaddedBytes::new(extradata)) {
+            Ok(v) => v,
+            Err(e) => return Some(Err(SubscribeDecodedError::NewH264Decoder(e))),
+        };
+        Some(Ok(new_decoder(rt_handle, feed, h264_decoder, limiter)))
     }
 }
 
 #[derive(Debug, Error)]
 pub enum SubscribeDecodedError {
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
-
     #[error("new h264 decoder: {0}")]
     NewH264Decoder(#[from] H264BuilderError),
 }
@@ -495,9 +497,6 @@ fn creds_from_url(url: &Url) -> Option<retina::client::Credentials> {
 
 #[derive(Debug, Error)]
 pub enum DecoderError {
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
-
     #[error("dropped frames")]
     DroppedFrames,
 
@@ -529,7 +528,7 @@ fn new_decoder(
             let frame = match feed.recv().await {
                 Ok(v) => v,
                 Err(RecvError::Closed) => {
-                    _ = frame_tx.send(Err(Cancelled(common::Cancelled))).await;
+                    // Close receiver by dropping sender.
                     return;
                 }
                 Err(RecvError::Lagged(_)) => {

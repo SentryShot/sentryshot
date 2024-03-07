@@ -270,7 +270,7 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
         return fmt.Errorf("parse timestamp offset %w", err)
     }*/
 
-    let muxer = c.source_main.muxer().await?;
+    let muxer = c.source_main.muxer().await.ok_or(common::Cancelled)?;
 
     let first_segment = muxer
         .next_segment(c.prev_seg.lock().await.as_deref())

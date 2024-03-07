@@ -10,8 +10,8 @@ use async_trait::async_trait;
 use common::{
     monitor::{MonitorConfig, MonitorConfigs, SourceConfig},
     time::{Duration, UnixNano},
-    Cancelled, DynEnvConfig, DynLogger, EnvConfig, Event, LogEntry, LogLevel, MonitorId,
-    NonEmptyString, StreamType,
+    DynEnvConfig, DynLogger, EnvConfig, Event, LogEntry, LogLevel, MonitorId, NonEmptyString,
+    StreamType,
 };
 use hls::HlsServer;
 use sentryshot_convert::Frame;
@@ -54,38 +54,45 @@ impl Monitor {
         self.shutdown_complete.lock().await.recv().await;
     }
 
-    pub async fn source_main(&self) -> Result<Arc<Source>, Cancelled> {
+    // Return sub stream if it exists otherwise returns main stream.
+    // Returns None if cancelled
+    pub async fn get_smallest_source(&self) -> Option<Arc<Source>> {
+        match self.source_sub().await {
+            // Sub stream exists.
+            Some(Some(sub_stream)) => Some(sub_stream),
+            // Sub stream doesn't exist, use main.
+            Some(None) => self.source_main().await,
+            // Sub stream is cancelled.
+            None => None,
+        }
+    }
+
+    // Returns None if cancelled.
+    pub async fn source_main(&self) -> Option<Arc<Source>> {
         let (res_tx, res_rx) = oneshot::channel();
         tokio::select! {
-            () = self.token.cancelled() => return Err(Cancelled),
+            () = self.token.cancelled() => return None,
             _ = self.source_main_tx.send(res_tx) => {}
         }
         tokio::select! {
-            () = self.token.cancelled() => Err(Cancelled),
+            () = self.token.cancelled() => None,
             res = res_rx => {
-                if let Ok(res) = res {
-                    Ok(res)
-                } else {
-                    Err(Cancelled)
-                }
+                res.ok()
             }
         }
     }
 
-    pub async fn source_sub(&self) -> Result<Option<Arc<Source>>, Cancelled> {
+    // Returns None if cancelled and Some(None) if sub stream doesn't exist.
+    pub async fn source_sub(&self) -> Option<Option<Arc<Source>>> {
         let (res_tx, res_rx) = oneshot::channel();
         tokio::select! {
-            () = self.token.cancelled() => return Err(Cancelled),
+            () = self.token.cancelled() => return None,
             _ = self.source_sub_tx.send(res_tx) => {}
         }
         tokio::select! {
-            () = self.token.cancelled() => Err(Cancelled),
+            () = self.token.cancelled() => None,
             res = res_rx => {
-                if let Ok(res) = res {
-                    Ok(res)
-                } else {
-                    Err(Cancelled)
-                }
+                res.ok()
             }
         }
     }
