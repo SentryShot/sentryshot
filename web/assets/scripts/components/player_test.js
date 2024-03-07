@@ -108,7 +108,7 @@ describe("newPlayer", () => {
 							</div>
 						</button>
 						<div class="js-popup player-options-popup">
-							<a download="" href="C"class="player-options-btn">
+							<a download="2001-06-02_00:00:00_D.mp4" href="C"class="player-options-btn">
 								<img src="assets/icons/feather/download.svg">
 							</a>
 							<button class="js-fullscreen player-options-btn">
@@ -171,7 +171,7 @@ describe("newPlayer", () => {
 			<button class="js-delete player-options-btn">
 				<img src="assets/icons/feather/trash-2.svg">
 			</button>
-			<a download="" href="C"class="player-options-btn">
+			<a download="2001-06-02_00:00:00_D.mp4" href="C"class="player-options-btn">
 				<img src="assets/icons/feather/download.svg">
 			</a>
 			<button class="js-fullscreen player-options-btn">

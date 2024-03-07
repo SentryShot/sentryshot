@@ -81,6 +81,7 @@ function newPlayer(data, isAdmin, token) {
 	};
 
 	const [dateString, timeString] = parseDate(start);
+	const fileName = `${dateString}_${timeString}_${d.name}.mp4`;
 
 	const topOverlayHTML = `
 			<span class="player-menu-text js-date">${dateString}</span>
@@ -131,7 +132,7 @@ function newPlayer(data, isAdmin, token) {
 				</button>`
 						: ""
 				}
-				<a download href="${d.videoPath}" class="player-options-btn">
+				<a download="${fileName}" href="${d.videoPath}" class="player-options-btn">
 					<img src="assets/icons/feather/download.svg">
 				</a>
 				<button class="js-fullscreen player-options-btn">
