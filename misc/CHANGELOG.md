@@ -1,5 +1,9 @@
 ## unreleased
 
+## `v0.2.5`
+
+-   fix download filename #19
+
 ## `v0.2.4`
 
 -   cli: fix --version

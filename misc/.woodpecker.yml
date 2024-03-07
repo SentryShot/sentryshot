@@ -3,7 +3,7 @@ steps:
         image: codeberg.org/sentryshot/sentryshot-ci:v0.2.0
         commands: "nix-shell /shell.nix --command 'npm install && ./misc/utils.sh ci'"
         when:
-            event: [push, pull_request]
+            event: [push, pull_request, tag]
 
     build-x86_64:
         image: codeberg.org/sentryshot/sentryshot-build-x86_64:v0.2.0
