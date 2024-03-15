@@ -29,8 +29,8 @@ impl Logger {
         let (feed, _) = broadcast::channel(64);
 
         let mut sources = sources;
-        sources.push("app".parse().unwrap());
-        sources.push("monitor".parse().unwrap());
+        sources.push("app".try_into().unwrap());
+        sources.push("monitor".try_into().unwrap());
         sources.sort();
 
         Self { feed, sources }
@@ -164,12 +164,20 @@ fn make_ascii_titlecase(s: &mut str) {
 #[allow(clippy::needless_pass_by_value, clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
     use common::{ParseLogSourceError, ParseNonEmptyStringError};
     use pretty_assertions::assert_eq;
     use test_case::test_case;
+
+    fn src(s: &'static str) -> LogSource {
+        s.try_into().unwrap()
+    }
+    fn m_id(s: &str) -> MonitorId {
+        s.to_owned().try_into().unwrap()
+    }
+    fn msg(s: &str) -> NonEmptyString {
+        s.to_owned().try_into().unwrap()
+    }
 
     #[tokio::test]
     async fn logger_messages() {
@@ -178,27 +186,27 @@ mod tests {
 
         logger.log(LogEntry {
             level: LogLevel::Info,
-            source: "s1".parse().unwrap(),
-            monitor_id: Some("m1".parse().unwrap()),
-            message: "1".parse().unwrap(),
+            source: src("s1"),
+            monitor_id: Some(m_id("m1")),
+            message: msg("1"),
         });
         logger.log(LogEntry {
             level: LogLevel::Warning,
-            source: "s2".parse().unwrap(),
-            monitor_id: Some("m2".parse().unwrap()),
-            message: "2".parse().unwrap(),
+            source: src("s2"),
+            monitor_id: Some(m_id("m2")),
+            message: msg("2"),
         });
         logger.log(LogEntry {
             level: LogLevel::Error,
-            source: "s3".parse().unwrap(),
-            monitor_id: Some("m3".parse().unwrap()),
-            message: "3".parse().unwrap(),
+            source: src("s3"),
+            monitor_id: Some(m_id("m3")),
+            message: msg("3"),
         });
         logger.log(LogEntry {
             level: LogLevel::Debug,
-            source: "s4".parse().unwrap(),
-            monitor_id: Some("m4".parse().unwrap()),
-            message: "4".parse().unwrap(),
+            source: src("s4"),
+            monitor_id: Some(m_id("m4")),
+            message: msg("4"),
         });
 
         let mut actual = vec![
@@ -212,30 +220,30 @@ mod tests {
         let expected = vec![
             LogEntryWithTime {
                 level: LogLevel::Info,
-                source: "s1".parse().unwrap(),
-                monitor_id: Some("m1".parse().unwrap()),
-                message: "1".parse().unwrap(),
+                source: src("s1"),
+                monitor_id: Some(m_id("m1")),
+                message: msg("1"),
                 time: UnixMicro(0),
             },
             LogEntryWithTime {
                 level: LogLevel::Warning,
-                source: "s2".parse().unwrap(),
-                monitor_id: Some("m2".parse().unwrap()),
-                message: "2".parse().unwrap(),
+                source: src("s2"),
+                monitor_id: Some(m_id("m2")),
+                message: msg("2"),
                 time: UnixMicro(0),
             },
             LogEntryWithTime {
                 level: LogLevel::Error,
-                source: "s3".parse().unwrap(),
-                monitor_id: Some("m3".parse().unwrap()),
-                message: "3".parse().unwrap(),
+                source: src("s3"),
+                monitor_id: Some(m_id("m3")),
+                message: msg("3"),
                 time: UnixMicro(0),
             },
             LogEntryWithTime {
                 level: LogLevel::Debug,
-                source: "s4".parse().unwrap(),
-                monitor_id: Some("m4".parse().unwrap()),
-                message: "4".parse().unwrap(),
+                source: src("s4"),
+                monitor_id: Some(m_id("m4")),
+                message: msg("4"),
                 time: UnixMicro(0),
             },
         ];
@@ -248,7 +256,7 @@ mod tests {
     fn source_parse(input: &str, want: ParseLogSourceError) {
         assert_eq!(
             want,
-            LogSource::from_str(input).expect_err("expected error")
+            LogSource::try_from(input.to_owned()).expect_err("expected error")
         );
     }
 
@@ -256,7 +264,7 @@ mod tests {
     fn message_parse(input: &str, want: ParseNonEmptyStringError) {
         assert_eq!(
             want,
-            NonEmptyString::from_str(input).expect_err("expected error")
+            NonEmptyString::try_from(input.to_owned()).expect_err("expected error")
         );
     }
 }

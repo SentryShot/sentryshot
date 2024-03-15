@@ -4,7 +4,7 @@
 
 use fs::{MapEntry, MapFs};
 use pretty_assertions::assert_eq;
-use recording::RecordingData;
+use recording::{RecordingData, RecordingId};
 use std::{collections::HashMap, path::PathBuf};
 use test_case::test_case;
 
@@ -43,6 +43,10 @@ fn crawler_test_fs() -> MapFs {
     ]))
 }
 
+fn r_id(s: &str) -> RecordingId {
+    s.to_owned().try_into().unwrap()
+}
+
 const CRAWLER_TEST_DATA: &str = "
     {
         \"start\": 4073680922000000000,
@@ -76,7 +80,7 @@ const CRAWLER_TEST_DATA: &str = "
 #[tokio::test]
 async fn test_recording_by_query(input: &str, want: &str) {
     let query = CrawlerQuery {
-        recording_id: input.parse().unwrap(),
+        recording_id: r_id(input),
         limit: 1,
         reverse: false,
         monitors: Vec::new(),
@@ -110,7 +114,7 @@ async fn test_recording_by_query(input: &str, want: &str) {
 #[tokio::test]
 async fn test_recording_by_query_reverse(input: &str, want: &str) {
     let query = CrawlerQuery {
-        recording_id: input.parse().unwrap(),
+        recording_id: r_id(input),
         limit: 1,
         reverse: true,
         monitors: Vec::new(),
@@ -136,7 +140,7 @@ async fn test_recording_by_query_multiple() {
     let c = Crawler::new(Box::new(crawler_test_fs()));
     let recordings = c
         .recordings_by_query(&CrawlerQuery {
-            recording_id: "9999-01-01_01-01-01_".parse().unwrap(),
+            recording_id: r_id("9999-01-01_01-01-01_"),
             limit: 5,
             reverse: false,
             monitors: Vec::new(),
@@ -165,7 +169,7 @@ async fn test_recording_by_query_monitors() {
     let c = Crawler::new(Box::new(crawler_test_fs()));
     let recordings = c
         .recordings_by_query(&CrawlerQuery {
-            recording_id: "2003-02-01_01-01-11_m1".parse().unwrap(),
+            recording_id: r_id("2003-02-01_01-01-11_m1"),
             limit: 1,
             reverse: false,
             monitors: vec!["m1".to_owned()],
@@ -201,7 +205,7 @@ async fn test_recording_by_query_data() {
     let c = Crawler::new(Box::new(crawler_test_fs()));
     let rec = c
         .recordings_by_query(&CrawlerQuery {
-            recording_id: "9999-01-01_01-01-01_m1".parse().unwrap(),
+            recording_id: r_id("9999-01-01_01-01-01_m1"),
             limit: 1,
             reverse: false,
             monitors: Vec::new(),
@@ -221,7 +225,7 @@ async fn test_recording_by_query_missing_data() {
     let c = Crawler::new(Box::new(crawler_test_fs()));
     let rec = c
         .recordings_by_query(&CrawlerQuery {
-            recording_id: "2002-01-01_01-01-01_m1".parse().unwrap(),
+            recording_id: r_id("2002-01-01_01-01-01_m1"),
             limit: 1,
             reverse: true,
             monitors: Vec::new(),

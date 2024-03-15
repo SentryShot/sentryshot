@@ -34,9 +34,9 @@ impl Plugin for ThumbScalePlugin {
         let log = |level: LogLevel, msg: &str| {
             self.logger.log(LogEntry {
                 level,
-                source: "recorder".parse().unwrap(),
+                source: "recorder".to_owned().try_into().unwrap(),
                 monitor_id: Some(config.id().to_owned()),
-                message: format!("thumb scale: {msg}").parse().unwrap(),
+                message: format!("thumb scale: {msg}").try_into().unwrap(),
             });
         };
 

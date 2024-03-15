@@ -40,7 +40,7 @@ struct PreLoadAuthNone;
 impl PreLoadPlugin for PreLoadAuthNone {
     fn add_log_source(&self) -> Option<LogSource> {
         #[allow(clippy::unwrap_used)]
-        Some("auth".parse().unwrap())
+        Some("auth".try_into().unwrap())
     }
 
     fn set_new_auth(&self) -> Option<NewAuthFn> {
@@ -287,7 +287,7 @@ mod tests {
     fn test_admin() -> Account {
         Account {
             id: "1".to_owned(),
-            username: "admin".parse().unwrap(),
+            username: "admin".to_owned().into(),
             password: PASS1.to_owned(),
             is_admin: true,
             token: "token1".to_owned(),
@@ -296,7 +296,7 @@ mod tests {
     fn test_user() -> Account {
         Account {
             id: "2".to_owned(),
-            username: "user".parse().unwrap(),
+            username: "user".to_owned().into(),
             password: PASS2.to_owned(),
             is_admin: false,
             token: "token2".to_owned(),
@@ -338,7 +338,7 @@ mod tests {
                 "1".to_owned(),
                 AccountObfuscated {
                     id: "1".to_owned(),
-                    username: "admin".parse().unwrap(),
+                    username: "admin".to_owned().into(),
                     is_admin: true,
                 },
             ),
@@ -346,7 +346,7 @@ mod tests {
                 "2".to_owned(),
                 AccountObfuscated {
                     id: "2".to_owned(),
-                    username: "user".parse().unwrap(),
+                    username: "user".to_owned().into(),
                     is_admin: false,
                 },
             ),
@@ -362,7 +362,7 @@ mod tests {
         // Update username.
         let req = AccountSetRequest {
             id: "1".to_owned(),
-            username: "new_name".parse().unwrap(),
+            username: "new_name".to_owned().into(),
             plain_password: None,
             is_admin: true,
         };
@@ -389,7 +389,7 @@ mod tests {
         match auth
             .account_set(AccountSetRequest {
                 id: "10".to_owned(),
-                username: "admin".parse().unwrap(),
+                username: "admin".to_owned().into(),
                 plain_password: None,
                 is_admin: false,
             })
@@ -403,7 +403,7 @@ mod tests {
         match auth
             .account_set(AccountSetRequest {
                 id: String::new(),
-                username: "admin".parse().unwrap(),
+                username: "admin".to_owned().into(),
                 plain_password: Some("pass".to_owned()),
                 is_admin: false,
             })
@@ -417,7 +417,7 @@ mod tests {
         match auth
             .account_set(AccountSetRequest {
                 id: "1".to_owned(),
-                username: "".parse().unwrap(),
+                username: String::new().into(),
                 plain_password: Some("pass".to_owned()),
                 is_admin: false,
             })
@@ -443,7 +443,7 @@ mod tests {
             auth.data
                 .lock()
                 .await
-                .account_by_name(&"2".parse().unwrap()),
+                .account_by_name(&"2".to_owned().into()),
             "user was not deleted"
         );
     }

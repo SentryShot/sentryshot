@@ -681,9 +681,12 @@ mod tests {
         create_files(&rec_dir, &files);
         assert_eq!(files, list_directory(&rec_dir));
 
-        delete_recording(recordings_dir.path(), &rec_id.parse().unwrap())
-            .await
-            .unwrap();
+        delete_recording(
+            recordings_dir.path(),
+            &rec_id.to_owned().try_into().unwrap(),
+        )
+        .await
+        .unwrap();
         assert_eq!(
             vec!["2000-01-01_02-02-02_x1.mp4".to_owned()],
             list_directory(&rec_dir)

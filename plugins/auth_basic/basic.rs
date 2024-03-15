@@ -23,7 +23,6 @@ use std::{
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf},
-    str::FromStr,
     sync::Arc,
 };
 use tokio::{runtime::Handle, sync::Mutex};
@@ -43,7 +42,7 @@ struct PreLoadAuthBasic;
 impl PreLoadPlugin for PreLoadAuthBasic {
     fn add_log_source(&self) -> Option<LogSource> {
         #[allow(clippy::unwrap_used)]
-        Some("auth".parse().unwrap())
+        Some("auth".try_into().unwrap())
     }
 
     fn set_new_auth(&self) -> Option<NewAuthFn> {
@@ -140,7 +139,7 @@ impl BasicAuth {
             return None;
         };
 
-        let username = Username::from_str(auth_header.username()).expect("infallible");
+        let username: Username = auth_header.username().to_owned().into();
         let plain_password = auth_header.password();
 
         let account = {
@@ -460,7 +459,7 @@ mod tests {
     fn test_admin() -> Account {
         Account {
             id: "1".to_owned(),
-            username: "admin".parse().unwrap(),
+            username: "admin".to_owned().into(),
             password: PASS1.to_owned(),
             is_admin: true,
             token: "token1".to_owned(),
@@ -469,7 +468,7 @@ mod tests {
     fn test_user() -> Account {
         Account {
             id: "2".to_owned(),
-            username: "user".parse().unwrap(),
+            username: "user".to_owned().into(),
             password: PASS2.to_owned(),
             is_admin: false,
             token: "token2".to_owned(),
@@ -511,9 +510,11 @@ mod tests {
     #[tokio::test]
     async fn test_auth_account_by_name(username: &str, want: Option<Account>) {
         let (_, auth) = new_test_auth();
-
-        let username = Username::from_str(username).unwrap();
-        let got = auth.data.lock().await.account_by_name(&username);
+        let got = auth
+            .data
+            .lock()
+            .await
+            .account_by_name(&username.to_owned().into());
         assert_eq!(want, got);
     }
 
@@ -558,7 +559,7 @@ mod tests {
                 "1".to_owned(),
                 AccountObfuscated {
                     id: "1".to_owned(),
-                    username: "admin".parse().unwrap(),
+                    username: "admin".to_owned().into(),
                     is_admin: true,
                 },
             ),
@@ -566,7 +567,7 @@ mod tests {
                 "2".to_owned(),
                 AccountObfuscated {
                     id: "2".to_owned(),
-                    username: "user".parse().unwrap(),
+                    username: "user".to_owned().into(),
                     is_admin: false,
                 },
             ),
@@ -582,7 +583,7 @@ mod tests {
         // Update username.
         let req = AccountSetRequest {
             id: "1".to_owned(),
-            username: "new_name".parse().unwrap(),
+            username: "new_name".to_owned().into(),
             plain_password: None,
             is_admin: true,
         };
@@ -609,7 +610,7 @@ mod tests {
         match auth
             .account_set(AccountSetRequest {
                 id: "10".to_owned(),
-                username: "admin".parse().unwrap(),
+                username: "admin".to_owned().into(),
                 plain_password: None,
                 is_admin: false,
             })
@@ -623,7 +624,7 @@ mod tests {
         match auth
             .account_set(AccountSetRequest {
                 id: String::new(),
-                username: "admin".parse().unwrap(),
+                username: "admin".to_owned().into(),
                 plain_password: Some("pass".to_owned()),
                 is_admin: false,
             })
@@ -637,7 +638,7 @@ mod tests {
         match auth
             .account_set(AccountSetRequest {
                 id: "1".to_owned(),
-                username: "".parse().unwrap(),
+                username: String::new().into(),
                 plain_password: Some("pass".to_owned()),
                 is_admin: false,
             })
@@ -663,7 +664,7 @@ mod tests {
             auth.data
                 .lock()
                 .await
-                .account_by_name(&"2".parse().unwrap()),
+                .account_by_name(&"2".to_owned().into()),
             "user was not deleted"
         );
     }

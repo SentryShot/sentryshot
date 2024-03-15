@@ -120,8 +120,8 @@ impl Monitor {
         Arc::new(Monitor {
             config: MonitorConfig {
                 config: Config {
-                    id: "a".parse().unwrap(),
-                    name: "b".parse().unwrap(),
+                    id: "a".to_owned().try_into().unwrap(),
+                    name: "b".to_owned().try_into().unwrap(),
                     enable: false,
                     source: common::monitor::SelectedSource::Rtsp,
                     always_record: false,
@@ -546,7 +546,7 @@ mod tests {
     };
     use pretty_assertions::assert_eq;
     use serde_json::json;
-    use std::{fs, path::PathBuf, str::FromStr};
+    use std::{fs, path::PathBuf};
     use tempfile::TempDir;
     use test_case::test_case;
 
@@ -591,7 +591,7 @@ mod tests {
     fn source_parse(input: &str, want: ParseMonitorIdError) {
         assert_eq!(
             want,
-            MonitorId::from_str(input).expect_err("expected error")
+            MonitorId::try_from(input.to_owned()).expect_err("expected error")
         );
     }
 
@@ -661,6 +661,13 @@ mod tests {
         serde_json::from_slice(&json).unwrap()
     }
 
+    fn m_id(s: &str) -> MonitorId {
+        s.to_owned().try_into().unwrap()
+    }
+    fn name(s: &str) -> NonEmptyString {
+        s.to_owned().try_into().unwrap()
+    }
+
     #[tokio::test]
     async fn test_new_manager_ok() {
         let (_temp_dir, config_dir, _) = new_test_manager();
@@ -674,7 +681,7 @@ mod tests {
         )
         .unwrap();
 
-        let want = manager.configs[&"1".parse().unwrap()].clone();
+        let want = manager.configs[&m_id("1")].clone();
         let got = read_config(config_dir.join("1.json"));
         assert_eq!(want, got);
     }
@@ -705,8 +712,8 @@ mod tests {
 
         let config = MonitorConfig {
             config: Config {
-                id: "new".parse().unwrap(),
-                name: "new".parse().unwrap(),
+                id: m_id("new"),
+                name: name("new"),
                 enable: false,
                 source: SelectedSource::Rtsp,
                 always_record: false,
@@ -735,9 +742,9 @@ mod tests {
         let created = manager.monitor_set(config).await.unwrap();
         assert!(created);
 
-        let new = &"new".parse().unwrap();
+        let new = &m_id("new");
         let new_name = manager.configs[new].name();
-        assert_eq!(&"new".parse::<NonEmptyString>().unwrap(), new_name);
+        assert_eq!(&name("new"), new_name);
 
         // Check if changes were saved to file.
         let saved_config = read_config(config_dir.join("new.json"));
@@ -748,16 +755,16 @@ mod tests {
     async fn test_monitor_set_update() {
         let (_temp_dir, config_dir, mut manager) = new_test_manager();
 
-        let one = "1".parse().unwrap();
+        let one = m_id("1");
         let old_monitor = &manager.configs[&one];
 
         let old_name = old_monitor.name();
-        assert_eq!(&"one".parse::<NonEmptyString>().unwrap(), old_name);
+        assert_eq!(&name("one"), old_name);
 
         let config = MonitorConfig {
             config: Config {
-                id: "1".parse().unwrap(),
-                name: "two".parse().unwrap(),
+                id: m_id("1"),
+                name: name("two"),
                 enable: false,
                 source: SelectedSource::Rtsp,
                 always_record: false,
@@ -787,7 +794,7 @@ mod tests {
         assert!(!created);
 
         let new_name = manager.configs[&one].name();
-        assert_eq!(&"two".parse::<NonEmptyString>().unwrap(), new_name);
+        assert_eq!(&name("two"), new_name);
 
         // Check if changes were saved to file.
         let saved_config = read_config(config_dir.join("1.json"));
@@ -798,7 +805,7 @@ mod tests {
     async fn test_monitor_delete_ok() {
         let (_temp_dir, config_dir, mut manager) = new_test_manager();
 
-        let one: MonitorId = "1".parse().unwrap();
+        let one: MonitorId = m_id("1");
         manager
             .started_monitors
             .insert(one.clone(), Monitor::empty());
@@ -813,7 +820,7 @@ mod tests {
     async fn test_monitor_delete_exist_error() {
         let (_, _, mut manager) = new_test_manager();
         assert!(matches!(
-            manager.monitor_delete(&"nil".parse().unwrap()).await,
+            manager.monitor_delete(&m_id("nil")).await,
             Err(MonitorDeleteError::NotExist(_))
         ));
     }
@@ -898,11 +905,11 @@ mod tests {
         let got = manager.monitor_configs();
         let want: HashMap<MonitorId, MonitorConfig> = HashMap::from([
             (
-                "1".parse().unwrap(),
+                m_id("1"),
                 MonitorConfig {
                     config: Config {
-                        id: "1".parse().unwrap(),
-                        name: "one".parse().unwrap(),
+                        id: m_id("1"),
+                        name: name("one"),
                         enable: false,
                         source: SelectedSource::Rtsp,
                         always_record: false,
@@ -928,11 +935,11 @@ mod tests {
                 },
             ),
             (
-                "2".parse().unwrap(),
+                m_id("2"),
                 MonitorConfig {
                     config: Config {
-                        id: "2".parse().unwrap(),
-                        name: "two".parse().unwrap(),
+                        id: m_id("2"),
+                        name: name("two"),
                         enable: false,
                         source: SelectedSource::Rtsp,
                         always_record: false,
@@ -966,10 +973,8 @@ mod tests {
     #[tokio::test]
     async fn test_manager_drop() {
         let (_, _, mut manager) = new_test_manager();
-        manager.started_monitors = Monitors::from([
-            ("1".parse().unwrap(), Monitor::empty()),
-            ("2".parse().unwrap(), Monitor::empty()),
-        ]);
+        manager.started_monitors =
+            Monitors::from([(m_id("1"), Monitor::empty()), (m_id("2"), Monitor::empty())]);
         manager.stop().await;
     }
 
@@ -977,7 +982,7 @@ mod tests {
     async fn test_restart_monitor_not_exist_error() {
         let (_, _, mut manager) = new_test_manager();
         assert!(matches!(
-            manager.monitor_restart(&"x".parse().unwrap()).await,
+            manager.monitor_restart(&m_id("x")).await,
             Err(MonitorRestartError::NotExist(_))
         ));
     }

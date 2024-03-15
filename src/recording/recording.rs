@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     ops::Deref,
     path::{Path, PathBuf},
-    str::FromStr,
 };
 
 // Recording data serialized to json and saved next to video and thumbnail.
@@ -86,14 +85,14 @@ impl RecordingId {
     }
 }
 
-impl FromStr for RecordingId {
-    type Err = RecordingIdError;
+impl TryFrom<String> for RecordingId {
+    type Error = RecordingIdError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn try_from(s: String) -> Result<Self, Self::Error> {
         use RecordingIdError::*;
         let b = s.as_bytes();
         if b.len() < 20 {
-            return Err(InvalidString(s.to_owned()));
+            return Err(InvalidString(s));
         }
 
         // "xxxx-xx-xx_xx-xx-xx_x"
@@ -104,9 +103,9 @@ impl FromStr for RecordingId {
             || b[16] != b'-'
             || b[19] != b'_'
         {
-            return Err(InvalidString(s.to_owned()));
+            return Err(InvalidString(s));
         }
-        Ok(Self(s.to_owned()))
+        Ok(Self(s))
     }
 }
 
@@ -115,8 +114,9 @@ impl<'de> Deserialize<'de> for RecordingId {
     where
         D: serde::Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        FromStr::from_str(&s).map_err(serde::de::Error::custom)
+        String::deserialize(deserializer)?
+            .try_into()
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -386,7 +386,7 @@ mod tests {
 
     #[test]
     fn test_recording_id_as_full_path() {
-        let id: RecordingId = "2001-02-03_04-05-06_x".parse().unwrap();
+        let id: RecordingId = "2001-02-03_04-05-06_x".to_owned().try_into().unwrap();
 
         let want = Path::new("2001/02/03/x/2001-02-03_04-05-06_x");
         let got = id.as_full_path();

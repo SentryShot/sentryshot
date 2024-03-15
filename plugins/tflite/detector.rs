@@ -17,7 +17,6 @@ use std::{
     num::{NonZeroU16, NonZeroU32, NonZeroU8},
     ops::Deref,
     path::Path,
-    str::FromStr,
     sync::Arc,
     time::Duration,
 };
@@ -79,8 +78,9 @@ impl<'de> Deserialize<'de> for DetectorName {
     where
         D: serde::Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        FromStr::from_str(&s).map_err(serde::de::Error::custom)
+        String::deserialize(deserializer)?
+            .try_into()
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -102,22 +102,22 @@ pub enum ParseDetectorNameError {
     WhiteSpace,
 }
 
-impl FromStr for DetectorName {
-    type Err = ParseDetectorNameError;
+impl TryFrom<String> for DetectorName {
+    type Error = ParseDetectorNameError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn try_from(s: String) -> Result<Self, Self::Error> {
         if s.is_empty() {
-            return Err(Self::Err::Empty);
+            return Err(Self::Error::Empty);
         }
         for c in s.chars() {
             if c.is_whitespace() {
-                return Err(Self::Err::WhiteSpace);
+                return Err(Self::Error::WhiteSpace);
             }
             if !c.is_alphanumeric() && c != '-' && c != '_' {
-                return Err(Self::Err::BadChar(c));
+                return Err(Self::Error::BadChar(c));
             }
         }
-        Ok(Self(s.to_owned()))
+        Ok(Self(s))
     }
 }
 
@@ -509,7 +509,7 @@ fn parse_detections(label_map: &LabelMap, input: Vec<tflite_lib::Detection>) -> 
             label.to_owned()
         } else {
             #[allow(clippy::unwrap_used)]
-            format!("unknown{class}").parse().unwrap()
+            format!("unknown{class}").try_into().unwrap()
         }
     };
     input
@@ -599,7 +599,7 @@ mod tests {
         let want = RawDetectorConfigs {
             detector_cpu: vec![RawDetectorConfigCpu {
                 enable: false,
-                name: "1".parse().unwrap(),
+                name: "1".to_owned().try_into().unwrap(),
                 width: NonZeroU16::new(2).unwrap(),
                 height: NonZeroU16::new(3).unwrap(),
                 model: "file:///4".parse().unwrap(),
@@ -611,7 +611,7 @@ mod tests {
             }],
             detector_edgetpu: vec![RawDetectorConfigEdgeTpu {
                 enable: true,
-                name: "8".parse().unwrap(),
+                name: "8".to_owned().try_into().unwrap(),
                 width: NonZeroU16::new(9).unwrap(),
                 height: NonZeroU16::new(10).unwrap(),
                 model: "file:///11".parse().unwrap(),

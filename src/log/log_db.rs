@@ -5,7 +5,7 @@ use common::{
     DynLogger, LogEntry, LogLevel, LogSource, MonitorId, ParseLogLevelError, ParseLogSourceError,
     ParseMonitorIdError, ParseNonEmptyStringError, LOG_SOURCE_MAX_LENGTH, MONITOR_ID_MAX_LENGTH,
 };
-use csv::deserialize_csv_option;
+use csv::{deserialize_csv_option, deserialize_csv_option2};
 use futures::TryFutureExt;
 use serde::Deserialize;
 use std::{
@@ -391,7 +391,7 @@ enum PurgeError {
 #[derive(Default, Deserialize)]
 pub struct LogQuery {
     #[serde(default)]
-    #[serde(deserialize_with = "deserialize_csv_option")]
+    #[serde(deserialize_with = "deserialize_csv_option2")]
     pub levels: Vec<LogLevel>,
 
     #[serde(default)]
@@ -920,17 +920,17 @@ async fn decode_entry<T: AsyncRead + AsyncSeek + Unpin>(
         if monitor_id.is_empty() {
             None
         } else {
-            Some(monitor_id.parse()?)
+            Some(monitor_id.to_owned().try_into()?)
         }
     };
 
     Ok((
         LogEntryWithTime {
             time: UnixMicro::from(time),
-            source: source.trim().parse()?,
+            source: source.trim().to_owned().try_into()?,
             monitor_id,
             level: LogLevel::try_from(level)?,
-            message: String::from_utf8(msg_buf)?.parse()?,
+            message: String::from_utf8(msg_buf)?.try_into()?,
         },
         msg_offset,
     ))
@@ -964,6 +964,7 @@ async fn get_file_size(path: &Path) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common::NonEmptyString;
     use pretty_assertions::assert_eq;
     use std::io::Cursor;
     use tempfile::tempdir;
@@ -980,30 +981,40 @@ mod tests {
         .unwrap()
     }
 
+    fn src(s: &'static str) -> LogSource {
+        s.try_into().unwrap()
+    }
+    fn m_id(s: &str) -> MonitorId {
+        s.to_owned().try_into().unwrap()
+    }
+    fn msg(s: &str) -> NonEmptyString {
+        s.to_owned().try_into().unwrap()
+    }
+
     fn msg1() -> LogEntryWithTime {
         LogEntryWithTime {
             level: LogLevel::Error,
-            source: "s1".parse().unwrap(),
-            monitor_id: Some("m1".parse().unwrap()),
-            message: "msg1".parse().unwrap(),
+            source: src("s1"),
+            monitor_id: Some(m_id("m1")),
+            message: msg("msg1"),
             time: UnixMicro::from(4000),
         }
     }
     fn msg2() -> LogEntryWithTime {
         LogEntryWithTime {
             level: LogLevel::Warning,
-            source: "s1".parse().unwrap(),
+            source: src("s1"),
             monitor_id: None,
-            message: "msg2".parse().unwrap(),
+            message: msg("msg2"),
             time: UnixMicro::from(3000),
         }
     }
     fn msg3() -> LogEntryWithTime {
         LogEntryWithTime {
             level: LogLevel::Info,
-            source: "s2".parse().unwrap(),
-            monitor_id: Some("m2".parse().unwrap()),
-            message: "msg3".parse().unwrap(),
+            source: src("s2"),
+            monitor_id: Some(m_id("m2")),
+            message: msg("msg3"),
             time: UnixMicro::from(2000),
         }
     }
@@ -1017,7 +1028,7 @@ mod tests {
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Warning],
-            sources: vec!["s1".parse().unwrap()],
+            sources: vec![src("s1")],
             ..Default::default()
         },
         &[msg2()];
@@ -1026,7 +1037,7 @@ mod tests {
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning],
-            sources: vec!["s1".parse().unwrap()],
+            sources: vec![src("s1")],
             ..Default::default()
         },
         &[msg1(), msg2()];
@@ -1035,7 +1046,7 @@ mod tests {
     #[test_case(
         LogQuery{
             levels:  vec![LogLevel::Error, LogLevel::Info],
-            sources: vec!["s1".parse().unwrap()],
+            sources: vec![src("s1")],
             ..Default::default()
         },
         &[msg1()];
@@ -1044,7 +1055,7 @@ mod tests {
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Info],
-            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
+            sources: vec![src("s1"), src("s2")],
             ..Default::default()
         },
         &[msg1(), msg3()];
@@ -1053,8 +1064,8 @@ mod tests {
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Info],
-            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
-            monitors: vec!["m1".parse().unwrap()],
+            sources: vec![src("s1"), src("s2")],
+            monitors: vec![m_id("m1")],
             ..Default::default()
         },
         &[msg1()];
@@ -1063,8 +1074,8 @@ mod tests {
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Info],
-            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
-            monitors: vec!["m1".parse().unwrap(), "m2".parse().unwrap()],
+            sources: vec![src("s1"), src("s2")],
+            monitors: vec![m_id("m1"), m_id("m2")],
             ..Default::default()
         },
         &[msg1(), msg3()];
@@ -1073,7 +1084,7 @@ mod tests {
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
-            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
+            sources: vec![src("s1"), src("s2")],
             ..Default::default()
         },
         &[msg1(), msg2(), msg3()];
@@ -1087,7 +1098,7 @@ mod tests {
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
-            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
+            sources: vec![src("s1"), src("s2")],
             limit: Some(NonZeroUsize::new(2).unwrap()),
             ..Default::default()
         },
@@ -1106,7 +1117,7 @@ mod tests {
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
-            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
+            sources: vec![src("s1"), src("s2")],
             time: Some(UnixMicro::from(4000)),
             ..Default::default()
         },
@@ -1116,7 +1127,7 @@ mod tests {
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
-            sources: vec!["s1".parse().unwrap(), "s2".parse().unwrap()],
+            sources: vec![src("s1"), src("s2")],
             time: Some(UnixMicro::from(3500)),
             ..Default::default()
         },
@@ -1149,10 +1160,10 @@ mod tests {
     fn new_test_entry(time: u64) -> LogEntryWithTime {
         LogEntryWithTime {
             level: LogLevel::Error,
-            source: "x".parse().unwrap(),
+            source: src("x"),
             monitor_id: None,
             time: UnixMicro::from(time),
-            message: time.to_string().parse().unwrap(),
+            message: time.to_string().try_into().unwrap(),
         }
     }
 
@@ -1202,13 +1213,13 @@ mod tests {
         assert_eq!(vec![msg3, msg2, msg1], entries);
     }
 
-    fn new_test_entry2(time: u64, msg: &str) -> LogEntryWithTime {
+    fn new_test_entry2(time: u64, message: &str) -> LogEntryWithTime {
         LogEntryWithTime {
             level: LogLevel::Error,
-            source: "x".parse().unwrap(),
+            source: src("x"),
             monitor_id: None,
             time: UnixMicro::from(time),
-            message: msg.to_owned().parse().unwrap(),
+            message: msg(message),
         }
     }
 
@@ -1347,9 +1358,9 @@ mod tests {
     fn test_entry() -> LogEntryWithTime {
         LogEntryWithTime {
             level: LogLevel::Debug,
-            source: "abcdefgh".parse().unwrap(),
-            monitor_id: Some("aabbccddeeffgghhiijjkkll".parse().unwrap()),
-            message: "a".parse().unwrap(),
+            source: src("abcdefgh"),
+            monitor_id: Some(m_id("aabbccddeeffgghhiijjkkll")),
+            message: msg("a"),
             time: UnixMicro::from(5),
         }
     }

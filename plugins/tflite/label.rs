@@ -122,7 +122,8 @@ pub(crate) fn parse_labels(raw: &str) -> Result<LabelMap, ParseLabelsError> {
             .map_err(|e| ParseLabelsError(i, line.to_owned(), ParseKey(e)))?;
         let label = label
             .trim()
-            .parse()
+            .to_owned()
+            .try_into()
             .map_err(|e| ParseLabelsError(i, line.to_owned(), ParseLabel(e)))?;
         labels.insert(key, label);
     }
@@ -149,18 +150,22 @@ mod tests {
 8  boat
 9  traffic light";
         let got = parse_labels(labels).unwrap();
-        let want = HashMap::from([
-            (0, "person".parse().unwrap()),
-            (1, "bicycle".parse().unwrap()),
-            (2, "car".parse().unwrap()),
-            (3, "motorcycle".parse().unwrap()),
-            (4, "airplane".parse().unwrap()),
-            (5, "bus".parse().unwrap()),
-            (6, "train".parse().unwrap()),
-            (7, "car".parse().unwrap()),
-            (8, "boat".parse().unwrap()),
-            (9, "traffic light".parse().unwrap()),
-        ]);
+        let want = [
+            (0, "person"),
+            (1, "bicycle"),
+            (2, "car"),
+            (3, "motorcycle"),
+            (4, "airplane"),
+            (5, "bus"),
+            (6, "train"),
+            (7, "car"),
+            (8, "boat"),
+            (9, "traffic light"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k, Label::try_from(v.to_owned()).unwrap()))
+        .collect::<HashMap<u8, Label>>();
+
         assert_eq!(want, got);
     }
 }

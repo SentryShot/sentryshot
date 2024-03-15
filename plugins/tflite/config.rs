@@ -151,7 +151,10 @@ mod tests {
         let got = TfliteConfig::parse(raw).unwrap().unwrap();
 
         let want = TfliteConfig {
-            thresholds: HashMap::from([("5".parse().unwrap(), Percent::new(6).unwrap())]),
+            thresholds: HashMap::from([(
+                "5".to_owned().try_into().unwrap(),
+                Percent::new(6).unwrap(),
+            )]),
             crop: Crop {
                 x: 7,
                 y: 8,
@@ -164,7 +167,7 @@ mod tests {
                     PointNormalized { x: 12, y: 13 },
                 ],
             },
-            detector_name: "14".parse().unwrap(),
+            detector_name: "14".to_owned().try_into().unwrap(),
             feed_rate: FeedRateSec::new(Duration::from_secs(5)),
             duration: DurationSec::new(Duration::from_secs(15)),
             use_sub_stream: true,

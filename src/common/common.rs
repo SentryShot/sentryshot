@@ -12,15 +12,8 @@ use http::{HeaderMap, HeaderValue};
 use sentryshot_padded_bytes::PaddedBytes;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
-    convert::{Infallible, TryFrom},
-    fmt,
-    io::Cursor,
-    ops::Deref,
-    path::Path,
-    str::FromStr,
-    sync::Arc,
-    task::Poll,
+    borrow::Cow, collections::HashMap, convert::TryFrom, fmt, io::Cursor, ops::Deref, path::Path,
+    str::FromStr, sync::Arc, task::Poll,
 };
 use thiserror::Error;
 use time::{DurationH264, UnixH264};
@@ -125,10 +118,13 @@ impl LogEntry {
         monitor_id: Option<MonitorId>,
         message: String,
     ) -> Self {
-        let source: LogSource = source.parse().expect("source should be valid");
+        let source: LogSource = source
+            .to_owned()
+            .try_into()
+            .expect("source should be valid");
         let message: NonEmptyString = message
-            .parse()
-            .unwrap_or("invalid_message".parse().unwrap());
+            .try_into()
+            .unwrap_or("invalid_message".to_owned().try_into().unwrap());
         Self {
             level,
             source,
@@ -237,21 +233,21 @@ pub enum ParseMonitorIdError {
     TooLong,
 }
 
-impl FromStr for MonitorId {
-    type Err = ParseMonitorIdError;
+impl TryFrom<String> for MonitorId {
+    type Error = ParseMonitorIdError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn try_from(s: String) -> Result<Self, Self::Error> {
         use ParseMonitorIdError::*;
         if s.is_empty() {
             return Err(Empty);
         }
         if !s.chars().all(char::is_alphanumeric) {
-            return Err(InvalidChars(s.to_owned()));
+            return Err(InvalidChars(s));
         }
         if s.len() > MONITOR_ID_MAX_LENGTH {
             return Err(TooLong);
         }
-        Ok(Self(s.to_owned()))
+        Ok(Self(s))
     }
 }
 
@@ -267,7 +263,7 @@ pub const LOG_SOURCE_MAX_LENGTH: usize = 8;
 
 #[repr(transparent)]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, PartialOrd, Ord)]
-pub struct LogSource(String);
+pub struct LogSource(Cow<'static, str>);
 
 impl LogSource {
     #[must_use]
@@ -287,7 +283,7 @@ impl<'de> Deserialize<'de> for LogSource {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        FromStr::from_str(&s).map_err(serde::de::Error::custom)
+        s.try_into().map_err(serde::de::Error::custom)
     }
 }
 
@@ -303,10 +299,28 @@ pub enum ParseLogSourceError {
     TooLong,
 }
 
-impl FromStr for LogSource {
-    type Err = ParseLogSourceError;
+impl TryFrom<String> for LogSource {
+    type Error = ParseLogSourceError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        use ParseLogSourceError::*;
+        if s.is_empty() {
+            return Err(Empty);
+        }
+        if !s.chars().all(char::is_alphanumeric) {
+            return Err(InvalidChars(s));
+        }
+        if s.len() > MONITOR_ID_MAX_LENGTH {
+            return Err(TooLong);
+        }
+        Ok(Self(Cow::Owned(s)))
+    }
+}
+
+impl TryFrom<&'static str> for LogSource {
+    type Error = ParseLogSourceError;
+
+    fn try_from(s: &'static str) -> Result<Self, Self::Error> {
         use ParseLogSourceError::*;
         if s.is_empty() {
             return Err(Empty);
@@ -317,7 +331,7 @@ impl FromStr for LogSource {
         if s.len() > MONITOR_ID_MAX_LENGTH {
             return Err(TooLong);
         }
-        Ok(Self(s.to_owned()))
+        Ok(Self(Cow::Borrowed(s)))
     }
 }
 
@@ -338,8 +352,9 @@ impl<'de> Deserialize<'de> for NonEmptyString {
     where
         D: serde::Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        FromStr::from_str(&s).map_err(serde::de::Error::custom)
+        String::deserialize(deserializer)?
+            .try_into()
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -355,14 +370,14 @@ pub enum ParseNonEmptyStringError {
     Empty,
 }
 
-impl FromStr for NonEmptyString {
-    type Err = ParseNonEmptyStringError;
+impl TryFrom<String> for NonEmptyString {
+    type Error = ParseNonEmptyStringError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn try_from(s: String) -> Result<Self, Self::Error> {
         if s.is_empty() {
             return Err(ParseNonEmptyStringError::Empty);
         }
-        Ok(Self(s.to_owned()))
+        Ok(Self(s))
     }
 }
 
@@ -401,15 +416,13 @@ impl<'de> Deserialize<'de> for Username {
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(Username(String::deserialize(deserializer)?.to_lowercase()))
+        Ok(String::deserialize(deserializer)?.into())
     }
 }
 
-impl FromStr for Username {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_lowercase()))
+impl From<String> for Username {
+    fn from(value: String) -> Self {
+        Self(value.to_lowercase())
     }
 }
 

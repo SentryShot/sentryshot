@@ -48,7 +48,7 @@ struct PreLoadAuthNone;
 impl PreLoadPlugin for PreLoadAuthNone {
     fn add_log_source(&self) -> Option<LogSource> {
         #[allow(clippy::unwrap_used)]
-        Some("tflite".parse().unwrap())
+        Some("tflite".try_into().unwrap())
     }
 }
 
@@ -710,7 +710,7 @@ mod tests {
 
     use super::*;
     use crate::config::{Crop, Percent};
-    use common::PointNormalized;
+    use common::{Label, PointNormalized};
     use pretty_assertions::assert_eq;
     use recording::normalize;
     use test_case::test_case;
@@ -765,6 +765,10 @@ mod tests {
         assert_eq!(want, got);
     }
 
+    fn label(s: &str) -> Label {
+        s.to_owned().try_into().unwrap()
+    }
+
     #[test]
     #[allow(clippy::items_after_statements)]
     fn test_parse_detections() {
@@ -773,7 +777,7 @@ mod tests {
             uncrop_y_fn: Box::new(|v| v * 2),
         };
         let detections = vec![Detection {
-            label: "b".parse().unwrap(),
+            label: label("b"),
             score: 5.0,
             region: Region {
                 rectangle: Some(RectangleNormalized {
@@ -789,10 +793,10 @@ mod tests {
             enable: false,
             area: Vec::new(),
         };
-        let thresholds = HashMap::from([("b".parse().unwrap(), Percent::new(1).unwrap())]);
+        let thresholds = HashMap::from([(label("b"), Percent::new(1).unwrap())]);
         let got = parse_detections(&thresholds, &mask, &reverse, detections).unwrap();
         let want = vec![Detection {
-            label: "b".parse().unwrap(),
+            label: label("b"),
             score: 5.0,
             region: Region {
                 rectangle: Some(RectangleNormalized {
@@ -815,7 +819,7 @@ mod tests {
             uncrop_y_fn: Box::new(|v| v),
         };
         let detections = vec![Detection {
-            label: "b".parse().unwrap(),
+            label: label("b"),
             score: 5.0,
             region: Region {
                 rectangle: Some(RectangleNormalized {
@@ -834,7 +838,7 @@ mod tests {
                 y: normalize(y, 100),
             }
         }
-        let thresholds = HashMap::from([("b".parse().unwrap(), Percent::new(1).unwrap())]);
+        let thresholds = HashMap::from([(label("b"), Percent::new(1).unwrap())]);
         let mask = Mask {
             enable: true,
             area: vec![p(20, 60), p(20, 80), p(40, 80), p(40, 60)],
@@ -854,7 +858,7 @@ mod tests {
             uncrop_y_fn: Box::new(|v| v * 2),
         };
         let detections = vec![Detection {
-            label: "b".parse().unwrap(),
+            label: label("b"),
             score: 5.0,
             region: Region {
                 rectangle: Some(RectangleNormalized {
@@ -866,7 +870,7 @@ mod tests {
                 polygon: None,
             },
         }];
-        let thresholds = HashMap::from([("b".parse().unwrap(), Percent::new(100).unwrap())]);
+        let thresholds = HashMap::from([(label("b"), Percent::new(100).unwrap())]);
         let mask = Mask {
             enable: false,
             area: Vec::new(),

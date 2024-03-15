@@ -35,7 +35,7 @@ struct PreLoadAuthNone;
 impl PreLoadPlugin for PreLoadAuthNone {
     fn add_log_source(&self) -> Option<LogSource> {
         #[allow(clippy::unwrap_used)]
-        Some("motion".parse().unwrap())
+        Some("motion".try_into().unwrap())
     }
 }
 

@@ -1,9 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use serde::{Deserialize, Deserializer};
 use std::str::FromStr;
 
+use serde::{Deserialize, Deserializer};
+
 pub fn deserialize_csv_option<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: TryFrom<String>,
+    <T as TryFrom<String>>::Error: std::fmt::Display,
+{
+    use serde::de::Error;
+    let input = String::deserialize(deserializer)?;
+    let mut out = Vec::new();
+    for s in input.split(',') {
+        if s.is_empty() {
+            continue;
+        }
+        out.push(T::try_from(s.to_owned()).map_err(Error::custom)?);
+    }
+    Ok(out)
+}
+
+pub fn deserialize_csv_option2<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,
     T: FromStr,

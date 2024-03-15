@@ -2,7 +2,7 @@
 
 use crate::time::{Duration, UnixNano};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, num::NonZeroU32, ops::Deref, str::FromStr};
+use std::{fmt::Display, num::NonZeroU32, ops::Deref};
 use thiserror::Error;
 
 // Recording trigger event.
@@ -67,16 +67,16 @@ pub enum ParseLabelError {
     BadChar(char),
 }
 
-impl FromStr for Label {
-    type Err = ParseLabelError;
+impl TryFrom<String> for Label {
+    type Error = ParseLabelError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn try_from(s: String) -> Result<Self, Self::Error> {
         for c in s.chars() {
             if c != ' ' && !c.is_alphanumeric() {
-                return Err(Self::Err::BadChar(c));
+                return Err(Self::Error::BadChar(c));
             }
         }
-        Ok(Self(s.to_owned()))
+        Ok(Self(s))
     }
 }
 
@@ -94,8 +94,9 @@ impl<'de> Deserialize<'de> for Label {
     where
         D: serde::Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        FromStr::from_str(&s).map_err(serde::de::Error::custom)
+        String::deserialize(deserializer)?
+            .try_into()
+            .map_err(serde::de::Error::custom)
     }
 }
 

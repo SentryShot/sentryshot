@@ -1015,7 +1015,7 @@ mod tests {
                 duration: Duration::from(11),
                 rec_duration: Duration::from(0),
                 detections: vec![Detection {
-                    label: "10".parse().unwrap(),
+                    label: "10".to_owned().try_into().unwrap(),
                     score: 9.0,
                     region: Region {
                         rectangle: Some(RectangleNormalized {

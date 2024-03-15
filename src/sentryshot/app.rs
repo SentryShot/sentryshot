@@ -404,10 +404,10 @@ impl App {
 
         self.logger.log(LogEntry {
             level: LogLevel::Info,
-            source: "app".parse().expect("valid"),
+            source: "app".try_into().expect("valid"),
             monitor_id: None,
             message: format!("Serving app on port {}", self.env.port())
-                .parse()
+                .try_into()
                 .expect("not empty"),
         });
 

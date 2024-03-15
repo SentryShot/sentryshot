@@ -64,7 +64,7 @@ pub fn logdb_query(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             let entries =
                 h.db.query(LogQuery {
-                    monitors: vec!["x".parse().unwrap()],
+                    monitors: vec!["x".to_owned().try_into().unwrap()],
                     limit: Some(NonZeroUsize::new(1).unwrap()),
                     ..Default::default()
                 })
@@ -115,23 +115,23 @@ impl Helper {
             LogLevel::Error,
         ];
         let sources: &[LogSource] = &[
-            "app".parse().unwrap(),
-            "auth".parse().unwrap(),
-            "monitor".parse().unwrap(),
-            "recorder".parse().unwrap(),
-            "motion".parse().unwrap(),
-            "tflite".parse().unwrap(),
+            src("app"),
+            src("auth"),
+            src("monitor"),
+            src("recorder"),
+            src("motion"),
+            src("tflite"),
         ];
 
         let monitor_ids: &[MonitorId] = &[
-            "wrd7d".parse().unwrap(),
-            "bhybr".parse().unwrap(),
-            "qtxcr".parse().unwrap(),
-            "9xw67".parse().unwrap(),
-            "5pqs5".parse().unwrap(),
-            "5smuc".parse().unwrap(),
-            "7p6tu".parse().unwrap(),
-            "fvjqm".parse().unwrap(),
+            m_id("wrd7d"),
+            m_id("bhybr"),
+            m_id("qtxcr"),
+            m_id("9xw67"),
+            m_id("5pqs5"),
+            m_id("5smuc"),
+            m_id("7p6tu"),
+            m_id("fvjqm"),
         ];
 
         self.count += 1;
@@ -150,8 +150,15 @@ impl Helper {
             level: levels[self.rng.gen_range(0..levels.len())],
             source: sources[self.rng.gen_range(0..sources.len())].clone(),
             monitor_id: Some(monitor_ids[self.rng.gen_range(0..monitor_ids.len())].clone()),
-            message: message.parse().unwrap(),
+            message: message.try_into().unwrap(),
             time: UnixMicro::from(self.count),
         }
     }
+}
+
+fn src(s: &'static str) -> LogSource {
+    s.try_into().unwrap()
+}
+fn m_id(s: &str) -> MonitorId {
+    s.to_owned().try_into().unwrap()
 }
