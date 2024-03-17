@@ -54,25 +54,27 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 
 	return {
 		html: `
-			<div id="${elementID}" class="grid-item-container">
-				<input
-					class="js-checkbox player-overlay-checkbox"
-					id="${checkboxID}"
-					type="checkbox"
-				/>
-				<label
-					class="player-overlay-selector"
-					for="${checkboxID}"
-				></label>
-				<div class="js-overlay player-overlay feed-menu">
-					${html}
+			<div style="display: flex; justify-content: center;">
+				<div id="${elementID}" class="grid-item-container">
+					<input
+						class="js-checkbox player-overlay-checkbox"
+						id="${checkboxID}"
+						type="checkbox"
+					/>
+					<label
+						class="player-overlay-selector"
+						for="${checkboxID}"
+					></label>
+					<div class="js-overlay player-overlay feed-menu">
+						${html}
+					</div>
+					<video
+						class="grid-item"
+						muted
+						disablepictureinpicture
+						playsinline
+					></video>
 				</div>
-				<video
-					class="grid-item"
-					muted
-					disablepictureinpicture
-					playsinline
-				></video>
 			</div>`,
 		init($parent) {
 			const element = $parent.querySelector(`#${elementID}`);
@@ -163,8 +165,16 @@ function newMuteBtn(monitor) {
 const iconMaximizePath = "assets/icons/feather/maximize.svg";
 const iconMinimizePath = "assets/icons/feather/minimize.svg";
 
-/** @return {Button} */
+/**
+ * @typedef {Object} FullscreenButton
+ * @property {string} html
+ * @property {($parent: Element, $video: HTMLVideoElement) => void} init
+ * @property {() => void} exitFullscreen
+ */
+
+/** @return {FullscreenButton} */
 function newFullscreenBtn() {
+	let $img, $wrapper;
 	return {
 		html: `
 			<button class="js-fullscreen-btn feed-btn">
@@ -172,18 +182,25 @@ function newFullscreenBtn() {
 			</button>`,
 		init($parent) {
 			const element = $parent.parentElement;
+			$wrapper = element.parentElement;
 			const $btn = $parent.querySelector(".js-fullscreen-btn");
-			const $img = $btn.querySelector("img");
+			$img = $btn.querySelector("img");
 
 			$btn.addEventListener("click", () => {
-				if (document.fullscreenElement) {
+				if ($wrapper.classList.contains("grid-fullscreen")) {
 					$img.src = iconMaximizePath;
-					document.exitFullscreen();
+					$wrapper.classList.remove("grid-fullscreen");
 				} else {
 					$img.src = iconMinimizePath;
-					element.requestFullscreen();
+					$wrapper.classList.add("grid-fullscreen");
 				}
 			});
+		},
+		exitFullscreen() {
+			if ($wrapper && $wrapper.classList.contains("grid-fullscreen")) {
+				$img.src = iconMaximizePath;
+				$wrapper.classList.remove("grid-fullscreen");
+			}
 		},
 	};
 }

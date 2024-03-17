@@ -805,7 +805,7 @@ mod tests {
     async fn test_monitor_delete_ok() {
         let (_temp_dir, config_dir, mut manager) = new_test_manager();
 
-        let one: MonitorId = m_id("1");
+        let one = m_id("1");
         manager
             .started_monitors
             .insert(one.clone(), Monitor::empty());

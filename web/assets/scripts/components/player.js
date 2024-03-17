@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import { fromUTC } from "../libs/time.js";
-import { fetchDelete, denormalize } from "../libs/common.js";
+import { uniqueID, fetchDelete, denormalize } from "../libs/common.js";
 
 const millisecond = 1000000;
 
@@ -47,14 +47,23 @@ const millisecond = 1000000;
  */
 
 /**
+ * @typedef {Object} Player
+ * @property {string} html
+ * @property {(onLoad: () => void) => void} init
+ * @property {() => void} reset
+ * @property {() => void} exitFullscreen
+ */
+
+/**
  * @param {RecordingData} data
  * @param {boolean} isAdmin
  * @param {string} token
+ * @returns Player
  */
 function newPlayer(data, isAdmin, token) {
 	const d = data;
 
-	const elementID = "rec" + d.id;
+	const elementID = uniqueID();
 	const iconPlayPath = "assets/icons/feather/play.svg";
 	const iconPausePath = "assets/icons/feather/pause.svg";
 
@@ -146,6 +155,8 @@ function newPlayer(data, isAdmin, token) {
 			</div>
 		</div>`;
 
+	let $fullscreenImg;
+
 	/** @param {Element} element */
 	const loadVideo = (element) => {
 		element.innerHTML = videoHTML;
@@ -215,18 +226,17 @@ function newPlayer(data, isAdmin, token) {
 		const $popup = element.querySelector(".player-options-popup");
 		const $popupOpen = element.querySelector(".player-options-open-btn");
 		const $fullscreen = $popup.querySelector(".js-fullscreen");
-		const $fullscreenImg = $fullscreen.querySelector("img");
-
+		$fullscreenImg = $fullscreen.querySelector("img");
 		$popupOpen.addEventListener("click", () => {
 			$popup.classList.toggle("player-options-show");
 		});
 		$fullscreen.addEventListener("click", () => {
-			if (document.fullscreenElement) {
+			if ($wrapper && $wrapper.classList.contains("grid-fullscreen")) {
 				$fullscreenImg.src = iconMaximizePath;
-				document.exitFullscreen();
+				$wrapper.classList.remove("grid-fullscreen");
 			} else {
 				$fullscreenImg.src = iconMinimizePath;
-				element.requestFullscreen();
+				$wrapper.classList.add("grid-fullscreen");
 			}
 		});
 
@@ -240,22 +250,25 @@ function newPlayer(data, isAdmin, token) {
 				}
 				fetchDelete(d.deletePath, token, "could not delete recording");
 
-				element.remove();
+				$wrapper.remove();
 			});
 		}
 	};
 
-	let element;
+	let element, $wrapper;
 	const reset = () => {
 		element.innerHTML = thumbHTML;
 		element.classList.remove("js-loaded");
 	};
 
 	return {
-		html: `<div id="${elementID}" class="grid-item-container">${thumbHTML}</div>`,
-		/** @param {() => void=} onLoad */
+		html: `
+			<div style="display: flex; justify-content: center;">
+				<div id="${elementID}" class="grid-item-container">${thumbHTML}</div>
+			</div>`,
 		init(onLoad) {
 			element = document.querySelector(`#${elementID}`);
+			$wrapper = element.parentElement;
 
 			// Load video.
 			element.addEventListener("click", () => {
@@ -270,6 +283,12 @@ function newPlayer(data, isAdmin, token) {
 		},
 		reset() {
 			reset();
+		},
+		exitFullscreen() {
+			if ($wrapper && $wrapper.classList.contains("grid-fullscreen")) {
+				$fullscreenImg.src = iconMaximizePath;
+				$wrapper.classList.remove("grid-fullscreen");
+			}
 		},
 	};
 }

@@ -9,13 +9,16 @@ import {
 import { newPlayer } from "./components/player.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
 
+/** @typedef {import("./components/player.js").Player} Player */
 /** @typedef {import("./components/player.js").RecordingData} RecordingData */
 
 async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 	let selectedMonitors = [];
 	let maxPlayingVideos = 2;
 
+	/** @type {Player[]} */
 	let playingVideos;
+	/** @param player */
 	const addPlayingVideo = (player) => {
 		while (playingVideos.length >= maxPlayingVideos) {
 			playingVideos[0].reset();
@@ -26,6 +29,7 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 
 	const renderRecordings = async (recordings) => {
 		let current;
+		/** @type {Player[]} */
 		let players = [];
 		for (const rec of Object.values(recordings)) {
 			/** @type RecordingData */
@@ -45,6 +49,7 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 				d.start = Date.parse(idToISOstring(d.id));
 			}
 
+			/** @type Player */
 			const player = newPlayer(d, isAdmin, token);
 			players.push(player);
 
@@ -132,6 +137,11 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 			selectedMonitors = input;
 		},
 		lazyLoadRecordings: lazyLoadRecordings,
+		exitFullscreen() {
+			for (const player of playingVideos) {
+				player.exitFullscreen();
+			}
+		},
 	};
 }
 
@@ -201,6 +211,12 @@ async function init() {
 	document
 		.querySelector("#content-grid-wrapper")
 		.addEventListener("scroll", viewer.lazyLoadRecordings);
+
+	window.addEventListener("keydown", (e) => {
+		if (e.key === "Escape") {
+			viewer.exitFullscreen();
+		}
+	});
 }
 
 export { init, newViewer };

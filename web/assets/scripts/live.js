@@ -23,6 +23,8 @@ function newViewer($parent, monitors, hls) {
 	let preferLowRes = false;
 	let feeds = [];
 
+	const fullscreenButton = newFeedBtn.fullscreen();
+
 	return {
 		setMonitors(input) {
 			selectedMonitors = input;
@@ -46,7 +48,7 @@ function newViewer($parent, monitors, hls) {
 				const recordingsPath = toAbsolutePath("recordings");
 				const buttons = [
 					newFeedBtn.recordings(recordingsPath, monitor["id"]),
-					newFeedBtn.fullscreen(),
+					fullscreenButton,
 					newFeedBtn.mute(monitor),
 				];
 				feeds.push(newFeed(hls, monitor, preferLowRes, buttons));
@@ -61,6 +63,9 @@ function newViewer($parent, monitors, hls) {
 			for (const feed of feeds) {
 				feed.init($parent);
 			}
+		},
+		exitFullscreen() {
+			fullscreenButton.exitFullscreen();
 		},
 	};
 }
@@ -118,6 +123,12 @@ function init() {
 	const optionsMenu = newOptionsMenu(buttons);
 	$options.innerHTML = optionsMenu.html;
 	optionsMenu.init($options, viewer);
+
+	window.addEventListener("keydown", (e) => {
+		if (e.key === "Escape") {
+			viewer.exitFullscreen();
+		}
+	});
 }
 
 export { init, newViewer, resBtn };

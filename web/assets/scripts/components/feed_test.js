@@ -12,30 +12,32 @@ describe("feed", () => {
 
 		const actual = feed.html.replaceAll(/\s/g, "");
 		const expected = `
-			<div id="uid1" class="grid-item-container">
-				<input
-					class="js-checkbox player-overlay-checkbox"
-					id="uid2"
-					type="checkbox"
-				/>
-				<label
-					class="player-overlay-selector"
-					for="uid2">
-				</label>
-				<div class="js-overlay player-overlay feed-menu">
-					<button class="js-mute-btn feed-btn">
-						<img
-							class="feed-btn-img icon"
-							src="assets/icons/feather/volume.svg"
-						/>
-					</button>
+			<div style="display: flex; justify-content: center;">
+				<div id="uid1" class="grid-item-container">
+					<input
+						class="js-checkbox player-overlay-checkbox"
+						id="uid2"
+						type="checkbox"
+					/>
+					<label
+						class="player-overlay-selector"
+						for="uid2">
+					</label>
+					<div class="js-overlay player-overlay feed-menu">
+						<button class="js-mute-btn feed-btn">
+							<img
+								class="feed-btn-img icon"
+								src="assets/icons/feather/volume.svg"
+							/>
+						</button>
+					</div>
+					<video
+						class="grid-item"
+						muted
+						disablepictureinpicture
+						playsinline
+					></video>
 				</div>
-				<video
-					class="grid-item"
-					muted
-					disablepictureinpicture
-					playsinline
-				></video>
 			</div>`.replaceAll(/\s/g, "");
 
 		expect(actual).toBe(expected);

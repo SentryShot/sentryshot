@@ -36,7 +36,7 @@ describe("newViewer", () => {
 			const isThumbnail = [];
 			// @ts-ignore
 			for (const child of element.children) {
-				switch (child.children[0].tagName) {
+				switch (child.firstElementChild.firstElementChild.tagName) {
 					case "IMG": {
 						isThumbnail.push(true);
 						break;

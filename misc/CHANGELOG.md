@@ -1,5 +1,7 @@
 ## unreleased
 
+-   limit fullscreen to window size #20
+
 ## `v0.2.5`
 
 -   fix download filename #19

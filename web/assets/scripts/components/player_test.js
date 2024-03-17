@@ -50,17 +50,19 @@ describe("newPlayer", () => {
 		player.init();
 
 		const thumbnailHTML = `
-			<div id="recA" class="grid-item-container">
-				<img class="grid-item" src="B">
-				<div class="player-overlay-top player-top-bar">
-					<span class="player-menu-text js-date">2001-06-02</span>
-					<span class="player-menu-text js-time">00:00:00</span>
-					<span class="player-menu-text">D</span>
+			<div style="display: flex; justify-content: center;">
+				<div id="uid1" class="grid-item-container">
+					<img class="grid-item" src="B">
+					<div class="player-overlay-top player-top-bar">
+						<span class="player-menu-text js-date">2001-06-02</span>
+						<span class="player-menu-text js-time">00:00:00</span>
+						<span class="player-menu-text">D</span>
+					</div>
+					<svg class="player-timeline" viewBox="00100100" preserveAspectRatio="none">
+						<rect x="10" width="10" y="0" height="100"></rect>
+						<rect x="95" width="5" y="0" height="100"></rect>
+					</svg>
 				</div>
-				<svg class="player-timeline" viewBox="00100100" preserveAspectRatio="none">
-					<rect x="10" width="10" y="0" height="100"></rect>
-					<rect x="95" width="5" y="0" height="100"></rect>
-				</svg>
 			</div>`.replaceAll(/\s/g, "");
 
 		const actual = element.innerHTML.replaceAll(/\s/g, "");
@@ -68,7 +70,8 @@ describe("newPlayer", () => {
 
 		document.querySelector("div img").click();
 		const videoHTML = `
-				<div id="recA" class="grid-item-container js-loaded">
+			<div style="display: flex; justify-content: center;">
+				<div id="uid1" class="grid-item-container js-loaded">
 					<video class="grid-item" disablepictureinpicture="">
 						<source src="C" type="video/mp4">
 					</video>
@@ -79,12 +82,12 @@ describe("newPlayer", () => {
 					</svg>
 					<input
 						class="player-overlay-checkbox"
-						id="recA-overlay-checkbox"
+						id="uid1-overlay-checkbox"
 						type="checkbox"
 					>
 					<label
 						class="player-overlay-selector"
-						for="recA-overlay-checkbox">
+						for="uid1-overlay-checkbox">
 					</label>
 					<div class="player-overlay">
 						<button class="player-play-btn">
@@ -123,7 +126,8 @@ describe("newPlayer", () => {
 							<span class="player-menu-text">D</span>
 						</div>
 					</div>
-				</div>`.replaceAll(/\s/g, "");
+				</div>
+			</div>`.replaceAll(/\s/g, "");
 
 		const actual2 = element.innerHTML.replaceAll(/\s/g, "");
 		expect(actual2).toEqual(videoHTML);
@@ -148,17 +152,19 @@ describe("newPlayer", () => {
 
 		// Original.
 		const expected = `
-			<div id="recA" class="grid-item-container">
-				<img class="grid-item" src="B">
-				<div class="player-overlay-top player-top-bar">
-					<span class="player-menu-text js-date">2001-06-02</span>
-					<span class="player-menu-text js-time">00:00:00</span>
-					<span class="player-menu-text">D</span>
+			<div style="display: flex; justify-content: center;">
+				<div id="uid2" class="grid-item-container">
+					<img class="grid-item" src="B">
+					<div class="player-overlay-top player-top-bar">
+						<span class="player-menu-text js-date">2001-06-02</span>
+						<span class="player-menu-text js-time">00:00:00</span>
+						<span class="player-menu-text">D</span>
+					</div>
+					<svg class="player-timeline" viewBox="00100100" preserveAspectRatio="none">
+						<rect x="10" width="10" y="0" height="100"></rect>
+						<rect x="95" width="5" y="0" height="100"></rect>
+					</svg>
 				</div>
-				<svg class="player-timeline" viewBox="00100100" preserveAspectRatio="none">
-					<rect x="10" width="10" y="0" height="100"></rect>
-					<rect x="95" width="5" y="0" height="100"></rect>
-				</svg>
 			</div>`.replaceAll(/\s/g, "");
 
 		const actual = element.innerHTML.replaceAll(/\s/g, "");
@@ -184,7 +190,7 @@ describe("newPlayer", () => {
 		expect(actual2).toEqual(expected2);
 
 		document.querySelector(".js-delete").click();
-		expect(element.innerHTML).toBe("");
+		expect(element.innerHTML.replaceAll(/\s/g, "")).toBe("");
 	});
 
 	test("bubblingVideoClick", () => {

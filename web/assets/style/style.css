@@ -615,6 +615,17 @@ img {
 	grid-template-columns: repeat(var(--gridsize), auto);
 }
 
+.grid-fullscreen {
+	display: flex;
+	position: absolute;
+	z-index: 100;
+	width: 100vw;
+	height: 100vh;
+	top: 0;
+	left: 0;
+	background: var(--colorbg);
+}
+
 .grid-item-container {
 	position: relative;
 	display: flex;
@@ -622,6 +633,7 @@ img {
 	align-items: center;
 	width: 100%;
 	max-height: 100vh;
+	align-self: center;
 
 	--player-timeline-width: 90%;
 }
@@ -629,6 +641,8 @@ img {
 .grid-item {
 	width: 100%;
 	height: 100%;
+	max-height: 100vh;
+	object-fit: contain;
 }
 
 /* Modal */
@@ -922,8 +936,10 @@ img {
 
 .player-overlay-bottom {
 	position: absolute;
-	bottom: 0;
+	bottom: 4%;
 	width: 100%;
+	height: 0.6rem;
+	min-height: 3.5%;
 }
 
 .player-top-bar {
@@ -975,7 +991,6 @@ img {
 	box-sizing: border-box;
 	width: 100%;
 	width: var(--player-timeline-width);
-	height: 0.6rem;
 	padding-top: 0.1rem;
 	padding-bottom: 0.1rem;
 	background: rgb(0 0 0 / 0%);
