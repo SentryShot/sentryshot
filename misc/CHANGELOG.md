@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.6`
+
 -   limit fullscreen to window size #20
 
 ## `v0.2.5`
