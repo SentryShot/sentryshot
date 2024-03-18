@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.7`
+
 -   fix live page fullscreen #20
 
 ## `v0.2.6`
