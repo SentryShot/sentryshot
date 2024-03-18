@@ -588,7 +588,7 @@ function crop(hls, detectors, hasSubStream) {
 				}
 
 				modal.open();
-				feed.init($modalContent);
+				feed.init();
 			});
 		},
 	};
@@ -900,7 +900,7 @@ function mask(hls, hasSubStream) {
 				}
 
 				modal.open();
-				feed.init($modalContent);
+				feed.init();
 			});
 		},
 	};

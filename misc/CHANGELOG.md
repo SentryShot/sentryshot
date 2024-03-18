@@ -1,5 +1,7 @@
 ## unreleased
 
+-   fix live page fullscreen #20
+
 ## `v0.2.6`
 
 -   limit fullscreen to window size #20
@@ -14,11 +16,11 @@
 
 ## `v0.2.3`
 
--   proper fix for broken recoder recovery #14
+-   proper fix for broken recorder recovery #14
 
 ## `v0.2.2`
 
--   hotfix broken recoder recovery #14
+-   hotfix broken recorder recovery #14
 
 ## `v0.2.1`
 

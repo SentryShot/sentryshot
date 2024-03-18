@@ -594,7 +594,7 @@ function zones(hls, hasSubStream) {
 					}
 
 					modal.open();
-					feed.init($modalContent);
+					feed.init();
 				});
 		},
 		value() {

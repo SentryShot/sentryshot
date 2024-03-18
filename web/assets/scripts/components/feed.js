@@ -21,7 +21,7 @@ const hlsConfig = {
 /**
  * @typedef {Object} Feed
  * @property {string} html
- * @property {($parent: HTMLElement) => void} init
+ * @property {() => void} init
  * @property {() => void} destroy
  */
 
@@ -60,7 +60,7 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 						class="js-checkbox player-overlay-checkbox"
 						id="${checkboxID}"
 						type="checkbox"
-					/>
+					>
 					<label
 						class="player-overlay-selector"
 						for="${checkboxID}"
@@ -76,8 +76,8 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 					></video>
 				</div>
 			</div>`,
-		init($parent) {
-			const element = $parent.querySelector(`#${elementID}`);
+		init() {
+			const element = document.querySelector(`#${elementID}`);
 			const $overlay = element.querySelector(`.js-overlay`);
 			const $video = element.querySelector("video");
 
@@ -178,7 +178,7 @@ function newFullscreenBtn() {
 	return {
 		html: `
 			<button class="js-fullscreen-btn feed-btn">
-				<img class="feed-btn-img icon" src="${iconMaximizePath}"/>
+				<img class="feed-btn-img icon" src="${iconMaximizePath}">
 			</button>`,
 		init($parent) {
 			const element = $parent.parentElement;
@@ -219,7 +219,7 @@ function newRecordingsBtn(path, id) {
 				<img
 					class="feed-btn-img icon"
 					style="height: 0.65rem;"
-					src="${iconRecordingsPath}"/
+					src="${iconRecordingsPath}"
 				>
 			</a>`,
 		init() {},

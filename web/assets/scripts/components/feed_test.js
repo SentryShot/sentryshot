@@ -18,7 +18,7 @@ describe("feed", () => {
 						class="js-checkbox player-overlay-checkbox"
 						id="uid2"
 						type="checkbox"
-					/>
+					>
 					<label
 						class="player-overlay-selector"
 						for="uid2">
@@ -91,7 +91,7 @@ test("recordingsBtn", async () => {
 				class="feed-btn-img icon"
 				style="height: 0.65rem;"
 				src="assets/icons/feather/film.svg"
-			/>
+			>
 		</a>`.replaceAll(/\s/g, "");
 	expect(actual).toBe(expected);
 });
@@ -99,11 +99,8 @@ test("recordingsBtn", async () => {
 test("fullscreenBtn", () => {
 	const actual = newFeedBtn.fullscreen().html.replaceAll(/\s/g, "");
 	const expected = `
-		<button class="js-fullscreen-btn feed-btn">
-			<img
-				class="feed-btn-img icon"
-				src="assets/icons/feather/maximize.svg"
-			/>
-		</button>`.replaceAll(/\s/g, "");
+	   <button class="js-fullscreen-btn feed-btn">
+		   <img class="feed-btn-img icon" src="assets/icons/feather/maximize.svg">
+	   </button>`.replaceAll(/\s/g, "");
 	expect(actual).toBe(expected);
 });

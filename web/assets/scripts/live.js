@@ -5,6 +5,8 @@ import { sortByName } from "./libs/common.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
 import { newFeed, newFeedBtn } from "./components/feed.js";
 
+/** @typedef {import("./components/feed.js").FullscreenButton} FullscreenButton */
+
 function newViewer($parent, monitors, hls) {
 	let selectedMonitors = [];
 	const isMonitorSelected = (monitor) => {
@@ -23,7 +25,8 @@ function newViewer($parent, monitors, hls) {
 	let preferLowRes = false;
 	let feeds = [];
 
-	const fullscreenButton = newFeedBtn.fullscreen();
+	/** @type {FullscreenButton[]} */
+	let fullscreenButtons = [];
 
 	return {
 		setMonitors(input) {
@@ -46,9 +49,12 @@ function newViewer($parent, monitors, hls) {
 				}
 
 				const recordingsPath = toAbsolutePath("recordings");
+
+				const fullscreenBtn = newFeedBtn.fullscreen();
+				fullscreenButtons.push(fullscreenBtn);
 				const buttons = [
 					newFeedBtn.recordings(recordingsPath, monitor["id"]),
-					fullscreenButton,
+					fullscreenBtn,
 					newFeedBtn.mute(monitor),
 				];
 				feeds.push(newFeed(hls, monitor, preferLowRes, buttons));
@@ -61,11 +67,13 @@ function newViewer($parent, monitors, hls) {
 			$parent.innerHTML = html;
 
 			for (const feed of feeds) {
-				feed.init($parent);
+				feed.init();
 			}
 		},
 		exitFullscreen() {
-			fullscreenButton.exitFullscreen();
+			for (const btn of fullscreenButtons) {
+				btn.exitFullscreen();
+			}
 		},
 	};
 }
