@@ -1,5 +1,7 @@
 ## unreleased
 
+-   motion: fix saving zone sensitivity #22
+
 ## `v0.2.7`
 
 -   fix live page fullscreen #20

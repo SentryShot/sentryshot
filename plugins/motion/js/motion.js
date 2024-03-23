@@ -302,6 +302,11 @@ function zones(hls, hasSubStream) {
 		});
 
 		$sensitivity = $modalContent.querySelector(".js-sensitivity");
+		$sensitivity.addEventListener("change", () => {
+			getSelectedZone().setSensitivity(
+				Math.min(100, Math.max($sensitivity.value, 0))
+			);
+		});
 
 		$thresholdMin = $modalContent.querySelector(".js-threshold-min");
 		$thresholdMin.addEventListener("change", () => {
