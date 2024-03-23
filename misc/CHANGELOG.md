@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.8`
+
 -   motion: fix saving zone sensitivity #22
 
 ## `v0.2.7`
