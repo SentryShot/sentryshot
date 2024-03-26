@@ -8,9 +8,7 @@ use axum::{
 };
 use bytesize::ByteSize;
 use common::{time::Duration, DynAuth, DynEnvConfig, EnvConfig, ILogger, LogEntry, LogLevel};
-use crawler::Crawler;
 use env::{EnvConf, EnvConfigNewError};
-use fs::dir_fs;
 use hls::HlsServer;
 use log::{
     log_db::{LogDb, LogDbHandle, NewLogDbError},
@@ -22,6 +20,7 @@ use plugin::{
     types::{admin, csrf, user, NewAuthError},
     Application, PluginManager, PreLoadPluginsError, PreLoadedPlugins,
 };
+use recdb::RecDb;
 use recording::VideoCache;
 use rust_embed::RustEmbed;
 use std::{
@@ -103,7 +102,7 @@ pub struct App {
     auth: DynAuth,
     hls_server: Arc<HlsServer>,
     monitor_manager: Arc<Mutex<MonitorManager>>,
-    crawler: Arc<Crawler>,
+    recdb: Arc<RecDb>,
     router: Router,
 }
 
@@ -147,18 +146,18 @@ impl App {
         let new_auth = pre_loaded_plugins.new_auth_fn();
         let auth = new_auth(rt_handle.clone(), env.config_dir(), logger.clone())?;
 
+        let rec_db = Arc::new(RecDb::new(env.recordings_dir().to_path_buf()));
+
         let hls_server = Arc::new(HlsServer::new(token.clone(), logger.clone()));
 
         let monitors_dir = env.config_dir().join("monitors");
         let monitor_manager = monitor::MonitorManager::new(
             monitors_dir,
-            Box::new(env.clone()),
+            rec_db.clone(),
             logger.clone(),
             hls_server.clone(),
         )?;
         let monitor_manager = Arc::new(Mutex::new(monitor_manager));
-
-        let crawler = Arc::new(Crawler::new(dir_fs(env.recordings_dir().to_path_buf())));
 
         let router = Router::new();
 
@@ -174,7 +173,7 @@ impl App {
                 auth,
                 hls_server,
                 monitor_manager,
-                crawler,
+                recdb: rec_db,
                 router,
             },
             pre_loaded_plugins,
@@ -300,7 +299,7 @@ impl App {
                 get(recording_query_handler)
                     .with_state(RecordingQueryHandlerState {
                         logger: self.logger.clone(),
-                        crawler: self.crawler.clone(),
+                        rec_db: self.recdb.clone(),
                     })
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
                     .with_state(self.auth.clone()),
@@ -361,7 +360,7 @@ impl App {
             .route(
                 "/api/recording/thumbnail/*id",
                 get(recording_thumbnail_handler)
-                    .with_state(self.env.recordings_dir().to_path_buf())
+                    .with_state(self.recdb.clone())
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
                     .with_state(self.auth.clone()),
             )
@@ -370,7 +369,7 @@ impl App {
                 "/api/recording/video/*id",
                 get(recording_video_handler)
                     .with_state(RecordingVideoState {
-                        recordings_dir: self.env.recordings_dir().to_owned(),
+                        rec_db: self.recdb.clone(),
                         video_cache: Arc::new(Mutex::new(VideoCache::new())),
                         logger: self.logger.clone(),
                     })

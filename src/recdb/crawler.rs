@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#[cfg(test)]
-mod test;
-
-use csv::deserialize_csv_option;
+use crate::{RecDbQuery, RecordingResponse};
 use fs::{DynFs, Entry, Fs, FsError, Open};
 use recording::{RecordingData, RecordingId};
-use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -24,10 +20,11 @@ use thiserror::Error;
 //             ├── YYYY-MM-DD_hh-mm-ss_monitor2.mp4   // Video.
 //             └── YYYY-MM-DD_hh-mm-ss_monitor2.json  // Event data.
 //
-// Event data is only generated If video was saved successfully.
+// Event data is only generated if video was saved successfully.
 // The job of these functions are to on-request find and return recording IDs.
 
 #[derive(Debug, Error)]
+#[allow(clippy::module_name_repetitions)]
 pub enum CrawlerError {
     #[error("fs: {0}")]
     Fs(#[from] FsError),
@@ -42,57 +39,30 @@ pub enum CrawlerError {
     InvalidValue(RecordingId),
 }
 
-// Query of recordings for crawler to find.
-#[derive(Deserialize)]
-pub struct CrawlerQuery {
-    #[serde(rename = "recording-id")]
-    recording_id: RecordingId,
-
-    limit: usize,
-    reverse: bool,
-
-    #[serde(default)]
-    #[serde(deserialize_with = "deserialize_csv_option")]
-    monitors: Vec<String>,
-
-    // If event data should be read from file and included.
-    #[serde(rename = "include-data")]
-    include_data: bool,
-}
-
 type Cache = HashMap<PathBuf, Vec<Dir>>;
-
-// Contains identifier and optionally data.
-// `.mp4`, `.jpeg` or `.json` can be appended to the
-// path to get the video, thumbnail or data file.
-#[derive(Debug, Serialize)]
-pub struct CrawlerRecording {
-    id: String,
-    data: Option<RecordingData>,
-}
 
 // Crawls through storage looking for recordings.
 pub struct Crawler {
-    fs: DynFs,
+    pub(crate) fs: DynFs,
 }
 
 impl Crawler {
     #[must_use]
-    pub fn new(fs: DynFs) -> Self {
+    pub(crate) fn new(fs: DynFs) -> Self {
         Self { fs }
     }
 
-    // Finds the best matching recording and
+    // finds the best matching recording and
     // returns limit number of subsequent recorings.
-    pub async fn recordings_by_query(
+    pub(crate) async fn recordings_by_query(
         &self,
-        query: &CrawlerQuery,
-    ) -> Result<Vec<CrawlerRecording>, CrawlerError> {
+        query: &RecDbQuery,
+    ) -> Result<Vec<RecordingResponse>, CrawlerError> {
         let cache = &mut Cache::new();
 
         let mut recordings = Vec::new();
         let mut file = self.find_recording(query, cache)?;
-        while recordings.len() < query.limit {
+        while recordings.len() < query.limit.get() {
             let Some(mut prev_file) = file.clone() else {
                 // Last recording is reached.
                 return Ok(recordings);
@@ -132,14 +102,14 @@ impl Crawler {
                 .to_string_lossy()
                 .to_string();
 
-            recordings.push(CrawlerRecording { id, data });
+            recordings.push(RecordingResponse { id, data });
         }
         Ok(recordings)
     }
 
     fn find_recording(
         &self,
-        query: &CrawlerQuery,
+        query: &RecDbQuery,
         cache: &mut Cache,
     ) -> Result<Option<Dir>, CrawlerError> {
         if query.recording_id.len() < 10 {
@@ -229,7 +199,7 @@ impl Dir {
     // children of current directory. Special case if depth == monitorDepth.
     fn children(
         &mut self,
-        query: &CrawlerQuery,
+        query: &RecDbQuery,
         cache: &mut Cache,
     ) -> Result<Vec<Dir>, CrawlerError> {
         if let Some(cached) = cache.get(&self.path) {
@@ -269,7 +239,7 @@ impl Dir {
     // Finds all json files beloning to
     // selected monitors in decending directories.
     // Only called by `children()`.
-    fn find_all_files(&mut self, query: &CrawlerQuery) -> Result<Vec<Dir>, CrawlerError> {
+    fn find_all_files(&mut self, query: &RecDbQuery) -> Result<Vec<Dir>, CrawlerError> {
         let monitor_dirs = self.fs.read_dir()?;
 
         let mut all_files = Vec::new();
@@ -321,7 +291,7 @@ impl Dir {
     // Returns next or previous child.
     fn child_by_name(
         &mut self,
-        query: &CrawlerQuery,
+        query: &RecDbQuery,
         cache: &mut Cache,
         name: &Path,
     ) -> Result<Option<Dir>, CrawlerError> {
@@ -336,7 +306,7 @@ impl Dir {
     // Returns child of current directory by exact name.
     fn child_by_exact_name(
         &mut self,
-        query: &CrawlerQuery,
+        query: &RecDbQuery,
         cache: &mut Cache,
         name: &Path,
     ) -> Result<Option<Dir>, CrawlerError> {
@@ -349,7 +319,7 @@ impl Dir {
     // Returns the newest or oldest file in all decending directories.
     fn find_file_deep(
         &self,
-        query: &CrawlerQuery,
+        query: &RecDbQuery,
         cache: &mut Cache,
     ) -> Result<Option<Dir>, CrawlerError> {
         let mut current = self.to_owned();
@@ -378,7 +348,7 @@ impl Dir {
     // Will climb to parent directories.
     fn sibling(
         &mut self,
-        query: &CrawlerQuery,
+        query: &RecDbQuery,
         cache: &mut Cache,
     ) -> Result<Option<Dir>, CrawlerError> {
         if self.depth == 0 {
@@ -415,4 +385,242 @@ fn monitor_selected(monitors: &[String], monitor: &str) -> bool {
         return true;
     }
     monitors.iter().any(|m| m == monitor)
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use std::num::NonZeroUsize;
+
+    use crate::RecDbQuery;
+
+    use super::*;
+    use fs::{MapEntry, MapFs};
+    use test_case::test_case;
+
+    fn map_fs_item(path: &str) -> (PathBuf, MapEntry) {
+        (
+            PathBuf::from(path),
+            MapEntry {
+                is_file: true,
+                ..Default::default()
+            },
+        )
+    }
+
+    fn crawler_test_fs() -> MapFs {
+        MapFs(HashMap::from([
+            map_fs_item("2000/01/01/m1/2000-01-01_01-01-11_m1.json"),
+            map_fs_item("2000/01/01/m1/2000-01-01_01-01-22_m1.json"),
+            map_fs_item("2000/01/02/m1/2000-01-02_01-01-11_m1.json"),
+            map_fs_item("2000/02/01/m1/2000-02-01_01-01-11_m1.json"),
+            map_fs_item("2001/02/01/m1/2001-02-01_01-01-11_m1.json"),
+            map_fs_item("2002/01/01/m1/2002-01-01_01-01-11_m1.json"),
+            map_fs_item("2003/01/01/m1/2003-01-01_01-01-11_m1.json"),
+            map_fs_item("2003/01/01/m2/2003-01-01_01-01-11_m2.json"),
+            map_fs_item("2004/01/01/m1/2004-01-01_01-01-11_m1.json"),
+            map_fs_item("2004/01/01/m1/2004-01-01_01-01-22_m1.json"),
+            (
+                PathBuf::from("2099/01/01/m1/2099-01-01_01-01-11_m1.json"),
+                MapEntry {
+                    data: CRAWLER_TEST_DATA.as_bytes().to_owned(),
+                    is_file: true,
+                    ..Default::default()
+                },
+            ),
+        ]))
+    }
+
+    fn r_id(s: &str) -> RecordingId {
+        s.to_owned().try_into().unwrap()
+    }
+
+    const CRAWLER_TEST_DATA: &str = "
+    {
+        \"start\": 4073680922000000000,
+        \"end\": 4073680924000000000,
+        \"events\": [
+            {
+                \"time\": 4073680922000000000,
+                \"detections\": [
+                    {
+                        \"label\": \"a\",
+                        \"score\": 1,
+                        \"region\": {
+                            \"rect\": [2, 3, 4, 5]
+                        }
+                    }
+                ],
+                \"duration\": 6
+            }
+        ]
+    }";
+
+    #[test_case("0000-01-01_01-01-01_m1",    "";                       "no files")]
+    #[test_case("1999-01-01_01-01-01_m1",    "";                       "EOF")]
+    #[test_case("9999-01-01_01-01-01_m1",    "2099-01-01_01-01-11_m1"; "latest")]
+    #[test_case("2000-01-01_01-01-22_m1", "2000-01-01_01-01-11_m1"; "prev")]
+    #[test_case("2000-01-02_01-01-11_m1", "2000-01-01_01-01-22_m1"; "prev day")]
+    #[test_case("2000-02-01_01-01-11_m1", "2000-01-02_01-01-11_m1"; "prev month")]
+    #[test_case("2001-01-01_01-01-11_m1", "2000-02-01_01-01-11_m1"; "prev year")]
+    #[test_case("2002-12-01_01-01-01_m1",    "2002-01-01_01-01-11_m1"; "empty prev day")]
+    #[test_case("2004-01-01_01-01-22_m1",    "2004-01-01_01-01-11_m1"; "same day")]
+    #[tokio::test]
+    async fn test_recording_by_query(input: &str, want: &str) {
+        let query = RecDbQuery {
+            recording_id: r_id(input),
+            limit: NonZeroUsize::new(1).unwrap(),
+            reverse: false,
+            monitors: Vec::new(),
+            include_data: false,
+        };
+        let recordings = match Crawler::new(Box::new(crawler_test_fs()))
+            .recordings_by_query(&query)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                println!("{e}");
+                panic!("{e}");
+            }
+        };
+
+        if want.is_empty() {
+            assert!(recordings.is_empty());
+        } else {
+            let got = &recordings.first().unwrap().id;
+            assert_eq!(want, got);
+        }
+    }
+
+    #[test_case("1111-01-01_01-01-01_m1", "2000-01-01_01-01-11_m1"; "latest")]
+    #[test_case("2000-01-01_01-01-11_m1", "2000-01-01_01-01-22_m1"; "next")]
+    #[test_case("2000-01-01_01-01-22_m1", "2000-01-02_01-01-11_m1"; "next day")]
+    #[test_case("2000-01-02_01-01-11_m1", "2000-02-01_01-01-11_m1"; "next month")]
+    #[test_case("2000-02-01_01-01-11_m1", "2001-02-01_01-01-11_m1"; "next year")]
+    #[test_case("2001-12-01_01-01-01_m1", "2002-01-01_01-01-11_m1"; "empty next day")]
+    #[tokio::test]
+    async fn test_recording_by_query_reverse(input: &str, want: &str) {
+        let query = RecDbQuery {
+            recording_id: r_id(input),
+            limit: NonZeroUsize::new(1).unwrap(),
+            reverse: true,
+            monitors: Vec::new(),
+            include_data: false,
+        };
+        let recordings = match Crawler::new(Box::new(crawler_test_fs()))
+            .recordings_by_query(&query)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                println!("{e}");
+                panic!("{e}");
+            }
+        };
+
+        let got = &recordings.first().unwrap().id;
+        assert_eq!(want, got);
+    }
+
+    #[tokio::test]
+    async fn test_recording_by_query_multiple() {
+        let c = Crawler::new(Box::new(crawler_test_fs()));
+        let recordings = c
+            .recordings_by_query(&RecDbQuery {
+                recording_id: r_id("9999-01-01_01-01-01_x"),
+                limit: NonZeroUsize::new(5).unwrap(),
+                reverse: false,
+                monitors: Vec::new(),
+                include_data: false,
+            })
+            .await
+            .unwrap();
+
+        let mut ids = Vec::new();
+        for rec in recordings {
+            ids.push(rec.id);
+        }
+
+        let want = vec![
+            "2099-01-01_01-01-11_m1",
+            "2004-01-01_01-01-22_m1",
+            "2004-01-01_01-01-11_m1",
+            "2003-01-01_01-01-11_m2",
+            "2003-01-01_01-01-11_m1",
+        ];
+        assert_eq!(want, ids);
+    }
+
+    #[tokio::test]
+    async fn test_recording_by_query_monitors() {
+        let c = Crawler::new(Box::new(crawler_test_fs()));
+        let recordings = c
+            .recordings_by_query(&RecDbQuery {
+                recording_id: r_id("2003-02-01_01-01-11_m1"),
+                limit: NonZeroUsize::new(1).unwrap(),
+                reverse: false,
+                monitors: vec!["m1".to_owned()],
+                include_data: false,
+            })
+            .await
+            .unwrap();
+        assert_eq!("2003-01-01_01-01-11_m1", recordings[0].id);
+        assert_eq!(1, recordings.len());
+    }
+
+    /*
+    t.Run("emptyMonitorsNoPanic", func(t *testing.T) {
+        c := NewCrawler(crawlerTestFS)
+        c.RecordingByQuery(
+            &CrawlerQuery{
+                Time:     "2003-02-01_1_m1",
+                Limit:    1,
+                Monitors: []string{""},
+            },
+        )
+    })
+    t.Run("invalidTimeErr", func(t *testing.T) {
+        c := NewCrawler(crawlerTestFS)
+        _, err := c.RecordingByQuery(
+            &CrawlerQuery{Time: "", Limit: 1},
+        )
+        require.Error(t, err)
+    })*/
+
+    #[tokio::test]
+    async fn test_recording_by_query_data() {
+        let c = Crawler::new(Box::new(crawler_test_fs()));
+        let rec = c
+            .recordings_by_query(&RecDbQuery {
+                recording_id: r_id("9999-01-01_01-01-01_m1"),
+                limit: NonZeroUsize::new(1).unwrap(),
+                reverse: false,
+                monitors: Vec::new(),
+                include_data: true,
+            })
+            .await
+            .unwrap();
+
+        let want: RecordingData = serde_json::from_str(CRAWLER_TEST_DATA).unwrap();
+        println!("{rec:?}");
+        let got = rec[0].data.as_ref().unwrap();
+        assert_eq!(&want, got);
+    }
+
+    #[tokio::test]
+    async fn test_recording_by_query_missing_data() {
+        let c = Crawler::new(Box::new(crawler_test_fs()));
+        let rec = c
+            .recordings_by_query(&RecDbQuery {
+                recording_id: r_id("2002-01-01_01-01-01_m1"),
+                limit: NonZeroUsize::new(1).unwrap(),
+                reverse: true,
+                monitors: Vec::new(),
+                include_data: true,
+            })
+            .await
+            .unwrap();
+        assert!(rec[0].data.is_none());
+    }
 }

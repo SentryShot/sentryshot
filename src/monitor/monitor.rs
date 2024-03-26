@@ -3,6 +3,7 @@
 mod recorder;
 mod source;
 
+use recdb::RecDb;
 pub use source::{DecoderError, Source, SubscribeDecodedError};
 
 use crate::{recorder::new_recorder, source::SourceRtsp};
@@ -10,8 +11,7 @@ use async_trait::async_trait;
 use common::{
     monitor::{MonitorConfig, MonitorConfigs, SourceConfig},
     time::{Duration, UnixNano},
-    DynEnvConfig, DynLogger, EnvConfig, Event, LogEntry, LogLevel, MonitorId, NonEmptyString,
-    StreamType,
+    DynLogger, Event, LogEntry, LogLevel, MonitorId, NonEmptyString, StreamType,
 };
 use hls::HlsServer;
 use sentryshot_convert::Frame;
@@ -213,7 +213,7 @@ pub struct MonitorManager {
     configs: MonitorConfigs,
     started_monitors: Monitors,
 
-    env: Box<dyn EnvConfig + Send + Sync>,
+    rec_db: Arc<RecDb>,
     logger: DynLogger,
     hls_server: Arc<HlsServer>,
     path: PathBuf,
@@ -224,7 +224,7 @@ pub struct MonitorManager {
 impl MonitorManager {
     pub fn new(
         config_path: PathBuf,
-        env: DynEnvConfig,
+        rec_db: Arc<RecDb>,
         logger: DynLogger,
         hls_server: Arc<HlsServer>,
         //hooks *Hooks,
@@ -260,7 +260,7 @@ impl MonitorManager {
             configs,
             started_monitors: HashMap::new(),
 
-            env,
+            rec_db,
             logger,
             hls_server,
             path: config_path,
@@ -443,7 +443,7 @@ impl MonitorManager {
             config.id().to_owned(),
             source_main.clone(),
             config.clone(),
-            self.env.recordings_dir().to_owned(),
+            self.rec_db.clone(),
         );
 
         if config.always_record() {
@@ -539,52 +539,15 @@ pub trait MonitorHooks {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytesize::ByteSize;
     use common::{
         monitor::{Config, Protocol, SelectedSource, SourceConfig, SourceRtspConfig},
-        DummyLogger, NonZeroGb, ParseMonitorIdError,
+        DummyLogger, ParseMonitorIdError,
     };
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::{fs, path::PathBuf};
     use tempfile::TempDir;
     use test_case::test_case;
-
-    pub struct StubEnvConfig {
-        max_disk_usage: NonZeroGb,
-    }
-
-    impl EnvConfig for StubEnvConfig {
-        fn port(&self) -> u16 {
-            todo!()
-        }
-        fn storage_dir(&self) -> &Path {
-            todo!()
-        }
-        fn recordings_dir(&self) -> &Path {
-            todo!()
-        }
-        fn config_dir(&self) -> &Path {
-            todo!()
-        }
-        fn plugin_dir(&self) -> &Path {
-            todo!()
-        }
-        fn max_disk_usage(&self) -> ByteSize {
-            *self.max_disk_usage
-        }
-        fn plugins(&self) -> &Option<Vec<common::EnvPlugin>> {
-            todo!()
-        }
-    }
-
-    impl StubEnvConfig {
-        fn empty() -> DynEnvConfig {
-            Box::new(Self {
-                max_disk_usage: NonZeroGb::new(ByteSize(1)).unwrap(),
-            })
-        }
-    }
 
     #[test_case("", ParseMonitorIdError::Empty; "empty")]
     #[test_case("@", ParseMonitorIdError::InvalidChars("@".to_owned()); "invalid_chars")]
@@ -645,10 +608,8 @@ mod tests {
         let token = CancellationToken::new();
         let manager = MonitorManager::new(
             config_dir.clone(),
-            StubEnvConfig::empty(),
+            Arc::new(RecDb::new(temp_dir.path().to_path_buf())),
             DummyLogger::new(),
-            //nil,
-            //&Hooks{Migrate: func(RawConfig) error { return nil }},
             Arc::new(HlsServer::new(token, DummyLogger::new())),
         )
         .unwrap();
@@ -670,12 +631,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_manager_ok() {
-        let (_temp_dir, config_dir, _) = new_test_manager();
+        let (temp_dir, config_dir, _) = new_test_manager();
 
         let token = CancellationToken::new();
         let manager = MonitorManager::new(
             config_dir.clone(),
-            StubEnvConfig::empty(),
+            Arc::new(RecDb::new(temp_dir.path().to_path_buf())),
             DummyLogger::new(),
             Arc::new(HlsServer::new(token, DummyLogger::new())),
         )
@@ -688,7 +649,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_manager_unmarshal_error() {
-        let (_temp_dir, config_dir) = prepare_dir();
+        let (temp_dir, config_dir) = prepare_dir();
 
         std::fs::write(config_dir.join("1.json"), "{").unwrap();
 
@@ -696,7 +657,7 @@ mod tests {
         assert!(matches!(
             MonitorManager::new(
                 config_dir,
-                StubEnvConfig::empty(),
+                Arc::new(RecDb::new(temp_dir.path().to_path_buf())),
                 DummyLogger::new(),
                 //&video.Server{},
                 //&Hooks{Migrate: func(RawConfig) error { return nil }},

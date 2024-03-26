@@ -15,7 +15,6 @@ doctest = false
 
 [dependencies]
 common.path = "../common"
-env.path = "../env" 
 recording.path = "../recording"
 
 async-trait.workspace = true

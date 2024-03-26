@@ -17,7 +17,6 @@ use common::{
     AccountSetRequest, AccountsMap, AuthAccountDeleteError, DynAuth, DynLogger, ILogger, LogEntry,
     LogLevel, MonitorId,
 };
-use crawler::{Crawler, CrawlerQuery, CrawlerRecording};
 use hls::{HlsQuery, HlsServer};
 use http::HeaderValue;
 use log::{
@@ -25,6 +24,7 @@ use log::{
     Logger,
 };
 use monitor::{MonitorDeleteError, MonitorManager};
+use recdb::{RecDb, RecDbQuery, RecordingResponse};
 use recording::{new_video_reader, RecordingId, VideoCache};
 use rust_embed::EmbeddedFiles;
 use serde::Deserialize;
@@ -246,14 +246,14 @@ pub async fn accounts_handler(State(auth): State<DynAuth>) -> Json<AccountsMap> 
 #[derive(Clone)]
 pub struct RecordingQueryHandlerState {
     pub logger: Arc<Logger>,
-    pub crawler: Arc<Crawler>,
+    pub rec_db: Arc<RecDb>,
 }
 
 pub async fn recording_query_handler(
     State(s): State<RecordingQueryHandlerState>,
-    query: Query<CrawlerQuery>,
-) -> Result<Json<Vec<CrawlerRecording>>, StatusCode> {
-    match s.crawler.recordings_by_query(&query.0).await {
+    query: Query<RecDbQuery>,
+) -> Result<Json<Vec<RecordingResponse>>, StatusCode> {
+    match s.rec_db.recordings_by_query(&query.0).await {
         Ok(v) => Ok(Json(v)),
         Err(e) => {
             s.logger.log(LogEntry::new(
@@ -389,25 +389,21 @@ pub async fn monitors_handler(
 }
 
 pub async fn recording_thumbnail_handler(
-    State(recordings_dir): State<PathBuf>,
+    State(rec_db): State<Arc<RecDb>>,
     Path(rec_id): Path<RecordingId>,
 ) -> Response {
     // Make sure json file exist.
-    let mut path = recordings_dir.join(rec_id.as_full_path());
-    path.set_extension("json");
-    let Ok(mut path) = tokio::fs::canonicalize(path).await else {
-        return (StatusCode::BAD_REQUEST, "canonicalize").into_response();
-    };
+    if rec_db
+        .recording_file_by_ext(&rec_id, "json")
+        .await
+        .is_none()
+    {
+        return (StatusCode::NOT_FOUND, "missing data").into_response();
+    }
 
     // Check if thumbnail exists.
-    path.set_extension("jpeg");
-    let Ok(path) = tokio::fs::canonicalize(path).await else {
-        return (StatusCode::BAD_REQUEST, "canonicalize").into_response();
-    };
-
-    let path_is_safe = path.starts_with(&recordings_dir);
-    if !path_is_safe {
-        return (StatusCode::BAD_REQUEST, "path traversal").into_response();
+    let Some(path) = rec_db.thumbnail_path(&rec_id).await else {
+        return (StatusCode::NOT_FOUND).into_response();
     };
 
     let file = match tokio::fs::OpenOptions::new().read(true).open(path).await {
@@ -423,7 +419,7 @@ pub async fn recording_thumbnail_handler(
 
 #[derive(Clone)]
 pub struct RecordingVideoState {
-    pub recordings_dir: PathBuf,
+    pub rec_db: Arc<RecDb>,
     pub video_cache: Arc<Mutex<VideoCache>>,
     pub logger: DynLogger,
 }
@@ -434,16 +430,8 @@ pub async fn recording_video_handler(
     headers: HeaderMap,
 ) -> Response {
     // Make sure json file exist.
-    let mut path = state.recordings_dir.join(rec_id.as_full_path());
-    path.set_extension("json");
-
-    let Ok(path) = tokio::fs::canonicalize(path).await else {
-        return (StatusCode::BAD_REQUEST, "canonicalize").into_response();
-    };
-
-    let path_is_safe = path.starts_with(&state.recordings_dir);
-    if !path_is_safe {
-        return (StatusCode::BAD_REQUEST, "path traversal").into_response();
+    let Some(path) = state.rec_db.recording_file_by_ext(&rec_id, "json").await else {
+        return (StatusCode::NOT_FOUND).into_response();
     };
 
     let video = match new_video_reader(path, &Some(state.video_cache)).await {

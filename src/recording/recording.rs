@@ -10,10 +10,11 @@ pub use video_reader::{new_video_reader, NewVideoReaderError, VideoCache};
 
 use common::{
     time::{Duration, UnixNano, SECOND},
-    Event, Point, PointNormalized, Polygon, PolygonNormalized,
+    Event, MonitorId, ParseMonitorIdError, Point, PointNormalized, Polygon, PolygonNormalized,
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    num::ParseIntError,
     ops::Deref,
     path::{Path, PathBuf},
 };
@@ -35,34 +36,103 @@ pub struct RecordingData {
 pub enum RecordingIdError {
     #[error("invalid string: {0}")]
     InvalidString(String),
+
+    #[error("invalid year: {0}")]
+    InvalidYear(ParseIntError),
+    #[error("invalid month: {0}")]
+    InvalidMonth(ParseIntError),
+    #[error("invalid day: {0}")]
+    InvalidDay(ParseIntError),
+
+    #[error("invalid hour: {0}")]
+    InvalidHour(ParseIntError),
+    #[error("invalid minute: {0}")]
+    InvalidMinute(ParseIntError),
+    #[error("invalid second: {0}")]
+    InvalidSecond(ParseIntError),
+
+    #[error("invalid monitor id: {0}")]
+    InvalidMonitorId(#[from] ParseMonitorIdError),
+
+    #[error("bad month: {0}")]
+    BadMonth(u8),
+    #[error("bad day: {0}")]
+    BadDay(u8),
+    #[error("bad hour: {0}")]
+    BadHour(u8),
+    #[error("bad minute: {0}")]
+    BadMinute(u8),
+    #[error("bad second: {0}")]
+    BadSecond(u8),
 }
 
-#[repr(transparent)]
-#[derive(Clone, Debug)]
-pub struct RecordingId(String);
+#[derive(Clone, Hash, PartialEq, Eq)]
+pub struct RecordingId {
+    raw: String,
+
+    year: u16,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+    second: u8,
+    monitor_id: MonitorId,
+}
+
+impl std::fmt::Debug for RecordingId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.raw)
+    }
+}
 
 impl RecordingId {
     #[must_use]
     pub fn year_month_day(&self) -> [PathBuf; 3] {
         [
-            PathBuf::from(&self.0[..4]),   // Year.
-            PathBuf::from(&self.0[5..7]),  // Month.
-            PathBuf::from(&self.0[8..10]), // Day.
+            PathBuf::from(&self.raw[..4]),   // year.
+            PathBuf::from(&self.raw[5..7]),  // month.
+            PathBuf::from(&self.raw[8..10]), // day.
         ]
     }
 
+    #[must_use]
+    pub fn year(&self) -> u16 {
+        self.year
+    }
+    #[must_use]
+    pub fn month(&self) -> u8 {
+        self.month
+    }
+    #[must_use]
+    pub fn day(&self) -> u8 {
+        self.day
+    }
+    #[must_use]
+    pub fn hour(&self) -> u8 {
+        self.hour
+    }
+    #[must_use]
+    pub fn minute(&self) -> u8 {
+        self.minute
+    }
+    #[must_use]
+    pub fn second(&self) -> u8 {
+        self.second
+    }
+
+    #[must_use]
     fn monitor_id(&self) -> &str {
-        &self.0[20..]
+        &self.raw[20..]
     }
 
     #[must_use]
     pub fn as_str(&self) -> &str {
-        &self.0
+        &self.raw
     }
 
     #[must_use]
     pub fn as_path(&self) -> &Path {
-        Path::new(&self.0)
+        Path::new(&self.raw)
     }
 
     #[must_use]
@@ -76,12 +146,12 @@ impl RecordingId {
 
     #[must_use]
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.raw.len()
     }
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.raw.is_empty()
     }
 }
 
@@ -105,7 +175,41 @@ impl TryFrom<String> for RecordingId {
         {
             return Err(InvalidString(s));
         }
-        Ok(Self(s))
+
+        let year: u16 = s[..4].parse().map_err(InvalidYear)?;
+        let month: u8 = s[5..7].parse().map_err(InvalidMonth)?;
+        let day: u8 = s[8..10].parse().map_err(InvalidDay)?;
+        let hour: u8 = s[11..13].parse().map_err(InvalidHour)?;
+        let minute: u8 = s[14..16].parse().map_err(InvalidMinute)?;
+        let second: u8 = s[17..19].parse().map_err(InvalidSecond)?;
+        let monitor_id = MonitorId::try_from(s[20..].to_owned())?;
+
+        if month > 12 {
+            return Err(BadMonth(month));
+        }
+        if day > 31 {
+            return Err(BadDay(day));
+        }
+        if hour > 24 {
+            return Err(BadHour(hour));
+        }
+        if minute > 60 {
+            return Err(BadMinute(minute));
+        }
+        if second > 60 {
+            return Err(BadSecond(second));
+        }
+
+        Ok(Self {
+            raw: s,
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            monitor_id,
+        })
     }
 }
 

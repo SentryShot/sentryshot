@@ -526,22 +526,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crawler"
-version = "0.2.8"
-dependencies = [
- "common",
- "csv",
- "fs",
- "pretty_assertions",
- "recording",
- "serde",
- "serde_json",
- "test-case",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "crc32fast"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -961,7 +945,6 @@ version = "0.2.8"
 dependencies = [
  "axum 0.7.4",
  "common",
- "crawler",
  "hls",
  "http 1.1.0",
  "hyper 0.14.28",
@@ -969,6 +952,7 @@ dependencies = [
  "mime_guess",
  "monitor",
  "pretty_assertions",
+ "recdb",
  "recording",
  "rust-embed",
  "serde",
@@ -1486,6 +1470,7 @@ dependencies = [
  "log 0.2.8",
  "pretty-hex",
  "pretty_assertions",
+ "recdb",
  "recording",
  "retina",
  "sentryshot_convert",
@@ -1855,6 +1840,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "recdb"
+version = "0.2.8"
+dependencies = [
+ "common",
+ "csv",
+ "fs",
+ "pretty_assertions",
+ "recording",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "test-case",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "recording"
 version = "0.2.8"
 dependencies = [
@@ -2093,7 +2095,6 @@ dependencies = [
  "bytesize",
  "common",
  "console-subscriber",
- "crawler",
  "csv",
  "env",
  "fs",
@@ -2105,6 +2106,7 @@ dependencies = [
  "pico-args",
  "plugin",
  "pretty_assertions",
+ "recdb",
  "recording",
  "rust-embed",
  "storage",
@@ -2327,7 +2329,6 @@ dependencies = [
  "async-trait",
  "bytesize",
  "common",
- "env",
  "pretty_assertions",
  "recording",
  "tempfile",

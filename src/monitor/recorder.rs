@@ -7,7 +7,10 @@ use common::{
     Cancelled, DynHlsMuxer, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, MonitorId,
     MsgLogger, SegmentFinalized, TrackParameters,
 };
-use recording::{Header, NewVideoWriterError, RecordingData, VideoWriter, WriteSampleError};
+use recdb::{NewRecordingError, OpenFileError, RecDb, RecordingHandle};
+use recording::{
+    Header, NewVideoWriterError, RecordingData, RecordingId, VideoWriter, WriteSampleError,
+};
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
 };
@@ -16,10 +19,7 @@ use sentryshot_ffmpeg_h264::{
     SendPacketError,
 };
 use sentryshot_util::ImageCopyToBufferError;
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::sync::Arc;
 use thiserror::Error;
 use tokio::{
     io::AsyncWriteExt,
@@ -47,7 +47,7 @@ pub fn new_recorder(
     monitor_id: MonitorId,
     source_main: Arc<Source>,
     config: MonitorConfig,
-    recordings_dir: PathBuf,
+    rec_db: Arc<RecDb>,
 ) -> mpsc::Sender<Event> {
     let (send_event_tx, mut send_event_rx) = mpsc::channel::<Event>(1);
 
@@ -155,7 +155,7 @@ pub fn new_recorder(
                             source_main: source_main.clone(),
                             prev_seg: prev_seg.clone(),
                             config: config.clone(),
-                            recordings_dir: recordings_dir.clone(),
+                            rec_db: rec_db.clone(),
                             event_cache: event_cache.clone(),
                         };
 
@@ -238,17 +238,14 @@ enum RunRecordingError {
     #[error("{0}")]
     Cancelled(#[from] Cancelled),
 
-    #[error("create directory for recording: {0}")]
-    CreateDir(std::io::Error),
+    #[error("new recording: {0}")]
+    NewRecording(#[from] NewRecordingError),
 
     #[error("generate video: {0}")]
     GenerateVideo(#[from] GenerateVideoError),
 
     #[error("save recording: {0}")]
     SaveRecording(#[from] SaveRecordingError),
-
-    #[error("chrono")]
-    Chrono,
 }
 
 #[derive(Clone)]
@@ -259,17 +256,11 @@ struct RecordingContext {
     source_main: Arc<Source>,
     prev_seg: Arc<Mutex<Option<Arc<SegmentFinalized>>>>,
     config: MonitorConfig,
-    recordings_dir: PathBuf,
+    rec_db: Arc<RecDb>,
     event_cache: Arc<EventCache>,
 }
 
 async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
-    use RunRecordingError::*;
-    /*timestampOffsetInt, err := strconv.Atoi(r.Config.TimestampOffset())
-    if err != nil {
-        return fmt.Errorf("parse timestamp offset %w", err)
-    }*/
-
     let muxer = c.source_main.muxer().await.ok_or(common::Cancelled)?;
 
     let first_segment = muxer
@@ -277,38 +268,21 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
         .await
         .ok_or(common::Cancelled)?;
 
-    //offset := 0 + time.Duration(timestampOffsetInt)*time.Millisecond
-    //startTime := firstSegment.StartTime.Add(-offset)
     let start_time = first_segment.start_time();
 
     let monitor_id = c.config.id().to_owned();
-    let fmt1 = start_time
-        .as_nanos()
-        .as_chrono()
-        .ok_or(Chrono)?
-        .format("%Y/%m/%d")
-        .to_string();
-
-    let file_dir = c.recordings_dir.join(fmt1).join(&*monitor_id);
-
-    let fmt2 = start_time
-        .as_nanos()
-        .as_chrono()
-        .ok_or(Chrono)?
-        .format("%Y-%m-%d_%H-%M-%S_")
-        .to_string();
-    let rec_id = fmt2.clone() + &*monitor_id;
-    let file_path = file_dir.join(fmt2 + &*monitor_id);
-
-    tokio::fs::create_dir_all(file_dir)
-        .await
-        .map_err(CreateDir)?;
+    let recording = c
+        .rec_db
+        .new_recording(monitor_id.clone(), start_time)
+        .await?;
 
     #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
     let video_length = Duration::from(c.config.video_length() * (MINUTE as f64));
 
-    c.logger
-        .log(LogLevel::Info, &format!("starting recording: {rec_id:?}"));
+    c.logger.log(
+        LogLevel::Info,
+        &format!("starting recording: {:?}", recording.id()),
+    );
 
     let params = muxer.params();
 
@@ -316,7 +290,7 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
         c.hooks.clone(),
         &c.logger,
         c.config,
-        file_path.clone(),
+        &recording,
         &first_segment,
         muxer.params().extra_data.clone(),
     )
@@ -330,7 +304,7 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
 
     let (new_prev_seg, end_time) = generate_video(
         c.token,
-        &file_path,
+        &recording,
         &muxer,
         first_segment,
         params,
@@ -339,13 +313,15 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
     .await?;
     *c.prev_seg.lock().await = Some(new_prev_seg);
 
-    c.logger
-        .log(LogLevel::Info, &format!("video generated: {rec_id:?}"));
+    c.logger.log(
+        LogLevel::Info,
+        &format!("video generated: {:?}", recording.id()),
+    );
 
     save_recording(
         c.logger.clone(),
-        &rec_id,
-        file_path,
+        recording.id(),
+        &recording,
         c.event_cache,
         start_time.as_nanos(),
         end_time.as_nanos(),
@@ -357,8 +333,8 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
 
 #[derive(Debug, Error)]
 enum GenerateVideoError {
-    #[error("open file: {0} {1}")]
-    OpenFile(String, std::io::Error),
+    #[error("open file: {0}")]
+    OpenFile(#[from] OpenFileError),
 
     #[error("new video writer: {0}")]
     NewVideoWriter(#[from] NewVideoWriterError),
@@ -378,7 +354,7 @@ enum GenerateVideoError {
 
 async fn generate_video(
     token: CancellationToken,
-    file_path: &Path,
+    recording: &RecordingHandle,
     muxer: &DynHlsMuxer,
     first_segment: Arc<SegmentFinalized>,
     params: &TrackParameters,
@@ -393,25 +369,8 @@ async fn generate_video(
         .checked_add_duration(max_duration)
         .ok_or(GenerateVideoError::Add)?;
 
-    let mut meta_path = file_path.to_owned();
-    meta_path.set_extension("meta");
-
-    let mut mdat_path = file_path.to_owned();
-    mdat_path.set_extension("mdat");
-
-    let mut meta = tokio::fs::OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(&meta_path)
-        .await
-        .map_err(|e| OpenFile(format!("{meta_path:?}"), e))?;
-
-    let mut mdat = tokio::fs::OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(&mdat_path)
-        .await
-        .map_err(|e| OpenFile(mdat_path.to_string_lossy().to_string(), e))?;
+    let mut meta = recording.new_file("meta").await?;
+    let mut mdat = recording.new_file("mdat").await?;
 
     let header = Header {
         start_time,
@@ -420,7 +379,7 @@ async fn generate_video(
         extra_data: params.extra_data.clone(),
     };
 
-    let mut w = VideoWriter::new(&mut meta, &mut mdat, header).await?;
+    let mut w = VideoWriter::new(&mut *meta, &mut *mdat, header).await?;
 
     w.write_parts(first_segment.parts()).await?;
 
@@ -471,7 +430,7 @@ enum GenerateThumbnailError {
     AvccToJpeg(#[from] AvccToJpegError),
 
     #[error("open file: {0}")]
-    OpenFile(std::io::Error),
+    OpenFile(#[from] OpenFileError),
 
     #[error("write file: {0}")]
     WriteFile(std::io::Error),
@@ -482,23 +441,17 @@ enum GenerateThumbnailError {
 
 // The first h264 frame in firstSegment is wrapped in a mp4
 // container and piped into FFmpeg and then converted to jpeg.
-#[allow(unused)]
 async fn generate_thumbnail(
     hooks: DynMonitorHooks,
     logger: &DynMsgLogger,
     config: MonitorConfig,
-    file_path: PathBuf,
+    recording: &RecordingHandle,
     first_segment: &Arc<SegmentFinalized>,
     extradata: Vec<u8>,
 ) -> Result<(), GenerateThumbnailError> {
     use GenerateThumbnailError::*;
-    let mut thumb_path = file_path;
-    thumb_path.set_extension("jpeg");
 
-    logger.log(
-        LogLevel::Info,
-        &format!("generating thumbnail: {thumb_path:?}"),
-    );
+    logger.log(LogLevel::Info, "generating thumbnail");
 
     let Some(first_part) = first_segment.parts().first() else {
         return Err(NoPart);
@@ -510,28 +463,20 @@ async fn generate_thumbnail(
         return Err(SampleNotIdr);
     }
 
-    let mut avcc = first_sample.avcc.clone();
+    let avcc = first_sample.avcc.clone();
     let jpeg_buf = tokio::task::spawn_blocking(move || {
         avcc_to_jpeg(&hooks, &config, &avcc, PaddedBytes::new(extradata))
     })
     .await
     .expect("join")?;
 
-    let mut file = tokio::fs::OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(&thumb_path)
-        .await
-        .map_err(OpenFile)?;
+    let mut file = recording.new_file("jpeg").await?;
     file.write_all(&jpeg_buf).await.map_err(WriteFile)?;
     file.flush().await.map_err(FlushFile)?;
 
     logger.log(
         LogLevel::Debug,
-        &format!(
-            "thumbnail generated: {:?}",
-            thumb_path.file_name().unwrap_or_default()
-        ),
+        &format!("thumbnail generated: {:?}", file.path()),
     );
 
     Ok(())
@@ -614,8 +559,8 @@ enum SaveRecordingError {
     #[error("serialize data: {0}")]
     Serialize(#[from] serde_json::Error),
 
-    #[error("open data file: {0}")]
-    Open(std::io::Error),
+    #[error("open file: {0}")]
+    OpenFile(#[from] OpenFileError),
 
     #[error("write data file: {0}")]
     Write(std::io::Error),
@@ -626,8 +571,8 @@ enum SaveRecordingError {
 
 async fn save_recording(
     logger: DynMsgLogger,
-    rec_id: &str,
-    file_path: PathBuf,
+    rec_id: &RecordingId,
+    recording: &RecordingHandle,
     event_cache: Arc<EventCache>,
     start_time: UnixNano,
     end_time: UnixNano,
@@ -645,16 +590,7 @@ async fn save_recording(
 
     let json = serde_json::to_vec_pretty(&data)?;
 
-    let mut data_path = file_path.clone();
-    data_path.set_extension("json");
-
-    let mut data_file = tokio::fs::OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(data_path)
-        .await
-        .map_err(Open)?;
-
+    let mut data_file = recording.new_file("json").await?;
     data_file.write_all(&json).await.map_err(Write)?;
     data_file.flush().await.map_err(Flush)?;
 
@@ -707,6 +643,7 @@ mod tests {
     use common::{new_dummy_msg_logger, Detection, PointNormalized, RectangleNormalized, Region};
     use pretty_assertions::assert_eq;
     use tempfile::tempdir;
+    use tokio::io::AsyncReadExt;
     /*
     func newTestRecorder(t *testing.T) *Recorder {
         t.Helper()
@@ -1042,12 +979,14 @@ mod tests {
         let start = UnixNano::from(MINUTE);
         let end = UnixNano::from(11 * MINUTE);
         let tempdir = tempdir().unwrap();
-        let file_path = tempdir.path().join("file");
+
+        let rec_db = RecDb::new(tempdir.path().join("recordings").clone());
+        let recording = rec_db.test_recording().await;
 
         save_recording(
             new_dummy_msg_logger(),
-            "file",
-            file_path.clone(),
+            &"2000-01-01_01-01-01_x".to_owned().try_into().unwrap(),
+            &recording,
             event_cache,
             start,
             end,
@@ -1055,9 +994,9 @@ mod tests {
         .await
         .unwrap();
 
-        let mut data_path = file_path.clone();
-        data_path.set_extension("json");
-        let b = std::fs::read(data_path).unwrap();
+        let mut data_file = recording.open_file("json").await.unwrap();
+        let mut got = String::new();
+        data_file.read_to_string(&mut got).await.unwrap();
 
         let want = "{
   \"start\": 60000000000,
@@ -1093,19 +1032,6 @@ mod tests {
     }
   ]
 }";
-        let got = String::from_utf8(b).unwrap();
         assert_eq!(want, got);
-
-        /*actual := string(b)
-        actual = strings.ReplaceAll(actual, " ", "")
-        actual = strings.ReplaceAll(actual, "\n", "")
-
-        expected := `{"start":"0001-01-01T00:01:00Z","end":"0001-01-01T00:11:00Z",` +
-            `"events":[{"time":"0001-01-01T00:02:00Z","detections":` +
-            `[{"label":"10","score":9,"region":{"rect":[1,2,3,4],` +
-            `"polygon":[[5,6],[7,8]]}}],"duration":11}]}`
-
-        require.Equal(t, actual, expected)
-        */
     }
 }

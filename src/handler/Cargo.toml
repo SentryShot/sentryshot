@@ -15,10 +15,10 @@ doctest = false
 
 [dependencies]
 common.path = "../common"
-crawler.path = "../crawler"
 hls.path = "../hls"
 log.path = "../log"
 monitor.path = "../monitor"
+recdb.path = "../recdb"
 recording.path = "../recording"
 web.path = "../web"
 rust-embed.path = "../rust-embed"

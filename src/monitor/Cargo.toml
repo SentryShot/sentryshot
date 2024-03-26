@@ -17,6 +17,7 @@ doctest = false
 common.path = "../common"
 hls.path = "../hls"
 log.path = "../log"
+recdb.path = "../recdb"
 recording.path = "../recording"
 
 async-trait.workspace = true

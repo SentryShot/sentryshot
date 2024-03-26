@@ -1,5 +1,5 @@
 [package]
-name = "crawler"
+name = "recdb"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,8 +9,8 @@ license.workspace = true
 workspace = true
 
 [lib]
-name = "crawler"
-path = "crawler.rs"
+name = "recdb"
+path = "recdb.rs"
 doctest = false
 
 [dependencies]
@@ -27,3 +27,4 @@ tokio.workspace = true
 [dev-dependencies]
 pretty_assertions.workspace = true
 test-case.workspace = true
+tempfile.workspace = true

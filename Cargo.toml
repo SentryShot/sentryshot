@@ -7,7 +7,6 @@ members = [
 	"plugins/thumb_scale",
 
 	"src/common",
-	"src/crawler",
 	"src/csv",
 	"src/env",
 	"src/fs",
@@ -17,6 +16,7 @@ members = [
 	"src/monitor",
 	"src/mp4",
 	"src/plugin",
+	"src/recdb",
 	"src/recording",
 	"src/sentryshot",
 	"src/storage",
