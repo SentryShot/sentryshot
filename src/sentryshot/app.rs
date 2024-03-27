@@ -356,6 +356,14 @@ impl App {
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
                     .with_state(self.auth.clone()),
             )
+            // Recording delete.
+            .route(
+                "/api/recording/delete/*id",
+                delete(recording_delete_handler)
+                    .with_state(self.recdb.clone())
+                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
+                    .with_state(self.auth.clone()),
+            )
             // Recording thumbnail.
             .route(
                 "/api/recording/thumbnail/*id",

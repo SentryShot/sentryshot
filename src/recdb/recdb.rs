@@ -72,6 +72,24 @@ pub enum NewRecordingError {
     RecordingId(#[from] RecordingIdError),
 }
 
+#[derive(Debug, Error)]
+pub enum DeleteRecordingError {
+    #[error("deleting active recordings is not implemented")]
+    Active,
+
+    #[error("recording doesn't exist")]
+    NotExist,
+
+    #[error("read dir: {0}")]
+    ReadDir(std::io::Error),
+
+    #[error("dir entry: {0}")]
+    DirEntry(std::io::Error),
+
+    #[error("delete file: {0}")]
+    Delete(std::io::Error),
+}
+
 impl RecDb {
     #[must_use]
     pub fn new(recording_dir: PathBuf) -> Self {
@@ -153,6 +171,54 @@ impl RecDb {
             path: path.clone(),
             open_files: Arc::new(std::sync::Mutex::new(HashSet::new())),
         })
+    }
+
+    pub async fn delete_recording(&self, rec_id: RecordingId) -> Result<(), DeleteRecordingError> {
+        use DeleteRecordingError::*;
+        if self
+            .active_recordings
+            .lock()
+            .expect("not poisoned")
+            .contains(&rec_id)
+        {
+            return Err(Active);
+        }
+
+        let Some(path) = self.recording_file_by_ext(&rec_id, "meta").await else {
+            return Err(NotExist);
+        };
+        let dir = path
+            .parent()
+            .expect("path should have a parent")
+            .to_path_buf();
+
+        tokio::task::spawn_blocking(move || {
+            let mut res = Ok(());
+            for file in dir.read_dir().map_err(ReadDir)? {
+                let file = match file {
+                    Ok(v) => v,
+                    Err(e) => {
+                        res = Err(DirEntry(e));
+                        continue;
+                    }
+                };
+                let path = file.path();
+                let Some(file_name) = path.file_name() else {
+                    continue;
+                };
+                let Some(file_name) = file_name.to_str() else {
+                    continue;
+                };
+                if file_name.starts_with(rec_id.as_str()) {
+                    if let Err(e) = std::fs::remove_file(path) {
+                        res = Err(Delete(e));
+                    };
+                }
+            }
+            res
+        })
+        .await
+        .expect("join")
     }
 
     pub async fn test_recording(&self) -> RecordingHandle {
@@ -301,6 +367,7 @@ impl DerefMut for FileHandle {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -354,5 +421,58 @@ mod tests {
         assert!(recording.new_file("json").await.is_err());
         drop(file);
         recording.open_file("json").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_delete_recording() {
+        let recordings_dir = TempDir::new().unwrap();
+        let rec_dir = recordings_dir
+            .path()
+            .join("2000")
+            .join("01")
+            .join("01")
+            .join("m1");
+        let rec_id = "2000-01-01_02-02-02_m1";
+        let files = vec![
+            rec_id.to_owned() + ".jpeg",
+            rec_id.to_owned() + ".json",
+            rec_id.to_owned() + ".mdat",
+            rec_id.to_owned() + ".meta",
+            rec_id.to_owned() + ".x",
+            "2000-01-01_02-02-02_x1.mp4".to_owned(),
+        ];
+        std::fs::create_dir_all(&rec_dir).unwrap();
+        create_files(&rec_dir, &files);
+        assert_eq!(files, list_directory(&rec_dir));
+
+        let rec_db = RecDb::new(recordings_dir.path().to_path_buf());
+        assert_eq!(rec_db.count_recordings().await, 1);
+        rec_db
+            .delete_recording(rec_id.to_owned().try_into().unwrap())
+            .await
+            .unwrap();
+        assert_eq!(
+            vec!["2000-01-01_02-02-02_x1.mp4".to_owned()],
+            list_directory(&rec_dir)
+        );
+    }
+
+    fn create_files(dir: &Path, files: &[String]) {
+        for file in files {
+            std::fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(dir.join(file))
+                .unwrap();
+        }
+    }
+
+    fn list_directory(path: &Path) -> Vec<String> {
+        let mut entries: Vec<String> = std::fs::read_dir(path)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+            .collect();
+        entries.sort();
+        entries
     }
 }

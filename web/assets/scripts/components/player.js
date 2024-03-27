@@ -242,15 +242,19 @@ function newPlayer(data, isAdmin, token) {
 
 		// Delete
 		if (isAdmin) {
-			const $delete = element.querySelector(".js-delete");
-			$delete.addEventListener("click", (event) => {
-				event.stopPropagation();
+			element.querySelector(".js-delete").addEventListener("click", async (e) => {
+				e.stopPropagation();
 				if (!confirm("delete?")) {
 					return;
 				}
-				fetchDelete(d.deletePath, token, "could not delete recording");
-
-				$wrapper.remove();
+				const ok = await fetchDelete(
+					d.deletePath,
+					token,
+					"failed to delete recording"
+				);
+				if (ok) {
+					$wrapper.remove();
+				}
 			});
 		}
 	};

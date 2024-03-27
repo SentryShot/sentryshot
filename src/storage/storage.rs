@@ -6,11 +6,7 @@ use common::{
     time::{Duration, UnixNano},
     DynLogger, LogEntry, LogLevel,
 };
-use recording::RecordingId;
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{path::PathBuf, sync::Arc};
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
@@ -321,30 +317,7 @@ impl DiskUsager for DiskUsageBytes {
     }
 }
 
-// PrepareEnvironment prepares directories.
-/*func (env ConfigEnv) PrepareEnvironment() error {
-    err := os.MkdirAll(env.RecordingsDir(), 0o700)
-    if err != nil && !errors.Is(err, os.ErrExist) {
-        return fmt.Errorf("create recordings directory: %v: %w", env.StorageDir, err)
-    }
-
-    // Make sure env.TempDir isn't set to "/".
-    if len(env.TempDir) <= 4 {
-        panic(fmt.Sprintf("tempDir sanity check: %v", env.TempDir))
-    }
-    err = os.RemoveAll(env.TempDir)
-    if err != nil {
-        return fmt.Errorf("clear tempDir: %v: %w", env.TempDir, err)
-    }
-
-    err = os.MkdirAll(env.TempDir, 0o700)
-    if err != nil {
-        return fmt.Errorf("create tempDir: %v: %w", env.StorageDir, err)
-    }
-
-    return nil
-}
-
+/*
 // CensorLog replaces sensitive env config values.
 func (env ConfigEnv) CensorLog(msg string) string {
     if env.StorageDir != "" {
@@ -353,65 +326,11 @@ func (env ConfigEnv) CensorLog(msg string) string {
     return msg
 }*/
 
-#[derive(Debug, Error)]
-enum DeleteRecordingError {
-    #[error("read dir: {0}")]
-    ReadDir(std::io::Error),
-
-    #[error("dir entry: {0}")]
-    DirEntry(std::io::Error),
-
-    #[error("remove file: {0}")]
-    RemoveFile(std::io::Error),
-
-    #[error("recording does not exist")]
-    NotExist,
-}
-
-// Delete a recording by ID.
-#[allow(unused)]
-async fn delete_recording(
-    recordings_dir: &Path,
-    rec_id: &RecordingId,
-) -> Result<(), DeleteRecordingError> {
-    use DeleteRecordingError::*;
-    let rec_path = rec_id.as_full_path();
-    let full_rec_path = recordings_dir.join(rec_path);
-    let rec_dir = full_rec_path.parent().expect("path to have parent");
-
-    let mut recording_exists = false;
-
-    let rec_dir2 = rec_dir.to_owned();
-    let entries = tokio::task::spawn_blocking(move || std::fs::read_dir(rec_dir2))
-        .await
-        .expect("join")
-        .map_err(ReadDir)?;
-
-    for entry in entries {
-        let entry = entry.map_err(DirEntry)?;
-
-        let Ok(name) = entry.file_name().into_string() else {
-            continue;
-        };
-        if !name.starts_with(rec_id.as_str()) {
-            continue;
-        }
-
-        let path = rec_dir.join(entry.file_name());
-        tokio::fs::remove_file(path).await.map_err(RemoveFile)?;
-        recording_exists = true;
-    }
-
-    if !recording_exists {
-        return Err(NotExist);
-    }
-
-    Ok(())
-}
-
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
     use bytesize::{ByteSize, MB, TB};
     use common::{time::SECOND, DummyLogger};
@@ -659,58 +578,6 @@ mod tests {
             require.NoFileExists(t, testFile)
         })
     }*/
-
-    #[tokio::test]
-    async fn test_delete_recording() {
-        let recordings_dir = TempDir::new().unwrap();
-        let rec_dir = recordings_dir
-            .path()
-            .join("2000")
-            .join("01")
-            .join("01")
-            .join("m1");
-        let rec_id = "2000-01-01_02-02-02_m1";
-        let files = vec![
-            rec_id.to_owned() + ".jpeg",
-            rec_id.to_owned() + ".json",
-            rec_id.to_owned() + ".mp4",
-            rec_id.to_owned() + ".x",
-            "2000-01-01_02-02-02_x1.mp4".to_owned(),
-        ];
-        std::fs::create_dir_all(&rec_dir).unwrap();
-        create_files(&rec_dir, &files);
-        assert_eq!(files, list_directory(&rec_dir));
-
-        delete_recording(
-            recordings_dir.path(),
-            &rec_id.to_owned().try_into().unwrap(),
-        )
-        .await
-        .unwrap();
-        assert_eq!(
-            vec!["2000-01-01_02-02-02_x1.mp4".to_owned()],
-            list_directory(&rec_dir)
-        );
-    }
-
-    fn create_files(dir: &Path, files: &[String]) {
-        for file in files {
-            std::fs::OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(dir.join(file))
-                .unwrap();
-        }
-    }
-
-    fn list_directory(path: &Path) -> Vec<String> {
-        let mut entries: Vec<String> = std::fs::read_dir(path)
-            .unwrap()
-            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
-            .collect();
-        entries.sort();
-        entries
-    }
 
     struct StubDiskUsage(u64);
 

@@ -1,5 +1,7 @@
 ## unreleased
 
+-   implement delete button
+
 ## `v0.2.8`
 
 -   motion: fix saving zone sensitivity #22

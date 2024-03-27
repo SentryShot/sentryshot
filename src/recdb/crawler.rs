@@ -180,6 +180,12 @@ struct Dir {
     parent: Option<Box<Dir>>,
 }
 
+impl std::fmt::Debug for Dir {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {:?}", self.depth, self.path)
+    }
+}
+
 impl Clone for Dir {
     fn clone(&self) -> Self {
         Self {
@@ -296,6 +302,7 @@ impl Dir {
         name: &Path,
     ) -> Result<Option<Dir>, CrawlerError> {
         let children = self.children(query, cache)?;
+
         if query.reverse {
             Ok(children.into_iter().find(|child| child.name > name))
         } else {

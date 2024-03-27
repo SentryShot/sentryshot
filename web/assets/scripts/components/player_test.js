@@ -137,7 +137,7 @@ describe("newPlayer", () => {
 		expect(actual3).toEqual(thumbnailHTML);
 	});
 
-	test("delete", () => {
+	test("delete", async () => {
 		window.confirm = () => {
 			return true;
 		};
@@ -190,6 +190,9 @@ describe("newPlayer", () => {
 		expect(actual2).toEqual(expected2);
 
 		document.querySelector(".js-delete").click();
+		await (() => {
+			return new Promise((resolve) => setTimeout(resolve, 10));
+		})();
 		expect(element.innerHTML.replaceAll(/\s/g, "")).toBe("");
 	});
 
