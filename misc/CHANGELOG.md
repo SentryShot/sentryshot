@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.9`
+
 -   fix initial thumbnail generation #23
 -   make active recordings viewable
 -   implement delete button
