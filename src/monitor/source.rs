@@ -362,8 +362,23 @@ impl SourceRtsp {
                     };
                     match pkt {
                         Ok(retina::codec::CodecItem::VideoFrame(frame)) => {
-                            let stream = &session.streams()[frame.stream_id()];
-
+                            if hls_writer.is_none() {
+                                if !frame.is_random_access_point() {
+                                    // Wait for IDR.
+                                    continue
+                                }
+                                let stream = &session.streams()[frame.stream_id()];
+                                if let Some(ParametersRef::Video(params)) = stream.parameters() {
+                                    let (muxer, hls_writer2) = self.hls_server.new_muxer(
+                                        token.clone(),
+                                        self.hls_name(),
+                                        track_params_from_video_params(params)?,
+                                    ).await?;
+                                    hls_writer = Some(hls_writer2);
+                                    // Notify successful start.
+                                    _ = started_tx.send((muxer, feed_tx.clone())).await;
+                                };
+                            }
                             if let Some(hls_writer) = &mut hls_writer {
                                 let timestamp = frame.timestamp();
 
@@ -373,27 +388,17 @@ impl SourceRtsp {
                                 let dts_offset = pts - dts;
                                 let dts = pts - dts_offset;
 
-                                let data = H264Data{
+                                let data = H264Data {
                                     //ntp: now,
                                     pts: DurationH264::from(pts),
                                     dts: DurationH264::from(dts),
                                     random_access_present: frame.is_random_access_point(),
                                     avcc: Arc::new(PaddedBytes::new(frame.into_data())),
                                 };
-
                                 hls_writer.write_h264(data.clone()).await?;
                                 _ = feed_tx.send(data);
 
-                            } else if let Some(ParametersRef::Video(params)) = stream.parameters() {
-                                let (muxer, hls_writer2) = self.hls_server.new_muxer(
-                                    token.clone(),
-                                    self.hls_name(),
-                                    track_params_from_video_params(params)?,
-                                ).await?;
-                                hls_writer = Some(hls_writer2);
-                                // Notify successful start.
-                                _ = started_tx.send((muxer, feed_tx.clone())).await;
-                            };
+                            }
                         },
                         Ok(_) => {},
                         Err(e) => return Err(SourceRtspRunError::Stream(e)),
