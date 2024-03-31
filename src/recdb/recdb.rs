@@ -42,9 +42,35 @@ pub struct RecDbQuery {
 // `.mp4`, `.jpeg` or `.json` can be appended to the
 // path to get the video, thumbnail or data file.
 #[derive(Debug, Serialize)]
-pub struct RecordingResponse {
-    id: String,
+#[serde(tag = "state")]
+pub enum RecordingResponse {
+    // Recording in progress.
+    #[serde(rename = "active")]
+    Active(RecordingActive),
+
+    // Recording finished successfully
+    #[serde(rename = "finalized")]
+    Finalized(RecordingFinalized),
+
+    // Something happend before the json file was written.
+    #[serde(rename = "incomplete")]
+    Incomplete(RecordingIncomplete),
+}
+
+#[derive(Debug, Serialize)]
+pub struct RecordingActive {
+    id: RecordingId,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RecordingFinalized {
+    id: RecordingId,
     data: Option<RecordingData>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RecordingIncomplete {
+    id: RecordingId,
 }
 
 pub struct RecDb {
@@ -95,7 +121,7 @@ impl RecDb {
     pub fn new(recording_dir: PathBuf) -> Self {
         Self {
             recordings_dir: recording_dir.clone(),
-            crawler: Crawler::new(dir_fs(recording_dir)),
+            crawler: Crawler::new(dir_fs(recording_dir).into()),
             active_recordings: Arc::new(std::sync::Mutex::new(HashSet::new())),
         }
     }
@@ -106,7 +132,11 @@ impl RecDb {
         &self,
         query: &RecDbQuery,
     ) -> Result<Vec<RecordingResponse>, CrawlerError> {
-        self.crawler.recordings_by_query(query).await
+        // Do not hold onto the lock.
+        let active_recordings = self.active_recordings.lock().expect("not poisoned").clone();
+        self.crawler
+            .recordings_by_query(query, &active_recordings)
+            .await
     }
 
     // Returns the full path of file tied to recording id by file extension.

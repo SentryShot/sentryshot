@@ -16,9 +16,13 @@ pub use error::FsError;
 pub use map_fs::{MapEntry, MapFs};
 
 use crate::sub_fs::SubFs;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 pub type DynFs = Box<dyn Fs + Send + Sync>;
+pub type ArcFs = Arc<dyn Fs + Send + Sync>;
 
 pub trait Fs {
     // Opens the named file.

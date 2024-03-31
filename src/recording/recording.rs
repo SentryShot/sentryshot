@@ -213,6 +213,15 @@ impl TryFrom<String> for RecordingId {
     }
 }
 
+impl Serialize for RecordingId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.raw.serialize(serializer)
+    }
+}
+
 impl<'de> Deserialize<'de> for RecordingId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

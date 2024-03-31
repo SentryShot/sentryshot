@@ -36,6 +36,10 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 			let d = {};
 			d.id = rec.id;
 			d.videoPath = toAbsolutePath(`api/recording/video/${d.id}`);
+			if (rec.state === "active") {
+				const random = Math.floor(Math.random() * 9999);
+				d.videoPath += `?cache=false&browser-cache=${random}`;
+			}
 			d.thumbPath = toAbsolutePath(`api/recording/thumbnail/${d.id}`);
 			d.deletePath = toAbsolutePath(`api/recording/delete/${d.id}`);
 			d.name = await monitorNameByID(d.id.slice(20));
@@ -46,7 +50,7 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 				d.end = rec.data.end;
 				d.events = rec.data.events;
 			} else {
-				d.start = Date.parse(idToISOstring(d.id));
+				d.start = Date.parse(idToISOstring(d.id)) * 1000000;
 			}
 
 			/** @type Player */

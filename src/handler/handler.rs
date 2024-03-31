@@ -406,23 +406,15 @@ pub async fn recording_thumbnail_handler(
     State(rec_db): State<Arc<RecDb>>,
     Path(rec_id): Path<RecordingId>,
 ) -> Response {
-    // Make sure json file exist.
-    if rec_db
-        .recording_file_by_ext(&rec_id, "json")
-        .await
-        .is_none()
-    {
-        return (StatusCode::NOT_FOUND, "missing data").into_response();
-    }
-
-    // Check if thumbnail exists.
     let Some(path) = rec_db.thumbnail_path(&rec_id).await else {
         return (StatusCode::NOT_FOUND).into_response();
     };
 
     let file = match tokio::fs::OpenOptions::new().read(true).open(path).await {
         Ok(v) => v,
-        Err(e) => return (StatusCode::NOT_FOUND, format!("open file: {e}")).into_response(),
+        Err(e) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("open file: {e}")).into_response()
+        }
     };
 
     let stream = ReaderStream::new(file);
@@ -438,17 +430,23 @@ pub struct RecordingVideoState {
     pub logger: DynLogger,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct RecordingVideoQuery {
+    cache: Option<bool>,
+}
+
 pub async fn recording_video_handler(
     State(state): State<RecordingVideoState>,
     Path(rec_id): Path<RecordingId>,
+    query: Query<RecordingVideoQuery>,
     headers: HeaderMap,
 ) -> Response {
-    // Make sure json file exist.
-    let Some(path) = state.rec_db.recording_file_by_ext(&rec_id, "json").await else {
+    let Some(path) = state.rec_db.recording_file_by_ext(&rec_id, "meta").await else {
         return (StatusCode::NOT_FOUND).into_response();
     };
 
-    let video = match new_video_reader(path, &Some(state.video_cache)).await {
+    let cache = query.cache.map_or(true, |v| v).then_some(state.video_cache);
+    let video = match new_video_reader(path, &cache).await {
         Ok(v) => v,
         Err(e) => {
             state.logger.log(LogEntry::new(

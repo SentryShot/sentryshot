@@ -1,5 +1,6 @@
 ## unreleased
 
+-   make active recordings viewable
 -   implement delete button
 
 ## `v0.2.8`

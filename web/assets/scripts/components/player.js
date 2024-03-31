@@ -422,13 +422,15 @@ function newDetectionRenderer(startTimeMs, events) {
 			const newDurationMs = startTimeMs + newDurationSec * 1000;
 			let html = "";
 
-			for (const e of events) {
-				const eventStartMs = e.time / millisecond;
-				const eventDurationMs = e.duration / millisecond;
-				const eventEndMs = eventStartMs + eventDurationMs;
+			if (events) {
+				for (const e of events) {
+					const eventStartMs = e.time / millisecond;
+					const eventDurationMs = e.duration / millisecond;
+					const eventEndMs = eventStartMs + eventDurationMs;
 
-				if (eventStartMs <= newDurationMs && newDurationMs < eventEndMs) {
-					html += renderDetections(e.detections);
+					if (eventStartMs <= newDurationMs && newDurationMs < eventEndMs) {
+						html += renderDetections(e.detections);
+					}
 				}
 			}
 

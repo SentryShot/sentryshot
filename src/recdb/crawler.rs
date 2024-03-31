@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::{RecDbQuery, RecordingResponse};
-use fs::{DynFs, Entry, Fs, FsError, Open};
+use crate::{
+    RecDbQuery, RecordingActive, RecordingFinalized, RecordingIncomplete, RecordingResponse,
+};
+use fs::{ArcFs, Entry, FsError, Open};
 use recording::{RecordingData, RecordingId};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
 };
 use thiserror::Error;
@@ -43,12 +45,12 @@ type Cache = HashMap<PathBuf, Vec<Dir>>;
 
 // Crawls through storage looking for recordings.
 pub struct Crawler {
-    pub(crate) fs: DynFs,
+    pub(crate) fs: ArcFs,
 }
 
 impl Crawler {
     #[must_use]
-    pub(crate) fn new(fs: DynFs) -> Self {
+    pub(crate) fn new(fs: ArcFs) -> Self {
         Self { fs }
     }
 
@@ -57,6 +59,7 @@ impl Crawler {
     pub(crate) async fn recordings_by_query(
         &self,
         query: &RecDbQuery,
+        active_recordings: &HashSet<RecordingId>,
     ) -> Result<Vec<RecordingResponse>, CrawlerError> {
         let cache = &mut Cache::new();
 
@@ -83,18 +86,6 @@ impl Crawler {
                 return Ok(recordings);
             };
 
-            let data = if query.include_data {
-                let file_fs = file.fs.clone();
-                tokio::task::spawn_blocking(|| {
-                    let file_fs: Box<dyn Fs> = file_fs;
-                    read_data_file(&*file_fs)
-                })
-                .await
-                .expect("join")
-            } else {
-                None
-            };
-
             let id = file
                 .path
                 .file_name()
@@ -102,7 +93,32 @@ impl Crawler {
                 .to_string_lossy()
                 .to_string();
 
-            recordings.push(RecordingResponse { id, data });
+            let Ok(id) = RecordingId::try_from(id) else {
+                continue;
+            };
+
+            let is_active = active_recordings.contains(&id);
+            if is_active {
+                recordings.push(RecordingResponse::Active(RecordingActive { id }));
+                continue;
+            }
+
+            let Some(json_file) = file.json_file.clone() else {
+                recordings.push(RecordingResponse::Incomplete(RecordingIncomplete { id }));
+                continue;
+            };
+
+            let data = if query.include_data {
+                tokio::task::spawn_blocking(move || read_data_file(&json_file))
+                    .await
+                    .expect("join")
+            } else {
+                None
+            };
+            recordings.push(RecordingResponse::Finalized(RecordingFinalized {
+                id,
+                data,
+            }));
         }
         Ok(recordings)
     }
@@ -122,6 +138,7 @@ impl Crawler {
             path: PathBuf::from(""),
             depth: 0,
             parent: None,
+            json_file: None,
         };
 
         // Try to find exact file.
@@ -156,28 +173,22 @@ impl Crawler {
     }
 }
 
-fn read_data_file(fs: &dyn Fs) -> Option<RecordingData> {
+fn read_data_file(fs: &ArcFs) -> Option<RecordingData> {
     let Ok(Open::File(mut file)) = fs.open(&PathBuf::from(".")) else {
         return None;
     };
-
-    let Ok(raw_data) = file.read() else {
-        return None;
-    };
-
-    let Ok(data) = serde_json::from_slice::<RecordingData>(&raw_data) else {
-        return None;
-    };
-
-    Some(data)
+    let raw_data = file.read().ok()?;
+    serde_json::from_slice::<RecordingData>(&raw_data).ok()
 }
 
+#[derive(Clone)]
 struct Dir {
-    fs: DynFs,
+    fs: ArcFs,
     name: PathBuf,
     path: PathBuf,
-    depth: usize,
+    depth: u8,
     parent: Option<Box<Dir>>,
+    json_file: Option<ArcFs>,
 }
 
 impl std::fmt::Debug for Dir {
@@ -186,20 +197,8 @@ impl std::fmt::Debug for Dir {
     }
 }
 
-impl Clone for Dir {
-    fn clone(&self) -> Self {
-        Self {
-            fs: self.fs.clone(),
-            name: self.name.clone(),
-            path: self.path.clone(),
-            depth: self.depth,
-            parent: self.parent.clone(),
-        }
-    }
-}
-
-const MONITOR_DEPTH: usize = 3;
-const REC_DEPTH: usize = 5;
+const MONITOR_DEPTH: u8 = 3;
+const REC_DEPTH: u8 = 5;
 
 impl Dir {
     // children of current directory. Special case if depth == monitorDepth.
@@ -229,11 +228,12 @@ impl Dir {
             let path = self.path.join(dir.name());
             let file_fs = self.fs.sub(dir.name())?;
             children.push(Dir {
-                fs: file_fs,
+                fs: file_fs.into(),
                 name: dir.name().to_path_buf(),
                 path,
                 parent: Some(Box::new(self.to_owned())),
                 depth: self.depth + 1,
+                json_file: None,
             });
         }
 
@@ -260,35 +260,44 @@ impl Dir {
             let monitor_path = self.path.join(entry.name());
             let montor_fs = self.fs.sub(entry.name())?;
 
-            let files = montor_fs.read_dir()?;
+            let mut meta_files = Vec::new();
+            let mut json_files = HashMap::new();
 
-            for file in files {
+            let files = montor_fs.read_dir()?;
+            for file in &files {
                 let Entry::File(file) = file else {
                     return Err(CrawlerError::UnexpectedDir(monitor_path));
                 };
-
-                if let Some(ext) = file.name().extension() {
-                    if ext != "json" {
-                        continue;
-                    }
-
-                    let json_path = monitor_path.join(file.name());
-
-                    let mut path = json_path.clone();
-                    path.set_extension("");
-
+                let Some(name) = file.name().to_str() else {
+                    continue;
+                };
+                let Some(ext) = file.name().extension() else {
+                    continue;
+                };
+                if ext == "meta" {
+                    let name = name.trim_end_matches(".meta");
+                    meta_files.push((name, file.name()));
+                } else if ext == "json" {
+                    let name = name.trim_end_matches(".json");
                     let file_fs = montor_fs.sub(file.name())?;
-
-                    all_files.push(Dir {
-                        fs: file_fs,
-                        name: PathBuf::from(
-                            file.name().to_string_lossy().trim_end_matches(".json"),
-                        ),
-                        path,
-                        parent: Some(Box::new(self.to_owned())),
-                        depth: self.depth + 2,
-                    });
+                    json_files.insert(name, file_fs.into());
                 }
+            }
+
+            for (name, file_name) in meta_files {
+                let mut path = monitor_path.join(file_name);
+                path.set_extension("");
+
+                let file_fs = montor_fs.sub(file_name)?;
+
+                all_files.push(Dir {
+                    fs: file_fs.into(),
+                    name: PathBuf::from(name),
+                    path,
+                    parent: Some(Box::new(self.to_owned())),
+                    depth: self.depth + 2,
+                    json_file: json_files.remove(name),
+                });
             }
         }
         Ok(all_files)
@@ -397,7 +406,7 @@ fn monitor_selected(monitors: &[String], monitor: &str) -> bool {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use std::num::NonZeroUsize;
+    use std::{num::NonZeroUsize, sync::Arc};
 
     use crate::RecDbQuery;
 
@@ -405,37 +414,56 @@ mod tests {
     use fs::{MapEntry, MapFs};
     use test_case::test_case;
 
-    fn map_fs_item(path: &str) -> (PathBuf, MapEntry) {
-        (
-            PathBuf::from(path),
-            MapEntry {
-                is_file: true,
-                ..Default::default()
-            },
-        )
+    fn map_fs_item(path: &str) -> [(PathBuf, MapEntry); 2] {
+        map_fs_item_with_data(path, Vec::new())
     }
 
-    fn crawler_test_fs() -> MapFs {
-        MapFs(HashMap::from([
-            map_fs_item("2000/01/01/m1/2000-01-01_01-01-11_m1.json"),
-            map_fs_item("2000/01/01/m1/2000-01-01_01-01-22_m1.json"),
-            map_fs_item("2000/01/02/m1/2000-01-02_01-01-11_m1.json"),
-            map_fs_item("2000/02/01/m1/2000-02-01_01-01-11_m1.json"),
-            map_fs_item("2001/02/01/m1/2001-02-01_01-01-11_m1.json"),
-            map_fs_item("2002/01/01/m1/2002-01-01_01-01-11_m1.json"),
-            map_fs_item("2003/01/01/m1/2003-01-01_01-01-11_m1.json"),
-            map_fs_item("2003/01/01/m2/2003-01-01_01-01-11_m2.json"),
-            map_fs_item("2004/01/01/m1/2004-01-01_01-01-11_m1.json"),
-            map_fs_item("2004/01/01/m1/2004-01-01_01-01-22_m1.json"),
+    fn map_fs_item_with_data(path: &str, data: Vec<u8>) -> [(PathBuf, MapEntry); 2] {
+        let mut path1 = PathBuf::from(path);
+        let mut path2 = path1.clone();
+        path1.set_extension("meta");
+        path2.set_extension("json");
+        [
             (
-                PathBuf::from("2099/01/01/m1/2099-01-01_01-01-11_m1.json"),
+                path1,
                 MapEntry {
-                    data: CRAWLER_TEST_DATA.as_bytes().to_owned(),
                     is_file: true,
                     ..Default::default()
                 },
             ),
-        ]))
+            (
+                path2,
+                MapEntry {
+                    data,
+                    is_file: true,
+                    ..Default::default()
+                },
+            ),
+        ]
+    }
+
+    fn crawler_test_fs() -> Arc<MapFs> {
+        Arc::new(MapFs(
+            [
+                map_fs_item("2000/01/01/m1/2000-01-01_01-01-11_m1"),
+                map_fs_item("2000/01/01/m1/2000-01-01_01-01-22_m1"),
+                map_fs_item("2000/01/02/m1/2000-01-02_01-01-11_m1"),
+                map_fs_item("2000/02/01/m1/2000-02-01_01-01-11_m1"),
+                map_fs_item("2001/02/01/m1/2001-02-01_01-01-11_m1"),
+                map_fs_item("2002/01/01/m1/2002-01-01_01-01-11_m1"),
+                map_fs_item("2003/01/01/m1/2003-01-01_01-01-11_m1"),
+                map_fs_item("2003/01/01/m2/2003-01-01_01-01-11_m2"),
+                map_fs_item("2004/01/01/m1/2004-01-01_01-01-11_m1"),
+                map_fs_item("2004/01/01/m1/2004-01-01_01-01-22_m1"),
+                map_fs_item_with_data(
+                    "2099/01/01/m1/2099-01-01_01-01-11_m1",
+                    CRAWLER_TEST_DATA.as_bytes().to_owned(),
+                ),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        ))
     }
 
     fn r_id(s: &str) -> RecordingId {
@@ -463,15 +491,15 @@ mod tests {
         ]
     }";
 
-    #[test_case("0000-01-01_01-01-01_m1",    "";                       "no files")]
-    #[test_case("1999-01-01_01-01-01_m1",    "";                       "EOF")]
-    #[test_case("9999-01-01_01-01-01_m1",    "2099-01-01_01-01-11_m1"; "latest")]
+    #[test_case("0000-01-01_01-01-01_m1", "";                       "no files")]
+    #[test_case("1999-01-01_01-01-01_m1", "";                       "EOF")]
+    #[test_case("9999-01-01_01-01-01_m1", "2099-01-01_01-01-11_m1"; "latest")]
     #[test_case("2000-01-01_01-01-22_m1", "2000-01-01_01-01-11_m1"; "prev")]
     #[test_case("2000-01-02_01-01-11_m1", "2000-01-01_01-01-22_m1"; "prev day")]
     #[test_case("2000-02-01_01-01-11_m1", "2000-01-02_01-01-11_m1"; "prev month")]
     #[test_case("2001-01-01_01-01-11_m1", "2000-02-01_01-01-11_m1"; "prev year")]
-    #[test_case("2002-12-01_01-01-01_m1",    "2002-01-01_01-01-11_m1"; "empty prev day")]
-    #[test_case("2004-01-01_01-01-22_m1",    "2004-01-01_01-01-11_m1"; "same day")]
+    #[test_case("2002-12-01_01-01-01_m1", "2002-01-01_01-01-11_m1"; "empty prev day")]
+    #[test_case("2004-01-01_01-01-22_m1", "2004-01-01_01-01-11_m1"; "same day")]
     #[tokio::test]
     async fn test_recording_by_query(input: &str, want: &str) {
         let query = RecDbQuery {
@@ -481,8 +509,8 @@ mod tests {
             monitors: Vec::new(),
             include_data: false,
         };
-        let recordings = match Crawler::new(Box::new(crawler_test_fs()))
-            .recordings_by_query(&query)
+        let rec = match Crawler::new(crawler_test_fs())
+            .recordings_by_query(&query, &HashSet::new())
             .await
         {
             Ok(v) => v,
@@ -493,9 +521,12 @@ mod tests {
         };
 
         if want.is_empty() {
-            assert!(recordings.is_empty());
+            assert!(rec.is_empty());
         } else {
-            let got = &recordings.first().unwrap().id;
+            let RecordingResponse::Finalized(rec) = &rec[0] else {
+                panic!("expected active")
+            };
+            let got = rec.id.as_str();
             assert_eq!(want, got);
         }
     }
@@ -515,8 +546,8 @@ mod tests {
             monitors: Vec::new(),
             include_data: false,
         };
-        let recordings = match Crawler::new(Box::new(crawler_test_fs()))
-            .recordings_by_query(&query)
+        let rec = match Crawler::new(crawler_test_fs())
+            .recordings_by_query(&query, &HashSet::new())
             .await
         {
             Ok(v) => v,
@@ -525,28 +556,35 @@ mod tests {
                 panic!("{e}");
             }
         };
+        let RecordingResponse::Finalized(rec) = &rec[0] else {
+            panic!("expected active")
+        };
 
-        let got = &recordings.first().unwrap().id;
+        let got = rec.id.as_str();
         assert_eq!(want, got);
     }
 
     #[tokio::test]
     async fn test_recording_by_query_multiple() {
-        let c = Crawler::new(Box::new(crawler_test_fs()));
+        let c = Crawler::new(crawler_test_fs());
+        let query = RecDbQuery {
+            recording_id: r_id("9999-01-01_01-01-01_x"),
+            limit: NonZeroUsize::new(5).unwrap(),
+            reverse: false,
+            monitors: Vec::new(),
+            include_data: false,
+        };
         let recordings = c
-            .recordings_by_query(&RecDbQuery {
-                recording_id: r_id("9999-01-01_01-01-01_x"),
-                limit: NonZeroUsize::new(5).unwrap(),
-                reverse: false,
-                monitors: Vec::new(),
-                include_data: false,
-            })
+            .recordings_by_query(&query, &HashSet::new())
             .await
             .unwrap();
 
         let mut ids = Vec::new();
         for rec in recordings {
-            ids.push(rec.id);
+            let RecordingResponse::Finalized(rec) = rec else {
+                panic!("expected active")
+            };
+            ids.push(rec.id.as_str().to_owned());
         }
 
         let want = vec![
@@ -561,19 +599,23 @@ mod tests {
 
     #[tokio::test]
     async fn test_recording_by_query_monitors() {
-        let c = Crawler::new(Box::new(crawler_test_fs()));
-        let recordings = c
-            .recordings_by_query(&RecDbQuery {
-                recording_id: r_id("2003-02-01_01-01-11_m1"),
-                limit: NonZeroUsize::new(1).unwrap(),
-                reverse: false,
-                monitors: vec!["m1".to_owned()],
-                include_data: false,
-            })
+        let c = Crawler::new(crawler_test_fs());
+        let query = RecDbQuery {
+            recording_id: r_id("2003-02-01_01-01-11_m1"),
+            limit: NonZeroUsize::new(1).unwrap(),
+            reverse: false,
+            monitors: vec!["m1".to_owned()],
+            include_data: false,
+        };
+        let rec = c
+            .recordings_by_query(&query, &HashSet::new())
             .await
             .unwrap();
-        assert_eq!("2003-01-01_01-01-11_m1", recordings[0].id);
-        assert_eq!(1, recordings.len());
+        assert_eq!(1, rec.len());
+        let RecordingResponse::Finalized(rec) = &rec[0] else {
+            panic!("expected active")
+        };
+        assert_eq!("2003-01-01_01-01-11_m1", rec.id.as_str());
     }
 
     /*
@@ -597,37 +639,45 @@ mod tests {
 
     #[tokio::test]
     async fn test_recording_by_query_data() {
-        let c = Crawler::new(Box::new(crawler_test_fs()));
+        let c = Crawler::new(crawler_test_fs());
+        let query = RecDbQuery {
+            recording_id: r_id("9999-01-01_01-01-01_m1"),
+            limit: NonZeroUsize::new(1).unwrap(),
+            reverse: false,
+            monitors: Vec::new(),
+            include_data: true,
+        };
         let rec = c
-            .recordings_by_query(&RecDbQuery {
-                recording_id: r_id("9999-01-01_01-01-01_m1"),
-                limit: NonZeroUsize::new(1).unwrap(),
-                reverse: false,
-                monitors: Vec::new(),
-                include_data: true,
-            })
+            .recordings_by_query(&query, &HashSet::new())
             .await
             .unwrap();
+        let RecordingResponse::Finalized(rec) = &rec[0] else {
+            panic!("expected active")
+        };
 
         let want: RecordingData = serde_json::from_str(CRAWLER_TEST_DATA).unwrap();
         println!("{rec:?}");
-        let got = rec[0].data.as_ref().unwrap();
+        let got = rec.data.as_ref().unwrap();
         assert_eq!(&want, got);
     }
 
     #[tokio::test]
     async fn test_recording_by_query_missing_data() {
-        let c = Crawler::new(Box::new(crawler_test_fs()));
+        let c = Crawler::new(crawler_test_fs());
+        let query = RecDbQuery {
+            recording_id: r_id("2002-01-01_01-01-01_m1"),
+            limit: NonZeroUsize::new(1).unwrap(),
+            reverse: true,
+            monitors: Vec::new(),
+            include_data: true,
+        };
         let rec = c
-            .recordings_by_query(&RecDbQuery {
-                recording_id: r_id("2002-01-01_01-01-01_m1"),
-                limit: NonZeroUsize::new(1).unwrap(),
-                reverse: true,
-                monitors: Vec::new(),
-                include_data: true,
-            })
+            .recordings_by_query(&query, &HashSet::new())
             .await
             .unwrap();
-        assert!(rec[0].data.is_none());
+        let RecordingResponse::Finalized(rec) = &rec[0] else {
+            panic!("expected active")
+        };
+        assert!(rec.data.is_none());
     }
 }
