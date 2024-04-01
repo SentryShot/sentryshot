@@ -539,11 +539,13 @@ pub trait MonitorHooks {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytesize::ByteSize;
     use common::{
         monitor::{Config, Protocol, SelectedSource, SourceConfig, SourceRtspConfig},
         DummyLogger, ParseMonitorIdError,
     };
     use pretty_assertions::assert_eq;
+    use recdb::Disk;
     use serde_json::json;
     use std::{fs, path::PathBuf};
     use tempfile::TempDir;
@@ -602,13 +604,18 @@ mod tests {
         (temp_dir, test_config_dir)
     }
 
+    fn new_test_recdb(recordings_dir: &Path) -> RecDb {
+        let disk = Disk::new(recordings_dir.to_path_buf(), ByteSize(0));
+        RecDb::new(DummyLogger::new(), recordings_dir.to_path_buf(), disk)
+    }
+
     fn new_test_manager() -> (TempDir, PathBuf, MonitorManager) {
         let (temp_dir, config_dir) = prepare_dir();
 
         let token = CancellationToken::new();
         let manager = MonitorManager::new(
             config_dir.clone(),
-            Arc::new(RecDb::new(temp_dir.path().to_path_buf())),
+            Arc::new(new_test_recdb(temp_dir.path())),
             DummyLogger::new(),
             Arc::new(HlsServer::new(token, DummyLogger::new())),
         )
@@ -636,7 +643,7 @@ mod tests {
         let token = CancellationToken::new();
         let manager = MonitorManager::new(
             config_dir.clone(),
-            Arc::new(RecDb::new(temp_dir.path().to_path_buf())),
+            Arc::new(new_test_recdb(temp_dir.path())),
             DummyLogger::new(),
             Arc::new(HlsServer::new(token, DummyLogger::new())),
         )
@@ -657,7 +664,7 @@ mod tests {
         assert!(matches!(
             MonitorManager::new(
                 config_dir,
-                Arc::new(RecDb::new(temp_dir.path().to_path_buf())),
+                Arc::new(new_test_recdb(temp_dir.path())),
                 DummyLogger::new(),
                 //&video.Server{},
                 //&Hooks{Migrate: func(RawConfig) error { return nil }},

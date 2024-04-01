@@ -24,7 +24,6 @@ monitor.path = "../monitor"
 plugin.path = "../plugin"
 recdb.path = "../recdb"
 recording.path = "../recording"
-storage.path = "../storage"
 web.path = "../web"
 rust-embed.path = "../rust-embed"
 

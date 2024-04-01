@@ -1843,6 +1843,8 @@ dependencies = [
 name = "recdb"
 version = "0.2.9"
 dependencies = [
+ "async-trait",
+ "bytesize",
  "common",
  "csv",
  "fs",
@@ -1854,6 +1856,7 @@ dependencies = [
  "test-case",
  "thiserror",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -2109,7 +2112,6 @@ dependencies = [
  "recdb",
  "recording",
  "rust-embed",
- "storage",
  "test-case",
  "thiserror",
  "tokio",
@@ -2321,22 +2323,6 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
-
-[[package]]
-name = "storage"
-version = "0.2.9"
-dependencies = [
- "async-trait",
- "bytesize",
- "common",
- "pretty_assertions",
- "recording",
- "tempfile",
- "test-case",
- "thiserror",
- "tokio",
- "tokio-util",
-]
 
 [[package]]
 name = "subtle"

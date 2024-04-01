@@ -20,7 +20,7 @@ use plugin::{
     types::{admin, csrf, user, NewAuthError},
     Application, PluginManager, PreLoadPluginsError, PreLoadedPlugins,
 };
-use recdb::RecDb;
+use recdb::{Disk, RecDb};
 use recording::VideoCache;
 use rust_embed::RustEmbed;
 use std::{
@@ -30,7 +30,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use storage::{Disk, StoragePruner};
 use thiserror::Error;
 use tokio::{
     net::TcpListener,
@@ -146,7 +145,11 @@ impl App {
         let new_auth = pre_loaded_plugins.new_auth_fn();
         let auth = new_auth(rt_handle.clone(), env.config_dir(), logger.clone())?;
 
-        let rec_db = Arc::new(RecDb::new(env.recordings_dir().to_path_buf()));
+        let rec_db = Arc::new(RecDb::new(
+            logger.clone(),
+            env.recordings_dir().to_path_buf(),
+            Disk::new(env.storage_dir().to_path_buf(), env.max_disk_usage()),
+        ));
 
         let hls_server = Arc::new(HlsServer::new(token.clone(), logger.clone()));
 
@@ -392,19 +395,10 @@ impl App {
 
     // `App` must be dropped when this returns.
     pub async fn run(self, plugin_manager: PluginManager) -> Result<mpsc::Receiver<()>, RunError> {
-        let disk = Arc::new(Disk::new(
-            self.env.recordings_dir().to_path_buf(),
-            self.env.max_disk_usage(),
-        ));
-        let storage_pruner = StoragePruner::new(
-            self.env.recordings_dir().to_path_buf(),
-            disk,
-            self.logger.clone(),
-        );
-
+        let rec_db = self.recdb.clone();
         let token2 = self.token.clone();
         tokio::spawn(async move {
-            storage_pruner
+            rec_db
                 .prune_loop(token2, Duration::from_minutes(10).as_std().expect(""))
                 .await;
         });

@@ -19,7 +19,6 @@ members = [
 	"src/recdb",
 	"src/recording",
 	"src/sentryshot",
-	"src/storage",
 	"src/web",
 
 	"src/rust-embed",

@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 mod crawler;
+mod disk;
 
-pub use crawler::CrawlerError;
+pub use disk::Disk;
 
-use common::{time::UnixH264, MonitorId};
+use common::time::Duration;
+use common::{time::UnixH264, DynLogger, LogEntry, LogLevel, MonitorId};
 use crawler::Crawler;
+use crawler::CrawlerError;
 use csv::deserialize_csv_option;
+use disk::UsageError;
 use fs::dir_fs;
 use recording::{RecordingData, RecordingId, RecordingIdError};
 use serde::{Deserialize, Serialize};
@@ -19,6 +23,7 @@ use std::{
 };
 use thiserror::Error;
 use tokio::fs::{File, OpenOptions};
+use tokio_util::sync::CancellationToken;
 
 // Query of recordings for crawler to find.
 #[derive(Deserialize)]
@@ -74,8 +79,11 @@ pub struct RecordingIncomplete {
 }
 
 pub struct RecDb {
+    logger: DynLogger,
     recordings_dir: PathBuf,
     crawler: Crawler,
+    disk: Disk,
+
     // There should only be one active recording per monitor.
     active_recordings: Arc<std::sync::Mutex<HashSet<RecordingId>>>,
 }
@@ -118,10 +126,12 @@ pub enum DeleteRecordingError {
 
 impl RecDb {
     #[must_use]
-    pub fn new(recording_dir: PathBuf) -> Self {
+    pub fn new(logger: DynLogger, recording_dir: PathBuf, disk: Disk) -> Self {
         Self {
+            logger,
             recordings_dir: recording_dir.clone(),
             crawler: Crawler::new(dir_fs(recording_dir).into()),
+            disk,
             active_recordings: Arc::new(std::sync::Mutex::new(HashSet::new())),
         }
     }
@@ -272,6 +282,106 @@ impl RecDb {
         .unwrap()
         .len()
     }
+
+    // Runs `prune()` on an interval until the token is canceled.
+    pub async fn prune_loop(&self, token: CancellationToken, interval: std::time::Duration) {
+        loop {
+            tokio::select! {
+                () = token.cancelled() => return,
+                () = tokio::time::sleep(interval) => {
+                    if let Err(e) = self.prune().await {
+                        self.logger.log(LogEntry::new(
+                            LogLevel::Error,
+                            "app",
+                            None,
+                            format!("failed to prune storage: {e}"),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    // Checks if disk usage is above 99% and if true deletes all files from the oldest day.
+    #[allow(clippy::items_after_statements)]
+    pub(crate) async fn prune(&self) -> Result<(), PruneError> {
+        use PruneError::*;
+        let usage = self.disk.usage(Duration::from_minutes(10)).await?;
+
+        if usage.percent < 99.0 {
+            return Ok(());
+        }
+
+        const DAY_DEPTH: u8 = 3;
+
+        // Find the oldest day.
+        let mut path = self.recordings_dir.clone();
+
+        let mut depth = 1;
+        while depth <= DAY_DEPTH {
+            let path2 = path.clone();
+            let entries = tokio::task::spawn_blocking(move || std::fs::read_dir(path2))
+                .await
+                .expect("join")
+                .map_err(ReadDir)?;
+
+            let mut list = Vec::new();
+            for entry in entries {
+                list.push(entry.map_err(DirEntry)?);
+            }
+
+            if list.is_empty() {
+                // Don't delete the recordings directory.
+                if depth == 1 {
+                    return Ok(());
+                }
+
+                // Remove empty directory.
+                tokio::fs::remove_dir_all(&path)
+                    .await
+                    .map_err(RemoveDirAll)?;
+
+                path = self.recordings_dir.clone();
+                depth = 1;
+                continue;
+            }
+
+            list.sort_by_key(std::fs::DirEntry::path);
+            let first_file = list[0].file_name();
+            path = path.join(first_file);
+
+            depth += 1;
+        }
+
+        self.logger.log(LogEntry::new(
+            LogLevel::Info,
+            "app",
+            None,
+            format!("pruning storage: deleting {path:?}"),
+        ));
+
+        // Delete all files from that day
+        tokio::fs::remove_dir_all(&path)
+            .await
+            .map_err(RemoveDirAll)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Error)]
+pub(crate) enum PruneError {
+    #[error("usage: {0}")]
+    Usage(#[from] UsageError),
+
+    #[error("read dir: {0}")]
+    ReadDir(std::io::Error),
+
+    #[error("dir entry: {0}")]
+    DirEntry(std::io::Error),
+
+    #[error("remove dir all: {0}")]
+    RemoveDirAll(std::io::Error),
 }
 
 pub struct RecordingHandle {
@@ -397,14 +507,23 @@ impl DerefMut for FileHandle {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::disk::StubDiskUsageBytes;
+    use bytesize::{ByteSize, GB};
+    use common::DummyLogger;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
+    use test_case::test_case;
+
+    fn new_test_recdb(recordings_dir: &Path) -> RecDb {
+        let disk = Disk::new(recordings_dir.to_path_buf(), ByteSize(0));
+        RecDb::new(DummyLogger::new(), recordings_dir.to_path_buf(), disk)
+    }
 
     #[tokio::test]
     async fn test_new_recording() {
         let temp_dir = TempDir::new().unwrap();
 
-        let rec_db = RecDb::new(temp_dir.path().join("test").clone());
+        let rec_db = new_test_recdb(&temp_dir.path().join("test"));
         let recording = rec_db
             .new_recording("test".to_owned().try_into().unwrap(), UnixH264::from(1))
             .await
@@ -421,7 +540,7 @@ mod tests {
     async fn test_new_recording_already_active() {
         let temp_dir = TempDir::new().unwrap();
 
-        let rec_db = RecDb::new(temp_dir.path().to_path_buf());
+        let rec_db = new_test_recdb(temp_dir.path());
         let m_id = MonitorId::try_from("test".to_owned()).unwrap();
         let recording = rec_db.test_recording().await;
 
@@ -444,7 +563,7 @@ mod tests {
     async fn test_new_recording_already_open() {
         let temp_dir = TempDir::new().unwrap();
 
-        let rec_db = RecDb::new(temp_dir.path().to_path_buf());
+        let rec_db = new_test_recdb(temp_dir.path());
         let recording = rec_db.test_recording().await;
 
         let file = recording.new_file("json").await.unwrap();
@@ -475,7 +594,7 @@ mod tests {
         create_files(&rec_dir, &files);
         assert_eq!(files, list_directory(&rec_dir));
 
-        let rec_db = RecDb::new(recordings_dir.path().to_path_buf());
+        let rec_db = new_test_recdb(recordings_dir.path());
         assert_eq!(rec_db.count_recordings().await, 1);
         rec_db
             .delete_recording(rec_id.to_owned().try_into().unwrap())
@@ -504,5 +623,86 @@ mod tests {
             .collect();
         entries.sort();
         entries
+    }
+
+    #[test_case(&["recordings/2000/01"], &["recordings"]; "no days"  )]
+    #[test_case(&["recordings/2000"],    &["recordings"]; "no months")]
+    #[test_case(&["recordings"],         &["recordings"]; "no years" )]
+    #[test_case(
+        &["recordings/2000/01/01/x/x/x"],
+        &["recordings/2000/01"];
+        "one day"
+    )]
+    #[test_case(
+        &["recordings/2000/01/01/x/x/x", "recordings/2000/01/02/x/x/x"],
+        &["recordings/2000/01/02/x/x/x"];
+        "two days"
+    )]
+    #[test_case(
+        &["recordings/2000/01/01/x/x/x", "recordings/2000/02/01/x/x/x"],
+        &["recordings/2000/01", "recordings/2000/02/01/x/x/x"];
+        "two months"
+    )]
+    #[test_case(
+        &["recordings/2000/01/01/x/x/x", "recordings/2001/01/01/x/x/x"],
+        &["recordings/2000/01", "recordings/2001/01/01/x/x/x"];
+        "two years"
+    )]
+    #[test_case(
+        &["recordings/2000/01", "recordings/2001/01/01/x/x/x", "recordings/2002/01/01/x/x/x"],
+        &["recordings/2001/01", "recordings/2002/01/01/x/x/x"];
+        "remove empty dirs"
+    )]
+    #[tokio::test]
+    async fn test_prune(before: &[&str], after: &[&str]) {
+        let temp_dir = TempDir::new().unwrap();
+        let recordings_dir = temp_dir.path().join("recordings");
+
+        let disk = Disk::with_disk_usage(
+            recordings_dir.clone(),
+            ByteSize(GB),
+            Box::new(StubDiskUsageBytes(1_000_000_000)),
+        );
+        let recdb = RecDb::new(DummyLogger::new(), recordings_dir, disk);
+
+        write_empty_dirs(temp_dir.path(), before);
+        assert_eq!(before, list_empty_dirs(temp_dir.path()));
+        recdb.prune().await.unwrap();
+
+        assert_eq!(after, list_empty_dirs(temp_dir.path()));
+    }
+
+    fn write_empty_dirs(base: &Path, paths: &[&str]) {
+        for path in paths {
+            std::fs::create_dir_all(base.join(path)).unwrap();
+        }
+    }
+
+    fn list_empty_dirs(path: &Path) -> Vec<String> {
+        let mut list = Vec::new();
+
+        let mut dirs = vec![path.to_owned()];
+        while let Some(dir) = dirs.pop() {
+            let entries: Vec<_> = std::fs::read_dir(&dir).unwrap().collect();
+            if entries.is_empty() {
+                list.push(
+                    dir.strip_prefix(path)
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string(),
+                );
+                continue;
+            }
+
+            for entry in entries {
+                let entry = entry.unwrap();
+                if entry.metadata().unwrap().is_dir() {
+                    dirs.push(dir.join(entry.file_name()));
+                }
+            }
+        }
+
+        list.sort();
+        list
     }
 }

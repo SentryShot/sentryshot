@@ -637,11 +637,15 @@ impl EventCache {
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
-    use std::num::NonZeroU32;
+    use std::{num::NonZeroU32, path::Path};
 
     use super::*;
-    use common::{new_dummy_msg_logger, Detection, PointNormalized, RectangleNormalized, Region};
+    use bytesize::ByteSize;
+    use common::{
+        new_dummy_msg_logger, Detection, DummyLogger, PointNormalized, RectangleNormalized, Region,
+    };
     use pretty_assertions::assert_eq;
+    use recdb::Disk;
     use tempfile::tempdir;
     use tokio::io::AsyncReadExt;
     /*
@@ -938,6 +942,11 @@ mod tests {
         })
     }*/
 
+    fn new_test_recdb(recordings_dir: &Path) -> RecDb {
+        let disk = Disk::new(recordings_dir.to_path_buf(), ByteSize(0));
+        RecDb::new(DummyLogger::new(), recordings_dir.to_path_buf(), disk)
+    }
+
     #[tokio::test]
     async fn test_save_recording() {
         let event_cache = Arc::new(EventCache(Mutex::new(vec![
@@ -980,7 +989,7 @@ mod tests {
         let end = UnixNano::from(11 * MINUTE);
         let tempdir = tempdir().unwrap();
 
-        let rec_db = RecDb::new(tempdir.path().join("recordings").clone());
+        let rec_db = new_test_recdb(&tempdir.path().join("recordings"));
         let recording = rec_db.test_recording().await;
 
         save_recording(
