@@ -1,5 +1,7 @@
 ## unreleased
 
+-   tflite: fix sub-stream toggle
+
 ## `v0.2.9`
 
 -   fix initial thumbnail generation #23

@@ -108,10 +108,10 @@ function _tflite(hls, detectors, hasSubStream) {
 		// Set value.
 		for (const key of Object.keys(form.fields)) {
 			if (form.fields[key] && form.fields[key].set) {
-				if (value[key]) {
-					form.fields[key].set(value[key], fields, monitorFields);
-				} else {
+				if (value[key] === undefined) {
 					form.fields[key].set("", fields, monitorFields);
+				} else {
+					form.fields[key].set(value[key], fields, monitorFields);
 				}
 			}
 		}

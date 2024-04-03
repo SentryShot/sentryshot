@@ -158,6 +158,9 @@ enum StartError {
 
     #[error("get detector '{0}'")]
     GetDetector(DetectorName),
+
+    #[error("failed to get sub-stream")]
+    GetSubStream,
 }
 
 #[derive(Debug, Error)]
@@ -197,20 +200,34 @@ impl TflitePlugin {
         use StartError::*;
         let config = monitor.config();
 
-        let Some(source) = monitor.get_smallest_source().await else {
-            // Cancelled.
+        let Some(config) = TfliteConfig::parse(config.raw.clone())? else {
+            // Object detection is disabled.
             return Ok(());
+        };
+
+        let source = if config.use_sub_stream {
+            match monitor.source_sub().await {
+                Some(Some(v)) => v,
+                Some(None) => return Err(GetSubStream),
+                None => {
+                    // Cancelled.
+                    return Ok(());
+                }
+            }
+        } else {
+            match monitor.source_main().await {
+                Some(v) => v,
+                None => {
+                    // Cancelled.
+                    return Ok(());
+                }
+            }
         };
 
         msg_logger.log(
             LogLevel::Info,
             &format!("using {}-stream", source.stream_type().name()),
         );
-
-        let Some(config) = TfliteConfig::parse(config.raw.clone())? else {
-            // Motion detection is disabled.
-            return Ok(());
-        };
 
         let detector_name = config.detector_name.clone();
         let detector = self
