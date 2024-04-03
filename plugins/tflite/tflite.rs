@@ -17,7 +17,7 @@ use hyper::{body::HttpBody, http::uri::InvalidUri};
 use hyper_rustls::HttpsConnectorBuilder;
 use monitor::{DecoderError, Monitor, Source, SubscribeDecodedError};
 use plugin::{types::Assets, Application, Plugin, PreLoadPlugin};
-use recording::{denormalize, vertex_inside_poly2, FrameRateLimiter};
+use recording::{vertex_inside_poly2, FrameRateLimiter};
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
 };
@@ -391,9 +391,9 @@ enum CalculateOutputsError {
 #[allow(clippy::items_after_statements, clippy::similar_names)]
 fn calculate_outputs(crop: Crop, i: &Inputs) -> Result<(Outputs, Uncrop), CalculateOutputsError> {
     use CalculateOutputsError::*;
-    let crop_x = denormalize(crop.x, 100);
-    let crop_y = denormalize(crop.y, 100);
-    let crop_size = u32::from(denormalize(crop.size, 100));
+    let crop_x = u32::from(crop.x.get());
+    let crop_y = u32::from(crop.y.get());
+    let crop_size = u32::from(crop.size.get());
     let input_width = u32::from(i.input_width.get());
     let input_height = u32::from(i.input_height.get());
     let output_width = i.output_width.get();
@@ -415,8 +415,8 @@ fn calculate_outputs(crop: Crop, i: &Inputs) -> Result<(Outputs, Uncrop), Calcul
     let padded_height = u16::try_from(output_height2 * 100 / crop_size)?;
     let padded_height2 = u32::from(padded_height);
 
-    let crop_out_x = u16::try_from(padded_width2 * u32::from(crop_x) / 100)?;
-    let crop_out_y = u16::try_from(padded_height2 * u32::from(crop_y) / 100)?;
+    let crop_out_x = u16::try_from(padded_width2 * crop_x / 100)?;
+    let crop_out_y = u16::try_from(padded_height2 * crop_y / 100)?;
 
     let width_ratio = input_width * output_height2;
     let height_ratio = input_height * output_width2;
@@ -726,10 +726,10 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::config::{Crop, Percent};
+    use crate::config::{Crop, CropSize, CropValue};
     use common::{Label, PointNormalized};
     use pretty_assertions::assert_eq;
-    use recording::normalize;
+    use recording::{denormalize, normalize};
     use test_case::test_case;
 
     #[test_case(600, 400, 0, 0, 100, 300, 300, "300x200 300x300 0:0 50:75";)]
@@ -754,9 +754,9 @@ mod tests {
     ) {
         let (outputs, reverse) = calculate_outputs(
             Crop {
-                x: normalize(crop_x, 100),
-                y: normalize(crop_y, 100),
-                size: normalize(crop_size, 100),
+                x: CropValue::new_testing(crop_x),
+                y: CropValue::new_testing(crop_y),
+                size: CropSize::new_testing(crop_size.try_into().unwrap()),
             },
             &Inputs {
                 input_width: NonZeroU16::new(input_width).unwrap(),
@@ -810,7 +810,7 @@ mod tests {
             enable: false,
             area: Vec::new(),
         };
-        let thresholds = HashMap::from([(label("b"), Percent::new(1).unwrap())]);
+        let thresholds = HashMap::from([(label("b"), 1.try_into().unwrap())]);
         let got = parse_detections(&thresholds, &mask, &reverse, detections).unwrap();
         let want = vec![Detection {
             label: label("b"),
@@ -855,7 +855,7 @@ mod tests {
                 y: normalize(y, 100),
             }
         }
-        let thresholds = HashMap::from([(label("b"), Percent::new(1).unwrap())]);
+        let thresholds = HashMap::from([(label("b"), 1.try_into().unwrap())]);
         let mask = Mask {
             enable: true,
             area: vec![p(20, 60), p(20, 80), p(40, 80), p(40, 60)],
@@ -887,7 +887,7 @@ mod tests {
                 polygon: None,
             },
         }];
-        let thresholds = HashMap::from([(label("b"), Percent::new(100).unwrap())]);
+        let thresholds = HashMap::from([(label("b"), 100.try_into().unwrap())]);
         let mask = Mask {
             enable: false,
             area: Vec::new(),

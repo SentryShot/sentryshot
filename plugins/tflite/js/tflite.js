@@ -475,9 +475,12 @@ function crop(hls, detectors, hasSubStream) {
 			$y.value = 0;
 		}
 
-		const x = Number($x.value);
-		const y = Number($y.value);
-		let s = Number($size.value);
+		const x = Math.max(0, Math.min(99, Number($x.value)));
+		const y = Math.max(0, Math.min(99, Number($y.value)));
+		let s = Math.max(1, Math.min(100, Number($size.value)));
+		$x.value = x;
+		$y.value = y;
+		$size.value = s;
 
 		const max = Math.max(x, y);
 		if (max + s > 100) {
