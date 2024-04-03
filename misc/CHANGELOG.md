@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.10`
+
 -   tflite: fix sub-stream toggle
 
 ## `v0.2.9`
