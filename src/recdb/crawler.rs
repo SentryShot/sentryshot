@@ -41,7 +41,23 @@ pub enum CrawlerError {
     InvalidValue(RecordingId),
 }
 
-type Cache = HashMap<PathBuf, Vec<Dir>>;
+struct Cache {
+    root: Option<Vec<DirYear>>,
+    year: HashMap<PathBuf, Vec<DirMonth>>,
+    month: HashMap<PathBuf, Vec<DirDay>>,
+    day: HashMap<PathBuf, Vec<DirRec>>,
+}
+
+impl Cache {
+    fn new() -> Self {
+        Self {
+            root: None,
+            year: HashMap::new(),
+            month: HashMap::new(),
+            day: HashMap::new(),
+        }
+    }
+}
 
 // Crawls through storage looking for recordings.
 pub struct Crawler {
@@ -64,46 +80,44 @@ impl Crawler {
         let cache = &mut Cache::new();
 
         let mut recordings = Vec::new();
-        let mut file = self.find_recording(query, cache)?;
+        let mut current: Option<DirNotRoot> = None;
         while recordings.len() < query.limit.get() {
-            let Some(mut prev_file) = file.clone() else {
-                // Last recording is reached.
-                return Ok(recordings);
-            };
-
-            let first_file = recordings.is_empty();
-            file = if first_file && prev_file.name != query.recording_id.as_path() {
-                self.find_recording(query, cache)?
+            let rec = if let Some(rec) = current {
+                match rec.sibling(query, cache)? {
+                    Some(sibling) => match sibling.is_rec() {
+                        DirYmdOrRec::Ymd(ymd) => {
+                            if let Some(dir) = ymd.find_file_deep(query, cache)? {
+                                dir
+                            } else {
+                                current = Some(ymd.into());
+                                continue;
+                            }
+                        }
+                        DirYmdOrRec::Rec(rec) => DirNotRoot::Rec(rec),
+                    },
+                    None => return Ok(recordings), // Last recording.
+                }
             } else {
-                match prev_file.sibling(query, cache) {
-                    Ok(Some(v)) => Some(v),
-                    Ok(None) => return Ok(recordings), // Last recording.
-                    Err(e) => return Err(e),
+                match self.find_first_recording(query, cache)? {
+                    Some(rec) => rec,
+                    None => return Ok(recordings), // No recordings.
                 }
             };
-            let Some(file) = &file else {
-                // Last recording is reached.
-                return Ok(recordings);
-            };
+            current = Some(rec.clone());
 
-            let id = file
-                .path
-                .file_name()
-                .expect("file should have a name")
-                .to_string_lossy()
-                .to_string();
-
-            let Ok(id) = RecordingId::try_from(id) else {
+            let DirNotRoot::Rec(rec) = rec else {
+                // Continue searching.
                 continue;
             };
 
+            let id = rec.id;
             let is_active = active_recordings.contains(&id);
             if is_active {
                 recordings.push(RecordingResponse::Active(RecordingActive { id }));
                 continue;
             }
 
-            let Some(json_file) = file.json_file.clone() else {
+            let Some(json_file) = rec.json_file.clone() else {
                 recordings.push(RecordingResponse::Incomplete(RecordingIncomplete { id }));
                 continue;
             };
@@ -123,54 +137,75 @@ impl Crawler {
         Ok(recordings)
     }
 
-    fn find_recording(
+    fn find_first_recording(
         &self,
         query: &RecDbQuery,
         cache: &mut Cache,
-    ) -> Result<Option<Dir>, CrawlerError> {
+    ) -> Result<Option<DirNotRoot>, CrawlerError> {
         if query.recording_id.len() < 10 {
             return Err(CrawlerError::InvalidValue(query.recording_id.clone()));
         }
 
-        let root = Dir {
+        // Try to find exact day.
+        let [year, month, day] = query.recording_id.year_month_day();
+        let root = DirRoot {
             fs: self.fs.clone(),
-            name: PathBuf::from(""),
-            path: PathBuf::from(""),
-            depth: 0,
-            parent: None,
-            json_file: None,
         };
 
-        // Try to find exact file.
-        let mut current = root;
-        for val in query.recording_id.year_month_day() {
-            let mut parent = current.clone();
-            match current.child_by_exact_name(query, cache, &val)? {
-                Some(exact) => current = exact,
-                None => {
-                    // Exact match could not be found.
-                    return match parent.child_by_name(query, cache, &val)? {
-                        Some(inexact) => inexact.find_file_deep(query, cache),
-                        None => parent.sibling(query, cache),
-                    };
-                }
+        let Some(exact_year) = root.child_by_exact_name(cache, &year)? else {
+            return match root.child_by_name(query, cache, &year)? {
+                Some(inexact) => inexact.find_file_deep(query, cache),
+                None => Ok(None),
             };
-        }
+        };
+
+        let Some(exact_month) = exact_year.child_by_exact_name(cache, &month)? else {
+            return match exact_year.child_by_name(query, cache, &month)? {
+                Some(inexact) => inexact.find_file_deep(query, cache),
+                None => Ok(Some(DirNotRoot::Year(exact_year))),
+            };
+        };
+
+        let Some(exact_day) = exact_month.child_by_exact_name(cache, &day)? else {
+            return match exact_month.child_by_name(query, cache, &day)? {
+                Some(inexact) => inexact.find_file_deep(query, cache),
+                None => Ok(Some(DirNotRoot::Month(exact_month))),
+            };
+        };
 
         // If exact match found, return sibling of match.
-        if let Some(mut file) =
-            current.child_by_exact_name(query, cache, query.recording_id.as_path())?
+        if let Some(exact) =
+            exact_day.child_by_exact_name(query, cache, query.recording_id.as_path())?
         {
-            return file.sibling(query, cache);
+            return sibling_search(&exact.into(), query, cache);
         }
 
         // If inexact file found, return match.
-        if let Some(file) = current.child_by_name(query, cache, query.recording_id.as_path())? {
-            return Ok(Some(file));
+        if let Some(inexact) =
+            exact_day.child_by_name(query, cache, query.recording_id.as_path())?
+        {
+            return Ok(Some(inexact.into()));
         }
 
-        current.sibling(query, cache)
+        sibling_search(&DirNotRoot::Day(exact_day), query, cache)
     }
+}
+
+fn sibling_search(
+    dir: &DirNotRoot,
+    query: &RecDbQuery,
+    cache: &mut Cache,
+) -> Result<Option<DirNotRoot>, CrawlerError> {
+    Ok(match dir.sibling(query, cache)? {
+        Some(sibling) => match sibling.is_rec() {
+            DirYmdOrRec::Ymd(ymd) => match ymd.find_file_deep(query, cache)? {
+                Some(dir) => Some(dir),
+                None => Some(ymd.into()),
+            },
+            DirYmdOrRec::Rec(rec) => Some(rec.into()),
+        },
+        None => None, // Last recording.
+    })
 }
 
 fn read_data_file(fs: &ArcFs) -> Option<RecordingData> {
@@ -182,70 +217,440 @@ fn read_data_file(fs: &ArcFs) -> Option<RecordingData> {
 }
 
 #[derive(Clone)]
-struct Dir {
-    fs: ArcFs,
-    name: PathBuf,
-    path: PathBuf,
-    depth: u8,
-    parent: Option<Box<Dir>>,
-    json_file: Option<ArcFs>,
+enum DirNotRoot {
+    Year(DirYear),
+    Month(DirMonth),
+    Day(DirDay),
+    Rec(DirRec),
 }
 
-impl std::fmt::Debug for Dir {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {:?}", self.depth, self.path)
+impl DirNotRoot {
+    fn is_rec(&self) -> DirYmdOrRec {
+        match self.clone() {
+            DirNotRoot::Year(year) => DirYmdOrRec::Ymd(DirYearMonthDay::Year(year)),
+            DirNotRoot::Month(month) => DirYmdOrRec::Ymd(DirYearMonthDay::Month(month)),
+            DirNotRoot::Day(day) => DirYmdOrRec::Ymd(DirYearMonthDay::Day(day)),
+            DirNotRoot::Rec(rec) => DirYmdOrRec::Rec(rec),
+        }
+    }
+
+    // Returns next or previous sibling.
+    // Will climb to parent directories.
+    fn sibling(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+    ) -> Result<Option<DirNotRoot>, CrawlerError> {
+        match self {
+            DirNotRoot::Year(year) => year.sibling(query, cache).map(|v| v.map(DirNotRoot::Year)),
+            DirNotRoot::Month(month) => month.sibling(query, cache).map(|v| v.map(Into::into)),
+            DirNotRoot::Day(day) => day.sibling(query, cache).map(|v| v.map(Into::into)),
+            DirNotRoot::Rec(rec) => rec.sibling(query, cache),
+        }
     }
 }
 
-const MONITOR_DEPTH: u8 = 3;
-const REC_DEPTH: u8 = 5;
+impl From<DirRec> for DirNotRoot {
+    fn from(value: DirRec) -> Self {
+        DirNotRoot::Rec(value)
+    }
+}
 
-impl Dir {
-    // children of current directory. Special case if depth == monitorDepth.
-    fn children(
-        &mut self,
-        query: &RecDbQuery,
-        cache: &mut Cache,
-    ) -> Result<Vec<Dir>, CrawlerError> {
-        if let Some(cached) = cache.get(&self.path) {
-            return Ok(cached.to_owned());
+impl From<DirYearMonth> for DirNotRoot {
+    fn from(value: DirYearMonth) -> Self {
+        match value {
+            DirYearMonth::Year(year) => DirNotRoot::Year(year),
+            DirYearMonth::Month(month) => DirNotRoot::Month(month),
         }
+    }
+}
 
-        if self.depth == MONITOR_DEPTH {
-            let mut children = self.find_all_files(query)?;
-            children.sort_by_key(|v| v.name.clone());
-            cache.insert(self.path.clone(), children.clone());
-            return Ok(children);
+impl From<DirYearMonthDay> for DirNotRoot {
+    fn from(value: DirYearMonthDay) -> Self {
+        match value {
+            DirYearMonthDay::Year(year) => DirNotRoot::Year(year),
+            DirYearMonthDay::Month(month) => DirNotRoot::Month(month),
+            DirYearMonthDay::Day(day) => DirNotRoot::Day(day),
+        }
+    }
+}
+
+enum DirYmdOrRec {
+    Ymd(DirYearMonthDay),
+    Rec(DirRec),
+}
+
+#[derive(Clone)]
+struct DirRoot {
+    fs: ArcFs,
+}
+
+impl DirRoot {
+    // Children of current directory.
+    fn children(&self, cache: &mut Cache) -> Result<Vec<DirYear>, CrawlerError> {
+        if let Some(cached) = &cache.root {
+            return Ok(cached.clone());
         }
 
         let entries = self.fs.read_dir()?;
 
         let mut children = Vec::new();
-
         for entry in entries {
-            let Entry::Dir(dir) = entry else { continue };
+            let Entry::Dir(d) = entry else { continue };
 
-            let path = self.path.join(dir.name());
-            let file_fs = self.fs.sub(dir.name())?;
-            children.push(Dir {
+            let path = d.name().to_path_buf();
+            let file_fs = self.fs.sub(d.name())?;
+            children.push(DirYear {
                 fs: file_fs.into(),
-                name: dir.name().to_path_buf(),
+                name: d.name().to_path_buf(),
                 path,
-                parent: Some(Box::new(self.to_owned())),
-                depth: self.depth + 1,
-                json_file: None,
+                parent: self.to_owned(),
             });
         }
 
-        cache.insert(self.path.clone(), children.clone());
-
+        cache.root = Some(children.clone());
         Ok(children)
     }
 
-    // Finds all json files beloning to
+    // Returns child of current directory by exact name.
+    fn child_by_exact_name(
+        &self,
+        cache: &mut Cache,
+        name: &Path,
+    ) -> Result<Option<DirYear>, CrawlerError> {
+        Ok(self.children(cache)?.into_iter().find(|v| v.name == name))
+    }
+
+    // Returns next or previous child.
+    fn child_by_name(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+        name: &Path,
+    ) -> Result<Option<DirYear>, CrawlerError> {
+        let children = self.children(cache)?;
+        if query.reverse {
+            Ok(children.into_iter().find(|child| child.name > name))
+        } else {
+            Ok(children.into_iter().rev().find(|child| child.name < name))
+        }
+    }
+}
+
+#[derive(Clone)]
+struct DirYear {
+    fs: ArcFs,
+    name: PathBuf,
+    path: PathBuf,
+    parent: DirRoot,
+}
+
+impl DirYear {
+    // Children of current directory.
+    fn children(&self, cache: &mut Cache) -> Result<Vec<DirMonth>, CrawlerError> {
+        if let Some(cached) = cache.year.get(&self.path) {
+            return Ok(cached.clone());
+        }
+
+        let entries = self.fs.read_dir()?;
+
+        let mut children = Vec::new();
+        for entry in entries {
+            let Entry::Dir(d) = entry else { continue };
+
+            let path = self.path.join(d.name());
+            let file_fs = self.fs.sub(d.name())?;
+            children.push(DirMonth {
+                fs: file_fs.into(),
+                name: d.name().to_path_buf(),
+                path,
+                parent: self.to_owned(),
+            });
+        }
+
+        cache.year.insert(self.path.clone(), children.clone());
+        Ok(children)
+    }
+
+    // Returns next or previous sibling. Will climb to parent directories.
+    fn sibling(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+    ) -> Result<Option<DirYear>, CrawlerError> {
+        let siblings = self.parent.children(cache)?;
+        let self_index = siblings
+            .iter()
+            .position(|s| s.path == self.path)
+            .ok_or(CrawlerError::NoSibling)?;
+        if query.reverse {
+            if let Some(next) = siblings.get(self_index + 1) {
+                return Ok(Some(next.clone()));
+            }
+        } else if self_index > 0 {
+            if let Some(prev) = siblings.get(self_index - 1) {
+                return Ok(Some(prev.clone()));
+            }
+        }
+        Ok(None)
+    }
+
+    // Returns next or previous child.
+    fn child_by_name(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+        name: &Path,
+    ) -> Result<Option<DirMonth>, CrawlerError> {
+        let children = self.children(cache)?;
+        if query.reverse {
+            Ok(children.into_iter().find(|child| child.name > name))
+        } else {
+            Ok(children.into_iter().rev().find(|child| child.name < name))
+        }
+    }
+
+    // Returns child of current directory by exact name.
+    fn child_by_exact_name(
+        &self,
+        cache: &mut Cache,
+        name: &Path,
+    ) -> Result<Option<DirMonth>, CrawlerError> {
+        Ok(self.children(cache)?.into_iter().find(|v| v.name == name))
+    }
+
+    // Returns the newest or oldest file in all decending directories.
+    fn find_file_deep(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+    ) -> Result<Option<DirNotRoot>, CrawlerError> {
+        let children = self.children(cache)?;
+
+        let (Some(first_child), Some(last_child)) = (children.first(), children.last()) else {
+            let Some(sibling) = self.sibling(query, cache)? else {
+                return Ok(None);
+            };
+            return sibling.find_file_deep(query, cache);
+        };
+        if query.reverse {
+            first_child.find_file_deep(query, cache)
+        } else {
+            last_child.find_file_deep(query, cache)
+        }
+    }
+}
+
+#[derive(Clone)]
+struct DirMonth {
+    fs: ArcFs,
+    name: PathBuf,
+    path: PathBuf,
+    parent: DirYear,
+}
+
+impl DirMonth {
+    // Children of current directory.
+    fn children(&self, cache: &mut Cache) -> Result<Vec<DirDay>, CrawlerError> {
+        if let Some(cached) = cache.month.get(&self.path) {
+            return Ok(cached.clone());
+        }
+
+        let entries = self.fs.read_dir()?;
+
+        let mut children = Vec::new();
+        for entry in entries {
+            let Entry::Dir(d) = entry else { continue };
+
+            let path = self.path.join(d.name());
+            let file_fs = self.fs.sub(d.name())?;
+            children.push(DirDay {
+                fs: file_fs.into(),
+                name: d.name().to_path_buf(),
+                path,
+                parent: self.to_owned(),
+            });
+        }
+
+        cache.month.insert(self.path.clone(), children.clone());
+        Ok(children)
+    }
+
+    // Returns next or previous sibling. Will climb to parent directories.
+    fn sibling(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+    ) -> Result<Option<DirYearMonth>, CrawlerError> {
+        let siblings = self.parent.children(cache)?;
+        let self_index = siblings
+            .iter()
+            .position(|s| s.path == self.path)
+            .ok_or(CrawlerError::NoSibling)?;
+        if query.reverse {
+            if let Some(next) = siblings.get(self_index + 1) {
+                return Ok(Some(DirYearMonth::Month(next.clone())));
+            }
+        } else if self_index > 0 {
+            if let Some(prev) = siblings.get(self_index - 1) {
+                return Ok(Some(DirYearMonth::Month(prev.clone())));
+            }
+        }
+        self.parent
+            .sibling(query, cache)
+            .map(|v| v.map(DirYearMonth::Year))
+    }
+
+    // Returns next or previous child.
+    fn child_by_name(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+        name: &Path,
+    ) -> Result<Option<DirDay>, CrawlerError> {
+        let children = self.children(cache)?;
+        if query.reverse {
+            Ok(children.into_iter().find(|child| child.name > name))
+        } else {
+            Ok(children.into_iter().rev().find(|child| child.name < name))
+        }
+    }
+
+    // Returns child of current directory by exact name.
+    fn child_by_exact_name(
+        &self,
+        cache: &mut Cache,
+        name: &Path,
+    ) -> Result<Option<DirDay>, CrawlerError> {
+        Ok(self.children(cache)?.into_iter().find(|v| v.name == name))
+    }
+
+    // Returns the newest or oldest file in all decending directories.
+    fn find_file_deep(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+    ) -> Result<Option<DirNotRoot>, CrawlerError> {
+        let children = self.children(cache)?;
+
+        let (Some(first_child), Some(last_child)) = (children.first(), children.last()) else {
+            let Some(sibling) = self.sibling(query, cache)? else {
+                return Ok(None);
+            };
+            return match sibling {
+                DirYearMonth::Year(sibling) => sibling.find_file_deep(query, cache),
+                DirYearMonth::Month(sibling) => sibling.find_file_deep(query, cache),
+            };
+        };
+        if query.reverse {
+            first_child.find_file_deep(query, cache)
+        } else {
+            last_child.find_file_deep(query, cache)
+        }
+    }
+}
+
+#[derive(Clone)]
+struct DirDay {
+    fs: ArcFs,
+    name: PathBuf,
+    path: PathBuf,
+    parent: DirMonth,
+}
+
+impl DirDay {
+    // Returns recordings from this day.
+    fn children(&self, query: &RecDbQuery, cache: &mut Cache) -> Result<Vec<DirRec>, CrawlerError> {
+        if let Some(cached) = cache.day.get(&self.path) {
+            return Ok(cached.clone());
+        }
+
+        let mut children = self.find_all_files(query)?;
+        children.sort_by_key(|v| v.name.clone());
+
+        cache.day.insert(self.path.clone(), children.clone());
+        Ok(children)
+    }
+
+    // Returns next or previous sibling. Will climb to parent directories.
+    fn sibling(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+    ) -> Result<Option<DirYearMonthDay>, CrawlerError> {
+        let siblings = self.parent.children(cache)?;
+        let self_index = siblings
+            .iter()
+            .position(|s| s.path == self.path)
+            .ok_or(CrawlerError::NoSibling)?;
+        if query.reverse {
+            if let Some(next) = siblings.get(self_index + 1) {
+                return Ok(Some(DirYearMonthDay::Day(next.clone())));
+            }
+        } else if self_index > 0 {
+            if let Some(prev) = siblings.get(self_index - 1) {
+                return Ok(Some(DirYearMonthDay::Day(prev.clone())));
+            }
+        }
+        self.parent.sibling(query, cache).map(|v| v.map(Into::into))
+    }
+
+    // Returns next or previous child.
+    fn child_by_name(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+        name: &Path,
+    ) -> Result<Option<DirRec>, CrawlerError> {
+        let children = self.children(query, cache)?;
+        if query.reverse {
+            Ok(children.into_iter().find(|child| child.name > name))
+        } else {
+            Ok(children.into_iter().rev().find(|child| child.name < name))
+        }
+    }
+
+    // Returns child of current directory by exact name.
+    fn child_by_exact_name(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+        name: &Path,
+    ) -> Result<Option<DirRec>, CrawlerError> {
+        Ok(self
+            .children(query, cache)?
+            .into_iter()
+            .find(|v| v.name == name))
+    }
+
+    // Returns the newest or oldest file in all decending directories.
+    fn find_file_deep(
+        &self,
+        query: &RecDbQuery,
+        cache: &mut Cache,
+    ) -> Result<Option<DirNotRoot>, CrawlerError> {
+        let children = self.children(query, cache)?;
+        let (Some(first_child), Some(last_child)) = (children.first(), children.last()) else {
+            let Some(sibling) = self.sibling(query, cache)? else {
+                return Ok(None);
+            };
+            return match sibling {
+                DirYearMonthDay::Year(year) => year.find_file_deep(query, cache),
+                DirYearMonthDay::Month(month) => month.find_file_deep(query, cache),
+                DirYearMonthDay::Day(day) => day.find_file_deep(query, cache),
+            };
+        };
+        if query.reverse {
+            Ok(Some(first_child.to_owned().into()))
+        } else {
+            Ok(Some(last_child.to_owned().into()))
+        }
+    }
+
+    // Finds all recordings belong to
     // selected monitors in decending directories.
     // Only called by `children()`.
-    fn find_all_files(&mut self, query: &RecDbQuery) -> Result<Vec<Dir>, CrawlerError> {
+    fn find_all_files(&self, query: &RecDbQuery) -> Result<Vec<DirRec>, CrawlerError> {
         let monitor_dirs = self.fs.read_dir()?;
 
         let mut all_files = Vec::new();
@@ -288,111 +693,89 @@ impl Dir {
                 let mut path = monitor_path.join(file_name);
                 path.set_extension("");
 
-                let file_fs = montor_fs.sub(file_name)?;
-
-                all_files.push(Dir {
-                    fs: file_fs.into(),
+                let Ok(id) = RecordingId::try_from(name.to_owned()) else {
+                    continue;
+                };
+                all_files.push(DirRec {
+                    id,
                     name: PathBuf::from(name),
                     path,
-                    parent: Some(Box::new(self.to_owned())),
-                    depth: self.depth + 2,
+                    parent: self.to_owned(),
                     json_file: json_files.remove(name),
                 });
             }
         }
         Ok(all_files)
     }
+}
 
-    // Returns next or previous child.
-    fn child_by_name(
-        &mut self,
+#[derive(Clone)]
+struct DirRec {
+    id: RecordingId,
+    name: PathBuf,
+    path: PathBuf,
+    parent: DirDay,
+    json_file: Option<ArcFs>,
+}
+
+impl DirRec {
+    // Returns next or previous sibling. Will climb to parent directories.
+    fn sibling(
+        &self,
         query: &RecDbQuery,
         cache: &mut Cache,
-        name: &Path,
-    ) -> Result<Option<Dir>, CrawlerError> {
-        let children = self.children(query, cache)?;
-
+    ) -> Result<Option<DirNotRoot>, CrawlerError> {
+        let siblings = self.parent.children(query, cache)?;
+        let self_index = siblings
+            .iter()
+            .position(|s| s.path == self.path)
+            .ok_or(CrawlerError::NoSibling)?;
         if query.reverse {
-            Ok(children.into_iter().find(|child| child.name > name))
-        } else {
-            Ok(children.into_iter().rev().find(|child| child.name < name))
+            if let Some(next) = siblings.get(self_index + 1) {
+                return Ok(Some(next.clone().into()));
+            }
+        } else if self_index > 0 {
+            if let Some(prev) = siblings.get(self_index - 1) {
+                return Ok(Some(prev.clone().into()));
+            }
         }
+        self.parent.sibling(query, cache).map(|v| v.map(Into::into))
     }
+}
 
-    // Returns child of current directory by exact name.
-    fn child_by_exact_name(
-        &mut self,
-        query: &RecDbQuery,
-        cache: &mut Cache,
-        name: &Path,
-    ) -> Result<Option<Dir>, CrawlerError> {
-        Ok(self
-            .children(query, cache)?
-            .into_iter()
-            .find(|v| v.name == name))
-    }
+enum DirYearMonth {
+    Year(DirYear),
+    Month(DirMonth),
+}
 
+#[derive(Clone)]
+enum DirYearMonthDay {
+    Year(DirYear),
+    Month(DirMonth),
+    Day(DirDay),
+}
+
+impl DirYearMonthDay {
     // Returns the newest or oldest file in all decending directories.
     fn find_file_deep(
         &self,
         query: &RecDbQuery,
         cache: &mut Cache,
-    ) -> Result<Option<Dir>, CrawlerError> {
-        let mut current = self.to_owned();
-        while current.depth < REC_DEPTH {
-            let children = current.children(query, cache)?;
-            let (Some(first_child), Some(last_child)) = (children.first(), children.last()) else {
-                // children.is_empty()
-                if self.depth == 0 {
-                    return Ok(None);
-                }
-                let Some(sibling) = current.sibling(query, cache)? else {
-                    return Ok(None);
-                };
-                return sibling.find_file_deep(query, cache);
-            };
-            if query.reverse {
-                current = first_child.to_owned();
-            } else {
-                current = last_child.to_owned();
-            }
+    ) -> Result<Option<DirNotRoot>, CrawlerError> {
+        match self {
+            DirYearMonthDay::Year(year) => year.find_file_deep(query, cache),
+            DirYearMonthDay::Month(month) => month.find_file_deep(query, cache),
+            DirYearMonthDay::Day(day) => day.find_file_deep(query, cache),
         }
-        Ok(Some(current))
     }
+}
 
-    // Returns next or previous sibling.
-    // Will climb to parent directories.
-    fn sibling(
-        &mut self,
-        query: &RecDbQuery,
-        cache: &mut Cache,
-    ) -> Result<Option<Dir>, CrawlerError> {
-        if self.depth == 0 {
-            return Ok(None);
+impl From<DirYearMonth> for DirYearMonthDay {
+    fn from(value: DirYearMonth) -> Self {
+        match value {
+            DirYearMonth::Year(year) => DirYearMonthDay::Year(year),
+            DirYearMonth::Month(month) => DirYearMonthDay::Month(month),
         }
-
-        let Some(parent) = &mut self.parent else {
-            return Ok(None);
-        };
-
-        let siblings = parent.children(query, cache)?;
-        for (i, sibling) in siblings.iter().enumerate() {
-            if sibling.path != self.path {
-                continue;
-            }
-            if query.reverse {
-                if let Some(next) = siblings.get(i + 1) {
-                    return next.find_file_deep(query, cache);
-                }
-            } else if i > 0 {
-                if let Some(prev) = siblings.get(i - 1) {
-                    return prev.find_file_deep(query, cache);
-                }
-            }
-            return parent.sibling(query, cache);
-        }
-
-        Err(CrawlerError::NoSibling)
     }
 }
 
@@ -535,6 +918,7 @@ mod tests {
     #[test_case("2000-01-01_01-01-11_m1", "2000-01-01_01-01-22_m1"; "next")]
     #[test_case("2000-01-01_01-01-22_m1", "2000-01-02_01-01-11_m1"; "next day")]
     #[test_case("2000-01-02_01-01-11_m1", "2000-02-01_01-01-11_m1"; "next month")]
+    #[test_case("2000-01-02_01-01-12_m1", "2000-02-01_01-01-11_m1"; "next month2")]
     #[test_case("2000-02-01_01-01-11_m1", "2001-02-01_01-01-11_m1"; "next year")]
     #[test_case("2001-12-01_01-01-01_m1", "2002-01-01_01-01-11_m1"; "empty next day")]
     #[tokio::test]
