@@ -233,6 +233,18 @@ impl<'de> Deserialize<'de> for RecordingId {
     }
 }
 
+impl PartialOrd for RecordingId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RecordingId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.raw.cmp(&other.raw)
+    }
+}
+
 #[must_use]
 pub fn normalize_polygon(input: &Polygon, w: u16, h: u16) -> PolygonNormalized {
     input

@@ -26,7 +26,7 @@ use tokio::fs::{File, OpenOptions};
 use tokio_util::sync::CancellationToken;
 
 // Query of recordings for crawler to find.
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct RecDbQuery {
     #[serde(rename = "recording-id")]
     recording_id: RecordingId,
@@ -130,7 +130,7 @@ impl RecDb {
         Self {
             logger,
             recordings_dir: recording_dir.clone(),
-            crawler: Crawler::new(dir_fs(recording_dir).into()),
+            crawler: Crawler::new(dir_fs(recording_dir)),
             disk,
             active_recordings: Arc::new(std::sync::Mutex::new(HashSet::new())),
         }
@@ -145,7 +145,7 @@ impl RecDb {
         // Do not hold onto the lock.
         let active_recordings = self.active_recordings.lock().expect("not poisoned").clone();
         self.crawler
-            .recordings_by_query(query, &active_recordings)
+            .recordings_by_query(query.clone(), active_recordings)
             .await
     }
 
