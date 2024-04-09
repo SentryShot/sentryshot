@@ -378,6 +378,9 @@ enum CalculateOutputsError {
     #[error("input height is less than output height, {0}/{1}")]
     OutputHeight(u32, u32),
 
+    #[error("cropSize={0}% is less than {1}%")]
+    CropSizeTooSmall(u32, u32),
+
     #[error("input width is less than scaled width, {0}/{1}")]
     ScaledWidth(u16, f64),
 
@@ -429,9 +432,21 @@ fn calculate_outputs(crop: Crop, i: &Inputs) -> Result<(Outputs, Uncrop), Calcul
 
     #[allow(clippy::comparison_chain)]
     if width_ratio > height_ratio {
+        // Landscape.
+        if input_width * crop_size / 100 < output_width2 {
+            let min_crop_size = (output_width2 * 100).div_ceil(input_width);
+            return Err(CropSizeTooSmall(crop_size, min_crop_size));
+        }
+
         scaled_height = u16::try_from(input_height * padded_width2 / input_width)?;
         padding_y_multiplier = u64::from((10000 * padded_height2) / u32::from(scaled_height));
     } else if width_ratio < height_ratio {
+        // Portrait.
+        if input_height * crop_size / 100 < output_height2 {
+            let min_crop_size = (output_height2 * 100).div_ceil(input_height);
+            return Err(CropSizeTooSmall(crop_size, min_crop_size));
+        }
+
         scaled_width = u16::try_from(input_width * padded_height2 / input_height)?;
         padding_x_multiplier = u64::from((10000 * padded_width2) / u32::from(scaled_width));
     }
@@ -895,5 +910,46 @@ mod tests {
         assert!(parse_detections(&thresholds, &mask, &reverse, detections)
             .unwrap()
             .is_empty());
+    }
+
+    #[test]
+    fn test_crop_size_eroor() {
+        // Landscape.
+        let result = calculate_outputs(
+            Crop {
+                x: CropValue::new_testing(0),
+                y: CropValue::new_testing(0),
+                size: CropSize::new_testing(50.try_into().unwrap()),
+            },
+            &Inputs {
+                input_width: NonZeroU16::new(640).unwrap(),
+                input_height: NonZeroU16::new(480).unwrap(),
+                output_width: NonZeroU16::new(340).unwrap(),
+                output_height: NonZeroU16::new(340).unwrap(),
+            },
+        );
+        match result {
+            Ok(_) => panic!("expected error"),
+            Err(e) => assert_eq!("cropSize=50% is less than 54%", e.to_string()),
+        };
+
+        // Portrait.
+        let result = calculate_outputs(
+            Crop {
+                x: CropValue::new_testing(0),
+                y: CropValue::new_testing(0),
+                size: CropSize::new_testing(50.try_into().unwrap()),
+            },
+            &Inputs {
+                input_width: NonZeroU16::new(480).unwrap(),
+                input_height: NonZeroU16::new(640).unwrap(),
+                output_width: NonZeroU16::new(340).unwrap(),
+                output_height: NonZeroU16::new(340).unwrap(),
+            },
+        );
+        match result {
+            Ok(_) => panic!("expected error"),
+            Err(e) => assert_eq!("cropSize=50% is less than 54%", e.to_string()),
+        };
     }
 }
