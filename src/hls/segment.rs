@@ -83,24 +83,32 @@ impl Segment {
             let finalized_part = Arc::new(current_part.finalize()?);
 
             self.parts.push(finalized_part.clone());
-            self.playlist.part_finalized(finalized_part).await?;
+            self.playlist.part_finalized(finalized_part).await;
         }
 
         Ok(())
     }
 
+    // Retuns None if cancelled.
     pub async fn finalize(
         mut self,
         next_video_sample_dts: DurationH264,
-    ) -> Result<SegmentFinalized, SegmentFinalizeError> {
+    ) -> Result<Option<SegmentFinalized>, SegmentFinalizeError> {
         let finalized_part = Arc::new(self.current_part.finalize()?);
 
         if finalized_part.rendered_content.is_some() {
-            self.playlist.part_finalized(finalized_part.clone()).await?;
+            if self
+                .playlist
+                .part_finalized(finalized_part.clone())
+                .await
+                .is_none()
+            {
+                return Ok(None);
+            }
             self.parts.push(finalized_part);
         }
 
-        Ok(SegmentFinalized::new(
+        Ok(Some(SegmentFinalized::new(
             self.id,
             self.muxer_id,
             self.start_time,
@@ -109,7 +117,7 @@ impl Segment {
             next_video_sample_dts
                 .checked_sub(self.start_dts)
                 .ok_or(SegmentFinalizeError::CalculateDuration)?,
-        ))
+        )))
     }
 }
 

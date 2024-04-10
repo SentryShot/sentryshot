@@ -193,7 +193,10 @@ impl Segmenter {
                 );
                 let prev_segment = std::mem::replace(current_segment, next_segment);
 
-                let finalized_segment = prev_segment.finalize(next_dts).await?;
+                let Some(finalized_segment) = prev_segment.finalize(next_dts).await? else {
+                    // Cancelled.
+                    return Ok(());
+                };
                 self.playlist.on_segment_finalized(finalized_segment).await;
 
                 self.first_segment_finalized = true;

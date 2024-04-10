@@ -11,7 +11,7 @@ use crate::error::PartHlsQueryError;
 pub use crate::error::SegmenterWriteH264Error;
 use common::{
     time::{DurationH264, H264_MILLISECOND},
-    Cancelled, DynLogger, TrackParameters,
+    DynLogger, TrackParameters,
 };
 pub use error::ParseParamsError;
 pub use muxer::{HlsMuxer, NextSegmentGetter};
@@ -82,13 +82,14 @@ impl HlsServer {
 
     // Creates muxer and returns a H264Writer to it.
     // Stops and replaces existing muxer if present.
+    // Returns None if cancelled.
     #[allow(clippy::similar_names)]
     pub async fn new_muxer(
         &self,
         token: CancellationToken,
         name: String,
         params: TrackParameters,
-    ) -> Result<(Arc<HlsMuxer>, H264Writer), Cancelled> {
+    ) -> Option<(Arc<HlsMuxer>, H264Writer)> {
         let (res_tx, res_rx) = oneshot::channel();
         let req = NewMuxerRequest {
             token,
@@ -97,28 +98,29 @@ impl HlsServer {
             res_tx,
         };
         if self.new_muxer_tx.send(req).await.is_err() {
-            return Err(Cancelled);
+            return None;
         }
 
         let Ok(res) = res_rx.await else {
-            return Err(Cancelled);
+            return None;
         };
-        Ok(res)
+        Some(res)
     }
 
     #[allow(clippy::similar_names)]
-    pub async fn muxer_by_name(&self, name: String) -> Result<Option<Arc<HlsMuxer>>, Cancelled> {
+    // Returns None if cancelled and Some(None) if the muxer doesn't exist.
+    pub async fn muxer_by_name(&self, name: String) -> Option<Option<Arc<HlsMuxer>>> {
         let (res_tx, res_rx) = oneshot::channel();
         let req = MuxerByNameRequest { name, res_tx };
 
         if self.muxer_by_name_tx.send(req).await.is_err() {
-            return Err(Cancelled);
+            return None;
         };
 
         let Ok(res) = res_rx.await else {
-            return Err(Cancelled);
+            return None;
         };
-        Ok(res)
+        Some(res)
     }
 }
 

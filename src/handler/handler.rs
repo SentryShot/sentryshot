@@ -145,7 +145,7 @@ pub async fn hls_handler(
         }
     };
 
-    let Ok(Some(muxer)) = hls_server.muxer_by_name(muxer_name).await else {
+    let Some(Some(muxer)) = hls_server.muxer_by_name(muxer_name).await else {
         return (StatusCode::NOT_FOUND, headers).into_response();
     };
     let res = muxer.file(&file_name, &query.0).await;

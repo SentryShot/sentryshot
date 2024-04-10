@@ -4,8 +4,8 @@ use crate::log_monitor;
 use common::{
     monitor::{Protocol, RtspUrl, SourceRtspConfig},
     time::DurationH264,
-    Cancelled, DynHlsMuxer, DynLogger, DynMsgLogger, H264Data, LogEntry, LogLevel, MonitorId,
-    MsgLogger, StreamType,
+    DynHlsMuxer, DynLogger, DynMsgLogger, H264Data, LogEntry, LogLevel, MonitorId, MsgLogger,
+    StreamType,
 };
 use futures::StreamExt;
 use hls::{
@@ -204,13 +204,8 @@ impl SourceRtsp {
                 }
 
                 match source.run(token2.child_token(), started_tx.clone()).await {
-                    Ok(()) => {}
-                    Err(SourceRtspRunError::Cancelled(_)) => {
-                        source.log(LogLevel::Debug, "cancelled");
-                    }
-                    Err(e) => {
-                        source.log(LogLevel::Error, &format!("crashed: {e}"));
-                    }
+                    Ok(()) => source.log(LogLevel::Debug, "cancelled"),
+                    Err(e) => source.log(LogLevel::Error, &format!("crashed: {e}")),
                 };
 
                 tokio::select! {
@@ -354,7 +349,7 @@ impl SourceRtsp {
         loop {
             tokio::select! {
                 () = token.cancelled() => {
-                    return Err(SourceRtspRunError::Cancelled(Cancelled));
+                    return Ok(());
                 },
                 pkt = session.next() => {
                     let Some(pkt) = pkt else {
@@ -369,11 +364,15 @@ impl SourceRtsp {
                                 }
                                 let stream = &session.streams()[frame.stream_id()];
                                 if let Some(ParametersRef::Video(params)) = stream.parameters() {
-                                    let (muxer, hls_writer2) = self.hls_server.new_muxer(
+                                    let result = self.hls_server.new_muxer(
                                         token.clone(),
                                         self.hls_name(),
                                         track_params_from_video_params(params)?,
-                                    ).await?;
+                                    ).await;
+                                    let Some((muxer, hls_writer2)) = result else {
+                                        // Cancelled.
+                                        return Ok(());
+                                    };
                                     hls_writer = Some(hls_writer2);
                                     // Notify successful start.
                                     _ = started_tx.send((muxer, feed_tx.clone())).await;
@@ -430,9 +429,6 @@ impl SourceRtsp {
 
 #[derive(Debug, Error)]
 enum SourceRtspRunError {
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
-
     #[error("end of file")]
     Eof,
 

@@ -757,9 +757,12 @@ impl AsyncRead for PartsReader {
 }
 
 pub type DynHlsMuxer = Arc<dyn HlsMuxer + Send + Sync>;
+
 #[async_trait]
 pub trait HlsMuxer {
     fn params(&self) -> &TrackParameters;
+
+    // Returns none if cancelled.
     async fn next_segment(
         &self,
         prev_seg: Option<&SegmentFinalized>,
@@ -773,10 +776,6 @@ pub struct TrackParameters {
     pub codec: String,
     pub extra_data: Vec<u8>,
 }
-
-#[derive(Debug, Error)]
-#[error("cancelled")]
-pub struct Cancelled;
 
 #[derive(Clone, Debug, Default)]
 pub struct H264Data {

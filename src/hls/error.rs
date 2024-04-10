@@ -1,6 +1,5 @@
 #![allow(clippy::module_name_repetitions)]
 
-use common::Cancelled;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -67,9 +66,6 @@ pub enum SegmentFinalizeError {
 
     #[error("calculate duration")]
     CalculateDuration,
-
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
 }
 
 #[derive(Debug, Error)]
@@ -88,9 +84,6 @@ pub enum PartWriteH264Error {
 
     #[error("get duration")]
     Duration,
-
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
 }
 
 #[derive(Debug, Error)]

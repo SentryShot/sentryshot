@@ -311,7 +311,10 @@ impl TflitePlugin {
                 .await
                 .expect("join")?;
 
-            let detections = detector.detect(state.frame_processed.clone()).await?;
+            let Some(detections) = detector.detect(state.frame_processed.clone()).await? else {
+                // Canceled.
+                return Ok(());
+            };
             let detections =
                 parse_detections(&config.thresholds, &config.mask, &uncrop, detections)?;
 

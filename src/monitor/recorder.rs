@@ -4,8 +4,8 @@ use crate::{source::Source, DynMonitorHooks};
 use common::{
     monitor::MonitorConfig,
     time::{Duration, DurationH264, UnixH264, UnixNano, MINUTE},
-    Cancelled, DynHlsMuxer, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, MonitorId,
-    MsgLogger, SegmentFinalized, TrackParameters,
+    DynHlsMuxer, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
+    SegmentFinalized, TrackParameters,
 };
 use recdb::{NewRecordingError, OpenFileError, RecDb, RecordingHandle};
 use recording::{
@@ -208,15 +208,11 @@ async fn run_recording_session(
 ) {
     loop {
         if let Err(e) = run_recording(c.clone()).await {
-            if !matches!(e, RunRecordingError::Cancelled(_)) {
-                c.logger
-                    .log(LogLevel::Error, &format!("recording crashed: {e}"));
-            }
+            c.logger
+                .log(LogLevel::Error, &format!("recording crashed: {e}"));
 
             tokio::select! {
-                () = c.token.cancelled() => {
-                    return
-                }
+                () = c.token.cancelled() => return,
                 () = sleep(restart_sleep.as_std().expect("valid time")) => {
                     c.logger.log(LogLevel::Debug, "recovering after crash");
                 }
@@ -235,9 +231,6 @@ async fn run_recording_session(
 
 #[derive(Debug, Error)]
 enum RunRecordingError {
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
-
     #[error("new recording: {0}")]
     NewRecording(#[from] NewRecordingError),
 
@@ -261,12 +254,15 @@ struct RecordingContext {
 }
 
 async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
-    let muxer = c.source_main.muxer().await.ok_or(common::Cancelled)?;
+    let Some(muxer) = c.source_main.muxer().await else {
+        // Cancelled.
+        return Ok(());
+    };
 
-    let first_segment = muxer
-        .next_segment(c.prev_seg.lock().await.as_deref())
-        .await
-        .ok_or(common::Cancelled)?;
+    let Some(first_segment) = muxer.next_segment(c.prev_seg.lock().await.as_deref()).await else {
+        // Cancelled.
+        return Ok(());
+    };
 
     let start_time = first_segment.start_time();
 
@@ -344,9 +340,6 @@ enum GenerateVideoError {
 
     #[error("write sample: {0}")]
     WriteSample(#[from] WriteSampleError),
-
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
 
     #[error("skipped segment: expected: {0}, got: {0}")]
     SkippedSegment(u64, u64),

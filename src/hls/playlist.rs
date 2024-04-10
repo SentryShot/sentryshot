@@ -4,7 +4,7 @@ use crate::{
         MuxerFileResponse, MUXER_FILE_RESPONSE_BAD_REQUEST, MUXER_FILE_RESPONSE_CANCELLED,
         MUXER_FILE_RESPONSE_ERROR, MUXER_FILE_RESPONSE_NOT_FOUND,
     },
-    Cancelled, DurationH264, HlsQuery,
+    DurationH264, HlsQuery,
 };
 use common::{
     part_name, time::SECOND, DynLogger, LogEntry, LogLevel, PartFinalized, SegmentFinalized,
@@ -127,17 +127,18 @@ impl Playlist {
         Self { muxer_id, state }
     }
 
-    async fn get_state_lock(&self) -> Result<MutexGuard<PlaylistState>, Cancelled> {
+    async fn get_state_lock(&self) -> Option<MutexGuard<PlaylistState>> {
         let state = self.state.lock().await;
         // State cannot be used after being cancelled.
         if state.is_cancelled {
-            return Err(Cancelled);
+            return None;
         }
-        Ok(state)
+        Some(state)
     }
 
     pub async fn on_segment_finalized(&self, segment: SegmentFinalized) {
-        let Ok(mut state) = self.get_state_lock().await else {
+        let Some(mut state) = self.get_state_lock().await else {
+            // Cancelled.
             return;
         };
         state.segment_finalized(&Arc::new(segment));
@@ -169,7 +170,8 @@ impl Playlist {
     ) -> MuxerFileResponse {
         let res_rx: oneshot::Receiver<MuxerFileResponse>;
         {
-            let Ok(mut state) = self.get_state_lock().await else {
+            let Some(mut state) = self.get_state_lock().await else {
+                // Cancelled.
                 return MUXER_FILE_RESPONSE_CANCELLED;
             };
             // If the _HLS_msn is greater than the Media Sequence Number of the last
@@ -226,7 +228,8 @@ impl Playlist {
                 .await;
         }
 
-        let Ok(state) = self.get_state_lock().await else {
+        let Some(state) = self.get_state_lock().await else {
+            // Cancelled.
             return MUXER_FILE_RESPONSE_CANCELLED;
         };
         if !state.has_content() {
@@ -259,7 +262,8 @@ impl Playlist {
     async fn blocking_part(&self, file_name: &str) -> MuxerFileResponse {
         let res_rx: oneshot::Receiver<MuxerFileResponse>;
         {
-            let Ok(mut state) = self.get_state_lock().await else {
+            let Some(mut state) = self.get_state_lock().await else {
+                // Cancelled.
                 return MUXER_FILE_RESPONSE_CANCELLED;
             };
 
@@ -302,7 +306,8 @@ impl Playlist {
     #[allow(clippy::similar_names)]
     async fn segment_reader(&self, file_name: &str) -> MuxerFileResponse {
         if file_name.starts_with("seg") {
-            let Ok(state) = self.get_state_lock().await else {
+            let Some(state) = self.get_state_lock().await else {
+                // Cancelled.
                 return MUXER_FILE_RESPONSE_CANCELLED;
             };
 
@@ -331,7 +336,7 @@ impl Playlist {
         MUXER_FILE_RESPONSE_NOT_FOUND
     }
 
-    pub async fn part_finalized(&self, part: Arc<PartFinalized>) -> Result<(), Cancelled> {
+    pub async fn part_finalized(&self, part: Arc<PartFinalized>) -> Option<()> {
         let mut state = self.get_state_lock().await?;
 
         state.next_part_id = part.id + 1;
@@ -339,7 +344,7 @@ impl Playlist {
         state.next_segment_parts.push(part);
 
         state.check_pending();
-        Ok(())
+        Some(())
     }
 
     #[allow(clippy::similar_names)]
@@ -349,7 +354,7 @@ impl Playlist {
     ) -> Option<Arc<SegmentFinalized>> {
         let res_rx: oneshot::Receiver<Arc<SegmentFinalized>>;
         {
-            let mut state = self.get_state_lock().await.ok()?;
+            let mut state = self.get_state_lock().await?;
 
             let prev_id = match prev_seg {
                 Some(seg)

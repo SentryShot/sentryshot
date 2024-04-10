@@ -6,8 +6,8 @@ mod zone;
 use crate::{config::MotionConfig, zone::Zone};
 use async_trait::async_trait;
 use common::{
-    time::UnixNano, Cancelled, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, LogSource,
-    MonitorId, MsgLogger,
+    time::UnixNano, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, LogSource, MonitorId,
+    MsgLogger,
 };
 use monitor::{DecoderError, Monitor, Source, SubscribeDecodedError};
 use plugin::{types::Assets, Application, Plugin, PreLoadPlugin};
@@ -77,9 +77,6 @@ impl Plugin for MotionPlugin {
 
         match self.start(token, msg_logger.clone(), monitor).await {
             Ok(()) => {}
-            Err(StartError::Cancelled(_)) => {
-                msg_logger.log(LogLevel::Debug, "cancelled");
-            }
             Err(e) => {
                 msg_logger.log(LogLevel::Error, &format!("start: {e}"));
             }
@@ -107,9 +104,6 @@ impl MsgLogger for MotionLogger {
 enum StartError {
     #[error("parse config: {0}")]
     ParseConfig(#[from] serde_json::Error),
-
-    #[error("{0}")]
-    Cancelled(#[from] Cancelled),
 }
 
 #[derive(Debug, Error)]
@@ -134,8 +128,6 @@ impl MotionPlugin {
         msg_logger: DynMsgLogger,
         monitor: Arc<Monitor>,
     ) -> Result<(), StartError> {
-        use StartError::*;
-
         let config = monitor.config();
 
         let Some(source) = monitor.get_smallest_source().await else {
@@ -165,8 +157,9 @@ impl MotionPlugin {
             };
             tokio::select! {
                 () = token.cancelled() => {
-                    return Err(Cancelled(common::Cancelled));
-                }
+                    msg_logger.log(LogLevel::Debug, "cancelled");
+                    return Ok(())
+                },
                 () = sleep() => {}
             }
         }

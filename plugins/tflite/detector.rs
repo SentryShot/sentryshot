@@ -7,8 +7,7 @@ use crate::{
     Fetcher,
 };
 use common::{
-    Cancelled, Detection, Detections, DynMsgLogger, Label, Labels, LogLevel, RectangleNormalized,
-    Region,
+    Detection, Detections, DynMsgLogger, Label, Labels, LogLevel, RectangleNormalized, Region,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -152,14 +151,11 @@ pub(crate) enum DetectError {
 
     #[error("detection took longer than 1 second")]
     DetectionTimeout,
-
-    #[error("{0}")]
-    Cancelled(Cancelled),
 }
 
 impl Detector {
     #[allow(clippy::similar_names)]
-    pub(crate) async fn detect(&self, data: Vec<u8>) -> Result<Detections, DetectError> {
+    pub(crate) async fn detect(&self, data: Vec<u8>) -> Result<Option<Detections>, DetectError> {
         use DetectError::*;
         let (res_tx, res_rx) = oneshot::channel();
         let req = DetectRequest { data, res: res_tx };
@@ -178,10 +174,10 @@ impl Detector {
             () = sleep() => return Err(DetectionTimeout),
         );
         if let Ok(res) = res {
-            Ok(res?)
+            Ok(Some(res?))
         } else {
-            // Detector went out of scope.
-            Err(Cancelled(common::Cancelled))
+            // Detector was dropped.
+            Ok(None)
         }
     }
     pub(crate) fn width(&self) -> NonZeroU16 {
