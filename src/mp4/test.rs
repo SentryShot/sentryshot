@@ -9,11 +9,11 @@ use pretty_assertions::assert_eq;
 use test_case::test_case;
 
 #[test_case(
-        Box::new(Btrt{
+        Btrt{
             buffer_size_db: 0x1234_5678,
             max_bitrate: 0x3456_789a,
             avg_bitrate: 0x5678_9abc,
-        }),
+        },
         &[
             0x12, 0x34, 0x56, 0x78, // buffer_size_db.
             0x34, 0x56, 0x78, 0x9a, // max_bitrate.
@@ -21,7 +21,7 @@ use test_case::test_case;
         ]; "btrt"
     )]
 #[test_case(
-        Box::new(Ctts{
+        Ctts{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -38,7 +38,7 @@ use test_case::test_case;
                     sample_offset_v1: 0,
                 },
             ],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -50,7 +50,7 @@ use test_case::test_case;
         ]; "ctts: version 0"
     )]
 #[test_case(
-        Box::new(Ctts{
+        Ctts{
             full_box: FullBox{
                 version: 1,
                 flags: [0, 0, 0],
@@ -67,7 +67,7 @@ use test_case::test_case;
                     sample_offset_v1: -0x789a_bcde,
                 },
             ],
-        }),
+        },
         &[
             1,                // version
             0x00, 0x00, 0x00, // flags
@@ -78,15 +78,15 @@ use test_case::test_case;
             0x87, 0x65, 0x43, 0x22, // sample offset
         ]; "ctts: version 1"
     )]
-#[test_case(Box::new(Dinf{}), &[]; "dinf")]
+#[test_case(Dinf{}, &[]; "dinf")]
 #[test_case(
-        Box::new(Dref{
+        Dref{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
             },
             entry_count: 0x1234_5678,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -94,27 +94,27 @@ use test_case::test_case;
         ]; "dref"
     )]
 #[test_case(
-        Box::new(Url{
+        Url{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 1],
             },
             location: String::new(),
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x01, // flags
         ]; "url"
     )]
 #[test_case(
-        Box::new(Ftyp{
+        Ftyp{
             major_brand:   [b'a', b'b', b'e', b'm'],
             minor_version: 0x1234_5678,
             compatible_brands: vec![
                 CompatibleBrandElem(*b"abcd"),
                 CompatibleBrandElem(*b"efgh"),
             ],
-        }),
+        },
         &[
             b'a', b'b', b'e', b'm', // major brand
             0x12, 0x34, 0x56, 0x78, // minor version
@@ -123,7 +123,7 @@ use test_case::test_case;
         ]; "ftyp"
     )]
 #[test_case(
-        Box::new(Hdlr{
+        Hdlr{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -132,7 +132,7 @@ use test_case::test_case;
             handler_type: *b"abem",
             reserved: [0, 0, 0],
             name: "Abema".to_owned(),
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -145,7 +145,7 @@ use test_case::test_case;
         ]; "hdlr"
     )]
 #[test_case(
-        Box::new(Hdlr{
+        Hdlr{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -154,7 +154,7 @@ use test_case::test_case;
             handler_type: *b"vide",
             reserved: [0, 0, 0],
             name: "VideoHandler".to_owned(),
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -167,12 +167,12 @@ use test_case::test_case;
         ];"hdlr2"
     )]
 #[test_case(
-        Box::new(Mdat(vec![0x11, 0x22, 0x33])),
+        Mdat(vec![0x11, 0x22, 0x33]),
         &[0x11, 0x22, 0x33];
         "mdat"
-    )]
+)]
 #[test_case(
-        Box::new(Mdhd{
+        Mdhd{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -187,7 +187,7 @@ use test_case::test_case;
             pad: true,
             language: [b'j' - 0x60, b'p' - 0x60, b'n' - 0x60], // 0x0a, 0x10, 0x0e
             pre_defined: 0,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -200,7 +200,7 @@ use test_case::test_case;
         ]; "mdhd: version 0"
     )]
 #[test_case(
-        Box::new(Mdhd{
+        Mdhd{
             full_box: FullBox{
                 version: 1,
                 flags: [0, 0, 0],
@@ -215,7 +215,7 @@ use test_case::test_case;
             pad: true,
             language: [b'j' - 0x60, b'p' - 0x60, b'n' - 0x60], // 0x0a, 0x10, 0x0e
             pre_defined: 0,
-        }),
+        },
         &[
             1,                // version
             0x00, 0x00, 0x00, // flags
@@ -228,7 +228,7 @@ use test_case::test_case;
         ]; "mdhd: version 1"
     )]
 #[test_case(
-        Box::new(Mdhd{
+        Mdhd{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -243,7 +243,7 @@ use test_case::test_case;
             pad: false,
             language: *b"und",
             pre_defined: 0,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -255,27 +255,27 @@ use test_case::test_case;
             0x00, 0x00, // pre defined
         ]; "mdhd: language"
     )]
-#[test_case(Box::new(Mdia{}), &[]; "mdia")]
+#[test_case(Mdia{}, &[]; "mdia")]
 #[test_case(
-        Box::new(Mfhd{
+        Mfhd{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
             },
             sequence_number: 0x1234_5678,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
             0x12, 0x34, 0x56, 0x78, // sequence number
         ]; "mfhd"
     )]
-#[test_case(Box::new(Minf{}), &[]; "minf")]
-#[test_case(Box::new(Moof{}), &[]; "moof")]
-#[test_case(Box::new(Moov{}), &[]; "moov")]
-#[test_case(Box::new(Mvex{}), &[]; "mvex")]
+#[test_case(Minf{}, &[]; "minf")]
+#[test_case(Moof{}, &[]; "moof")]
+#[test_case(Moov{}, &[]; "moov")]
+#[test_case(Mvex{}, &[]; "mvex")]
 #[test_case(
-        Box::new(Mvhd{
+        Mvhd{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -294,7 +294,7 @@ use test_case::test_case;
             matrix: [0; 9],
             pre_defined: [0;6],
             next_track_id: 0xabcd_ef01,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -315,7 +315,7 @@ use test_case::test_case;
         ]; "mvhd: version 0"
     )]
 #[test_case(
-        Box::new(Mvhd{
+        Mvhd{
             full_box: FullBox{
                 version: 1,
                 flags: [0, 0, 0],
@@ -334,7 +334,7 @@ use test_case::test_case;
             matrix: [0; 9],
             pre_defined: [0; 6],
             next_track_id: 0xabcd_ef01,
-        }),
+        },
         &[
             1,                // version
             0x00, 0x00, 0x00, // flags
@@ -355,7 +355,7 @@ use test_case::test_case;
         ]; "mvhd: version 1"
     )]
 #[test_case(
-        Box::new(Avc1{
+        Avc1{
             sample_entry: SampleEntry{
                 reserved: [0; 6],
                 data_reference_index: 0x1234,
@@ -373,7 +373,7 @@ use test_case::test_case;
                 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
             depth: 0x0105,
             pre_defined3: 1001,
-        }),
+        },
         &[
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // reserved
             0x12, 0x34, // data reference index
@@ -397,7 +397,7 @@ use test_case::test_case;
         ]; "Avc1"
     )]
 #[test_case(
-        Box::new(AvcC{
+        AvcC{
             configuration_version: 0x12,
             profile: AVC_MAIN_PROFILE,
             profile_compatibility: 0x40,
@@ -424,7 +424,7 @@ use test_case::test_case;
             bitdepth_chroma_minus_8: 0,
             num_of_sequence_parameter_set_ext: 0,
             sequence_parameter_sets_ext: vec![],
-        }),
+        },
         &[
             0x12,       // configuration version
             0x4d,       // profile
@@ -444,7 +444,7 @@ use test_case::test_case;
         ]; "AvcC main profile"
     )]
 #[test_case(
-        Box::new(AvcC{
+        AvcC{
             configuration_version: 0x12,
             profile: AVC_HIGH_PROFILE,
             profile_compatibility: 0x00,
@@ -471,7 +471,7 @@ use test_case::test_case;
             bitdepth_chroma_minus_8: 0,
             num_of_sequence_parameter_set_ext: 0,
             sequence_parameter_sets_ext: vec![],
-        }),
+        },
         &[
             0x12,       // configuration version
             0x64,       // profile
@@ -491,7 +491,7 @@ use test_case::test_case;
         ]; "AvcC high profile old spec"
     )]
 #[test_case(
-        Box::new(AvcC{
+        AvcC{
             configuration_version: 0x12,
             profile: AVC_HIGH_PROFILE,
             profile_compatibility: 0x00,
@@ -521,7 +521,7 @@ use test_case::test_case;
                 AvcParameterSet(vec![0x12, 0x34]),
                 AvcParameterSet(vec![0x12, 0x34, 0x56]),
             ],
-        }),
+        },
         &[
             0x12,       // configuration version
             0x64,       // profile
@@ -548,15 +548,15 @@ use test_case::test_case;
             0x12, 0x34, 0x56, // nalUnit
         ]; "AvcC high profile new spec"
     )]
-#[test_case(Box::new(Stbl{}), &[]; "stbl")]
+#[test_case(Stbl{}, &[]; "stbl")]
 #[test_case(
-        Box::new(Stco{
+        Stco{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
             },
             chunk_offsets: vec![0x0123_4567, 0x89ab_cdef],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -566,7 +566,7 @@ use test_case::test_case;
         ]; "stco"
     )]
 #[test_case(
-        Box::new(Stsc{
+        Stsc{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -575,7 +575,7 @@ use test_case::test_case;
                 StscEntry{first_chunk: 0x0123_4567, samples_per_chunk: 0x2345_6789, sample_description_index: 0x4567_89ab},
                 StscEntry{first_chunk: 0x6789_abcd, samples_per_chunk: 0x89ab_cdef, sample_description_index: 0xabcd_ef01},
             ],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -589,13 +589,13 @@ use test_case::test_case;
         ]; "stsc"
     )]
 #[test_case(
-        Box::new(Stsd{
+        Stsd{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
             },
             entry_count: 0x0123_4567,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -603,13 +603,13 @@ use test_case::test_case;
         ]; "stsd"
     )]
 #[test_case(
-        Box::new(Stss{
+        Stss{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
             },
             sample_numbers: vec![0x0123_4567, 0x89ab_cdef],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -619,7 +619,7 @@ use test_case::test_case;
         ]; "stss"
     )]
 #[test_case(
-        Box::new(Stsz{
+        Stsz{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -627,7 +627,7 @@ use test_case::test_case;
             sample_size:  0x0123_4567,
             sample_count: 2,
             entry_sizes: vec![],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -636,7 +636,7 @@ use test_case::test_case;
         ]; "stsz: common sample size"
     )]
 #[test_case(
-        Box::new(Stsz{
+        Stsz{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -644,7 +644,7 @@ use test_case::test_case;
             sample_size: 0,
             sample_count: 2,
             entry_sizes:  vec![0x0123_4567, 0x2345_6789],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -655,7 +655,7 @@ use test_case::test_case;
         ]; "stsz: sample size array"
     )]
 #[test_case(
-        Box::new(Stts{
+        Stts{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -664,7 +664,7 @@ use test_case::test_case;
                 SttsEntry{sample_count: 0x0123_4567, sample_delta: 0x2345_6789},
                 SttsEntry{sample_count: 0x4567_89ab, sample_delta: 0x6789_abcd},
             ],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -676,14 +676,14 @@ use test_case::test_case;
         ]; "stts"
     )]
 #[test_case(
-        Box::new(Tfdt{
+        Tfdt{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
             },
             base_media_decode_time_v0: 0x0123_4567,
             base_media_decode_time_v1: 0,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -691,14 +691,14 @@ use test_case::test_case;
         ]; "tfdt: version 0"
     )]
 #[test_case(
-        Box::new(Tfdt{
+        Tfdt{
             full_box: FullBox{
                 version: 1,
                 flags: [0, 0, 0],
             },
             base_media_decode_time_v0: 0,
             base_media_decode_time_v1: 0x0123_4567_89ab_cdef,
-        }),
+        },
         &[
             1,                // version
             0x00, 0x00, 0x00, // flags
@@ -706,7 +706,7 @@ use test_case::test_case;
         ]; "tfdt: version 1"
     )]
 #[test_case(
-        Box::new(Tfhd{
+        Tfhd{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -717,7 +717,7 @@ use test_case::test_case;
             default_sample_duration: 0,
             default_sample_size: 0,
             default_sample_flags: 0,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -725,7 +725,7 @@ use test_case::test_case;
         ]; "tfhd: no flags"
     )]
 #[test_case(
-        Box::new(Tfhd{
+        Tfhd{
             full_box: FullBox{
                 version: 0,
                 flags: [
@@ -740,7 +740,7 @@ use test_case::test_case;
             default_sample_duration: 0x2345_6789,
             default_sample_size: 0,
             default_sample_flags: 0,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x09, // flags (0000 0000 1001)
@@ -750,7 +750,7 @@ use test_case::test_case;
         ]; "tfhd: base data offset & default sample duration"
     )]
 #[test_case(
-        Box::new(Tkhd{
+        Tkhd{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -775,7 +775,7 @@ use test_case::test_case;
             ],
             width:  125_829_120,
             height: 70_778_880,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -797,7 +797,7 @@ use test_case::test_case;
         ]; "tkhd version 0"
     )]
 #[test_case(
-        Box::new(Tkhd{
+        Tkhd{
             full_box: FullBox{
                 version: 1,
                 flags: [0, 0, 0],
@@ -822,7 +822,7 @@ use test_case::test_case;
             ],
             width:  125_829_120,
             height: 70_778_880,
-        }),
+        },
         &[
             1,                // version
             0x00, 0x00, 0x00, // flags
@@ -843,10 +843,10 @@ use test_case::test_case;
             0x04, 0x38, 0x00, 0x00, // height
         ]; "tkhd version 1"
     )]
-#[test_case(Box::new(Traf{}), &[]; "traf")]
-#[test_case(Box::new(Trak{}), &[]; "trak")]
+#[test_case(Traf{}, &[]; "traf")]
+#[test_case(Trak{}, &[]; "trak")]
 #[test_case(
-        Box::new(Trex{
+        Trex{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 0, 0],
@@ -856,7 +856,7 @@ use test_case::test_case;
             default_sample_duration: 0x4567_89ab,
             default_sample_size: 0x6789_abcd,
             default_sample_flags: 0x89ab_cdef,
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -868,7 +868,7 @@ use test_case::test_case;
         ]; "trex"
     )]
 #[test_case(
-        Box::new(Trun{
+        Trun{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 1, 1],
@@ -898,7 +898,7 @@ use test_case::test_case;
                     sample_composition_time_offset_v1: 0,
                 },
             ],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x01, 0x01, // flags
@@ -910,7 +910,7 @@ use test_case::test_case;
         ]; "trun: version=0 flag=0x101"
     )]
 #[test_case(
-        Box::new(Trun{
+        Trun{
             full_box: FullBox{
                 version: 0,
                 flags: [0, 2, 4],
@@ -940,7 +940,7 @@ use test_case::test_case;
                     sample_composition_time_offset_v1: 0,
                 },
             ],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x02, 0x04, // flags
@@ -952,7 +952,7 @@ use test_case::test_case;
         ]; "trun: version=0 flag=0x204"
     )]
 #[test_case(
-        Box::new(Trun{
+        Trun{
             full_box: FullBox{
                 version: 0,
                 flags: [0x00, 0x0c, 0x00],
@@ -982,7 +982,7 @@ use test_case::test_case;
                     sample_composition_time_offset_v1: 0,
                 },
             ],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x0c, 0x00, // flags
@@ -996,7 +996,7 @@ use test_case::test_case;
         ]; "trun: version=0 flag=0xc00"
     )]
 #[test_case(
-        Box::new(Trun{
+        Trun{
             full_box: FullBox{
                 version: 1,
                 flags:   [0, 8, 0],
@@ -1024,7 +1024,7 @@ use test_case::test_case;
                     sample_composition_time_offset_v1: -202,
                 },
             ],
-        }),
+        },
         &[
             1,                // version
             0x00, 0x08, 0x00, // flags
@@ -1035,14 +1035,14 @@ use test_case::test_case;
         ]; "trun: version=1 flag=0x800"
     )]
 #[test_case(
-        Box::new(Vmhd{
+        Vmhd{
             full_box: FullBox{
                 version: 0,
                 flags:   [0, 0, 0],
             },
             graphics_mode: 0x0123,
             opcolor:      [0x2345, 0x4567, 0x6789],
-        }),
+        },
         &[
             0,                // version
             0x00, 0x00, 0x00, // flags
@@ -1050,12 +1050,10 @@ use test_case::test_case;
             0x23, 0x45, 0x45, 0x67, 0x67, 0x89, // opcolor
         ]; "vmhd"
     )]
-fn test_box_types(src: Box<dyn ImmutableBox>, bin: &[u8]) {
+fn test_box_types<T: Into<Box<dyn ImmutableBox>>>(src: T, bin: &[u8]) {
+    let src = src.into();
     let size = src.size();
-    let boxes = Boxes {
-        mp4_box: src,
-        children: vec![],
-    };
+    let boxes = Boxes::new(src);
 
     let mut buf = Vec::<u8>::with_capacity(size);
     boxes.mp4_box.marshal(&mut buf).unwrap();

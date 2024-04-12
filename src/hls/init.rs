@@ -1,6 +1,7 @@
 use crate::{error::GenerateInitError, types::VIDEO_TRACK_ID};
 use bytes::Bytes;
 use common::{time::H264_TIMESCALE, TrackParameters};
+use mp4::ImmutableBox;
 
 #[allow(clippy::module_name_repetitions)]
 pub fn generate_init(params: &TrackParameters) -> Result<Bytes, GenerateInitError> {
@@ -13,8 +14,9 @@ pub fn generate_init(params: &TrackParameters) -> Result<Bytes, GenerateInitErro
            - trex (video)
     */
 
-    let ftyp = mp4::Boxes {
-        mp4_box: Box::new(mp4::Ftyp {
+    let ftyp = mp4::Boxes::new(
+        // Ftyp.
+        mp4::Ftyp {
             major_brand: *b"mp42",
             minor_version: 1,
             compatible_brands: vec![
@@ -23,40 +25,32 @@ pub fn generate_init(params: &TrackParameters) -> Result<Bytes, GenerateInitErro
                 mp4::CompatibleBrandElem(*b"isom"),
                 mp4::CompatibleBrandElem(*b"hlsf"),
             ],
-        }),
-        children: vec![],
-    };
+        },
+    );
 
     let trak = generate_trak(params);
 
-    let moov = mp4::Boxes {
-        mp4_box: Box::new(mp4::Moov {}),
-        children: vec![
-            mp4::Boxes {
-                mp4_box: Box::new(mp4::Mvhd {
-                    timescale: 1000,
-                    rate: 65536,
-                    volume: 256,
-                    matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
-                    next_track_id: 2,
-                    ..mp4::Mvhd::default()
-                }),
-                children: vec![],
-            },
-            trak,
-            mp4::Boxes {
-                mp4_box: Box::new(mp4::Mvex {}),
-                children: vec![mp4::Boxes {
-                    mp4_box: Box::new(mp4::Trex {
-                        track_id: VIDEO_TRACK_ID,
-                        default_sample_description_index: 1,
-                        ..mp4::Trex::default()
-                    }),
-                    children: vec![],
-                }],
-            },
-        ],
-    };
+    let moov = mp4::Boxes::new(mp4::Moov).with_children3(
+        // Mvhd.
+        mp4::Boxes::new(mp4::Mvhd {
+            timescale: 1000,
+            rate: 65536,
+            volume: 256,
+            matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
+            next_track_id: 2,
+            ..mp4::Mvhd::default()
+        }),
+        // Trak.
+        trak,
+        // Mvex.
+        mp4::Boxes::new(mp4::Mvex)
+            // Trex.
+            .with_child(mp4::Boxes::new(mp4::Trex {
+                track_id: VIDEO_TRACK_ID,
+                default_sample_description_index: 1,
+                ..mp4::Trex::default()
+            })),
+    );
 
     let size = ftyp.size() + moov.size();
     let mut buf = Vec::with_capacity(size);
@@ -91,142 +85,113 @@ fn generate_trak(params: &TrackParameters) -> mp4::Boxes {
              - stco
     */
 
-    let stbl = mp4::Boxes {
-        mp4_box: Box::new(mp4::Stbl {}),
-        children: vec![
-            mp4::Boxes {
-                mp4_box: Box::new(mp4::Stsd {
-                    full_box: mp4::FullBox::default(),
-                    entry_count: 1,
+    let stbl = mp4::Boxes::new(mp4::Stbl).with_children5(
+        // Stds.
+        mp4::Boxes::new(mp4::Stsd {
+            full_box: mp4::FullBox::default(),
+            entry_count: 1,
+        })
+        .with_child(
+            // Avc1.
+            mp4::Boxes::new(mp4::Avc1 {
+                sample_entry: mp4::SampleEntry {
+                    reserved: [0, 0, 0, 0, 0, 0],
+                    data_reference_index: 1,
+                },
+                width: params.width,
+                height: params.height,
+                horiz_resolution: 4_718_592,
+                vert_resolution: 4_718_592,
+                frame_count: 1,
+                depth: 24,
+                pre_defined3: -1,
+                ..mp4::Avc1::default()
+            })
+            .with_children2(
+                // AvcC.
+                mp4::Boxes::new(MyAvcC(params.extra_data.clone())),
+                // Btrt.
+                mp4::Boxes::new(mp4::Btrt {
+                    buffer_size_db: 0,
+                    max_bitrate: 1_000_000,
+                    avg_bitrate: 1_000_000,
                 }),
-                children: vec![mp4::Boxes {
-                    mp4_box: Box::new(mp4::Avc1 {
-                        sample_entry: mp4::SampleEntry {
-                            reserved: [0, 0, 0, 0, 0, 0],
-                            data_reference_index: 1,
-                        },
-                        width: params.width,
-                        height: params.height,
-                        horiz_resolution: 4_718_592,
-                        vert_resolution: 4_718_592,
-                        frame_count: 1,
-                        depth: 24,
-                        pre_defined3: -1,
-                        ..mp4::Avc1::default()
-                    }),
-                    children: vec![
-                        mp4::Boxes {
-                            mp4_box: Box::new(MyAvcC(params.extra_data.clone())),
-                            children: vec![],
-                        },
-                        mp4::Boxes {
-                            mp4_box: Box::new(mp4::Btrt {
-                                buffer_size_db: 0,
-                                max_bitrate: 1_000_000,
-                                avg_bitrate: 1_000_000,
-                            }),
-                            children: vec![],
-                        },
-                    ],
-                }],
-            },
-            mp4::Boxes {
-                mp4_box: Box::<mp4::Stts>::default(),
-                children: vec![],
-            },
-            mp4::Boxes {
-                mp4_box: Box::<mp4::Stsc>::default(),
-                children: vec![],
-            },
-            mp4::Boxes {
-                mp4_box: Box::<mp4::Stsz>::default(),
-                children: vec![],
-            },
-            mp4::Boxes {
-                mp4_box: Box::<mp4::Stco>::default(),
-                children: vec![],
-            },
-        ],
-    };
+            ),
+        ),
+        // Stts.
+        mp4::Boxes::new(mp4::Stts::default()),
+        // Stsc.
+        mp4::Boxes::new(mp4::Stsc::default()),
+        // Stsz.
+        mp4::Boxes::new(mp4::Stsz::default()),
+        // Stco.
+        mp4::Boxes::new(mp4::Stco::default()),
+    );
 
-    let minf = mp4::Boxes {
-        mp4_box: Box::new(mp4::Minf {}),
-        children: vec![
-            mp4::Boxes {
-                mp4_box: Box::new(mp4::Vmhd {
+    let minf = mp4::Boxes::new(mp4::Minf).with_children3(
+        // Vmhd.
+        mp4::Boxes::new(mp4::Vmhd {
+            full_box: mp4::FullBox {
+                version: 0,
+                flags: [0, 0, 1],
+            },
+            graphics_mode: 0,
+            opcolor: [0, 0, 0],
+        }),
+        // Dinf.
+        mp4::Boxes::new(mp4::Dinf).with_child(
+            // Dref.
+            mp4::Boxes::new(mp4::Dref {
+                full_box: mp4::FullBox::default(),
+                entry_count: 1,
+            })
+            .with_child(mp4::Boxes::new(
+                // Url.
+                mp4::Url {
                     full_box: mp4::FullBox {
                         version: 0,
                         flags: [0, 0, 1],
                     },
-                    graphics_mode: 0,
-                    opcolor: [0, 0, 0],
-                }),
-                children: vec![],
-            },
-            mp4::Boxes {
-                mp4_box: Box::new(mp4::Dinf {}),
-                children: vec![mp4::Boxes {
-                    mp4_box: Box::new(mp4::Dref {
-                        full_box: mp4::FullBox::default(),
-                        entry_count: 1,
-                    }),
-                    children: vec![mp4::Boxes {
-                        mp4_box: Box::new(mp4::Url {
-                            full_box: mp4::FullBox {
-                                version: 0,
-                                flags: [0, 0, 1],
-                            },
-                            location: String::new(),
-                        }),
-                        children: vec![],
-                    }],
-                }],
-            },
-            stbl,
-        ],
-    };
+                    location: String::new(),
+                },
+            )),
+        ),
+        // Stbl.
+        stbl,
+    );
 
-    mp4::Boxes {
-        mp4_box: Box::new(mp4::Trak {}),
-        children: vec![
-            mp4::Boxes {
-                mp4_box: Box::new(mp4::Tkhd {
-                    full_box: mp4::FullBox {
-                        version: 0,
-                        flags: [0, 0, 3],
-                    },
-                    track_id: VIDEO_TRACK_ID,
-                    width: u32::from(params.width) * 65536,
-                    height: u32::from(params.height) * 65536,
-                    matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
-                    ..mp4::Tkhd::default()
-                }),
-                children: vec![],
+    // Trak.
+    mp4::Boxes::new(mp4::Trak {}).with_children2(
+        // Tkhd.
+        mp4::Boxes::new(mp4::Tkhd {
+            full_box: mp4::FullBox {
+                version: 0,
+                flags: [0, 0, 3],
             },
-            mp4::Boxes {
-                mp4_box: Box::new(mp4::Mdia {}),
-                children: vec![
-                    mp4::Boxes {
-                        mp4_box: Box::new(mp4::Mdhd {
-                            timescale: H264_TIMESCALE,
-                            language: *b"und",
-                            ..mp4::Mdhd::default()
-                        }),
-                        children: vec![],
-                    },
-                    mp4::Boxes {
-                        mp4_box: Box::new(mp4::Hdlr {
-                            handler_type: *b"vide",
-                            name: "VideoHandler".to_owned(),
-                            ..mp4::Hdlr::default()
-                        }),
-                        children: vec![],
-                    },
-                    minf,
-                ],
-            },
-        ],
-    }
+            track_id: VIDEO_TRACK_ID,
+            width: u32::from(params.width) * 65536,
+            height: u32::from(params.height) * 65536,
+            matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
+            ..mp4::Tkhd::default()
+        }),
+        // Mdia
+        mp4::Boxes::new(mp4::Mdia {}).with_children3(
+            // Mdhd.
+            mp4::Boxes::new(mp4::Mdhd {
+                timescale: H264_TIMESCALE,
+                language: *b"und",
+                ..mp4::Mdhd::default()
+            }),
+            // Hdlr
+            mp4::Boxes::new(mp4::Hdlr {
+                handler_type: *b"vide",
+                name: "VideoHandler".to_owned(),
+                ..mp4::Hdlr::default()
+            }),
+            // Minf.
+            minf,
+        ),
+    )
 }
 
 struct MyAvcC(Vec<u8>);
@@ -243,6 +208,12 @@ impl mp4::ImmutableBox for MyAvcC {
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), mp4::Mp4Error> {
         w.write_all(&self.0)?;
         Ok(())
+    }
+}
+
+impl From<MyAvcC> for Box<dyn ImmutableBox> {
+    fn from(value: MyAvcC) -> Self {
+        Box::new(value)
     }
 }
 

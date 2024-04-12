@@ -4,6 +4,7 @@ use crate::{
 };
 use bytes::Bytes;
 use common::{time::DurationH264, PartFinalized, VideoSample};
+use mp4::ImmutableBox;
 use std::sync::Arc;
 
 fn generate_part(
@@ -20,16 +21,13 @@ fn generate_part(
        mdat
     */
 
-    let mut moof = mp4::Boxes {
-        mp4_box: Box::new(mp4::Moof {}),
-        children: vec![mp4::Boxes {
-            mp4_box: Box::new(mp4::Mfhd {
-                full_box: mp4::FullBox::default(),
-                sequence_number: 0,
-            }),
-            children: vec![],
-        }],
-    };
+    let mut moof = mp4::Boxes::new(mp4::Moof {}).with_child(
+        // Mfhd.
+        mp4::Boxes::new(mp4::Mfhd {
+            full_box: mp4::FullBox::default(),
+            sequence_number: 0,
+        }),
+    );
 
     let mfhd_offset = 24;
     let video_trun_size = (video_samples.len() * 16) + 20;
@@ -40,10 +38,7 @@ fn generate_part(
 
     moof.children.push(traf);
 
-    let mdat = Box::new(mp4::Boxes {
-        mp4_box: Box::new(MyMdat(video_samples)),
-        children: vec![],
-    });
+    let mdat = mp4::Boxes::new(MyMdat(video_samples));
 
     let mut buf = Vec::with_capacity(moof.size() + mdat.size());
     moof.marshal(&mut buf)?;
@@ -60,11 +55,6 @@ impl mp4::ImmutableBox for MyMdat {
     }
 
     fn size(&self) -> usize {
-        /*let mut total = 0;
-        for sample in &self.0 {
-            total += sample.avcc.len()
-        }
-        total*/
         self.0.iter().map(|sample| sample.avcc.len()).sum()
     }
 
@@ -73,6 +63,12 @@ impl mp4::ImmutableBox for MyMdat {
             w.write_all(&sample.avcc)?;
         }
         Ok(())
+    }
+}
+
+impl From<MyMdat> for Box<dyn ImmutableBox> {
+    fn from(value: MyMdat) -> Self {
+        Box::new(value)
     }
 }
 
@@ -125,59 +121,49 @@ fn generate_traf(
         });
     }
 
-    Ok(mp4::Boxes {
-        mp4_box: Box::new(mp4::Traf {}),
-        children: vec![
-            mp4::Boxes {
-                mp4_box: Box::new(mp4::Tfhd {
-                    full_box: mp4::FullBox {
-                        version: 0,
-                        flags: [2, 0, 0],
-                    },
-                    track_id: VIDEO_TRACK_ID,
-                    ..mp4::Tfhd::default()
-                }),
-                children: vec![],
+    // Traf
+    Ok(mp4::Boxes::new(mp4::Traf).with_children3(
+        // Tfhd.
+        mp4::Boxes::new(mp4::Tfhd {
+            full_box: mp4::FullBox {
+                version: 0,
+                flags: [2, 0, 0],
             },
-            mp4::Boxes {
-                mp4_box: Box::new(mp4::Tfdt {
-                    full_box: mp4::FullBox {
-                        version: 1,
-                        flags: [0, 0, 0],
-                    },
-                    // sum of decode durations of all earlier samples
-                    base_media_decode_time_v0: 0,
-                    base_media_decode_time_v1: u64::try_from(*video_samples[0].dts).map_err(
-                        |e| {
-                            TryFromInt(
-                                format!("base_media_decode_time: {:?}", video_samples[0].dts),
-                                e,
-                            )
-                        },
-                    )?,
-                }),
-                children: vec![],
+            track_id: VIDEO_TRACK_ID,
+            ..mp4::Tfhd::default()
+        }),
+        // Tfdt.
+        mp4::Boxes::new(mp4::Tfdt {
+            full_box: mp4::FullBox {
+                version: 1,
+                flags: [0, 0, 0],
             },
-            mp4::Boxes {
-                mp4_box: Box::new(mp4::Trun {
-                    full_box: mp4::FullBox {
-                        version: 1,
-                        flags: mp4::u32_to_flags(
-                            mp4::TRUN_DATA_OFFSET_PRESENT
-                                | mp4::TRUN_SAMPLE_DURATION_PRESENT
-                                | mp4::TRUN_SAMPLE_SIZE_PRESENT
-                                | mp4::TRUN_SAMPLE_FLAGS_PRESENT
-                                | mp4::TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT,
-                        ),
-                    },
-                    data_offset,
-                    first_sample_flags: 0,
-                    entries: trun_entries,
-                }),
-                children: vec![],
+            // sum of decode durations of all earlier samples
+            base_media_decode_time_v0: 0,
+            base_media_decode_time_v1: u64::try_from(*video_samples[0].dts).map_err(|e| {
+                TryFromInt(
+                    format!("base_media_decode_time: {:?}", video_samples[0].dts),
+                    e,
+                )
+            })?,
+        }),
+        // Trun.
+        mp4::Boxes::new(mp4::Trun {
+            full_box: mp4::FullBox {
+                version: 1,
+                flags: mp4::u32_to_flags(
+                    mp4::TRUN_DATA_OFFSET_PRESENT
+                        | mp4::TRUN_SAMPLE_DURATION_PRESENT
+                        | mp4::TRUN_SAMPLE_SIZE_PRESENT
+                        | mp4::TRUN_SAMPLE_FLAGS_PRESENT
+                        | mp4::TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT,
+                ),
             },
-        ],
-    })
+            data_offset,
+            first_sample_flags: 0,
+            entries: trun_entries,
+        }),
+    ))
 }
 
 // fmp4 part.

@@ -42,6 +42,90 @@ pub struct Boxes {
 }
 
 impl Boxes {
+    #[must_use]
+    pub fn new<T: Into<Box<dyn ImmutableBox>>>(mp4_box: T) -> Self {
+        Self {
+            mp4_box: mp4_box.into(),
+            children: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_child(mut self, child: Boxes) -> Self {
+        self.children.push(child);
+        self
+    }
+
+    #[must_use]
+    pub fn with_children2(mut self, child1: Boxes, child2: Boxes) -> Self {
+        self.children.extend([child1, child2]);
+        self
+    }
+    #[must_use]
+
+    pub fn with_children3(mut self, child1: Boxes, child2: Boxes, child3: Boxes) -> Self {
+        self.children.extend([child1, child2, child3]);
+        self
+    }
+
+    #[must_use]
+    pub fn with_children4(
+        mut self,
+        child1: Boxes,
+        child2: Boxes,
+        child3: Boxes,
+        child4: Boxes,
+    ) -> Self {
+        self.children.extend([child1, child2, child3, child4]);
+        self
+    }
+
+    #[must_use]
+    pub fn with_children5(
+        mut self,
+        child1: Boxes,
+        child2: Boxes,
+        child3: Boxes,
+        child4: Boxes,
+        child5: Boxes,
+    ) -> Self {
+        self.children
+            .extend([child1, child2, child3, child4, child5]);
+        self
+    }
+
+    #[must_use]
+    pub fn with_children6(
+        mut self,
+        child1: Boxes,
+        child2: Boxes,
+        child3: Boxes,
+        child4: Boxes,
+        child5: Boxes,
+        child6: Boxes,
+    ) -> Self {
+        self.children
+            .extend([child1, child2, child3, child4, child5, child6]);
+        self
+    }
+
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_children7(
+        mut self,
+        child1: Boxes,
+        child2: Boxes,
+        child3: Boxes,
+        child4: Boxes,
+        child5: Boxes,
+        child6: Boxes,
+        child7: Boxes,
+    ) -> Self {
+        self.children
+            .extend([child1, child2, child3, child4, child5, child6, child7]);
+        self
+    }
+
     // Size returns the total size of the box including children.
     #[must_use]
     pub fn size(&self) -> usize {
@@ -181,6 +265,12 @@ impl ImmutableBox for Btrt {
     }
 }
 
+impl From<Btrt> for Box<dyn ImmutableBox> {
+    fn from(value: Btrt) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** ctts ****************************/
 
 pub const TYPE_CTTS: BoxType = *b"ctts";
@@ -226,6 +316,12 @@ impl ImmutableBox for Ctts {
     }
 }
 
+impl From<Ctts> for Box<dyn ImmutableBox> {
+    fn from(value: Ctts) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** dinf ****************************/
 
 pub const TYPE_DINF: BoxType = *b"dinf";
@@ -243,6 +339,12 @@ impl ImmutableBox for Dinf {
 
     fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
         Ok(())
+    }
+}
+
+impl From<Dinf> for Box<dyn ImmutableBox> {
+    fn from(value: Dinf) -> Self {
+        Box::new(value)
     }
 }
 
@@ -268,6 +370,12 @@ impl ImmutableBox for Dref {
         self.full_box.marshal_field(w)?;
         w.write_all(&self.entry_count.to_be_bytes())?;
         Ok(())
+    }
+}
+
+impl From<Dref> for Box<dyn ImmutableBox> {
+    fn from(value: Dref) -> Self {
+        Box::new(value)
     }
 }
 
@@ -304,6 +412,12 @@ impl ImmutableBox for Url {
     }
 }
 
+impl From<Url> for Box<dyn ImmutableBox> {
+    fn from(value: Url) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** ftyp ****************************/
 
 pub const TYPE_FTYP: BoxType = *b"ftyp";
@@ -333,6 +447,12 @@ impl ImmutableBox for Ftyp {
             w.write_all(&brands.0)?;
         }
         Ok(())
+    }
+}
+
+impl From<Ftyp> for Box<dyn ImmutableBox> {
+    fn from(value: Ftyp) -> Self {
+        Box::new(value)
     }
 }
 
@@ -373,6 +493,12 @@ impl ImmutableBox for Hdlr {
     }
 }
 
+impl From<Hdlr> for Box<dyn ImmutableBox> {
+    fn from(value: Hdlr) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** mdat ****************************/
 
 pub const TYPE_MDAT: BoxType = *b"mdat";
@@ -394,6 +520,12 @@ impl ImmutableBox for Mdat {
     }
 }
 
+impl From<Mdat> for Box<dyn ImmutableBox> {
+    fn from(value: Mdat) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** mdia ****************************/
 
 pub const TYPE_MDIA: BoxType = *b"mdia";
@@ -411,6 +543,12 @@ impl ImmutableBox for Mdia {
 
     fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
         Ok(())
+    }
+}
+
+impl From<Mdia> for Box<dyn ImmutableBox> {
+    fn from(value: Mdia) -> Self {
+        Box::new(value)
     }
 }
 
@@ -482,6 +620,12 @@ impl ImmutableBox for Mdhd {
     }
 }
 
+impl From<Mdhd> for Box<dyn ImmutableBox> {
+    fn from(value: Mdhd) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** mfhd ****************************/
 
 pub const TYPE_MFHD: BoxType = *b"mfhd";
@@ -507,6 +651,12 @@ impl ImmutableBox for Mfhd {
     }
 }
 
+impl From<Mfhd> for Box<dyn ImmutableBox> {
+    fn from(value: Mfhd) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** minf ****************************/
 
 pub const TYPE_MINF: BoxType = *b"minf";
@@ -524,6 +674,12 @@ impl ImmutableBox for Minf {
 
     fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
         Ok(())
+    }
+}
+
+impl From<Minf> for Box<dyn ImmutableBox> {
+    fn from(value: Minf) -> Self {
+        Box::new(value)
     }
 }
 
@@ -547,6 +703,12 @@ impl ImmutableBox for Moof {
     }
 }
 
+impl From<Moof> for Box<dyn ImmutableBox> {
+    fn from(value: Moof) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** moov ****************************/
 
 pub const TYPE_MOOV: BoxType = *b"moov";
@@ -567,6 +729,12 @@ impl ImmutableBox for Moov {
     }
 }
 
+impl From<Moov> for Box<dyn ImmutableBox> {
+    fn from(value: Moov) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** mvex ****************************/
 
 pub const TYPE_MVEX: BoxType = *b"mvex";
@@ -584,6 +752,12 @@ impl ImmutableBox for Mvex {
 
     fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
         Ok(())
+    }
+}
+
+impl From<Mvex> for Box<dyn ImmutableBox> {
+    fn from(value: Mvex) -> Self {
+        Box::new(value)
     }
 }
 
@@ -660,6 +834,12 @@ impl ImmutableBox for Mvhd {
     }
 }
 
+impl From<Mvhd> for Box<dyn ImmutableBox> {
+    fn from(value: Mvhd) -> Self {
+        Box::new(value)
+    }
+}
+
 /*********************** SampleEntry *************************/
 
 #[derive(Default)]
@@ -725,6 +905,12 @@ impl ImmutableBox for Avc1 {
         w.write_all(&self.depth.to_be_bytes())?;
         w.write_all(&self.pre_defined3.to_be_bytes())?;
         Ok(())
+    }
+}
+
+impl From<Avc1> for Box<dyn ImmutableBox> {
+    fn from(value: Avc1) -> Self {
+        Box::new(value)
     }
 }
 
@@ -838,6 +1024,12 @@ impl ImmutableBox for AvcC {
     }
 }
 
+impl From<AvcC> for Box<dyn ImmutableBox> {
+    fn from(value: AvcC) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** stbl ****************************/
 
 pub const TYPE_STBL: BoxType = *b"stbl";
@@ -855,6 +1047,12 @@ impl ImmutableBox for Stbl {
 
     fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
         Ok(())
+    }
+}
+
+impl From<Stbl> for Box<dyn ImmutableBox> {
+    fn from(value: Stbl) -> Self {
+        Box::new(value)
     }
 }
 
@@ -888,6 +1086,12 @@ impl ImmutableBox for Stco {
             w.write_all(&offset.to_be_bytes())?;
         }
         Ok(())
+    }
+}
+
+impl From<Stco> for Box<dyn ImmutableBox> {
+    fn from(value: Stco) -> Self {
+        Box::new(value)
     }
 }
 
@@ -940,6 +1144,12 @@ impl ImmutableBox for Stsc {
     }
 }
 
+impl From<Stsc> for Box<dyn ImmutableBox> {
+    fn from(value: Stsc) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** stsd ****************************/
 
 pub const TYPE_STSD: BoxType = *b"stsd";
@@ -962,6 +1172,12 @@ impl ImmutableBox for Stsd {
         self.full_box.marshal_field(w)?;
         w.write_all(&self.entry_count.to_be_bytes())?;
         Ok(())
+    }
+}
+
+impl From<Stsd> for Box<dyn ImmutableBox> {
+    fn from(value: Stsd) -> Self {
+        Box::new(value)
     }
 }
 
@@ -997,6 +1213,12 @@ impl ImmutableBox for Stss {
     }
 }
 
+impl From<Stss> for Box<dyn ImmutableBox> {
+    fn from(value: Stss) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** stsz ****************************/
 
 pub const TYPE_STSZ: BoxType = *b"stsz";
@@ -1026,6 +1248,12 @@ impl ImmutableBox for Stsz {
             w.write_all(&entry.to_be_bytes())?;
         }
         Ok(())
+    }
+}
+
+impl From<Stsz> for Box<dyn ImmutableBox> {
+    fn from(value: Stsz) -> Self {
+        Box::new(value)
     }
 }
 
@@ -1076,6 +1304,12 @@ impl ImmutableBox for Stts {
     }
 }
 
+impl From<Stts> for Box<dyn ImmutableBox> {
+    fn from(value: Stts) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** tfdt ****************************/
 
 pub const TYPE_TFDT: BoxType = *b"tfdt";
@@ -1107,6 +1341,12 @@ impl ImmutableBox for Tfdt {
             w.write_all(&self.base_media_decode_time_v1.to_be_bytes())?;
         }
         Ok(())
+    }
+}
+
+impl From<Tfdt> for Box<dyn ImmutableBox> {
+    fn from(value: Tfdt) -> Self {
+        Box::new(value)
     }
 }
 
@@ -1193,6 +1433,12 @@ impl ImmutableBox for Tfhd {
     }
 }
 
+impl From<Tfhd> for Box<dyn ImmutableBox> {
+    fn from(value: Tfhd) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** tkhd ****************************/
 
 pub const TYPE_TKHD: BoxType = *b"tkhd";
@@ -1264,6 +1510,12 @@ impl ImmutableBox for Tkhd {
     }
 }
 
+impl From<Tkhd> for Box<dyn ImmutableBox> {
+    fn from(value: Tkhd) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** traf ****************************/
 
 pub const TYPE_TRAF: BoxType = *b"traf";
@@ -1284,6 +1536,12 @@ impl ImmutableBox for Traf {
     }
 }
 
+impl From<Traf> for Box<dyn ImmutableBox> {
+    fn from(value: Traf) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** trak ****************************/
 
 pub const TYPE_TRAK: BoxType = *b"trak";
@@ -1301,6 +1559,12 @@ impl ImmutableBox for Trak {
 
     fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
         Ok(())
+    }
+}
+
+impl From<Trak> for Box<dyn ImmutableBox> {
+    fn from(value: Trak) -> Self {
+        Box::new(value)
     }
 }
 
@@ -1335,6 +1599,12 @@ impl ImmutableBox for Trex {
         w.write_all(&self.default_sample_size.to_be_bytes())?;
         w.write_all(&self.default_sample_flags.to_be_bytes())?;
         Ok(())
+    }
+}
+
+impl From<Trex> for Box<dyn ImmutableBox> {
+    fn from(value: Trex) -> Self {
+        Box::new(value)
     }
 }
 
@@ -1449,6 +1719,12 @@ impl ImmutableBox for Trun {
     }
 }
 
+impl From<Trun> for Box<dyn ImmutableBox> {
+    fn from(value: Trun) -> Self {
+        Box::new(value)
+    }
+}
+
 /*************************** vmhd ****************************/
 
 pub const TYPE_VMHD: BoxType = *b"vmhd";
@@ -1476,5 +1752,11 @@ impl ImmutableBox for Vmhd {
             w.write_all(&color.to_be_bytes())?;
         }
         Ok(())
+    }
+}
+
+impl From<Vmhd> for Box<dyn ImmutableBox> {
+    fn from(value: Vmhd) -> Self {
+        Box::new(value)
     }
 }
