@@ -95,8 +95,11 @@ pub enum WriteSampleError {
     #[error("{0}")]
     TryFromInt(#[from] std::num::TryFromIntError),
 
-    #[error("read: {0}")]
-    Read(#[from] std::io::Error),
+    #[error("write: {0}")]
+    Write(std::io::Error),
+
+    #[error("flush: {0}")]
+    Flush(std::io::Error),
 
     #[error("sub")]
     Sub,
@@ -122,11 +125,15 @@ impl<'a, W: AsyncWrite + Unpin> VideoWriter<'a, W> {
         &mut self,
         parts: &Vec<Arc<PartFinalized>>,
     ) -> Result<(), WriteSampleError> {
+        use WriteSampleError::*;
+
         for part in parts {
             for sample in part.video_samples.iter() {
                 self.write_sample(sample).await?;
             }
         }
+        self.mdat.flush().await.map_err(Flush)?;
+        self.meta.flush().await.map_err(Flush)?;
         Ok(())
     }
 
@@ -147,10 +154,10 @@ impl<'a, W: AsyncWrite + Unpin> VideoWriter<'a, W> {
             data_size: u32::try_from(sample.avcc.len())?,
         };
 
-        self.mdat.write_all(&sample.avcc).await?;
+        self.mdat.write_all(&sample.avcc).await.map_err(Write)?;
         self.mdat_pos += u32::try_from(sample.avcc.len())?;
 
-        self.meta.write_all(&s.encode()?).await?;
+        self.meta.write_all(&s.encode()?).await.map_err(Write)?;
 
         Ok(())
     }

@@ -22,7 +22,7 @@ use sentryshot_util::ImageCopyToBufferError;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::{
-    io::AsyncWriteExt,
+    io::{AsyncWriteExt, BufWriter},
     sync::{mpsc, Mutex},
     time::sleep,
 };
@@ -341,7 +341,7 @@ enum GenerateVideoError {
     #[error("write sample: {0}")]
     WriteSample(#[from] WriteSampleError),
 
-    #[error("skipped segment: expected: {0}, got: {0}")]
+    #[error("skipped segment: expected: {0}, got: {1}. this may be a disk issue")]
     SkippedSegment(u64, u64),
 }
 
@@ -363,7 +363,10 @@ async fn generate_video(
         .ok_or(GenerateVideoError::Add)?;
 
     let mut meta = recording.new_file("meta").await?;
+    let mut meta = BufWriter::with_capacity(64 * 1024, &mut *meta);
+
     let mut mdat = recording.new_file("mdat").await?;
+    let mut mdat = BufWriter::with_capacity(64 * 1024, &mut *mdat);
 
     let header = Header {
         start_time,
@@ -372,7 +375,7 @@ async fn generate_video(
         extra_data: params.extra_data.clone(),
     };
 
-    let mut w = VideoWriter::new(&mut *meta, &mut *mdat, header).await?;
+    let mut w = VideoWriter::new(&mut meta, &mut mdat, header).await?;
 
     w.write_parts(first_segment.parts()).await?;
 
