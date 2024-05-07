@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.11`
+
 -   recorder: optimize disk writes
 -   tflite: improve crop size error message #24
 
