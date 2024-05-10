@@ -1,5 +1,9 @@
 ## unreleased
 
+## `v0.2.12`
+
+-   tweak recorder logging
+
 ## `v0.2.11`
 
 -   recorder: optimize disk writes
