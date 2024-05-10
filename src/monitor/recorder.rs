@@ -166,7 +166,7 @@ pub fn new_recorder(
                             run_recording_session(
                                 recording_context,
                                 shutdown_complete,
-                                Duration::from_secs(3),
+                                std::time::Duration::from_secs(3),
                             ).await;
                             _ = on_session_exit_tx.send(()).await;
                         });
@@ -204,7 +204,7 @@ impl MsgLogger for RecorderMsgLogger {
 async fn run_recording_session(
     c: RecordingContext,
     _shutdown_complete: mpsc::Sender<()>,
-    restart_sleep: Duration,
+    restart_sleep: std::time::Duration,
 ) {
     loop {
         if let Err(e) = run_recording(c.clone()).await {
@@ -213,18 +213,17 @@ async fn run_recording_session(
 
             tokio::select! {
                 () = c.token.cancelled() => return,
-                () = sleep(restart_sleep.as_std().expect("valid time")) => {
-                    c.logger.log(LogLevel::Debug, "recovering after crash");
-                }
+                () = sleep(restart_sleep) => {}
             }
-        } else {
-            c.logger.log(LogLevel::Info, "recording finished");
-            if c.token.is_cancelled() {
-                return;
-            }
-            // Recoding reached videoLength and exited normally. The timer
-            // is still active, so continue the loop and start another one.
+            c.logger.log(LogLevel::Debug, "recovering after crash");
             continue;
+        }
+        c.logger.log(LogLevel::Debug, "recording finished");
+        // Recoding reached videoLength and exited normally. The timer
+        // is still active, so continue the loop and start another one.
+        tokio::select! {
+            () = c.token.cancelled() => return,
+            () = sleep(restart_sleep) => {}
         }
     }
 }
@@ -255,12 +254,12 @@ struct RecordingContext {
 
 async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
     let Some(muxer) = c.source_main.muxer().await else {
-        // Cancelled.
+        c.logger.log(LogLevel::Debug, "source cancelled");
         return Ok(());
     };
 
     let Some(first_segment) = muxer.next_segment(c.prev_seg.lock().await.as_deref()).await else {
-        // Cancelled.
+        c.logger.log(LogLevel::Debug, "muxer cancelled");
         return Ok(());
     };
 
@@ -310,7 +309,7 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
     *c.prev_seg.lock().await = Some(new_prev_seg);
 
     c.logger.log(
-        LogLevel::Info,
+        LogLevel::Debug,
         &format!("video generated: {:?}", recording.id()),
     );
 
@@ -447,7 +446,7 @@ async fn generate_thumbnail(
 ) -> Result<(), GenerateThumbnailError> {
     use GenerateThumbnailError::*;
 
-    logger.log(LogLevel::Info, "generating thumbnail");
+    logger.log(LogLevel::Debug, "generating thumbnail");
 
     let Some(first_part) = first_segment.parts().first() else {
         return Err(NoPart);
@@ -574,7 +573,7 @@ async fn save_recording(
     end_time: UnixNano,
 ) -> Result<(), SaveRecordingError> {
     use SaveRecordingError::*;
-    logger.log(LogLevel::Info, &format!("saving recording: {rec_id:?}"));
+    logger.log(LogLevel::Debug, &format!("saving recording: {rec_id:?}"));
 
     let events = event_cache.query_and_prune(start_time, end_time).await;
 
