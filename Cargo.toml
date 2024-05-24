@@ -28,7 +28,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.12"
+version = "0.2.13"
 edition = "2021"
 rust-version = "1.75"
 license = "GPL-2.0+"
@@ -41,7 +41,7 @@ sentryshot_padded_bytes = "0.1.0"
 sentryshot_scale = "0.1.2"
 sentryshot_util = "0.1.2"
 
-retina = { git = "https://github.com/Curid/retina", branch = "dts" }
+retina = { git = "https://github.com/Curid/retina", branch = "sps" }
 
 async-channel = "2.0.0"
 async-trait = "0.1.64"

@@ -1,5 +1,9 @@
 ## unreleased
 
+## `v0.2.13`
+
+-   update retina to fix reolink badsps
+
 ## `v0.2.12`
 
 -   tweak recorder logging
