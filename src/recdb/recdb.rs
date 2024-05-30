@@ -26,7 +26,7 @@ use tokio::fs::{File, OpenOptions};
 use tokio_util::sync::CancellationToken;
 
 // Query of recordings for crawler to find.
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct RecDbQuery {
     #[serde(rename = "recording-id")]
     recording_id: RecordingId,

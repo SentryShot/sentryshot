@@ -1,5 +1,7 @@
 ## unreleased
 
+-   fix recdb queries when day is greater than 28 #31
+
 ## `v0.2.13`
 
 -   update retina to fix reolink badsps

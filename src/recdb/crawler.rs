@@ -118,14 +118,14 @@ struct DirIterYear {
 
 impl DirIterYear {
     fn new(fs: &DynFs, query: RecDbQuery) -> Result<Self, CrawlerError> {
-        let mut years = filter_dirs(
+        let (mut years, exact) = filter_dirs(
             list_dirs(fs, query.reverse)?,
             &query.recording_id.year(),
             query.reverse,
         );
 
         let current = if let Some(current) = years.pop() {
-            Some(DirIterMonth::new_first(&current.1, query.clone())?)
+            Some(DirIterMonth::new_first(&current.1, query.clone(), exact)?)
         } else {
             None
         };
@@ -180,15 +180,16 @@ impl DirIterMonth {
         })
     }
 
-    fn new_first(fs: &DynFs, query: RecDbQuery) -> Result<Self, CrawlerError> {
-        let mut months = filter_dirs(
-            list_dirs(fs, query.reverse)?,
-            &query.recording_id.month(),
-            query.reverse,
-        );
+    fn new_first(fs: &DynFs, query: RecDbQuery, exact: bool) -> Result<Self, CrawlerError> {
+        let dirs = list_dirs(fs, query.reverse)?;
+        let (mut months, exact) = if exact {
+            filter_dirs(dirs, &query.recording_id.month(), query.reverse)
+        } else {
+            (dirs, false)
+        };
 
         let current = if let Some(current) = months.pop() {
-            Some(DirIterDay::new_first(&current.1, query.clone())?)
+            Some(DirIterDay::new_first(&current.1, query.clone(), exact)?)
         } else {
             None
         };
@@ -243,12 +244,11 @@ impl DirIterDay {
         })
     }
 
-    fn new_first(fs: &DynFs, query: RecDbQuery) -> Result<Self, CrawlerError> {
-        let mut days = filter_dirs(
-            list_dirs(fs, query.reverse)?,
-            &query.recording_id.day(),
-            query.reverse,
-        );
+    fn new_first(fs: &DynFs, query: RecDbQuery, exact: bool) -> Result<Self, CrawlerError> {
+        let mut days = list_dirs(fs, query.reverse)?;
+        if exact {
+            (days, _) = filter_dirs(days, &query.recording_id.day(), query.reverse);
+        };
 
         let current = if let Some(current) = days.pop() {
             Some(DirIterRec::new_first(&current.1, &query)?)
@@ -288,7 +288,7 @@ impl Iterator for DirIterDay {
 }
 
 fn list_dirs<S: FromStr>(fs: &DynFs, reverse: bool) -> Result<Vec<(S, DynFs)>, CrawlerError> {
-    let mut years = Vec::new();
+    let mut dirs = Vec::new();
     for entry in fs.read_dir()? {
         let Entry::Dir(d) = entry else { continue };
 
@@ -296,20 +296,25 @@ fn list_dirs<S: FromStr>(fs: &DynFs, reverse: bool) -> Result<Vec<(S, DynFs)>, C
             continue;
         };
         let file_fs = fs.sub(d.name())?;
-        years.push((name, file_fs));
+        dirs.push((name, file_fs));
     }
     if reverse {
-        years.reverse();
+        dirs.reverse();
     }
-    Ok(years)
+    Ok(dirs)
 }
 
-fn filter_dirs<T: Ord>(mut dirs: Vec<(T, DynFs)>, target: &T, reverse: bool) -> Vec<(T, DynFs)> {
+fn filter_dirs<T: Ord>(
+    mut dirs: Vec<(T, DynFs)>,
+    target: &T,
+    reverse: bool,
+) -> (Vec<(T, DynFs)>, bool) {
     // Exact match.
     if let Some(index) = dirs.iter().position(|v| v.0 == *target) {
         if !dirs.is_empty() {
             let _ = dirs.split_off(index + 1);
         }
+        (dirs, true)
     } else {
         // Inexact match.
         let index = if reverse {
@@ -322,8 +327,8 @@ fn filter_dirs<T: Ord>(mut dirs: Vec<(T, DynFs)>, target: &T, reverse: bool) -> 
         } else {
             dirs.clear();
         }
-    };
-    dirs
+        (dirs, false)
+    }
 }
 
 struct DirIterRec;
@@ -656,7 +661,6 @@ mod tests {
         };
 
         let want: RecordingData = serde_json::from_str(CRAWLER_TEST_DATA).unwrap();
-        println!("{rec:?}");
         let got = rec.data.as_ref().unwrap();
         assert_eq!(&want, got);
     }
@@ -676,5 +680,37 @@ mod tests {
             panic!("expected active")
         };
         assert!(rec.data.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_inexact_propagation() {
+        let dirs = Box::new(MapFs(
+            [map_fs_item("2024/05/30/m1/2024-05-30_01-01-11_m1")]
+                .into_iter()
+                .flatten()
+                .collect(),
+        ));
+
+        let query = RecDbQuery {
+            recording_id: r_id("9999-12-28_23-59-59_x"),
+            limit: NonZeroUsize::new(1).unwrap(),
+            reverse: false,
+            monitors: Vec::new(),
+            include_data: false,
+        };
+        let rec = match Crawler::new(dirs)
+            .recordings_by_query(query, HashSet::new())
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                println!("{e}");
+                panic!("{e}");
+            }
+        };
+        let RecordingResponse::Finalized(rec) = &rec[0] else {
+            panic!("expected active")
+        };
+        assert_eq!(r_id("2024-05-30_01-01-11_m1"), rec.id);
     }
 }
