@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.14`
+
 -   fix recdb queries when day is greater than 28 #31
 
 ## `v0.2.13`
