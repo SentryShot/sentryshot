@@ -1,5 +1,7 @@
 ## unreleased
 
+-   enforce csrf tokens even when auth is disabled
+
 ## `v0.2.14`
 
 -   fix recdb queries when day is greater than 28 #31

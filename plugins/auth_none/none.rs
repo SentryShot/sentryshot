@@ -58,6 +58,7 @@ impl Plugin for AuthNonePlugin {}
 
 pub struct NoneAuth {
     data: Mutex<BasicAuthData>,
+    csrf_token: String,
     rt_handle: Handle,
 }
 
@@ -89,8 +90,15 @@ impl NoneAuth {
             rt_handle: rt_handle.clone(),
         };
 
+        let csrf_token = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(32)
+            .map(char::from)
+            .collect();
+
         let auth = NoneAuth {
             data: Mutex::new(data),
+            csrf_token,
             rt_handle,
         };
 
@@ -103,7 +111,7 @@ impl Authenticator for NoneAuth {
     async fn validate_request(&self, _: &HeaderMap<HeaderValue>) -> Option<ValidateResponse> {
         Some(ValidateResponse {
             is_admin: true,
-            token: String::new(),
+            token: self.csrf_token.clone(),
             token_valid: true,
         })
     }
@@ -324,6 +332,7 @@ mod tests {
 
         let auth = NoneAuth {
             data: Mutex::new(data),
+            csrf_token: "123".to_owned(),
             rt_handle: tokio::runtime::Handle::current(),
         };
         (temp_dir, auth)

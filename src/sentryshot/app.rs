@@ -288,6 +288,13 @@ impl App {
                     )
                     .with_state(self.auth.clone()),
             )
+            // Account token.
+            .route(
+                "/api/account/my-token",
+                get(account_my_token_handler)
+                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
+                    .with_state(self.auth.clone()),
+            )
             // Accounts list.
             .route(
                 "/api/accounts",

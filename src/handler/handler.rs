@@ -18,7 +18,7 @@ use common::{
     LogLevel, MonitorId,
 };
 use hls::{HlsQuery, HlsServer};
-use http::HeaderValue;
+use http::{HeaderValue, Request};
 use log::{
     log_db::{LogDbHandle, LogQuery},
     Logger,
@@ -241,6 +241,16 @@ pub async fn account_put_handler(
 
 pub async fn accounts_handler(State(auth): State<DynAuth>) -> Json<AccountsMap> {
     Json(auth.accounts().await)
+}
+
+pub async fn account_my_token_handler(
+    State(auth): State<DynAuth>,
+    request: Request<Body>,
+) -> Response {
+    match auth.validate_request(request.headers()).await {
+        Some(res) => res.token.into_response(),
+        None => (StatusCode::UNAUTHORIZED).into_response(),
+    }
 }
 
 #[derive(Clone)]
