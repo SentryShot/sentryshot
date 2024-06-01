@@ -1,12 +1,14 @@
 #### Warning: undocumented APIs do not have any stability guarantees and may change without warning.
 
 -   [REST API](#rest-api)
-    -   [Monitor](#monitor)
     -   [Account](#Account)
+    -   [Monitor](#monitor)
     -   [Logs](#logs)
 -   [Websockets API](#websockets-api)
     -   [Logs](#logs)
 
+
+There is a `/api` page where you can try the endpoints.
 
 # REST API
 
@@ -23,42 +25,7 @@ curl -k -u user:pass -X DELETE https://127.0.0.1:2020/api/account?id=x -H "X-CSR
 ```
 <br>
 
-## Monitor
-
-### DELETE /api/monitor?id=x
-
-##### Auth: admin
-
-Delete monitor.
-
-<br>
-
-### PUT /api/monitor=id=x
-
-##### Auth: admin
-
-Set monitor json config.
-
-<br>
-
-### GET /api/monitors
-
-##### Auth: admin
-
-All monitor json configs.
-
-<br>
-<br>
-
 ## Account
-
-### GET /api/accounts
-
-##### Auth: admin
-
-JSON response of all accounts.
-
-<br>
 
 ### DELETE /api/account?id=x
 
@@ -94,7 +61,44 @@ example request:
 Returns the temporary CSRF-token for your account.
 
 <br>
+
+### GET /api/accounts
+
+##### Auth: admin
+
+JSON response of all accounts.
+
 <br>
+<br>
+
+## Monitor
+
+### DELETE /api/monitor?id=x
+
+##### Auth: admin
+
+Delete monitor.
+
+<br>
+
+### PUT /api/monitor
+
+##### Auth: admin
+
+Set monitor json config.
+
+<br>
+
+### GET /api/monitors
+
+##### Auth: admin
+
+All monitor json configs.
+
+<br>
+<br>
+
+## Logs
 
 ### GET /api/log/query?levels=error,warning&sources=app,monitors=a,b&time=1234567890111222&limit=2
 

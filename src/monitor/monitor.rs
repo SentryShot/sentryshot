@@ -354,7 +354,7 @@ impl MonitorManager {
         }
 
         tokio::fs::remove_file(self.config_path(id)).await?;
-        log_monitor(&self.logger, LogLevel::Debug, id, "deleted");
+        log_monitor(&self.logger, LogLevel::Info, id, "deleted");
         Ok(())
     }
 

@@ -206,6 +206,16 @@ fn parse_path(path: String) -> Result<(String, String), ParsePathError> {
     }
 }
 
+const API_HTML: &str = include_str!("./api.html");
+
+pub async fn api_page_handler() -> Response {
+    (
+        [(header::CONTENT_TYPE, "text/html; charset=UTF-8")],
+        API_HTML,
+    )
+        .into_response()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct AccountDeleteQuery {
     pub id: String,

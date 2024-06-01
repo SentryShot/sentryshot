@@ -1,5 +1,6 @@
 ## unreleased
 
+-   add /api page
 -   enforce csrf tokens even when auth is disabled
 
 ## `v0.2.14`

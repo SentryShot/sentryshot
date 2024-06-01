@@ -1,0 +1,325 @@
+<html lang="en">
+	<head>
+		<title>API Playground</title>
+		<meta
+			charset="Utf-8"
+			name="viewport"
+			content="width=device-width, initial-scale=1"
+		/>
+		<style>
+			article {
+				border-bottom-style: solid;
+				border-bottom-width: 0.1rem;
+				width: auto;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				padding: 0.5rem;
+			}
+			div {
+				display: flex;
+				justify-content: center;
+			}
+			span {
+				font-weight: bold;
+				white-space: nowrap;
+			}
+			input {
+				width: 6rem;
+			}
+			button {
+				margin-left: 1rem;
+			}
+			pre {
+				display: none;
+				max-width: 100%;
+				overflow: auto;
+				resize: both;
+				padding: 0.5rem;
+				background: lightgray;
+			}
+			.json-response {
+				height: 20rem;
+				width: 30rem;
+			}
+		</style>
+		<script>
+			function sortObject(o) {
+				return Object.keys(o)
+					.sort()
+					.reduce((r, k) => ((r[k] = o[k]), r), {});
+			}
+			function removeEmptyValues(obj) {
+				for (let field in obj) {
+					let v = obj[field];
+					if (v === undefined || v.length === 0 || v[0] === "") {
+						delete obj[field];
+					}
+				}
+				return obj;
+			}
+			async function formatResponse(res, time) {
+				const body = await res.text();
+				return `time: ${time}ms\nstatus: ${res.status} ${res.statusText}\nbody: ${body}`;
+			}
+			async function formatJsonResponse(res, time) {
+				let body = "";
+				if (res.status === 200) {
+					body = sortObject(await res.json());
+					body = JSON.stringify(body, null, 2);
+				} else {
+					body = await res.text();
+				}
+				return `time: ${time}ms\nstatus: ${res.status} ${res.statusText}\nbody:\n${body}`;
+			}
+		</script>
+	</head>
+	<body style="margin-bottom: 30rem">
+		<article class="js-delete-account">
+			<div>
+				<span>DELETE /api/account?id=</span
+				><input type="text" value="123" placeholder="ACCOUNT_ID" />
+				<button
+					onclick='
+				(async () => {
+					const element = document.querySelector(".js-delete-account");
+					const token = await fetch("api/account/my-token");
+					const id = element.querySelector("input").value;
+					const now = performance.now()
+					const res = await fetch(`api/account?id=${id}`, { method: "delete" });
+					const elapsed = performance.now() - now;
+					const $pre = element.querySelector("pre");
+					$pre.innerHTML = await formatResponse(res, elapsed);
+					$pre.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
+			</div>
+			<pre></pre>
+		</article>
+		<article class="js-put-account">
+			<span>PUT /api/monitor</span>
+			<textarea style="width: 12rem; height: 7rem">
+{
+  "id": "123",
+  "username": "test",
+  "isAdmin": false,
+  "plainPassword": "test"
+}</textarea
+			>
+			<button
+				style="margin-left: 0"
+				onclick='
+				(async () => {
+					const element = document.querySelector(".js-put-account");
+					const token = await fetch("api/account/my-token");
+					const jsonRequest = element.querySelector("textarea").value;
+					const now = performance.now()
+					const res = await fetch("api/account", {
+						body: jsonRequest,
+						headers: {
+							"Content-Type": "application/json",
+							"X-CSRF-TOKEN": token,
+						},
+						method: "put",
+					});
+					const elapsed = performance.now() - now;
+					const $pre = element.querySelector("pre");
+					$pre.innerHTML = await formatResponse(res, elapsed);
+					$pre.style.display = "block";
+				})()
+				'
+			>
+				Submit
+			</button>
+			<pre></pre>
+		</article>
+		<article class="js-account-token">
+			<div>
+				<span>GET /api/account/my-token</span>
+				<button
+					onclick='
+				(async () => {
+					const now = performance.now()
+					const res = await fetch("api/account/my-token");
+					const elapsed = performance.now() - now;
+					const element = document.querySelector(".js-account-token pre");
+					element.innerHTML = await formatResponse(res, elapsed);
+					element.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
+			</div>
+			<pre></pre>
+		</article>
+		<article class="js-accounts">
+			<div>
+				<span>GET /api/accounts</span>
+				<button
+					onclick='
+				(async () => {
+					const now = performance.now()
+					const res = await fetch("api/accounts");
+					const elapsed = performance.now() - now;
+					const element = document.querySelector(".js-accounts pre");
+					element.innerHTML = await formatJsonResponse(res, elapsed);
+					element.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
+			</div>
+			<pre class="json-response"></pre>
+		</article>
+
+		<article class="js-delete-monitor">
+			<div>
+				<span>DELETE /api/monitor?id=</span
+				><input type="text" value="123" placeholder="MONITOR_ID" />
+				<button
+					onclick='
+				(async () => {
+					const element = document.querySelector(".js-delete-monitor");
+					const token = await fetch("api/account/my-token");
+					const id = element.querySelector("input").value;
+					const now = performance.now()
+					const res = await fetch(`api/monitor?id=${id}`, { method: "delete" });
+					const elapsed = performance.now() - now;
+					const $pre = element.querySelector("pre");
+					$pre.innerHTML = await formatResponse(res, elapsed);
+					$pre.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
+			</div>
+			<pre></pre>
+		</article>
+		<article class="js-put-monitor">
+			<span>PUT /api/monitor</span>
+			<textarea style="width: 13.5rem; height: 13.5rem">
+{
+  "id": "123",
+  "name": "test",
+  "enable": false,
+  "alwaysRecord": false,
+  "videoLength": 0,
+  "source": "rtsp",
+  "sourcertsp": {
+    "protocol": "tcp",
+    "mainStream": "rtsp://x"
+  }
+}</textarea
+			>
+			<button
+				style="margin-left: 0"
+				onclick='
+				(async () => {
+					const element = document.querySelector(".js-put-monitor");
+					const token = await fetch("api/account/my-token");
+					const jsonRequest = element.querySelector("textarea").value;
+					const now = performance.now()
+					const res = await fetch("api/monitor", {
+						body: jsonRequest,
+						headers: {
+							"Content-Type": "application/json",
+							"X-CSRF-TOKEN": token,
+						},
+						method: "put",
+					});
+					const elapsed = performance.now() - now;
+					const $pre = element.querySelector("pre");
+					$pre.innerHTML = await formatResponse(res, elapsed);
+					$pre.style.display = "block";
+				})()
+				'
+			>
+				Submit
+			</button>
+			<pre></pre>
+		</article>
+		<article class="js-monitors">
+			<div>
+				<span>GET /api/monitors</span>
+				<button
+					onclick='
+				(async () => {
+					const now = performance.now()
+					const res = await fetch("api/monitors");
+					const elapsed = performance.now() - now;
+					const element = document.querySelector(".js-monitors pre");
+					element.innerHTML = await formatJsonResponse(res, elapsed);
+					element.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
+			</div>
+			<pre class="json-response"></pre>
+		</article>
+		<article class="js-log-query">
+			<div style="flex-wrap: wrap">
+				<div>
+					<!--levels=error,warning&sources=app,monitors=a,b&time=1234567890111222&limit=2-->
+					<span>GET /api/log/query?levels=</span
+					><input
+						class="js-levels"
+						style="width: 11rem"
+						type="text"
+						value="error,warning,info,debug"
+						placeholder="error,warning,info,debug"
+					/>
+				</div>
+				<div>
+					<span>&amp;sources=</span>
+					<input
+						class="js-sources"
+						type="text"
+						value=""
+						placeholder="app,monitors"
+					/>
+				</div>
+				<div>
+					<span>&amp;time=</span>
+					<input
+						class="js-time"
+						style="width: 10rem"
+						type="number"
+						value="2000000000000000"
+						placeholder="unix nanoseconds"
+					/>
+					<span>&amp;limit=</span>
+					<input class="js-limit" style="width: 3rem" type="number" value="3" />
+
+					<button
+						onclick='
+				(async () => {
+					const element = document.querySelector(".js-log-query");
+					const levels = element.querySelector(".js-levels").value;
+					const sources = element.querySelector(".js-sources").value;
+					const time = element.querySelector(".js-time").value;
+					const limit = element.querySelector(".js-limit").value;
+					const now = performance.now()
+					const res = await fetch(`api/log/query?levels=${levels}&sources=${sources}&time=${time}&limit=${limit}`);
+					const elapsed = performance.now() - now;
+					const $pre = element.querySelector("pre");
+					$pre.innerHTML = await formatJsonResponse(res, elapsed);
+					$pre.style.display = "block";
+				})()
+				'
+					>
+						Submit
+					</button>
+				</div>
+			</div>
+			<pre></pre>
+		</article>
+	</body>
+</html>

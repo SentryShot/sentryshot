@@ -276,6 +276,13 @@ impl App {
                     .layer(middleware::from_fn_with_state(self.auth.clone(), user))
                     .with_state(self.auth.clone()),
             )
+            // API page.
+            .route(
+                "/api",
+                get(api_page_handler)
+                    .layer(middleware::from_fn_with_state(self.auth.clone(), admin))
+                    .with_state(self.auth.clone()),
+            )
             // Account.
             .route(
                 "/api/account",
