@@ -484,9 +484,9 @@ impl Application for App {
     fn auth(&self) -> DynAuth {
         self.auth.clone()
     }
-    /*fn monitor_getter(&self) -> DynMonitorGetter {
-        Arc::new(MonitorGetter(self.monitor_manager.clone()))
-    }*/
+    fn monitor_manager(&self) -> Arc<Mutex<MonitorManager>> {
+        self.monitor_manager.clone()
+    }
     fn shutdown_complete_tx(&self) -> mpsc::Sender<()> {
         self.shutdown_complete_tx.clone()
     }

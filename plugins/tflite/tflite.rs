@@ -7,16 +7,27 @@ mod model;
 
 use crate::{config::TfliteConfig, detector::DetectorManager};
 use async_trait::async_trait;
-use common::{
-    time::UnixNano, Detection, Detections, DynEnvConfig, DynLogger, DynMsgLogger, Event, LogEntry,
-    LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    middleware,
+    response::{IntoResponse, Response},
+    routing::patch,
+    Router,
 };
-use config::{Crop, Mask};
+use common::{
+    time::UnixNano, Detection, Detections, DynAuth, DynEnvConfig, DynLogger, DynMsgLogger, Event,
+    LogEntry, LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
+};
+use config::{set_enable, Crop, Mask};
 use detector::{DetectError, Detector, DetectorName, Thresholds};
 use hyper::{body::HttpBody, http::uri::InvalidUri};
 use hyper_rustls::HttpsConnectorBuilder;
-use monitor::{DecoderError, Monitor, Source, SubscribeDecodedError};
-use plugin::{types::Assets, Application, Plugin, PreLoadPlugin};
+use monitor::{DecoderError, Monitor, MonitorManager, Source, SubscribeDecodedError};
+use plugin::{
+    types::{admin, Assets},
+    Application, Plugin, PreLoadPlugin,
+};
 use recording::{vertex_inside_poly2, FrameRateLimiter};
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
@@ -31,7 +42,11 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
-use tokio::{io::AsyncWriteExt, runtime::Handle, sync::mpsc};
+use tokio::{
+    io::AsyncWriteExt,
+    runtime::Handle,
+    sync::{mpsc, Mutex},
+};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -68,6 +83,8 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
                     app.shutdown_complete_tx(),
                     app.logger(),
                     app.env(),
+                    app.auth(),
+                    app.monitor_manager(),
                 )
                 .await,
             )
@@ -78,6 +95,8 @@ pub struct TflitePlugin {
     rt_handle: Handle,
     _shutdown_complete_tx: mpsc::Sender<()>,
     logger: DynLogger,
+    auth: DynAuth,
+    monitor_manager: Arc<Mutex<MonitorManager>>,
     detector_manager: DetectorManager,
 }
 
@@ -87,6 +106,8 @@ impl TflitePlugin {
         shutdown_complete_tx: mpsc::Sender<()>,
         logger: DynLogger,
         env: DynEnvConfig,
+        auth: DynAuth,
+        monitor_manager: Arc<Mutex<MonitorManager>>,
     ) -> Self {
         let tflite_logger = Arc::new(TfliteLogger {
             logger: logger.clone(),
@@ -111,6 +132,8 @@ impl TflitePlugin {
             rt_handle,
             _shutdown_complete_tx: shutdown_complete_tx,
             logger,
+            auth,
+            monitor_manager,
             detector_manager,
         }
     }
@@ -148,6 +171,29 @@ impl Plugin for TflitePlugin {
         if let Err(e) = self.start(&token, msg_logger.clone(), monitor).await {
             msg_logger.log(LogLevel::Error, &format!("start: {e}"));
         };
+    }
+
+    fn route(&self, router: Router) -> Router {
+        let state = HandlerState {
+            rt_handler: self.rt_handle.clone(),
+            logger: self.logger.clone(),
+            monitor_manager: self.monitor_manager.clone(),
+        };
+        router
+            .route(
+                "/api/monitor/:id/tflite/enable",
+                patch(enable_handler)
+                    .with_state(state.clone())
+                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
+                    .with_state(self.auth.clone()),
+            )
+            .route(
+                "/api/monitor/:id/tflite/disable",
+                patch(disable_handler)
+                    .with_state(state)
+                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
+                    .with_state(self.auth.clone()),
+            )
     }
 }
 
@@ -200,7 +246,7 @@ impl TflitePlugin {
         use StartError::*;
         let config = monitor.config();
 
-        let Some(config) = TfliteConfig::parse(config.raw.clone())? else {
+        let Some(config) = TfliteConfig::parse(config.raw().clone())? else {
             // Object detection is disabled.
             return Ok(());
         };
@@ -291,7 +337,7 @@ impl TflitePlugin {
 
         let (outputs, uncrop) = calculate_outputs(config.crop, &inputs)?;
 
-        let mut state = State {
+        let mut state = DetectorState {
             frame_processed: vec![0; outputs.output_size],
             outputs,
         };
@@ -340,7 +386,7 @@ impl TflitePlugin {
     }
 }
 
-struct State {
+struct DetectorState {
     outputs: Outputs,
     frame_processed: Vec<u8>,
 }
@@ -532,7 +578,7 @@ enum ProcessFrameError {
     Crop(#[from] CropError),
 }
 
-fn process_frame(s: &mut State, mut frame: Frame) -> Result<(), ProcessFrameError> {
+fn process_frame(s: &mut DetectorState, mut frame: Frame) -> Result<(), ProcessFrameError> {
     use ProcessFrameError::*;
     if !frame.pix_fmt().is_yuv() {
         return Err(UnsupportedPixelFormat(frame.pix_fmt()));
@@ -736,6 +782,91 @@ impl Fetcher for Fetch {
     async fn fetch(&self, url: &Url) -> Result<Vec<u8>, FetchError> {
         fetch(url).await
     }
+}
+
+#[derive(Clone)]
+struct HandlerState {
+    rt_handler: Handle,
+    logger: DynLogger,
+    monitor_manager: Arc<Mutex<MonitorManager>>,
+}
+
+async fn enable_handler(
+    State(s): State<HandlerState>,
+    Path(monitor_id): Path<MonitorId>,
+) -> Response {
+    let mut manager = s.monitor_manager.lock().await;
+
+    let Some(old_config) = manager.monitor_config(&monitor_id) else {
+        return (
+            StatusCode::NOT_FOUND,
+            format!("monitor '{monitor_id}' does not exist"),
+        )
+            .into_response();
+    };
+
+    let Some(new_config) = set_enable(old_config, true) else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "failed to find enable field",
+        )
+            .into_response();
+    };
+
+    match manager.monitor_set(&s.rt_handler, new_config).await {
+        Ok(created) => assert!(!created),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+    if let Err(e) = manager.monitor_restart(&monitor_id).await {
+        return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+    }
+
+    s.logger.log(LogEntry::new(
+        LogLevel::Info,
+        "tflite",
+        Some(monitor_id),
+        "detector enabled".to_owned(),
+    ));
+
+    StatusCode::OK.into_response()
+}
+
+async fn disable_handler(
+    State(s): State<HandlerState>,
+    Path(monitor_id): Path<MonitorId>,
+) -> Response {
+    let mut manager = s.monitor_manager.lock().await;
+
+    let Some(old_config) = manager.monitor_config(&monitor_id) else {
+        return (
+            StatusCode::NOT_FOUND,
+            format!("monitor '{monitor_id}' does not exist"),
+        )
+            .into_response();
+    };
+
+    let new_config = match set_enable(old_config, false) {
+        Some(v) => v,
+        // None means that it's already disabled in some way.
+        None => old_config.clone(),
+    };
+
+    match manager.monitor_set(&s.rt_handler, new_config).await {
+        Ok(created) => assert!(!created),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+    if let Err(e) = manager.monitor_restart(&monitor_id).await {
+        return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+    }
+
+    s.logger.log(LogEntry::new(
+        LogLevel::Info,
+        "tflite",
+        Some(monitor_id),
+        "detector disabled".to_owned(),
+    ));
+
+    StatusCode::OK.into_response()
 }
 
 #[allow(clippy::too_many_arguments, clippy::unwrap_used)]

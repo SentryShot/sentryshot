@@ -1491,6 +1491,7 @@ name = "motion"
 version = "0.2.14"
 dependencies = [
  "async-trait",
+ "axum 0.7.4",
  "common",
  "monitor",
  "plugin",
@@ -2398,6 +2399,7 @@ version = "0.2.14"
 dependencies = [
  "async-channel",
  "async-trait",
+ "axum 0.7.4",
  "common",
  "hyper 0.14.28",
  "hyper-rustls",

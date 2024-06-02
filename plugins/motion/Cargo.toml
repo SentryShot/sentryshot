@@ -21,6 +21,7 @@ plugin.path = "../../src/plugin"
 recording.path = "../../src/recording"
 
 async-trait.workspace = true
+axum.workspace = true
 sentryshot_convert.workspace = true
 sentryshot_util.workspace = true
 serde.workspace = true

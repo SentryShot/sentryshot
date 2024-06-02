@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::detector::{DetectorName, Thresholds};
-use common::PolygonNormalized;
+use common::{monitor::MonitorConfig, PolygonNormalized};
 use recording::{denormalize, DurationSec, FeedRateSec};
 use serde::Deserialize;
+use serde_json::Value;
 use std::{num::NonZeroU16, ops::Deref};
 use thiserror::Error;
 
@@ -222,6 +223,22 @@ impl<'de> Deserialize<'de> for CropSize {
     }
 }
 
+pub(crate) fn set_enable(config: &MonitorConfig, value: bool) -> Option<MonitorConfig> {
+    let mut raw = config.raw().clone();
+    let Value::Object(root) = &mut raw else {
+        return None;
+    };
+    let Value::Object(tflite) = root.get_mut("tflite")? else {
+        return None;
+    };
+    let Value::Bool(enable) = tflite.get_mut("enable")? else {
+        return None;
+    };
+    *enable = value;
+
+    serde_json::from_value(raw).expect("config should still be valid after toggling")
+}
+
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
@@ -283,5 +300,39 @@ mod tests {
     fn test_parse_config_empty2() {
         let raw = json!({"tflite": {}});
         assert!(TfliteConfig::parse(raw).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_set_enable() {
+        let y = json!({
+            "id": "123",
+            "name": "test",
+            "enable": false,
+            "alwaysRecord": false,
+            "videoLength": 0,
+            "source": "rtsp",
+            "sourcertsp": {
+                "protocol": "tcp",
+                "mainStream": "rtsp://x"
+            },
+            "tflite": {
+                "enable": true,
+                "thresholds": {},
+                "crop": { "size": 100, "x": 0, "y": 0 },
+                "mask": { "enable": false, "area": [] },
+                "detectorName": "test",
+                "feedRate": 0,
+                "duration": 0,
+                "useSubStream": true,
+            }
+        });
+        let config: MonitorConfig = serde_json::from_value(y).unwrap();
+        assert!(TfliteConfig::parse(config.raw().clone()).unwrap().is_some());
+
+        let config = set_enable(&config, false).unwrap();
+        assert!(TfliteConfig::parse(config.raw().clone()).unwrap().is_none());
+
+        let config = set_enable(&config, true).unwrap();
+        assert!(TfliteConfig::parse(config.raw().clone()).unwrap().is_some());
     }
 }

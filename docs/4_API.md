@@ -96,6 +96,18 @@ Set monitor json config.
 All monitor json configs.
 
 <br>
+
+### PATCH /api/monitor/<MONITOR_ID>/motion/enable
+### PATCH /api/monitor/<MONITOR_ID>/motion/disable
+### PATCH /api/monitor/<MONITOR_ID>/tflite/enable
+### PATCH /api/monitor/<MONITOR_ID>/tflite/disable
+
+
+##### Auth: admin
+
+Toggle detector and restart monitor.
+
+<br>
 <br>
 
 ## Logs

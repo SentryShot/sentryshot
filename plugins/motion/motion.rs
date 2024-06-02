@@ -3,14 +3,28 @@
 mod config;
 mod zone;
 
-use crate::{config::MotionConfig, zone::Zone};
-use async_trait::async_trait;
-use common::{
-    time::UnixNano, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, LogSource, MonitorId,
-    MsgLogger,
+use crate::{
+    config::{set_enable, MotionConfig},
+    zone::Zone,
 };
-use monitor::{DecoderError, Monitor, Source, SubscribeDecodedError};
-use plugin::{types::Assets, Application, Plugin, PreLoadPlugin};
+use async_trait::async_trait;
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    middleware,
+    response::{IntoResponse, Response},
+    routing::patch,
+    Router,
+};
+use common::{
+    time::UnixNano, DynAuth, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, LogSource,
+    MonitorId, MsgLogger,
+};
+use monitor::{DecoderError, Monitor, MonitorManager, Source, SubscribeDecodedError};
+use plugin::{
+    types::{admin, Assets},
+    Application, Plugin, PreLoadPlugin,
+};
 use recording::FrameRateLimiter;
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
@@ -18,7 +32,10 @@ use sentryshot_convert::{
 use sentryshot_util::ImageCopyToBufferError;
 use std::{borrow::Cow, sync::Arc, time::Duration};
 use thiserror::Error;
-use tokio::{runtime::Handle, sync::mpsc};
+use tokio::{
+    runtime::Handle,
+    sync::{mpsc, Mutex},
+};
 use tokio_util::sync::CancellationToken;
 use zone::Zones;
 
@@ -45,6 +62,8 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
         rt_handle: app.rt_handle(),
         _shutdown_complete_tx: app.shutdown_complete_tx(),
         logger: app.logger(),
+        monitor_manager: app.monitor_manager(),
+        auth: app.auth(),
     })
 }
 
@@ -52,6 +71,8 @@ pub struct MotionPlugin {
     rt_handle: Handle,
     _shutdown_complete_tx: mpsc::Sender<()>,
     logger: DynLogger,
+    monitor_manager: Arc<Mutex<MonitorManager>>,
+    auth: DynAuth,
 }
 
 const MOTION_MJS_FILE: &[u8] = include_bytes!("./js/motion.js");
@@ -81,6 +102,29 @@ impl Plugin for MotionPlugin {
                 msg_logger.log(LogLevel::Error, &format!("start: {e}"));
             }
         };
+    }
+
+    fn route(&self, router: Router) -> Router {
+        let state = HandlerState {
+            rt_handler: self.rt_handle.clone(),
+            logger: self.logger.clone(),
+            monitor_manager: self.monitor_manager.clone(),
+        };
+        router
+            .route(
+                "/api/monitor/:id/motion/enable",
+                patch(enable_handler)
+                    .with_state(state.clone())
+                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
+                    .with_state(self.auth.clone()),
+            )
+            .route(
+                "/api/monitor/:id/motion/disable",
+                patch(disable_handler)
+                    .with_state(state)
+                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
+                    .with_state(self.auth.clone()),
+            )
     }
 }
 
@@ -135,7 +179,7 @@ impl MotionPlugin {
             return Ok(());
         };
 
-        let Some(config) = MotionConfig::parse(config.raw.clone())? else {
+        let Some(config) = MotionConfig::parse(config.raw().clone())? else {
             // Motion detection is disabled.
             return Ok(());
         };
@@ -194,7 +238,7 @@ impl MotionPlugin {
         let limiter = FrameRateLimiter::new(u64::try_from(*config.feed_rate.as_h264())?);
 
         let raw_frame_size = usize::from(width) * usize::from(height);
-        let mut state = State {
+        let mut state = DetectorState {
             zones: Zones(zones),
             raw_frame: vec![0; raw_frame_size],
             prev_raw_frame: vec![0; raw_frame_size],
@@ -261,7 +305,7 @@ impl MotionPlugin {
     }
 }
 
-struct State {
+struct DetectorState {
     zones: Zones,
     raw_frame: Vec<u8>,
     prev_raw_frame: Vec<u8>,
@@ -306,4 +350,89 @@ fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
     let tpl = tpl.replace(TARGET, &("motion: motion(),\n".to_owned() + TARGET));
     let tpl = IMPORT_STATEMENT.to_owned() + &tpl;
     tpl.as_bytes().to_owned()
+}
+
+#[derive(Clone)]
+struct HandlerState {
+    rt_handler: Handle,
+    logger: DynLogger,
+    monitor_manager: Arc<Mutex<MonitorManager>>,
+}
+
+async fn enable_handler(
+    State(s): State<HandlerState>,
+    Path(monitor_id): Path<MonitorId>,
+) -> Response {
+    let mut manager = s.monitor_manager.lock().await;
+
+    let Some(old_config) = manager.monitor_config(&monitor_id) else {
+        return (
+            StatusCode::NOT_FOUND,
+            format!("monitor '{monitor_id}' does not exist"),
+        )
+            .into_response();
+    };
+
+    let Some(new_config) = set_enable(old_config, true) else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "failed to find enable field",
+        )
+            .into_response();
+    };
+
+    match manager.monitor_set(&s.rt_handler, new_config).await {
+        Ok(created) => assert!(!created),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+    if let Err(e) = manager.monitor_restart(&monitor_id).await {
+        return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+    }
+
+    s.logger.log(LogEntry::new(
+        LogLevel::Info,
+        "motion",
+        Some(monitor_id),
+        "detector enabled".to_owned(),
+    ));
+
+    StatusCode::OK.into_response()
+}
+
+async fn disable_handler(
+    State(s): State<HandlerState>,
+    Path(monitor_id): Path<MonitorId>,
+) -> Response {
+    let mut manager = s.monitor_manager.lock().await;
+
+    let Some(old_config) = manager.monitor_config(&monitor_id) else {
+        return (
+            StatusCode::NOT_FOUND,
+            format!("monitor '{monitor_id}' does not exist"),
+        )
+            .into_response();
+    };
+
+    let new_config = match set_enable(old_config, false) {
+        Some(v) => v,
+        // None means that it's already disabled in some way.
+        None => old_config.clone(),
+    };
+
+    match manager.monitor_set(&s.rt_handler, new_config).await {
+        Ok(created) => assert!(!created),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+    if let Err(e) = manager.monitor_restart(&monitor_id).await {
+        return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+    }
+
+    s.logger.log(LogEntry::new(
+        LogLevel::Info,
+        "motion",
+        Some(monitor_id),
+        "detector disabled".to_owned(),
+    ));
+
+    StatusCode::OK.into_response()
 }

@@ -9,7 +9,7 @@ use common::{
     LogSource,
 };
 use libloading::{Library, Symbol};
-use monitor::{Monitor, MonitorHooks};
+use monitor::{Monitor, MonitorHooks, MonitorManager};
 use sentryshot_util::Frame;
 use std::{
     path::{Path, PathBuf},
@@ -17,7 +17,10 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
-use tokio::{runtime::Handle, sync::mpsc};
+use tokio::{
+    runtime::Handle,
+    sync::{mpsc, Mutex},
+};
 use tokio_util::sync::CancellationToken;
 use types::{Assets, NewAuthFn, Templates};
 
@@ -55,7 +58,7 @@ pub trait Plugin {
 pub trait Application {
     fn rt_handle(&self) -> Handle;
     fn auth(&self) -> DynAuth;
-    //fn monitor_getter(&self) -> DynMonitorGetter;
+    fn monitor_manager(&self) -> Arc<Mutex<MonitorManager>>;
     fn shutdown_complete_tx(&self) -> mpsc::Sender<()>;
     fn logger(&self) -> DynLogger;
     fn env(&self) -> DynEnvConfig;

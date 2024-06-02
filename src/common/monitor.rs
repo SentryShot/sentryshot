@@ -12,14 +12,36 @@ pub type MonitorConfigs = HashMap<MonitorId, MonitorConfig>;
 #[derive(Clone, Debug, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
 pub struct MonitorConfig {
-    pub config: Config,
-    pub source: SourceConfig,
+    config: Config,
+    source: SourceConfig,
 
     // Raw json used for unknown values.
-    pub raw: serde_json::Value,
+    raw: serde_json::Value,
 }
 
 impl MonitorConfig {
+    #[must_use]
+    pub fn new(config: Config, source: SourceConfig, raw: serde_json::Value) -> Self {
+        Self {
+            config,
+            source,
+            raw,
+        }
+    }
+
+    #[must_use]
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+    #[must_use]
+    pub fn source(&self) -> &SourceConfig {
+        &self.source
+    }
+    #[must_use]
+    pub fn raw(&self) -> &serde_json::Value {
+        &self.raw
+    }
+
     /*
     // Get config value by key.
     func (c Config) Get(key string) string {

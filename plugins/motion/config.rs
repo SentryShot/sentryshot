@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use common::PolygonNormalized;
+use common::{monitor::MonitorConfig, PolygonNormalized};
 use recording::{DurationSec, FeedRateSec};
 use serde::Deserialize;
+use serde_json::Value;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct MotionConfig {
@@ -73,6 +74,22 @@ pub(crate) struct ZoneConfig {
     pub(crate) threshold_max: f32, //`json:"thresholdMax"`
 
     pub(crate) area: PolygonNormalized,
+}
+
+pub(crate) fn set_enable(config: &MonitorConfig, value: bool) -> Option<MonitorConfig> {
+    let mut raw = config.raw().clone();
+    let Value::Object(root) = &mut raw else {
+        return None;
+    };
+    let Value::Object(motion) = root.get_mut("motion")? else {
+        return None;
+    };
+    let Value::Bool(enable) = motion.get_mut("enable")? else {
+        return None;
+    };
+    *enable = value;
+
+    serde_json::from_value(raw).expect("config should still be valid after toggling")
 }
 
 #[allow(clippy::unwrap_used)]
@@ -155,5 +172,35 @@ mod tests {
             }
         });
         assert!(MotionConfig::parse(raw).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_set_enable() {
+        let y = json!({
+            "id": "123",
+            "name": "test",
+            "enable": false,
+            "alwaysRecord": false,
+            "videoLength": 0,
+            "source": "rtsp",
+            "sourcertsp": {
+                "protocol": "tcp",
+                "mainStream": "rtsp://x"
+            },
+            "motion": {
+                "enable": true,
+                "feedRate": 0,
+                "duration": 0,
+                "zones": []
+            }
+        });
+        let config: MonitorConfig = serde_json::from_value(y).unwrap();
+        assert!(MotionConfig::parse(config.raw().clone()).unwrap().is_some());
+
+        let config = set_enable(&config, false).unwrap();
+        assert!(MotionConfig::parse(config.raw().clone()).unwrap().is_none());
+
+        let config = set_enable(&config, true).unwrap();
+        assert!(MotionConfig::parse(config.raw().clone()).unwrap().is_some());
     }
 }

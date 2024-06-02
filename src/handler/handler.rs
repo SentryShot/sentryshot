@@ -30,7 +30,10 @@ use rust_embed::EmbeddedFiles;
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc};
 use thiserror::Error;
-use tokio::sync::{broadcast::error::RecvError, Mutex};
+use tokio::{
+    runtime::Handle,
+    sync::{broadcast::error::RecvError, Mutex},
+};
 use tokio_util::io::ReaderStream;
 use web::{serve_mp4_content, Templater};
 
@@ -374,16 +377,25 @@ pub async fn monitor_put_handler(
     State(monitor_manager): State<Arc<Mutex<MonitorManager>>>,
     Json(payload): Json<MonitorConfig>,
 ) -> Response {
-    match monitor_manager.lock().await.monitor_set(payload).await {
-        Ok(created) => {
-            if created {
-                StatusCode::CREATED.into_response()
-            } else {
-                StatusCode::OK.into_response()
+    tokio::spawn(async move {
+        match monitor_manager
+            .lock()
+            .await
+            .monitor_set(&Handle::current(), payload)
+            .await
+        {
+            Ok(created) => {
+                if created {
+                    StatusCode::CREATED.into_response()
+                } else {
+                    StatusCode::OK.into_response()
+                }
             }
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    }
+    })
+    .await
+    .expect("join")
 }
 
 pub async fn monitor_restart_handler(
@@ -405,7 +417,7 @@ pub async fn monitor_restart_handler(
 pub async fn monitors_handler(
     State(monitor_manager): State<Arc<Mutex<MonitorManager>>>,
 ) -> Json<MonitorConfigs> {
-    Json(monitor_manager.lock().await.monitor_configs())
+    Json(monitor_manager.lock().await.monitor_configs().to_owned())
 }
 
 pub async fn recording_delete_handler(

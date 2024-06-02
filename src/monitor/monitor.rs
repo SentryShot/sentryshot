@@ -18,12 +18,13 @@ use sentryshot_convert::Frame;
 use serde::Serialize;
 use std::{
     collections::HashMap,
+    io::Write,
     path::{Path, PathBuf},
     sync::Arc,
 };
 use thiserror::Error;
 use tokio::{
-    io::AsyncWriteExt,
+    runtime::Handle,
     sync::{mpsc, oneshot, Mutex},
 };
 use tokio_util::sync::CancellationToken;
@@ -118,8 +119,8 @@ impl Monitor {
         let (send_event_tx, _) = mpsc::channel(1);
         //let (send_event_tx, _) = mpsc::channel(1);
         Arc::new(Monitor {
-            config: MonitorConfig {
-                config: Config {
+            config: MonitorConfig::new(
+                Config {
                     id: "a".to_owned().try_into().unwrap(),
                     name: "b".to_owned().try_into().unwrap(),
                     enable: false,
@@ -127,13 +128,13 @@ impl Monitor {
                     always_record: false,
                     video_length: 0.0,
                 },
-                source: SourceConfig::Rtsp(SourceRtspConfig {
+                SourceConfig::Rtsp(SourceRtspConfig {
                     protocol: Protocol::Tcp,
                     main_stream: "rtsp::/c".parse().unwrap(),
                     sub_stream: None,
                 }),
-                raw: Value::Null,
-            },
+                Value::Null,
+            ),
             token: CancellationToken::new(),
             shutdown_complete: Mutex::new(shutdown_complete),
             source_main_tx,
@@ -301,7 +302,12 @@ impl MonitorManager {
 
     // Sets config for specified monitor.
     // Changes are not applied until the montior restarts.
-    pub async fn monitor_set(&mut self, config: MonitorConfig) -> Result<bool, MonitorSetError> {
+    // Returns `true` if monitor was created.
+    pub async fn monitor_set(
+        &mut self,
+        rt_handle: &Handle,
+        config: MonitorConfig,
+    ) -> Result<bool, MonitorSetError> {
         use MonitorSetError::*;
 
         let id = config.id();
@@ -312,20 +318,25 @@ impl MonitorManager {
         let mut temp_path = path.clone();
         temp_path.set_file_name(id.to_string() + ".json.tmp");
 
-        let mut file = tokio::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&temp_path)
-            .await
-            .map_err(OpenFile)?;
-
         let json = serde_json::to_vec_pretty(&config)?;
-        file.write_all(&json).await.map_err(WriteToFile)?;
 
-        tokio::fs::rename(temp_path, path)
+        rt_handle
+            .spawn_blocking(move || {
+                let mut file = std::fs::OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(&temp_path)
+                    .map_err(OpenFile)?;
+
+                file.write_all(&json).map_err(WriteToFile)?;
+
+                std::fs::rename(temp_path, path).map_err(RenameTempFile)?;
+
+                Ok::<(), MonitorSetError>(())
+            })
             .await
-            .map_err(RenameTempFile)?;
+            .expect("join")?;
 
         let created = !self.configs.contains_key(id);
         if created {
@@ -386,14 +397,15 @@ impl MonitorManager {
         monitor_config_path(&self.path, id.to_string())
     }
 
+    #[must_use]
+    pub fn monitor_config(&self, monitor_id: &MonitorId) -> Option<&MonitorConfig> {
+        self.configs.get(monitor_id)
+    }
+
     // Configurations for all monitors.
     #[must_use]
-    pub fn monitor_configs(&self) -> MonitorConfigs {
-        let mut configs = MonitorConfigs::new();
-        for (id, raw_conf) in &self.configs {
-            configs.insert(id.to_owned(), raw_conf.to_owned());
-        }
-        configs
+    pub fn monitor_configs(&self) -> &MonitorConfigs {
+        &self.configs
     }
 
     async fn start_monitor(&self, config: MonitorConfig) -> Option<Arc<Monitor>> {
@@ -408,7 +420,7 @@ impl MonitorManager {
         let monitor_token = self.token.child_token();
         let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel(1);
 
-        let (source_main, source_sub) = match &config.source {
+        let (source_main, source_sub) = match config.source() {
             SourceConfig::Rtsp(conf) => {
                 let source_main = SourceRtsp::new(
                     monitor_token.child_token(),
@@ -678,8 +690,8 @@ mod tests {
     async fn test_monitor_set_create_new() {
         let (_temp_dir, config_dir, mut manager) = new_test_manager();
 
-        let config = MonitorConfig {
-            config: Config {
+        let config = MonitorConfig::new(
+            Config {
                 id: m_id("new"),
                 name: name("new"),
                 enable: false,
@@ -687,12 +699,12 @@ mod tests {
                 always_record: false,
                 video_length: 0.0,
             },
-            source: SourceConfig::Rtsp(SourceRtspConfig {
+            SourceConfig::Rtsp(SourceRtspConfig {
                 protocol: Protocol::Tcp,
                 main_stream: "rtsp://x1".parse().unwrap(),
                 sub_stream: None,
             }),
-            raw: json!({
+            json!({
                 "id": "new",
                 "name": "new",
                 "enable": false,
@@ -705,9 +717,12 @@ mod tests {
                 "alwaysRecord": false,
                 "videoLength": 0.0,
             }),
-        };
+        );
 
-        let created = manager.monitor_set(config).await.unwrap();
+        let created = manager
+            .monitor_set(&Handle::current(), config)
+            .await
+            .unwrap();
         assert!(created);
 
         let new = &m_id("new");
@@ -729,8 +744,8 @@ mod tests {
         let old_name = old_monitor.name();
         assert_eq!(&name("one"), old_name);
 
-        let config = MonitorConfig {
-            config: Config {
+        let config = MonitorConfig::new(
+            Config {
                 id: m_id("1"),
                 name: name("two"),
                 enable: false,
@@ -738,12 +753,12 @@ mod tests {
                 always_record: false,
                 video_length: 0.0,
             },
-            source: SourceConfig::Rtsp(SourceRtspConfig {
+            SourceConfig::Rtsp(SourceRtspConfig {
                 protocol: Protocol::Tcp,
                 main_stream: "rtsp://x1".parse().unwrap(),
                 sub_stream: None,
             }),
-            raw: json!({
+            json!({
                 "id": "1",
                 "name": "two",
                 "enable": false,
@@ -756,9 +771,12 @@ mod tests {
                 "alwaysRecord": false,
                 "videoLength": 0,
             }),
-        };
+        );
 
-        let created = manager.monitor_set(config).await.unwrap();
+        let created = manager
+            .monitor_set(&Handle::current(), config)
+            .await
+            .unwrap();
         assert!(!created);
 
         let new_name = manager.configs[&one].name();
@@ -874,8 +892,8 @@ mod tests {
         let want: HashMap<MonitorId, MonitorConfig> = HashMap::from([
             (
                 m_id("1"),
-                MonitorConfig {
-                    config: Config {
+                MonitorConfig::new(
+                    Config {
                         id: m_id("1"),
                         name: name("one"),
                         enable: false,
@@ -883,12 +901,12 @@ mod tests {
                         always_record: false,
                         video_length: 0.0,
                     },
-                    source: SourceConfig::Rtsp(SourceRtspConfig {
+                    SourceConfig::Rtsp(SourceRtspConfig {
                         protocol: Protocol::Tcp,
                         main_stream: "rtsp://x1".parse().unwrap(),
                         sub_stream: None,
                     }),
-                    raw: json!({
+                    json!({
                         "id": "1",
                         "name": "one",
                         "enable": false,
@@ -900,12 +918,12 @@ mod tests {
                         "alwaysRecord": false,
                         "videoLength": 0.0,
                     }),
-                },
+                ),
             ),
             (
                 m_id("2"),
-                MonitorConfig {
-                    config: Config {
+                MonitorConfig::new(
+                    Config {
                         id: m_id("2"),
                         name: name("two"),
                         enable: false,
@@ -913,12 +931,12 @@ mod tests {
                         always_record: false,
                         video_length: 0.0,
                     },
-                    source: SourceConfig::Rtsp(SourceRtspConfig {
+                    SourceConfig::Rtsp(SourceRtspConfig {
                         protocol: Protocol::Udp,
                         main_stream: "rtsp://x1".parse().unwrap(),
                         sub_stream: Some("rtsp://x2".parse().unwrap()),
                     }),
-                    raw: json!({
+                    json!({
                         "id": "2",
                         "name": "two",
                         "enable": false,
@@ -931,11 +949,11 @@ mod tests {
                         "alwaysRecord": false,
                         "videoLength": 0.0,
                     }),
-                },
+                ),
             ),
         ]);
 
-        assert_eq!(want, got);
+        assert_eq!(&want, got);
     }
 
     #[tokio::test]

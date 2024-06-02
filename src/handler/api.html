@@ -264,10 +264,122 @@
 			</div>
 			<pre class="json-response"></pre>
 		</article>
+		<article class="js-motion-enable">
+			<div>
+				<span>PATCH /api/monitor/</span
+				><input type="text" value="123" placeholder="MONITOR_ID" />
+				<span>/motion/enable</span>
+				<button
+					onclick='
+				(async () => {
+					const element = document.querySelector(".js-motion-enable");
+					const monitorID = element.querySelector("input").value;
+					const token = await fetch("api/account/my-token");
+					const now = performance.now();
+					const res = await fetch(`api/monitor/${monitorID}/motion/enable`, {
+						headers: { "X-CSRF-TOKEN": token },
+						method: "PATCH",
+					});
+					const elapsed = performance.now() - now;
+					const $pre = element.querySelector("pre");
+					$pre.innerHTML = await formatResponse(res, elapsed);
+					$pre.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
+			</div>
+			<pre></pre>
+		</article>
+		<article class="js-motion-disable">
+			<div>
+				<span>PATCH /api/monitor/</span
+				><input type="text" value="123" placeholder="MONITOR_ID" />
+				<span>/motion/disable</span>
+				<button
+					onclick='
+				(async () => {
+					const element = document.querySelector(".js-motion-disable");
+					const monitorID = element.querySelector("input").value;
+					const token = await fetch("api/account/my-token");
+					const now = performance.now();
+					const res = await fetch(`api/monitor/${monitorID}/motion/disable`, {
+						headers: { "X-CSRF-TOKEN": token },
+						method: "PATCH",
+					});
+					const elapsed = performance.now() - now;
+					const $pre = element.querySelector("pre");
+					$pre.innerHTML = await formatResponse(res, elapsed);
+					$pre.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
+			</div>
+			<pre></pre>
+		</article>
+		<article class="js-tflite-enable">
+			<div>
+				<span>PATCH /api/monitor/</span
+				><input type="text" value="123" placeholder="MONITOR_ID" />
+				<span>/tflite/enable</span>
+				<button
+					onclick='
+				(async () => {
+					const element = document.querySelector(".js-tflite-enable");
+					const monitorID = element.querySelector("input").value;
+					const token = await fetch("api/account/my-token");
+					const now = performance.now();
+					const res = await fetch(`api/monitor/${monitorID}/tflite/enable`, {
+						headers: { "X-CSRF-TOKEN": token },
+						method: "PATCH",
+					});
+					const elapsed = performance.now() - now;
+					const $pre = element.querySelector("pre");
+					$pre.innerHTML = await formatResponse(res, elapsed);
+					$pre.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
+			</div>
+			<pre></pre>
+		</article>
+		<article class="js-tflite-disable">
+			<div>
+				<span>PATCH /api/monitor/</span
+				><input type="text" value="123" placeholder="MONITOR_ID" />
+				<span>/tflite/disable</span>
+				<button
+					onclick='
+				(async () => {
+					const element = document.querySelector(".js-tflite-disable");
+					const monitorID = element.querySelector("input").value;
+					const token = await fetch("api/account/my-token");
+					const now = performance.now();
+					const res = await fetch(`api/monitor/${monitorID}/tflite/disable`, {
+						headers: { "X-CSRF-TOKEN": token },
+						method: "PATCH",
+					});
+					const elapsed = performance.now() - now;
+					const $pre = element.querySelector("pre");
+					$pre.innerHTML = await formatResponse(res, elapsed);
+					$pre.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
+			</div>
+			<pre></pre>
+		</article>
+
 		<article class="js-log-query">
 			<div style="flex-wrap: wrap">
 				<div>
-					<!--levels=error,warning&sources=app,monitors=a,b&time=1234567890111222&limit=2-->
 					<span>GET /api/log/query?levels=</span
 					><input
 						class="js-levels"
@@ -318,6 +430,27 @@
 						Submit
 					</button>
 				</div>
+			</div>
+			<pre></pre>
+		</article>
+
+		<article class="js-test">
+			<div>
+				<span>GET /api/test</span>
+				<button
+					onclick='
+				(async () => {
+					const now = performance.now();
+					const res = await fetch("api/test");
+					const elapsed = performance.now() - now;
+					const element = document.querySelector(".js-test pre");
+					element.innerHTML = await formatResponse(res, elapsed);
+					element.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
 			</div>
 			<pre></pre>
 		</article>

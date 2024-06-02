@@ -46,7 +46,7 @@ impl Plugin for ThumbScalePlugin {
             #[serde(rename = "thumbScale")]
             thumb_scale: String,
         }
-        let Ok(temp) = serde_json::from_value::<Temp>(config.raw.clone()) else {
+        let Ok(temp) = serde_json::from_value::<Temp>(config.raw().clone()) else {
             log(LogLevel::Warning, "config is not set");
             return frame;
         };
