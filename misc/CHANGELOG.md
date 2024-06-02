@@ -1,5 +1,6 @@
 ## unreleased
 
+-   add api for toggling detectors
 -   add /api page
 -   enforce csrf tokens even when auth is disabled
 

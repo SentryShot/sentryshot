@@ -118,14 +118,18 @@ struct DirIterYear {
 
 impl DirIterYear {
     fn new(fs: &DynFs, query: RecDbQuery) -> Result<Self, CrawlerError> {
-        let (mut years, exact) = filter_dirs(
+        let (mut years, found_exact) = filter_dirs(
             list_dirs(fs, query.reverse)?,
             &query.recording_id.year(),
             query.reverse,
         );
 
         let current = if let Some(current) = years.pop() {
-            Some(DirIterMonth::new_first(&current.1, query.clone(), exact)?)
+            if found_exact {
+                Some(DirIterMonth::new_exact(&current.1, query.clone())?)
+            } else {
+                Some(DirIterMonth::new(&current.1, query.clone())?)
+            }
         } else {
             None
         };
@@ -180,16 +184,19 @@ impl DirIterMonth {
         })
     }
 
-    fn new_first(fs: &DynFs, query: RecDbQuery, exact: bool) -> Result<Self, CrawlerError> {
-        let dirs = list_dirs(fs, query.reverse)?;
-        let (mut months, exact) = if exact {
-            filter_dirs(dirs, &query.recording_id.month(), query.reverse)
-        } else {
-            (dirs, false)
-        };
+    fn new_exact(fs: &DynFs, query: RecDbQuery) -> Result<Self, CrawlerError> {
+        let (mut months, found_exact) = filter_dirs(
+            list_dirs(fs, query.reverse)?,
+            &query.recording_id.month(),
+            query.reverse,
+        );
 
         let current = if let Some(current) = months.pop() {
-            Some(DirIterDay::new_first(&current.1, query.clone(), exact)?)
+            if found_exact {
+                Some(DirIterDay::new_exact(&current.1, query.clone())?)
+            } else {
+                Some(DirIterDay::new(&current.1, query.clone())?)
+            }
         } else {
             None
         };
@@ -244,14 +251,19 @@ impl DirIterDay {
         })
     }
 
-    fn new_first(fs: &DynFs, query: RecDbQuery, exact: bool) -> Result<Self, CrawlerError> {
-        let mut days = list_dirs(fs, query.reverse)?;
-        if exact {
-            (days, _) = filter_dirs(days, &query.recording_id.day(), query.reverse);
-        };
+    fn new_exact(fs: &DynFs, query: RecDbQuery) -> Result<Self, CrawlerError> {
+        let (mut days, found_exact) = filter_dirs(
+            list_dirs(fs, query.reverse)?,
+            &query.recording_id.day(),
+            query.reverse,
+        );
 
         let current = if let Some(current) = days.pop() {
-            Some(DirIterRec::new_first(&current.1, &query)?)
+            if found_exact {
+                Some(DirIterRec::new_exact(&current.1, &query)?)
+            } else {
+                Some(DirIterRec::new(&current.1, &query)?)
+            }
         } else {
             None
         };
@@ -341,7 +353,7 @@ impl DirIterRec {
         Ok(recs.into_iter())
     }
 
-    fn new_first(fs: &DynFs, query: &RecDbQuery) -> Result<IntoIter<DirRec>, CrawlerError> {
+    fn new_exact(fs: &DynFs, query: &RecDbQuery) -> Result<IntoIter<DirRec>, CrawlerError> {
         let id = query.recording_id.clone();
         let mut recs = Self::list_recs(fs, query)?;
 
