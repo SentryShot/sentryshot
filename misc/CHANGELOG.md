@@ -1,5 +1,7 @@
 ## unreleased
 
+-   fix panic when new api is called on running monitors
+
 ## `v0.2.15`
 
 -   add api for toggling detectors

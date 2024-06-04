@@ -18,13 +18,12 @@ use sentryshot_convert::Frame;
 use serde::Serialize;
 use std::{
     collections::HashMap,
-    io::Write,
     path::{Path, PathBuf},
     sync::Arc,
 };
 use thiserror::Error;
 use tokio::{
-    runtime::Handle,
+    io::AsyncWriteExt,
     sync::{mpsc, oneshot, Mutex},
 };
 use tokio_util::sync::CancellationToken;
@@ -106,44 +105,6 @@ impl Monitor {
     }
 }
 
-impl Monitor {
-    #[cfg(test)]
-    #[allow(clippy::unwrap_used)]
-    fn empty() -> Arc<Monitor> {
-        use common::monitor::{Config, Protocol, SourceRtspConfig};
-        use serde_json::Value;
-
-        let (_, shutdown_complete) = mpsc::channel(1);
-        let (source_main_tx, _) = mpsc::channel(1);
-        let (source_sub_tx, _) = mpsc::channel(1);
-        let (send_event_tx, _) = mpsc::channel(1);
-        //let (send_event_tx, _) = mpsc::channel(1);
-        Arc::new(Monitor {
-            config: MonitorConfig::new(
-                Config {
-                    id: "a".to_owned().try_into().unwrap(),
-                    name: "b".to_owned().try_into().unwrap(),
-                    enable: false,
-                    source: common::monitor::SelectedSource::Rtsp,
-                    always_record: false,
-                    video_length: 0.0,
-                },
-                SourceConfig::Rtsp(SourceRtspConfig {
-                    protocol: Protocol::Tcp,
-                    main_stream: "rtsp::/c".parse().unwrap(),
-                    sub_stream: None,
-                }),
-                Value::Null,
-            ),
-            token: CancellationToken::new(),
-            shutdown_complete: Mutex::new(shutdown_complete),
-            source_main_tx,
-            source_sub_tx,
-            send_event_tx,
-        })
-    }
-}
-
 pub fn log_monitor(logger: &DynLogger, level: LogLevel, id: &MonitorId, msg: &str) {
     logger.log(LogEntry::new(
         level,
@@ -207,20 +168,31 @@ pub enum MonitorRestartError {
     NotExist(String),
 }
 
-// Manager for the monitors.
-pub struct MonitorManager {
-    token: CancellationToken,
+#[derive(Debug, Error)]
+pub enum MonitorSetAndRestartError {
+    #[error(transparent)]
+    Set(MonitorSetError),
 
-    configs: MonitorConfigs,
-    started_monitors: Monitors,
-
-    rec_db: Arc<RecDb>,
-    logger: DynLogger,
-    hls_server: Arc<HlsServer>,
-    path: PathBuf,
-
-    hooks: Option<DynMonitorHooks>,
+    #[error(transparent)]
+    Restart(MonitorRestartError),
 }
+
+#[rustfmt::skip]
+enum MonitorManagerRequest {
+    StartMonitors((oneshot::Sender<()>, DynMonitorHooks)),
+    MonitorRestart((oneshot::Sender<Result<(), MonitorRestartError>>, MonitorId)),
+    MonitorSet((oneshot::Sender<Result<bool, MonitorSetError>>, MonitorConfig)),
+    MonitorSetAndRestart((oneshot::Sender<Result<bool, MonitorSetAndRestartError>>, MonitorConfig)),
+    MonitorDelete((oneshot::Sender<Result<(), MonitorDeleteError>>, MonitorId)),
+    MonitorsInfo(oneshot::Sender<HashMap<MonitorId, MonitorInfo>>),
+    MonitorConfig((oneshot::Sender<Option<MonitorConfig>>, MonitorId)),
+    MonitorConfigs(oneshot::Sender<MonitorConfigs>),
+    Stop(oneshot::Sender<()>),
+    MonitorIsRunning((oneshot::Sender<bool>, MonitorId)),
+}
+
+#[derive(Clone)]
+pub struct MonitorManager(mpsc::Sender<MonitorManagerRequest>);
 
 impl MonitorManager {
     pub fn new(
@@ -256,17 +228,196 @@ impl MonitorManager {
             configs.insert(config.id().to_owned(), config);
         }
 
-        Ok(MonitorManager {
-            token: CancellationToken::new(),
-            configs,
-            started_monitors: HashMap::new(),
+        let (tx, rx) = mpsc::channel(1);
 
-            rec_db,
-            logger,
-            hls_server,
-            path: config_path,
-            hooks: None,
-        })
+        // This must be an actor in order to be callable from plugins.
+        tokio::spawn(async move {
+            MonitorManagerState {
+                token: CancellationToken::new(),
+                configs,
+                started_monitors: HashMap::new(),
+                rec_db,
+                logger,
+                hls_server,
+                path: config_path,
+                hooks: None,
+            }
+            .run(rx)
+            .await;
+        });
+
+        Ok(Self(tx))
+    }
+
+    pub async fn start_monitors(&self, hooks: DynMonitorHooks) {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::StartMonitors((tx, hooks)))
+            .await
+            .expect("actor should still be active");
+
+        _ = rx.await;
+    }
+
+    pub async fn monitor_restart(&self, monitor_id: MonitorId) -> Result<(), MonitorRestartError> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::MonitorRestart((tx, monitor_id)))
+            .await
+            .expect("actor should still be active");
+
+        rx.await.expect("actor should respond")
+    }
+
+    pub async fn monitor_set(&self, config: MonitorConfig) -> Result<bool, MonitorSetError> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::MonitorSet((tx, config)))
+            .await
+            .expect("actor should still be active");
+
+        rx.await.expect("actor should respond")
+    }
+
+    pub async fn monitor_set_and_restart(
+        &self,
+        config: MonitorConfig,
+    ) -> Result<bool, MonitorSetAndRestartError> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::MonitorSetAndRestart((tx, config)))
+            .await
+            .expect("actor should still be active");
+
+        rx.await.expect("actor should respond")
+    }
+
+    pub async fn monitor_delete(&self, id: MonitorId) -> Result<(), MonitorDeleteError> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::MonitorDelete((tx, id)))
+            .await
+            .expect("actor should still be active");
+
+        rx.await.expect("actor should respond")
+    }
+
+    pub async fn monitors_info(&self) -> HashMap<MonitorId, MonitorInfo> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::MonitorsInfo(tx))
+            .await
+            .expect("actor should still be active");
+
+        rx.await.expect("actor should respond")
+    }
+
+    pub async fn monitor_config(&self, monitor_id: MonitorId) -> Option<MonitorConfig> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::MonitorConfig((tx, monitor_id)))
+            .await
+            .expect("actor should still be active");
+
+        rx.await.expect("actor should respond")
+    }
+
+    pub async fn monitor_configs(&self) -> MonitorConfigs {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::MonitorConfigs(tx))
+            .await
+            .expect("actor should still be active");
+
+        rx.await.expect("actor should respond")
+    }
+
+    pub async fn stop(&self) {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::Stop(tx))
+            .await
+            .expect("actor should still be active");
+
+        rx.await.expect("actor should respond");
+    }
+
+    pub async fn monitor_is_running(&self, monitor_id: MonitorId) -> bool {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::MonitorIsRunning((tx, monitor_id)))
+            .await
+            .expect("actor should still be active");
+
+        rx.await.expect("actor should respond")
+    }
+}
+
+struct MonitorManagerState {
+    token: CancellationToken,
+
+    configs: MonitorConfigs,
+    started_monitors: Monitors,
+
+    rec_db: Arc<RecDb>,
+    logger: DynLogger,
+    hls_server: Arc<HlsServer>,
+    path: PathBuf,
+
+    hooks: Option<DynMonitorHooks>,
+}
+
+impl MonitorManagerState {
+    async fn run(mut self, mut rx: mpsc::Receiver<MonitorManagerRequest>) {
+        loop {
+            let Some(request) = rx.recv().await else {
+                // Manager was dropped.
+                return;
+            };
+            match request {
+                MonitorManagerRequest::StartMonitors((res, hooks)) => {
+                    self.start_monitors(hooks).await;
+                    drop(res);
+                }
+                MonitorManagerRequest::MonitorRestart((res, monitor_id)) => {
+                    res.send(self.monitor_restart(&monitor_id).await)
+                        .expect("caller should receive response");
+                }
+                MonitorManagerRequest::MonitorSet((res, config)) => {
+                    res.send(self.monitor_set(config).await)
+                        .expect("caller should receive response");
+                }
+
+                MonitorManagerRequest::MonitorSetAndRestart((res, config)) => {
+                    res.send(self.monitor_set_and_restart(config).await)
+                        .expect("caller should receive response");
+                }
+                MonitorManagerRequest::MonitorDelete((res, monitor_id)) => {
+                    res.send(self.monitor_delete(&monitor_id).await)
+                        .expect("caller should receive response");
+                }
+                MonitorManagerRequest::MonitorsInfo(res) => {
+                    res.send(self.monitors_info())
+                        .expect("caller should receive response");
+                }
+                MonitorManagerRequest::MonitorConfig((res, monitor_id)) => {
+                    res.send(self.configs.get(&monitor_id).cloned())
+                        .expect("caller should receive response");
+                }
+                MonitorManagerRequest::MonitorConfigs(res) => {
+                    res.send(self.configs.clone())
+                        .expect("caller should receive response");
+                }
+                MonitorManagerRequest::Stop(res) => {
+                    self.stop().await;
+                    res.send(()).expect("caller should receive response");
+                }
+                MonitorManagerRequest::MonitorIsRunning((res, monitor_id)) => {
+                    res.send(self.started_monitors.get(&monitor_id).is_some())
+                        .expect("caller should receive response");
+                }
+            }
+        }
     }
 
     pub async fn start_monitors(&mut self, hooks: DynMonitorHooks) {
@@ -303,11 +454,7 @@ impl MonitorManager {
     // Sets config for specified monitor.
     // Changes are not applied until the montior restarts.
     // Returns `true` if monitor was created.
-    pub async fn monitor_set(
-        &mut self,
-        rt_handle: &Handle,
-        config: MonitorConfig,
-    ) -> Result<bool, MonitorSetError> {
+    pub async fn monitor_set(&mut self, config: MonitorConfig) -> Result<bool, MonitorSetError> {
         use MonitorSetError::*;
 
         let id = config.id();
@@ -320,23 +467,19 @@ impl MonitorManager {
 
         let json = serde_json::to_vec_pretty(&config)?;
 
-        rt_handle
-            .spawn_blocking(move || {
-                let mut file = std::fs::OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(&temp_path)
-                    .map_err(OpenFile)?;
-
-                file.write_all(&json).map_err(WriteToFile)?;
-
-                std::fs::rename(temp_path, path).map_err(RenameTempFile)?;
-
-                Ok::<(), MonitorSetError>(())
-            })
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&temp_path)
             .await
-            .expect("join")?;
+            .map_err(OpenFile)?;
+
+        file.write_all(&json).await.map_err(WriteToFile)?;
+
+        tokio::fs::rename(temp_path, path)
+            .await
+            .map_err(RenameTempFile)?;
 
         let created = !self.configs.contains_key(id);
         if created {
@@ -346,6 +489,17 @@ impl MonitorManager {
         }
 
         self.configs.insert(id.to_owned(), config);
+        Ok(created)
+    }
+
+    pub async fn monitor_set_and_restart(
+        &mut self,
+        config: MonitorConfig,
+    ) -> Result<bool, MonitorSetAndRestartError> {
+        use MonitorSetAndRestartError::*;
+        let id = config.id().clone();
+        let created = self.monitor_set(config).await.map_err(Set)?;
+        self.monitor_restart(&id).await.map_err(Restart)?;
         Ok(created)
     }
 
@@ -395,17 +549,6 @@ impl MonitorManager {
             path.join(id + ".json")
         }
         monitor_config_path(&self.path, id.to_string())
-    }
-
-    #[must_use]
-    pub fn monitor_config(&self, monitor_id: &MonitorId) -> Option<&MonitorConfig> {
-        self.configs.get(monitor_id)
-    }
-
-    // Configurations for all monitors.
-    #[must_use]
-    pub fn monitor_configs(&self) -> &MonitorConfigs {
-        &self.configs
     }
 
     async fn start_monitor(&self, config: MonitorConfig) -> Option<Arc<Monitor>> {
@@ -520,11 +663,6 @@ impl MonitorManager {
 
         // Break circular reference.
         self.hooks = None;
-    }
-
-    #[cfg(test)]
-    fn monitor_is_running(&self, id: &MonitorId) -> bool {
-        self.started_monitors.get(id).is_some()
     }
 }
 
@@ -661,7 +799,7 @@ mod tests {
         )
         .unwrap();
 
-        let want = manager.configs[&m_id("1")].clone();
+        let want = manager.monitor_configs().await[&m_id("1")].clone();
         let got = read_config(config_dir.join("1.json"));
         assert_eq!(want, got);
     }
@@ -688,7 +826,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_monitor_set_create_new() {
-        let (_temp_dir, config_dir, mut manager) = new_test_manager();
+        let (_temp_dir, config_dir, manager) = new_test_manager();
 
         let config = MonitorConfig::new(
             Config {
@@ -719,27 +857,25 @@ mod tests {
             }),
         );
 
-        let created = manager
-            .monitor_set(&Handle::current(), config)
-            .await
-            .unwrap();
+        let created = manager.monitor_set(config).await.unwrap();
         assert!(created);
 
         let new = &m_id("new");
-        let new_name = manager.configs[new].name();
+        let config = manager.monitor_config(new.clone()).await.unwrap();
+        let new_name = config.name();
         assert_eq!(&name("new"), new_name);
 
         // Check if changes were saved to file.
         let saved_config = read_config(config_dir.join("new.json"));
-        assert_eq!(manager.configs[new], saved_config);
+        assert_eq!(manager.monitor_configs().await[new], saved_config);
     }
 
     #[tokio::test]
     async fn test_monitor_set_update() {
-        let (_temp_dir, config_dir, mut manager) = new_test_manager();
+        let (_temp_dir, config_dir, manager) = new_test_manager();
 
         let one = m_id("1");
-        let old_monitor = &manager.configs[&one];
+        let old_monitor = &manager.monitor_configs().await[&one];
 
         let old_name = old_monitor.name();
         assert_eq!(&name("one"), old_name);
@@ -773,40 +909,23 @@ mod tests {
             }),
         );
 
-        let created = manager
-            .monitor_set(&Handle::current(), config)
-            .await
-            .unwrap();
+        let created = manager.monitor_set(config).await.unwrap();
         assert!(!created);
 
-        let new_name = manager.configs[&one].name();
+        let config = manager.monitor_config(one.clone()).await.unwrap();
+        let new_name = config.name();
         assert_eq!(&name("two"), new_name);
 
         // Check if changes were saved to file.
         let saved_config = read_config(config_dir.join("1.json"));
-        assert_eq!(manager.configs[&one], saved_config);
-    }
-
-    #[tokio::test]
-    async fn test_monitor_delete_ok() {
-        let (_temp_dir, config_dir, mut manager) = new_test_manager();
-
-        let one = m_id("1");
-        manager
-            .started_monitors
-            .insert(one.clone(), Monitor::empty());
-
-        manager.monitor_delete(&one).await.unwrap();
-
-        assert!(!manager.monitor_is_running(&one));
-        assert!(!Path::new(&config_dir.join("1.json")).exists());
+        assert_eq!(manager.monitor_configs().await[&one], saved_config);
     }
 
     #[tokio::test]
     async fn test_monitor_delete_exist_error() {
-        let (_, _, mut manager) = new_test_manager();
+        let (_, _, manager) = new_test_manager();
         assert!(matches!(
-            manager.monitor_delete(&m_id("nil")).await,
+            manager.monitor_delete(m_id("nil")).await,
             Err(MonitorDeleteError::NotExist(_))
         ));
     }
@@ -888,7 +1007,7 @@ mod tests {
     async fn test_monitor_configs() {
         let (_, _, manager) = new_test_manager();
 
-        let got = manager.monitor_configs();
+        let got = manager.monitor_configs().await;
         let want: HashMap<MonitorId, MonitorConfig> = HashMap::from([
             (
                 m_id("1"),
@@ -953,22 +1072,14 @@ mod tests {
             ),
         ]);
 
-        assert_eq!(&want, got);
-    }
-
-    #[tokio::test]
-    async fn test_manager_drop() {
-        let (_, _, mut manager) = new_test_manager();
-        manager.started_monitors =
-            Monitors::from([(m_id("1"), Monitor::empty()), (m_id("2"), Monitor::empty())]);
-        manager.stop().await;
+        assert_eq!(want, got);
     }
 
     #[tokio::test]
     async fn test_restart_monitor_not_exist_error() {
-        let (_, _, mut manager) = new_test_manager();
+        let (_, _, manager) = new_test_manager();
         assert!(matches!(
-            manager.monitor_restart(&m_id("x")).await,
+            manager.monitor_restart(m_id("x")).await,
             Err(MonitorRestartError::NotExist(_))
         ));
     }

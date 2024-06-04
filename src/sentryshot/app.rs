@@ -100,7 +100,7 @@ pub struct App {
     log_db: Arc<LogDbHandle>,
     auth: DynAuth,
     hls_server: Arc<HlsServer>,
-    monitor_manager: Arc<Mutex<MonitorManager>>,
+    monitor_manager: MonitorManager,
     recdb: Arc<RecDb>,
     router: Router,
 }
@@ -154,13 +154,12 @@ impl App {
         let hls_server = Arc::new(HlsServer::new(token.clone(), logger.clone()));
 
         let monitors_dir = env.config_dir().join("monitors");
-        let monitor_manager = monitor::MonitorManager::new(
+        let monitor_manager = MonitorManager::new(
             monitors_dir,
             rec_db.clone(),
             logger.clone(),
             hls_server.clone(),
         )?;
-        let monitor_manager = Arc::new(Mutex::new(monitor_manager));
 
         let router = Router::new();
 
@@ -427,17 +426,14 @@ impl App {
         });
 
         self.monitor_manager
-            .lock()
-            .await
             .start_monitors(Arc::new(plugin_manager))
             .await;
 
         let token = self.token.clone();
         let shutdown_complete_tx = self.shutdown_complete_tx.clone();
-        let monitor_manager = self.monitor_manager;
         tokio::spawn(async move {
             token.cancelled().await;
-            monitor_manager.lock().await.stop().await;
+            self.monitor_manager.stop().await;
             drop(shutdown_complete_tx);
         });
 
@@ -484,7 +480,7 @@ impl Application for App {
     fn auth(&self) -> DynAuth {
         self.auth.clone()
     }
-    fn monitor_manager(&self) -> Arc<Mutex<MonitorManager>> {
+    fn monitor_manager(&self) -> MonitorManager {
         self.monitor_manager.clone()
     }
     fn shutdown_complete_tx(&self) -> mpsc::Sender<()> {

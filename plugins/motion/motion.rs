@@ -32,10 +32,7 @@ use sentryshot_convert::{
 use sentryshot_util::ImageCopyToBufferError;
 use std::{borrow::Cow, sync::Arc, time::Duration};
 use thiserror::Error;
-use tokio::{
-    runtime::Handle,
-    sync::{mpsc, Mutex},
-};
+use tokio::{runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use zone::Zones;
 
@@ -71,7 +68,7 @@ pub struct MotionPlugin {
     rt_handle: Handle,
     _shutdown_complete_tx: mpsc::Sender<()>,
     logger: DynLogger,
-    monitor_manager: Arc<Mutex<MonitorManager>>,
+    monitor_manager: MonitorManager,
     auth: DynAuth,
 }
 
@@ -106,7 +103,6 @@ impl Plugin for MotionPlugin {
 
     fn route(&self, router: Router) -> Router {
         let state = HandlerState {
-            rt_handler: self.rt_handle.clone(),
             logger: self.logger.clone(),
             monitor_manager: self.monitor_manager.clone(),
         };
@@ -354,18 +350,15 @@ fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
 
 #[derive(Clone)]
 struct HandlerState {
-    rt_handler: Handle,
     logger: DynLogger,
-    monitor_manager: Arc<Mutex<MonitorManager>>,
+    monitor_manager: MonitorManager,
 }
 
 async fn enable_handler(
     State(s): State<HandlerState>,
     Path(monitor_id): Path<MonitorId>,
 ) -> Response {
-    let mut manager = s.monitor_manager.lock().await;
-
-    let Some(old_config) = manager.monitor_config(&monitor_id) else {
+    let Some(old_config) = s.monitor_manager.monitor_config(monitor_id.clone()).await else {
         return (
             StatusCode::NOT_FOUND,
             format!("monitor '{monitor_id}' does not exist"),
@@ -373,7 +366,7 @@ async fn enable_handler(
             .into_response();
     };
 
-    let Some(new_config) = set_enable(old_config, true) else {
+    let Some(new_config) = set_enable(&old_config, true) else {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             "failed to find enable field",
@@ -381,11 +374,7 @@ async fn enable_handler(
             .into_response();
     };
 
-    match manager.monitor_set(&s.rt_handler, new_config).await {
-        Ok(created) => assert!(!created),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    }
-    if let Err(e) = manager.monitor_restart(&monitor_id).await {
+    if let Err(e) = s.monitor_manager.monitor_set_and_restart(new_config).await {
         return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
     }
 
@@ -403,9 +392,7 @@ async fn disable_handler(
     State(s): State<HandlerState>,
     Path(monitor_id): Path<MonitorId>,
 ) -> Response {
-    let mut manager = s.monitor_manager.lock().await;
-
-    let Some(old_config) = manager.monitor_config(&monitor_id) else {
+    let Some(old_config) = s.monitor_manager.monitor_config(monitor_id.clone()).await else {
         return (
             StatusCode::NOT_FOUND,
             format!("monitor '{monitor_id}' does not exist"),
@@ -413,17 +400,13 @@ async fn disable_handler(
             .into_response();
     };
 
-    let new_config = match set_enable(old_config, false) {
+    let new_config = match set_enable(&old_config, false) {
         Some(v) => v,
         // None means that it's already disabled in some way.
         None => old_config.clone(),
     };
 
-    match manager.monitor_set(&s.rt_handler, new_config).await {
-        Ok(created) => assert!(!created),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    }
-    if let Err(e) = manager.monitor_restart(&monitor_id).await {
+    if let Err(e) = s.monitor_manager.monitor_set_and_restart(new_config).await {
         return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
     }
 

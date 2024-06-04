@@ -30,10 +30,7 @@ use rust_embed::EmbeddedFiles;
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc};
 use thiserror::Error;
-use tokio::{
-    runtime::Handle,
-    sync::{broadcast::error::RecvError, Mutex},
-};
+use tokio::sync::{broadcast::error::RecvError, Mutex};
 use tokio_util::io::ReaderStream;
 use web::{serve_mp4_content, Templater};
 
@@ -363,10 +360,10 @@ pub struct MonitorIdQuery {
 }
 
 pub async fn monitor_delete_handler(
-    State(monitor_manager): State<Arc<Mutex<MonitorManager>>>,
+    State(monitor_manager): State<MonitorManager>,
     query: Query<MonitorIdQuery>,
 ) -> (StatusCode, String) {
-    match monitor_manager.lock().await.monitor_delete(&query.id).await {
+    match monitor_manager.monitor_delete(query.id.clone()).await {
         Ok(()) => (StatusCode::OK, String::new()),
         Err(e @ MonitorDeleteError::NotExist(_)) => (StatusCode::NOT_FOUND, e.to_string()),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
@@ -374,16 +371,11 @@ pub async fn monitor_delete_handler(
 }
 
 pub async fn monitor_put_handler(
-    State(monitor_manager): State<Arc<Mutex<MonitorManager>>>,
+    State(monitor_manager): State<MonitorManager>,
     Json(payload): Json<MonitorConfig>,
 ) -> Response {
     tokio::spawn(async move {
-        match monitor_manager
-            .lock()
-            .await
-            .monitor_set(&Handle::current(), payload)
-            .await
-        {
+        match monitor_manager.monitor_set(payload).await {
             Ok(created) => {
                 if created {
                     StatusCode::CREATED.into_response()
@@ -399,15 +391,10 @@ pub async fn monitor_put_handler(
 }
 
 pub async fn monitor_restart_handler(
-    State(monitor_manager): State<Arc<Mutex<MonitorManager>>>,
+    State(monitor_manager): State<MonitorManager>,
     query: Query<MonitorIdQuery>,
 ) -> Response {
-    if let Err(e) = monitor_manager
-        .lock()
-        .await
-        .monitor_restart(&query.id)
-        .await
-    {
+    if let Err(e) = monitor_manager.monitor_restart(query.id.clone()).await {
         return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
     };
 
@@ -415,9 +402,9 @@ pub async fn monitor_restart_handler(
 }
 
 pub async fn monitors_handler(
-    State(monitor_manager): State<Arc<Mutex<MonitorManager>>>,
+    State(monitor_manager): State<MonitorManager>,
 ) -> Json<MonitorConfigs> {
-    Json(monitor_manager.lock().await.monitor_configs().to_owned())
+    Json(monitor_manager.monitor_configs().await.clone())
 }
 
 pub async fn recording_delete_handler(

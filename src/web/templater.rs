@@ -3,20 +3,20 @@
 use log::Logger;
 use monitor::MonitorManager;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::Mutex;
 
 pub struct Templater<'a> {
     logger: Arc<Logger>,
-    monitor_manager: Arc<Mutex<MonitorManager>>,
+    monitor_manager: MonitorManager,
     time_zone: String,
 
     engine: upon::Engine<'a>,
 }
 
 impl<'a> Templater<'a> {
+    #[must_use]
     pub fn new(
         logger: Arc<log::Logger>,
-        monitor_manager: Arc<Mutex<MonitorManager>>,
+        monitor_manager: MonitorManager,
         templates: HashMap<&'a str, String>,
         time_zone: String,
     ) -> Self {
@@ -55,14 +55,14 @@ impl<'a> Templater<'a> {
         let log_sources_json = serde_json::to_string(&self.logger.sources())
             .expect("Vec<String> serialization to never fail");
 
-        let manager = self.monitor_manager.lock().await;
         let monitors_json = if is_admin {
-            serde_json::to_string(&manager.monitor_configs()).expect("serialization to never fail")
+            serde_json::to_string(&self.monitor_manager.monitor_configs().await)
+                .expect("serialization to never fail")
         } else {
             String::new()
         };
-        let monitors_info_json =
-            serde_json::to_string(&manager.monitors_info()).expect("serialization to never fail");
+        let monitors_info_json = serde_json::to_string(&self.monitor_manager.monitors_info().await)
+            .expect("serialization to never fail");
 
         HashMap::from([
             ("groups_json".to_owned(), Value::String("{}".to_owned())),
