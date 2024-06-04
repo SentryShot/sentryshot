@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.16`
+
 -   fix panic when new api is called on running monitors
 
 ## `v0.2.15`
