@@ -37,8 +37,8 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 			d.id = rec.id;
 			d.videoPath = toAbsolutePath(`api/recording/video/${d.id}`);
 			if (rec.state === "active") {
-				const random = Math.floor(Math.random() * 9999);
-				d.videoPath += `?cache=false&browser-cache=${random}`;
+				const random = Math.floor(Math.random() * 99999);
+				d.videoPath += `?cache-id=${random}`;
 			}
 			d.thumbPath = toAbsolutePath(`api/recording/thumbnail/${d.id}`);
 			d.deletePath = toAbsolutePath(`api/recording/delete/${d.id}`);

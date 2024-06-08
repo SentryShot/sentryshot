@@ -1,8 +1,10 @@
 ## unreleased
 
+-   fix seeking in active recordings
+
 ## `v0.2.16`
 
--   fix panic when new api is called on running monitors
+-   fix panic when new api is called on running monitors #29
 
 ## `v0.2.15`
 

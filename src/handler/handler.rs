@@ -451,7 +451,8 @@ pub struct RecordingVideoState {
 
 #[derive(Debug, Deserialize)]
 pub struct RecordingVideoQuery {
-    cache: Option<bool>,
+    #[serde(default, rename = "cache-id")]
+    cache_id: u32,
 }
 
 pub async fn recording_video_handler(
@@ -464,8 +465,7 @@ pub async fn recording_video_handler(
         return (StatusCode::NOT_FOUND).into_response();
     };
 
-    let cache = query.cache.map_or(true, |v| v).then_some(state.video_cache);
-    let video = match new_video_reader(path, &cache).await {
+    let video = match new_video_reader(path, query.cache_id, &Some(state.video_cache)).await {
         Ok(v) => v,
         Err(e) => {
             state.logger.log(LogEntry::new(

@@ -69,6 +69,7 @@ pub enum NewVideoReaderError {
 #[allow(clippy::module_name_repetitions)]
 pub async fn new_video_reader(
     recording_path: PathBuf,
+    cache_id: u32,
     cache: &Option<Arc<Mutex<VideoCache>>>,
 ) -> Result<VideoReader<MetaCursor, tokio::fs::File>, NewVideoReaderError> {
     use NewVideoReaderError::*;
@@ -81,11 +82,11 @@ pub async fn new_video_reader(
     let meta = {
         if let Some(cache) = cache {
             let mut cache = cache.lock().await;
-            if let Some(v) = cache.get(&recording_path) {
+            if let Some(v) = cache.get((&recording_path, cache_id)) {
                 v
             } else {
                 let meta = Arc::new(read_video_metadata(&meta_path).await?);
-                cache.add(recording_path, meta.clone());
+                cache.add((recording_path, cache_id), meta.clone());
                 meta
             }
         } else {
@@ -420,7 +421,7 @@ async fn read_video_metadata(meta_path: &Path) -> Result<VideoMetadata, ReadVide
 
 // VideoCache Caches the n most recent video readers.
 pub struct VideoCache {
-    items: HashMap<PathBuf, CacheItem>,
+    items: HashMap<(PathBuf, u32), CacheItem>,
     age: usize,
 
     max_size: usize,
@@ -550,7 +551,7 @@ impl VideoCache {
     }
 
     // add item to the cache.
-    fn add(&mut self, key: PathBuf, video: Arc<VideoMetadata>) {
+    fn add(&mut self, key: (PathBuf, u32), video: Arc<VideoMetadata>) {
         // Ignore duplicate keys.
         if self.items.contains_key(&key) {
             return;
@@ -578,9 +579,9 @@ impl VideoCache {
     }
 
     // Get item by key and update its age if it exists.
-    fn get(&mut self, key: &Path) -> Option<Arc<VideoMetadata>> {
+    fn get(&mut self, key: (&Path, u32)) -> Option<Arc<VideoMetadata>> {
         for (item_key, item) in &mut self.items {
-            if item_key == key {
+            if item_key.0 == key.0 && item_key.1 == key.1 {
                 self.age += 1;
                 item.age = self.age;
                 return Some(item.data.clone());
@@ -634,7 +635,7 @@ mod tests {
         std::fs::write(meta_path, test_meta).unwrap();
         std::fs::write(mdat_path, [0, 0, 0, 0]).unwrap();
 
-        let mut video = new_video_reader(path, &None).await.unwrap();
+        let mut video = new_video_reader(path, 0, &None).await.unwrap();
 
         // Read 1000 bytes.
         let mut buf = vec![0; 100];
@@ -702,16 +703,16 @@ mod tests {
         cache.max_size = 3;
 
         // Fill cache.
-        cache.add(PathBuf::from("A"), empty_metadata());
-        cache.add(PathBuf::from("B"), empty_metadata());
-        cache.add(PathBuf::from("C"), empty_metadata());
+        cache.add((PathBuf::from("A"), 0), empty_metadata());
+        cache.add((PathBuf::from("B"), 1), empty_metadata());
+        cache.add((PathBuf::from("C"), 0), empty_metadata());
 
         // Add item and check if "A" was removed.
-        cache.add(PathBuf::from("D"), empty_metadata());
-        assert!(cache.get(Path::new("A")).is_none());
+        cache.add((PathBuf::from("D"), 0), empty_metadata());
+        assert!(cache.get((Path::new("A"), 0)).is_none());
 
         // Get "B" to make it the newest item.
-        cache.get(Path::new("B"));
+        cache.get((Path::new("B"), 1));
 
         // Add item and check if "C" was removed instead of "B".
         let e = Arc::new(VideoMetadata {
@@ -719,20 +720,20 @@ mod tests {
             mdat_size: 9999,
             last_modified: UNIX_EPOCH,
         });
-        cache.add(PathBuf::from("E"), e.clone());
-        assert!(cache.get(Path::new("C")).is_none());
+        cache.add((PathBuf::from("E"), 0), e.clone());
+        assert!(cache.get((Path::new("C"), 0)).is_none());
 
         // Add item and check if "D" was removed instead of "B".
-        cache.add(PathBuf::from("F"), empty_metadata());
-        assert!(cache.get(Path::new("D")).is_none());
+        cache.add((PathBuf::from("F"), 0), empty_metadata());
+        assert!(cache.get((Path::new("D"), 0)).is_none());
 
         // Add item and check if "B" was removed.
-        cache.add(PathBuf::from("G"), empty_metadata());
-        assert!(cache.get(Path::new("B")).is_none());
+        cache.add((PathBuf::from("G"), 0), empty_metadata());
+        assert!(cache.get((Path::new("B"), 1)).is_none());
 
         // Check if duplicate keys are ignored.
-        cache.add(PathBuf::from("G"), empty_metadata());
-        let e2 = cache.get(Path::new("E")).unwrap();
+        cache.add((PathBuf::from("G"), 0), empty_metadata());
+        let e2 = cache.get((Path::new("E"), 0)).unwrap();
         assert_eq!(e, e2);
     }
 }

@@ -116,7 +116,7 @@ enum ConvertError {
 
 async fn convert(recording_path: PathBuf) -> Result<(), ConvertError> {
     use ConvertError::*;
-    let mut video_reader = new_video_reader(recording_path.clone(), &None).await?;
+    let mut video_reader = new_video_reader(recording_path.clone(), 0, &None).await?;
 
     let mut mp4_path = recording_path.clone();
     mp4_path.set_extension("mp4");
