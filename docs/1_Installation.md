@@ -19,6 +19,7 @@ name = "auth_none"
 
 ## Docker Install
 
+Note: Docker will bypass the firewall and [expose ports by default.](https://stackoverflow.com/questions/30383845/what-is-the-best-practice-of-docker-ufw-under-ubuntu)
 
 ```
 docker run -it \
@@ -27,7 +28,7 @@ docker run -it \
 	-v /docker/sentryshot/configs:/app/configs \
 	-v /docker/sentryshot/storage:/app/storage \
 	-p 2020:2020 \
-	codeberg.org/sentryshot/sentryshot:v0.2.16
+	codeberg.org/sentryshot/sentryshot:v0.2.17
 ```
 
 App will be served on `http://ip:2020/live`
@@ -38,7 +39,7 @@ App will be served on `http://ip:2020/live`
 services:
   sentryshot:
     shm_size: 500m
-    image: codeberg.org/sentryshot/sentryshot:v0.2.16
+    image: codeberg.org/sentryshot/sentryshot:v0.2.17
     ports:
       - 2020:2020
     environment:
