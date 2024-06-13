@@ -37,8 +37,8 @@ pub fn generate_mp4(
         out,
         //videoTrack: videoTrack,
         start_time,
-        end_time: UnixH264::from(0),
-        dts_shift: 0,
+        end_time: UnixH264::new(0),
+        dts_shift: DurationH264::new(0),
         mdat_pos: 0,
         stts: Vec::new(),
         stss: Vec::new(),
@@ -71,7 +71,7 @@ struct Muxer<'a> {
 
     start_time: UnixH264,
     end_time: UnixH264,
-    dts_shift: i64,
+    dts_shift: DurationH264,
     mdat_pos: u32,
     stts: Vec<mp4::SttsEntry>,
     stss: Vec<u32>,
@@ -85,45 +85,37 @@ impl Muxer<'_> {
     #[allow(clippy::similar_names)]
     fn write_sample(&mut self, sample: &Sample) -> Result<(), GenerateMp4Error> {
         use GenerateMp4Error::*;
-        //duration := sample.Next - sample.DTS
-        //delta := hls.NanoToTimescale(duration, hls.VideoTimescale)
+
         let delta = sample.duration.as_u32()?;
-        if let Some(last) = self.stts.last_mut() {
-            if last.sample_delta == delta {
+        match self.stts.last_mut() {
+            Some(last) if last.sample_delta == delta => {
                 last.sample_count += 1;
-            } else {
-                self.stts.push(mp4::SttsEntry {
-                    sample_count: 1,
-                    sample_delta: delta,
-                });
             }
-        } else {
-            self.stts.push(mp4::SttsEntry {
+            _ => self.stts.push(mp4::SttsEntry {
                 sample_count: 1,
                 sample_delta: delta,
-            });
+            }),
         }
 
-        let pts = sample.pts.checked_sub(self.start_time).ok_or(Sub)?;
+        let pts = sample
+            .pts
+            .checked_sub(self.start_time)
+            .ok_or(Sub)?
+            .as_duration();
         let dts = sample
             .dts()
             .ok_or(Sub)?
             .checked_sub(self.start_time)
-            .ok_or(Sub)?;
-        //pts := hls.NanoToTimescale(sample.PTS-m.startTime, hls.VideoTimescale)
-        //dts := hls.NanoToTimescale(sample.DTS-m.startTime, hls.VideoTimescale)
+            .ok_or(Sub)?
+            .as_duration();
 
         let first_sample = self.stsc.is_empty();
         if first_sample {
-            self.dts_shift = *pts.checked_sub(dts).ok_or(Sub)?;
+            self.dts_shift = pts.checked_sub(dts).ok_or(Sub)?;
         }
-        /*if m.firstSample {
-            m.dtsShift = pts - dts
-        }*/
 
         let cts = i32::try_from(
-            (*pts)
-                .checked_sub(dts.checked_add(self.dts_shift).ok_or(Add)?)
+            *pts.checked_sub(dts.checked_add(self.dts_shift).ok_or(Add)?)
                 .ok_or(Add)?,
         )?;
         //cts := pts - (dts + m.dtsShift)
@@ -167,7 +159,7 @@ impl Muxer<'_> {
         self.end_time = sample
             .dts()
             .ok_or(Sub)?
-            .checked_add_duration(sample.duration)
+            .checked_add(sample.duration.into())
             .ok_or(Add)?;
 
         Ok(())
@@ -439,6 +431,7 @@ impl From<MyAvcC> for Box<dyn ImmutableBox> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common::time::DtsOffset;
     use pretty_assertions::assert_eq;
     use pretty_hex::pretty_hex;
     use std::io::Cursor;
@@ -450,27 +443,27 @@ mod tests {
             Sample {
                 // VideoSample3. B-Frame.
                 random_access_present: false,
-                pts: UnixH264::from(18),
-                dts_offset: DurationH264::from(-9),
-                duration: DurationH264::from(9),
+                pts: UnixH264::new(18),
+                dts_offset: DtsOffset::new(-9),
+                duration: DurationH264::new(9),
                 data_size: 2,
                 data_offset: 0,
             },
             Sample {
                 // VideoSample2. P-Frame.
                 random_access_present: false,
-                pts: UnixH264::from(27),
-                dts_offset: DurationH264::from(9),
-                duration: DurationH264::from(9),
+                pts: UnixH264::new(27),
+                dts_offset: DtsOffset::new(9),
+                duration: DurationH264::new(9),
                 data_size: 2,
                 data_offset: 0,
             },
             Sample {
                 // VideoSample1. I-Frame.
                 random_access_present: true,
-                pts: UnixH264::from(14),
-                dts_offset: DurationH264::from(5),
-                duration: DurationH264::from(9),
+                pts: UnixH264::new(14),
+                dts_offset: DtsOffset::new(5),
+                duration: DurationH264::new(9),
                 data_size: 2,
                 data_offset: 0,
             },
@@ -500,7 +493,7 @@ mod tests {
             ],
         };
 
-        let start_time = UnixH264::from(1);
+        let start_time = UnixH264::new(1);
         let mdat_size = generate_mp4(&mut buf, start_time, samples, &params).unwrap();
         assert_eq!(6, mdat_size);
 

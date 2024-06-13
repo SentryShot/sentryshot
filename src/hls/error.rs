@@ -1,5 +1,6 @@
 #![allow(clippy::module_name_repetitions)]
 
+use common::time::{DtsOffset, UnixH264};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -33,6 +34,9 @@ pub enum GeneratePartError {
 pub enum GenerateTrafError {
     #[error("from int: {0} {1}")]
     TryFromInt(String, std::num::TryFromIntError),
+
+    #[error("dts {0:?} {1:?}")]
+    Dts(UnixH264, DtsOffset),
 
     #[error("sub")]
     Sub,
@@ -105,6 +109,15 @@ pub enum SegmenterWriteH264Error {
 
     #[error("switch segment")]
     SwitchSegment,
+
+    #[error("sub")]
+    Sub,
+
+    #[error("add")]
+    Add,
+
+    #[error("dts")]
+    Dts,
 }
 
 #[derive(Debug, Error)]
@@ -117,4 +130,13 @@ pub enum AdjustPartDurationError {
 pub enum ParseParamsError {
     #[error("{0}")]
     TryFromInt(#[from] std::num::TryFromIntError),
+}
+
+#[derive(Debug, Error)]
+pub enum CreateSegmenterError {
+    #[error("first sample is not an IDR")]
+    NotIdr,
+
+    #[error("Dts is not zero")]
+    DtsNotZero,
 }

@@ -3,7 +3,7 @@
 use crate::{source::Source, DynMonitorHooks};
 use common::{
     monitor::MonitorConfig,
-    time::{Duration, DurationH264, UnixH264, UnixNano, MINUTE},
+    time::{Duration, DurationH264, UnixH264, UnixNano},
     DynHlsMuxer, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
     SegmentFinalized, TrackParameters,
 };
@@ -271,8 +271,7 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
         .new_recording(monitor_id.clone(), start_time)
         .await?;
 
-    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
-    let video_length = Duration::from(c.config.video_length() * (MINUTE as f64));
+    let video_length = DurationH264::from(c.config.video_length());
 
     c.logger.log(
         LogLevel::Info,
@@ -303,7 +302,7 @@ async fn run_recording(c: RecordingContext) -> Result<(), RunRecordingError> {
         &muxer,
         first_segment,
         params,
-        video_length.as_h264(),
+        video_length,
     )
     .await?;
     *c.prev_seg.lock().await = Some(new_prev_seg);
@@ -358,7 +357,7 @@ async fn generate_video(
 
     let stop_time = first_segment
         .start_time()
-        .checked_add_duration(max_duration)
+        .checked_add(max_duration.into())
         .ok_or(GenerateVideoError::Add)?;
 
     let mut meta = recording.new_file("meta").await?;
@@ -381,7 +380,7 @@ async fn generate_video(
     let mut prev_seg = first_segment.clone();
     let mut end_time = first_segment
         .start_time()
-        .checked_add_duration(first_segment.duration())
+        .checked_add(first_segment.duration().into())
         .ok_or(Add)?;
 
     loop {
@@ -401,7 +400,7 @@ async fn generate_video(
         w.write_parts(seg.parts()).await?;
         end_time = seg
             .start_time()
-            .checked_add_duration(seg.duration())
+            .checked_add(seg.duration().into())
             .ok_or(Add)?;
 
         if seg.start_time().after(stop_time) {
@@ -637,7 +636,8 @@ mod tests {
     use super::*;
     use bytesize::ByteSize;
     use common::{
-        new_dummy_msg_logger, Detection, DummyLogger, PointNormalized, RectangleNormalized, Region,
+        new_dummy_msg_logger, time::MINUTE, Detection, DummyLogger, PointNormalized,
+        RectangleNormalized, Region,
     };
     use pretty_assertions::assert_eq;
     use recdb::Disk;
@@ -946,13 +946,13 @@ mod tests {
     async fn test_save_recording() {
         let event_cache = Arc::new(EventCache(Mutex::new(vec![
             Event {
-                time: UnixNano::from(0),
+                time: UnixNano::new(0),
                 duration: Duration::from(0),
                 rec_duration: Duration::from(0),
                 detections: Vec::new(),
             },
             Event {
-                time: UnixNano::from(2 * MINUTE),
+                time: UnixNano::new(2 * MINUTE),
                 duration: Duration::from(11),
                 rec_duration: Duration::from(0),
                 detections: vec![Detection {
@@ -973,15 +973,15 @@ mod tests {
                 }],
             },
             Event {
-                time: UnixNano::from(11 * MINUTE),
+                time: UnixNano::new(11 * MINUTE),
                 duration: Duration::from(0),
                 rec_duration: Duration::from(0),
                 detections: Vec::new(),
             },
         ])));
 
-        let start = UnixNano::from(MINUTE);
-        let end = UnixNano::from(11 * MINUTE);
+        let start = UnixNano::new(MINUTE);
+        let end = UnixNano::new(11 * MINUTE);
         let tempdir = tempdir().unwrap();
 
         let rec_db = new_test_recdb(&tempdir.path().join("recordings"));

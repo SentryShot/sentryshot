@@ -8,10 +8,10 @@ mod segmenter;
 mod types;
 
 use crate::error::PartHlsQueryError;
-pub use crate::error::SegmenterWriteH264Error;
+pub use crate::error::{CreateSegmenterError, SegmenterWriteH264Error};
 use common::{
     time::{DurationH264, H264_MILLISECOND},
-    DynLogger, TrackParameters,
+    DynLogger, H264Data, TrackParameters,
 };
 pub use error::ParseParamsError;
 pub use muxer::{HlsMuxer, NextSegmentGetter};
@@ -48,7 +48,8 @@ impl HlsServer {
                         if let Some(old_muxer) = muxers.remove(&req.name) {
                             old_muxer.cancel();
                         }
-                        let (muxer, writer) = HlsMuxer::new(
+
+                        let result = HlsMuxer::new(
                             &req.token,
                             &logger,
                             HLS_SEGMENT_COUNT,
@@ -57,11 +58,18 @@ impl HlsServer {
                             HLS_SEGMENT_MAX_SIZE,
                             req.params,
                             muxer_id_counter.next_id(),
+                            req.first_sample,
                         );
-
-                        let muxer = Arc::new(muxer);
-                        muxers.insert(req.name, muxer.clone());
-                        _ = req.res_tx.send((muxer,writer));
+                        match result {
+                            Ok((muxer,writer)) => {
+                                let muxer = Arc::new(muxer);
+                                muxers.insert(req.name, muxer.clone());
+                                _ = req.res_tx.send(Ok((muxer,writer)));
+                            },
+                            Err(e) => {
+                                _ = req.res_tx.send(Err(e));
+                            },
+                        }
                     }
 
                     req = muxer_by_name_rx.recv() => {
@@ -89,22 +97,27 @@ impl HlsServer {
         token: CancellationToken,
         name: String,
         params: TrackParameters,
-    ) -> Option<(Arc<HlsMuxer>, H264Writer)> {
+        first_sample: H264Data,
+    ) -> Result<Option<(Arc<HlsMuxer>, H264Writer)>, CreateSegmenterError> {
         let (res_tx, res_rx) = oneshot::channel();
         let req = NewMuxerRequest {
             token,
             name,
             params,
+            first_sample,
             res_tx,
         };
         if self.new_muxer_tx.send(req).await.is_err() {
-            return None;
+            return Ok(None);
         }
 
         let Ok(res) = res_rx.await else {
-            return None;
+            return Ok(None);
         };
-        Some(res)
+        match res {
+            Ok(v) => Ok(Some(v)),
+            Err(v) => Err(v),
+        }
     }
 
     #[allow(clippy::similar_names)]
@@ -135,7 +148,8 @@ struct NewMuxerRequest {
     token: CancellationToken,
     name: String,
     params: TrackParameters,
-    res_tx: oneshot::Sender<(Arc<HlsMuxer>, H264Writer)>,
+    first_sample: H264Data,
+    res_tx: oneshot::Sender<Result<(Arc<HlsMuxer>, H264Writer), CreateSegmenterError>>,
 }
 
 struct MuxerByNameRequest {
@@ -230,9 +244,15 @@ mod tests {
             extra_data: Vec::new(),
         };
 
+        let first_sample = H264Data {
+            random_access_present: true,
+            ..Default::default()
+        };
+
         let (_, mut writer) = server
-            .new_muxer(token, "test".to_owned(), params)
+            .new_muxer(token, "test".to_owned(), params, first_sample)
             .await
+            .unwrap()
             .unwrap();
         let muxer = server
             .muxer_by_name("test".to_owned())
@@ -247,7 +267,6 @@ None", get_playlist(&muxer, None).await
         );
 
         // 1 second = 90000.
-        writer.test_write(0, Vec::new(), true).await;
         writer.test_write(100_000, Vec::new(), true).await;
 
         #[rustfmt::skip]
@@ -299,9 +318,15 @@ seg7.mp4
             extra_data: Vec::new(),
         };
 
+        let first_sample = H264Data {
+            random_access_present: true,
+            ..Default::default()
+        };
+
         let (_, mut writer) = server
-            .new_muxer(token, "test".to_owned(), params)
+            .new_muxer(token, "test".to_owned(), params, first_sample)
             .await
+            .unwrap()
             .unwrap();
         let muxer = server
             .muxer_by_name("test".to_owned())
@@ -309,7 +334,6 @@ seg7.mp4
             .unwrap()
             .unwrap();
 
-        writer.test_write(0, Vec::new(), true).await;
         writer.test_write(100_000, Vec::new(), true).await;
 
         #[rustfmt::skip]
@@ -382,14 +406,24 @@ seg7.mp4
             extra_data: Vec::new(),
         };
 
+        let first_sample = H264Data {
+            random_access_present: true,
+            ..Default::default()
+        };
+
         let (muxer, mut writer) = server
-            .new_muxer(token.clone(), "test".to_owned(), params.clone())
+            .new_muxer(
+                token.clone(),
+                "test".to_owned(),
+                params.clone(),
+                first_sample.clone(),
+            )
             .await
+            .unwrap()
             .unwrap();
 
         assert_eq!(muxer.playlist_state().await.num_segments, 0);
 
-        writer.test_write(0, Vec::new(), true).await;
         writer.test_write(1_000_000, Vec::new(), true).await;
         writer.test_write(2_000_000, Vec::new(), true).await;
         writer.test_write(3_000_000, Vec::new(), true).await;
@@ -406,8 +440,9 @@ seg7.mp4
 
         // Attempt to use segments from a different muxer.
         let (muxer2, mut writer2) = server
-            .new_muxer(token, "test".to_owned(), params)
+            .new_muxer(token, "test".to_owned(), params, first_sample)
             .await
+            .unwrap()
             .unwrap();
 
         let muxer3 = muxer2.clone();
@@ -417,7 +452,6 @@ seg7.mp4
             tokio::task::yield_now().await;
         }
 
-        writer2.test_write(0, Vec::new(), true).await;
         writer2.test_write(1_000_000, Vec::new(), true).await;
         writer2.test_write(2_000_000, Vec::new(), true).await;
         writer2.test_write(3_000_000, Vec::new(), true).await;

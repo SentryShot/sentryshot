@@ -17,8 +17,8 @@ use axum::{
     Router,
 };
 use common::{
-    time::UnixNano, DynAuth, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, LogSource,
-    MonitorId, MsgLogger,
+    time::{DurationH264, UnixNano},
+    DynAuth, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
 };
 use monitor::{DecoderError, Monitor, MonitorManager, Source, SubscribeDecodedError};
 use plugin::{
@@ -231,7 +231,7 @@ impl MotionPlugin {
             })
             .collect();
 
-        let limiter = FrameRateLimiter::new(u64::try_from(*config.feed_rate.as_h264())?);
+        let limiter = FrameRateLimiter::new(u64::try_from(*DurationH264::from(*config.feed_rate))?);
 
         let raw_frame_size = usize::from(width) * usize::from(height);
         let mut state = DetectorState {

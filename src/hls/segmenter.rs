@@ -1,5 +1,5 @@
 use crate::{
-    error::{AdjustPartDurationError, SegmenterWriteH264Error},
+    error::{AdjustPartDurationError, CreateSegmenterError, SegmenterWriteH264Error},
     playlist::Playlist,
     segment::Segment,
     types::IdCounter,
@@ -32,11 +32,12 @@ impl H264Writer {
     #[cfg(test)]
     #[allow(clippy::unwrap_used)]
     pub async fn test_write(&mut self, pts: i64, avcc: Vec<u8>, random_access: bool) {
+        use common::time::DtsOffset;
         use sentryshot_padded_bytes::PaddedBytes;
 
         self.write_h264(H264Data {
-            pts: DurationH264::new(pts),
-            dts: DurationH264::new(pts),
+            pts: UnixH264::new(pts),
+            dts_offset: DtsOffset::new(0),
             avcc: Arc::new(PaddedBytes::new(avcc)),
             random_access_present: random_access,
         })
@@ -52,12 +53,13 @@ pub struct Segmenter {
     playlist: Arc<Playlist>,
     muxer_id: u16,
 
-    muxer_start_time: i64,
+    first_sample_time: DurationH264,
+    muxer_start_time: UnixH264,
     //last_video_params: Vec<Vec<u8>>,
     current_segment: Option<Segment>,
     segment_id_counter: IdCounter,
     part_id_counter: IdCounter,
-    next_sample: Option<VideoSample>,
+    next_sample: VideoSample,
     first_segment_finalized: bool,
     sample_durations: HashSet<DurationH264>,
     adjusted_part_duration: DurationH264,
@@ -65,29 +67,48 @@ pub struct Segmenter {
 
 impl Segmenter {
     pub fn new(
-        muxer_start_time: i64,
         segment_duration: DurationH264,
         part_duration: DurationH264,
         segment_max_size: u64,
         playlist: Arc<Playlist>,
         muxer_id: u16,
-    ) -> Self {
-        Self {
+        first_sample: H264Data,
+    ) -> Result<Self, CreateSegmenterError> {
+        if !first_sample.random_access_present {
+            return Err(CreateSegmenterError::NotIdr);
+        }
+        if *first_sample.dts_offset != 0 {
+            return Err(CreateSegmenterError::DtsNotZero);
+        }
+
+        let first_sample_time = first_sample.pts.into();
+        let muxer_start_time = UnixH264::now();
+
+        let next_sample = VideoSample {
+            pts: muxer_start_time,
+            dts_offset: first_sample.dts_offset,
+            avcc: first_sample.avcc,
+            random_access_present: first_sample.random_access_present,
+            duration: DurationH264::new(0),
+        };
+
+        Ok(Self {
             segment_duration,
             part_duration,
             segment_max_size,
             playlist,
+            first_sample_time,
             muxer_start_time,
             muxer_id,
             //last_video_params: Vec::new(),
             current_segment: None,
             segment_id_counter: IdCounter::new(7), // 7 required by iOS.
             part_id_counter: IdCounter::new(0),
-            next_sample: None,
+            next_sample,
             first_segment_finalized: false,
             sample_durations: HashSet::new(),
-            adjusted_part_duration: DurationH264::from(0),
-        }
+            adjusted_part_duration: DurationH264::new(0),
+        })
     }
 
     // iPhone iOS fails if part durations are less than 85% of maximum part duration.
@@ -111,55 +132,52 @@ impl Segmenter {
         Ok(())
     }
 
-    // First packet must be an IDR.
     pub async fn write_h264(&mut self, data: H264Data) -> Result<(), SegmenterWriteH264Error> {
         use crate::error::SegmenterWriteH264Error::*;
+
+        let pts = data
+            .pts
+            .checked_sub(self.first_sample_time.into())
+            .ok_or(Sub)?
+            .checked_add(self.muxer_start_time)
+            .ok_or(Add)?;
+
         let sample = VideoSample {
-            ntp: UnixH264::now(),
-            pts: data.pts,
-            dts: data.dts,
+            pts,
+            dts_offset: data.dts_offset,
             avcc: data.avcc,
             random_access_present: data.random_access_present,
-            duration: DurationH264::from(0),
+            duration: DurationH264::new(0),
         };
 
-        let next_dts = sample.dts;
+        let next_dts = sample.dts().ok_or(Dts)?;
 
         // Put samples in a queue in order to compute sample duration.
-        let Some(mut sample) = self.next_sample.replace(sample) else {
-            // Return if next_sample is None.
-            return Ok(());
-        };
+        let mut sample = std::mem::replace(&mut self.next_sample, sample);
 
-        let sample_ntp = sample.ntp;
-        let sample_dts = sample.dts;
+        let sample_dts = sample.dts().ok_or(Dts)?;
 
         sample.duration = next_dts
             .checked_sub(sample_dts)
-            .ok_or(ComputeSampleDuration)?;
+            .ok_or(ComputeSampleDuration)?
+            .into();
         if *sample.duration < 0 {
-            sample.duration = DurationH264::from(0);
+            sample.duration = DurationH264::new(0);
         }
 
         self.adjust_part_duration(sample.duration)?;
 
-        let current_segment = {
-            if let Some(current_segment) = &mut self.current_segment {
-                current_segment
-            } else {
-                // create first segment.
-                self.current_segment.insert(Segment::new(
-                    self.segment_id_counter.next_id(),
-                    self.muxer_id,
-                    sample_ntp,
-                    sample_dts,
-                    self.muxer_start_time,
-                    self.segment_max_size,
-                    self.playlist.clone(),
-                    &mut self.part_id_counter,
-                ))
-            }
-        };
+        let current_segment = self.current_segment.get_or_insert_with(|| {
+            Segment::new(
+                self.segment_id_counter.next_id(),
+                self.muxer_id,
+                sample_dts,
+                self.muxer_start_time,
+                self.segment_max_size,
+                self.playlist.clone(),
+                &mut self.part_id_counter,
+            )
+        });
 
         let segment_start_dts = current_segment.start_dts();
         current_segment
@@ -175,16 +193,16 @@ impl Segmenter {
             //videoParams := extractVideoParams(m.videoTrack)
             //paramsChanged := !videoParamsEqual(m.lastVideoParams, videoParams)
 
-            if next_dts
-                .checked_sub(segment_start_dts)
-                .ok_or(SwitchSegment)?
-                >= self.segment_duration
+            if DurationH264::from(
+                next_dts
+                    .checked_sub(segment_start_dts)
+                    .ok_or(SwitchSegment)?,
+            ) >= self.segment_duration
             /*|| paramsChanged*/
             {
                 let next_segment = Segment::new(
                     self.segment_id_counter.next_id(),
                     self.muxer_id,
-                    sample_ntp,
                     sample_dts,
                     self.muxer_start_time,
                     self.segment_max_size,
@@ -247,14 +265,14 @@ fn part_duration_is_compatible(
 
     let mut f = part_duration.checked_div(sample_duration)?;
     if !(part_duration.checked_rem(sample_duration)?).is_zero() {
-        f = f.checked_add(DurationH264::from(1))?;
+        f = f.checked_add(DurationH264::new(1))?;
     }
     f = f.checked_mul(sample_duration)?;
 
     Some(
         part_duration
-            > f.checked_mul(DurationH264::from(85))?
-                .checked_div(DurationH264::from(100))?,
+            > f.checked_mul(DurationH264::new(85))?
+                .checked_div(DurationH264::new(100))?,
     )
 }
 

@@ -3,12 +3,15 @@ use crate::{
     types::VIDEO_TRACK_ID,
 };
 use bytes::Bytes;
-use common::{time::DurationH264, PartFinalized, VideoSample};
+use common::{
+    time::{DurationH264, UnixH264},
+    PartFinalized, VideoSample,
+};
 use mp4::ImmutableBox;
 use std::sync::Arc;
 
 fn generate_part(
-    //muxer_start_time: i64,
+    muxer_start_time: UnixH264,
     video_samples: Arc<Vec<VideoSample>>,
 ) -> Result<Bytes, GeneratePartError> {
     /*
@@ -34,7 +37,7 @@ fn generate_part(
     let mdat_offset = mfhd_offset + video_trun_size + 44;
 
     let video_data_offset = i32::try_from(mdat_offset + 8)?;
-    let traf = generate_traf(/*muxer_start_time,*/ &video_samples, video_data_offset)?;
+    let traf = generate_traf(muxer_start_time, &video_samples, video_data_offset)?;
 
     moof.children.push(traf);
 
@@ -73,7 +76,7 @@ impl From<MyMdat> for Box<dyn ImmutableBox> {
 }
 
 fn generate_traf(
-    /*muxer_start_time: i64,*/
+    muxer_start_time: UnixH264,
     video_samples: &Vec<VideoSample>,
     data_offset: i32,
 ) -> Result<mp4::Boxes, GenerateTrafError> {
@@ -87,23 +90,6 @@ fn generate_traf(
 
     let mut trun_entries = Vec::with_capacity(video_samples.len());
     for sample in video_samples {
-        let off = sample
-            .pts
-            .checked_sub(sample.dts)
-            .ok_or(Sub)?
-            .as_i32()
-            .map_err(|e| {
-                TryFromInt(
-                    format!(
-                        "off: {} {} {:?}",
-                        *sample.pts,
-                        *sample.dts,
-                        *sample.pts - *sample.dts
-                    ),
-                    e,
-                )
-            })?;
-
         let flags = if sample.random_access_present {
             0
         } else {
@@ -117,9 +103,17 @@ fn generate_traf(
                 .map_err(|e| TryFromInt("sample_size".to_owned(), e))?,
             sample_flags: flags,
             sample_composition_time_offset_v0: 0,
-            sample_composition_time_offset_v1: off,
+            sample_composition_time_offset_v1: *sample.dts_offset,
         });
     }
+
+    let first_sample = &video_samples[0];
+    let dts = first_sample
+        .dts()
+        .ok_or(Dts(first_sample.pts, first_sample.dts_offset))?;
+    let relative_dts = dts.checked_sub(muxer_start_time).ok_or(Sub)?;
+    let base_media_decode_time_v1 = u64::try_from(*relative_dts)
+        .map_err(|e| TryFromInt(format!("base_media_decode_time: {relative_dts:?}"), e))?;
 
     // Traf
     Ok(mp4::Boxes::new(mp4::Traf).with_children3(
@@ -140,12 +134,7 @@ fn generate_traf(
             },
             // sum of decode durations of all earlier samples
             base_media_decode_time_v0: 0,
-            base_media_decode_time_v1: u64::try_from(*video_samples[0].dts).map_err(|e| {
-                TryFromInt(
-                    format!("base_media_decode_time: {:?}", video_samples[0].dts),
-                    e,
-                )
-            })?,
+            base_media_decode_time_v1,
         }),
         // Trun.
         mp4::Boxes::new(mp4::Trun {
@@ -170,9 +159,8 @@ fn generate_traf(
 #[derive(Clone)]
 #[allow(clippy::module_name_repetitions)]
 pub struct MuxerPart {
-    pub muxer_start_time: i64,
     pub id: u64,
-
+    pub muxer_start_time: UnixH264,
     pub is_independent: bool,
     pub video_samples: Vec<VideoSample>,
 }
@@ -190,17 +178,17 @@ impl std::fmt::Debug for MuxerPart {
 }
 
 impl MuxerPart {
-    pub fn new(muxer_start_time: i64, id: u64) -> Self {
+    pub fn new(id: u64, muxer_start_time: UnixH264) -> Self {
         Self {
-            muxer_start_time,
             id,
+            muxer_start_time,
             is_independent: false,
             video_samples: Vec::new(),
         }
     }
 
     pub fn duration(&self) -> Option<DurationH264> {
-        let mut total = DurationH264::from(0);
+        let mut total = DurationH264::new(0);
         for e in &self.video_samples {
             total = total.checked_add(e.duration)?;
         }
@@ -213,14 +201,10 @@ impl MuxerPart {
         let rendered_content = if video_samples.is_empty() {
             None
         } else {
-            Some(generate_part(
-                //self.muxer_start_time,
-                video_samples.clone(),
-            )?)
+            Some(generate_part(self.muxer_start_time, video_samples.clone())?)
         };
 
         Ok(PartFinalized {
-            muxer_start_time: self.muxer_start_time,
             id: self.id,
             is_independent: self.is_independent,
             video_samples: video_samples.clone(),
@@ -241,22 +225,14 @@ impl MuxerPart {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::time::UnixH264;
+    use common::time::{DtsOffset, UnixH264, SECOND};
     use pretty_assertions::assert_eq;
     use pretty_hex::pretty_hex;
     use sentryshot_padded_bytes::PaddedBytes;
 
     #[test]
     fn test_generate_part_minimal() {
-        let samples = vec![VideoSample {
-            ntp: UnixH264::from(0),
-            pts: DurationH264::from(0),
-            dts: DurationH264::from(0),
-            avcc: Arc::new(PaddedBytes::new(vec![])),
-            random_access_present: false,
-            duration: DurationH264::from(0),
-        }];
-        let got = generate_part(Arc::new(samples)).unwrap();
+        let got = generate_part(UnixH264::new(0), Arc::new(vec![VideoSample::default()])).unwrap();
 
         let want = vec![
             0, 0, 0, 0x68, b'm', b'o', b'o', b'f', //
@@ -286,15 +262,11 @@ mod tests {
     #[test]
     fn test_generate_part_video_sample() {
         let samples = vec![VideoSample {
-            ntp: UnixH264::from(0),
-            pts: DurationH264::from(0),
-            dts: DurationH264::from(0),
             avcc: Arc::new(PaddedBytes::new(b"abcd".to_vec())),
-            random_access_present: false,
-            duration: DurationH264::from(0),
+            ..Default::default()
         }];
 
-        let got = generate_part(Arc::new(samples)).unwrap();
+        let got = generate_part(UnixH264::new(0), Arc::new(samples)).unwrap();
         let want = vec![
             0, 0, 0, 0x68, b'm', b'o', b'o', b'f', //
             0, 0, 0, 0x10, b'm', b'f', b'h', b'd', //
@@ -325,32 +297,21 @@ mod tests {
     fn test_generate_part_multiple_video_samples() {
         let samples = vec![
             VideoSample {
-                ntp: UnixH264::from(0),
-                pts: DurationH264::from(0),
-                dts: DurationH264::from(0),
                 avcc: Arc::new(PaddedBytes::new(b"abcd".to_vec())),
                 random_access_present: true,
-                duration: DurationH264::from(0),
+                ..Default::default()
             },
             VideoSample {
-                ntp: UnixH264::from(0),
-                pts: DurationH264::from(0),
-                dts: DurationH264::from(0),
                 avcc: Arc::new(PaddedBytes::new(b"efgh".to_vec())),
-                random_access_present: false,
-                duration: DurationH264::from(0),
+                ..Default::default()
             },
             VideoSample {
-                ntp: UnixH264::from(0),
-                pts: DurationH264::from(0),
-                dts: DurationH264::from(0),
                 avcc: Arc::new(PaddedBytes::new(b"ijkl".to_vec())),
-                random_access_present: false,
-                duration: DurationH264::from(0),
+                ..Default::default()
             },
         ];
 
-        let got = generate_part(Arc::new(samples)).unwrap();
+        let got = generate_part(UnixH264::new(0), Arc::new(samples)).unwrap();
 
         let want = vec![
             0, 0, 0, 0x88, b'm', b'o', b'o', b'f', //
@@ -389,26 +350,25 @@ mod tests {
 
     #[test]
     fn test_generate_part_minimal_real() {
+        let start_time = UnixH264::new(1_000_000_000 * SECOND);
         let samples = vec![
             VideoSample {
-                ntp: UnixH264::from(0),
-                pts: DurationH264::from(54000),
-                dts: DurationH264::from(60000),
+                pts: start_time + UnixH264::new(54000),
+                dts_offset: DtsOffset::new(54000 - 60000),
                 avcc: Arc::new(PaddedBytes::new(b"abcd".to_vec())),
                 random_access_present: true,
-                duration: DurationH264::from(11999),
+                duration: DurationH264::new(11999),
             },
             VideoSample {
-                ntp: UnixH264::from(0),
-                pts: DurationH264::from(63000),
-                dts: DurationH264::from(72000),
+                pts: start_time + UnixH264::new(63000),
+                dts_offset: DtsOffset::new(63000 - 72000),
                 avcc: Arc::new(PaddedBytes::new(b"efgh".to_vec())),
                 random_access_present: false,
-                duration: DurationH264::from(9000),
+                duration: DurationH264::new(9000),
             },
         ];
 
-        let got = generate_part(Arc::new(samples)).unwrap();
+        let got = generate_part(start_time, Arc::new(samples)).unwrap();
 
         let want = vec![
             0, 0, 0, 0x78, b'm', b'o', b'o', b'f', //

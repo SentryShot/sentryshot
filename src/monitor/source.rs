@@ -3,17 +3,17 @@
 use crate::log_monitor;
 use common::{
     monitor::{Protocol, RtspUrl, SourceRtspConfig},
-    time::DurationH264,
+    time::{DtsOffset, UnixH264},
     DynHlsMuxer, DynLogger, DynMsgLogger, H264Data, LogEntry, LogLevel, MonitorId, MsgLogger,
     StreamType,
 };
 use futures::StreamExt;
 use hls::{
-    track_params_from_video_params, H264Writer, HlsServer, ParseParamsError,
+    track_params_from_video_params, CreateSegmenterError, H264Writer, HlsServer, ParseParamsError,
     SegmenterWriteH264Error,
 };
 use recording::{FrameRateLimiter, FrameRateLimiterError};
-use retina::codec::ParametersRef;
+use retina::codec::{ParametersRef, VideoFrame};
 use sentryshot_convert::Frame;
 use sentryshot_ffmpeg_h264::{
     H264BuilderError, H264Decoder, H264DecoderBuilder, Packet, PaddedBytes, Ready,
@@ -357,18 +357,25 @@ impl SourceRtsp {
                     };
                     match pkt {
                         Ok(retina::codec::CodecItem::VideoFrame(frame)) => {
-                            if hls_writer.is_none() {
+                            if let Some(hls_writer) = &mut hls_writer {
+                                let data = frame_to_sample(frame);
+                                hls_writer.write_h264(data.clone()).await?;
+                                _ = feed_tx.send(data);
+
+                            } else {
                                 if !frame.is_random_access_point() {
                                     // Wait for IDR.
                                     continue
                                 }
+
                                 let stream = &session.streams()[frame.stream_id()];
                                 if let Some(ParametersRef::Video(params)) = stream.parameters() {
                                     let result = self.hls_server.new_muxer(
                                         token.clone(),
                                         self.hls_name(),
                                         track_params_from_video_params(params)?,
-                                    ).await;
+                                        frame_to_sample(frame),
+                                    ).await?;
                                     let Some((muxer, hls_writer2)) = result else {
                                         // Cancelled.
                                         return Ok(());
@@ -377,26 +384,6 @@ impl SourceRtsp {
                                     // Notify successful start.
                                     _ = started_tx.send((muxer, feed_tx.clone())).await;
                                 };
-                            }
-                            if let Some(hls_writer) = &mut hls_writer {
-                                let timestamp = frame.timestamp();
-
-                                let pts = timestamp.pts();
-                                let dts = timestamp.dts();
-
-                                let dts_offset = pts - dts;
-                                let dts = pts - dts_offset;
-
-                                let data = H264Data {
-                                    //ntp: now,
-                                    pts: DurationH264::from(pts),
-                                    dts: DurationH264::from(dts),
-                                    random_access_present: frame.is_random_access_point(),
-                                    avcc: Arc::new(PaddedBytes::new(frame.into_data())),
-                                };
-                                hls_writer.write_h264(data.clone()).await?;
-                                _ = feed_tx.send(data);
-
                             }
                         },
                         Ok(_) => {},
@@ -424,6 +411,20 @@ impl SourceRtsp {
                 .as_ref()
                 .expect("sub_stream to be `Some`")
         }
+    }
+}
+
+#[allow(clippy::similar_names)]
+fn frame_to_sample(frame: VideoFrame) -> H264Data {
+    let timestamp = frame.timestamp();
+    let pts = timestamp.pts();
+    let dts = timestamp.dts();
+    let dts_offset = DtsOffset::new(i32::try_from(pts - dts).unwrap_or(0)); // Todo.
+    H264Data {
+        pts: UnixH264::new(pts),
+        dts_offset,
+        random_access_present: frame.is_random_access_point(),
+        avcc: Arc::new(PaddedBytes::new(frame.into_data())),
     }
 }
 
@@ -458,6 +459,9 @@ enum SourceRtspRunError {
 
     #[error("convert params: {0}")]
     ConvertTrackParams(#[from] ParseParamsError),
+
+    #[error("create segmenter")]
+    CreateSegmenter(#[from] CreateSegmenterError),
 }
 
 #[derive(Debug, Error)]

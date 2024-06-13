@@ -56,7 +56,7 @@ fn part_target_duration(
     segments: &VecDeque<SegmentOrGap>,
     next_segment_parts: &Vec<Arc<PartFinalized>>,
 ) -> DurationH264 {
-    let mut ret = DurationH264::from(0);
+    let mut ret = DurationH264::new(0);
 
     for sog in segments {
         let SegmentOrGap::Segment(seg) = sog else {
@@ -679,7 +679,7 @@ impl PlaylistState {
 
         let mut skipped = 0;
         if is_delta_update {
-            let mut cur_duration = DurationH264::from(0);
+            let mut cur_duration = DurationH264::new(0);
             let mut shown = 0;
             for sog in &self.segments {
                 cur_duration = cur_duration

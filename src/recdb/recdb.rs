@@ -263,7 +263,7 @@ impl RecDb {
 
     pub async fn test_recording(&self) -> RecordingHandle {
         #[allow(clippy::unwrap_used)]
-        self.new_recording("test".to_owned().try_into().unwrap(), UnixH264::from(1))
+        self.new_recording("test".to_owned().try_into().unwrap(), UnixH264::new(1))
             .await
             .unwrap()
     }
@@ -525,7 +525,7 @@ mod tests {
 
         let rec_db = new_test_recdb(&temp_dir.path().join("test"));
         let recording = rec_db
-            .new_recording("test".to_owned().try_into().unwrap(), UnixH264::from(1))
+            .new_recording("test".to_owned().try_into().unwrap(), UnixH264::new(1))
             .await
             .unwrap();
         recording.new_file("meta").await.unwrap();
@@ -547,14 +547,14 @@ mod tests {
         recording.new_file("meta").await.unwrap();
 
         assert!(rec_db
-            .new_recording(m_id.clone(), UnixH264::from(1))
+            .new_recording(m_id.clone(), UnixH264::new(1))
             .await
             .is_err());
 
         drop(recording);
 
         assert!(rec_db
-            .new_recording(m_id.clone(), UnixH264::from(1))
+            .new_recording(m_id.clone(), UnixH264::new(1))
             .await
             .is_err());
     }

@@ -14,9 +14,8 @@ use std::{mem, sync::Arc};
 pub struct Segment {
     id: u64,
     muxer_id: u16,
-    start_time: UnixH264,
-    start_dts: DurationH264,
-    muxer_start_time: i64,
+    start_dts: UnixH264,
+    muxer_start_time: UnixH264,
     segment_max_size: u64,
     playlist: Arc<Playlist>,
 
@@ -31,9 +30,8 @@ impl Segment {
     pub fn new(
         id: u64,
         muxer_id: u16,
-        start_time: UnixH264,
-        start_dts: DurationH264,
-        muxer_start_time: i64,
+        start_dts: UnixH264,
+        muxer_start_time: UnixH264,
         segment_max_size: u64,
         playlist: Arc<Playlist>,
         part_id_counter: &mut IdCounter,
@@ -42,7 +40,6 @@ impl Segment {
         Self {
             id,
             muxer_id,
-            start_time,
             start_dts,
             muxer_start_time,
             segment_max_size,
@@ -50,11 +47,11 @@ impl Segment {
             name: format!("seg{id}"),
             size: 0,
             parts: Vec::new(),
-            current_part: MuxerPart::new(muxer_start_time, first_part_id),
+            current_part: MuxerPart::new(first_part_id, muxer_start_time),
         }
     }
 
-    pub fn start_dts(&self) -> DurationH264 {
+    pub fn start_dts(&self) -> UnixH264 {
         self.start_dts
     }
 
@@ -78,7 +75,7 @@ impl Segment {
         if self.current_part.duration().ok_or(Duration)? >= adjusted_part_duration {
             let current_part = mem::replace(
                 &mut self.current_part,
-                MuxerPart::new(self.muxer_start_time, part_id_counter.next_id()),
+                MuxerPart::new(part_id_counter.next_id(), self.muxer_start_time),
             );
             let finalized_part = Arc::new(current_part.finalize()?);
 
@@ -92,7 +89,7 @@ impl Segment {
     // Retuns None if cancelled.
     pub async fn finalize(
         mut self,
-        next_video_sample_dts: DurationH264,
+        next_video_sample_dts: UnixH264,
     ) -> Result<Option<SegmentFinalized>, SegmentFinalizeError> {
         let finalized_part = Arc::new(self.current_part.finalize()?);
 
@@ -111,12 +108,13 @@ impl Segment {
         Ok(Some(SegmentFinalized::new(
             self.id,
             self.muxer_id,
-            self.start_time,
+            self.start_dts,
             self.name,
             self.parts,
             next_video_sample_dts
                 .checked_sub(self.start_dts)
-                .ok_or(SegmentFinalizeError::CalculateDuration)?,
+                .ok_or(SegmentFinalizeError::CalculateDuration)?
+                .into(),
         )))
     }
 }
@@ -131,12 +129,11 @@ mod tests {
 
     fn new_test_part(content: Vec<u8>) -> Arc<PartFinalized> {
         Arc::new(PartFinalized {
-            muxer_start_time: 0,
             id: 0,
             is_independent: false,
             video_samples: Arc::new(Vec::new()),
             rendered_content: Some(Bytes::from(content)),
-            rendered_duration: DurationH264::from(0),
+            rendered_duration: DurationH264::new(0),
         })
     }
 

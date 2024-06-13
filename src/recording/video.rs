@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use common::{
-    time::{DurationH264, UnixH264},
+    time::{DtsOffset, DurationH264, UnixH264},
     PartFinalized, VideoSample,
 };
 use std::{io::SeekFrom, sync::Arc};
@@ -20,8 +20,8 @@ pub const SAMPLE_SIZE: usize = SAMPLE_SIZE_U8 as usize;
 pub struct Sample {
     pub random_access_present: bool,
 
-    pub pts: UnixH264,            // Presentation time.
-    pub dts_offset: DurationH264, // Display time offset.
+    pub pts: UnixH264,         // Presentation time in 90khz since the unix epoch.
+    pub dts_offset: DtsOffset, // Display time offset.
     pub duration: DurationH264,
     pub data_size: u32,
     pub data_offset: u32,
@@ -32,11 +32,11 @@ impl Sample {
         let flags = b[0];
         Self {
             random_access_present: flags & FLAG_RANDOM_ACCESS_PRESENT != 0,
-            pts: UnixH264::from(i64::from_be_bytes([
+            pts: UnixH264::new(i64::from_be_bytes([
                 b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8],
             ])),
-            dts_offset: DurationH264::from(i32::from_be_bytes([b[9], b[10], b[11], b[12]])),
-            duration: DurationH264::from(u32::from_be_bytes([b[13], b[14], b[15], b[16]])),
+            dts_offset: DtsOffset::new(i32::from_be_bytes([b[9], b[10], b[11], b[12]])),
+            duration: DurationH264::new(u32::from_be_bytes([b[13], b[14], b[15], b[16]]).into()),
             data_offset: u32::from_be_bytes([b[17], b[18], b[19], b[20]]),
             data_size: u32::from_be_bytes([b[21], b[22], b[23], b[24]]),
         }
@@ -60,7 +60,7 @@ impl Sample {
 
         out.push(flags);
         out.extend_from_slice(&self.pts.to_be_bytes());
-        out.extend_from_slice(&self.dts_offset.as_i32()?.to_be_bytes());
+        out.extend_from_slice(&self.dts_offset.to_be_bytes());
         out.extend_from_slice(&self.duration.as_u32()?.to_be_bytes());
         out.extend_from_slice(&self.data_offset.to_be_bytes());
         out.extend_from_slice(&self.data_size.to_be_bytes());
@@ -68,7 +68,7 @@ impl Sample {
     }
 
     pub fn dts(&self) -> Option<UnixH264> {
-        self.pts.checked_sub_duration(self.dts_offset)
+        self.pts.checked_sub(self.dts_offset.into())
     }
 }
 
@@ -137,18 +137,14 @@ impl<'a, W: AsyncWrite + Unpin> VideoWriter<'a, W> {
         Ok(())
     }
 
-    async fn write_sample(&mut self, sample: &VideoSample) -> Result<(), WriteSampleError> {
+    // Writes a single sample in the custom format to the output files.
+    pub async fn write_sample(&mut self, sample: &VideoSample) -> Result<(), WriteSampleError> {
         use WriteSampleError::*;
-
-        // Add start time to pts.
-        let pts = sample.ntp;
-
-        let dts_offset = sample.pts.checked_sub(sample.dts).ok_or(Sub)?;
 
         let s = Sample {
             random_access_present: sample.random_access_present,
-            pts,
-            dts_offset,
+            pts: sample.pts,
+            dts_offset: sample.dts_offset,
             duration: sample.duration,
             data_offset: self.mdat_pos,
             data_size: u32::try_from(sample.avcc.len())?,
@@ -267,7 +263,7 @@ impl Header {
         // Start time.
         let mut start_time = [0; 8];
         r.read_exact(&mut start_time).await?;
-        let start_time = UnixH264::from(i64::from_be_bytes(start_time));
+        let start_time = UnixH264::new(i64::from_be_bytes(start_time));
 
         // Width.
         let mut width = [0; 2];
@@ -347,7 +343,7 @@ pub struct TrackParameters {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::time::{DurationH264, UnixH264};
+    use common::time::{DtsOffset, DurationH264, UnixH264};
     use pretty_assertions::assert_eq;
     use pretty_hex::pretty_hex;
     use sentryshot_padded_bytes::PaddedBytes;
@@ -359,7 +355,7 @@ mod tests {
         let mut mdat = Vec::new();
 
         let test_header = Header {
-            start_time: UnixH264::from(1_000_000_000),
+            start_time: UnixH264::new(1_000_000_000),
             width: 1920,
             height: 1080,
             extra_data: vec![0, 1],
@@ -372,20 +368,18 @@ mod tests {
         let parts = vec![Arc::new(PartFinalized {
             video_samples: Arc::new(vec![
                 VideoSample {
-                    ntp: UnixH264::from(100_000_000_000_000_000_i64),
-                    pts: DurationH264::from(100_000_000_000_000_000_i64),
-                    dts: DurationH264::from(100_000_001_000_000_000_i64),
+                    pts: UnixH264::new(100_000_000_000_000_000),
+                    dts_offset: DtsOffset::new(-1_000_000_000),
                     random_access_present: true,
                     avcc: Arc::new(PaddedBytes::new(vec![3, 4])),
-                    duration: DurationH264::from(1_000_000_000),
+                    duration: DurationH264::new(1_000_000_000),
                 },
                 VideoSample {
-                    ntp: UnixH264::from(300_000_000_000_000_000_i64),
-                    pts: DurationH264::from(300_000_000_000_000_000_i64),
-                    dts: DurationH264::from(300_000_001_000_000_000_i64),
+                    pts: UnixH264::new(300_000_000_000_000_000),
+                    dts_offset: DtsOffset::new(-1_000_000_000),
                     random_access_present: false,
                     avcc: Arc::new(PaddedBytes::new(vec![5, 6, 7])),
-                    duration: DurationH264::from(1_000_000_000),
+                    duration: DurationH264::new(1_000_000_000),
                 },
             ]),
             ..Default::default()
@@ -432,17 +426,17 @@ mod tests {
         let want_samples = vec![
             Sample {
                 random_access_present: true,
-                pts: UnixH264::from(100_000_000_000_000_000),
-                dts_offset: DurationH264::from(-1_000_000_000),
-                duration: DurationH264::from(1_000_000_000),
+                pts: UnixH264::new(100_000_000_000_000_000),
+                dts_offset: DtsOffset::new(-1_000_000_000),
+                duration: DurationH264::new(1_000_000_000),
                 data_size: 2,
                 data_offset: 0,
             },
             Sample {
                 random_access_present: false,
-                pts: UnixH264::from(300_000_000_000_000_000),
-                dts_offset: DurationH264::from(-1_000_000_000),
-                duration: DurationH264::from(1_000_000_000),
+                pts: UnixH264::new(300_000_000_000_000_000),
+                dts_offset: DtsOffset::new(-1_000_000_000),
+                duration: DurationH264::new(1_000_000_000),
                 data_size: 3,
                 data_offset: 2,
             },

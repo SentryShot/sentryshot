@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::{MonitorId, NonEmptyString};
+use crate::{
+    time::{Duration, MINUTE},
+    MonitorId, NonEmptyString,
+};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{collections::HashMap, ops::Deref, str::FromStr};
 use thiserror::Error;
@@ -85,9 +88,11 @@ impl MonitorConfig {
     }
 
     #[must_use]
-    pub fn video_length(&self) -> f64 {
-        self.config.video_length
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+    pub fn video_length(&self) -> Duration {
+        Duration::from(self.config.video_length * (MINUTE as f64))
     }
+
     /*
         // TimestampOffset returns the timestamp offset.
         func (c Config) TimestampOffset() string {

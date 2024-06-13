@@ -16,8 +16,9 @@ use axum::{
     Router,
 };
 use common::{
-    time::UnixNano, Detection, Detections, DynAuth, DynEnvConfig, DynLogger, DynMsgLogger, Event,
-    LogEntry, LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
+    time::{DurationH264, UnixNano},
+    Detection, Detections, DynAuth, DynEnvConfig, DynLogger, DynMsgLogger, Event, LogEntry,
+    LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
 };
 use config::{set_enable, Crop, Mask};
 use detector::{DetectError, Detector, DetectorName, Thresholds};
@@ -320,7 +321,8 @@ impl TflitePlugin {
             output_height: detector.height(),
         };
 
-        let rate_limiter = FrameRateLimiter::new(u64::try_from(*config.feed_rate.as_h264())?);
+        let rate_limiter =
+            FrameRateLimiter::new(u64::try_from(*DurationH264::from(*config.feed_rate))?);
         let Some(feed) = source
             .subscribe_decoded(self.rt_handle.clone(), Some(rate_limiter))
             .await

@@ -1,4 +1,5 @@
 use crate::{
+    error::CreateSegmenterError,
     init::generate_init,
     playlist::{primary_playlist, Playlist},
     segmenter::{H264Writer, Segmenter},
@@ -6,15 +7,9 @@ use crate::{
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use common::{time::DurationH264, DynLogger, SegmentFinalized, TrackParameters};
+use common::{time::DurationH264, DynLogger, H264Data, SegmentFinalized, TrackParameters};
 use http::{HeaderName, HeaderValue, StatusCode};
-use std::{
-    collections::HashMap,
-    fmt::Formatter,
-    io::Cursor,
-    sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{collections::HashMap, fmt::Formatter, io::Cursor, sync::Arc};
 use tokio::{io::AsyncRead, sync::Mutex};
 use tokio_util::sync::CancellationToken;
 
@@ -46,7 +41,8 @@ impl HlsMuxer {
         segment_max_size: u64,
         params: TrackParameters,
         id: u16,
-    ) -> (Self, H264Writer) {
+        first_sample: H264Data,
+    ) -> Result<(Self, H264Writer), CreateSegmenterError> {
         let token = parent_token.child_token();
         let playlist = Arc::new(Playlist::new(
             token.clone(),
@@ -55,22 +51,14 @@ impl HlsMuxer {
             id,
         ));
 
-        let now = i64::try_from(
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("time went backwards")
-                .as_nanos(),
-        )
-        .expect("time should fit i64");
-
         let segmenter = Segmenter::new(
-            now,
             segment_duration,
             part_duration,
             segment_max_size,
             playlist.clone(),
             id,
-        );
+            first_sample,
+        )?;
 
         let muxer = Self {
             token: token.clone(),
@@ -78,7 +66,7 @@ impl HlsMuxer {
             params,
             init_content: Mutex::new(Bytes::new()),
         };
-        (muxer, H264Writer::new(segmenter, token.drop_guard()))
+        Ok((muxer, H264Writer::new(segmenter, token.drop_guard())))
     }
 
     pub fn cancel(&self) {

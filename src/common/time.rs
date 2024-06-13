@@ -3,7 +3,7 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::{
-    ops::Deref,
+    ops::{Add, Deref},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -16,10 +16,15 @@ pub const HOUR: i64 = MINUTE * 60;
 
 // Nanoseconds since the Unix epoch.
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnixNano(i64);
 
 impl UnixNano {
+    #[must_use]
+    pub fn new(v: i64) -> Self {
+        Self(v)
+    }
+
     #[must_use]
     pub fn now() -> Self {
         Self(
@@ -66,14 +71,6 @@ impl UnixNano {
         let sec = self.0 / SECOND;
         let nanosec = self.0 % SECOND;
         NaiveDateTime::from_timestamp_opt(sec, nanosec as u32)
-    }
-
-    pub const MAX: UnixNano = UnixNano(i64::MAX);
-}
-
-impl From<i64> for UnixNano {
-    fn from(v: i64) -> Self {
-        Self(v)
     }
 }
 
@@ -122,11 +119,6 @@ impl Duration {
     }
 
     #[must_use]
-    pub fn as_h264(&self) -> DurationH264 {
-        DurationH264::from(nano_to_timescale(self.0, H264_TIMESCALE.into()))
-    }
-
-    #[must_use]
     pub fn until(time: UnixNano) -> Option<Self> {
         Some(Self(time.checked_sub(*UnixNano::now())?))
     }
@@ -167,31 +159,34 @@ pub struct UnixH264(i64);
 
 impl UnixH264 {
     #[must_use]
+    pub fn new(v: i64) -> Self {
+        Self(v)
+    }
+
+    #[must_use]
     pub fn now() -> Self {
-        let nanos = i64::try_from(
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("time went backwards")
-                .as_nanos(),
-        )
-        .expect("timestamp to fit u64");
-
-        Self(nano_to_timescale(nanos, H264_TIMESCALE.into()))
+        UnixNano::now().into()
     }
 
     #[must_use]
-    pub fn checked_add_duration(&self, duration: DurationH264) -> Option<Self> {
-        Some(Self(self.0.checked_add(duration.0)?))
-    }
-
-    #[must_use]
-    pub fn checked_sub_duration(&self, duration: DurationH264) -> Option<Self> {
-        Some(Self(self.0.checked_sub(duration.0)?))
+    pub fn checked_add(&self, other: Self) -> Option<Self> {
+        Some(Self(self.0.checked_add(other.0)?))
     }
 
     #[must_use]
     pub fn checked_sub(&self, other: Self) -> Option<Self> {
         Some(Self(self.0.checked_sub(other.0)?))
+    }
+
+    // Reports whether the time intant `self` is after `other`.
+    #[must_use]
+    pub fn after(&self, other: Self) -> bool {
+        self.0 > other.0
+    }
+
+    #[must_use]
+    pub fn as_duration(&self) -> DurationH264 {
+        DurationH264::new(self.0)
     }
 
     #[must_use]
@@ -200,12 +195,6 @@ impl UnixH264 {
         let secs = self.0 / clock_rate;
         let dec = self.0 % clock_rate;
         UnixNano((secs * SECOND) + ((dec * SECOND) / clock_rate))
-    }
-
-    // Reports whether the time intant `self` is after `other`.
-    #[must_use]
-    pub fn after(&self, other: Self) -> bool {
-        self.0 > other.0
     }
 
     #[must_use]
@@ -218,9 +207,23 @@ impl UnixH264 {
     }
 }
 
-impl From<i64> for UnixH264 {
-    fn from(v: i64) -> Self {
-        Self(v)
+impl From<DurationH264> for UnixH264 {
+    fn from(value: DurationH264) -> Self {
+        Self(value.0)
+    }
+}
+
+impl From<DtsOffset> for UnixH264 {
+    fn from(value: DtsOffset) -> Self {
+        Self(value.0.into())
+    }
+}
+
+impl Add for UnixH264 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
     }
 }
 
@@ -229,6 +232,12 @@ impl Deref for UnixH264 {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl From<UnixNano> for UnixH264 {
+    fn from(nanos: UnixNano) -> Self {
+        Self(nano_to_timescale(*nanos, H264_TIMESCALE.into()))
     }
 }
 
@@ -282,10 +291,6 @@ impl DurationH264 {
         (sec as f64) + (nanosec as f64) / (SECOND as f64)
     }
 
-    pub fn as_i32(&self) -> Result<i32, std::num::TryFromIntError> {
-        i32::try_from(self.0)
-    }
-
     pub fn as_u32(&self) -> Result<u32, std::num::TryFromIntError> {
         u32::try_from(self.0)
     }
@@ -305,32 +310,45 @@ impl DurationH264 {
     }
 }
 
-impl From<i32> for DurationH264 {
-    fn from(v: i32) -> Self {
-        Self(i64::from(v))
-    }
-}
-
-impl From<u32> for DurationH264 {
-    fn from(v: u32) -> Self {
-        Self(i64::from(v))
-    }
-}
-
-impl From<i64> for DurationH264 {
-    fn from(v: i64) -> Self {
-        Self(v)
-    }
-}
-
 impl From<UnixH264> for DurationH264 {
-    fn from(time: UnixH264) -> Self {
-        Self(time.0)
+    fn from(value: UnixH264) -> Self {
+        Self(value.0)
+    }
+}
+
+impl From<DtsOffset> for DurationH264 {
+    fn from(value: DtsOffset) -> Self {
+        Self(value.0.into())
     }
 }
 
 impl Deref for DurationH264 {
     type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Duration> for DurationH264 {
+    fn from(nanos: Duration) -> Self {
+        Self(nano_to_timescale(*nanos, H264_TIMESCALE.into()))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct DtsOffset(i32);
+
+impl DtsOffset {
+    #[must_use]
+    pub fn new(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl Deref for DtsOffset {
+    type Target = i32;
 
     fn deref(&self) -> &Self::Target {
         &self.0

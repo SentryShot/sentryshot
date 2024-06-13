@@ -16,7 +16,7 @@ use std::{
     str::FromStr, sync::Arc, task::Poll,
 };
 use thiserror::Error;
-use time::{DurationH264, UnixH264};
+use time::{DtsOffset, DurationH264, UnixH264};
 use tokio::io::AsyncRead;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -580,15 +580,21 @@ impl StreamType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct VideoSample {
-    pub ntp: UnixH264,
-    pub pts: DurationH264, // Presentation time.
-    pub dts: DurationH264, // Display time.
+    pub pts: UnixH264,         // Relative presentation timestamp.
+    pub dts_offset: DtsOffset, // Composition time offset.
     pub avcc: Arc<PaddedBytes>,
     pub random_access_present: bool,
 
     pub duration: DurationH264,
+}
+
+impl VideoSample {
+    #[must_use]
+    pub fn dts(&self) -> Option<UnixH264> {
+        self.pts.checked_sub(self.dts_offset.into())
+    }
 }
 
 impl std::fmt::Debug for StreamType {
@@ -599,7 +605,6 @@ impl std::fmt::Debug for StreamType {
 
 #[derive(Clone, Debug, Default)]
 pub struct PartFinalized {
-    pub muxer_start_time: i64,
     pub id: u64,
 
     pub is_independent: bool,
@@ -779,11 +784,20 @@ pub struct TrackParameters {
 
 #[derive(Clone, Debug, Default)]
 pub struct H264Data {
-    //pub ntp: i64,
-    pub pts: DurationH264, // Presentation time.
-    pub dts: DurationH264, // Composition time offset.
+    pub pts: UnixH264,         // Absolute presentation timestamp.
+    pub dts_offset: DtsOffset, // Composition time offset.
     pub avcc: Arc<PaddedBytes>,
     pub random_access_present: bool,
+}
+
+impl std::fmt::Display for H264Data {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "pts: {:?}, dts_offset: {:?}, IDR: {}",
+            self.pts, self.dts_offset, self.random_access_present
+        )
+    }
 }
 
 pub type DynMsgLogger = Arc<dyn MsgLogger + Send + Sync>;
