@@ -10,7 +10,6 @@ use crate::{recorder::new_recorder, source::SourceRtsp};
 use async_trait::async_trait;
 use common::{
     monitor::{MonitorConfig, MonitorConfigs, SourceConfig},
-    time::{Duration, UnixNano},
     DynLogger, Event, LogEntry, LogLevel, MonitorId, NonEmptyString, StreamType,
 };
 use hls::HlsServer;
@@ -600,17 +599,6 @@ impl MonitorManagerState {
             config.clone(),
             self.rec_db.clone(),
         );
-
-        if config.always_record() {
-            _ = send_event_tx
-                .send(Event {
-                    time: UnixNano::now(),
-                    duration: Duration::from_secs(0),
-                    rec_duration: Duration::from(1_000_000_000_000_000),
-                    detections: Vec::new(),
-                })
-                .await;
-        }
 
         let (source_main_tx, mut source_main_rx) = mpsc::channel(1);
         let (source_sub_tx, mut source_sub_rx) = mpsc::channel(1);

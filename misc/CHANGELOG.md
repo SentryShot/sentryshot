@@ -1,5 +1,6 @@
 ## unreleased
 
+-   improve recorder timer reliability #14
 -   fix seeking in active recordings
 
 ## `v0.2.16`
