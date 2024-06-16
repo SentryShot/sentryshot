@@ -3,15 +3,14 @@
 use crate::{source::Source, DynMonitorHooks};
 use common::{
     monitor::MonitorConfig,
+    recording::{RecordingData, RecordingId},
     time::{Duration, DurationH264, UnixH264, UnixNano},
     DynHlsMuxer, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
     SegmentFinalized, TrackParameters,
 };
 use futures::Future;
 use recdb::{NewRecordingError, OpenFileError, RecDb, RecordingHandle};
-use recording::{
-    Header, NewVideoWriterError, RecordingData, RecordingId, VideoWriter, WriteSampleError,
-};
+use recording::{Header, NewVideoWriterError, VideoWriter, WriteSampleError};
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
 };

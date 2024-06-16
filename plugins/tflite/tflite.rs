@@ -16,6 +16,7 @@ use axum::{
     Router,
 };
 use common::{
+    recording::{vertex_inside_poly2, FrameRateLimiter},
     time::{DurationH264, UnixNano},
     Detection, Detections, DynAuth, DynEnvConfig, DynLogger, DynMsgLogger, Event, LogEntry,
     LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
@@ -29,7 +30,6 @@ use plugin::{
     types::{admin, Assets},
     Application, Plugin, PreLoadPlugin,
 };
-use recording::{vertex_inside_poly2, FrameRateLimiter};
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
 };
@@ -860,9 +860,11 @@ mod tests {
 
     use super::*;
     use crate::config::{Crop, CropSize, CropValue};
-    use common::{Label, PointNormalized};
+    use common::{
+        recording::{denormalize, normalize},
+        Label, PointNormalized,
+    };
     use pretty_assertions::assert_eq;
-    use recording::{denormalize, normalize};
     use test_case::test_case;
 
     #[test_case(600, 400, 0, 0, 100, 300, 300, "300x200 300x300 0:0 50:75";)]

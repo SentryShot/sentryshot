@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use common::{monitor::MonitorConfig, PolygonNormalized};
-use recording::{DurationSec, FeedRateSec};
+use common::{
+    monitor::MonitorConfig,
+    recording::{DurationSec, FeedRateSec},
+    PolygonNormalized,
+};
 use serde::Deserialize;
 use serde_json::Value;
 

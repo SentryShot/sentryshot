@@ -17,6 +17,7 @@ use axum::{
     Router,
 };
 use common::{
+    recording::FrameRateLimiter,
     time::{DurationH264, UnixNano},
     DynAuth, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
 };
@@ -25,7 +26,6 @@ use plugin::{
     types::{admin, Assets},
     Application, Plugin, PreLoadPlugin,
 };
-use recording::FrameRateLimiter;
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
 };

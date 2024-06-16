@@ -1,14 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-mod mp4_muxer;
-mod video;
-mod video_reader;
-
 use thiserror::Error;
-pub use video::{Header, NewVideoWriterError, VideoWriter, WriteSampleError};
-pub use video_reader::{new_video_reader, NewVideoReaderError, VideoCache};
 
-use common::{
+use crate::{
     time::{Duration, UnixNano, SECOND},
     Event, MonitorId, ParseMonitorIdError, Point, PointNormalized, Polygon, PolygonNormalized,
 };
@@ -505,7 +499,7 @@ impl FrameRateLimiter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::time::MILLISECOND;
+    use crate::time::MILLISECOND;
     use pretty_assertions::assert_eq;
     use test_case::test_case;
 

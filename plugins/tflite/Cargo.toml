@@ -19,7 +19,6 @@ tflite_lib.path = "./tflite_lib"
 common.path = "../../src/common"
 monitor.path = "../../src/monitor"
 plugin.path = "../../src/plugin"
-recording.path = "../../src/recording"
 
 async-trait.workspace = true
 axum.workspace = true

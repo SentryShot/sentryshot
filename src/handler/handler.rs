@@ -14,6 +14,7 @@ use axum::{
 };
 use common::{
     monitor::{MonitorConfig, MonitorConfigs},
+    recording::RecordingId,
     AccountSetRequest, AccountsMap, AuthAccountDeleteError, DynAuth, DynLogger, ILogger, LogEntry,
     LogLevel, MonitorId,
 };
@@ -25,7 +26,7 @@ use log::{
 };
 use monitor::{MonitorDeleteError, MonitorManager};
 use recdb::{DeleteRecordingError, RecDb, RecDbQuery, RecordingResponse};
-use recording::{new_video_reader, RecordingId, VideoCache};
+use recording::{new_video_reader, VideoCache};
 use rust_embed::EmbeddedFiles;
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc};

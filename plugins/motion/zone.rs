@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+use crate::config::ZoneConfig;
+use common::recording::{create_inverted_mask, denormalize_polygon};
+
 #[derive(Debug, PartialEq)]
 pub struct Zones(pub Vec<Zone>);
 
@@ -25,10 +28,6 @@ fn diff_frames(frame1: &[u8], frame2: &[u8], diff: &mut [u8]) {
         diff[i] = u8::abs_diff(frame1[i], frame2[i]);
     }
 }
-
-use recording::{create_inverted_mask, denormalize_polygon};
-
-use crate::config::ZoneConfig;
 
 #[allow(clippy::struct_field_names)]
 #[derive(Debug, PartialEq)]
@@ -100,9 +99,8 @@ fn parse_mask_image(img: &Vec<Vec<bool>>) -> (Vec<bool>, u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::PointNormalized;
+    use common::{recording::normalize, PointNormalized};
     use pretty_assertions::assert_eq;
-    use recording::normalize;
     use test_case::test_case;
 
     struct Case<'a> {

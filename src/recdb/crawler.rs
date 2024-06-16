@@ -3,8 +3,8 @@
 use crate::{
     RecDbQuery, RecordingActive, RecordingFinalized, RecordingIncomplete, RecordingResponse,
 };
+use common::recording::{RecordingData, RecordingId};
 use fs::{DynFs, Entry, FsError, Open};
-use recording::{RecordingData, RecordingId};
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,

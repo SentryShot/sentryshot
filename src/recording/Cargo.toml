@@ -10,7 +10,7 @@ workspace = true
 
 [lib]
 name = "recording"
-path = "recording.rs"
+path = "lib.rs"
 doctest = false
 
 [dependencies]

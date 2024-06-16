@@ -2,12 +2,14 @@
 
 mod event;
 pub mod monitor;
+pub mod recording;
 pub mod time;
+
+pub use event::*;
 
 use async_trait::async_trait;
 use bytes::Bytes;
 use bytesize::{ByteSize, MB};
-pub use event::*;
 use http::{HeaderMap, HeaderValue};
 use sentryshot_padded_bytes::PaddedBytes;
 use serde::{Deserialize, Serialize};
