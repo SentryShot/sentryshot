@@ -225,7 +225,7 @@ impl FullBox {
         4
     }
 
-    fn marshal_field(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+    pub fn marshal_field(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
         w.write_all(&[self.version])?;
         w.write_all(&self.flags)?;
         Ok(())

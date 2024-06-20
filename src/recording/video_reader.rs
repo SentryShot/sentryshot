@@ -405,7 +405,7 @@ async fn read_video_metadata(meta_path: &Path) -> Result<VideoMetadata, ReadVide
     let (meta_buf, mdat_size) = {
         tokio::task::spawn_blocking(move || -> Result<(Vec<u8>, u32), ReadVideoMetadataError> {
             let mut meta_buf = Vec::new();
-            let mdat_size = generate_mp4(&mut meta_buf, header.start_time, samples, &params)?;
+            let mdat_size = generate_mp4(&mut meta_buf, header.start_time, &samples, &params)?;
             Ok((meta_buf, mdat_size))
         })
         .await

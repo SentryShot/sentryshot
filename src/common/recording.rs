@@ -14,6 +14,7 @@ use std::{
 };
 
 // Recording data serialized to json and saved next to video and thumbnail.
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RecordingData {
     #[serde(rename = "start")]
@@ -27,6 +28,7 @@ pub struct RecordingData {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[allow(clippy::module_name_repetitions)]
 pub enum RecordingIdError {
     #[error("invalid string: {0}")]
     InvalidString(String),
@@ -61,6 +63,7 @@ pub enum RecordingIdError {
 }
 
 #[derive(Clone, Hash, PartialEq, Eq)]
+#[allow(clippy::module_name_repetitions)]
 pub struct RecordingId {
     raw: String,
 
