@@ -1,5 +1,7 @@
 ## unreleased
 
+-   improve 'no stream found' error message
+
 ## `v0.2.17`
 
 -   improve recorder timer reliability #14

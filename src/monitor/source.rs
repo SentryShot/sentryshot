@@ -13,7 +13,10 @@ use hls::{
     track_params_from_video_params, CreateSegmenterError, H264Writer, HlsServer, ParseParamsError,
     SegmenterWriteH264Error,
 };
-use retina::codec::{ParametersRef, VideoFrame};
+use retina::{
+    client::Stream,
+    codec::{ParametersRef, VideoFrame},
+};
 use sentryshot_convert::Frame;
 use sentryshot_ffmpeg_h264::{
     H264BuilderError, H264Decoder, H264DecoderBuilder, Packet, PaddedBytes, Ready,
@@ -278,6 +281,8 @@ impl SourceRtsp {
         token: CancellationToken,
         started_tx: mpsc::Sender<(DynHlsMuxer, broadcast::Sender<H264Data>)>,
     ) -> Result<(), SourceRtspRunError> {
+        use SourceRtspRunError::*;
+
         let url: &Url = self.stream_url();
         let creds = creds_from_url(url);
         let url = remove_creds_from_url(url.to_owned())?;
@@ -288,11 +293,10 @@ impl SourceRtsp {
             retina::client::SessionOptions::default()
                 .creds(creds)
                 .session_group(session_group.clone())
-                .user_agent("temp".to_owned())
                 .teardown(retina::client::TeardownPolicy::Always),
         )
         .await
-        .map_err(SourceRtspRunError::Describe)?;
+        .map_err(Describe)?;
 
         let video_stream_i = {
             let s = session.streams().iter().position(|s| {
@@ -313,7 +317,7 @@ impl SourceRtsp {
                 false
             });
             let Some(s) = s else {
-                return Err(SourceRtspRunError::NoVideoStreamFound);
+                return Err(NoVideoStreamFound(format_streams(session.streams())));
             };
             s
         };
@@ -338,9 +342,9 @@ impl SourceRtsp {
         let mut session = session
             .play(retina::client::PlayOptions::default())
             .await
-            .map_err(SourceRtspRunError::Play)?
+            .map_err(Play)?
             .demuxed()
-            .map_err(SourceRtspRunError::Demuxed)?;
+            .map_err(Demuxed)?;
 
         // Buffer 10 frame to reduce dropped frames.
         let (feed_tx, _) = broadcast::channel(10);
@@ -353,7 +357,7 @@ impl SourceRtsp {
                 },
                 pkt = session.next() => {
                     let Some(pkt) = pkt else {
-                        return Err(SourceRtspRunError::Eof);
+                        return Err(Eof);
                     };
                     match pkt {
                         Ok(retina::codec::CodecItem::VideoFrame(frame)) => {
@@ -387,7 +391,7 @@ impl SourceRtsp {
                             }
                         },
                         Ok(_) => {},
-                        Err(e) => return Err(SourceRtspRunError::Stream(e)),
+                        Err(e) => return Err(Stream(e)),
                     }
                 }
             }
@@ -439,8 +443,8 @@ enum SourceRtspRunError {
     #[error("remove credentials: {0}")]
     RemoveCreds(#[from] RemoveCreds),
 
-    #[error("no suitable video stream found")]
-    NoVideoStreamFound,
+    #[error("no suitable video stream found, streams:{0}")]
+    NoVideoStreamFound(String),
 
     #[error("setup: {0}")]
     Setup(retina::Error),
@@ -498,6 +502,22 @@ fn creds_from_url(url: &Url) -> Option<retina::client::Credentials> {
     } else {
         None
     }
+}
+
+fn format_streams(streams: &[Stream]) -> String {
+    streams
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            format!(
+                " {}:{{media=\"{}\", name=\"{}\"}}",
+                i,
+                s.media(),
+                s.encoding_name()
+            )
+        })
+        .collect::<Vec<_>>()
+        .concat()
 }
 
 #[derive(Debug, Error)]
