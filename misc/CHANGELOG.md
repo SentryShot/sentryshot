@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.18`
+
 -   improve 'no stream found' error message
 
 ## `v0.2.17`
