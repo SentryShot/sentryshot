@@ -149,7 +149,7 @@ impl LogDb {
         Ok(LogDbHandle(Mutex::new(Self {
             log_dir,
             encoder: None,
-            prev_entry_time: UnixMicro::from(0),
+            prev_entry_time: UnixMicro::new(0),
             disk_space,
             min_disk_usage,
             _shutdown_complete: shutdown_complete,
@@ -178,7 +178,7 @@ impl LogDb {
         if entry.time <= self.prev_entry_time {
             entry.time = self
                 .prev_entry_time
-                .checked_add(UnixMicro::from(1))
+                .checked_add(UnixMicro::new(1))
                 .ok_or(SaveLogError::IncrementPrevTime)?;
         }
 
@@ -230,7 +230,15 @@ impl LogDb {
                 }
             }
 
-            let (entry, _) = decoder.decode(i).await?;
+            let entry = match decoder.decode(i).await {
+                Ok((v, _)) => v,
+                Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
+                    let (data_path, _) = chunk_id_to_paths(&self.log_dir, chunk_id);
+                    eprintln!("log store warning: {data_path:?} {e}");
+                    continue;
+                }
+                Err(e) => return Err(QueryChunkError::Decode(e)),
+            };
 
             if !q.entry_matches_filter(&entry) {
                 continue;
@@ -491,8 +499,8 @@ enum NewChunkDecoderError {
     #[error("data file metadata: {0}")]
     DataFileMetadata(std::io::Error),
 
-    #[error("open msg file: {0}")]
-    OpenMsgFile(std::io::Error),
+    #[error("open msg file: {0} {1}")]
+    OpenMsgFile(PathBuf, std::io::Error),
 
     #[error("calculate entries: {0}")]
     CalculateEntries(#[from] CalculateEntriesError),
@@ -523,9 +531,9 @@ impl ChunkDecoder {
 
         let msg_file = tokio::fs::OpenOptions::new()
             .read(true)
-            .open(msg_path)
+            .open(&msg_path)
             .await
-            .map_err(OpenMsgFile)?;
+            .map_err(|e| OpenMsgFile(msg_path, e))?;
 
         let msg_file = RevBufReader::new(msg_file);
         let data_file = RevBufReader::new(data_file);
@@ -576,7 +584,9 @@ impl ChunkDecoder {
             .await
             .map_err(Read)?;
 
-        Ok(decode_entry(&raw_entry, &mut self.msg_file).await?)
+        decode_entry(&raw_entry, &mut self.msg_file)
+            .await
+            .map_err(|e| RecoverableDecodeEntry(index, entry_pos, e))
     }
 }
 
@@ -621,8 +631,8 @@ enum DecodeError {
     #[error("read: {0}")]
     Read(std::io::Error),
 
-    #[error("decode entry: {0}")]
-    DecodeEntry(#[from] DecodeEntryError),
+    #[error("decode entry: index:{0} pos:{1} error: {2}")]
+    RecoverableDecodeEntry(u64, u64, RecoverableDecodeEntryError),
 }
 
 #[derive(Debug, Error)]
@@ -680,8 +690,8 @@ enum NewChunkEncoderError {
     #[error("new chunk decoder: {0}")]
     NewChunkDecoder(#[from] NewChunkDecoderError),
 
-    #[error("decode: {0}")]
-    Decode(#[from] DecodeError),
+    #[error("decode: '{0}' {1}")]
+    Decode(PathBuf, DecodeError),
 
     #[error("calculate data end: {0}")]
     CalculateDataEnd(#[from] CalculateDataEndError),
@@ -707,7 +717,7 @@ impl ChunkEncoder {
 
         let mut data_end = CHUNK_HEADER_LENGTH;
         let data_file_size = get_file_size(&data_path).await;
-        let mut prev_entry_time = UnixMicro::from(0);
+        let mut prev_entry_time = UnixMicro::new(0);
         let mut msg_pos = 0;
         if data_file_size == 0 {
             let mut file = tokio::fs::OpenOptions::new()
@@ -726,13 +736,23 @@ impl ChunkEncoder {
         } else {
             let mut decoder = ChunkDecoder::new(&log_dir, &chunk_id).await?;
 
-            let i = decoder.last_index();
+            // Find the first valid entry from the end.
+            // Treat file as empty if no valid entry is found.
+            let last_index = decoder.last_index();
+            for i in (0..=last_index).rev() {
+                let (last_entry, msg_offset) = match decoder.decode(i).await {
+                    Ok(v) => v,
+                    Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
+                        eprintln!("log store warning: {data_path:?} {e}");
+                        continue;
+                    }
+                    Err(e) => return Err(NewChunkEncoderError::Decode(data_path.clone(), e)),
+                };
 
-            let (last_entry, msg_offset) = decoder.decode(i).await?;
-
-            prev_entry_time = last_entry.time;
-            data_end = calculate_data_end(data_file_size)?;
-            msg_pos = msg_offset + u32::try_from(last_entry.message.len())? + 1;
+                prev_entry_time = last_entry.time;
+                data_end = calculate_data_end(data_file_size)?;
+                msg_pos = msg_offset + u32::try_from(last_entry.message.len())? + 1;
+            }
         }
 
         let mut data_file = tokio::fs::OpenOptions::new()
@@ -868,7 +888,7 @@ async fn encode_entry(
 }
 
 #[derive(Debug, Error)]
-enum DecodeEntryError {
+enum RecoverableDecodeEntryError {
     #[error("{0}")]
     TryFromSlice(#[from] std::array::TryFromSliceError),
 
@@ -897,8 +917,8 @@ enum DecodeEntryError {
 async fn decode_entry<T: AsyncRead + AsyncSeek + Unpin>(
     buf: &[u8; DATA_SIZE],
     msg_file: &mut T,
-) -> Result<(LogEntryWithTime, u32), DecodeEntryError> {
-    use DecodeEntryError::*;
+) -> Result<(LogEntryWithTime, u32), RecoverableDecodeEntryError> {
+    use RecoverableDecodeEntryError::*;
 
     let time = u64::from_be_bytes(buf[..8].try_into()?);
     let source = String::from_utf8(buf[8..16].to_owned())?;
@@ -926,7 +946,7 @@ async fn decode_entry<T: AsyncRead + AsyncSeek + Unpin>(
 
     Ok((
         LogEntryWithTime {
-            time: UnixMicro::from(time),
+            time: UnixMicro::new(time),
             source: source.trim().to_owned().try_into()?,
             monitor_id,
             level: LogLevel::try_from(level)?,
@@ -997,7 +1017,7 @@ mod tests {
             source: src("s1"),
             monitor_id: Some(m_id("m1")),
             message: msg("msg1"),
-            time: UnixMicro::from(4000),
+            time: UnixMicro::new(4000),
         }
     }
     fn msg2() -> LogEntryWithTime {
@@ -1006,7 +1026,7 @@ mod tests {
             source: src("s1"),
             monitor_id: None,
             message: msg("msg2"),
-            time: UnixMicro::from(3000),
+            time: UnixMicro::new(3000),
         }
     }
     fn msg3() -> LogEntryWithTime {
@@ -1015,7 +1035,7 @@ mod tests {
             source: src("s2"),
             monitor_id: Some(m_id("m2")),
             message: msg("msg3"),
-            time: UnixMicro::from(2000),
+            time: UnixMicro::new(2000),
         }
     }
     /*msg4 := Log{
@@ -1118,7 +1138,7 @@ mod tests {
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
             sources: vec![src("s1"), src("s2")],
-            time: Some(UnixMicro::from(4000)),
+            time: Some(UnixMicro::new(4000)),
             ..Default::default()
         },
         &[msg2(), msg3()];
@@ -1128,7 +1148,7 @@ mod tests {
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
             sources: vec![src("s1"), src("s2")],
-            time: Some(UnixMicro::from(3500)),
+            time: Some(UnixMicro::new(3500)),
             ..Default::default()
         },
         &[msg2(), msg3()];
@@ -1162,7 +1182,7 @@ mod tests {
             level: LogLevel::Error,
             source: src("x"),
             monitor_id: None,
-            time: UnixMicro::from(time),
+            time: UnixMicro::new(time),
             message: time.to_string().try_into().unwrap(),
         }
     }
@@ -1218,7 +1238,7 @@ mod tests {
             level: LogLevel::Error,
             source: src("x"),
             monitor_id: None,
-            time: UnixMicro::from(time),
+            time: UnixMicro::new(time),
             message: msg(message),
         }
     }
@@ -1243,6 +1263,66 @@ mod tests {
         let file_want = b"a\nb\n".to_vec();
         let file_got = std::fs::read(temp_dir.path().join("00000.msg")).unwrap();
         assert_eq!(file_want, file_got);
+    }
+
+    #[tokio::test]
+    async fn test_empty_entry() {
+        let temp_dir = tempdir().unwrap();
+
+        let entry1 = new_test_entry2(1, "good1");
+        let entry2 = new_test_entry2(2, "bad");
+        let entry3 = new_test_entry2(3, "good2");
+
+        let db = new_test_db(temp_dir.path());
+        db.save_log(entry1.clone()).await.unwrap();
+        db.save_log(entry2).await.unwrap();
+
+        // Overwrite second entry with zeros.
+        let mut file = tokio::fs::OpenOptions::new()
+            .write(true)
+            .open(temp_dir.path().join("00000.data"))
+            .await
+            .unwrap();
+        file.seek(SeekFrom::Start(48)).await.unwrap();
+        file.write_all(&[0].repeat(48)).await.unwrap();
+        file.flush().await.unwrap();
+
+        let db = new_test_db(temp_dir.path());
+
+        let got = db.query(empty_query()).await.unwrap();
+        assert_eq!([entry1.clone()].as_slice(), got.as_slice());
+
+        db.save_log(entry3.clone()).await.unwrap();
+        let got2 = db.query(empty_query()).await.unwrap();
+        assert_eq!([entry3, entry1].as_slice(), got2.as_slice());
+    }
+
+    #[tokio::test]
+    async fn test_empty_entry2() {
+        let temp_dir = tempdir().unwrap();
+
+        let entry1 = new_test_entry2(1, "bad");
+        let entry2 = new_test_entry2(2, "good");
+
+        let db = new_test_db(temp_dir.path());
+        db.save_log(entry1.clone()).await.unwrap();
+
+        // Overwrite first entry with zeros.
+        let mut file = tokio::fs::OpenOptions::new()
+            .write(true)
+            .open(temp_dir.path().join("00000.data"))
+            .await
+            .unwrap();
+        file.write_all(&[0].repeat(48)).await.unwrap();
+        file.flush().await.unwrap();
+
+        let db = new_test_db(temp_dir.path());
+
+        assert!(db.query(empty_query()).await.unwrap().is_empty());
+
+        db.save_log(entry2.clone()).await.unwrap();
+        let got = db.query(empty_query()).await.unwrap();
+        assert_eq!([entry2].as_slice(), got.as_slice());
     }
 
     #[tokio::test]
@@ -1316,7 +1396,7 @@ mod tests {
                 if input_time == 0 {
                     None
                 } else {
-                    Some(UnixMicro::from(input_time))
+                    Some(UnixMicro::new(input_time))
                 }
             };
             let got = db
@@ -1361,7 +1441,7 @@ mod tests {
             source: src("abcdefgh"),
             monitor_id: Some(m_id("aabbccddeeffgghhiijjkkll")),
             message: msg("a"),
-            time: UnixMicro::from(5),
+            time: UnixMicro::new(5),
         }
     }
 
@@ -1413,12 +1493,12 @@ mod tests {
         assert_eq!(10, msg_offset);
     }
 
-    #[test_case(UnixMicro::from(0), "00000"; "a")]
-    #[test_case(UnixMicro::from(1_000_334_455_000_111), "10003"; "b")]
-    #[test_case(UnixMicro::from(1_122_334_455_000_111), "11223"; "c")]
-    #[test_case(UnixMicro::from(CHUNK_DURATION - 1), "00000"; "d")]
-    #[test_case(UnixMicro::from(CHUNK_DURATION), "00001"; "e")]
-    #[test_case(UnixMicro::from(CHUNK_DURATION + 1), "00001"; "f")]
+    #[test_case(UnixMicro::new(0), "00000"; "a")]
+    #[test_case(UnixMicro::new(1_000_334_455_000_111), "10003"; "b")]
+    #[test_case(UnixMicro::new(1_122_334_455_000_111), "11223"; "c")]
+    #[test_case(UnixMicro::new(CHUNK_DURATION - 1), "00000"; "d")]
+    #[test_case(UnixMicro::new(CHUNK_DURATION), "00001"; "e")]
+    #[test_case(UnixMicro::new(CHUNK_DURATION + 1), "00001"; "f")]
     fn test_time_to_id(input: UnixMicro, output: &str) {
         assert_eq!(output, time_to_id(input).unwrap());
     }
@@ -1426,7 +1506,7 @@ mod tests {
     #[test]
     fn test_time_to_id_error() {
         assert!(matches!(
-            time_to_id(UnixMicro::from(12_345_678_901_234_567)),
+            time_to_id(UnixMicro::new(12_345_678_901_234_567)),
             Err(TimeToIdError::InvalidTime)
         ));
     }
@@ -1596,7 +1676,7 @@ mod tests {
         let db = LogDb {
             log_dir: log_dir.to_owned(),
             encoder: None,
-            prev_entry_time: UnixMicro::from(0),
+            prev_entry_time: UnixMicro::new(0),
             disk_space: ByteSize(0),
             min_disk_usage: ByteSize(0),
             _shutdown_complete: shutdown_complete,

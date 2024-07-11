@@ -151,7 +151,7 @@ impl Helper {
             source: sources[self.rng.gen_range(0..sources.len())].clone(),
             monitor_id: Some(monitor_ids[self.rng.gen_range(0..monitor_ids.len())].clone()),
             message: message.try_into().unwrap(),
-            time: UnixMicro::from(self.count),
+            time: UnixMicro::new(self.count),
         }
     }
 }

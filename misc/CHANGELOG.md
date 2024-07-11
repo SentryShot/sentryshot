@@ -1,5 +1,7 @@
 ## unreleased
 
+-   logdb: handle empty entries #37
+
 ## `v0.2.18`
 
 -   improve 'no stream found' error message

@@ -79,6 +79,11 @@ impl ILogger for Logger {
 pub struct UnixMicro(u64);
 
 impl UnixMicro {
+    #[must_use]
+    pub fn new(v: u64) -> Self {
+        Self(v)
+    }
+
     /// Current time as `UnixMicro`.
     fn now() -> Self {
         UnixMicro(
@@ -95,12 +100,6 @@ impl UnixMicro {
     #[must_use]
     pub fn checked_add(&self, rhs: Self) -> Option<Self> {
         Some(Self(self.0.checked_add(rhs.0)?))
-    }
-}
-
-impl From<u64> for UnixMicro {
-    fn from(v: u64) -> Self {
-        Self(v)
     }
 }
 
