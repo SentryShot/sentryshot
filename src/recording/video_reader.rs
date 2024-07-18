@@ -2,11 +2,11 @@
 
 use crate::{
     mp4_muxer::{generate_mp4, GenerateMp4Error},
-    video::{MetaReader, NewMetaReaderError, ReadAllSamplesError},
+    video::{CreateMetaReaderError, MetaReader, ReadAllSamplesError},
+    VideoCache,
 };
 use pin_project::pin_project;
 use std::{
-    collections::HashMap,
     io::{self, SeekFrom},
     path::{Path, PathBuf},
     pin::Pin,
@@ -55,7 +55,7 @@ where
 }
 
 #[derive(Debug, Error)]
-pub enum NewVideoReaderError {
+pub enum CreateVideoReaderError {
     #[error("read video metadata: {0}")]
     ReadVideoMetadat(#[from] ReadVideoMetadataError),
 
@@ -71,8 +71,8 @@ pub async fn new_video_reader(
     recording_path: PathBuf,
     cache_id: u32,
     cache: &Option<Arc<Mutex<VideoCache>>>,
-) -> Result<VideoReader<MetaCursor, tokio::fs::File>, NewVideoReaderError> {
-    use NewVideoReaderError::*;
+) -> Result<VideoReader<MetaCursor, tokio::fs::File>, CreateVideoReaderError> {
+    use CreateVideoReaderError::*;
     let mut meta_path = recording_path.clone();
     meta_path.set_extension("meta");
 
@@ -175,7 +175,7 @@ where
                     let n = buf.filled().len() - prev_buf_len;
                     *this.as_mut().project().pos += u64::try_from(n).unwrap();
                     // Poll ready and continue across border.
-                    *this.as_mut().project().read_state = ReadState::State5;
+                    *this.as_mut().project().read_state = ReadState::State5; // TODO bug??
                     Poll::Ready(Ok(()))
                 }
                 Poll::Pending => Poll::Pending,
@@ -372,7 +372,7 @@ pub enum ReadVideoMetadataError {
     OpenFile(std::io::Error),
 
     #[error("new meta reader: {0}")]
-    NewMetaReader(#[from] NewMetaReaderError),
+    NewMetaReader(#[from] CreateMetaReaderError),
 
     #[error("read all samples:{0}")]
     ReadAllSamples(#[from] ReadAllSamplesError),
@@ -383,7 +383,7 @@ pub enum ReadVideoMetadataError {
 
 async fn read_video_metadata(meta_path: &Path) -> Result<VideoMetadata, ReadVideoMetadataError> {
     use ReadVideoMetadataError::*;
-    let metadata = std::fs::metadata(meta_path).map_err(Metadata)?;
+    let metadata = tokio::fs::metadata(meta_path).await.map_err(Metadata)?;
 
     let meta_size = metadata.len();
     let last_modified = metadata.modified().map_err(LastModified)?;
@@ -405,7 +405,8 @@ async fn read_video_metadata(meta_path: &Path) -> Result<VideoMetadata, ReadVide
     let (meta_buf, mdat_size) = {
         tokio::task::spawn_blocking(move || -> Result<(Vec<u8>, u32), ReadVideoMetadataError> {
             let mut meta_buf = Vec::new();
-            let mdat_size = generate_mp4(&mut meta_buf, header.start_time, &samples, &params)?;
+            let mdat_size =
+                generate_mp4(&mut meta_buf, header.start_time, samples.iter(), &params)?;
             Ok((meta_buf, mdat_size))
         })
         .await
@@ -419,20 +420,6 @@ async fn read_video_metadata(meta_path: &Path) -> Result<VideoMetadata, ReadVide
     })
 }
 
-// VideoCache Caches the n most recent video readers.
-pub struct VideoCache {
-    items: HashMap<(PathBuf, u32), CacheItem>,
-    age: usize,
-
-    max_size: usize,
-}
-
-#[derive(Debug)]
-struct CacheItem {
-    age: usize,
-    data: Arc<VideoMetadata>,
-}
-
 fn new_meta_cursor(inner: Arc<VideoMetadata>) -> MetaCursor {
     MetaCursor { inner, pos: 0 }
 }
@@ -441,6 +428,13 @@ fn new_meta_cursor(inner: Arc<VideoMetadata>) -> MetaCursor {
 pub struct MetaCursor {
     inner: Arc<VideoMetadata>,
     pos: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct VideoMetadata {
+    pub(crate) buf: Vec<u8>,
+    pub(crate) mdat_size: u32,
+    pub(crate) last_modified: std::time::SystemTime,
 }
 
 impl AsyncRead for MetaCursor {
@@ -530,73 +524,6 @@ impl std::io::Seek for MetaCursor {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct VideoMetadata {
-    buf: Vec<u8>,
-    mdat_size: u32,
-    last_modified: std::time::SystemTime,
-}
-
-const VIDEO_CACHE_SIZE: usize = 10;
-
-impl VideoCache {
-    // NewVideoCache creates a video cache.
-    #[must_use]
-    pub fn new() -> Self {
-        Self {
-            items: HashMap::new(),
-            age: 0,
-            max_size: VIDEO_CACHE_SIZE,
-        }
-    }
-
-    // add item to the cache.
-    fn add(&mut self, key: (PathBuf, u32), video: Arc<VideoMetadata>) {
-        // Ignore duplicate keys.
-        if self.items.contains_key(&key) {
-            return;
-        }
-
-        self.age += 1;
-
-        if self.items.len() >= self.max_size {
-            // Delete the oldest item.
-            let (key, _) = self
-                .items
-                .iter()
-                .min_by_key(|(_, v)| v.age)
-                .expect("len > max_size");
-            self.items.remove(&key.to_owned());
-        }
-
-        self.items.insert(
-            key,
-            CacheItem {
-                age: self.age,
-                data: video,
-            },
-        );
-    }
-
-    // Get item by key and update its age if it exists.
-    fn get(&mut self, key: (&Path, u32)) -> Option<Arc<VideoMetadata>> {
-        for (item_key, item) in &mut self.items {
-            if item_key.0 == key.0 && item_key.1 == key.1 {
-                self.age += 1;
-                item.age = self.age;
-                return Some(item.data.clone());
-            }
-        }
-        None
-    }
-}
-
-impl Default for VideoCache {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
@@ -615,7 +542,7 @@ mod tests {
         let meta_path = temp_dir.path().join("x.meta");
         let mdat_path = temp_dir.path().join("x.mdat");
 
-        let test_meta = vec![
+        let test_meta = &[
             1, // Version.
             0, 0, 0, 0, 0, 0, 0, 0, // Start time.
             7, 0x80, // Width.
@@ -687,53 +614,5 @@ mod tests {
 
         // EOF.
         assert!(r.read_exact(&mut buf).await.is_err());
-    }
-
-    fn empty_metadata() -> Arc<VideoMetadata> {
-        Arc::new(VideoMetadata {
-            buf: Vec::new(),
-            mdat_size: 0,
-            last_modified: UNIX_EPOCH,
-        })
-    }
-
-    #[test]
-    fn test_video_reader_cache() {
-        let mut cache = VideoCache::new();
-        cache.max_size = 3;
-
-        // Fill cache.
-        cache.add((PathBuf::from("A"), 0), empty_metadata());
-        cache.add((PathBuf::from("B"), 1), empty_metadata());
-        cache.add((PathBuf::from("C"), 0), empty_metadata());
-
-        // Add item and check if "A" was removed.
-        cache.add((PathBuf::from("D"), 0), empty_metadata());
-        assert!(cache.get((Path::new("A"), 0)).is_none());
-
-        // Get "B" to make it the newest item.
-        cache.get((Path::new("B"), 1));
-
-        // Add item and check if "C" was removed instead of "B".
-        let e = Arc::new(VideoMetadata {
-            buf: Vec::new(),
-            mdat_size: 9999,
-            last_modified: UNIX_EPOCH,
-        });
-        cache.add((PathBuf::from("E"), 0), e.clone());
-        assert!(cache.get((Path::new("C"), 0)).is_none());
-
-        // Add item and check if "D" was removed instead of "B".
-        cache.add((PathBuf::from("F"), 0), empty_metadata());
-        assert!(cache.get((Path::new("D"), 0)).is_none());
-
-        // Add item and check if "B" was removed.
-        cache.add((PathBuf::from("G"), 0), empty_metadata());
-        assert!(cache.get((Path::new("B"), 1)).is_none());
-
-        // Check if duplicate keys are ignored.
-        cache.add((PathBuf::from("G"), 0), empty_metadata());
-        let e2 = cache.get((Path::new("E"), 0)).unwrap();
-        assert_eq!(e, e2);
     }
 }

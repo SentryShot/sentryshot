@@ -482,7 +482,7 @@ pub async fn recording_video_handler(
     serve_mp4_content(
         &Method::GET,
         &headers,
-        video.last_modified(),
+        Some(video.last_modified()),
         video.size(),
         video,
     )

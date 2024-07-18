@@ -28,6 +28,7 @@ pub struct Sample {
 }
 
 impl Sample {
+    #[must_use]
     pub fn from_bytes(b: &[u8; SAMPLE_SIZE]) -> Self {
         let flags = b[0];
         Self {
@@ -67,8 +68,14 @@ impl Sample {
         Ok(out)
     }
 
+    #[must_use]
     pub fn dts(&self) -> Option<UnixH264> {
         self.pts.checked_sub(self.dts_offset.into())
+    }
+
+    #[must_use]
+    pub fn end(&self) -> Option<UnixH264> {
+        self.pts.checked_add(self.duration.into())
     }
 }
 
@@ -82,7 +89,7 @@ pub struct VideoWriter<'a, W: AsyncWrite + Unpin> {
 }
 
 #[derive(Debug, Error)]
-pub enum NewVideoWriterError {
+pub enum CreateVideoWriterError {
     #[error("{0}")]
     TryFromInt(#[from] std::num::TryFromIntError),
 
@@ -111,7 +118,7 @@ impl<'a, W: AsyncWrite + Unpin> VideoWriter<'a, W> {
         meta: &'a mut W,
         mdat: &'a mut W,
         header: Header,
-    ) -> Result<VideoWriter<'a, W>, NewVideoWriterError> {
+    ) -> Result<VideoWriter<'a, W>, CreateVideoWriterError> {
         meta.write_all(&header.marshal()?).await?;
         Ok(Self {
             meta,
@@ -169,7 +176,7 @@ pub struct MetaReader<T: AsyncRead + AsyncSeek + Unpin> {
 }
 
 #[derive(Debug, Error)]
-pub enum NewMetaReaderError {
+pub enum CreateMetaReaderError {
     #[error("unmarshal header {0}")]
     UnmarshalHeader(#[from] HeaderFromReaderError),
 
@@ -187,7 +194,7 @@ pub enum ReadAllSamplesError {
 }
 
 impl<T: AsyncRead + AsyncSeek + Unpin> MetaReader<T> {
-    pub async fn new(mut file: T, file_size: u64) -> Result<(Self, Header), NewMetaReaderError> {
+    pub async fn new(mut file: T, file_size: u64) -> Result<(Self, Header), CreateMetaReaderError> {
         let header = Header::from_reader(&mut file).await?;
         let header_size = u64::try_from(header.size())?;
 
@@ -332,7 +339,7 @@ impl Header {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TrackParameters {
     pub width: u16,
     pub height: u16,
@@ -387,7 +394,7 @@ mod tests {
         w.write_parts(&parts).await.unwrap();
 
         #[rustfmt::skip]
-        let want_meta = vec![
+        let want_meta = &[
             1, // Version.
             0, 0, 0, 0, 0x3b, 0x9a, 0xca, 0, // Start time.
             7, 0x80, // Width.
@@ -423,7 +430,7 @@ mod tests {
             .unwrap();
         assert_eq!(test_header, header);
 
-        let want_samples = vec![
+        let want_samples = &[
             Sample {
                 random_access_present: true,
                 pts: UnixH264::new(100_000_000_000_000_000),
@@ -443,6 +450,6 @@ mod tests {
         ];
 
         let samples = r.read_all_samples().await.unwrap();
-        assert_eq!(want_samples, samples);
+        assert_eq!(want_samples, samples.as_slice());
     }
 }

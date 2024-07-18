@@ -37,17 +37,19 @@ use tokio_util::io::ReaderStream;
 pub async fn serve_mp4_content<RS>(
     method: &Method,
     headers: &HeaderMap,
-    last_modified: std::time::SystemTime,
+    last_modified: Option<std::time::SystemTime>,
     size: u64,
     mut content: RS,
 ) -> Response
 where
     RS: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
 {
-    let last_modified = LastModified::from(last_modified);
-    let mut response_headers = HeaderMap::new();
+    let last_modified = last_modified.map(LastModified::from);
 
-    set_last_modified(&mut response_headers, &last_modified);
+    let mut response_headers = HeaderMap::new();
+    if let Some(last_modified) = &last_modified {
+        set_last_modified(&mut response_headers, last_modified);
+    }
 
     let range_req =
         match check_preconditions(method, headers, response_headers.clone(), &last_modified) {
@@ -234,12 +236,12 @@ fn check_preconditions(
     method: &Method,
     headers: &HeaderMap,
     response_headers: HeaderMap,
-    last_modified: &LastModified,
+    last_modified: &Option<LastModified>,
 ) -> PreconditionsResult {
     // This function carefully follows RFC 7232 section 6.
     let mut ch = check_if_match(headers);
     if ch == CondResult::None {
-        ch = check_if_unmodified_since(headers, Some(last_modified));
+        ch = check_if_unmodified_since(headers, last_modified);
     }
     if ch == CondResult::False {
         return PreconditionsResult::Done(
@@ -249,7 +251,7 @@ fn check_preconditions(
 
     match check_if_none_match(headers) {
         CondResult::None => {
-            if check_if_modified_since(method, headers, Some(last_modified)) == CondResult::False {
+            if check_if_modified_since(method, headers, last_modified) == CondResult::False {
                 return PreconditionsResult::Done(not_modified_response(response_headers));
             }
         }
@@ -270,8 +272,7 @@ fn check_preconditions(
     }
 
     let mut range_header = get_header(headers, header::RANGE);
-    if range_header.is_some()
-        && check_if_range(method, headers, Some(last_modified)) == CondResult::False
+    if range_header.is_some() && check_if_range(method, headers, last_modified) == CondResult::False
     {
         range_header = None;
     }
@@ -384,7 +385,7 @@ fn check_if_match(headers: &HeaderMap) -> CondResult {
     CondResult::False
 }
 
-fn check_if_unmodified_since(headers: &HeaderMap, modified: Option<&LastModified>) -> CondResult {
+fn check_if_unmodified_since(headers: &HeaderMap, modified: &Option<LastModified>) -> CondResult {
     let if_unmodified_since = headers
         .get(header::IF_UNMODIFIED_SINCE)
         .and_then(IfUnmodifiedSince::from_header_value);
@@ -445,7 +446,7 @@ fn check_if_none_match(headers: &HeaderMap) -> CondResult {
 fn check_if_modified_since(
     method: &Method,
     headers: &HeaderMap,
-    modified: Option<&LastModified>,
+    modified: &Option<LastModified>,
 ) -> CondResult {
     if method != Method::GET && method != Method::HEAD {
         return CondResult::None;
@@ -470,7 +471,7 @@ fn check_if_modified_since(
 fn check_if_range(
     method: &Method,
     headers: &HeaderMap,
-    _modified: Option<&LastModified>,
+    _modified: &Option<LastModified>,
 ) -> CondResult {
     if method != Method::GET && method != Method::HEAD {
         return CondResult::None;

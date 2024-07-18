@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use bytesize::{ByteSize, MB};
 use http::{HeaderMap, HeaderValue};
-use sentryshot_padded_bytes::PaddedBytes;
+pub use sentryshot_padded_bytes::PaddedBytes;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow, collections::HashMap, convert::TryFrom, fmt, io::Cursor, ops::Deref, path::Path,

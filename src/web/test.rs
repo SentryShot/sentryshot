@@ -17,7 +17,7 @@ async fn test_serve_mp4() {
     let response = serve_mp4_content(
         &Method::GET,
         &headers,
-        UNIX_EPOCH,
+        Some(UNIX_EPOCH),
         10,
         Cursor::new(file.clone()),
     )
@@ -71,7 +71,7 @@ async fn test_serve_mp4_range(r: &str, code: StatusCode, ranges: Vec<WantRange>)
     let response = serve_mp4_content(
         &Method::GET,
         &headers,
-        UNIX_EPOCH,
+        Some(UNIX_EPOCH),
         11,
         Cursor::new(file.to_owned()),
     )

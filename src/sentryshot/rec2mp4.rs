@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use recording::{new_video_reader, NewVideoReaderError};
+use recording::{new_video_reader, CreateVideoReaderError};
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
@@ -104,8 +104,8 @@ struct ConvertResult {
 
 #[derive(Debug, Error)]
 enum ConvertError {
-    #[error("new video reader: {0}")]
-    NewVideoReader(#[from] NewVideoReaderError),
+    #[error("create video reader: {0}")]
+    NewVideoReader(#[from] CreateVideoReaderError),
 
     #[error("open file: {0}")]
     OpenFile(std::io::Error),

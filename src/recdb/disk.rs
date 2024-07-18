@@ -68,7 +68,7 @@ impl Disk {
 
     pub(crate) async fn usage(&self, max_age: Duration) -> Result<DiskUsage, UsageError> {
         use UsageError::*;
-        let max_time = UnixNano::now().sub_duration(max_age).ok_or(Sub)?;
+        let max_time = UnixNano::now().checked_sub(max_age.into()).ok_or(Sub)?;
 
         if let Some(cache) = &*self.cache.lock().await {
             if cache.last_update.after(max_time) {
@@ -255,7 +255,7 @@ mod tests {
             ByteSize(space),
             Box::new(StubDiskUsageBytes(used)),
         );
-        let got = d.usage(Duration::from(0)).await.unwrap();
+        let got = d.usage(Duration::new(0)).await.unwrap();
         assert_eq!(want, got);
     }
 
@@ -321,7 +321,7 @@ mod tests {
             Box::new(StubDiskUsageBytes(1000)),
         );
 
-        let got = d.usage(Duration::from(0)).await.unwrap();
+        let got = d.usage(Duration::new(0)).await.unwrap();
         let want = DiskUsage {
             used: 1000,
             percent: f32::INFINITY,

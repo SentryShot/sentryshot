@@ -3,7 +3,8 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::{
-    ops::{Add, Deref},
+    fmt::Display,
+    ops::{Add, Deref, Sub},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -16,7 +17,9 @@ pub const HOUR: i64 = MINUTE * 60;
 
 // Nanoseconds since the Unix epoch.
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
+)]
 pub struct UnixNano(i64);
 
 impl UnixNano {
@@ -39,13 +42,13 @@ impl UnixNano {
     }
 
     #[must_use]
-    pub fn add_duration(&self, duration: Duration) -> Option<Self> {
-        Some(Self(self.0.checked_add(duration.0)?))
+    pub fn checked_add(&self, rhs: Self) -> Option<Self> {
+        Some(Self(self.0.checked_add(rhs.0)?))
     }
 
     #[must_use]
-    pub fn sub_duration(&self, duration: Duration) -> Option<Self> {
-        Some(Self(self.0.checked_sub(duration.0)?))
+    pub fn checked_sub(&self, rhs: Self) -> Option<Self> {
+        Some(Self(self.0.checked_sub(rhs.0)?))
     }
 
     // Reports whether the time intant `self` is after `other`.
@@ -66,11 +69,31 @@ impl UnixNano {
     }
 
     #[must_use]
+    pub fn until(time: Self) -> Option<Duration> {
+        Some(time.checked_sub(UnixNano::now())?.into())
+    }
+
+    #[must_use]
     #[allow(clippy::cast_sign_loss, clippy::as_conversions)]
     pub fn as_chrono(&self) -> Option<NaiveDateTime> {
         let sec = self.0 / SECOND;
         let nanosec = self.0 % SECOND;
         NaiveDateTime::from_timestamp_opt(sec, nanosec as u32)
+    }
+}
+
+impl From<Duration> for UnixNano {
+    fn from(value: Duration) -> Self {
+        Self(value.0)
+    }
+}
+
+impl From<UnixH264> for UnixNano {
+    fn from(value: UnixH264) -> Self {
+        let clock_rate = i64::from(H264_TIMESCALE);
+        let secs = value.0 / clock_rate;
+        let dec = value.0 % clock_rate;
+        UnixNano((secs * SECOND) + ((dec * SECOND) / clock_rate))
     }
 }
 
@@ -82,12 +105,45 @@ impl Deref for UnixNano {
     }
 }
 
+impl Add for UnixNano {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl Sub for UnixNano {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl Display for UnixNano {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 // `std::time::Duration` but without the u128 to u64 conversions.
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Duration(i64);
 
 impl Duration {
+    #[must_use]
+    pub fn new(v: i64) -> Self {
+        Self(v)
+    }
+
+    #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
+    #[must_use]
+    pub fn from_f64(v: f64) -> Self {
+        Self(v as i64)
+    }
+
     #[must_use]
     pub fn from_nanos(nanos: i64) -> Self {
         Self(nanos)
@@ -114,26 +170,19 @@ impl Duration {
     }
 
     #[must_use]
-    pub fn as_std(&self) -> Option<std::time::Duration> {
-        Some(std::time::Duration::from_nanos(u64::try_from(self.0).ok()?))
+    pub fn as_seconds(&self) -> i64 {
+        self.0 / SECOND
     }
 
     #[must_use]
-    pub fn until(time: UnixNano) -> Option<Self> {
-        Some(Self(time.checked_sub(*UnixNano::now())?))
+    pub fn as_std(&self) -> Option<std::time::Duration> {
+        Some(std::time::Duration::from_nanos(u64::try_from(self.0).ok()?))
     }
 }
 
-impl From<i64> for Duration {
-    fn from(v: i64) -> Self {
-        Self(v)
-    }
-}
-
-#[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
-impl From<f64> for Duration {
-    fn from(v: f64) -> Self {
-        Self(v as i64)
+impl From<UnixNano> for Duration {
+    fn from(v: UnixNano) -> Self {
+        Self(v.0)
     }
 }
 
@@ -154,7 +203,7 @@ pub const H264_MILLISECOND: i64 = H264_SECOND / 1000;
 
 // 90khz time since the Unix epoch.
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UnixH264(i64);
 
 impl UnixH264 {
@@ -185,25 +234,8 @@ impl UnixH264 {
     }
 
     #[must_use]
-    pub fn as_duration(&self) -> DurationH264 {
-        DurationH264::new(self.0)
-    }
-
-    #[must_use]
-    pub fn as_nanos(&self) -> UnixNano {
-        let clock_rate = i64::from(H264_TIMESCALE);
-        let secs = self.0 / clock_rate;
-        let dec = self.0 % clock_rate;
-        UnixNano((secs * SECOND) + ((dec * SECOND) / clock_rate))
-    }
-
-    #[must_use]
-    #[allow(clippy::cast_sign_loss, clippy::as_conversions)]
     pub fn as_chrono(&self) -> Option<NaiveDateTime> {
-        let nanos = *self.as_nanos();
-        let sec = nanos / SECOND;
-        let nanosec = nanos % SECOND;
-        NaiveDateTime::from_timestamp_opt(sec, nanosec as u32)
+        UnixNano::from(*self).as_chrono()
     }
 }
 
@@ -219,11 +251,25 @@ impl From<DtsOffset> for UnixH264 {
     }
 }
 
+impl From<UnixNano> for UnixH264 {
+    fn from(nanos: UnixNano) -> Self {
+        Self(nano_to_timescale(*nanos, H264_TIMESCALE.into()))
+    }
+}
+
 impl Add for UnixH264 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
         Self(self.0 + rhs.0)
+    }
+}
+
+impl Sub for UnixH264 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
     }
 }
 
@@ -235,9 +281,9 @@ impl Deref for UnixH264 {
     }
 }
 
-impl From<UnixNano> for UnixH264 {
-    fn from(nanos: UnixNano) -> Self {
-        Self(nano_to_timescale(*nanos, H264_TIMESCALE.into()))
+impl Display for UnixH264 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
@@ -333,6 +379,18 @@ impl Deref for DurationH264 {
 impl From<Duration> for DurationH264 {
     fn from(nanos: Duration) -> Self {
         Self(nano_to_timescale(*nanos, H264_TIMESCALE.into()))
+    }
+}
+
+impl From<UnixNano> for DurationH264 {
+    fn from(nanos: UnixNano) -> Self {
+        Self(nano_to_timescale(*nanos, H264_TIMESCALE.into()))
+    }
+}
+
+impl Display for DurationH264 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 

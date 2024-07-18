@@ -176,7 +176,7 @@ impl RecDb {
         start_time: UnixH264,
     ) -> Result<RecordingHandle, NewRecordingError> {
         use NewRecordingError::*;
-        let start_time_chrono = start_time.as_nanos().as_chrono().ok_or(Chrono)?;
+        let start_time_chrono = start_time.as_chrono().ok_or(Chrono)?;
         let ymd = start_time_chrono.format("%Y/%m/%d").to_string();
 
         let file_dir = self.recordings_dir.join(ymd).join(&*monitor_id);

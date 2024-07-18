@@ -90,7 +90,7 @@ impl MonitorConfig {
     #[must_use]
     #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
     pub fn video_length(&self) -> Duration {
-        Duration::from(self.config.video_length * (MINUTE as f64))
+        Duration::from_f64(self.config.video_length * (MINUTE as f64))
     }
 
     /*

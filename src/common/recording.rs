@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use thiserror::Error;
-
 use crate::{
     time::{Duration, UnixNano, SECOND},
     Event, MonitorId, ParseMonitorIdError, Point, PointNormalized, Polygon, PolygonNormalized,
@@ -12,6 +10,7 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
 };
+use thiserror::Error;
 
 // Recording data serialized to json and saved next to video and thumbnail.
 #[allow(clippy::module_name_repetitions)]
@@ -60,6 +59,12 @@ pub enum RecordingIdError {
     BadMinute(u8),
     #[error("bad second: {0}")]
     BadSecond(u8),
+
+    #[error("time is negative: {0:?}")]
+    NegativeTime(UnixNano),
+
+    #[error("chrono")]
+    Chrono,
 }
 
 #[derive(Clone, Hash, PartialEq, Eq)]
@@ -83,6 +88,25 @@ impl std::fmt::Debug for RecordingId {
 }
 
 impl RecordingId {
+    pub fn from_nanos(value: UnixNano, monitor_id: &MonitorId) -> Result<Self, RecordingIdError> {
+        if value.is_negative() {
+            return Err(RecordingIdError::NegativeTime(value));
+        }
+        value
+            .as_chrono()
+            .ok_or(RecordingIdError::Chrono)?
+            .format(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
+            .to_string()
+            .try_into()
+    }
+
+    #[must_use]
+    pub fn zero(monitor_id: &MonitorId) -> Self {
+        format!("0000-00-00_00-00-00_{monitor_id}")
+            .try_into()
+            .expect("should be valid for any monitor id")
+    }
+
     #[must_use]
     pub fn year_month_day(&self) -> [PathBuf; 3] {
         [
@@ -426,9 +450,9 @@ impl Deref for DurationSec {
 )]
 fn feed_rate_to_duration(feed_rate: f32) -> Duration {
     if feed_rate == 0.0 {
-        return Duration::from(0);
+        return Duration::new(0);
     }
-    Duration::from(((1.0 * SECOND as f32) / feed_rate) as i64)
+    Duration::new(((1.0 * SECOND as f32) / feed_rate) as i64)
 }
 
 pub struct FrameRateLimiter {
@@ -505,6 +529,26 @@ mod tests {
     use crate::time::MILLISECOND;
     use pretty_assertions::assert_eq;
     use test_case::test_case;
+
+    #[test_case("1970-01-01_00-00-00_x", 0)]
+    #[test_case("1970-01-01_00-00-00_x", SECOND-1)]
+    #[test_case("1970-01-01_00-00-01_x", SECOND)]
+    #[test_case("1970-01-01_00-00-01_x", 2*SECOND-1)]
+    #[test_case("1970-01-01_00-00-02_x", 2*SECOND)]
+    fn test_recording_id_from_nanos(want: &str, input: i64) {
+        assert_eq!(
+            want,
+            RecordingId::from_nanos(UnixNano::new(input), &"x".to_owned().try_into().unwrap())
+                .unwrap()
+                .as_str()
+        );
+    }
+
+    #[test]
+    fn test_recording_id_zero() {
+        // Should not panic.
+        _ = RecordingId::zero(&"x".to_owned().try_into().unwrap());
+    }
 
     #[test]
     fn test_recording_id_as_full_path() {
@@ -682,7 +726,7 @@ mod tests {
     #[test_case(2.0, 500 * MILLISECOND)]
     #[test_case(0.5, 2 * SECOND)]
     fn test_feed_rate_to_duration(input: f32, want: i64) {
-        assert_eq!(Duration::from(want), feed_rate_to_duration(input));
+        assert_eq!(Duration::new(want), feed_rate_to_duration(input));
     }
     /*cases := []struct {
         input    float64

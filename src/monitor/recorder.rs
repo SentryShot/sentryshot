@@ -4,13 +4,13 @@ use crate::{source::Source, DynMonitorHooks};
 use common::{
     monitor::MonitorConfig,
     recording::{RecordingData, RecordingId},
-    time::{Duration, DurationH264, UnixH264, UnixNano},
+    time::{DurationH264, UnixH264, UnixNano},
     DynHlsMuxer, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
     SegmentFinalized, TrackParameters,
 };
 use futures::Future;
 use recdb::{NewRecordingError, OpenFileError, RecDb, RecordingHandle};
-use recording::{Header, NewVideoWriterError, VideoWriter, WriteSampleError};
+use recording::{CreateVideoWriterError, Header, VideoWriter, WriteSampleError};
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
 };
@@ -81,7 +81,7 @@ pub fn new_recorder(
                         };
                         //r.hooks.Event(r, &event)
 
-                        let Some(end) = event.time.add_duration(event.rec_duration) else {
+                        let Some(end) = event.time.checked_add(event.rec_duration.into()) else {
                             continue
                         };
 
@@ -122,7 +122,7 @@ pub fn new_recorder(
                         };
                         //r.hooks.Event(r, &event)
 
-                        let Some(end) = event.time.add_duration(event.rec_duration) else {
+                        let Some(end) = event.time.checked_add(event.rec_duration.into()) else {
                             continue
                         };
                         if !end.after(UnixNano::now()) {
@@ -188,7 +188,7 @@ impl RecordingSession {
         let Some(timer_end) = self.timer_end else {
             return Sleep(None);
         };
-        let Some(timer_end) = Duration::until(timer_end) else {
+        let Some(timer_end) = UnixNano::until(timer_end) else {
             self.logger.log(LogLevel::Error, "Duration::until failed");
             return Sleep(None);
         };
@@ -341,8 +341,8 @@ async fn run_recording(
         recording.id(),
         &recording,
         c.event_cache,
-        start_time.as_nanos(),
-        end_time.as_nanos(),
+        UnixNano::from(start_time),
+        UnixNano::from(end_time),
     )
     .await?;
 
@@ -355,7 +355,7 @@ enum GenerateVideoError {
     OpenFile(#[from] OpenFileError),
 
     #[error("new video writer: {0}")]
-    NewVideoWriter(#[from] NewVideoWriterError),
+    NewVideoWriter(#[from] CreateVideoWriterError),
 
     #[error("add")]
     Add,
@@ -682,8 +682,9 @@ mod tests {
     use super::*;
     use bytesize::ByteSize;
     use common::{
-        new_dummy_msg_logger, time::MINUTE, Detection, DummyLogger, PointNormalized,
-        RectangleNormalized, Region,
+        new_dummy_msg_logger,
+        time::{Duration, MINUTE},
+        Detection, DummyLogger, PointNormalized, RectangleNormalized, Region,
     };
     use pretty_assertions::assert_eq;
     use recdb::Disk;
@@ -993,14 +994,14 @@ mod tests {
         let event_cache = Arc::new(EventCache(Mutex::new(vec![
             Event {
                 time: UnixNano::new(0),
-                duration: Duration::from(0),
-                rec_duration: Duration::from(0),
+                duration: Duration::new(0),
+                rec_duration: Duration::new(0),
                 detections: Vec::new(),
             },
             Event {
                 time: UnixNano::new(2 * MINUTE),
-                duration: Duration::from(11),
-                rec_duration: Duration::from(0),
+                duration: Duration::new(11),
+                rec_duration: Duration::new(0),
                 detections: vec![Detection {
                     label: "10".to_owned().try_into().unwrap(),
                     score: 9.0,
@@ -1020,8 +1021,8 @@ mod tests {
             },
             Event {
                 time: UnixNano::new(11 * MINUTE),
-                duration: Duration::from(0),
-                rec_duration: Duration::from(0),
+                duration: Duration::new(0),
+                rec_duration: Duration::new(0),
                 detections: Vec::new(),
             },
         ])));

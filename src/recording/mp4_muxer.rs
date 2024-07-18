@@ -12,46 +12,74 @@ pub enum GenerateMp4Error {
     #[error("mp4: {0}")]
     Mp4(#[from] Mp4Error),
 
-    #[error("from int: {0}")]
-    FromInt(#[from] TryFromIntError),
-
     #[error("add")]
     Add,
 
     #[error("subtract")]
     Sub,
 
+    #[error("delta: {0} {1}")]
+    Delta(DurationH264, TryFromIntError),
+
+    #[error("cts: {0} {1}")]
+    Cts(i64, TryFromIntError),
+
+    #[error("stsz length: {0} {1}")]
+    StszLen(usize, TryFromIntError),
+
+    #[error("generate trak: {0}")]
+    GenerateTrak(#[from] GenerateTrakError),
+
+    #[error("mvhd duration: {0} {1}")]
+    MvhdDuration(i64, TryFromIntError),
+
+    #[error("moov size: {0} {1}")]
+    MoovSize(usize, TryFromIntError),
+
     #[error("write: {0}")]
     Write(#[from] std::io::Error),
 }
 
 #[derive(Default)]
-struct Mp4Muxer {
-    stts: Vec<mp4::SttsEntry>,
-    stss: Vec<u32>,
-    ctts: Vec<mp4::CttsEntry>,
-    stsc: Vec<mp4::StscEntry>,
-    stsz: Vec<u32>,
-    stco: Rc<RefCell<Vec<u32>>>,
+pub struct Mp4Muxer {
+    pub stts: Vec<mp4::SttsEntry>,
+    pub stss: Vec<u32>,
+    pub ctts: Vec<mp4::CttsEntry>,
+    pub stsc: Vec<mp4::StscEntry>,
+    pub stsz: Vec<u32>,
+    pub stco: Rc<RefCell<Vec<u32>>>,
 }
 
-#[allow(clippy::items_after_statements, clippy::similar_names)]
-pub fn generate_mp4(
-    mut out: &mut dyn Write,
+#[allow(
+    clippy::items_after_statements,
+    clippy::similar_names,
+    clippy::too_many_lines
+)]
+pub fn generate_mp4<'a, W, S>(
+    mut out: W,
     start_time: UnixH264,
-    samples: &[Sample],
+    samples: S,
     params: &TrackParameters,
-) -> Result<u32, GenerateMp4Error> {
+) -> Result<u32, GenerateMp4Error>
+where
+    W: Write,
+    S: Iterator<Item = &'a Sample>,
+{
     use GenerateMp4Error::*;
 
-    let mut m = Mp4Muxer::default();
+    let mut m = Mp4Muxer {
+        stco: Rc::new(RefCell::new(vec![0])),
+        ..Default::default()
+    };
     let mut mdat_pos: u32 = 0;
     let mut end_time = UnixH264::new(0);
     let mut dts_shift = DurationH264::new(0);
-    let mut stco = m.stco.borrow_mut();
 
     for sample in samples {
-        let delta = sample.duration.as_u32()?;
+        let delta = sample
+            .duration
+            .as_u32()
+            .map_err(|v| Delta(sample.duration, v))?;
         match m.stts.last_mut() {
             Some(last) if last.sample_delta == delta => {
                 last.sample_count += 1;
@@ -62,23 +90,24 @@ pub fn generate_mp4(
             }),
         }
 
-        let pts = sample.pts.checked_sub(start_time).ok_or(Sub)?.as_duration();
-        let dts = sample
-            .dts()
-            .ok_or(Sub)?
-            .checked_sub(start_time)
-            .ok_or(Sub)?
-            .as_duration();
+        let pts = DurationH264::from(sample.pts.checked_sub(start_time).ok_or(Sub)?);
+        let dts = DurationH264::from(
+            sample
+                .dts()
+                .ok_or(Sub)?
+                .checked_sub(start_time)
+                .ok_or(Sub)?,
+        );
 
-        let first_sample = m.stsc.is_empty();
+        let first_sample = m.stsz.is_empty();
         if first_sample {
             dts_shift = pts.checked_sub(dts).ok_or(Sub)?;
         }
 
-        let cts = i32::try_from(
-            *pts.checked_sub(dts.checked_add(dts_shift).ok_or(Add)?)
-                .ok_or(Add)?,
-        )?;
+        let cts = *pts
+            .checked_sub(dts.checked_add(dts_shift).ok_or(Add)?)
+            .ok_or(Add)?;
+        let cts = i32::try_from(cts).map_err(|v| Cts(cts, v))?;
         //cts := pts - (dts + m.dtsShift)
 
         match m.ctts.last_mut() {
@@ -92,22 +121,12 @@ pub fn generate_mp4(
             }),
         }
 
-        if let Some(last_stsc) = m.stsc.last_mut() {
-            last_stsc.samples_per_chunk += 1;
-        } else {
-            stco.push(mdat_pos);
-            m.stsc.push(mp4::StscEntry {
-                first_chunk: 1,
-                samples_per_chunk: 1,
-                sample_description_index: 1,
-            });
-        }
-
         mdat_pos += sample.data_size;
         m.stsz.push(sample.data_size);
 
         if sample.random_access_present {
-            m.stss.push(u32::try_from(m.stsz.len())?);
+            m.stss
+                .push(u32::try_from(m.stsz.len()).map_err(|v| StszLen(m.stts.len(), v))?);
         }
 
         end_time = sample
@@ -116,7 +135,12 @@ pub fn generate_mp4(
             .checked_add(sample.duration.into())
             .ok_or(Add)?;
     }
-    drop(stco);
+
+    m.stsc.push(mp4::StscEntry {
+        first_chunk: 1,
+        samples_per_chunk: u32::try_from(m.stsz.len()).map_err(|e| StszLen(m.stsz.len(), e))?,
+        sample_description_index: 1,
+    });
 
     let duration = DurationH264::from(
         end_time
@@ -129,7 +153,8 @@ pub fn generate_mp4(
         // Mvhd.
         mp4::Boxes::new(mp4::Mvhd {
             timescale: 1000,
-            duration_v0: u32::try_from(duration.as_millis())?,
+            duration_v0: u32::try_from(duration.as_millis())
+                .map_err(|v| MvhdDuration(duration.as_millis(), v))?,
             rate: 65536,
             volume: 256,
             matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
@@ -142,7 +167,9 @@ pub fn generate_mp4(
 
     const FTYP_SIZE: u32 = 20;
     const MDAT_HEADER_SIZE: u32 = 8;
-    let mdat_offset: u32 = FTYP_SIZE + u32::try_from(moov.size())? + MDAT_HEADER_SIZE;
+    let mdat_offset: u32 = FTYP_SIZE
+        + u32::try_from(moov.size()).map_err(|v| MoovSize(moov.size(), v))?
+        + MDAT_HEADER_SIZE;
 
     let mut stco = m.stco.borrow_mut();
     for i in 0..stco.len() {
@@ -173,13 +200,26 @@ pub fn generate_mp4(
     Ok(mdat_pos)
 }
 
+#[derive(Debug, Error)]
+pub enum GenerateTrakError {
+    #[error("tkhd duration: {0} {1}")]
+    TkhdDuration(i64, TryFromIntError),
+
+    #[error("mdhd duration: {0} {1}")]
+    MdhdDuration(DurationH264, TryFromIntError),
+
+    #[error("stsz size: {0} {1}")]
+    StszLen(usize, TryFromIntError),
+}
+
 impl Mp4Muxer {
     #[allow(clippy::let_and_return)]
-    fn generate_trak(
+    pub fn generate_trak(
         &self,
         duration: DurationH264,
         params: &TrackParameters,
-    ) -> Result<mp4::Boxes, TryFromIntError> {
+    ) -> Result<mp4::Boxes, GenerateTrakError> {
+        use GenerateTrakError::*;
         /*
            trak
            - tkhd
@@ -197,7 +237,8 @@ impl Mp4Muxer {
                     flags: [0, 0, 3],
                 },
                 track_id: VIDEO_TRACK_ID,
-                duration_v0: u32::try_from(duration.as_millis())?,
+                duration_v0: u32::try_from(duration.as_millis())
+                    .map_err(|v| TkhdDuration(duration.as_millis(), v))?,
                 width: u32::from(params.width) * 65536,
                 height: u32::from(params.height) * 65536,
                 matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
@@ -209,7 +250,7 @@ impl Mp4Muxer {
                 mp4::Boxes::new(mp4::Mdhd {
                     timescale: H264_TIMESCALE,
                     language: *b"und",
-                    duration_v0: duration.as_u32()?,
+                    duration_v0: duration.as_u32().map_err(|v| MdhdDuration(duration, v))?,
                     ..Default::default()
                 }),
                 // Hdlr.
@@ -227,7 +268,7 @@ impl Mp4Muxer {
     }
 
     #[allow(clippy::let_and_return)]
-    fn generate_minf(&self, params: &TrackParameters) -> Result<mp4::Boxes, TryFromIntError> {
+    fn generate_minf(&self, params: &TrackParameters) -> Result<mp4::Boxes, GenerateTrakError> {
         /*
            minf
            - vmhd
@@ -274,7 +315,8 @@ impl Mp4Muxer {
             mp4::Boxes::new(mp4::Stsz {
                 full_box: mp4::FullBox::default(),
                 sample_size: 0,
-                sample_count: u32::try_from(self.stsz.len())?,
+                sample_count: u32::try_from(self.stsz.len())
+                    .map_err(|v| GenerateTrakError::StszLen(self.stsz.len(), v))?,
                 entry_sizes: self.stsz.clone(),
             }),
             // Stco.
@@ -475,7 +517,7 @@ mod tests {
         };
 
         let start_time = UnixH264::new(1);
-        let mdat_size = generate_mp4(&mut buf, start_time, &samples, &params).unwrap();
+        let mdat_size = generate_mp4(&mut buf, start_time, samples.iter(), &params).unwrap();
         assert_eq!(6, mdat_size);
 
         let want = vec![
