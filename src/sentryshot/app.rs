@@ -39,6 +39,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use tower::ServiceBuilder;
+use vod::VodCache;
 use web::Templater;
 
 #[allow(clippy::wildcard_imports)]
@@ -272,6 +273,18 @@ impl App {
                 "/hls/*path",
                 any(hls_handler)
                     .with_state(self.hls_server.clone())
+                    .layer(middleware::from_fn_with_state(self.auth.clone(), user))
+                    .with_state(self.auth.clone()),
+            )
+            // Video on demand.
+            .route(
+                "/vod/vod.mp4",
+                get(vod_handler)
+                    .with_state(VodHandlerState {
+                        logger: self.logger.clone(),
+                        recdb: self.recdb.clone(),
+                        cache: VodCache::new(),
+                    })
                     .layer(middleware::from_fn_with_state(self.auth.clone(), user))
                     .with_state(self.auth.clone()),
             )

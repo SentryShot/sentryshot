@@ -1,5 +1,5 @@
 [package]
-name = "handler"
+name = "vod"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,33 +9,26 @@ license.workspace = true
 workspace = true
 
 [lib]
-name = "handler"
-path = "handler.rs"
+name = "vod"
+path = "vod.rs"
 doctest = false
 
 [dependencies]
 common.path = "../common"
-hls.path = "../hls"
-log.path = "../log"
-monitor.path = "../monitor"
+mp4.path = "../mp4"
 recdb.path = "../recdb"
 recording.path = "../recording"
-vod.path = "../vod"
-web.path = "../web"
-rust-embed.path = "../rust-embed"
 
-axum.workspace = true
-#axum-macros = "0.3.7"
-http.workspace = true
-hyper.workspace = true
-mime_guess.workspace = true
+bytesize.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tokio-util.workspace = true
+pin-project.workspace = true
 
 
 [dev-dependencies]
 pretty_assertions.workspace = true
+pretty-hex.workspace = true
 test-case.workspace = true
+tempfile.workspace = true

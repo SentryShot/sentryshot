@@ -42,6 +42,10 @@
 				height: 20rem;
 				width: 30rem;
 			}
+			h5 {
+				margin: auto;
+				margin-right: 0.5rem;
+			}
 		</style>
 		<script>
 			function sortObject(o) {
@@ -432,6 +436,63 @@
 				</div>
 			</div>
 			<pre></pre>
+		</article>
+
+		<article class="js-vod">
+			<div style="flex-wrap: wrap">
+				<div>
+					<h5>unstable</h5>
+					<span>GET /vod/vod.mp4?monitor-id=</span
+					><input class="js-monitor-id" type="text" value="123" />
+				</div>
+				<div>
+					<span>&amp;start=</span>
+					<input class="js-start" type="datetime-local" style="width: 14rem" />
+				</div>
+				<div>
+					<span>&amp;end=</span>
+					<input class="js-end" type="datetime-local" style="width: 14rem" />
+
+					<button
+						onclick='
+				(async () => {
+					const element = document.querySelector(".js-vod");
+					const monitorID = element.querySelector(".js-monitor-id").value;
+					const start = new Date(element.querySelector(".js-start").value).getTime() * 1000000;
+					const end = new Date(element.querySelector(".js-end").value).getTime() * 1000000;
+					const random = Math.floor(Math.random() * 999999);
+					const video = element.querySelector(".js-video");
+					const $pre = element.querySelector("pre");
+
+					const url = `vod/vod.mp4?monitor-id=${monitorID}&start=${start}&end=${end}&cache-id=${random}`;
+					const headers = { "range": "bytes=0-0" } // Only request a single byte.
+					const now = performance.now()
+					const res = await fetch(url, { headers });
+					const elapsed1 = performance.now() - now;
+
+					const now2 = performance.now()
+					const res2 = await fetch(url, { headers });
+					const elapsed2 = performance.now() - now2;
+
+					let body = "";
+					if (res2.status != 200) {
+						let tmp = await res2.text();
+						body = `\nbody: ${tmp}`
+					}
+					$pre.innerHTML = `time: ${elapsed1}ms, cached: ${elapsed2}ms\nstatus: ${res2.status} ${res2.statusText}${body}`;
+					$pre.style.display = "block";
+
+					video.style.display = "block";
+					video.src = url;
+				})()
+				'
+					>
+						Submit
+					</button>
+				</div>
+			</div>
+			<pre></pre>
+			<video controls muted autoplay class="js-video" style="display: none"></video>
 		</article>
 
 		<article class="js-test">

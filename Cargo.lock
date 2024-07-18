@@ -961,6 +961,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
+ "vod",
  "web",
 ]
 
@@ -2117,6 +2118,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tower",
+ "vod",
  "web",
 ]
 
@@ -2856,6 +2858,26 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "vod"
+version = "0.2.18"
+dependencies = [
+ "bytesize",
+ "common",
+ "mp4",
+ "pin-project",
+ "pretty-hex",
+ "pretty_assertions",
+ "recdb",
+ "recording",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "test-case",
+ "thiserror",
+ "tokio",
+]
 
 [[package]]
 name = "walkdir"

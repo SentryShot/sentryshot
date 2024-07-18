@@ -33,6 +33,7 @@ use std::{path::PathBuf, sync::Arc};
 use thiserror::Error;
 use tokio::sync::{broadcast::error::RecvError, Mutex};
 use tokio_util::io::ReaderStream;
+use vod::{CreateVodReaderError, VodCache, VodQuery, VodReader};
 use web::{serve_mp4_content, Templater};
 
 #[derive(Clone)]
@@ -205,6 +206,39 @@ fn parse_path(path: String) -> Result<(String, String), ParsePathError> {
     } else {
         Ok((path, String::new()))
     }
+}
+
+#[derive(Clone)]
+pub struct VodHandlerState {
+    pub logger: Arc<Logger>,
+    pub recdb: Arc<RecDb>,
+    pub cache: VodCache,
+}
+
+pub async fn vod_handler(
+    State(state): State<VodHandlerState>,
+    query: Query<VodQuery>,
+    headers: HeaderMap,
+) -> Response {
+    use CreateVodReaderError::*;
+    let monitor_id = query.0.monitor_id.clone();
+    let reader = match VodReader::new(&state.recdb, &state.cache, query.0).await {
+        Ok(Some(v)) => v,
+        Ok(None) => return (StatusCode::NOT_FOUND, "no video found").into_response(),
+        Err(e @ (NegativeDuration | MaxDuration)) => {
+            return (StatusCode::BAD_REQUEST, e.to_string()).into_response();
+        }
+        Err(e) => {
+            state.logger.log(LogEntry::new(
+                LogLevel::Error,
+                "app",
+                Some(monitor_id),
+                format!("vod handler: {e}"),
+            ));
+            return (StatusCode::INTERNAL_SERVER_ERROR, "error printed to logs").into_response();
+        }
+    };
+    serve_mp4_content(&Method::GET, &headers, None, reader.size(), reader).await
 }
 
 const API_HTML: &str = include_str!("./api.html");
