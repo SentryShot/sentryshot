@@ -3,6 +3,7 @@
 mod crawler;
 mod disk;
 
+pub use crawler::CrawlerError;
 pub use disk::Disk;
 
 use common::recording::{RecordingData, RecordingId, RecordingIdError};
@@ -11,7 +12,6 @@ use common::{
     DynLogger, LogEntry, LogLevel, MonitorId,
 };
 use crawler::Crawler;
-use crawler::CrawlerError;
 use csv::deserialize_csv_option;
 use disk::UsageError;
 use fs::dir_fs;
@@ -31,18 +31,23 @@ use tokio_util::sync::CancellationToken;
 #[derive(Clone, Debug, Deserialize)]
 pub struct RecDbQuery {
     #[serde(rename = "recording-id")]
-    recording_id: RecordingId,
+    pub recording_id: RecordingId,
 
-    limit: NonZeroUsize,
-    reverse: bool,
+    // This is not part of the public API.
+    #[serde(default)]
+    pub end: Option<RecordingId>,
+
+    pub limit: NonZeroUsize,
+    // True=forwards, False=backwards
+    pub reverse: bool,
 
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_csv_option")]
-    monitors: Vec<String>,
+    pub monitors: Vec<String>,
 
     // If event data should be read from file and included.
     #[serde(rename = "include-data")]
-    include_data: bool,
+    pub include_data: bool,
 }
 
 // Contains identifier and optionally data.
@@ -64,6 +69,17 @@ pub enum RecordingResponse {
     Incomplete(RecordingIncomplete),
 }
 
+impl RecordingResponse {
+    #[must_use]
+    pub fn id(&self) -> &RecordingId {
+        match self {
+            RecordingResponse::Active(v) => &v.id,
+            RecordingResponse::Finalized(v) => &v.id,
+            RecordingResponse::Incomplete(v) => &v.id,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct RecordingActive {
     id: RecordingId,
@@ -71,7 +87,7 @@ pub struct RecordingActive {
 
 #[derive(Debug, Serialize)]
 pub struct RecordingFinalized {
-    id: RecordingId,
+    pub id: RecordingId,
     data: Option<RecordingData>,
 }
 
@@ -275,6 +291,7 @@ impl RecDb {
         #[allow(clippy::unwrap_used)]
         self.recordings_by_query(&RecDbQuery {
             recording_id: "9999-01-01_01-01-01_x".to_owned().try_into().unwrap(),
+            end: None,
             limit: NonZeroUsize::new(1000).unwrap(),
             reverse: false,
             monitors: Vec::new(),

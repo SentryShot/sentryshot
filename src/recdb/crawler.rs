@@ -78,6 +78,12 @@ fn recordings_by_query(
         };
 
         let id = rec.id;
+        if let Some(end) = &query.end {
+            if query.reverse && &id > end || !query.reverse && &id < end {
+                break;
+            }
+        }
+
         let is_active = active_recordings.contains(&id);
         if is_active {
             recordings.push(RecordingResponse::Active(RecordingActive { id }));
@@ -366,17 +372,19 @@ impl DirIterRec {
             } else {
                 // Inexact match.
                 let index = if query.reverse {
-                    recs.iter().position(|rec| rec.id > id)
-                } else {
                     recs.iter().position(|rec| rec.id < id)
+                } else {
+                    recs.iter().position(|rec| rec.id > id)
                 };
                 if let Some(index) = index {
-                    recs.split_off(index)
+                    _ = recs.split_off(index);
                 } else {
-                    Vec::new()
+                    recs.clear();
                 }
+                recs
             }
         };
+
         recs.reverse();
         Ok(recs.into_iter())
     }
@@ -455,6 +463,7 @@ mod tests {
     use super::*;
     use crate::RecDbQuery;
     use fs::{MapEntry, MapFs};
+    use pretty_assertions::assert_eq;
     use std::num::NonZeroUsize;
     use test_case::test_case;
 
@@ -548,6 +557,7 @@ mod tests {
     async fn test_recording_by_query(input: &str, want: &str) {
         let query = RecDbQuery {
             recording_id: r_id(input),
+            end: None,
             limit: NonZeroUsize::new(1).unwrap(),
             reverse: false,
             monitors: Vec::new(),
@@ -586,6 +596,7 @@ mod tests {
     async fn test_recording_by_query_reverse(input: &str, want: &str) {
         let query = RecDbQuery {
             recording_id: r_id(input),
+            end: None,
             limit: NonZeroUsize::new(1).unwrap(),
             reverse: true,
             monitors: Vec::new(),
@@ -614,6 +625,7 @@ mod tests {
         let c = Crawler::new(crawler_test_fs());
         let query = RecDbQuery {
             recording_id: r_id("9999-01-01_01-01-01_x"),
+            end: None,
             limit: NonZeroUsize::new(5).unwrap(),
             reverse: false,
             monitors: Vec::new(),
@@ -644,6 +656,7 @@ mod tests {
         let c = Crawler::new(crawler_test_fs());
         let query = RecDbQuery {
             recording_id: r_id("2003-02-01_01-01-11_m1"),
+            end: None,
             limit: NonZeroUsize::new(1).unwrap(),
             reverse: false,
             monitors: vec!["m1".to_owned()],
@@ -662,6 +675,7 @@ mod tests {
         let c = Crawler::new(crawler_test_fs());
         let query = RecDbQuery {
             recording_id: r_id("9999-01-01_01-01-01_m1"),
+            end: None,
             limit: NonZeroUsize::new(1).unwrap(),
             reverse: false,
             monitors: Vec::new(),
@@ -682,6 +696,7 @@ mod tests {
         let c = Crawler::new(crawler_test_fs());
         let query = RecDbQuery {
             recording_id: r_id("2002-01-01_01-01-01_m1"),
+            end: None,
             limit: NonZeroUsize::new(1).unwrap(),
             reverse: true,
             monitors: Vec::new(),
@@ -705,6 +720,7 @@ mod tests {
 
         let query = RecDbQuery {
             recording_id: r_id("9999-12-28_23-59-59_x"),
+            end: None,
             limit: NonZeroUsize::new(1).unwrap(),
             reverse: false,
             monitors: Vec::new(),
@@ -724,5 +740,154 @@ mod tests {
             panic!("expected active")
         };
         assert_eq!(r_id("2024-05-30_01-01-11_m1"), rec.id);
+    }
+
+    #[tokio::test]
+    async fn test_recording_by_query_end() {
+        let c = Crawler::new(crawler_test_fs());
+        let query = RecDbQuery {
+            recording_id: r_id("9999-01-01_01-01-01_x"),
+            end: Some(r_id("2003-01-01_01-01-11_m1")),
+            limit: NonZeroUsize::new(100).unwrap(),
+            reverse: false,
+            monitors: Vec::new(),
+            include_data: false,
+        };
+        let recordings = c.recordings_by_query(query, HashSet::new()).await.unwrap();
+
+        let mut ids = Vec::new();
+        for rec in recordings {
+            let RecordingResponse::Finalized(rec) = rec else {
+                panic!("expected active")
+            };
+            ids.push(rec.id.as_str().to_owned());
+        }
+
+        let want = vec![
+            "2099-01-01_01-01-11_m1",
+            "2004-01-01_01-01-22_m1",
+            "2004-01-01_01-01-11_m1",
+            "2003-01-01_01-01-11_m2",
+            "2003-01-01_01-01-11_m1",
+        ];
+        assert_eq!(want, ids);
+    }
+    #[tokio::test]
+    async fn test_recording_by_query_end_reverse() {
+        let c = Crawler::new(crawler_test_fs());
+        let query = RecDbQuery {
+            recording_id: r_id("0000-01-01_01-01-01_x"),
+            end: Some(r_id("2003-01-01_01-01-11_m1")),
+            limit: NonZeroUsize::new(100).unwrap(),
+            reverse: true,
+            monitors: Vec::new(),
+            include_data: false,
+        };
+        let recordings = c.recordings_by_query(query, HashSet::new()).await.unwrap();
+
+        let mut ids = Vec::new();
+        for rec in recordings {
+            let RecordingResponse::Finalized(rec) = rec else {
+                panic!("expected active")
+            };
+            ids.push(rec.id.as_str().to_owned());
+        }
+
+        let want = vec![
+            "2000-01-01_01-01-11_m1",
+            "2000-01-01_01-01-22_m1",
+            "2000-01-02_01-01-11_m1",
+            "2000-02-01_01-01-11_m1",
+            "2001-02-01_01-01-11_m1",
+            "2002-01-01_01-01-11_m1",
+            "2003-01-01_01-01-11_m1",
+        ];
+        assert_eq!(want, ids);
+    }
+
+    #[test_case("2000-01-01_01-01-15_m1", "2000-01-01_01-01-10_m1", false)]
+    #[test_case("2000-01-01_01-01-20_m1", "2000-01-01_01-01-10_m1", false)]
+    #[test_case("2000-01-01_01-01-15_m1", "2000-01-01_01-01-20_m1", true)]
+    #[test_case("2000-01-01_01-01-10_m1", "2000-01-01_01-01-20_m1", true)]
+    #[tokio::test]
+    async fn test_file_direction(input: &str, want: &str, reverse: bool) {
+        let dirs = Box::new(MapFs(
+            [
+                map_fs_item("2000/01/01/m1/2000-01-01_01-01-00_m1"),
+                map_fs_item("2000/01/01/m1/2000-01-01_01-01-10_m1"),
+                map_fs_item("2000/01/01/m1/2000-01-01_01-01-20_m1"),
+                map_fs_item("2000/01/01/m1/2000-01-01_01-01-30_m1"),
+                map_fs_item("2000/01/01/m1/2000-01-01_01-01-40_m1"),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        ));
+
+        let query = RecDbQuery {
+            recording_id: r_id(input),
+            end: None,
+            limit: NonZeroUsize::new(1).unwrap(),
+            reverse,
+            monitors: Vec::new(),
+            include_data: false,
+        };
+        let rec = match Crawler::new(dirs)
+            .recordings_by_query(query, HashSet::new())
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                println!("{e}");
+                panic!("{e}");
+            }
+        };
+        let RecordingResponse::Finalized(rec) = &rec[0] else {
+            panic!("expected active")
+        };
+        assert_eq!(r_id(want), rec.id);
+    }
+
+    #[test_case("2000-01-01_01-15-00_m1", "2000-01-01_01-10-00_m1", false)]
+    #[test_case("2000-01-01_01-20-00_m1", "2000-01-01_01-10-00_m1", false)]
+    #[test_case("2000-01-01_01-15-00_m1", "2000-01-01_01-20-00_m1", true)]
+    #[test_case("2000-01-01_01-10-00_m1", "2000-01-01_01-20-00_m1", true)]
+    #[tokio::test]
+    async fn test_day_direction(input: &str, want: &str, reverse: bool) {
+        let dirs = Box::new(MapFs(
+            [
+                map_fs_item("2000/01/01/m1/2000-01-01_01-00-00_m1"),
+                map_fs_item("2000/01/01/m1/2000-01-01_01-10-00_m1"),
+                map_fs_item("2000/01/01/m1/2000-01-01_01-20-00_m1"),
+                map_fs_item("2000/01/01/m1/2000-01-01_01-30-00_m1"),
+                map_fs_item("2000/01/01/m1/2000-01-01_01-40-00_m1"),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        ));
+
+        let query = RecDbQuery {
+            recording_id: r_id(input),
+            end: None,
+            limit: NonZeroUsize::new(1).unwrap(),
+            reverse,
+            monitors: Vec::new(),
+            include_data: false,
+        };
+        let rec = match Crawler::new(dirs)
+            .recordings_by_query(query, HashSet::new())
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                println!("{e}");
+                panic!("{e}");
+            }
+        };
+        let RecordingResponse::Finalized(rec) = &rec[0] else {
+            panic!("expected active")
+        };
+        assert_eq!(r_id(want), rec.id);
     }
 }
