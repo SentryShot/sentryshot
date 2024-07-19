@@ -31,10 +31,9 @@ where
     #[pin]
     mdat: RS2,
 
-    // TODO: replace with usize.
-    meta_size: u64,
-    mdat_size: u64,
-    pos: u64, // current reading index
+    meta_size: usize,
+    mdat_size: usize,
+    pos: usize, // current reading index
 
     last_modified: std::time::SystemTime,
     read_state: ReadState,
@@ -50,7 +49,7 @@ where
     }
 
     pub fn size(&self) -> u64 {
-        self.meta_size + self.mdat_size
+        u64::try_from(self.meta_size + self.mdat_size).expect("u64 fit usize")
     }
 }
 
@@ -102,8 +101,8 @@ pub async fn new_video_reader(
 
     Ok(VideoReader {
         mdat,
-        meta_size: u64::try_from(meta.buf.len())?,
-        mdat_size: meta.mdat_size.into(),
+        meta_size: meta.buf.len(),
+        mdat_size: usize::try_from(meta.mdat_size).expect("usize fit u32"),
         pos: 0,
         last_modified: meta.last_modified,
         meta: new_meta_cursor(meta),
@@ -116,145 +115,120 @@ where
     RS1: AsyncRead + AsyncSeek,
     RS2: AsyncRead + AsyncSeek,
 {
-    #[allow(clippy::too_many_lines, clippy::unwrap_used)]
+    #[allow(clippy::too_many_lines)]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
-        // Read starts within mdat, read mdat.
-        let state7 = |mut this: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf| {
-            let prev_buf_len = buf.filled().len();
-            match this.as_mut().project().mdat.poll_read(cx, buf) {
-                Poll::Ready(res) => {
-                    res?;
-                    let n = buf.filled().len() - prev_buf_len;
-                    *this.as_mut().project().pos += u64::try_from(n).unwrap();
-                    *this.as_mut().project().read_state = ReadState::State1;
-                    Poll::Ready(Ok(()))
-                }
-                Poll::Pending => Poll::Pending,
-            }
-        };
-
-        // Read starts within mdat, seek mdat.
-        let state6 = |mut this: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf| {
-            match this.as_mut().project().mdat.poll_complete(cx) {
-                Poll::Ready(res) => {
-                    res?;
-                    // Read starts within mdat, read mdat.
-                    *this.as_mut().project().read_state = ReadState::State7;
-                    state7(this, cx, buf)
-                }
-                Poll::Pending => Poll::Pending,
-            }
-        };
-
-        // Continue across border.
-        let state5 = |mut this: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf| {
-            let prev_buf_len = buf.filled().len();
-            match this.as_mut().project().mdat.poll_read(cx, buf) {
-                Poll::Ready(res) => {
-                    res?;
-
-                    let n = buf.filled().len() - prev_buf_len;
-                    *this.as_mut().project().pos += u64::try_from(n).unwrap();
-                    *this.as_mut().project().read_state = ReadState::State1;
-                    Poll::Ready(Ok(()))
-                }
-                Poll::Pending => Poll::Pending,
-            }
-        };
-
-        // Read within meta and continue across border.
-        let state4 = |mut this: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf| {
-            let prev_buf_len = buf.filled().len();
-            match this.as_mut().project().meta.poll_read(cx, buf) {
-                Poll::Ready(res) => {
-                    res?;
-                    let n = buf.filled().len() - prev_buf_len;
-                    *this.as_mut().project().pos += u64::try_from(n).unwrap();
-                    // Poll ready and continue across border.
-                    *this.as_mut().project().read_state = ReadState::State5; // TODO bug??
-                    Poll::Ready(Ok(()))
-                }
-                Poll::Pending => Poll::Pending,
-            }
-        };
-
-        // Only read within meta.
-        let state3 = |mut this: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf| {
-            let prev_buf_len = buf.filled().len();
-            match this.as_mut().project().meta.poll_read(cx, buf) {
-                Poll::Ready(res) => {
-                    res?;
-                    let n = buf.filled().len() - prev_buf_len;
-                    *this.as_mut().project().pos += u64::try_from(n).unwrap();
-                    *this.as_mut().project().read_state = ReadState::State1;
-                    Poll::Ready(Ok(()))
-                }
-                Poll::Pending => Poll::Pending,
-            }
-        };
-
-        let state2 = |mut this: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf| {
-            match this.as_mut().project().meta.poll_complete(cx) {
-                Poll::Ready(res) => {
-                    res?;
-                    let pos = *this.as_mut().project().pos;
-                    let meta_size = *this.as_mut().project().meta_size;
-                    if u64::try_from(buf.remaining()).unwrap() <= meta_size - pos {
-                        // Only read within meta.
-                        *this.as_mut().project().read_state = ReadState::State3;
-                        return state3(this, cx, buf);
+        let mut this = self.as_mut().project();
+        loop {
+            match this.read_state {
+                ReadState::State1 => {
+                    if *this.pos >= *this.meta_size + *this.mdat_size {
+                        // EOF.
+                        return Poll::Ready(Ok(()));
                     }
 
-                    // Read within meta and continue across border.
-                    *this.as_mut().project().read_state = ReadState::State4;
-                    state4(this, cx, buf)
+                    if *this.pos <= *this.meta_size {
+                        // Read starts within meta.
+                        this.meta.as_mut().start_seek(SeekFrom::Start(
+                            u64::try_from(*this.pos).expect("u64 fit usize"),
+                        ))?;
+                        *this.read_state = ReadState::State2;
+                        continue;
+                    }
+                    // Read starts within mdat.
+                    let mdat_pos = *this.pos - *this.meta_size;
+                    this.mdat.as_mut().start_seek(SeekFrom::Start(
+                        u64::try_from(mdat_pos).expect("u64 fit usize"),
+                    ))?;
+                    *this.read_state = ReadState::State6;
+                    continue;
                 }
-                Poll::Pending => Poll::Pending,
+                ReadState::State2 => {
+                    match this.meta.as_mut().poll_complete(cx) {
+                        Poll::Ready(res) => {
+                            res?;
+                            if buf.remaining() <= *this.meta_size - *this.pos {
+                                // Only read within meta.
+                                *this.read_state = ReadState::State3;
+                                continue;
+                            }
+
+                            // Read within meta and continue across border.
+                            *this.read_state = ReadState::State4;
+                            continue;
+                        }
+                        Poll::Pending => return Poll::Pending,
+                    }
+                }
+                ReadState::State3 => {
+                    let prev_buf_len = buf.filled().len();
+                    match this.meta.as_mut().poll_read(cx, buf) {
+                        Poll::Ready(res) => {
+                            res?;
+                            let n = buf.filled().len() - prev_buf_len;
+                            *this.pos += n;
+                            *this.read_state = ReadState::State1;
+                            return Poll::Ready(Ok(()));
+                        }
+                        Poll::Pending => return Poll::Pending,
+                    }
+                }
+                ReadState::State4 => {
+                    let prev_buf_len = buf.filled().len();
+                    match this.meta.as_mut().poll_read(cx, buf) {
+                        Poll::Ready(res) => {
+                            res?;
+                            let n = buf.filled().len() - prev_buf_len;
+                            *this.pos += n;
+                            // Poll ready and continue across border.
+                            *this.read_state = ReadState::State5;
+                            return Poll::Ready(Ok(()));
+                        }
+                        Poll::Pending => return Poll::Pending,
+                    }
+                }
+                ReadState::State5 => {
+                    let prev_buf_len = buf.filled().len();
+                    match this.mdat.as_mut().poll_read(cx, buf) {
+                        Poll::Ready(res) => {
+                            res?;
+
+                            let n = buf.filled().len() - prev_buf_len;
+                            *this.pos += n;
+                            *this.read_state = ReadState::State1;
+                            return Poll::Ready(Ok(()));
+                        }
+                        Poll::Pending => return Poll::Pending,
+                    }
+                }
+                ReadState::State6 => {
+                    match this.mdat.as_mut().poll_complete(cx) {
+                        Poll::Ready(res) => {
+                            res?;
+                            // Read starts within mdat, read mdat.
+                            *this.read_state = ReadState::State7;
+                            continue;
+                        }
+                        Poll::Pending => return Poll::Pending,
+                    }
+                }
+                ReadState::State7 => {
+                    let prev_buf_len = buf.filled().len();
+                    match this.mdat.as_mut().poll_read(cx, buf) {
+                        Poll::Ready(res) => {
+                            res?;
+                            let n = buf.filled().len() - prev_buf_len;
+                            *this.pos += n;
+                            *this.read_state = ReadState::State1;
+                            return Poll::Ready(Ok(()));
+                        }
+                        Poll::Pending => return Poll::Pending,
+                    }
+                }
             }
-        };
-
-        let state1 = |mut this: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf| {
-            let pos = *this.as_mut().project().pos;
-            let meta_size = *this.as_mut().project().meta_size;
-            let mdat_size = *this.as_mut().project().mdat_size;
-
-            // EOF.
-            if pos >= meta_size + mdat_size {
-                return Poll::Ready(Ok(()));
-            }
-
-            if pos <= meta_size {
-                // Read starts within meta.
-                this.as_mut()
-                    .project()
-                    .meta
-                    .start_seek(SeekFrom::Start(pos))?;
-                *this.as_mut().project().read_state = ReadState::State2;
-                state2(this, cx, buf)
-            } else {
-                // Read starts within mdat.
-                let mdat_pos = pos - meta_size;
-                this.as_mut()
-                    .project()
-                    .mdat
-                    .start_seek(SeekFrom::Start(mdat_pos))?;
-                *this.as_mut().project().read_state = ReadState::State6;
-                state6(this, cx, buf)
-            }
-        };
-
-        match self.as_mut().project().read_state {
-            ReadState::State1 => state1(self, cx, buf),
-            ReadState::State2 => state2(self, cx, buf),
-            ReadState::State3 => state3(self, cx, buf),
-            ReadState::State4 => state4(self, cx, buf),
-            ReadState::State5 => state5(self, cx, buf),
-            ReadState::State6 => state6(self, cx, buf),
-            ReadState::State7 => state7(self, cx, buf),
         }
     }
 }
@@ -316,7 +290,7 @@ where
     }
 
     fn poll_complete(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<io::Result<u64>> {
-        Poll::Ready(Ok(self.pos))
+        Poll::Ready(Ok(u64::try_from(self.pos).expect("u64 fit usize")))
     }
 }
 
@@ -334,23 +308,28 @@ where
     fn seek(&mut self, style: SeekFrom) -> io::Result<u64> {
         let (base_pos, offset) = match style {
             SeekFrom::Start(n) => {
-                self.pos = n;
+                self.pos = usize::try_from(n)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
                 return Ok(n);
             }
             SeekFrom::End(n) => (self.meta_size + self.mdat_size, n),
             SeekFrom::Current(n) => (self.pos, n),
         };
 
-        #[allow(clippy::cast_sign_loss, clippy::as_conversions)]
+        #[allow(
+            clippy::cast_sign_loss,
+            clippy::cast_possible_truncation,
+            clippy::as_conversions
+        )]
         let new_pos = if offset >= 0 {
-            base_pos.checked_add(offset as u64)
+            base_pos.checked_add(offset as usize)
         } else {
-            base_pos.checked_sub((offset.wrapping_neg()) as u64)
+            base_pos.checked_sub((offset.wrapping_neg()) as usize)
         };
         match new_pos {
             Some(n) => {
                 self.pos = n;
-                Ok(self.pos)
+                Ok(u64::try_from(self.pos).expect("usize fit u64"))
             }
             None => Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
