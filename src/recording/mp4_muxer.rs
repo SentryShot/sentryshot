@@ -44,7 +44,7 @@ pub enum GenerateMp4Error {
 pub struct Mp4Muxer {
     pub stts: Vec<mp4::SttsEntry>,
     pub stss: Vec<u32>,
-    pub ctts: Vec<mp4::CttsEntry>,
+    pub ctts: Vec<mp4::CttsEntryV1>,
     pub stsc: Vec<mp4::StscEntry>,
     pub stsz: Vec<u32>,
     pub stco: Rc<RefCell<Vec<u32>>>,
@@ -111,13 +111,12 @@ where
         //cts := pts - (dts + m.dtsShift)
 
         match m.ctts.last_mut() {
-            Some(last) if last.sample_offset_v1 == cts => {
+            Some(last) if last.sample_offset == cts => {
                 last.sample_count += 1;
             }
-            _ => m.ctts.push(mp4::CttsEntry {
+            _ => m.ctts.push(mp4::CttsEntryV1 {
                 sample_count: 1,
-                sample_offset_v0: 0,
-                sample_offset_v1: cts,
+                sample_offset: cts,
             }),
         }
 
@@ -153,8 +152,11 @@ where
         // Mvhd.
         mp4::Boxes::new(mp4::Mvhd {
             timescale: 1000,
-            duration_v0: u32::try_from(duration.as_millis())
-                .map_err(|v| MvhdDuration(duration.as_millis(), v))?,
+            version: mp4::MvhdVersion::V0(mp4::MvhdV0 {
+                duration: u32::try_from(duration.as_millis())
+                    .map_err(|v| MvhdDuration(duration.as_millis(), v))?,
+                ..Default::default()
+            }),
             rate: 65536,
             volume: 256,
             matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
@@ -232,13 +234,13 @@ impl Mp4Muxer {
         let trak = mp4::Boxes::new(mp4::Trak).with_children2(
             // Tkhd.
             mp4::Boxes::new(mp4::Tkhd {
-                full_box: mp4::FullBox {
-                    version: 0,
-                    flags: [0, 0, 3],
-                },
+                flags: [0, 0, 3],
                 track_id: VIDEO_TRACK_ID,
-                duration_v0: u32::try_from(duration.as_millis())
-                    .map_err(|v| TkhdDuration(duration.as_millis(), v))?,
+                version: mp4::TkhdVersion::V0(mp4::TkhdV0 {
+                    duration: u32::try_from(duration.as_millis())
+                        .map_err(|v| TkhdDuration(duration.as_millis(), v))?,
+                    ..Default::default()
+                }),
                 width: u32::from(params.width) * 65536,
                 height: u32::from(params.height) * 65536,
                 matrix: [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000],
@@ -250,7 +252,10 @@ impl Mp4Muxer {
                 mp4::Boxes::new(mp4::Mdhd {
                     timescale: H264_TIMESCALE,
                     language: *b"und",
-                    duration_v0: duration.as_u32().map_err(|v| MdhdDuration(duration, v))?,
+                    version: mp4::MdhdVersion::V0(mp4::MdhdV0 {
+                        duration: duration.as_u32().map_err(|v| MdhdDuration(duration, v))?,
+                        ..Default::default()
+                    }),
                     ..Default::default()
                 }),
                 // Hdlr.
@@ -300,11 +305,8 @@ impl Mp4Muxer {
             }),
             // Ctts.
             mp4::Boxes::new(mp4::Ctts {
-                full_box: mp4::FullBox {
-                    version: 1,
-                    flags: [0, 0, 0],
-                },
-                entries: self.ctts.clone(),
+                flags: [0, 0, 0],
+                entries: mp4::CttsEntries::V1(self.ctts.clone()),
             }),
             // Stsc.
             mp4::Boxes::new(mp4::Stsc {

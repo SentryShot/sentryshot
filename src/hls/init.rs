@@ -164,10 +164,7 @@ fn generate_trak(params: &TrackParameters) -> mp4::Boxes {
     mp4::Boxes::new(mp4::Trak {}).with_children2(
         // Tkhd.
         mp4::Boxes::new(mp4::Tkhd {
-            full_box: mp4::FullBox {
-                version: 0,
-                flags: [0, 0, 3],
-            },
+            flags: [0, 0, 3],
             track_id: VIDEO_TRACK_ID,
             width: u32::from(params.width) * 65536,
             height: u32::from(params.height) * 65536,

@@ -203,26 +203,19 @@ fn (boxes ImmutableBoxes) size(&self) -> usize {
 */
 /************************* FullBox **************************/
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub struct FullBox {
     pub version: u8,
     pub flags: [u8; 3],
 }
 
 impl FullBox {
-    fn get_flags(&self) -> u32 {
-        (u32::from(self.flags[0]) << 16)
-            ^ (u32::from(self.flags[1]) << 8)
-            ^ (u32::from(self.flags[2]))
+    fn get_flags(self) -> u32 {
+        parse_fullbox_flags(self.flags)
     }
 
-    fn check_flag(&self, flag: u32) -> bool {
+    fn check_flag(self, flag: u32) -> bool {
         self.get_flags() & flag != 0
-    }
-
-    #[allow(clippy::unused_self)]
-    fn field_size(&self) -> usize {
-        4
     }
 
     pub fn marshal_field(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
@@ -230,6 +223,15 @@ impl FullBox {
         w.write_all(&self.flags)?;
         Ok(())
     }
+}
+
+fn parse_fullbox_flags(flags: [u8; 3]) -> u32 {
+    (u32::from(flags[0]) << 16) ^ (u32::from(flags[1]) << 8) ^ (u32::from(flags[2]))
+}
+
+fn check_fullbox_flag(flags: [u8; 3], flag: u32) -> bool {
+    let flags = parse_fullbox_flags(flags);
+    flags & flag != 0
 }
 
 #[must_use]
@@ -276,15 +278,25 @@ impl From<Btrt> for Box<dyn ImmutableBox> {
 pub const TYPE_CTTS: BoxType = *b"ctts";
 
 pub struct Ctts {
-    pub full_box: FullBox,
-    pub entries: Vec<CttsEntry>,
+    pub flags: [u8; 3],
+    pub entries: CttsEntries,
+}
+
+pub enum CttsEntries {
+    V0(Vec<CttsEntryV0>),
+    V1(Vec<CttsEntryV1>),
 }
 
 #[derive(Clone, Copy)]
-pub struct CttsEntry {
+pub struct CttsEntryV0 {
     pub sample_count: u32,
-    pub sample_offset_v0: u32,
-    pub sample_offset_v1: i32,
+    pub sample_offset: u32,
+}
+
+#[derive(Clone, Copy)]
+pub struct CttsEntryV1 {
+    pub sample_count: u32,
+    pub sample_offset: i32,
 }
 
 impl ImmutableBox for Ctts {
@@ -293,25 +305,45 @@ impl ImmutableBox for Ctts {
     }
 
     fn size(&self) -> usize {
-        8 + self.entries.len() * 8
+        let num_entries = match &self.entries {
+            CttsEntries::V0(v) => v.len(),
+            CttsEntries::V1(v) => v.len(),
+        };
+        8 + num_entries * 8
     }
 
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
-        self.full_box.marshal_field(w)?;
+        match &self.entries {
+            CttsEntries::V0(entries) => {
+                w.write_all(&[0])?;
+                w.write_all(&self.flags)?;
 
-        w.write_all(
-            &(u32::try_from(self.entries.len())
-                .map_err(|e| Mp4Error::FromInt("ctts".to_owned(), e))?)
-            .to_be_bytes(),
-        )?; // Entry count.
-        for entry in &self.entries {
-            w.write_all(&entry.sample_count.to_be_bytes())?;
-            if self.full_box.version == 0 {
-                w.write_all(&entry.sample_offset_v0.to_be_bytes())?;
-            } else {
-                w.write_all(&entry.sample_offset_v1.to_be_bytes())?;
+                w.write_all(
+                    &(u32::try_from(entries.len())
+                        .map_err(|e| Mp4Error::FromInt("ctts".to_owned(), e))?)
+                    .to_be_bytes(),
+                )?;
+                for entry in entries {
+                    w.write_all(&entry.sample_count.to_be_bytes())?;
+                    w.write_all(&entry.sample_offset.to_be_bytes())?;
+                }
+            }
+            CttsEntries::V1(entries) => {
+                w.write_all(&[1])?;
+                w.write_all(&self.flags)?;
+
+                w.write_all(
+                    &(u32::try_from(entries.len())
+                        .map_err(|e| Mp4Error::FromInt("ctts".to_owned(), e))?)
+                    .to_be_bytes(),
+                )?;
+                for entry in entries {
+                    w.write_all(&entry.sample_count.to_be_bytes())?;
+                    w.write_all(&entry.sample_offset.to_be_bytes())?;
+                }
             }
         }
+
         Ok(())
     }
 }
@@ -414,6 +446,141 @@ impl ImmutableBox for Url {
 
 impl From<Url> for Box<dyn ImmutableBox> {
     fn from(value: Url) -> Self {
+        Box::new(value)
+    }
+}
+
+/*************************** edts ****************************/
+
+pub const TYPE_EDTS: BoxType = *b"edts";
+
+pub struct Edts;
+
+impl ImmutableBox for Edts {
+    fn box_type(&self) -> BoxType {
+        TYPE_EDTS
+    }
+
+    fn size(&self) -> usize {
+        0
+    }
+
+    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+        Ok(())
+    }
+}
+
+impl From<Edts> for Box<dyn ImmutableBox> {
+    fn from(value: Edts) -> Self {
+        Box::new(value)
+    }
+}
+
+/*************************** elst ****************************/
+
+pub const TYPE_ELST: BoxType = *b"elst";
+
+#[derive(Clone)]
+pub struct Elst {
+    pub flags: [u8; 3],
+    pub entries: ElstEntries,
+}
+
+impl ImmutableBox for Elst {
+    fn box_type(&self) -> BoxType {
+        TYPE_ELST
+    }
+
+    fn size(&self) -> usize {
+        match &self.entries {
+            ElstEntries::V0(v) => 8 + v.len() * 12,
+            ElstEntries::V1(v) => 8 + v.len() * 20,
+        }
+    }
+
+    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+        match &self.entries {
+            ElstEntries::V0(entries) => {
+                w.write_all(&[0])?;
+                w.write_all(&self.flags)?;
+                w.write_all(
+                    &u32::try_from(entries.len())
+                        .map_err(|e| Mp4Error::FromInt("elst".to_owned(), e))?
+                        .to_be_bytes(),
+                )?;
+                for entry in entries {
+                    w.write_all(&entry.segment_duration.to_be_bytes())?;
+                    w.write_all(&entry.media_time.to_be_bytes())?;
+                    w.write_all(&entry.media_rate_integer.to_be_bytes())?;
+                    w.write_all(&entry.media_rate_fraction.to_be_bytes())?;
+                }
+            }
+            ElstEntries::V1(entries) => {
+                w.write_all(&[1])?;
+                w.write_all(&self.flags)?;
+                w.write_all(
+                    &u32::try_from(entries.len())
+                        .map_err(|e| Mp4Error::FromInt("elst".to_owned(), e))?
+                        .to_be_bytes(),
+                )?;
+                for entry in entries {
+                    w.write_all(&entry.segment_duration.to_be_bytes())?;
+                    w.write_all(&entry.media_time.to_be_bytes())?;
+                    w.write_all(&entry.media_rate_integer.to_be_bytes())?;
+                    w.write_all(&entry.media_rate_fraction.to_be_bytes())?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub enum ElstEntries {
+    V0(Vec<ElstEntryV0>),
+    V1(Vec<ElstEntryV1>),
+}
+
+#[derive(Clone)]
+pub struct ElstEntryV0 {
+    pub segment_duration: u32,
+    pub media_time: i32,
+    pub media_rate_integer: i16,
+    pub media_rate_fraction: i16,
+}
+
+impl Default for ElstEntryV0 {
+    fn default() -> Self {
+        Self {
+            segment_duration: 0,
+            media_time: 0,
+            media_rate_integer: 1,
+            media_rate_fraction: 0,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ElstEntryV1 {
+    pub segment_duration: u64,
+    pub media_time: i64,
+    pub media_rate_integer: i16,
+    pub media_rate_fraction: i16,
+}
+
+impl Default for ElstEntryV1 {
+    fn default() -> Self {
+        Self {
+            segment_duration: 0,
+            media_time: 0,
+            media_rate_integer: 1,
+            media_rate_fraction: 0,
+        }
+    }
+}
+
+impl From<Elst> for Box<dyn ImmutableBox> {
+    fn from(value: Elst) -> Self {
         Box::new(value)
     }
 }
@@ -558,18 +725,37 @@ pub const TYPE_MDHD: BoxType = *b"mdhd";
 
 #[derive(Default)]
 pub struct Mdhd {
-    pub full_box: FullBox,
-    pub creation_time_v0: u32,
-    pub modification_time_v0: u32,
-    pub creation_time_v1: u64,
-    pub modification_time_v1: u64,
+    pub flags: [u8; 3],
+    pub version: MdhdVersion,
     pub timescale: u32,
-    pub duration_v0: u32,
-    pub duration_v1: u64,
 
     pub pad: bool,         // 1 bit.
     pub language: [u8; 3], // 5 bits. ISO-639-2/T language code
     pub pre_defined: u16,
+}
+
+pub enum MdhdVersion {
+    V0(MdhdV0),
+    V1(MdhdV1),
+}
+
+impl Default for MdhdVersion {
+    fn default() -> Self {
+        Self::V0(MdhdV0::default())
+    }
+}
+
+#[derive(Default)]
+pub struct MdhdV0 {
+    pub creation_time: u32,
+    pub modification_time: u32,
+    pub duration: u32,
+}
+
+pub struct MdhdV1 {
+    pub creation_time: u64,
+    pub modification_time: u64,
+    pub duration: u64,
 }
 
 impl ImmutableBox for Mdhd {
@@ -578,30 +764,30 @@ impl ImmutableBox for Mdhd {
     }
 
     fn size(&self) -> usize {
-        if let true = self.full_box.version == 0 {
-            24
-        } else {
-            36
+        match self.version {
+            MdhdVersion::V0(_) => 24,
+            MdhdVersion::V1(_) => 36,
         }
     }
 
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
-        self.full_box.marshal_field(w)?;
-
-        if self.full_box.version == 0 {
-            w.write_all(&self.creation_time_v0.to_be_bytes())?;
-            w.write_all(&self.modification_time_v0.to_be_bytes())?;
-        } else {
-            w.write_all(&self.creation_time_v1.to_be_bytes())?;
-            w.write_all(&self.modification_time_v1.to_be_bytes())?;
-        }
-
-        w.write_all(&self.timescale.to_be_bytes())?;
-
-        if self.full_box.version == 0 {
-            w.write_all(&self.duration_v0.to_be_bytes())?;
-        } else {
-            w.write_all(&self.duration_v1.to_be_bytes())?;
+        match &self.version {
+            MdhdVersion::V0(v) => {
+                w.write_all(&[0])?;
+                w.write_all(&self.flags)?;
+                w.write_all(&v.creation_time.to_be_bytes())?;
+                w.write_all(&v.modification_time.to_be_bytes())?;
+                w.write_all(&self.timescale.to_be_bytes())?;
+                w.write_all(&v.duration.to_be_bytes())?;
+            }
+            MdhdVersion::V1(v) => {
+                w.write_all(&[1])?;
+                w.write_all(&self.flags)?;
+                w.write_all(&v.creation_time.to_be_bytes())?;
+                w.write_all(&v.modification_time.to_be_bytes())?;
+                w.write_all(&self.timescale.to_be_bytes())?;
+                w.write_all(&v.duration.to_be_bytes())?;
+            }
         }
 
         if self.pad {
@@ -767,14 +953,9 @@ pub const TYPE_MVHD: BoxType = *b"mvhd";
 
 #[derive(Default)]
 pub struct Mvhd {
-    pub full_box: FullBox,
-    pub creation_time_v0: u32,
-    pub modification_time_v0: u32,
-    pub creation_time_v1: u64,
-    pub modification_time_v1: u64,
+    pub flags: [u8; 3],
+    pub version: MvhdVersion,
     pub timescale: u32,
-    pub duration_v0: u32,
-    pub duration_v1: u64,
     pub rate: i32,   // fixed-point 16.16 - template=0x00010000
     pub volume: i16, // template=0x0100
     pub reserved: i16,
@@ -784,37 +965,62 @@ pub struct Mvhd {
     pub next_track_id: u32,
 }
 
+pub enum MvhdVersion {
+    V0(MvhdV0),
+    V1(MvhdV1),
+}
+
+impl Default for MvhdVersion {
+    fn default() -> Self {
+        Self::V0(MvhdV0::default())
+    }
+}
+
+#[derive(Default)]
+pub struct MvhdV0 {
+    pub creation_time: u32,
+    pub modification_time: u32,
+    pub duration: u32,
+}
+
+pub struct MvhdV1 {
+    pub creation_time: u64,
+    pub modification_time: u64,
+    pub duration: u64,
+}
+
 impl ImmutableBox for Mvhd {
     fn box_type(&self) -> BoxType {
         TYPE_MVHD
     }
 
     fn size(&self) -> usize {
-        if let true = self.full_box.version == 0 {
-            100
-        } else {
-            112
+        match self.version {
+            MvhdVersion::V0(_) => 100,
+            MvhdVersion::V1(_) => 112,
         }
     }
 
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
-        self.full_box.marshal_field(w)?;
-
-        if self.full_box.version == 0 {
-            w.write_all(&self.creation_time_v0.to_be_bytes())?;
-            w.write_all(&self.modification_time_v0.to_be_bytes())?;
-        } else {
-            w.write_all(&self.creation_time_v1.to_be_bytes())?;
-            w.write_all(&self.modification_time_v1.to_be_bytes())?;
+        match &self.version {
+            MvhdVersion::V0(v) => {
+                w.write_all(&[0])?;
+                w.write_all(&self.flags)?;
+                w.write_all(&v.creation_time.to_be_bytes())?;
+                w.write_all(&v.modification_time.to_be_bytes())?;
+                w.write_all(&self.timescale.to_be_bytes())?;
+                w.write_all(&v.duration.to_be_bytes())?;
+            }
+            MvhdVersion::V1(v) => {
+                w.write_all(&[1])?;
+                w.write_all(&self.flags)?;
+                w.write_all(&v.creation_time.to_be_bytes())?;
+                w.write_all(&v.modification_time.to_be_bytes())?;
+                w.write_all(&self.timescale.to_be_bytes())?;
+                w.write_all(&v.duration.to_be_bytes())?;
+            }
         }
 
-        w.write_all(&self.timescale.to_be_bytes())?;
-
-        if self.full_box.version == 0 {
-            w.write_all(&self.duration_v0.to_be_bytes())?;
-        } else {
-            w.write_all(&self.duration_v1.to_be_bytes())?;
-        }
         w.write_all(&self.rate.to_be_bytes())?;
         w.write_all(&self.volume.to_be_bytes())?;
         w.write_all(&self.reserved.to_be_bytes())?;
@@ -830,6 +1036,7 @@ impl ImmutableBox for Mvhd {
         }
 
         w.write_all(&self.next_track_id.to_be_bytes())?;
+
         Ok(())
     }
 }
@@ -1315,9 +1522,13 @@ impl From<Stts> for Box<dyn ImmutableBox> {
 pub const TYPE_TFDT: BoxType = *b"tfdt";
 
 pub struct Tfdt {
-    pub full_box: FullBox,
-    pub base_media_decode_time_v0: u32,
-    pub base_media_decode_time_v1: u64,
+    pub flags: [u8; 3],
+    pub base_media_decode_time: TfdtBaseMediaDecodeTime,
+}
+
+pub enum TfdtBaseMediaDecodeTime {
+    V0(u32),
+    V1(u64),
 }
 
 impl ImmutableBox for Tfdt {
@@ -1326,19 +1537,24 @@ impl ImmutableBox for Tfdt {
     }
 
     fn size(&self) -> usize {
-        if self.full_box.version == 0 {
-            8
-        } else {
-            12
+        match self.base_media_decode_time {
+            TfdtBaseMediaDecodeTime::V0(_) => 8,
+            TfdtBaseMediaDecodeTime::V1(_) => 12,
         }
     }
 
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
-        self.full_box.marshal_field(w)?;
-        if self.full_box.version == 0 {
-            w.write_all(&self.base_media_decode_time_v0.to_be_bytes())?;
-        } else {
-            w.write_all(&self.base_media_decode_time_v1.to_be_bytes())?;
+        match self.base_media_decode_time {
+            TfdtBaseMediaDecodeTime::V0(v) => {
+                w.write_all(&[0])?;
+                w.write_all(&self.flags)?;
+                w.write_all(&v.to_be_bytes())?;
+            }
+            TfdtBaseMediaDecodeTime::V1(v) => {
+                w.write_all(&[1])?;
+                w.write_all(&self.flags)?;
+                w.write_all(&v.to_be_bytes())?;
+            }
         }
         Ok(())
     }
@@ -1379,7 +1595,7 @@ impl ImmutableBox for Tfhd {
     }
 
     fn size(&self) -> usize {
-        let mut total: usize = self.full_box.field_size() + 4;
+        let mut total: usize = 8;
         if self.full_box.check_flag(TFHD_BASE_DATA_OFFSET_PRESENT) {
             total += 8;
         }
@@ -1445,16 +1661,10 @@ pub const TYPE_TKHD: BoxType = *b"tkhd";
 
 #[derive(Default)]
 pub struct Tkhd {
-    pub full_box: FullBox,
-    pub creation_time_v0: u32,
-    pub modification_time_v0: u32,
-    pub creation_time_v1: u64,
-    pub modification_time_v1: u64,
+    pub flags: [u8; 3],
+    pub version: TkhdVersion,
     pub track_id: u32,
     pub reserved0: u32,
-    pub duration_v0: u32,
-    pub duration_v1: u64,
-
     pub reserved1: [u32; 2],
     pub layer: i16,           // template=0
     pub alternate_group: i16, // template=0
@@ -1465,35 +1675,64 @@ pub struct Tkhd {
     pub height: u32,      // fixed-point 16.16
 }
 
+pub enum TkhdVersion {
+    V0(TkhdV0),
+    V1(TkhdV1),
+}
+
+impl Default for TkhdVersion {
+    fn default() -> Self {
+        Self::V0(TkhdV0::default())
+    }
+}
+
+#[derive(Default)]
+pub struct TkhdV0 {
+    pub creation_time: u32,
+    pub modification_time: u32,
+    pub duration: u32,
+}
+
+pub struct TkhdV1 {
+    pub creation_time: u64,
+    pub modification_time: u64,
+    pub duration: u64,
+}
+
 impl ImmutableBox for Tkhd {
     fn box_type(&self) -> BoxType {
         TYPE_TKHD
     }
 
     fn size(&self) -> usize {
-        if self.full_box.version == 0 {
-            84
-        } else {
-            96
+        match self.version {
+            TkhdVersion::V0(_) => 84,
+            TkhdVersion::V1(_) => 96,
         }
     }
 
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
-        self.full_box.marshal_field(w)?;
-        if self.full_box.version == 0 {
-            w.write_all(&self.creation_time_v0.to_be_bytes())?;
-            w.write_all(&self.modification_time_v0.to_be_bytes())?;
-        } else {
-            w.write_all(&self.creation_time_v1.to_be_bytes())?;
-            w.write_all(&self.modification_time_v1.to_be_bytes())?;
+        match &self.version {
+            TkhdVersion::V0(v) => {
+                w.write_all(&[0])?;
+                w.write_all(&self.flags)?;
+                w.write_all(&v.creation_time.to_be_bytes())?;
+                w.write_all(&v.modification_time.to_be_bytes())?;
+                w.write_all(&self.track_id.to_be_bytes())?;
+                w.write_all(&self.reserved0.to_be_bytes())?;
+                w.write_all(&v.duration.to_be_bytes())?;
+            }
+            TkhdVersion::V1(v) => {
+                w.write_all(&[1])?;
+                w.write_all(&self.flags)?;
+                w.write_all(&v.creation_time.to_be_bytes())?;
+                w.write_all(&v.modification_time.to_be_bytes())?;
+                w.write_all(&self.track_id.to_be_bytes())?;
+                w.write_all(&self.reserved0.to_be_bytes())?;
+                w.write_all(&v.duration.to_be_bytes())?;
+            }
         }
-        w.write_all(&self.track_id.to_be_bytes())?;
-        w.write_all(&self.reserved0.to_be_bytes())?;
-        if self.full_box.version == 0 {
-            w.write_all(&self.duration_v0.to_be_bytes())?;
-        } else {
-            w.write_all(&self.duration_v1.to_be_bytes())?;
-        }
+
         for reserved in &self.reserved1 {
             w.write_all(&reserved.to_be_bytes())?;
         }
@@ -1506,6 +1745,7 @@ impl ImmutableBox for Tkhd {
         }
         w.write_all(&self.width.to_be_bytes())?;
         w.write_all(&self.height.to_be_bytes())?;
+
         Ok(())
     }
 }
@@ -1610,14 +1850,6 @@ impl From<Trex> for Box<dyn ImmutableBox> {
 
 /*************************** trun ****************************/
 
-pub struct TrunEntry {
-    pub sample_duration: u32,
-    pub sample_size: u32,
-    pub sample_flags: u32,
-    pub sample_composition_time_offset_v0: u32,
-    pub sample_composition_time_offset_v1: i32,
-}
-
 pub const TRUN_DATA_OFFSET_PRESENT: u32 = 0b0000_0000_0001;
 pub const TRUN_FIRST_SAMPLE_FLAGS_PRESENT: u32 = 0b0000_0000_0100;
 pub const TRUN_SAMPLE_DURATION_PRESENT: u32 = 0b0001_0000_0000;
@@ -1625,45 +1857,65 @@ pub const TRUN_SAMPLE_SIZE_PRESENT: u32 = 0b0010_0000_0000;
 pub const TRUN_SAMPLE_FLAGS_PRESENT: u32 = 0b0100_0000_0000;
 pub const TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT: u32 = 0b1000_0000_0000;
 
-impl TrunEntry {
-    #[allow(clippy::unused_self)]
-    fn field_size(&self, full_box: &FullBox) -> usize {
-        let mut total = 0;
-        if full_box.check_flag(TRUN_SAMPLE_DURATION_PRESENT) {
-            total += 4;
-        }
-        if full_box.check_flag(TRUN_SAMPLE_SIZE_PRESENT) {
-            total += 4;
-        }
-        if full_box.check_flag(TRUN_SAMPLE_FLAGS_PRESENT) {
-            total += 4;
-        }
-        if full_box.check_flag(TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT) {
-            total += 4;
-        }
-        total
-    }
+pub enum TrunEntries {
+    V0(Vec<TrunEntryV0>),
+    V1(Vec<TrunEntryV1>),
+}
 
-    fn marshal_field(
-        &self,
-        w: &mut dyn std::io::Write,
-        full_box: &FullBox,
-    ) -> Result<(), Mp4Error> {
-        if full_box.check_flag(TRUN_SAMPLE_DURATION_PRESENT) {
+impl TrunEntries {
+    fn len(&self) -> usize {
+        match self {
+            TrunEntries::V0(entries) => entries.len(),
+            TrunEntries::V1(entries) => entries.len(),
+        }
+    }
+}
+
+pub struct TrunEntryV0 {
+    pub sample_duration: u32,
+    pub sample_size: u32,
+    pub sample_flags: u32,
+    pub sample_composition_time_offset: u32,
+}
+
+impl TrunEntryV0 {
+    fn marshal_field(&self, w: &mut dyn std::io::Write, flags: [u8; 3]) -> Result<(), Mp4Error> {
+        if check_fullbox_flag(flags, TRUN_SAMPLE_DURATION_PRESENT) {
             w.write_all(&self.sample_duration.to_be_bytes())?;
         }
-        if full_box.check_flag(TRUN_SAMPLE_SIZE_PRESENT) {
+        if check_fullbox_flag(flags, TRUN_SAMPLE_SIZE_PRESENT) {
             w.write_all(&self.sample_size.to_be_bytes())?;
         }
-        if full_box.check_flag(TRUN_SAMPLE_FLAGS_PRESENT) {
+        if check_fullbox_flag(flags, TRUN_SAMPLE_FLAGS_PRESENT) {
             w.write_all(&self.sample_flags.to_be_bytes())?;
         }
-        if full_box.check_flag(TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT) {
-            if full_box.version == 0 {
-                w.write_all(&self.sample_composition_time_offset_v0.to_be_bytes())?;
-            } else {
-                w.write_all(&self.sample_composition_time_offset_v1.to_be_bytes())?;
-            }
+        if check_fullbox_flag(flags, TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT) {
+            w.write_all(&self.sample_composition_time_offset.to_be_bytes())?;
+        }
+        Ok(())
+    }
+}
+
+pub struct TrunEntryV1 {
+    pub sample_duration: u32,
+    pub sample_size: u32,
+    pub sample_flags: u32,
+    pub sample_composition_time_offset: i32,
+}
+
+impl TrunEntryV1 {
+    fn marshal_field(&self, w: &mut dyn std::io::Write, flags: [u8; 3]) -> Result<(), Mp4Error> {
+        if check_fullbox_flag(flags, TRUN_SAMPLE_DURATION_PRESENT) {
+            w.write_all(&self.sample_duration.to_be_bytes())?;
+        }
+        if check_fullbox_flag(flags, TRUN_SAMPLE_SIZE_PRESENT) {
+            w.write_all(&self.sample_size.to_be_bytes())?;
+        }
+        if check_fullbox_flag(flags, TRUN_SAMPLE_FLAGS_PRESENT) {
+            w.write_all(&self.sample_flags.to_be_bytes())?;
+        }
+        if check_fullbox_flag(flags, TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT) {
+            w.write_all(&self.sample_composition_time_offset.to_be_bytes())?;
         }
         Ok(())
     }
@@ -1672,12 +1924,28 @@ impl TrunEntry {
 pub const TYPE_TRUN: BoxType = *b"trun";
 
 pub struct Trun {
-    pub full_box: FullBox,
+    pub flags: [u8; 3],
 
-    // optional fields
     pub data_offset: i32,
     pub first_sample_flags: u32,
-    pub entries: Vec<TrunEntry>,
+    pub entries: TrunEntries,
+}
+
+fn trun_field_size(fullbox_flags: [u8; 3]) -> usize {
+    let mut total = 0;
+    if check_fullbox_flag(fullbox_flags, TRUN_SAMPLE_DURATION_PRESENT) {
+        total += 4;
+    }
+    if check_fullbox_flag(fullbox_flags, TRUN_SAMPLE_SIZE_PRESENT) {
+        total += 4;
+    }
+    if check_fullbox_flag(fullbox_flags, TRUN_SAMPLE_FLAGS_PRESENT) {
+        total += 4;
+    }
+    if check_fullbox_flag(fullbox_flags, TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT) {
+        total += 4;
+    }
+    total
 }
 
 impl ImmutableBox for Trun {
@@ -1687,34 +1955,46 @@ impl ImmutableBox for Trun {
 
     fn size(&self) -> usize {
         let mut total = 8;
-        if self.full_box.check_flag(TRUN_DATA_OFFSET_PRESENT) {
+        if check_fullbox_flag(self.flags, TRUN_DATA_OFFSET_PRESENT) {
             total += 4;
         }
-        if self.full_box.check_flag(TRUN_FIRST_SAMPLE_FLAGS_PRESENT) {
+        if check_fullbox_flag(self.flags, TRUN_FIRST_SAMPLE_FLAGS_PRESENT) {
             total += 4;
         }
-        for entry in &self.entries {
-            total += entry.field_size(&self.full_box);
-        }
+        let field_size = trun_field_size(self.flags);
+        total += field_size * self.entries.len();
         total
     }
 
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
-        self.full_box.marshal_field(w)?;
+        match &self.entries {
+            TrunEntries::V0(_) => w.write_all(&[0])?,
+            TrunEntries::V1(_) => w.write_all(&[1])?,
+        }
+        w.write_all(&self.flags)?;
         w.write_all(
             &u32::try_from(self.entries.len())
                 .map_err(|e| Mp4Error::FromInt("trun".to_owned(), e))?
                 .to_be_bytes(),
         )?;
-        if self.full_box.check_flag(TRUN_DATA_OFFSET_PRESENT) {
+        if check_fullbox_flag(self.flags, TRUN_DATA_OFFSET_PRESENT) {
             w.write_all(&self.data_offset.to_be_bytes())?;
         }
-        if self.full_box.check_flag(TRUN_FIRST_SAMPLE_FLAGS_PRESENT) {
+        if check_fullbox_flag(self.flags, TRUN_FIRST_SAMPLE_FLAGS_PRESENT) {
             w.write_all(&self.first_sample_flags.to_be_bytes())?;
         }
-        for entry in &self.entries {
-            entry.marshal_field(w, &self.full_box)?;
-        }
+        match &self.entries {
+            TrunEntries::V0(entries) => {
+                for entry in entries {
+                    entry.marshal_field(w, self.flags)?;
+                }
+            }
+            TrunEntries::V1(entries) => {
+                for entry in entries {
+                    entry.marshal_field(w, self.flags)?;
+                }
+            }
+        };
         Ok(())
     }
 }

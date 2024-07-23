@@ -22,22 +22,17 @@ use test_case::test_case;
     )]
 #[test_case(
         Ctts{
-            full_box: FullBox{
-                version: 0,
-                flags: [0, 0, 0],
-            },
-            entries: vec![
-                CttsEntry{
+            flags: [0, 0, 0],
+            entries: CttsEntries::V0(vec![
+                CttsEntryV0{
                     sample_count: 0x0123_4567,
-                    sample_offset_v0: 0x1234_5678,
-                    sample_offset_v1: 0,
+                    sample_offset: 0x1234_5678,
                 },
-                CttsEntry{
+                CttsEntryV0{
                     sample_count: 0x89ab_cdef,
-                    sample_offset_v0: 0x789a_bcde,
-                    sample_offset_v1: 0,
+                    sample_offset: 0x789a_bcde,
                 },
-            ],
+            ]),
         },
         &[
             0,                // version
@@ -51,22 +46,17 @@ use test_case::test_case;
     )]
 #[test_case(
         Ctts{
-            full_box: FullBox{
-                version: 1,
-                flags: [0, 0, 0],
-            },
-            entries: vec![
-                CttsEntry{
+            flags: [0, 0, 0],
+            entries: CttsEntries::V1(vec![
+                CttsEntryV1{
                     sample_count: 0x0123_4567,
-                    sample_offset_v0: 0,
-                    sample_offset_v1: 0x1234_5678,
+                    sample_offset: 0x1234_5678,
                 },
-                CttsEntry{
+                CttsEntryV1{
                     sample_count: 0x89ab_cdef,
-                    sample_offset_v0: 0,
-                    sample_offset_v1: -0x789a_bcde,
+                    sample_offset: -0x789a_bcde,
                 },
-            ],
+            ]),
         },
         &[
             1,                // version
@@ -92,6 +82,71 @@ use test_case::test_case;
             0x00, 0x00, 0x00, // flags
             0x12, 0x34, 0x56, 0x78, // entry count
         ]; "dref"
+    )]
+#[test_case(Edts{}, &[]; "edts")]
+#[test_case(
+        Elst{
+            flags: [0x00, 0x00, 0x00],
+            entries: ElstEntries::V0(vec![
+                ElstEntryV0{
+                    segment_duration: 0x0100_000a,
+                    media_time:       0x0100_000b,
+                    media_rate_integer:  0x010c,
+                    media_rate_fraction: 0x010d,
+                },
+                ElstEntryV0{
+                    segment_duration: 0x0200_000a,
+                    media_time:       0x0200_000b,
+                    media_rate_integer:  0x020c,
+                    media_rate_fraction: 0x020d,
+                },
+            ]),
+        },
+        &[
+            0,                // version
+            0x00, 0x00, 0x00, // flags
+            0x00, 0x00, 0x00, 0x02, // entry count
+            0x01, 0x00, 0x00, 0x0a, // segment duration v0
+            0x01, 0x00, 0x00, 0x0b, // media time v0
+            0x01, 0x0c, // media rate integer
+            0x01, 0x0d, // media rate fraction
+            0x02, 0x00, 0x00, 0x0a, // segment duration v0
+            0x02, 0x00, 0x00, 0x0b, // media time v0
+            0x02, 0x0c, // media rate integer
+            0x02, 0x0d, // media rate fraction
+        ]; "elst: version 0"
+    )]
+#[test_case(
+        Elst{
+            flags:   [0x00, 0x00, 0x00],
+            entries: ElstEntries::V1(vec![
+                ElstEntryV1{
+                    segment_duration: 0x0100_0000_0000_000a,
+                    media_time:       0x0100_0000_0000_000b,
+                    media_rate_integer:  0x010c,
+                    media_rate_fraction: 0x010d,
+                },
+                ElstEntryV1{
+                    segment_duration: 0x0200_0000_0000_000a,
+                    media_time:       0x0200_0000_0000_000b,
+                    media_rate_integer:  0x020c,
+                    media_rate_fraction: 0x020d,
+                },
+            ]),
+        },
+        &[
+            1,                // version
+            0x00, 0x00, 0x00, // flags
+            0x00, 0x00, 0x00, 0x02, // entry count
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, // segment duration v1
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, // media time v1
+            0x01, 0x0c, // media rate integer
+            0x01, 0x0d, // media rate fraction
+            0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, // segment duration v1
+            0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, // media time v1
+            0x02, 0x0c, // media rate integer
+            0x02, 0x0d, // media rate fraction
+        ]; "elst: version 1"
     )]
 #[test_case(
         Url{
@@ -173,17 +228,13 @@ use test_case::test_case;
 )]
 #[test_case(
         Mdhd{
-            full_box: FullBox{
-                version: 0,
-                flags: [0, 0, 0],
-            },
-            creation_time_v0: 0x1234_5678,
-            modification_time_v0: 0x2345_6789,
-            creation_time_v1: 0,
-            modification_time_v1: 0,
+            flags: [0, 0, 0],
+            version: MdhdVersion::V0(MdhdV0{
+                creation_time: 0x1234_5678,
+                modification_time: 0x2345_6789,
+                duration: 0x0203_0405,
+            }),
             timescale: 0x0102_0304,
-            duration_v0: 0x0203_0405,
-            duration_v1: 0,
             pad: true,
             language: [b'j' - 0x60, b'p' - 0x60, b'n' - 0x60], // 0x0a, 0x10, 0x0e
             pre_defined: 0,
@@ -201,17 +252,13 @@ use test_case::test_case;
     )]
 #[test_case(
         Mdhd{
-            full_box: FullBox{
-                version: 1,
-                flags: [0, 0, 0],
-            },
-            creation_time_v0: 0,
-            modification_time_v0: 0,
-            creation_time_v1: 0x1234_5678_9abc_def0,
-            modification_time_v1: 0x2345_6789_abcd_ef01,
+            flags: [0, 0, 0],
+            version: MdhdVersion::V1(MdhdV1{
+                creation_time: 0x1234_5678_9abc_def0,
+                modification_time: 0x2345_6789_abcd_ef01,
+                duration: 0x0203_0405_0607_0809,
+            }),
             timescale: 0x0102_0304,
-            duration_v0: 0,
-            duration_v1: 0x0203_0405_0607_0809,
             pad: true,
             language: [b'j' - 0x60, b'p' - 0x60, b'n' - 0x60], // 0x0a, 0x10, 0x0e
             pre_defined: 0,
@@ -229,17 +276,13 @@ use test_case::test_case;
     )]
 #[test_case(
         Mdhd{
-            full_box: FullBox{
-                version: 0,
-                flags: [0, 0, 0],
-            },
-            creation_time_v0: 0,
-            creation_time_v1: 0,
-            modification_time_v0: 0,
-            modification_time_v1: 0,
+            flags: [0, 0, 0],
+            version: MdhdVersion::V0(MdhdV0{
+                creation_time: 0,
+                modification_time: 0,
+                duration: 0,
+            }),
             timescale: 0x0102_0304,
-            duration_v0: 0,
-            duration_v1: 0,
             pad: false,
             language: *b"und",
             pre_defined: 0,
@@ -276,17 +319,13 @@ use test_case::test_case;
 #[test_case(Mvex{}, &[]; "mvex")]
 #[test_case(
         Mvhd{
-            full_box: FullBox{
-                version: 0,
-                flags: [0, 0, 0],
-            },
-            creation_time_v0: 0x0123_4567,
-            modification_time_v0: 0x2345_6789,
-            creation_time_v1: 0,
-            modification_time_v1: 0,
+            flags: [0, 0, 0],
+            version: MvhdVersion::V0(MvhdV0{
+                creation_time: 0x0123_4567,
+                modification_time: 0x2345_6789,
+                duration: 0x6789_abcd,
+            }),
             timescale: 0x4567_89ab,
-            duration_v0: 0x6789_abcd,
-            duration_v1: 0,
             rate: -0x0123_4567,
             volume: 0x0123,
             reserved: 0,
@@ -316,17 +355,13 @@ use test_case::test_case;
     )]
 #[test_case(
         Mvhd{
-            full_box: FullBox{
-                version: 1,
-                flags: [0, 0, 0],
-            },
-            creation_time_v0: 0,
-            modification_time_v0: 0,
-            creation_time_v1: 0x0123_4567_89ab_cdef,
-            modification_time_v1: 0x2345_6789_abcd_ef01,
+            flags: [0, 0, 0],
+            version: MvhdVersion::V1(MvhdV1{
+                creation_time: 0x0123_4567_89ab_cdef,
+                modification_time: 0x2345_6789_abcd_ef01,
+                duration: 0x4567_89ab_cdef_0123,
+            }),
             timescale: 0x89ab_cdef,
-            duration_v0: 0,
-            duration_v1: 0x4567_89ab_cdef_0123,
             rate: -0x0123_4567,
             volume: 0x0123,
             reserved: 0,
@@ -677,12 +712,8 @@ use test_case::test_case;
     )]
 #[test_case(
         Tfdt{
-            full_box: FullBox{
-                version: 0,
-                flags: [0, 0, 0],
-            },
-            base_media_decode_time_v0: 0x0123_4567,
-            base_media_decode_time_v1: 0,
+            flags: [0, 0, 0],
+            base_media_decode_time: TfdtBaseMediaDecodeTime::V0(0x0123_4567)
         },
         &[
             0,                // version
@@ -692,12 +723,8 @@ use test_case::test_case;
     )]
 #[test_case(
         Tfdt{
-            full_box: FullBox{
-                version: 1,
-                flags: [0, 0, 0],
-            },
-            base_media_decode_time_v0: 0,
-            base_media_decode_time_v1: 0x0123_4567_89ab_cdef,
+            flags: [0, 0, 0],
+            base_media_decode_time: TfdtBaseMediaDecodeTime::V1(0x0123_4567_89ab_cdef)
         },
         &[
             1,                // version
@@ -751,18 +778,14 @@ use test_case::test_case;
     )]
 #[test_case(
         Tkhd{
-            full_box: FullBox{
-                version: 0,
-                flags: [0, 0, 0],
-            },
-            creation_time_v0: 0x0123_4567,
-            modification_time_v0: 0x1234_5678,
-            creation_time_v1: 0,
-            modification_time_v1: 0,
+            flags: [0, 0, 0],
+            version: TkhdVersion::V0(TkhdV0{
+                creation_time: 0x0123_4567,
+                modification_time: 0x1234_5678,
+                duration: 0x4567_89ab,
+            }),
             track_id: 0x2345_6789,
             reserved0: 0x3456_789a,
-            duration_v0: 0x4567_89ab,
-            duration_v1: 0,
             reserved1: [0, 0],
             layer: 23456,  // 0x5ba0
             alternate_group: -23456, // 0xdba0
@@ -798,18 +821,14 @@ use test_case::test_case;
     )]
 #[test_case(
         Tkhd{
-            full_box: FullBox{
-                version: 1,
-                flags: [0, 0, 0],
-            },
-            creation_time_v0: 0,
-            modification_time_v0: 0,
-            creation_time_v1: 0x0123_4567_89ab_cdef,
-            modification_time_v1: 0x1234_5678_9abc_def0,
+            flags: [0, 0, 0],
+            version: TkhdVersion::V1(TkhdV1{
+                creation_time: 0x0123_4567_89ab_cdef,
+                modification_time: 0x1234_5678_9abc_def0,
+                duration: 0x4567_89ab_cdef_0123,
+            }),
             track_id: 0x2345_6789,
             reserved0: 0x3456_789a,
-            duration_v0: 0,
-            duration_v1: 0x4567_89ab_cdef_0123,
             reserved1: [0, 0],
             layer: 23456,  // 0x5ba0
             alternate_group: -23456, // 0xdba0
@@ -869,35 +888,29 @@ use test_case::test_case;
     )]
 #[test_case(
         Trun{
-            full_box: FullBox{
-                version: 0,
-                flags: [0, 1, 1],
-            },
+            flags: [0, 1, 1],
             data_offset: 50,
             first_sample_flags: 0,
-            entries: vec![
-                TrunEntry{
+            entries: TrunEntries::V0(vec![
+                TrunEntryV0{
                     sample_duration: 100,
                     sample_size: 0,
                     sample_flags: 0,
-                    sample_composition_time_offset_v0: 0,
-                    sample_composition_time_offset_v1: 0,
+                    sample_composition_time_offset: 0,
                 },
-                TrunEntry{
+                TrunEntryV0{
                     sample_duration: 101,
                     sample_size: 0,
                     sample_flags: 0,
-                    sample_composition_time_offset_v0: 0,
-                    sample_composition_time_offset_v1: 0,
+                    sample_composition_time_offset: 0,
                 },
-                TrunEntry{
+                TrunEntryV0{
                     sample_duration: 102,
                     sample_size: 0,
                     sample_flags: 0,
-                    sample_composition_time_offset_v0: 0,
-                    sample_composition_time_offset_v1: 0,
+                    sample_composition_time_offset: 0,
                 },
-            ],
+            ]),
         },
         &[
             0,                // version
@@ -911,35 +924,29 @@ use test_case::test_case;
     )]
 #[test_case(
         Trun{
-            full_box: FullBox{
-                version: 0,
-                flags: [0, 2, 4],
-            },
+            flags: [0, 2, 4],
             data_offset: 0,
             first_sample_flags: 0x0246_8ace,
-            entries: vec![
-                TrunEntry{
+            entries: TrunEntries::V0(vec![
+                TrunEntryV0{
                     sample_duration: 0,
                     sample_size: 100,
                     sample_flags: 0,
-                    sample_composition_time_offset_v0: 0,
-                    sample_composition_time_offset_v1: 0,
+                    sample_composition_time_offset: 0,
                 },
-                TrunEntry{
+                TrunEntryV0{
                     sample_duration: 0,
                     sample_size: 101,
                     sample_flags: 0,
-                    sample_composition_time_offset_v0: 0,
-                    sample_composition_time_offset_v1: 0,
+                    sample_composition_time_offset: 0,
                 },
-                TrunEntry{
+                TrunEntryV0{
                     sample_duration: 0,
                     sample_size: 102,
                     sample_flags: 0,
-                    sample_composition_time_offset_v0: 0,
-                    sample_composition_time_offset_v1: 0,
+                    sample_composition_time_offset: 0,
                 },
-            ],
+            ]),
         },
         &[
             0,                // version
@@ -953,35 +960,29 @@ use test_case::test_case;
     )]
 #[test_case(
         Trun{
-            full_box: FullBox{
-                version: 0,
-                flags: [0x00, 0x0c, 0x00],
-            },
+            flags: [0x00, 0x0c, 0x00],
             data_offset: 0,
             first_sample_flags: 0,
-            entries: vec![
-                TrunEntry{
+            entries: TrunEntries::V0(vec![
+                TrunEntryV0{
                     sample_duration: 0,
                     sample_size: 0,
                     sample_flags: 100,
-                    sample_composition_time_offset_v0: 200,
-                    sample_composition_time_offset_v1: 0,
+                    sample_composition_time_offset: 200,
                 },
-                TrunEntry{
+                TrunEntryV0{
                     sample_duration: 0,
                     sample_size: 0,
                     sample_flags: 101,
-                    sample_composition_time_offset_v0: 201,
-                    sample_composition_time_offset_v1: 0,
+                    sample_composition_time_offset: 201,
                 },
-                TrunEntry{
+                TrunEntryV0{
                     sample_duration: 0,
                     sample_size: 0,
                     sample_flags: 102,
-                    sample_composition_time_offset_v0: 202,
-                    sample_composition_time_offset_v1: 0,
+                    sample_composition_time_offset: 202,
                 },
-            ],
+            ]),
         },
         &[
             0,                // version
@@ -997,33 +998,29 @@ use test_case::test_case;
     )]
 #[test_case(
         Trun{
-            full_box: FullBox{
-                version: 1,
-                flags:   [0, 8, 0],
-            },
+            flags: [0, 8, 0],
             data_offset: 0,
             first_sample_flags: 0,
-            entries: vec![
-                TrunEntry{
+            entries: TrunEntries::V1(vec![
+                TrunEntryV1{
                     sample_duration: 0,
                     sample_size: 0,
                     sample_flags: 0,
-                    sample_composition_time_offset_v0: 0,
-                    sample_composition_time_offset_v1: 200,
+                    sample_composition_time_offset: 200,
                 },
-                TrunEntry{                    sample_duration: 0,
+                TrunEntryV1{
+                    sample_duration: 0,
                     sample_size: 0,
                     sample_flags: 0,
-                    sample_composition_time_offset_v0: 0,
-                    sample_composition_time_offset_v1: 201,
+                    sample_composition_time_offset: 201,
                 },
-                TrunEntry{                    sample_duration: 0,
+                TrunEntryV1{
+                    sample_duration: 0,
                     sample_size: 0,
                     sample_flags: 0,
-                    sample_composition_time_offset_v0: 0,
-                    sample_composition_time_offset_v1: -202,
+                    sample_composition_time_offset: -202,
                 },
-            ],
+            ]),
         },
         &[
             1,                // version

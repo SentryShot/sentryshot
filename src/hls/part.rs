@@ -7,7 +7,7 @@ use common::{
     time::{DurationH264, UnixH264},
     PartFinalized, VideoSample,
 };
-use mp4::ImmutableBox;
+use mp4::{ImmutableBox, TfdtBaseMediaDecodeTime, TrunEntries};
 use std::sync::Arc;
 
 fn generate_part(
@@ -96,14 +96,13 @@ fn generate_traf(
             1 << 16 // sample_is_non_sync_sample
         };
 
-        trun_entries.push(mp4::TrunEntry {
+        trun_entries.push(mp4::TrunEntryV1 {
             sample_duration: u32::try_from(*sample.duration)
                 .map_err(|e| TryFromInt("duration".to_owned(), e))?,
             sample_size: u32::try_from(sample.avcc.len())
                 .map_err(|e| TryFromInt("sample_size".to_owned(), e))?,
             sample_flags: flags,
-            sample_composition_time_offset_v0: 0,
-            sample_composition_time_offset_v1: *sample.dts_offset,
+            sample_composition_time_offset: *sample.dts_offset,
         });
     }
 
@@ -128,29 +127,22 @@ fn generate_traf(
         }),
         // Tfdt.
         mp4::Boxes::new(mp4::Tfdt {
-            full_box: mp4::FullBox {
-                version: 1,
-                flags: [0, 0, 0],
-            },
+            flags: [0, 0, 0],
             // sum of decode durations of all earlier samples
-            base_media_decode_time_v0: 0,
-            base_media_decode_time_v1,
+            base_media_decode_time: TfdtBaseMediaDecodeTime::V1(base_media_decode_time_v1),
         }),
         // Trun.
         mp4::Boxes::new(mp4::Trun {
-            full_box: mp4::FullBox {
-                version: 1,
-                flags: mp4::u32_to_flags(
-                    mp4::TRUN_DATA_OFFSET_PRESENT
-                        | mp4::TRUN_SAMPLE_DURATION_PRESENT
-                        | mp4::TRUN_SAMPLE_SIZE_PRESENT
-                        | mp4::TRUN_SAMPLE_FLAGS_PRESENT
-                        | mp4::TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT,
-                ),
-            },
+            flags: mp4::u32_to_flags(
+                mp4::TRUN_DATA_OFFSET_PRESENT
+                    | mp4::TRUN_SAMPLE_DURATION_PRESENT
+                    | mp4::TRUN_SAMPLE_SIZE_PRESENT
+                    | mp4::TRUN_SAMPLE_FLAGS_PRESENT
+                    | mp4::TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT,
+            ),
             data_offset,
             first_sample_flags: 0,
-            entries: trun_entries,
+            entries: TrunEntries::V1(trun_entries),
         }),
     ))
 }
