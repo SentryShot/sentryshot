@@ -1,5 +1,11 @@
 import { uidReset } from "./libs/common.js";
-import { newFormater, newMultiSelect, newMonitorPicker, newLogSelector } from "./logs.js";
+import {
+	newFormater,
+	createSpan,
+	newMultiSelect,
+	newMonitorPicker,
+	newLogSelector,
+} from "./logs.js";
 
 describe("logger", () => {
 	const monitorIDtoName = (input) => {
@@ -51,6 +57,36 @@ describe("logger", () => {
 		expect(format(log)).toBe("[DEBUG] 1970-01-01_00:00:00 0: m0: 0");
 	});
 });
+
+/* eslint-disable no-useless-escape */
+describe("createSpanXSS", () => {
+	const cases = [
+		[
+			`basic`,
+			`<SCRIPT SRC=https://cdn.jsdelivr.net/gh/Moksh45/host-xss.rocks/index.js></SCRIPT>`,
+			`&lt;SCRIPT SRC=https://cdn.jsdelivr.net/gh/Moksh45/host-xss.rocks/index.js&gt;&lt;/SCRIPT&gt;`,
+		],
+		[
+			`locator`,
+			`javascript:/*--></title></style></textarea></script></xmp><svg/onload='+/"\`/ +/onmouseover=1/ + /[*/[]/ + alert(42);//'>`,
+			`javascript:/*--&gt;&lt;/title&gt;&lt;/style&gt;&lt;/textarea&gt;&lt;/script&gt;&lt;/xmp&gt;&lt;svg/onload='+/\"\`/ +/onmouseover=1/ + /[*/[]/ + alert(42);//'&gt;`,
+		],
+		[
+			`malformed A tags`,
+			`\<a onmouseover="alert(document.cookie)"\>xxs link\</a\>`,
+			`&lt;a onmouseover=\"alert(document.cookie)\"&gt;xxs link&lt;/a&gt;`,
+		],
+		[
+			`malformed IMG tags`,
+			`<IMG """><SCRIPT>alert("XSS")</SCRIPT>"\>`, //
+			`&lt;IMG \"\"\"&gt;&lt;SCRIPT&gt;alert(\"XSS\")&lt;/SCRIPT&gt;\"&gt;`,
+		],
+	];
+	it.each(cases)("%s", (_, input, want) => {
+		expect(createSpan(input).innerHTML).toBe(want);
+	});
+});
+/* eslint-enable no-useless-escape */
 
 describe("MultiSelect", () => {
 	const setup = () => {

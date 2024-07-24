@@ -68,9 +68,7 @@ function newLogger(formatLog) {
 
 		logStream.addEventListener("message", ({ data }) => {
 			const log = JSON.parse(data);
-			const line = document.createElement("span");
-			line.textContent = formatLog(log);
-			$logList.insertBefore(line, $logList.childNodes[0]);
+			$logList.insertBefore(createSpan(formatLog(log)), $logList.childNodes[0]);
 		});
 
 		logStream.addEventListener("close", () => {
@@ -144,10 +142,7 @@ function newLogger(formatLog) {
 
 			for (const log of logs) {
 				currentTime = log.time;
-
-				const line = document.createElement("span");
-				line.textContent = formatLog(log);
-				$logList.append(line);
+				$logList.append(createSpan(formatLog(log)));
 			}
 		} catch (error) {
 			if (error instanceof DOMException && error.name === "AbortError") {
@@ -208,6 +203,16 @@ function newLogger(formatLog) {
 			await reset();
 		},
 	};
+}
+
+/**
+ * @param {string} text
+ * @returns {HTMLSpanElement}
+ */
+function createSpan(text) {
+	const span = document.createElement("span");
+	span.textContent = text;
+	return span;
 }
 
 /** @typedef {import("./libs/common.js").MonitorNameByID} MonitorNameByID */
@@ -362,9 +367,18 @@ function newMultiSelect(label, values, initial) {
 	};
 }
 
+/**
+ * @typedef {Object} Monitor
+ * @property {string} id
+ * @property {string} name
+ */
+
+/** @typedef {{[x: string]: Monitor}} Monitors */
+
 /** @typedef {import("./components/form.js").Field} Field */
 
 /**
+ * @param {Monitors} monitors
  * @returns {Field}
  */
 function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
@@ -549,4 +563,11 @@ async function init() {
 		.addEventListener("scroll", logger.lazyLoadSavedLogs);
 }
 
-export { init, newFormater, newMultiSelect, newMonitorPicker, newLogSelector };
+export {
+	init,
+	newFormater,
+	createSpan,
+	newMultiSelect,
+	newMonitorPicker,
+	newLogSelector,
+};
