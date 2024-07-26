@@ -266,6 +266,34 @@ function newCategory(category, title) {
 	};
 }
 
+/**
+ * @typedef Monitor
+ * @property {string} id
+ */
+
+/** @typedef {import("./components/form.js").Form} Form */
+
+/**
+ * @template T,T2,T3
+ * @typedef {import("./components/form.js").Field<T,T2,T3>} Field
+ */
+
+/**
+ * @template T,T2,T3
+ * @typedef {import("./components/form.js").Fields<T,T2,T3>} Fields
+ */
+
+/**
+ * @template V
+ * @typedef {Field<any,Monitor,MonitorFields>} MonitorField
+ */
+
+/** @typedef {{[x: string]: MonitorField<any>}} MonitorFields */
+
+/**
+ * @param {string} token
+ * @param {MonitorFields} fields
+ */
 function newMonitor(token, fields) {
 	const name = "monitors";
 	const title = "Monitors";
@@ -283,8 +311,8 @@ function newMonitor(token, fields) {
 		const $monitorID = fields["id"].element();
 		const $monitorIDinput = $monitorID.querySelector("input");
 
-		let monitor = {},
-			title;
+		let monitor = {};
+		let title;
 
 		if (id === "") {
 			monitor["id"] = randomString(5);
@@ -302,14 +330,17 @@ function newMonitor(token, fields) {
 		for (const key of Object.keys(form.fields)) {
 			if (form.fields[key] && form.fields[key].set) {
 				if (monitor[key] === undefined) {
+					// @ts-ignore
 					form.fields[key].set("", monitor, fields);
 				} else {
+					// @ts-ignore
 					form.fields[key].set(monitor[key], monitor, fields);
 				}
 			}
 		}
 	};
 
+	/** @param {{[x: string]: { id: string, name: string} }} monitors */
 	const renderMonitorList = (monitors) => {
 		let html = "";
 		const sortedMonitors = sortByName(monitors);
@@ -334,6 +365,7 @@ function newMonitor(token, fields) {
 		});
 	};
 
+	/** @type any */
 	let monitors = {};
 
 	const load = async () => {
@@ -568,6 +600,17 @@ function newGroup(token, fields) {
 }
 */
 
+/**
+ * @typedef AccountFields
+ * @property {Field<string,any,any>} id
+ * @property {Field<string,any,any>} username
+ * @property {Field<boolean,any,any>} isAdmin
+ * @property {Field<string,any,any>} password
+ */
+
+/**
+ * @param {string} token
+ */
 function newAccount(token, fields) {
 	const name = "accounts";
 	const title = "Accounts";
@@ -597,9 +640,11 @@ function newAccount(token, fields) {
 		}
 
 		category.setTitle(title);
-		form.fields.id.value = id;
-		form.fields.username.set(username);
-		form.fields.isAdmin.set(isAdmin);
+		/** @type {AccountFields} */
+		const formFields = form.fields;
+		formFields.id.value = id;
+		formFields.username.set(username);
+		formFields.isAdmin.set(isAdmin);
 	};
 
 	function sortByUsername(input) {
@@ -843,8 +888,11 @@ function newSelectMonitor(id) {
 }
 */
 
+/** @returns {MonitorField<string>} */
 function newSourceField(options) {
-	let $input, fields;
+	/** @type {HTMLInputElement} */
+	let $input;
+	let fields;
 	const id = uniqueID();
 
 	const value = () => {
@@ -888,6 +936,14 @@ function newSourceField(options) {
 	};
 }
 
+/**
+ * @typedef RtspFields
+ * @property {Field<string,any,any>} protocol
+ * @property {Field<string,any,any>} mainStream
+ * @property {Field<string,any,any>} subStream
+ */
+
+/** @returns {MonitorField<string>} */
 function newSourceRTSP() {
 	const fields = {
 		protocol: fieldTemplate.select("Protocol", ["tcp", "udp"], "tcp"),
@@ -940,6 +996,7 @@ function newSourceRTSP() {
 		isRendered = true;
 	};
 
+	/** @type {MonitorFields} */
 	let monitorFields;
 	const update = () => {
 		// Set value.
@@ -958,6 +1015,7 @@ function newSourceRTSP() {
 	let element;
 
 	return {
+		// @ts-ignore
 		open() {
 			render(element);
 			update();
@@ -1008,6 +1066,7 @@ function init() {
 
 		/** @type {import("./components/form.js").InputRule} */
 		const maxLength24 = [/^.{25}/, "maximum length is 24 characters"];
+		/** @type {MonitorFields} */
 		const monitorFields = {
 			id: newField(
 				[

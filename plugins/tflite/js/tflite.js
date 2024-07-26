@@ -3,10 +3,36 @@
 
 import Hls from "./vendor/hls.js";
 import { uniqueID, normalize, denormalize } from "./libs/common.js";
-import { newForm, newField, inputRules, fieldTemplate } from "./components/form.js";
+import { newForm, newNumberField, inputRules, fieldTemplate } from "./components/form.js";
 import { newFeed } from "./components/feed.js";
 import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
+
+/** @typedef {import("./settings.js").Monitor} Monitor */
+
+/**
+ * @template V
+ * @typedef {import("./settings.js").MonitorField<V>} MonitorField
+ */
+
+/** @typedef {import("./settings.js").MonitorFields} MonitorFields */
+
+/**
+ * @template T,T2,T3
+ * @typedef {import("./components/form.js").Field<T,T2,T3>} Field
+ */
+
+/** @typedef {import("./components/form.js").Form} Form */
+
+/**
+ * @template V
+ * @typedef {Field<V,TfliteFields,MonitorFields>} TfliteField
+ */
+
+/**
+ * @typedef TfliteFields
+ * @property {TfliteField<string>} detectorName
+ */
 
 const Detectors = JSON.parse(`$detectorsJSON`);
 
@@ -38,6 +64,7 @@ export function tflite() {
  * @param {typeof Hls} hls
  * @param {Detectors} detectors
  * @param {(montitorID: string) => boolean} hasSubStream
+ * @returns {MonitorField<any>}
  */
 function _tflite(hls, detectors, hasSubStream) {
 	let detectorNames = Object.keys(detectors);
@@ -52,13 +79,12 @@ function _tflite(hls, detectors, hasSubStream) {
 			detectorNames,
 			detectorNames.at(-1) // Last item.
 		),
-		feedRate: newField(
+		feedRate: newNumberField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
 				errorField: true,
-				numberField: true,
 				input: "number",
-				min: "0",
+				min: 0,
 			},
 			{
 				label: "Feed rate (fps)",
@@ -103,6 +129,7 @@ function _tflite(hls, detectors, hasSubStream) {
 		isRendered = true;
 	};
 
+	/** @type {MonitorFields} */
 	let monitorFields;
 	const update = () => {
 		// Set value.
@@ -159,7 +186,10 @@ function _tflite(hls, detectors, hasSubStream) {
 	};
 }
 
-/** @param {Detectors} detectors */
+/**
+ * @param {Detectors} detectors
+ * @returns {TfliteField<any>}
+ */
 function thresholds(detectors) {
 	/**
 	 * @param {string} label
@@ -289,6 +319,7 @@ function thresholds(detectors) {
 		}
 	};
 
+	/** @type {TfliteFields} */
 	let tfliteFields;
 	const id = uniqueID();
 
@@ -349,6 +380,7 @@ function thresholds(detectors) {
  * @param {typeof Hls} hls
  * @param {Detectors} detectors
  * @param {(monitorID: string) => boolean} hasSubStream
+ * @returns {TfliteField<Crop>}
  */
 function crop(hls, detectors, hasSubStream) {
 	/** @param {string} name */
@@ -357,6 +389,7 @@ function crop(hls, detectors, hasSubStream) {
 		return detector["width"] / detector["height"];
 	};
 
+	/** @type {Crop} */
 	let value;
 	let $wrapper, $padding, $x, $y, $size, $modalContent, $feed, $overlay;
 
@@ -441,6 +474,7 @@ function crop(hls, detectors, hasSubStream) {
 		$overlay.innerHTML = renderPreviewOverlay();
 	};
 
+	/** @type {TfliteFields} */
 	let tfliteFields;
 	const updatePadding = () => {
 		const detectorName = tfliteFields.detectorName.value();
@@ -519,7 +553,8 @@ function crop(hls, detectors, hasSubStream) {
 
 	let rendered = false;
 	const id = uniqueID();
-	let monitorFields = {};
+	/** @type {MonitorFields} */
+	let monitorFields;
 
 	/** @returns {Crop} */
 	const defaultValue = () => {
@@ -560,6 +595,7 @@ function crop(hls, detectors, hasSubStream) {
 			};
 		},
 		set(input, f, mf) {
+			// @ts-ignore
 			value = input === "" ? defaultValue() : denormalizeCrop(input);
 			if (rendered) {
 				set(value);
@@ -622,8 +658,10 @@ function denormalizeCrop(crop) {
 /**
  * @param {typeof Hls} hls
  * @param {(monitorID: string) => boolean} hasSubStream
+ * @returns {TfliteField<Mask>}
  */
 function mask(hls, hasSubStream) {
+	/** @type {MonitorFields} */
 	let fields = {};
 	/** @type {Mask} */
 	let value;
@@ -873,6 +911,7 @@ function mask(hls, hasSubStream) {
 		},
 		set(input, _, f) {
 			fields = f;
+			// @ts-ignore
 			value = input === "" ? initialValue() : denormalizeMask(input);
 			if (rendered) {
 				$enable.value = String(value.enable);

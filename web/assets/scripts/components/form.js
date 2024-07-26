@@ -23,28 +23,46 @@ import { uniqueID } from "../libs/common.js";
  * element()   Returns field element. optional
  */
 
+// TODO: remove init parent.
+
 /**
+ * @template T,T2,T3
  * @typedef {Object} Field
  * @property {string} html
  * @property {($parent: Element) => void} init
- * @property {() => any} value
- * @property {(input: any, special: any, special2: any) => void} set
- * @property {(input: string) => string=} validate
+ * @property {() => T} value
+ * @property {(input: string|T, special: T2, special2: T3) => void} set
+ * @property {(input: T) => string=} validate
  * @property {() => HTMLElement=} element
  */
 
-/** @typedef {Object.<string, Field>} Fields */
+/**
+ * @typedef {Object} Form
+ * @property {() => Buttons} buttons
+ * @property {(type: string) => void} addButton
+ * @property {any} fields
+ * @property {() => void} reset
+ * @property {() => string=} validate
+ * @property {() => string} html
+ * @property {($parent: Element) => void} init
+ */
 
 /**
- * @param {Fields} fields
+ * @template T,T2,T3
+ * @typedef {{[x: string]: Field<T,T2,T3>}} Fields
+ */
+
+/**
+ * @param {any} fields
+ * @returns {Form}
  */
 function newForm(fields) {
+	/** @type {Buttons} */
 	let buttons = {};
 	return {
 		buttons() {
 			return buttons;
 		},
-		/** @param {string} type */
 		addButton(type) {
 			switch (type) {
 				case "save": {
@@ -61,6 +79,7 @@ function newForm(fields) {
 		reset() {
 			for (const item of Object.values(fields)) {
 				if (item.set) {
+					// @ts-ignore
 					item.set("");
 				}
 			}
@@ -96,7 +115,6 @@ function newForm(fields) {
 					<div class="form-button-wrapper">${htmlButtons}</div>
 				</ul>`;
 		},
-		/** @param {Element} $parent */
 		init($parent) {
 			for (const item of Object.values(fields)) {
 				if (item && item.init) {
@@ -110,10 +128,19 @@ function newForm(fields) {
 	};
 }
 
+/**
+ * @typedef Button
+ * @property {((func: () => void) => void)} onClick
+ * @property {() => string} html
+ * @property {($parent: Element) => void} init
+ */
+
+/** @typedef {Object.<string, Button>} Buttons */
+
+/** @returns {Button} */
 function newSaveBtn() {
 	let element, onClick;
 	return {
-		/** @param {() => void} func */
 		onClick(func) {
 			onClick = func;
 		},
@@ -129,7 +156,6 @@ function newSaveBtn() {
 					<span>Save</span>
 				</button>`;
 		},
-		/** @param {HTMLElement} $parent */
 		init($parent) {
 			element = $parent.querySelector(".js-save-btn");
 			element.addEventListener("click", () => {
@@ -139,10 +165,10 @@ function newSaveBtn() {
 	};
 }
 
+/** @returns {Button} */
 function newDeleteBtn() {
 	let element, onClick;
 	return {
-		/** @param {() => void} func */
 		onClick(func) {
 			onClick = func;
 		},
@@ -158,7 +184,6 @@ function newDeleteBtn() {
 					<span>Delete</span>
 				</button>`;
 		},
-		/** @param {HTMLElement} $parent */
 		init($parent) {
 			element = $parent.querySelector(".js-delete-btn");
 			element.addEventListener("click", () => {
@@ -187,7 +212,7 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string} placeholder
 	 * @param {string} initial
-	 * @return {Field}
+	 * @return {Field<string,any,any>}
 	 */
 	text(label, placeholder, initial = "") {
 		return newField(
@@ -207,17 +232,16 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string} placeholder
 	 * @param {string} initial
-	 * @return {Field}
+	 * @return {Field<number,any,any>}
 	 */
 	integer(label, placeholder, initial = "") {
-		return newField(
+		return newNumberField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
 				errorField: true,
-				numberField: true,
 				input: "number",
-				min: "0",
-				step: "1",
+				min: 0,
+				step: 1,
 			},
 			{
 				label: label,
@@ -230,16 +254,15 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string} placeholder
 	 * @param {string} initial
-	 * @return {Field}
+	 * @return {Field<number,any,any>}
 	 */
 	number(label, placeholder, initial = "") {
-		return newField(
+		return newNumberField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
 				errorField: true,
-				numberField: true,
 				input: "number",
-				min: "0",
+				min: 0,
 			},
 			{
 				label: label,
@@ -251,7 +274,7 @@ const fieldTemplate = {
 	/**
 	 * @param {string} label
 	 * @param {boolean} initial
-	 * @return {Field}
+	 * @return {Field<boolean,any,any>}
 	 */
 	toggle(label, initial = false) {
 		return newToggleField(label, initial);
@@ -260,7 +283,7 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string[]} options
 	 * @param {string} initial
-	 * @return {Field}
+	 * @return {Field<string,any,any>}
 	 */
 	select(label, options, initial = "") {
 		return newField(
@@ -278,7 +301,7 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string[]} options
 	 * @param {string} initial
-	 * @return {Field}
+	 * @return {Field<string,any,any>}
 	 */
 	selectCustom(label, options, initial = "") {
 		return newSelectCustomField([inputRules.notEmpty], options, {
@@ -291,12 +314,11 @@ const fieldTemplate = {
 /**
  * @typedef {Object} Options
  * @property {boolean=} errorField
- * @property {boolean=} numberField
  * @property {string=} input
  * @property {string[]=} select
- * @property {string=} min
- * @property {string=} max
- * @property {string=} step
+ * @property {number=} min
+ * @property {number=} max
+ * @property {number=} step
  * @property {boolean=} custom
  */
 
@@ -311,27 +333,26 @@ const fieldTemplate = {
  * @param {InputRule[]} inputRules
  * @param {Options} options
  * @param {Values} values
- * @return {Field}
+ * @return {Field<string,any,any>}
  */
 function newField(inputRules, options, values) {
-	let element, $input, $error;
-	const { errorField, numberField, min, max } = options;
+	let element;
+	/** @type HTMLInputElement */
+	let $input;
+	let $error;
+
+	const { errorField } = options;
 	const { label, placeholder, initial } = values;
 
+	/** @param {string|number} input */
 	const validate = (input) => {
 		if (!errorField) {
 			return "";
 		}
 		for (const rule of inputRules) {
-			if (rule[0].test(input)) {
+			if (rule[0].test(String(input))) {
 				return rule[1];
 			}
-		}
-		if (min && input < min) {
-			return `min value: ${min}`;
-		}
-		if (max && Number(input) > Number(max)) {
-			return `max value: ${max}`;
 		}
 		return "";
 	};
@@ -354,9 +375,6 @@ function newField(inputRules, options, values) {
 			});
 		},
 		value() {
-			if (numberField) {
-				return Number(value());
-			}
 			return value();
 		},
 		set(input) {
@@ -364,6 +382,77 @@ function newField(inputRules, options, values) {
 				$input.value = initial ? initial : "";
 			} else {
 				$input.value = input;
+			}
+		},
+		validate(input) {
+			const err = validate(input);
+			if (err != "") {
+				return `"${label}": ${err}`;
+			}
+			return "";
+		},
+		element() {
+			return element;
+		},
+	};
+}
+
+/**
+ * @param {InputRule[]} inputRules
+ * @param {Options} options
+ * @param {Values} values
+ * @return {Field<number,any,any>}
+ */
+function newNumberField(inputRules, options, values) {
+	let element;
+	/** @type HTMLInputElement */
+	let $input;
+	let $error;
+
+	const { errorField, min, max } = options;
+	const { label, placeholder, initial } = values;
+
+	/** @param {string|number} input */
+	const validate = (input) => {
+		if (!errorField) {
+			return "";
+		}
+		for (const rule of inputRules) {
+			if (rule[0].test(String(input))) {
+				return rule[1];
+			}
+		}
+		input = Number(input);
+		if (min !== undefined && input < min) {
+			return `min value: ${min}`;
+		}
+		if (max !== undefined && input > max) {
+			return `max value: ${max}`;
+		}
+		return "";
+	};
+
+	const id = uniqueID();
+
+	return {
+		html: newHTMLfield(options, id, label, placeholder),
+		init() {
+			element = document.querySelector(`#js-${id}`);
+			[$input, $error] = $getInputAndError(element);
+			$input.addEventListener("change", () => {
+				if (errorField) {
+					$error.innerHTML = validate($input.value);
+				}
+			});
+		},
+		value() {
+			return Number($input.value);
+		},
+		set(input) {
+			if (input == "") {
+				$input.value = initial ? initial : "";
+			} else {
+				$input.value = String(input);
 			}
 		},
 		validate(input) {
@@ -389,9 +478,12 @@ function newHTMLfield(options, id, label, placeholder = "") {
 	let { errorField, input, select, min, max, step, custom } = options;
 
 	placeholder ? "" : (placeholder = "");
-	min ? (min = `min="${min}"`) : (min = "");
-	max ? (max = `max="${max}"`) : (max = "");
-	step ? (step = `step="${step}"`) : (step = "");
+	// @ts-ignore
+	min === undefined ? (min = "") : (min = `min="${min}"`);
+	// @ts-ignore
+	max === undefined ? (max = "") : (max = `max="${max}"`);
+	// @ts-ignore
+	step === undefined ? (step = "") : (step = `step="${step}"`);
 
 	let body = "";
 	if (input) {
@@ -441,7 +533,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 /**
  * @param {string} label
  * @param {boolean} initial
- * @return {Field}
+ * @return {Field<boolean,{},{}>}
  */
 function newToggleField(label, initial) {
 	let element;
@@ -464,7 +556,7 @@ function newToggleField(label, initial) {
 			return $input.value === "true";
 		},
 		set(input) {
-			$input.value = input === "" ? initial.toString() : input;
+			$input.value = input === "" ? String(initial) : String(input);
 		},
 		validate() {
 			return "";
@@ -481,15 +573,19 @@ function newToggleField(label, initial) {
  * @param {InputRule[]} inputRules
  * @param {string[]} options
  * @param {Values} values
- * @return {Field}
+ * @return {Field<string,{},{}>}
  */
 function newSelectCustomField(inputRules, options, values) {
-	let $input, $error, validate;
+	/** @type HTMLInputElement */
+	let $input;
+	let $error;
+	let validate;
 	const id = uniqueID();
 
 	const value = () => {
 		return $input.value;
 	};
+	/** @param {string} input */
 	const set = (input) => {
 		if (input === "") {
 			$input.value = values.initial;
@@ -513,6 +609,7 @@ function newSelectCustomField(inputRules, options, values) {
 		$input.value = input;
 	};
 
+	/** @param {string} input */
 	validate = (input) => {
 		for (const rule of inputRules) {
 			if (rule[0].test(input)) {
@@ -554,12 +651,18 @@ function newSelectCustomField(inputRules, options, values) {
 	};
 }
 
-/** @return {Field} */
+/**
+ * @return {Field<string,any,any>}
+ */
 function newPasswordField() {
 	const newID = uniqueID();
 	const repeatID = uniqueID();
 	let $newInput, $newError, $repeatInput, $repeatError;
 
+	/**
+	 * @param {string} id
+	 * @param {string} label
+	 */
 	const passwordHTML = (id, label) => {
 		return `
 		<li id="js-${id}" class="form-field-error">
@@ -587,6 +690,7 @@ function newPasswordField() {
 		return $repeatInput.value;
 	};
 
+	/** @param {string} string */
 	const passwordStrength = (string) => {
 		const strongRegex = new RegExp(
 			"^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*])(?=.{8,})"
@@ -637,7 +741,10 @@ function newPasswordField() {
 	};
 }
 
-/** @param {Element} $parent */
+/**
+ * @param {Element} $parent
+ * @returns {[HTMLInputElement, HTMLElement]}
+ */
 function $getInputAndError($parent) {
 	return [$parent.querySelector(".js-input"), $parent.querySelector(".js-error")];
 }
@@ -650,6 +757,7 @@ function isEmpty(input) {
 export {
 	newForm,
 	newField,
+	newNumberField,
 	newHTMLfield,
 	inputRules,
 	fieldTemplate,

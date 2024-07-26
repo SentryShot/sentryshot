@@ -86,8 +86,9 @@ async function fetchDelete(url, token, msg) {
 }
 
 /**
- * @param {Object.<string, { name: string }>} input
- * @return {any[]}
+ * @template {{ name: string }} T
+ * @param {{[x: string]: T}} input
+ * @return {T[]}
  */
 function sortByName(input) {
 	const ret = Object.values(input);

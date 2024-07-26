@@ -1,0 +1,1 @@
+../../../web/assets/scripts/settings.js

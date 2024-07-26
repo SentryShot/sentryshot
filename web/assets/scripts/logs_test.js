@@ -218,6 +218,7 @@ test("monitorPicker", () => {
 	expect(modalSetCalls).toEqual(["m2"]);
 
 	// Reset.
+	// @ts-ignore
 	picker.set("");
 	expect(picker.value()).toBe("");
 });

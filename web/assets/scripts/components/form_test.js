@@ -3,7 +3,7 @@
 import { uidReset } from "../libs/common.js";
 import {
 	newForm,
-	newField,
+	newNumberField,
 	inputRules,
 	fieldTemplate,
 	newSelectCustomField,
@@ -154,13 +154,13 @@ describe("newForm", () => {
 
 describe("newField", () => {
 	const newTestField = () => {
-		return newField(
+		return newNumberField(
 			[inputRules.notEmpty, inputRules.noSpaces],
 			{
 				errorField: true,
 				input: "number",
-				min: "2",
-				max: "4",
+				min: 2,
+				max: 4,
 				step: "0.5",
 			},
 			{

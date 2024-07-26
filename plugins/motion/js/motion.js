@@ -8,6 +8,18 @@ import { newFeed } from "./components/feed.js";
 import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
 
+/**
+ * @template T,T2,T3
+ * @typedef {import("./components/form.js").Field<T,T2,T3>} Field
+ */
+
+/**
+ * @template V
+ * @typedef {import("./settings.js").MonitorField<V>} MonitorField
+ */
+
+/** @typedef {import("./settings.js").MonitorFields} MonitorFields */
+
 export function motion() {
 	// @ts-ignore
 	const monitorsInfo = MonitorsInfo; // eslint-disable-line no-undef
@@ -24,8 +36,19 @@ export function motion() {
 }
 
 /**
+ * @template V
+ * @typedef {Field<V, MotionFields, MonitorFields>} MotionField
+ */
+
+/**
+ * @typedef MotionFields
+ * @property {MotionField<any>} x
+ */
+
+/**
  * @param {typeof Hls} hls
  * @param {(montitorID: string) => boolean} hasSubStream
+ * @returns {MonitorField<any>}
  */
 function _motion(hls, hasSubStream) {
 	const fields = {
@@ -69,6 +92,7 @@ function _motion(hls, hasSubStream) {
 		isRendered = true;
 	};
 
+	/** @type {MonitorFields} */
 	let monitorFields;
 	const update = () => {
 		// Set value.
@@ -252,7 +276,6 @@ function zonesModalHTML(feedHTML) {
 }
 
 /**
- * @typedef {import("./components/form.js").Field} Field
  * @typedef {import("./components/feed.js").Feed} Feed
  * @typedef {import("./components/modal.js").Modal} Modal
  */
@@ -260,7 +283,7 @@ function zonesModalHTML(feedHTML) {
 /**
  * @param {typeof Hls} hls
  * @param {(monitorID: string) => void} hasSubStream
- * @return {Field}
+ * @return {MotionField<ZoneData[]>}
  */
 function zones(hls, hasSubStream) {
 	/** @type {Modal} */
@@ -557,7 +580,9 @@ function zones(hls, hasSubStream) {
 		};
 	};
 
-	let rendered, fields;
+	let rendered;
+	/** @type {MonitorFields} */
+	let fields;
 
 	const id = uniqueID();
 	return {
@@ -610,6 +635,7 @@ function zones(hls, hasSubStream) {
 		},
 		set(input, _, f) {
 			fields = f;
+			// @ts-ignore
 			value = input === "" ? normalizeZones([defaultZone()]) : input;
 			if (rendered) {
 				for (const zone of zones) {
