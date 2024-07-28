@@ -26,12 +26,12 @@ import { uniqueID } from "../libs/common.js";
 // TODO: remove init parent.
 
 /**
- * @template T,T2,T3
+ * @template T
  * @typedef {Object} Field
  * @property {string} html
  * @property {($parent: Element) => void} init
  * @property {() => T} value
- * @property {(input: string|T, special: T2, special2: T3) => void} set
+ * @property {(input: string|T) => void} set
  * @property {(input: T) => string=} validate
  * @property {() => HTMLElement=} element
  */
@@ -48,8 +48,8 @@ import { uniqueID } from "../libs/common.js";
  */
 
 /**
- * @template T,T2,T3
- * @typedef {{[x: string]: Field<T,T2,T3>}} Fields
+ * @template T
+ * @typedef {{[x: string]: Field<T>}} Fields
  */
 
 /**
@@ -212,7 +212,7 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string} placeholder
 	 * @param {string} initial
-	 * @return {Field<string,any,any>}
+	 * @return {Field<string>}
 	 */
 	text(label, placeholder, initial = "") {
 		return newField(
@@ -232,7 +232,7 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string} placeholder
 	 * @param {string} initial
-	 * @return {Field<number,any,any>}
+	 * @return {Field<number>}
 	 */
 	integer(label, placeholder, initial = "") {
 		return newNumberField(
@@ -254,7 +254,7 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string} placeholder
 	 * @param {string} initial
-	 * @return {Field<number,any,any>}
+	 * @return {Field<number>}
 	 */
 	number(label, placeholder, initial = "") {
 		return newNumberField(
@@ -274,7 +274,7 @@ const fieldTemplate = {
 	/**
 	 * @param {string} label
 	 * @param {boolean} initial
-	 * @return {Field<boolean,any,any>}
+	 * @return {Field<boolean>}
 	 */
 	toggle(label, initial = false) {
 		return newToggleField(label, initial);
@@ -283,7 +283,7 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string[]} options
 	 * @param {string} initial
-	 * @return {Field<string,any,any>}
+	 * @return {Field<string>}
 	 */
 	select(label, options, initial = "") {
 		return newField(
@@ -301,7 +301,7 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string[]} options
 	 * @param {string} initial
-	 * @return {Field<string,any,any>}
+	 * @return {Field<string>}
 	 */
 	selectCustom(label, options, initial = "") {
 		return newSelectCustomField([inputRules.notEmpty], options, {
@@ -333,7 +333,7 @@ const fieldTemplate = {
  * @param {InputRule[]} inputRules
  * @param {Options} options
  * @param {Values} values
- * @return {Field<string,any,any>}
+ * @return {Field<string>}
  */
 function newField(inputRules, options, values) {
 	let element;
@@ -401,7 +401,7 @@ function newField(inputRules, options, values) {
  * @param {InputRule[]} inputRules
  * @param {Options} options
  * @param {Values} values
- * @return {Field<number,any,any>}
+ * @return {Field<number>}
  */
 function newNumberField(inputRules, options, values) {
 	let element;
@@ -533,7 +533,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 /**
  * @param {string} label
  * @param {boolean} initial
- * @return {Field<boolean,{},{}>}
+ * @return {Field<boolean>}
  */
 function newToggleField(label, initial) {
 	let element;
@@ -573,7 +573,7 @@ function newToggleField(label, initial) {
  * @param {InputRule[]} inputRules
  * @param {string[]} options
  * @param {Values} values
- * @return {Field<string,{},{}>}
+ * @return {Field<string>}
  */
 function newSelectCustomField(inputRules, options, values) {
 	/** @type HTMLInputElement */
@@ -652,7 +652,7 @@ function newSelectCustomField(inputRules, options, values) {
 }
 
 /**
- * @return {Field<string,any,any>}
+ * @return {Field<string>}
  */
 function newPasswordField() {
 	const newID = uniqueID();

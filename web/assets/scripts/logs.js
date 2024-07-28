@@ -279,14 +279,13 @@ function newFormater(monitorNameByID, timeZone) {
  * @param {string} label
  * @param {string[]} values
  * @param {string[]} initial
- * @returns {Field<string[],{},{}>}
+ * @returns {Field<string[]>}
  */
 function newMultiSelect(label, values, initial) {
 	/**
-	 * @template T,T2,T3
 	 * @param {string} id
 	 * @param {string} name
-	 * @return {Field<T,T2,T3>}
+	 * @return {Field<boolean>}
 	 */
 	const newField = (id, name) => {
 		let $checkbox;
@@ -313,7 +312,7 @@ function newMultiSelect(label, values, initial) {
 	};
 
 	/**
-	 * @type {Object<string, Field<boolean,any,any>>}
+	 * @type {Object<string, Field<boolean>>}
 	 */
 	let fields = {};
 
@@ -329,10 +328,10 @@ function newMultiSelect(label, values, initial) {
 
 	const reset = () => {
 		for (const field of Object.values(fields)) {
-			field.set(false, {}, {});
+			field.set(false);
 		}
 		for (const val of initial) {
-			fields[val].set(false, {}, {});
+			fields[val].set(false);
 		}
 	};
 
@@ -381,18 +380,13 @@ function newMultiSelect(label, values, initial) {
 /** @typedef {{[x: string]: Monitor}} Monitors */
 
 /**
- * @template T,T2,T3
- * @typedef {import("./components/form.js").Field<T,T2,T3>} Field
- */
-
-/**
- * @template T,T2,T3
- * @typedef {import("./components/form.js").Fields<T,T2,T3>} Fields
+ * @template T
+ * @typedef {import("./components/form.js").Field<T>} Field
  */
 
 /**
  * @param {Monitors} monitors
- * @returns {Field<string,{},{}>}
+ * @returns {Field<string>}
  */
 function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 	let monitorNames = [];
@@ -469,9 +463,9 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 
 /**
  * @typedef LogSelectorFields
- * @property {Field<any,any,any>} level
- * @property {Field<any,any,any>} monitor
- * @property {Field<any,any,any>} sources
+ * @property {Field<string>} level
+ * @property {Field<string>} monitor
+ * @property {Field<string[]>} sources
  */
 
 /**
@@ -562,6 +556,7 @@ async function init() {
 
 	const logger = newLogger(formatLog);
 
+	/** @type {LogSelectorFields} */
 	const formFields = {
 		level: fieldTemplate.select(
 			"Level",

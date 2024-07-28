@@ -9,18 +9,12 @@ import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
 
 /**
- * @template T,T2,T3
- * @typedef {import("./components/form.js").Field<T,T2,T3>} Field
+ * @template T
+ * @typedef {import("./components/form.js").Field<T>} Field
  */
 
-/**
- * @template V
- * @typedef {import("./settings.js").MonitorField<V>} MonitorField
- */
-
-/** @typedef {import("./settings.js").MonitorFields} MonitorFields */
-
-export function motion() {
+/** @param {() => string} getMonitorId */
+export function motion(getMonitorId) {
 	// @ts-ignore
 	const monitorsInfo = MonitorsInfo; // eslint-disable-line no-undef
 
@@ -32,25 +26,16 @@ export function motion() {
 		return false;
 	};
 
-	return _motion(Hls, hasSubStream);
+	return _motion(Hls, hasSubStream, getMonitorId);
 }
-
-/**
- * @template V
- * @typedef {Field<V, MotionFields, MonitorFields>} MotionField
- */
-
-/**
- * @typedef MotionFields
- * @property {MotionField<any>} x
- */
 
 /**
  * @param {typeof Hls} hls
  * @param {(montitorID: string) => boolean} hasSubStream
- * @returns {MonitorField<any>}
+ * @param {() => string} getMonitorId
+ * @returns {Field<any>}
  */
-function _motion(hls, hasSubStream) {
+function _motion(hls, hasSubStream, getMonitorId) {
 	const fields = {
 		enable: fieldTemplate.toggle("Enable motion detection", false),
 		feedRate: fieldTemplate.integer("Feed rate (fps)", "", "2"),
@@ -60,7 +45,7 @@ function _motion(hls, hasSubStream) {
 			"full"
 		),*/
 		duration: fieldTemplate.integer("Trigger duration (sec)", "", "120"),
-		zones: zones(hls, hasSubStream),
+		zones: zones(hls, hasSubStream, getMonitorId),
 	};
 
 	const form = newForm(fields);
@@ -92,16 +77,14 @@ function _motion(hls, hasSubStream) {
 		isRendered = true;
 	};
 
-	/** @type {MonitorFields} */
-	let monitorFields;
 	const update = () => {
 		// Set value.
 		for (const key of Object.keys(form.fields)) {
 			if (form.fields[key] && form.fields[key].set) {
 				if (value[key]) {
-					form.fields[key].set(value[key], fields, monitorFields);
+					form.fields[key].set(value[key]);
 				} else {
-					form.fields[key].set("", fields, monitorFields);
+					form.fields[key].set("");
 				}
 			}
 		}
@@ -125,8 +108,7 @@ function _motion(hls, hasSubStream) {
 		value() {
 			return value;
 		},
-		set(input, _, f) {
-			monitorFields = f;
+		set(input) {
 			value = input ? input : {};
 		},
 		validate() {
@@ -283,9 +265,10 @@ function zonesModalHTML(feedHTML) {
 /**
  * @param {typeof Hls} hls
  * @param {(monitorID: string) => void} hasSubStream
- * @return {MotionField<ZoneData[]>}
+ * @param {() => string} getMonitorId
+ * @return {Field<ZoneData[]>}
  */
-function zones(hls, hasSubStream) {
+function zones(hls, hasSubStream, getMonitorId) {
 	/** @type {Modal} */
 	let modal;
 	/** @type {ZoneData[]} */
@@ -581,8 +564,6 @@ function zones(hls, hasSubStream) {
 	};
 
 	let rendered;
-	/** @type {MonitorFields} */
-	let fields;
 
 	const id = uniqueID();
 	return {
@@ -606,9 +587,9 @@ function zones(hls, hasSubStream) {
 				.addEventListener("click", () => {
 					// On open modal.
 					const monitor = {
-						id: fields.id.value(),
+						id: getMonitorId(),
 						audioEnabled: "false",
-						hasSubStream: hasSubStream(fields.id.value()),
+						hasSubStream: hasSubStream(getMonitorId()),
 					};
 					feed = newFeed(hls, monitor, true);
 
@@ -633,8 +614,7 @@ function zones(hls, hasSubStream) {
 			}
 			return value;
 		},
-		set(input, _, f) {
-			fields = f;
+		set(input) {
 			// @ts-ignore
 			value = input === "" ? normalizeZones([defaultZone()]) : input;
 			if (rendered) {

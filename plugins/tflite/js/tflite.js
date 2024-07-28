@@ -11,32 +11,16 @@ import { newPolygonEditor } from "./components/polygonEditor.js";
 /** @typedef {import("./settings.js").Monitor} Monitor */
 
 /**
- * @template V
- * @typedef {import("./settings.js").MonitorField<V>} MonitorField
- */
-
-/** @typedef {import("./settings.js").MonitorFields} MonitorFields */
-
-/**
- * @template T,T2,T3
- * @typedef {import("./components/form.js").Field<T,T2,T3>} Field
+ * @template T
+ * @typedef {import("./components/form.js").Field<T>} Field
  */
 
 /** @typedef {import("./components/form.js").Form} Form */
 
-/**
- * @template V
- * @typedef {Field<V,TfliteFields,MonitorFields>} TfliteField
- */
-
-/**
- * @typedef TfliteFields
- * @property {TfliteField<string>} detectorName
- */
-
 const Detectors = JSON.parse(`$detectorsJSON`);
 
-export function tflite() {
+/** @param {() => string} getMonitorId */
+export function tflite(getMonitorId) {
 	// @ts-ignore
 	const monitorsInfo = MonitorsInfo; // eslint-disable-line no-undef
 
@@ -48,7 +32,7 @@ export function tflite() {
 		return false;
 	};
 
-	return _tflite(Hls, Detectors, hasSubStream);
+	return _tflite(Hls, Detectors, hasSubStream, getMonitorId);
 }
 
 /**
@@ -64,38 +48,42 @@ export function tflite() {
  * @param {typeof Hls} hls
  * @param {Detectors} detectors
  * @param {(montitorID: string) => boolean} hasSubStream
- * @returns {MonitorField<any>}
+ * @param {() => string} getMonitorId
+ * @returns {Field<any>}
  */
-function _tflite(hls, detectors, hasSubStream) {
+function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 	let detectorNames = Object.keys(detectors);
 
-	const fields = {
-		enable: fieldTemplate.toggle("Enable object detection", false),
-		thresholds: thresholds(detectors),
-		crop: crop(hls, detectors, hasSubStream),
-		mask: mask(hls, hasSubStream),
-		detectorName: fieldTemplate.select(
-			"Detector",
-			detectorNames,
-			detectorNames.at(-1) // Last item.
-		),
-		feedRate: newNumberField(
-			[inputRules.notEmpty, inputRules.noSpaces],
-			{
-				errorField: true,
-				input: "number",
-				min: 0,
-			},
-			{
-				label: "Feed rate (fps)",
-				placeholder: "",
-				initial: "0.2",
-			}
-		),
-		duration: fieldTemplate.integer("Trigger duration (sec)", "", "120"),
-		useSubStream: fieldTemplate.toggle("Use sub stream", true),
-		//preview: preview(),
+	let fields = {};
+	const getDetectorName = () => {
+		return fields.detectorName.value();
 	};
+
+	fields.enable = fieldTemplate.toggle("Enable object detection", false);
+	fields.thresholds = thresholds(detectors, getDetectorName);
+	fields.crop = crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName);
+	fields.mask = mask(hls, hasSubStream, getMonitorId);
+	fields.detectorName = fieldTemplate.select(
+		"Detector",
+		detectorNames,
+		detectorNames.at(-1) // Last item.
+	);
+	fields.feedRate = newNumberField(
+		[inputRules.notEmpty, inputRules.noSpaces],
+		{
+			errorField: true,
+			input: "number",
+			min: 0,
+		},
+		{
+			label: "Feed rate (fps)",
+			placeholder: "",
+			initial: "0.2",
+		}
+	);
+	fields.duration = fieldTemplate.integer("Trigger duration (sec)", "", "120");
+	fields.useSubStream = fieldTemplate.toggle("Use sub stream", true);
+	//fields.preview = preview()
 
 	const form = newForm(fields);
 	const modal = newModal("TFlite", form.html());
@@ -129,16 +117,14 @@ function _tflite(hls, detectors, hasSubStream) {
 		isRendered = true;
 	};
 
-	/** @type {MonitorFields} */
-	let monitorFields;
 	const update = () => {
 		// Set value.
 		for (const key of Object.keys(form.fields)) {
 			if (form.fields[key] && form.fields[key].set) {
 				if (value[key] === undefined) {
-					form.fields[key].set("", fields, monitorFields);
+					form.fields[key].set("");
 				} else {
-					form.fields[key].set(value[key], fields, monitorFields);
+					form.fields[key].set(value[key]);
 				}
 			}
 		}
@@ -160,8 +146,7 @@ function _tflite(hls, detectors, hasSubStream) {
 		value() {
 			return value;
 		},
-		set(input, _, f) {
-			monitorFields = f;
+		set(input) {
 			value = input ? input : {};
 		},
 		validate() {
@@ -187,10 +172,11 @@ function _tflite(hls, detectors, hasSubStream) {
 }
 
 /**
- * @param {Detectors} detectors
- * @returns {TfliteField<any>}
+ * @param {Detectors} detectors]
+ * @param {() => string} getDetectorName
+ * @returns {Field<any>}
  */
-function thresholds(detectors) {
+function thresholds(detectors, getDetectorName) {
 	/**
 	 * @param {string} label
 	 * @param {string} val
@@ -319,8 +305,6 @@ function thresholds(detectors) {
 		}
 	};
 
-	/** @type {TfliteFields} */
-	let tfliteFields;
 	const id = uniqueID();
 
 	return {
@@ -343,10 +327,9 @@ function thresholds(detectors) {
 		value() {
 			return value;
 		},
-		set(input, f) {
+		set(input) {
 			value = input ? input : {};
 			validateErr = "";
-			tfliteFields = f;
 		},
 		validate() {
 			return validateErr;
@@ -355,7 +338,7 @@ function thresholds(detectors) {
 		init($parent) {
 			const element = $parent.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				const detectorName = tfliteFields.detectorName.value();
+				const detectorName = getDetectorName();
 				if (detectorName === "") {
 					alert("please select a detector");
 					return;
@@ -380,9 +363,11 @@ function thresholds(detectors) {
  * @param {typeof Hls} hls
  * @param {Detectors} detectors
  * @param {(monitorID: string) => boolean} hasSubStream
- * @returns {TfliteField<Crop>}
+ * @param {() => string} getMonitorId
+ * @param {() => string} getDetectorName
+ * @returns {Field<Crop>}
  */
-function crop(hls, detectors, hasSubStream) {
+function crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName) {
 	/** @param {string} name */
 	const detectorAspectRatio = (name) => {
 		const detector = detectors[name];
@@ -474,10 +459,8 @@ function crop(hls, detectors, hasSubStream) {
 		$overlay.innerHTML = renderPreviewOverlay();
 	};
 
-	/** @type {TfliteFields} */
-	let tfliteFields;
 	const updatePadding = () => {
-		const detectorName = tfliteFields.detectorName.value();
+		const detectorName = getDetectorName();
 		if (detectorName === "") {
 			alert("please select a detector");
 			return;
@@ -553,8 +536,6 @@ function crop(hls, detectors, hasSubStream) {
 
 	let rendered = false;
 	const id = uniqueID();
-	/** @type {MonitorFields} */
-	let monitorFields;
 
 	/** @returns {Crop} */
 	const defaultValue = () => {
@@ -594,23 +575,21 @@ function crop(hls, detectors, hasSubStream) {
 				size: normalize(Number($size.value), 100),
 			};
 		},
-		set(input, f, mf) {
+		set(input) {
 			// @ts-ignore
 			value = input === "" ? defaultValue() : denormalizeCrop(input);
 			if (rendered) {
 				set(value);
 			}
-			tfliteFields = f;
-			monitorFields = mf;
 		},
 		/** @param {Element} $parent */
 		init($parent) {
 			const element = $parent.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const monitor = {
-					id: monitorFields.id.value(),
+					id: getMonitorId(),
 					audioEnabled: "false",
-					hasSubStream: hasSubStream(monitorFields.id.value()),
+					hasSubStream: hasSubStream(getMonitorId()),
 				};
 				const feed = newFeed(hls, monitor, true);
 
@@ -658,11 +637,10 @@ function denormalizeCrop(crop) {
 /**
  * @param {typeof Hls} hls
  * @param {(monitorID: string) => boolean} hasSubStream
- * @returns {TfliteField<Mask>}
+ * @param {() => string} getMonitorId
+ * @returns {Field<Mask>}
  */
-function mask(hls, hasSubStream) {
-	/** @type {MonitorFields} */
-	let fields = {};
+function mask(hls, hasSubStream, getMonitorId) {
 	/** @type {Mask} */
 	let value;
 
@@ -909,8 +887,7 @@ function mask(hls, hasSubStream) {
 			}
 			return normalizeMask(value);
 		},
-		set(input, _, f) {
-			fields = f;
+		set(input) {
 			// @ts-ignore
 			value = input === "" ? initialValue() : denormalizeMask(input);
 			if (rendered) {
@@ -924,9 +901,9 @@ function mask(hls, hasSubStream) {
 			const element = $parent.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const monitor = {
-					id: fields.id.value(),
+					id: getMonitorId(),
 					audioEnabled: "false",
-					hasSubStream: hasSubStream(fields.id.value()),
+					hasSubStream: hasSubStream(getMonitorId()),
 				};
 				feed = newFeed(hls, monitor, true);
 

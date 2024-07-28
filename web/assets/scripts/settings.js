@@ -274,27 +274,21 @@ function newCategory(category, title) {
 /** @typedef {import("./components/form.js").Form} Form */
 
 /**
- * @template T,T2,T3
- * @typedef {import("./components/form.js").Field<T,T2,T3>} Field
+ * @template T
+ * @typedef {import("./components/form.js").Field<T>} Field
  */
 
 /**
- * @template T,T2,T3
- * @typedef {import("./components/form.js").Fields<T,T2,T3>} Fields
+ * @template T
+ * @typedef {import("./components/form.js").Fields<T>} Fields
  */
-
-/**
- * @template V
- * @typedef {Field<any,Monitor,MonitorFields>} MonitorField
- */
-
-/** @typedef {{[x: string]: MonitorField<any>}} MonitorFields */
 
 /**
  * @param {string} token
- * @param {MonitorFields} fields
+ * @param {Fields<any>} fields
+ * @param {() => string} getMonitorId
  */
-function newMonitor(token, fields) {
+function newMonitor(token, fields, getMonitorId) {
 	const name = "monitors";
 	const title = "Monitors";
 	const icon = "assets/icons/feather/video.svg";
@@ -331,10 +325,10 @@ function newMonitor(token, fields) {
 			if (form.fields[key] && form.fields[key].set) {
 				if (monitor[key] === undefined) {
 					// @ts-ignore
-					form.fields[key].set("", monitor, fields);
+					form.fields[key].set("");
 				} else {
 					// @ts-ignore
-					form.fields[key].set(monitor[key], monitor, fields);
+					form.fields[key].set(monitor[key]);
 				}
 			}
 		}
@@ -381,7 +375,7 @@ function newMonitor(token, fields) {
 			return;
 		}
 
-		const id = form.fields.id.value();
+		const id = getMonitorId();
 		let monitor = monitors[id] || {};
 		for (const key of Object.keys(form.fields)) {
 			monitor[key] = form.fields[key].value();
@@ -602,10 +596,10 @@ function newGroup(token, fields) {
 
 /**
  * @typedef AccountFields
- * @property {Field<string,any,any>} id
- * @property {Field<string,any,any>} username
- * @property {Field<boolean,any,any>} isAdmin
- * @property {Field<string,any,any>} password
+ * @property {Field<string>} id
+ * @property {Field<string>} username
+ * @property {Field<boolean>} isAdmin
+ * @property {Field<string>} password
  */
 
 /**
@@ -642,7 +636,7 @@ function newAccount(token, fields) {
 		category.setTitle(title);
 		/** @type {AccountFields} */
 		const formFields = form.fields;
-		formFields.id.value = id;
+		formFields.id.set(id);
 		formFields.username.set(username);
 		formFields.isAdmin.set(isAdmin);
 	};
@@ -888,20 +882,32 @@ function newSelectMonitor(id) {
 }
 */
 
-/** @returns {MonitorField<string>} */
-function newSourceField(options) {
+/**
+ * @typedef SourceField
+ * @property {() => string} validateSource
+ * @property {() => void} render
+ * @property {() => void} open
+ */
+
+/**
+ * @param {(name: string) => Field<any>} getField
+ * @returns {Field<string>}
+ */
+function newSourceField(options, getField) {
 	/** @type {HTMLInputElement} */
 	let $input;
-	let fields;
+
 	const id = uniqueID();
 
 	const value = () => {
 		return $input.value;
 	};
 
+	/** @type {() => SourceField} */
 	const selectedSourceField = () => {
 		const selectedSource = `source${value()}`;
-		return fields[selectedSource];
+		// @ts-ignore
+		return getField(selectedSource);
 	};
 
 	return {
@@ -923,12 +929,8 @@ function newSourceField(options) {
 			});
 		},
 		value: value,
-		set(input, _, f) {
-			fields = f;
+		set(input) {
 			$input.value = input === "" ? "rtsp" : input;
-			if (fields) {
-				selectedSourceField().render();
-			}
 		},
 		validate() {
 			return selectedSourceField().validateSource();
@@ -938,12 +940,12 @@ function newSourceField(options) {
 
 /**
  * @typedef RtspFields
- * @property {Field<string,any,any>} protocol
- * @property {Field<string,any,any>} mainStream
- * @property {Field<string,any,any>} subStream
+ * @property {Field<string>} protocol
+ * @property {Field<string>} mainStream
+ * @property {Field<string>} subStream
  */
 
-/** @returns {MonitorField<string>} */
+/** @returns {Field<string>} */
 function newSourceRTSP() {
 	const fields = {
 		protocol: fieldTemplate.select("Protocol", ["tcp", "udp"], "tcp"),
@@ -994,18 +996,17 @@ function newSourceRTSP() {
 		});
 
 		isRendered = true;
+		update();
 	};
 
-	/** @type {MonitorFields} */
-	let monitorFields;
 	const update = () => {
 		// Set value.
 		for (const key of Object.keys(form.fields)) {
 			if (form.fields[key] && form.fields[key].set) {
 				if (value[key]) {
-					form.fields[key].set(value[key], fields, monitorFields);
+					form.fields[key].set(value[key]);
 				} else {
-					form.fields[key].set("", fields, monitorFields);
+					form.fields[key].set("");
 				}
 			}
 		}
@@ -1028,19 +1029,20 @@ function newSourceRTSP() {
 		value() {
 			return removeEmptyValues(value);
 		},
-		set(input, _, f) {
-			monitorFields = f;
+		set(input) {
 			if (input === "") {
 				value = {};
 				return;
 			}
 			value = input;
-			update();
+			if (isRendered) {
+				update();
+			}
 		},
 		// Validation is done through the source field.
 		validateSource() {
 			if (!isRendered) {
-				throw "sourcertsp is not rendered";
+				return "";
 			}
 			const err = form.validate();
 			if (err != "") {
@@ -1064,35 +1066,46 @@ function init() {
 	if (isAdmin) {
 		const renderer = newRenderer(document.querySelector(".js-content"));
 
+		/** @type {Fields<any>} */
+		let monitorFields = {};
+		const getMonitorId = () => {
+			return monitorFields.id.value();
+		};
+		const getMonitorField = (name) => {
+			return monitorFields[name];
+		};
+
 		/** @type {import("./components/form.js").InputRule} */
 		const maxLength24 = [/^.{25}/, "maximum length is 24 characters"];
-		/** @type {MonitorFields} */
-		const monitorFields = {
-			id: newField(
-				[
-					inputRules.noSpaces,
-					inputRules.notEmpty,
-					inputRules.englishOnly,
-					maxLength24,
-				],
-				{
-					errorField: true,
-					input: "text",
-				},
-				{
-					label: "ID",
-				}
-			),
-			name: fieldTemplate.text("Name", "my_monitor"),
-			enable: fieldTemplate.toggle("Enable monitor", true),
-			source: newSourceField(["rtsp"]),
-			sourcertsp: newSourceRTSP(),
-			alwaysRecord: fieldTemplate.toggle("Always record", false),
-			videoLength: fieldTemplate.number("Video length (min)", "15", "15"),
-			//timestampOffset: fieldTemplate.integer("Timestamp offset (ms)", "500", "500"),
-			/* SETTINGS_LAST_FIELD */
-		};
-		const monitor = newMonitor(csrfToken, monitorFields);
+		monitorFields.id = newField(
+			[
+				inputRules.noSpaces,
+				inputRules.notEmpty,
+				inputRules.englishOnly,
+				maxLength24,
+			],
+			{
+				errorField: true,
+				input: "text",
+			},
+			{
+				label: "ID",
+			}
+		);
+		monitorFields.name = fieldTemplate.text("Name", "my_monitor");
+		monitorFields.enable = fieldTemplate.toggle("Enable monitor", true);
+		monitorFields.source = newSourceField(["rtsp"], getMonitorField);
+		monitorFields.sourcertsp = newSourceRTSP();
+		monitorFields.alwaysRecord = fieldTemplate.toggle("Always record", false);
+		monitorFields.videoLength = fieldTemplate.number(
+			"Video length (min)",
+			"15",
+			"15"
+		);
+		//timestampOffset: fieldTemplate.integer("Timestamp offset (ms)", "500", "500"),
+		/* SETTINGS_LAST_MONITOR_FIELD */
+
+		const monitor = newMonitor(csrfToken, monitorFields, getMonitorId);
 		renderer.addCategory(monitor);
 
 		/*

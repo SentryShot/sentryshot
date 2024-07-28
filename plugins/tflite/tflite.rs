@@ -700,10 +700,13 @@ fn parse_detections(
 
 fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
     const IMPORT_STATEMENT: &str = "import { tflite } from \"./tflite.js\";";
-    const TARGET: &str = "/* SETTINGS_LAST_FIELD */";
+    const TARGET: &str = "/* SETTINGS_LAST_MONITOR_FIELD */";
 
     let tpl = String::from_utf8(tpl).expect("template should be valid utf8");
-    let tpl = tpl.replace(TARGET, &("tflite: tflite(),\n".to_owned() + TARGET));
+    let tpl = tpl.replace(
+        TARGET,
+        &("monitorFields.tflite = tflite(getMonitorId)\n".to_owned() + TARGET),
+    );
     let tpl = IMPORT_STATEMENT.to_owned() + &tpl;
     tpl.as_bytes().to_owned()
 }

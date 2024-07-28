@@ -340,10 +340,13 @@ fn convert_frame(raw_frame: &mut Vec<u8>, frame_buf: &Frame) -> Result<(), Conve
 #[allow(clippy::unwrap_used)]
 fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
     const IMPORT_STATEMENT: &str = "import { motion } from \"./motion.js\";";
-    const TARGET: &str = "/* SETTINGS_LAST_FIELD */";
+    const TARGET: &str = "/* SETTINGS_LAST_MONITOR_FIELD */";
 
     let tpl = String::from_utf8(tpl).unwrap();
-    let tpl = tpl.replace(TARGET, &("motion: motion(),\n".to_owned() + TARGET));
+    let tpl = tpl.replace(
+        TARGET,
+        &("monitorFields.motion = motion(getMonitorId)\n".to_owned() + TARGET),
+    );
     let tpl = IMPORT_STATEMENT.to_owned() + &tpl;
     tpl.as_bytes().to_owned()
 }

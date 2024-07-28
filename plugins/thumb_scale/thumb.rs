@@ -99,13 +99,13 @@ impl Plugin for ThumbScalePlugin {
 }
 
 fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
-    const TARGET: &str = "/* SETTINGS_LAST_FIELD */";
+    const TARGET: &str = "/* SETTINGS_LAST_MONITOR_FIELD */";
     const JAVASCRIPT: &str = "
-		thumbScale:fieldTemplate.select(
+		monitorFields.thumbScale = fieldTemplate.select(
 			\"Thumbnail scale\",
 			[\"full\", \"half\", \"third\", \"quarter\", \"sixth\", \"eighth\"],
 			\"full\",
-		),";
+		)";
 
     let tpl = String::from_utf8(tpl).expect("template should be valid utf8");
     let tpl = tpl.replace(TARGET, &(JAVASCRIPT.to_owned() + TARGET));
