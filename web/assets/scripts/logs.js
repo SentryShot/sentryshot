@@ -299,8 +299,8 @@ function newMultiSelect(label, values, initial) {
 					</div>
 					<span class="log-selector-label">${name}</span>
 				</div>`,
-			init($parent) {
-				$checkbox = $parent.querySelector(`.item-${id} .checkbox-checkbox`);
+			init() {
+				$checkbox = document.querySelector(`.item-${id} .checkbox-checkbox`);
 			},
 			set(input) {
 				$checkbox.checked = input;
@@ -343,11 +343,9 @@ function newMultiSelect(label, values, initial) {
 				<label class="form-field-label">${label}</label>
 				<div class="source-fields">${htmlFields}</div>
 			</li>`,
-		/** @param {HTMLElement} $parent */
-		init($parent) {
-			const element = $parent.querySelector("#" + id);
+		init() {
 			for (const field of Object.values(fields)) {
-				field.init(element);
+				field.init();
 			}
 			reset();
 		},
@@ -360,13 +358,12 @@ function newMultiSelect(label, values, initial) {
 			}
 			return output;
 		},
-		/** @param {string} input */
 		set(input) {
-			if (input == "") {
+			if (input === undefined) {
 				reset();
 				return;
 			}
-			console.log("set not implemented");
+			console.error("set not implemented");
 		},
 	};
 }
@@ -423,9 +420,8 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 					</button>
 				</div>
 			</li>`,
-		/** @param {HTMLElement} $parent */
-		init($parent) {
-			const element = $parent.querySelector(`#${elementID}`);
+		init() {
+			const element = document.querySelector(`#${elementID}`);
 			$input = element.querySelector(`#${inputID}`);
 
 			/** @param {string} selected */
@@ -452,7 +448,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 		},
 		/** @param {string} input */
 		set(input) {
-			if (input == "") {
+			if (input === undefined) {
 				reset();
 				return;
 			}

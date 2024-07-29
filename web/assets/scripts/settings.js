@@ -300,7 +300,6 @@ function newMonitor(token, fields, getMonitorId) {
 	category.setForm(form);
 
 	const monitorLoad = (navElement, monitors) => {
-		form.reset();
 		const id = navElement.attributes.data.value;
 		const $monitorID = fields["id"].element();
 		const $monitorIDinput = $monitorID.querySelector("input");
@@ -319,19 +318,7 @@ function newMonitor(token, fields, getMonitorId) {
 		}
 
 		category.setTitle(title);
-
-		// Set fields.
-		for (const key of Object.keys(form.fields)) {
-			if (form.fields[key] && form.fields[key].set) {
-				if (monitor[key] === undefined) {
-					// @ts-ignore
-					form.fields[key].set("");
-				} else {
-					// @ts-ignore
-					form.fields[key].set(monitor[key]);
-				}
-			}
-		}
+		form.set(monitor);
 	};
 
 	/** @param {{[x: string]: { id: string, name: string} }} monitors */
@@ -370,7 +357,7 @@ function newMonitor(token, fields, getMonitorId) {
 
 	const saveMonitor = async (form) => {
 		const err = form.validate();
-		if (err !== "") {
+		if (err !== undefined) {
 			alert(`invalid form: ${err}`);
 			return;
 		}
@@ -595,6 +582,14 @@ function newGroup(token, fields) {
 */
 
 /**
+ * @typedef Account
+ * @property {string} username
+ * @property {boolean} isAdmin
+ */
+
+/** @typedef {{[x: string]: Account}} Accounts */
+
+/**
  * @typedef AccountFields
  * @property {Field<string>} id
  * @property {Field<string>} username
@@ -616,9 +611,8 @@ function newAccount(token, fields) {
 	form.addButton("delete");
 	category.setForm(form);
 
+	/** @param {Accounts} accounts */
 	const accountLoad = (navElement, accounts) => {
-		form.reset();
-
 		let id = navElement.attributes.data.value;
 		let username, isAdmin, title;
 
@@ -626,14 +620,15 @@ function newAccount(token, fields) {
 			id = randomString(16);
 			title = "Add";
 			username = "";
-			isAdmin = "false";
+			isAdmin = false;
 		} else {
 			username = accounts[id]["username"];
-			isAdmin = String(accounts[id]["isAdmin"]);
+			isAdmin = accounts[id]["isAdmin"];
 			title = username;
 		}
 
 		category.setTitle(title);
+		form.reset();
 		/** @type {AccountFields} */
 		const formFields = form.fields;
 		formFields.id.set(id);
@@ -687,7 +682,7 @@ function newAccount(token, fields) {
 
 	const saveAccount = async (form) => {
 		const err = form.validate();
-		if (err !== "") {
+		if (err !== undefined) {
 			alert(`invalid form: ${err}`);
 			return;
 		}
@@ -930,7 +925,7 @@ function newSourceField(options, getField) {
 		},
 		value: value,
 		set(input) {
-			$input.value = input === "" ? "rtsp" : input;
+			$input.value = input === undefined ? "rtsp" : input;
 		},
 		validate() {
 			return selectedSourceField().validateSource();
@@ -988,28 +983,8 @@ function newSourceRTSP() {
 		const $modalContent = modal.init(element);
 		form.init($modalContent);
 
-		modal.onClose(() => {
-			// Get value.
-			for (const key of Object.keys(form.fields)) {
-				value[key] = form.fields[key].value();
-			}
-		});
-
 		isRendered = true;
-		update();
-	};
-
-	const update = () => {
-		// Set value.
-		for (const key of Object.keys(form.fields)) {
-			if (form.fields[key] && form.fields[key].set) {
-				if (value[key]) {
-					form.fields[key].set(value[key]);
-				} else {
-					form.fields[key].set("");
-				}
-			}
-		}
+		form.set(value);
 	};
 
 	const id = uniqueID();
@@ -1019,39 +994,37 @@ function newSourceRTSP() {
 		// @ts-ignore
 		open() {
 			render(element);
-			update();
 			modal.open();
 		},
 		render() {
 			render(element);
 		},
 		html: `<div id="${id}"></div>`,
+		init() {
+			element = document.querySelector(`#${id}`);
+		},
 		value() {
+			if (isRendered) {
+				form.get(value);
+			}
 			return removeEmptyValues(value);
 		},
 		set(input) {
-			if (input === "") {
-				value = {};
-				return;
-			}
-			value = input;
+			value = input === undefined ? {} : input;
 			if (isRendered) {
-				update();
+				form.set(value);
 			}
 		},
 		// Validation is done through the source field.
 		validateSource() {
 			if (!isRendered) {
-				return "";
+				return;
 			}
 			const err = form.validate();
-			if (err != "") {
+			if (err !== undefined) {
 				return "RTSP source: " + err;
 			}
-			return "";
-		},
-		init() {
-			element = document.querySelector(`#${id}`);
+			return;
 		},
 	};
 }

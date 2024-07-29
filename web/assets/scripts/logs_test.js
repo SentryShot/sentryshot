@@ -95,7 +95,7 @@ describe("MultiSelect", () => {
 		const element = document.querySelector("div");
 		const field = newMultiSelect("test", ["a", "b", "c"], ["a", "b"]);
 		element.innerHTML = field.html;
-		field.init(element);
+		field.init();
 		return [element, field];
 	};
 	test("rendering", () => {
@@ -155,7 +155,7 @@ describe("MultiSelect", () => {
 		expect(field.value()).toEqual(["a"]);
 
 		// @ts-ignore
-		field.set("");
+		field.set(undefined);
 		// @ts-ignore
 		expect(field.value()).toEqual([]);
 	});
@@ -197,7 +197,7 @@ test("monitorPicker", () => {
 	// @ts-ignore
 	const picker = newMonitorPicker(monitors, mockModalSelect);
 	element.innerHTML = picker.html;
-	picker.init(element);
+	picker.init();
 
 	// Open modal.
 	expect(modalOpenCalled).toBe(false);
@@ -219,7 +219,7 @@ test("monitorPicker", () => {
 
 	// Reset.
 	// @ts-ignore
-	picker.set("");
+	picker.set(undefined);
 	expect(picker.value()).toBe("");
 });
 
@@ -234,7 +234,9 @@ describe("logSelector", () => {
 		const fields = {
 			level: {
 				html: "levelHTML",
-				value() {},
+				value() {
+					return "debug";
+				},
 			},
 			sources: {
 				html: "sourcesHTML",

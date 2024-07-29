@@ -22,7 +22,7 @@ describe("newForm", () => {
 					init = true;
 				},
 				set(input) {
-					if (input === "") {
+					if (input === undefined) {
 						reset = true;
 					}
 				},
@@ -193,7 +193,7 @@ describe("newField", () => {
 	test("validate", () => {
 		const field = newTestField();
 		expect(field.validate("1")).toBe(`"a": min value: 2`);
-		expect(field.validate("3")).toBe("");
+		expect(field.validate("3")).toBeUndefined();
 		expect(field.validate("5")).toBe(`"a": max value: 4`);
 	});
 });
@@ -278,7 +278,7 @@ describe("fieldTemplate", () => {
 		document.body.innerHTML = field.html;
 		field.init();
 
-		expect(field.validate("x")).toBe("");
+		expect(field.validate("x")).toBeUndefined();
 		testNotEmpty(field);
 		testNoSpace(field);
 		testReset(field);
@@ -312,7 +312,7 @@ describe("fieldTemplate", () => {
 		document.body.innerHTML = field.html;
 		field.init();
 
-		expect(field.validate("x")).toBe("");
+		expect(field.validate(5)).toBeUndefined();
 
 		testNotEmpty(field);
 		testNoSpace(field);
@@ -345,7 +345,7 @@ describe("fieldTemplate", () => {
 		expect(field.value()).toBe(true);
 		field.set(false);
 		expect(field.value()).toBe(false);
-		field.set("");
+		field.set(undefined);
 		expect(field.value()).toBe(true);
 	});
 
@@ -374,7 +374,7 @@ describe("fieldTemplate", () => {
 		expect(field.value()).toBe("a");
 		field.set("b");
 		expect(field.value()).toBe("b");
-		field.set("");
+		field.set(undefined);
 		expect(field.value()).toBe("a");
 	});
 
@@ -408,12 +408,12 @@ describe("fieldTemplate", () => {
 		field.init();
 
 		testNotEmpty(field);
-		expect(field.validate("x")).toBe("");
+		expect(field.validate("x")).toBeUndefined();
 
 		expect(field.value()).toBe("a");
 		field.set("b");
 		expect(field.value()).toBe("b");
-		field.set("");
+		field.set(undefined);
 		expect(field.value()).toBe("a");
 
 		window.prompt = () => {
@@ -465,7 +465,7 @@ describe("selectCustomField", () => {
 		document.body.innerHTML = field.html;
 		field.init();
 
-		expect(field.validate("x")).toBe("");
+		expect(field.validate("x")).toBeUndefined();
 
 		expect(field.value()).toBe("a");
 		field.set("b");
@@ -564,7 +564,7 @@ describe("passwordField", () => {
 		});
 		test("validate", () => {
 			field.set("AAAAAa1@");
-			expect(field.validate()).toBe("");
+			expect(field.validate()).toBeUndefined();
 		});
 	});
 });

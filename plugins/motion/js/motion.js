@@ -67,27 +67,8 @@ function _motion(hls, hasSubStream, getMonitorId) {
 		const $modalContent = modal.init(element);
 		form.init($modalContent);
 
-		modal.onClose(() => {
-			// Get value.
-			for (const key of Object.keys(form.fields)) {
-				value[key] = form.fields[key].value();
-			}
-		});
-
 		isRendered = true;
-	};
-
-	const update = () => {
-		// Set value.
-		for (const key of Object.keys(form.fields)) {
-			if (form.fields[key] && form.fields[key].set) {
-				if (value[key]) {
-					form.fields[key].set(value[key]);
-				} else {
-					form.fields[key].set("");
-				}
-			}
-		}
+		form.set(value);
 	};
 
 	const id = uniqueID();
@@ -106,29 +87,33 @@ function _motion(hls, hasSubStream, getMonitorId) {
 				</div>
 			</li> `,
 		value() {
+			if (isRendered) {
+				form.get(value);
+			}
 			return value;
 		},
 		set(input) {
-			value = input ? input : {};
+			value = input === undefined ? {} : input;
+			if (isRendered) {
+				form.set(value);
+			}
 		},
 		validate() {
 			if (!isRendered) {
-				return "";
+				return;
 			}
 			const err = form.validate();
-			if (err != "") {
+			if (err !== undefined) {
 				return "Motion detection: " + err;
 			}
-			return "";
+			return;
 		},
-		/** @param {Element} $parent */
-		init($parent) {
-			const element = $parent.querySelector("#" + id);
+		init() {
+			const element = document.querySelector("#" + id);
 			element
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {
 					render(element);
-					update();
 					modal.open();
 				});
 		},
@@ -580,8 +565,8 @@ function zones(hls, hasSubStream, getMonitorId) {
 					</button>
 				</div>
 			</li> `,
-		init($parent) {
-			const element = $parent.querySelector(`#${id}`);
+		init() {
+			const element = document.querySelector(`#${id}`);
 			element
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {
@@ -616,7 +601,7 @@ function zones(hls, hasSubStream, getMonitorId) {
 		},
 		set(input) {
 			// @ts-ignore
-			value = input === "" ? normalizeZones([defaultZone()]) : input;
+			value = input === undefined ? normalizeZones([defaultZone()]) : input;
 			if (rendered) {
 				for (const zone of zones) {
 					zone.destroy();

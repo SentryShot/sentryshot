@@ -104,30 +104,8 @@ function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 		const $modalContent = modal.init(element);
 		form.init($modalContent);
 
-		modal.onClose(() => {
-			// Get value.
-			for (const key of Object.keys(form.fields)) {
-				if (!form.fields[key].value) {
-					continue;
-				}
-				value[key] = form.fields[key].value();
-			}
-		});
-
 		isRendered = true;
-	};
-
-	const update = () => {
-		// Set value.
-		for (const key of Object.keys(form.fields)) {
-			if (form.fields[key] && form.fields[key].set) {
-				if (value[key] === undefined) {
-					form.fields[key].set("");
-				} else {
-					form.fields[key].set(value[key]);
-				}
-			}
-		}
+		form.set(value);
 	};
 
 	const id = uniqueID();
@@ -144,27 +122,31 @@ function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 					</button>
 				</li> `,
 		value() {
+			if (isRendered) {
+				form.get(value);
+			}
 			return value;
 		},
 		set(input) {
-			value = input ? input : {};
+			value = input === undefined ? {} : input;
+			if (isRendered) {
+				form.set(value);
+			}
 		},
 		validate() {
 			if (!isRendered) {
-				return "";
+				return;
 			}
 			const err = form.validate();
-			if (err != "") {
+			if (err !== undefined) {
 				return "TFlite: " + err;
 			}
-			return "";
+			return;
 		},
-		/** @param {Element} $parent */
-		init($parent) {
-			const element = $parent.querySelector(`#${id}`);
+		init() {
+			const element = document.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				render(element);
-				update();
 				modal.open();
 			});
 		},
@@ -221,7 +203,7 @@ function thresholds(detectors, getDetectorName) {
 				} else if (Number(input) > 100) {
 					return "max value: 100";
 				} else {
-					return "";
+					return;
 				}
 			},
 		};
@@ -246,10 +228,10 @@ function thresholds(detectors, getDetectorName) {
 			}
 
 			// Validate fields.
-			validateErr = "";
+			validateErr = undefined;
 			for (const field of fields) {
 				const err = field.validate(field.value());
-				if (err != "") {
+				if (err !== undefined) {
 					validateErr = `"Thresholds": "${field.label()}": ${err}`;
 					break;
 				}
@@ -334,9 +316,8 @@ function thresholds(detectors, getDetectorName) {
 		validate() {
 			return validateErr;
 		},
-		/** @param {Element} $parent */
-		init($parent) {
-			const element = $parent.querySelector(`#${id}`);
+		init() {
+			const element = document.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const detectorName = getDetectorName();
 				if (detectorName === "") {
@@ -577,14 +558,13 @@ function crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName) {
 		},
 		set(input) {
 			// @ts-ignore
-			value = input === "" ? defaultValue() : denormalizeCrop(input);
+			value = input === undefined ? defaultValue() : denormalizeCrop(input);
 			if (rendered) {
 				set(value);
 			}
 		},
-		/** @param {Element} $parent */
-		init($parent) {
-			const element = $parent.querySelector(`#${id}`);
+		init() {
+			const element = document.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const monitor = {
 					id: getMonitorId(),
@@ -889,16 +869,15 @@ function mask(hls, hasSubStream, getMonitorId) {
 		},
 		set(input) {
 			// @ts-ignore
-			value = input === "" ? initialValue() : denormalizeMask(input);
+			value = input === undefined ? initialValue() : denormalizeMask(input);
 			if (rendered) {
 				$enable.value = String(value.enable);
 				editor.set(value.area);
 			}
 		},
-		/** @param {Element} $parent */
-		init($parent) {
+		init() {
 			var feed;
-			const element = $parent.querySelector(`#${id}`);
+			const element = document.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const monitor = {
 					id: getMonitorId(),
