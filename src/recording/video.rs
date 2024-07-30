@@ -4,9 +4,9 @@ use common::{
     time::{DtsOffset, DurationH264, UnixH264},
     PartFinalized, VideoSample,
 };
-use std::{io::SeekFrom, sync::Arc};
+use std::sync::Arc;
 use thiserror::Error;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncWrite, AsyncWriteExt};
 
 // Sample flags.
 const FLAG_RANDOM_ACCESS_PRESENT: u8 = 0b1000_0000;
@@ -117,7 +117,7 @@ impl<'a, W: AsyncWrite + Unpin> VideoWriter<'a, W> {
     pub async fn new(
         meta: &'a mut W,
         mdat: &'a mut W,
-        header: Header,
+        header: MetaHeader,
     ) -> Result<VideoWriter<'a, W>, CreateVideoWriterError> {
         meta.write_all(&header.marshal()?).await?;
         Ok(Self {
@@ -167,6 +167,7 @@ impl<'a, W: AsyncWrite + Unpin> VideoWriter<'a, W> {
 }
 
 // Reads a single meta file.
+#[allow(dead_code)]
 pub struct MetaReader<T: AsyncRead + AsyncSeek + Unpin> {
     file: T,
 
@@ -185,7 +186,13 @@ pub enum CreateMetaReaderError {
 }
 
 #[derive(Debug, Error)]
-pub enum ReadAllSamplesError {
+pub enum ReadMetaError {
+    #[error("unmarshal header {0}")]
+    UnmarshalHeader(#[from] HeaderFromReaderError),
+
+    #[error("{0}")]
+    TryFromInt(#[from] std::num::TryFromIntError),
+
     #[error("seek: {0}")]
     Seek(std::io::Error),
 
@@ -194,8 +201,11 @@ pub enum ReadAllSamplesError {
 }
 
 impl<T: AsyncRead + AsyncSeek + Unpin> MetaReader<T> {
-    pub async fn new(mut file: T, file_size: u64) -> Result<(Self, Header), CreateMetaReaderError> {
-        let header = Header::from_reader(&mut file).await?;
+    pub async fn new(
+        mut file: T,
+        file_size: u64,
+    ) -> Result<(Self, MetaHeader), CreateMetaReaderError> {
+        let header = MetaHeader::from_reader(&mut file).await?;
         let header_size = u64::try_from(header.size())?;
 
         Ok((
@@ -210,30 +220,35 @@ impl<T: AsyncRead + AsyncSeek + Unpin> MetaReader<T> {
             header,
         ))
     }
+}
 
-    // Reads and returns all samples in the file.
-    pub async fn read_all_samples(&mut self) -> Result<Vec<Sample>, ReadAllSamplesError> {
-        // Seek to end of the header.
-        use ReadAllSamplesError::*;
-        self.file
-            .seek(SeekFrom::Start(self.header_size))
-            .await
-            .map_err(Seek)?;
+// Reads header and all samples.
+pub async fn read_meta<T>(
+    mut file: T,
+    file_size: u64,
+) -> Result<(MetaHeader, Vec<Sample>), ReadMetaError>
+where
+    T: AsyncRead + Unpin,
+{
+    use ReadMetaError::*;
 
-        let mut buf = [0; SAMPLE_SIZE];
-        let mut samples = vec![Sample::default(); self.sample_count];
-        for sample in &mut samples {
-            self.file.read_exact(&mut buf).await.map_err(Read)?;
-            *sample = Sample::from_bytes(&buf);
-        }
+    let header = MetaHeader::from_reader(&mut file).await?;
+    let header_size = u64::try_from(header.size())?;
+    let sample_count = usize::try_from((file_size - header_size) / u64::from(SAMPLE_SIZE_U8))?;
 
-        Ok(samples)
+    let mut buf = [0; SAMPLE_SIZE];
+    let mut samples = vec![Sample::default(); sample_count];
+    for sample in &mut samples {
+        file.read_exact(&mut buf).await.map_err(Read)?;
+        *sample = Sample::from_bytes(&buf);
     }
+
+    Ok((header, samples))
 }
 
 // Recording meta file header.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Header {
+pub struct MetaHeader {
     pub start_time: UnixH264,
     pub width: u16,
     pub height: u16,
@@ -255,7 +270,7 @@ pub enum HeaderFromReaderError {
     TryFromInt(#[from] std::num::TryFromIntError),
 }
 
-impl Header {
+impl MetaHeader {
     pub async fn from_reader<R: AsyncRead + Unpin>(
         r: &mut R,
     ) -> Result<Self, HeaderFromReaderError> {
@@ -291,7 +306,7 @@ impl Header {
         let mut extra_data = vec![0; size.into()];
         r.read_exact(&mut extra_data).await?;
 
-        Ok(Header {
+        Ok(MetaHeader {
             start_time,
             width,
             height,
@@ -361,7 +376,7 @@ mod tests {
         let mut meta = Vec::new();
         let mut mdat = Vec::new();
 
-        let test_header = Header {
+        let test_header = MetaHeader {
             start_time: UnixH264::new(1_000_000_000),
             width: 1920,
             height: 1080,
@@ -425,7 +440,7 @@ mod tests {
         assert_eq!(pretty_hex(&want_meta), pretty_hex(&meta));
         assert_eq!(want_mdat, mdat);
 
-        let (mut r, header) = MetaReader::new(Cursor::new(want_meta), want_meta_len)
+        let (header, samples) = read_meta(Cursor::new(want_meta), want_meta_len)
             .await
             .unwrap();
         assert_eq!(test_header, header);
@@ -449,7 +464,6 @@ mod tests {
             },
         ];
 
-        let samples = r.read_all_samples().await.unwrap();
         assert_eq!(want_samples, samples.as_slice());
     }
 }

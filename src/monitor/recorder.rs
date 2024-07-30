@@ -10,7 +10,7 @@ use common::{
 };
 use futures::Future;
 use recdb::{NewRecordingError, OpenFileError, RecDb, RecordingHandle};
-use recording::{CreateVideoWriterError, Header, VideoWriter, WriteSampleError};
+use recording::{CreateVideoWriterError, MetaHeader, VideoWriter, WriteSampleError};
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
 };
@@ -390,7 +390,7 @@ async fn generate_video(
     let mut mdat = recording.new_file("mdat").await?;
     let mut mdat = BufWriter::with_capacity(64 * 1024, &mut *mdat);
 
-    let header = Header {
+    let header = MetaHeader {
         start_time,
         width: params.width,
         height: params.height,

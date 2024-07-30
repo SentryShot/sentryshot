@@ -10,9 +10,7 @@ use common::{
 };
 use pin_project::pin_project;
 use recdb::{CrawlerError, RecDb, RecDbQuery, RecordingResponse};
-use recording::{
-    generate_mp4, CreateMetaReaderError, GenerateMp4Error, MetaReader, ReadAllSamplesError, Sample,
-};
+use recording::{generate_mp4, read_meta, GenerateMp4Error, ReadMetaError, Sample};
 use serde::Deserialize;
 use std::{
     future::Future,
@@ -25,7 +23,7 @@ use std::{
 };
 use thiserror::Error;
 use tokio::{
-    io::{AsyncRead, AsyncSeek},
+    io::{AsyncRead, AsyncSeek, BufReader},
     task::JoinHandle,
 };
 
@@ -87,11 +85,8 @@ pub enum CreateVodReaderError {
     #[error("mismatched params")]
     MismatchedParams,
 
-    #[error("create meta reader: {0}")]
-    CreateMetaReader(#[from] CreateMetaReaderError),
-
-    #[error("read all samples: {0}")]
-    ReadAllSamples(#[from] ReadAllSamplesError),
+    #[error("read meta: {0}")]
+    ReadMeta(#[from] ReadMetaError),
 
     #[error("dts")]
     Dts,
@@ -211,24 +206,18 @@ async fn execute_query(
             .map_err(Metadata)?
             .len();
 
-        let mut meta = tokio::fs::OpenOptions::new()
-            .read(true)
-            .open(meta_path)
-            .await
-            .map_err(OpenFile)?;
+        let mut meta = BufReader::new(
+            tokio::fs::OpenOptions::new()
+                .read(true)
+                .open(meta_path)
+                .await
+                .map_err(OpenFile)?,
+        );
 
-        let (mut meta_reader, header) = MetaReader::new(&mut meta, meta_size).await?;
-        if let Some(p) = params {
-            if p != header.params() {
-                return Err(MismatchedParams);
-            }
-        }
+        let (header, samples) = read_meta(&mut meta, meta_size).await?;
         params = Some(header.params());
 
-        let samples: Vec<_> = meta_reader
-            // This can be optimized.
-            .read_all_samples()
-            .await?
+        let samples: Vec<_> = samples
             .into_iter()
             .map(|s| {
                 let dts = UnixNano::from(s.dts().ok_or(Dts)?);
@@ -615,7 +604,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use pretty_hex::pretty_hex;
     use recdb::{Disk, RecDb};
-    use recording::{Header, VideoWriter};
+    use recording::{MetaHeader, VideoWriter};
     use std::sync::Arc;
     use tempfile::TempDir;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -1666,7 +1655,7 @@ mod tests {
 
         let mut meta = rec.new_file("meta").await.unwrap();
         let mut mdat = rec.new_file("mdat").await.unwrap();
-        let header = Header {
+        let header = MetaHeader {
             start_time,
             width: 640,
             height: 480,

@@ -2,7 +2,7 @@
 
 use crate::{
     mp4_muxer::{generate_mp4, GenerateMp4Error},
-    video::{CreateMetaReaderError, MetaReader, ReadAllSamplesError},
+    video::{read_meta, ReadMetaError},
     VideoCache,
 };
 use pin_project::pin_project;
@@ -15,7 +15,7 @@ use std::{
 };
 use thiserror::Error;
 use tokio::{
-    io::{AsyncRead, AsyncSeek, ReadBuf},
+    io::{AsyncRead, AsyncSeek, BufReader, ReadBuf},
     sync::Mutex,
 };
 
@@ -350,11 +350,8 @@ pub enum ReadVideoMetadataError {
     #[error("open meta file: {0}")]
     OpenFile(std::io::Error),
 
-    #[error("new meta reader: {0}")]
-    NewMetaReader(#[from] CreateMetaReaderError),
-
-    #[error("read all samples:{0}")]
-    ReadAllSamples(#[from] ReadAllSamplesError),
+    #[error("read meta: {0}")]
+    ReadMeta(#[from] ReadMetaError),
 
     #[error("generate mp4: {0}")]
     GenerateMp4(#[from] GenerateMp4Error),
@@ -369,17 +366,16 @@ async fn read_video_metadata(meta_path: &Path) -> Result<VideoMetadata, ReadVide
     //let mod_time = metadata.modified();
     //modTime := metaStat.ModTime()
 
-    let mut meta = tokio::fs::OpenOptions::new()
-        .read(true)
-        .open(meta_path)
-        .await
-        .map_err(OpenFile)?;
+    let mut meta = BufReader::new(
+        tokio::fs::OpenOptions::new()
+            .read(true)
+            .open(meta_path)
+            .await
+            .map_err(OpenFile)?,
+    );
 
-    let (mut meta_reader, header) = MetaReader::new(&mut meta, meta_size).await?;
-
+    let (header, samples) = read_meta(&mut meta, meta_size).await?;
     let params = header.params();
-
-    let samples = meta_reader.read_all_samples().await?;
 
     let (meta_buf, mdat_size) = {
         tokio::task::spawn_blocking(move || -> Result<(Vec<u8>, u32), ReadVideoMetadataError> {

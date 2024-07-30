@@ -9,7 +9,7 @@ pub use cache::VideoCache;
 pub use hls::VIDEO_TRACK_ID;
 pub use mp4_muxer::{generate_mp4, GenerateMp4Error, Mp4Muxer};
 pub use video::{
-    CreateMetaReaderError, CreateVideoWriterError, Header, MetaReader, ReadAllSamplesError, Sample,
+    read_meta, CreateVideoWriterError, MetaHeader, MetaReader, ReadMetaError, Sample,
     TrackParameters, VideoWriter, WriteSampleError,
 };
 pub use video_reader::{new_video_reader, CreateVideoReaderError};
