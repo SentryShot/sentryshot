@@ -2,38 +2,41 @@
 
 import { jest } from "@jest/globals";
 
+import { uidReset } from "../libs/common.js";
 import { newOptionsMenu, newOptionsBtn, newSelectMonitor } from "./optionsMenu.js";
 
 describe("optionsGridSize", () => {
-	const setup = (content, button) => {
+	const setup = (button) => {
 		document.body.innerHTML = `<div id="options-menu"></div>`;
 		const element = document.querySelector("#options-menu");
 
 		element.innerHTML = button.html;
-		button.init(element, content);
+		button.init(element);
 
 		return element;
 	};
 	test("rendering", () => {
+		uidReset();
 		const content = {
 			reset() {},
 		};
-		setup(content, newOptionsBtn.gridSize());
+		setup(newOptionsBtn.gridSize(content));
 
-		let expected = `
+		let want = `
 			<div id="options-menu">
-				<button class="options-menu-btn js-plus">
+				<button id="uid1" class="options-menu-btn">
 					<img class="icon" src="assets/icons/feather/plus.svg">
 				</button>
-				<button class="options-menu-btn js-minus">
+				<button id="uid2" class="options-menu-btn">
 					<img class="icon" src="assets/icons/feather/minus.svg">
 				</button>
 			</div>`.replaceAll(/\s/g, "");
 
-		let actual = document.body.innerHTML.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		let got = document.body.innerHTML.replaceAll(/\s/g, "");
+		expect(got).toEqual(want);
 	});
 	test("logic", () => {
+		uidReset();
 		const content = {
 			reset() {},
 		};
@@ -44,9 +47,9 @@ describe("optionsGridSize", () => {
 					.trim()
 			);
 		};
-		const element = setup(content, newOptionsBtn.gridSize());
-		const $plus = element.querySelector(".js-plus");
-		const $minus = element.querySelector(".js-minus");
+		const element = setup(newOptionsBtn.gridSize(content));
+		const $plus = element.querySelector("#uid1");
+		const $minus = element.querySelector("#uid2");
 
 		expect(getGridSize()).toBe(0);
 		$minus.click();
@@ -60,21 +63,21 @@ describe("optionsGridSize", () => {
 });
 
 describe("optionsDate", () => {
-	const setup = () => {
+	const setup = (content) => {
 		jest.useFakeTimers("modern");
 		jest.setSystemTime(Date.parse("2001-02-03T01:02:03+00:00"));
 
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
 
-		const date = newOptionsBtn.date("utc");
+		const date = newOptionsBtn.date("utc", content);
 		element.innerHTML = date.html;
-		date.init(element, { setDate() {} });
+		date.init(element);
 
 		return [date, element];
 	};
 	test("monthBtn", () => {
-		setup();
+		setup({ setDate() {} });
 		const $month = document.querySelector(".js-month");
 		const $prevMonth = document.querySelector(".js-prev-month");
 		const $nextMonth = document.querySelector(".js-next-month");
@@ -87,7 +90,7 @@ describe("optionsDate", () => {
 		expect($month.textContent).toBe("2001 January");
 	});
 	test("dayBtn", () => {
-		setup();
+		setup({ setDate() {} });
 		const $calendar = document.querySelector(".js-calendar");
 
 		const pad = (n) => {
@@ -143,7 +146,7 @@ describe("optionsDate", () => {
 			"30", "  ", "  ", "  ", "  ", "  ", "  "]);
 	});
 	test("hourBtn", () => {
-		setup();
+		setup({ setDate() {} });
 		const $hour = document.querySelector(".js-hour");
 		const $nextHour = document.querySelector(".js-next-hour");
 		const $prevHour = document.querySelector(".js-prev-hour");
@@ -157,7 +160,7 @@ describe("optionsDate", () => {
 		expect($hour.value).toBe("01");
 	});
 	test("minuteBtn", () => {
-		setup();
+		setup({ setDate() {} });
 		const $minute = document.querySelector(".js-minute");
 		const $nextMinute = document.querySelector(".js-next-minute");
 		const $prevMinute = document.querySelector(".js-prev-minute");
@@ -178,8 +181,8 @@ describe("optionsDate", () => {
 				month = date.getMonth();
 			},
 		};
-		const [date, element] = setup();
-		date.init(element, content);
+		const [date, element] = setup(content);
+		date.init(element);
 
 		document.querySelector(".js-next-month").click();
 		document.querySelector(".js-apply").click();
@@ -189,7 +192,7 @@ describe("optionsDate", () => {
 		expect(month).toBe(1);
 	});
 	test("popup", () => {
-		setup();
+		setup({ setDate() {} });
 		const $popup = document.querySelector(".options-popup");
 		expect($popup.classList.contains("options-popup-open")).toBe(false);
 		document.querySelector(".js-date").click();
@@ -243,12 +246,12 @@ test("optionsMonitor", () => {
 		};
 	};
 
-	const selectMonitor = newSelectMonitor(monitors, true, mockModalSelect);
+	const selectMonitor = newSelectMonitor(monitors, content, true, mockModalSelect);
 	element.innerHTML = selectMonitor.html;
 
 	localStorage.setItem("selected-monitor", "b");
 	expect(modalSetCalls).toEqual([]);
-	selectMonitor.init(element, content);
+	selectMonitor.init(element);
 	expect(modalSetCalls).toEqual(["m2"]);
 	expect(setMonitors).toEqual(["b"]);
 
@@ -360,20 +363,16 @@ describe("newOptionsMenu", () => {
 			},
 		];
 
-		const content = {
-			reset() {},
-		};
-
 		const options = newOptionsMenu(mockButtons);
-		element.innerHTML = options.html;
-		options.init(element, content);
+		element.innerHTML = options.html();
+		options.init(element);
 
-		let expected = `
+		let want = `
 			<button id="topbar-options-btn" style="visibility:visible;"></button>
 			<div id="options-menu">ab</div>`.replaceAll(/\s/g, "");
 
-		let actual = document.body.innerHTML.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		let got = document.body.innerHTML.replaceAll(/\s/g, "");
+		expect(got).toEqual(want);
 	});
 	test("logic", () => {
 		document.body.innerHTML = `
@@ -382,7 +381,6 @@ describe("newOptionsMenu", () => {
 		const element = document.querySelector("#options-menu");
 
 		let initCalled = false;
-		let resetCalled = false;
 		const mockButtons = [
 			{
 				init() {
@@ -390,17 +388,11 @@ describe("newOptionsMenu", () => {
 				},
 			},
 		];
-		const content = {
-			reset() {
-				resetCalled = true;
-			},
-		};
 
 		const options = newOptionsMenu(mockButtons);
-		element.innerHTML = options.html;
-		options.init(element, content);
+		element.innerHTML = options.html();
+		options.init(element);
 
 		expect(initCalled).toBe(true);
-		expect(resetCalled).toBe(true);
 	});
 });

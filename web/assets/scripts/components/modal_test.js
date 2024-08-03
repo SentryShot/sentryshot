@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+import { uidReset } from "../libs/common.js";
 import { newModal, newModalSelect } from "./modal.js";
 
 test("newModal", () => {
 	const modal = newModal("test", "a");
 
 	document.body.innerHTML = modal.html;
-	modal.init(document.body);
+	modal.init();
 
 	let onCloseCalled = false;
 	modal.onClose(() => {
@@ -14,7 +15,7 @@ test("newModal", () => {
 	});
 
 	modal.open();
-	let expected = `
+	let want = `
 		<header class="modal-header">
 			<span class="modal-title">test</span>
 			<button class="modal-close-btn">
@@ -24,8 +25,8 @@ test("newModal", () => {
 		<div class="modal-content">a</div>
 		`.replaceAll(/\s/g, "");
 
-	let actual = document.querySelector(".modal").innerHTML.replaceAll(/\s/g, "");
-	expect(actual).toEqual(expected);
+	let got = document.querySelector(".modal").innerHTML.replaceAll(/\s/g, "");
+	expect(got).toEqual(want);
 
 	expect(modal.isOpen()).toBe(true);
 	expect(onCloseCalled).toBe(false);
@@ -36,6 +37,7 @@ test("newModal", () => {
 });
 
 test("modalSelect", () => {
+	uidReset();
 	document.body.innerHTML = `<div></div>`;
 	const element = document.querySelector("div");
 
@@ -49,8 +51,8 @@ test("modalSelect", () => {
 	modal.open();
 	expect(modal.isOpen()).toBe(true);
 
-	const expected = `
-		<div class="modal-wrapper js-modal-wrapper modal-open">
+	const want = `
+		<div id="uid1" class="modal-wrapper modal-open">
 			<div class="modal js-modal">
 				<header class="modal-header">
 					<span class="modal-title">x</span>
@@ -67,8 +69,8 @@ test("modalSelect", () => {
 			</div>
 		</div>`.replaceAll(/\s/g, "");
 
-	let actual = element.innerHTML.replaceAll(/\s/g, "");
-	expect(expected).toEqual(actual);
+	let got = element.innerHTML.replaceAll(/\s/g, "");
+	expect(got).toEqual(want);
 
 	const item1 = document.querySelector(".js-option[data='m1']");
 	const item2 = document.querySelector(".js-option[data='m2']");

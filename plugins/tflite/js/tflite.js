@@ -101,7 +101,7 @@ function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 		const $modal = element.querySelector(".js-modal");
 		$modal.style.maxWidth = "12rem";
 
-		const $modalContent = modal.init(element);
+		const $modalContent = modal.init();
 		form.init($modalContent);
 
 		isRendered = true;
@@ -218,7 +218,7 @@ function thresholds(detectors, getDetectorName) {
 		}
 		modal = newModal("Thresholds");
 		element.insertAdjacentHTML("beforeend", modal.html);
-		$modalContent = modal.init(element);
+		$modalContent = modal.init();
 
 		modal.onClose(() => {
 			// Get value.
@@ -417,7 +417,7 @@ function crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName) {
 				</div>
 			</li>`;
 
-		$modalContent = modal.init(element);
+		$modalContent = modal.init();
 		$modalContent.innerHTML = html;
 
 		$feed = $modalContent.querySelector(".js-feed");
@@ -691,7 +691,7 @@ function mask(hls, hasSubStream, getMonitorId) {
 				</div>
 			</li>`;
 
-		$modalContent = modal.init(element);
+		$modalContent = modal.init();
 		$modalContent.innerHTML = html;
 		$feed = $modalContent.querySelector(".js-feed");
 

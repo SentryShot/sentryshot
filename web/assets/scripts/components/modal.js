@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+import { uniqueID } from "../libs/common.js";
+
 /**
  * @typedef {Object} Modal
  * @property {string} html
@@ -7,7 +9,7 @@
  * @property {() => void} close
  * @property {(func: () => void) => void} onClose
  * @property {() => boolean} isOpen
- * @property {($parent: Element) => Element} init
+ * @property {() => Element} init
  */
 
 /**
@@ -20,9 +22,10 @@ function newModal(label, content = "") {
 	/** @type {() => void} */
 	let onClose;
 
+	const wrapperId = uniqueID();
 	return {
 		html: `
-			<div class="modal-wrapper js-modal-wrapper">
+			<div id="${wrapperId}" class="modal-wrapper">
 				<div class="modal js-modal">
 					<header class="modal-header">
 						<span class="modal-title">${label}</span>
@@ -45,8 +48,8 @@ function newModal(label, content = "") {
 		isOpen() {
 			return $wrapper.classList.contains("modal-open");
 		},
-		init($parent) {
-			$wrapper = $parent.querySelector(".js-modal-wrapper");
+		init() {
+			$wrapper = document.querySelector(`#${wrapperId}`);
 			$wrapper.querySelector(".modal-close-btn").addEventListener("click", () => {
 				$wrapper.classList.remove("modal-open");
 				if (onClose) {
@@ -111,7 +114,7 @@ function newModalSelect(name, options, onSelect) {
 		}
 		modal = newModal(name, renderOptions());
 		$parent.insertAdjacentHTML("beforeend", modal.html);
-		$modalContent = modal.init($parent);
+		$modalContent = modal.init();
 		$selector = $modalContent.querySelector(".js-selector");
 
 		$selector.addEventListener("click", (e) => {

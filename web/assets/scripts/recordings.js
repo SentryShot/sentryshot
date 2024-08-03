@@ -199,16 +199,16 @@ async function init() {
 		viewer.setMonitors(hashMonitors);
 	}
 
-	const $options = document.querySelector("#options-menu");
 	const buttons = [
-		newOptionsBtn.gridSize(),
-		newOptionsBtn.date(timeZone),
-		newOptionsBtn.monitor(monitors),
+		newOptionsBtn.gridSize(viewer),
+		newOptionsBtn.date(timeZone, viewer),
+		newOptionsBtn.monitor(monitors, viewer),
 		//newOptionsBtn.group(groups),
 	];
 	const optionsMenu = newOptionsMenu(buttons);
-	$options.innerHTML = optionsMenu.html;
-	optionsMenu.init($options, viewer);
+	document.querySelector("#options-menu").innerHTML = optionsMenu.html();
+	optionsMenu.init();
+	viewer.reset();
 
 	window.addEventListener("resize", viewer.lazyLoadRecordings);
 	window.addEventListener("orientation", viewer.lazyLoadRecordings);

@@ -64,7 +64,7 @@ function _motion(hls, hasSubStream, getMonitorId) {
 		const $modal = element.querySelector(".js-modal");
 		$modal.style.maxWidth = "12rem";
 
-		const $modalContent = modal.init(element);
+		const $modalContent = modal.init();
 		form.init($modalContent);
 
 		isRendered = true;
@@ -283,7 +283,7 @@ function zones(hls, hasSubStream, getMonitorId) {
 		modal = newModal("Zones", zonesModalHTML(feedHTML));
 
 		element.insertAdjacentHTML("beforeend", modal.html);
-		$modalContent = modal.init(element);
+		$modalContent = modal.init();
 
 		$zoneSelect = $modalContent.querySelector(".js-zone-select");
 

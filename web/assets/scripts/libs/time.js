@@ -1,3 +1,5 @@
+/** @typedef {number} UnixNano */
+
 /**
  * @param {Date} date
  * @param {string} timeZone

@@ -980,7 +980,7 @@ function newSourceRTSP() {
 		element.insertAdjacentHTML("beforeend", modal.html);
 		element.querySelector(".js-modal").style.maxWidth = "12rem";
 
-		const $modalContent = modal.init(element);
+		const $modalContent = modal.init();
 		form.init($modalContent);
 
 		isRendered = true;

@@ -7,37 +7,31 @@ import { newModalSelect } from "../components/modal.js";
 /**
  * @typedef {Object} Button
  * @property {string} html
- * @property {($parent: Element, content: any) => void} init
+ * @property {() => void} init
  */
 
 /** @param {Button[]} buttons */
 function newOptionsMenu(buttons) {
+	/** @type {HTMLElement} */
 	const $optionsBtn = document.querySelector("#topbar-options-btn");
-	if ($optionsBtn instanceof HTMLElement) {
-		$optionsBtn.style.visibility = "visible";
-	}
+	$optionsBtn.style.visibility = "visible";
 
-	const html = () => {
-		let html = "";
-		for (const btn of buttons) {
-			if (btn != undefined && btn.html != undefined) {
-				html += btn.html;
-			}
-		}
-		return html;
-	};
 	return {
-		html: html(),
-		init($parent, content) {
+		html() {
+			return buttons.map((btn) => btn.html).join("");
+		},
+		init() {
 			for (const btn of buttons) {
-				if (btn != undefined && btn.init != undefined) {
-					btn.init($parent, content);
-				}
+				btn.init();
 			}
-			content.reset();
 		},
 	};
 }
+
+/**
+ * @typedef GridSizeContent
+ * @property {() => void} reset
+ */
 
 /**
  * @typedef {Object} Monitor
@@ -45,8 +39,11 @@ function newOptionsMenu(buttons) {
  */
 
 const newOptionsBtn = {
-	/** @return {Button} */
-	gridSize() {
+	/**
+	 * @param {GridSizeContent} content
+	 * @return {Button}
+	 */
+	gridSize(content) {
 		const getGridSize = () => {
 			const saved = localStorage.getItem("gridsize");
 			if (saved) {
@@ -62,22 +59,24 @@ const newOptionsBtn = {
 			localStorage.setItem("gridsize", value);
 			document.documentElement.style.setProperty("--gridsize", value);
 		};
+		const idPlus = uniqueID();
+		const idMinus = uniqueID();
 		return {
 			html: `
-			<button class="options-menu-btn js-plus">
+			<button id="${idPlus}" class="options-menu-btn">
 				<img class="icon" src="assets/icons/feather/plus.svg">
 			</button>
-			<button class="options-menu-btn js-minus">
+			<button id="${idMinus}" class="options-menu-btn">
 				<img class="icon" src="assets/icons/feather/minus.svg">
 			</button>`,
-			init($parent, content) {
-				$parent.querySelector(".js-plus").addEventListener("click", () => {
+			init() {
+				document.querySelector(`#${idPlus}`).addEventListener("click", () => {
 					if (getGridSize() !== 1) {
 						setGridSize(getGridSize() - 1);
 						content.reset();
 					}
 				});
-				$parent.querySelector(".js-minus").addEventListener("click", () => {
+				document.querySelector(`#${idMinus}`).addEventListener("click", () => {
 					setGridSize(getGridSize() + 1);
 					content.reset();
 				});
@@ -87,28 +86,30 @@ const newOptionsBtn = {
 	},
 	/**
 	 * @param {string} timeZone
+	 * @param {DatePickerContent} content
 	 * @return {Button}
 	 */
-	date(timeZone) {
-		const datePicker = newDatePicker(timeZone);
+	date(timeZone, content) {
+		const datePicker = newDatePicker(timeZone, content);
 		const icon = "assets/icons/feather/calendar.svg";
 		const popup = newOptionsPopup("date", icon, datePicker.html);
 
 		return {
 			html: popup.html,
-			init($parent, content) {
-				popup.init($parent);
-				datePicker.init(popup, content);
+			init() {
+				popup.init();
+				datePicker.init(popup);
 			},
 		};
 	},
 	/**
 	 * @param {Monitors} monitors
+	 * @param {SelectMonitorContent} content
 	 * @param {boolean} remember
 	 * @return {Button}
 	 */
-	monitor(monitors, remember = false) {
-		return newSelectMonitor(monitors, remember);
+	monitor(monitors, content, remember = false) {
+		return newSelectMonitor(monitors, content, remember);
 	},
 	/*group(groups) {
 		if (Object.keys(groups).length === 0) {
@@ -132,7 +133,7 @@ const newOptionsBtn = {
  * @typedef {Object} Popup
  * @property {string} html
  * @property {() => void} toggle
- * @property {($parent: Element) => void} init
+ * @property {() => void} init
  * @property {() => Element} element
  */
 
@@ -145,26 +146,26 @@ const newOptionsBtn = {
 function newOptionsPopup(label, icon, htmlContent) {
 	/** @type Element */
 	var element;
-
 	const toggle = () => {
 		element.classList.toggle("options-popup-open");
 	};
+
+	let buttonId = uniqueID();
+	let popupId = uniqueID();
 	return {
 		html: `
-			<button class="options-menu-btn js-${label}">
+			<button id="${buttonId}" class="options-menu-btn js-${label}">
 				<img class="icon" src="${icon}">
 			</button>
-			<div class="options-popup js-popup-${label}">
+			<div id="${popupId}" class="options-popup">
 				<div class="options-popup-content">
 				${htmlContent}
 				</div>
 			</div>`,
 		toggle: toggle,
-		/** @param {Element} $parent */
-		init($parent) {
-			element = $parent.querySelector(`.js-popup-${label}`);
-
-			$parent.querySelector(`.js-${label}`).addEventListener("click", () => {
+		init() {
+			element = document.querySelector(`#${popupId}`);
+			document.querySelector(`#${buttonId}`).addEventListener("click", () => {
 				toggle();
 			});
 		},
@@ -297,8 +298,11 @@ const datePickerHTML = `
  * @property {(date: Date) => void} setDate
  */
 
-/** @param {string} timeZone */
-function newDatePicker(timeZone) {
+/**
+ * @param {string} timeZone
+ * @param {DatePickerContent} content
+ */
+function newDatePicker(timeZone, content) {
 	let $month, $calendar, $hour, $minute;
 
 	/** @return {number} */
@@ -357,8 +361,6 @@ function newDatePicker(timeZone) {
 		$minute.value = pad(date.getMinutes());
 	};
 
-	/** @type {DatePickerContent} */
-	let content;
 	const apply = () => {
 		content.setDate(toUTC(getDate(), timeZone));
 	};
@@ -370,13 +372,9 @@ function newDatePicker(timeZone) {
 
 	return {
 		html: datePickerHTML,
-		/**
-		 * @param {Popup} popup
-		 * @param {DatePickerContent} c
-		 */
-		init(popup, c) {
+		/** @param {Popup} popup */
+		init(popup) {
 			const $parent = popup.element();
-			content = c;
 
 			$month = $parent.querySelector(".js-month");
 			$calendar = $parent.querySelector(".js-calendar");
@@ -478,10 +476,12 @@ function newDatePicker(timeZone) {
 
 /**
  * @param {Monitors} monitors
+ * @param {SelectMonitorContent} content
  * @param {boolean} remember
  * @param {NewModalSelectFunc} newModalSelect2
+ * @returns {Button}
  */
-function newSelectMonitor(monitors, remember, newModalSelect2 = newModalSelect) {
+function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModalSelect) {
 	/** @type {string[]} */
 	let monitorNames = [];
 	/** @type {Object.<string, string>} */
@@ -502,11 +502,7 @@ function newSelectMonitor(monitors, remember, newModalSelect2 = newModalSelect) 
 			<button id="${btnID}" class="options-menu-btn">
 				<img class="icon" src="assets/icons/feather/video.svg">
 			</button>`,
-		/**
-		 * @param {Element} $parent
-		 * @param {SelectMonitorContent} content
-		 */
-		init($parent, content) {
+		init() {
 			const onSelect = (selected) => {
 				const monitorID = monitorNameToID[selected];
 				if (remember) {
@@ -517,8 +513,7 @@ function newSelectMonitor(monitors, remember, newModalSelect2 = newModalSelect) 
 				content.reset();
 			};
 			const modal = newModalSelect2("Monitor", monitorNames, onSelect);
-
-			modal.init($parent);
+			modal.init(document.body);
 
 			const saved = localStorage.getItem(alias);
 			if (remember && monitorIDToName[saved]) {
@@ -526,7 +521,7 @@ function newSelectMonitor(monitors, remember, newModalSelect2 = newModalSelect) 
 				modal.set(monitorIDToName[saved]);
 			}
 
-			$parent.querySelector(`#${btnID}`).addEventListener("click", () => {
+			document.querySelector(`#${btnID}`).addEventListener("click", () => {
 				modal.open();
 			});
 		},
