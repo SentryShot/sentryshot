@@ -2,6 +2,7 @@
 
 -   add vod api #1
 -   logdb: handle empty entries #37
+-   fix date picker
 
 ## `v0.2.18`
 
