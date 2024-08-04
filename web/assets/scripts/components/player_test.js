@@ -36,7 +36,6 @@ const data = {
 	name: "D",
 	start: 991440000000 * millisecond,
 	end: 991440600000 * millisecond,
-	timeZone: "gmt",
 	events: events,
 };
 
@@ -45,7 +44,7 @@ describe("newPlayer", () => {
 		window.HTMLMediaElement.prototype.play = () => {};
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
-		const player = newPlayer(data);
+		const player = newPlayer(data, false, "", "gmt");
 		element.innerHTML = player.html;
 		player.init();
 
@@ -65,8 +64,8 @@ describe("newPlayer", () => {
 				</div>
 			</div>`.replaceAll(/\s/g, "");
 
-		const actual = element.innerHTML.replaceAll(/\s/g, "");
-		expect(actual).toEqual(thumbnailHTML);
+		const got = element.innerHTML.replaceAll(/\s/g, "");
+		expect(got).toEqual(thumbnailHTML);
 
 		document.querySelector("div img").click();
 		const videoHTML = `
@@ -129,12 +128,12 @@ describe("newPlayer", () => {
 				</div>
 			</div>`.replaceAll(/\s/g, "");
 
-		const actual2 = element.innerHTML.replaceAll(/\s/g, "");
-		expect(actual2).toEqual(videoHTML);
+		const got2 = element.innerHTML.replaceAll(/\s/g, "");
+		expect(got2).toEqual(videoHTML);
 
 		player.reset();
-		const actual3 = element.innerHTML.replaceAll(/\s/g, "");
-		expect(actual3).toEqual(thumbnailHTML);
+		const got3 = element.innerHTML.replaceAll(/\s/g, "");
+		expect(got3).toEqual(thumbnailHTML);
 	});
 
 	test("delete", async () => {
@@ -146,12 +145,12 @@ describe("newPlayer", () => {
 		};
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
-		const player = newPlayer(data, true);
+		const player = newPlayer(data, true, "", "gmt");
 		element.innerHTML = player.html;
 		player.init();
 
 		// Original.
-		const expected = `
+		const want = `
 			<div style="display: flex; justify-content: center;">
 				<div id="uid2" class="grid-item-container">
 					<img class="grid-item" src="B">
@@ -167,13 +166,13 @@ describe("newPlayer", () => {
 				</div>
 			</div>`.replaceAll(/\s/g, "");
 
-		const actual = element.innerHTML.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		const got = element.innerHTML.replaceAll(/\s/g, "");
+		expect(got).toEqual(want);
 
 		document.querySelector("div img").click();
 
 		// Popup buttons after click.
-		const expected2 = `
+		const want2 = `
 			<button class="js-delete player-options-btn">
 				<img src="assets/icons/feather/trash-2.svg">
 			</button>
@@ -184,10 +183,8 @@ describe("newPlayer", () => {
 				<img src="assets/icons/feather/maximize.svg">
 			</button>`.replaceAll(/\s/g, "");
 
-		const actual2 = element
-			.querySelector(".js-popup")
-			.innerHTML.replaceAll(/\s/g, "");
-		expect(actual2).toEqual(expected2);
+		const got2 = element.querySelector(".js-popup").innerHTML.replaceAll(/\s/g, "");
+		expect(got2).toEqual(want2);
 
 		document.querySelector(".js-delete").click();
 		await (() => {
@@ -230,8 +227,8 @@ describe("detectionRenderer", () => {
 		const [d, element] = newTestRenderer();
 
 		d.set(60);
-		const actual = element.innerHTML.replaceAll(/\s/g, "");
-		const expected = `
+		const got = element.innerHTML.replaceAll(/\s/g, "");
+		const want = `
 		<svg
 			class="js-detections player-detections"
 			viewBox="00100100"
@@ -244,15 +241,15 @@ describe("detectionRenderer", () => {
 			<rect x="20" width="20" y="10" height="20"></rect>
 		</svg>`.replaceAll(/\s/g, "");
 
-		expect(expected).toEqual(actual);
+		expect(want).toEqual(got);
 	});
 	test("noDetections", () => {
 		const [d, element] = newTestRenderer();
 
 		d.set(60 * 10); // Second event.
 
-		const actual = element.innerHTML.replaceAll(/\s/g, "");
-		const expected = `
+		const got = element.innerHTML.replaceAll(/\s/g, "");
+		const want = `
 		<svg
 			class="js-detections player-detections"
 			viewBox="00100100"
@@ -260,6 +257,6 @@ describe("detectionRenderer", () => {
 		>
 		</svg>`.replaceAll(/\s/g, "");
 
-		expect(actual).toEqual(expected);
+		expect(got).toEqual(want);
 	});
 });

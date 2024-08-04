@@ -6,15 +6,18 @@ import { uniqueID, fetchDelete, denormalize } from "../libs/common.js";
 const millisecond = 1000000;
 
 /**
+ * @typedef {import("../libs/time.js").UnixNano} UnixNano
+ */
+
+/**
  * @typedef {Object} RecordingData
  * @property {string} id
  * @property {string} videoPath
  * @property {string} thumbPath
  * @property {string} deletePath
  * @property {string} name
- * @property {string} timeZone
- * @property {number} start
- * @property {number} end
+ * @property {UnixNano} start
+ * @property {UnixNano} end
  * @property {Event[]} events
  */
 
@@ -58,9 +61,10 @@ const millisecond = 1000000;
  * @param {RecordingData} data
  * @param {boolean} isAdmin
  * @param {string} token
+ * @param {string} timeZone
  * @returns Player
  */
-function newPlayer(data, isAdmin, token) {
+function newPlayer(data, isAdmin, token, timeZone) {
 	const d = data;
 
 	const elementID = uniqueID();
@@ -72,7 +76,7 @@ function newPlayer(data, isAdmin, token) {
 
 	const detectionRenderer = newDetectionRenderer(d.start / millisecond, d.events);
 
-	const start = fromUTC(new Date(d.start / millisecond), d.timeZone);
+	const start = fromUTC(new Date(d.start / millisecond), timeZone);
 
 	/**
 	 * @param {Date} d

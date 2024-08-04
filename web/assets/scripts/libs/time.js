@@ -3,6 +3,7 @@
 /**
  * @param {Date} date
  * @param {string} timeZone
+ * @returns {UnixNano}
  */
 function toUTC(date, timeZone) {
 	try {
@@ -21,7 +22,7 @@ function toUTC(date, timeZone) {
 			utc = new Date(date.getTime() - offset);
 		}
 		utc.setMilliseconds(date.getMilliseconds());
-		return utc;
+		return utc.getTime() * MILLISECOND;
 	} catch (error) {
 		alert(error);
 	}
@@ -30,6 +31,7 @@ function toUTC(date, timeZone) {
 /**
  * @param {Date} date
  * @param {string} timeZone
+ * @returns {Date}
  */
 function fromUTC(date, timeZone) {
 	try {
@@ -48,7 +50,7 @@ function fromUTC(date, timeZone) {
 			utc = new Date(date.getTime() + offset);
 		}
 		utc.setMilliseconds(date.getMilliseconds());
-		return utc;
+		return new Date(utc);
 	} catch (error) {
 		alert(error);
 	}
@@ -82,4 +84,7 @@ function fromUTC2(date, timeZone) {
 	};
 }
 
-export { toUTC, fromUTC, fromUTC2 };
+const MICROSECOND = 1000;
+const MILLISECOND = 1000 * MICROSECOND;
+
+export { toUTC, fromUTC, fromUTC2, MILLISECOND };

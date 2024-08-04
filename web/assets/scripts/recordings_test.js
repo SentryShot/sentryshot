@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import { newMonitorNameByID } from "./libs/common.js";
+import { MILLISECOND } from "./libs/time.js";
 import { newViewer } from "./recordings.js";
 
 describe("newViewer", () => {
@@ -29,7 +30,7 @@ describe("newViewer", () => {
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
 
-		const viewer = await newViewer(monitorNameByID, element, "utc");
+		const viewer = await newViewer(monitorNameByID, element, "utc", false, "");
 		await viewer.reset();
 
 		const domState = () => {
@@ -72,7 +73,7 @@ describe("newViewer", () => {
 	test("setDate", async () => {
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
-		const viewer = await newViewer(monitorNameByID, element, "utc");
+		const viewer = await newViewer(monitorNameByID, element, "utc", false, "");
 		await viewer.reset();
 
 		let fetchCalled = false;
@@ -87,7 +88,8 @@ describe("newViewer", () => {
 			return mockFetch();
 		};
 
-		viewer.setDate(new Date("2000-01-02T03:04:05.000000"));
+		const tmp = new Date("2000-01-02T03:04:05.000000Z");
+		viewer.setDate(tmp.getTime() * MILLISECOND);
 		expect(fetchCalled).toBe(true);
 	});
 });

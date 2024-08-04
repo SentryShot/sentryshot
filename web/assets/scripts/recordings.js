@@ -6,15 +6,42 @@ import {
 	getHashParam,
 	removeEmptyValues,
 } from "./libs/common.js";
+import { fromUTC, MILLISECOND } from "./libs/time.js";
 import { newPlayer } from "./components/player.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
 
-/** @typedef {import("./components/player.js").Player} Player */
-/** @typedef {import("./components/player.js").RecordingData} RecordingData */
+/**
+ * @typedef {import("./libs/time.js").UnixNano} UnixNano
+ * @typedef {import("./components/player.js").Player} Player
+ * @typedef {import("./components/player.js").RecordingData} RecordingData
+ * @typedef {import("./components/player.js").Event} Event
+ */
 
+/**
+ * @typedef Recording
+ * @property {string} id
+ * @property {string} state
+ * @property {RecData} data
+ */
+
+/**
+ * @typedef RecData
+ * @property {UnixNano} start
+ * @property {UnixNano} end
+ * @property {Event[]} events
+ */
+
+/**
+ * @param {(string) => string} monitorNameByID
+ * @param {Element} $parent
+ * @param {string} timeZone
+ * @param {boolean} isAdmin
+ * @param {string} token
+ */
 async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
+	/** @type {string[]} */
 	let selectedMonitors = [];
-	let maxPlayingVideos = 2;
+	const maxPlayingVideos = 2;
 
 	/** @type {Player[]} */
 	let playingVideos;
@@ -27,6 +54,7 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 		playingVideos.push(player);
 	};
 
+	/** @param {Recording[]} recordings */
 	const renderRecordings = async (recordings) => {
 		let current;
 		/** @type {Player[]} */
@@ -42,19 +70,18 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 			}
 			d.thumbPath = toAbsolutePath(`api/recording/thumbnail/${d.id}`);
 			d.deletePath = toAbsolutePath(`api/recording/delete/${d.id}`);
-			d.name = await monitorNameByID(d.id.slice(20));
-			d.timeZone = timeZone;
+			d.name = monitorNameByID(d.id.slice(20));
 
 			if (rec.data) {
 				d.start = rec.data.start;
 				d.end = rec.data.end;
 				d.events = rec.data.events;
 			} else {
-				d.start = Date.parse(idToISOstring(d.id)) * 1000000;
+				d.start = Date.parse(idToISOstring(d.id)) * MILLISECOND;
 			}
 
 			/** @type Player */
-			const player = newPlayer(d, isAdmin, token);
+			const player = newPlayer(d, isAdmin, token, timeZone);
 			players.push(player);
 
 			current = rec.id;
@@ -106,6 +133,7 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 			!loading &&
 			!lastRecording &&
 			$parent.lastChild &&
+			// @ts-ignore
 			$parent.lastChild.getBoundingClientRect().top < window.screen.height * 3
 		) {
 			loading = true;
@@ -114,6 +142,7 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 		}
 	};
 
+	/** @type {string} */
 	let selectedDate;
 
 	const reset = async () => {
@@ -133,10 +162,12 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 
 	return {
 		reset: reset,
-		setDate(date) {
-			selectedDate = dateToID(date);
+		/** @param {UnixNano} d */
+		setDate(d) {
+			selectedDate = timeToID(d, timeZone);
 			reset();
 		},
+		/** @param {string[]} input */
 		setMonitors(input) {
 			selectedMonitors = input;
 		},
@@ -162,17 +193,22 @@ function idToISOstring(id) {
 	);
 }
 
-function dateToID(d) {
+/**
+ * @param {UnixNano} time
+ * @param {string} timeZone
+ */
+function timeToID(time, timeZone) {
+	const d = fromUTC(new Date(time / MILLISECOND), timeZone);
 	const pad = (n) => {
 		return n < 10 ? "0" + n : n;
 	};
 
-	const YY = d.getFullYear(),
-		MM = pad(d.getMonth() + 1),
-		DD = pad(d.getDate()), // Day.
-		hh = pad(d.getHours()),
-		mm = pad(d.getMinutes()),
-		ss = pad(d.getSeconds());
+	const YY = d.getUTCFullYear(),
+		MM = pad(d.getUTCMonth() + 1),
+		DD = pad(d.getUTCDate()), // Day.
+		hh = pad(d.getUTCHours()),
+		mm = pad(d.getUTCMinutes()),
+		ss = pad(d.getUTCSeconds());
 
 	return `${YY}-${MM}-${DD}_${hh}-${mm}-${ss}_x`;
 }

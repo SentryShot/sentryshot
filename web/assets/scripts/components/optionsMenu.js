@@ -5,6 +5,10 @@ import { toUTC } from "../libs/time.js";
 import { newModalSelect } from "../components/modal.js";
 
 /**
+ * @typedef {import("../libs/time.js").UnixNano} UnixNano
+ */
+
+/**
  * @typedef {Object} Button
  * @property {string} html
  * @property {() => void} init
@@ -295,7 +299,7 @@ const datePickerHTML = `
 
 /**
  * @typedef {Object} DatePickerContent
- * @property {(date: Date) => void} setDate
+ * @property {(date: UnixNano) => void} setDate
  */
 
 /**
@@ -341,16 +345,6 @@ function newDatePicker(timeZone, content) {
 		$calendar.innerHTML = daysHTML;
 	};
 
-	const getDate = () => {
-		const [year, monthString] = $month.innerHTML.split(" ");
-		const month = fromMonthString(monthString);
-		const day = getDay();
-		const hour = $hour.value;
-		const minute = $minute.value;
-
-		return new Date(year, month, day, hour, minute);
-	};
-
 	/** @param {Date} date */
 	const setDate = (date) => {
 		const year = date.getFullYear();
@@ -362,7 +356,15 @@ function newDatePicker(timeZone, content) {
 	};
 
 	const apply = () => {
-		content.setDate(toUTC(getDate(), timeZone));
+		const [year, monthString] = $month.innerHTML.split(" ");
+		const month = fromMonthString(monthString);
+		const day = getDay();
+		const hour = $hour.value;
+		const minute = $minute.value;
+
+		const time = toUTC(new Date(year, month, day, hour, minute), timeZone);
+
+		content.setDate(time);
 	};
 
 	const reset = () => {

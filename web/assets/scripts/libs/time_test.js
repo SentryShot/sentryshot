@@ -1,15 +1,15 @@
-import { toUTC, fromUTC, fromUTC2 } from "./time.js";
+import { toUTC, fromUTC, fromUTC2, MILLISECOND } from "./time.js";
 
 describe("toAndFromUTC", () => {
 	test("summer", () => {
-		const run = (expected, timeZone) => {
+		const run = (want, timeZone) => {
 			const date = new Date("2001-01-02T00:00:00.000000Z");
 			const localTime = fromUTC(date, timeZone);
-			const actual = `DAY:${localTime.getUTCDate()} HOUR:${localTime.getUTCHours()}`;
+			const got = `DAY:${localTime.getUTCDate()} HOUR:${localTime.getUTCHours()}`;
 
-			expect(actual).toEqual(expected);
+			expect(got).toEqual(want);
 
-			const utc = toUTC(localTime, timeZone);
+			const utc = new Date(toUTC(localTime, timeZone) / MILLISECOND);
 			expect(utc.getUTCDate()).toBe(2);
 			expect(utc.getUTCHours()).toBe(0);
 		};
@@ -20,14 +20,14 @@ describe("toAndFromUTC", () => {
 		run("DAY:2 HOUR:2", "Africa/Cairo");
 	});
 	test("winter", () => {
-		const run = (expected, timeZone) => {
+		const run = (want, timeZone) => {
 			const date = new Date("2001-06-02T00:00:01.000000Z");
 			const localTime = fromUTC(date, timeZone);
-			const actual = `DAY:${localTime.getUTCDate()} HOUR:${localTime.getUTCHours()}`;
+			const got = `DAY:${localTime.getUTCDate()} HOUR:${localTime.getUTCHours()}`;
 
-			expect(actual).toEqual(expected);
+			expect(got).toEqual(want);
 
-			const utc = toUTC(localTime, timeZone);
+			const utc = new Date(toUTC(localTime, timeZone) / MILLISECOND);
 			expect(utc.getUTCDate()).toBe(2);
 			expect(utc.getUTCHours()).toBe(0);
 		};
@@ -50,14 +50,11 @@ describe("toAndFromUTC", () => {
 				d.getUTCMilliseconds()
 			);
 		};
-		const actual = print(localTime);
-		const expected = "22:4:5.6";
-		expect(actual).toEqual(expected);
+		const got = print(localTime);
+		expect(got).toBe("22:4:5.6");
 
-		const utc = toUTC(localTime, "America/New_York");
-		const actual2 = print(utc);
-		const expected2 = "3:4:5.6";
-		expect(actual2).toEqual(expected2);
+		const got2 = print(new Date(toUTC(localTime, "America/New_York") / MILLISECOND));
+		expect(got2).toBe("3:4:5.6");
 	});
 	test("fromUTCerror", () => {
 		let alerted = false;
@@ -65,8 +62,7 @@ describe("toAndFromUTC", () => {
 			alerted = true;
 		};
 
-		const date = new Date("2001-01-02T03:04:05.006+00:00");
-		fromUTC(date, "nil");
+		fromUTC(new Date(), "nil");
 		expect(alerted).toBe(true);
 	});
 	test("toUTCerror", () => {
@@ -75,8 +71,7 @@ describe("toAndFromUTC", () => {
 			alerted = true;
 		};
 
-		const date = new Date("2001-01-02T03:04:05.006+00:00");
-		toUTC(date, "nil");
+		toUTC(new Date(), "nil");
 		expect(alerted).toBe(true);
 	});
 });
@@ -84,8 +79,8 @@ describe("toAndFromUTC", () => {
 describe("fromUTC2", () => {
 	test("all", () => {
 		const date = new Date("2001-02-03T04:05:06.000000Z");
-		const actual = fromUTC2(date, "Asia/Tokyo");
-		const expected = {
+		const got = fromUTC2(date, "Asia/Tokyo");
+		const want = {
 			YY: "2001",
 			MM: "02",
 			DD: "03",
@@ -93,15 +88,15 @@ describe("fromUTC2", () => {
 			mm: "05",
 			ss: "06",
 		};
-		expect(actual).toEqual(expected);
+		expect(got).toEqual(want);
 	});
 	test("summer", () => {
-		const run = (expected, timezone) => {
+		const run = (want, timezone) => {
 			const date = new Date("2001-01-02T00:00:00.000000Z");
 			const localTime = fromUTC2(date, timezone);
-			const actual = `DAY:${localTime.DD} HOUR:${localTime.hh}`;
+			const got = `DAY:${localTime.DD} HOUR:${localTime.hh}`;
 
-			expect(actual).toEqual(expected);
+			expect(got).toEqual(want);
 		};
 
 		run("DAY:02 HOUR:09", "Asia/Tokyo");
@@ -110,12 +105,12 @@ describe("fromUTC2", () => {
 		run("DAY:02 HOUR:02", "Africa/Cairo");
 	});
 	test("winter", () => {
-		const run = (expected, timezone) => {
+		const run = (want, timezone) => {
 			const date = new Date("2001-06-02T00:00:01.000000Z");
 			const localTime = fromUTC2(date, timezone);
-			const actual = `DAY:${localTime.DD} HOUR:${localTime.hh}`;
+			const got = `DAY:${localTime.DD} HOUR:${localTime.hh}`;
 
-			expect(actual).toEqual(expected);
+			expect(got).toEqual(want);
 		};
 		run("DAY:02 HOUR:09", "Asia/Tokyo");
 		run("DAY:02 HOUR:08", "Asia/Shanghai");

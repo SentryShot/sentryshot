@@ -3,7 +3,10 @@
 import { jest } from "@jest/globals";
 
 import { uidReset } from "../libs/common.js";
+import { MILLISECOND } from "../libs/time.js";
 import { newOptionsMenu, newOptionsBtn, newSelectMonitor } from "./optionsMenu.js";
+
+/** @typedef {import("../libs/time.js").Date2} Date2 */
 
 describe("optionsGridSize", () => {
 	const setup = (button) => {
@@ -175,10 +178,11 @@ describe("optionsDate", () => {
 		expect($minute.value).toBe("01");
 	});
 	test("applyAndReset", () => {
-		let month;
+		let time;
 		const content = {
-			setDate(date) {
-				month = date.getMonth();
+			/** @param {UnixNano} d */
+			setDate(d) {
+				time = d;
 			},
 		};
 		const [date, element] = setup(content);
@@ -186,10 +190,10 @@ describe("optionsDate", () => {
 
 		document.querySelector(".js-next-month").click();
 		document.querySelector(".js-apply").click();
-		expect(month).toBe(3);
+		expect(time).toBe(986252520000 * MILLISECOND);
 
 		document.querySelector(".js-reset").click();
-		expect(month).toBe(1);
+		expect(time).toBe(981158520000 * MILLISECOND);
 	});
 	test("popup", () => {
 		setup({ setDate() {} });
