@@ -45,6 +45,7 @@ sentryshot_util = "0.1.2"
 retina = { git = "https://github.com/Curid/retina", branch = "sps" }
 
 async-channel = "2.0.0"
+async-recursion = "1.1.1"
 async-trait = "0.1.64"
 argon2 = "0.5.0"
 axum = { version = "0.7.0", default-features = false, features = ["tokio", "http2", "json", "query", "ws"] }

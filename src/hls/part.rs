@@ -7,7 +7,7 @@ use common::{
     time::{DurationH264, UnixH264},
     PartFinalized, VideoSample,
 };
-use mp4::{ImmutableBox, TfdtBaseMediaDecodeTime, TrunEntries};
+use mp4::{ImmutableBox, ImmutableBoxSync, TfdtBaseMediaDecodeTime, TrunEntries};
 use std::sync::Arc;
 
 fn generate_part(
@@ -52,7 +52,7 @@ fn generate_part(
 
 struct MyMdat(Arc<Vec<VideoSample>>);
 
-impl mp4::ImmutableBox for MyMdat {
+impl ImmutableBox for MyMdat {
     fn box_type(&self) -> mp4::BoxType {
         mp4::TYPE_MDAT
     }
@@ -60,7 +60,9 @@ impl mp4::ImmutableBox for MyMdat {
     fn size(&self) -> usize {
         self.0.iter().map(|sample| sample.avcc.len()).sum()
     }
+}
 
+impl ImmutableBoxSync for MyMdat {
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), mp4::Mp4Error> {
         for sample in self.0.iter() {
             w.write_all(&sample.avcc)?;
@@ -69,7 +71,7 @@ impl mp4::ImmutableBox for MyMdat {
     }
 }
 
-impl From<MyMdat> for Box<dyn ImmutableBox> {
+impl From<MyMdat> for Box<dyn ImmutableBoxSync> {
     fn from(value: MyMdat) -> Self {
         Box::new(value)
     }

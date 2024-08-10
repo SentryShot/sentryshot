@@ -1511,9 +1511,11 @@ dependencies = [
 name = "mp4"
 version = "0.2.18"
 dependencies = [
+ "async-trait",
  "pretty_assertions",
  "test-case",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -1864,6 +1866,7 @@ dependencies = [
 name = "recording"
 version = "0.2.18"
 dependencies = [
+ "async-trait",
  "axum 0.7.4",
  "common",
  "hls",

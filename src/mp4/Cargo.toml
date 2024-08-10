@@ -14,7 +14,10 @@ path = "mp4.rs"
 doctest = false
 
 [dependencies]
+async-trait.workspace = true
 thiserror.workspace = true
+tokio = { features = ["io-util"], workspace = true }
+
 
 [dev-dependencies]
 pretty_assertions.workspace = true

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::video::{Sample, TrackParameters};
+use async_trait::async_trait;
 use common::time::{DurationH264, UnixH264, H264_TIMESCALE};
 use hls::VIDEO_TRACK_ID;
-use mp4::{FullBox, ImmutableBox, Mp4Error};
-use std::{cell::RefCell, io::Write, num::TryFromIntError, rc::Rc};
+use mp4::{FullBox, ImmutableBox, ImmutableBoxAsync, Mp4Error};
+use std::{num::TryFromIntError, sync::Arc};
 use thiserror::Error;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 #[derive(Debug, Error)]
 pub enum GenerateMp4Error {
@@ -47,7 +49,7 @@ pub struct Mp4Muxer {
     pub ctts: Vec<mp4::CttsEntryV1>,
     pub stsc: Vec<mp4::StscEntry>,
     pub stsz: Vec<u32>,
-    pub stco: Rc<RefCell<Vec<u32>>>,
+    pub stco: Arc<std::sync::Mutex<Vec<u32>>>,
 }
 
 #[allow(
@@ -55,20 +57,19 @@ pub struct Mp4Muxer {
     clippy::similar_names,
     clippy::too_many_lines
 )]
-pub fn generate_mp4<'a, W, S>(
-    mut out: W,
+pub async fn generate_mp4<'a, S>(
+    out: &'a mut (dyn AsyncWrite + Unpin + Send + Sync),
     start_time: UnixH264,
     samples: S,
-    params: &TrackParameters,
+    params: &'a TrackParameters,
 ) -> Result<u32, GenerateMp4Error>
 where
-    W: Write,
     S: Iterator<Item = &'a Sample>,
 {
     use GenerateMp4Error::*;
 
     let mut m = Mp4Muxer {
-        stco: Rc::new(RefCell::new(vec![0])),
+        stco: Arc::new(std::sync::Mutex::new(vec![0])),
         ..Default::default()
     };
     let mut mdat_pos: u32 = 0;
@@ -148,9 +149,9 @@ where
     );
     //duration := time.Duration(m.endTime - m.startTime)
 
-    let moov = mp4::Boxes::new(mp4::Moov {}).with_children2(
+    let moov = mp4::BoxesAsync::new(mp4::Moov {}).with_children2(
         // Mvhd.
-        mp4::Boxes::new(mp4::Mvhd {
+        mp4::BoxesAsync::new(mp4::Mvhd {
             timescale: 1000,
             version: mp4::MvhdVersion::V0(mp4::MvhdV0 {
                 duration: u32::try_from(duration.as_millis())
@@ -173,11 +174,13 @@ where
         + u32::try_from(moov.size()).map_err(|v| MoovSize(moov.size(), v))?
         + MDAT_HEADER_SIZE;
 
-    let mut stco = m.stco.borrow_mut();
-    for i in 0..stco.len() {
-        stco[i] += mdat_offset;
+    {
+        let mut stco = m.stco.lock().expect("not poisoned");
+        for i in 0..stco.len() {
+            stco[i] += mdat_offset;
+        }
+        drop(stco);
     }
-    drop(stco);
 
     /*
        ftyp
@@ -192,12 +195,14 @@ where
         minor_version: 512,
         compatible_brands: vec![mp4::CompatibleBrandElem(*b"iso4")],
     };
-    mp4::write_single_box(&mut out, &ftyp)?;
 
-    moov.marshal(&mut out)?;
+    mp4::write_single_box2(out, &ftyp).await?;
 
-    out.write_all(&(mdat_pos.checked_add(8).ok_or(GenerateMp4Error::Add)?).to_be_bytes())?;
-    out.write_all(b"mdat")?;
+    moov.marshal(out).await?;
+
+    out.write_all(&(mdat_pos.checked_add(8).ok_or(GenerateMp4Error::Add)?).to_be_bytes())
+        .await?;
+    out.write_all(b"mdat").await?;
 
     Ok(mdat_pos)
 }
@@ -220,7 +225,7 @@ impl Mp4Muxer {
         &self,
         duration: DurationH264,
         params: &TrackParameters,
-    ) -> Result<mp4::Boxes, GenerateTrakError> {
+    ) -> Result<mp4::BoxesAsync, GenerateTrakError> {
         use GenerateTrakError::*;
         /*
            trak
@@ -231,9 +236,9 @@ impl Mp4Muxer {
              - minf
         */
 
-        let trak = mp4::Boxes::new(mp4::Trak).with_children2(
+        let trak = mp4::BoxesAsync::new(mp4::Trak).with_children2(
             // Tkhd.
-            mp4::Boxes::new(mp4::Tkhd {
+            mp4::BoxesAsync::new(mp4::Tkhd {
                 flags: [0, 0, 3],
                 track_id: VIDEO_TRACK_ID,
                 version: mp4::TkhdVersion::V0(mp4::TkhdV0 {
@@ -247,9 +252,9 @@ impl Mp4Muxer {
                 ..Default::default()
             }),
             // Mdia.
-            mp4::Boxes::new(mp4::Mdia).with_children3(
+            mp4::BoxesAsync::new(mp4::Mdia).with_children3(
                 // Mdhd.
-                mp4::Boxes::new(mp4::Mdhd {
+                mp4::BoxesAsync::new(mp4::Mdhd {
                     timescale: H264_TIMESCALE,
                     language: *b"und",
                     version: mp4::MdhdVersion::V0(mp4::MdhdV0 {
@@ -259,7 +264,7 @@ impl Mp4Muxer {
                     ..Default::default()
                 }),
                 // Hdlr.
-                mp4::Boxes::new(mp4::Hdlr {
+                mp4::BoxesAsync::new(mp4::Hdlr {
                     handler_type: *b"vide",
                     name: "VideoHandler".to_owned(),
                     ..Default::default()
@@ -273,7 +278,10 @@ impl Mp4Muxer {
     }
 
     #[allow(clippy::let_and_return)]
-    fn generate_minf(&self, params: &TrackParameters) -> Result<mp4::Boxes, GenerateTrakError> {
+    fn generate_minf(
+        &self,
+        params: &TrackParameters,
+    ) -> Result<mp4::BoxesAsync, GenerateTrakError> {
         /*
            minf
            - vmhd
@@ -290,31 +298,31 @@ impl Mp4Muxer {
                - stco
         */
 
-        let stbl = mp4::Boxes::new(mp4::Stbl {}).with_children7(
+        let stbl = mp4::BoxesAsync::new(mp4::Stbl {}).with_children7(
             // Stsd.
             generate_stsd(params),
             // Stts.
-            mp4::Boxes::new(mp4::Stts {
+            mp4::BoxesAsync::new(mp4::Stts {
                 full_box: mp4::FullBox::default(),
                 entries: self.stts.clone(),
             }),
             // Stss.
-            mp4::Boxes::new(mp4::Stss {
+            mp4::BoxesAsync::new(mp4::Stss {
                 full_box: mp4::FullBox::default(),
                 sample_numbers: self.stss.clone(),
             }),
             // Ctts.
-            mp4::Boxes::new(mp4::Ctts {
+            mp4::BoxesAsync::new(mp4::Ctts {
                 flags: [0, 0, 0],
                 entries: mp4::CttsEntries::V1(self.ctts.clone()),
             }),
             // Stsc.
-            mp4::Boxes::new(mp4::Stsc {
+            mp4::BoxesAsync::new(mp4::Stsc {
                 full_box: mp4::FullBox::default(),
                 entries: self.stsc.clone(),
             }),
             // Stsz.
-            mp4::Boxes::new(mp4::Stsz {
+            mp4::BoxesAsync::new(mp4::Stsz {
                 full_box: mp4::FullBox::default(),
                 sample_size: 0,
                 sample_count: u32::try_from(self.stsz.len())
@@ -322,25 +330,25 @@ impl Mp4Muxer {
                 entry_sizes: self.stsz.clone(),
             }),
             // Stco.
-            mp4::Boxes::new(MyStco {
+            mp4::BoxesAsync::new(MyStco {
                 full_box: mp4::FullBox::default(),
                 chunk_offsets: self.stco.clone(),
             }),
         );
 
-        let minf = mp4::Boxes::new(mp4::Minf).with_children3(
+        let minf = mp4::BoxesAsync::new(mp4::Minf).with_children3(
             // Vmhd.
-            mp4::Boxes::new(mp4::Vmhd::default()),
+            mp4::BoxesAsync::new(mp4::Vmhd::default()),
             // Dinf.
-            mp4::Boxes::new(mp4::Dinf).with_child(
+            mp4::BoxesAsync::new(mp4::Dinf).with_child(
                 // Dref.
-                mp4::Boxes::new(mp4::Dref {
+                mp4::BoxesAsync::new(mp4::Dref {
                     full_box: mp4::FullBox::default(),
                     entry_count: 1,
                 })
                 .with_child(
                     // Url.
-                    mp4::Boxes::new(mp4::Url {
+                    mp4::BoxesAsync::new(mp4::Url {
                         full_box: mp4::FullBox {
                             version: 0,
                             flags: [0, 0, 1],
@@ -358,20 +366,20 @@ impl Mp4Muxer {
 }
 
 #[allow(clippy::let_and_return)]
-fn generate_stsd(params: &TrackParameters) -> mp4::Boxes {
+fn generate_stsd(params: &TrackParameters) -> mp4::BoxesAsync {
     /*
        - stsd
          - avc1
            - avcC
     */
 
-    let stsd = mp4::Boxes::new(mp4::Stsd {
+    let stsd = mp4::BoxesAsync::new(mp4::Stsd {
         full_box: mp4::FullBox::default(),
         entry_count: 1,
     })
     .with_child(
         // Avc1.
-        mp4::Boxes::new(mp4::Avc1 {
+        mp4::BoxesAsync::new(mp4::Avc1 {
             sample_entry: mp4::SampleEntry {
                 data_reference_index: 1,
                 ..Default::default()
@@ -387,7 +395,7 @@ fn generate_stsd(params: &TrackParameters) -> mp4::Boxes {
         })
         .with_child(
             // AvcC.
-            mp4::Boxes::new(MyAvcC(params.extra_data.clone())),
+            mp4::BoxesAsync::new(MyAvcC(params.extra_data.clone())),
         ),
     );
 
@@ -396,7 +404,7 @@ fn generate_stsd(params: &TrackParameters) -> mp4::Boxes {
 
 struct MyAvcC(Vec<u8>);
 
-impl mp4::ImmutableBox for MyAvcC {
+impl ImmutableBox for MyAvcC {
     fn box_type(&self) -> mp4::BoxType {
         mp4::TYPE_AVCC
     }
@@ -404,14 +412,19 @@ impl mp4::ImmutableBox for MyAvcC {
     fn size(&self) -> usize {
         self.0.len()
     }
-
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), mp4::Mp4Error> {
-        w.write_all(&self.0)?;
+}
+#[async_trait]
+impl ImmutableBoxAsync for MyAvcC {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        w.write_all(&self.0).await?;
         Ok(())
     }
 }
 
-impl From<MyAvcC> for Box<dyn ImmutableBox> {
+impl From<MyAvcC> for Box<dyn ImmutableBoxAsync> {
     fn from(value: MyAvcC) -> Self {
         Box::new(value)
     }
@@ -419,34 +432,41 @@ impl From<MyAvcC> for Box<dyn ImmutableBox> {
 
 pub struct MyStco {
     pub full_box: FullBox,
-    pub chunk_offsets: Rc<RefCell<Vec<u32>>>,
+    pub chunk_offsets: Arc<std::sync::Mutex<Vec<u32>>>,
 }
 
-impl mp4::ImmutableBox for MyStco {
+impl ImmutableBox for MyStco {
     fn box_type(&self) -> mp4::BoxType {
         mp4::TYPE_STCO
     }
 
     fn size(&self) -> usize {
-        8 + (self.chunk_offsets.borrow().len()) * 4
+        8 + (self.chunk_offsets.lock().expect("not poisoned").len()) * 4
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
-        self.full_box.marshal_field(w)?;
-        let chunk_offsets = self.chunk_offsets.borrow().clone();
+#[async_trait]
+impl ImmutableBoxAsync for MyStco {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        let chunk_offsets = self.chunk_offsets.lock().expect("not posioned").clone();
         w.write_all(
             &u32::try_from(chunk_offsets.len())
                 .map_err(|e| Mp4Error::FromInt("stco".to_owned(), e))?
                 .to_be_bytes(),
-        )?;
+        )
+        .await?;
         for offset in chunk_offsets {
-            w.write_all(&offset.to_be_bytes())?;
+            w.write_all(&offset.to_be_bytes()).await?;
         }
         Ok(())
     }
 }
 
-impl From<MyStco> for Box<dyn ImmutableBox> {
+impl From<MyStco> for Box<dyn ImmutableBoxAsync> {
     fn from(value: MyStco) -> Self {
         Box::new(value)
     }
@@ -461,9 +481,9 @@ mod tests {
     use pretty_hex::pretty_hex;
     use std::io::Cursor;
 
-    #[test]
+    #[tokio::test]
     #[allow(clippy::too_many_lines)]
-    fn test_generate_mp4() {
+    async fn test_generate_mp4() {
         let samples = vec![
             Sample {
                 // VideoSample3. B-Frame.
@@ -519,7 +539,9 @@ mod tests {
         };
 
         let start_time = UnixH264::new(1);
-        let mdat_size = generate_mp4(&mut buf, start_time, samples.iter(), &params).unwrap();
+        let mdat_size = generate_mp4(&mut buf, start_time, samples.iter(), &params)
+            .await
+            .unwrap();
         assert_eq!(6, mdat_size);
 
         let want = vec![

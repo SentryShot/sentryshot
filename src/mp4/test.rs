@@ -1047,14 +1047,20 @@ use test_case::test_case;
             0x23, 0x45, 0x45, 0x67, 0x67, 0x89, // opcolor
         ]; "vmhd"
     )]
-fn test_box_types<T: Into<Box<dyn ImmutableBox>>>(src: T, bin: &[u8]) {
+#[tokio::test]
+async fn test_box_types<T: Into<Box<dyn ImmutableBoxBoth>>>(src: T, bin: &[u8]) {
     let src = src.into();
     let size = src.size();
-    let boxes = Boxes::new(src);
 
+    // Sync.
     let mut buf = Vec::<u8>::with_capacity(size);
-    boxes.mp4_box.marshal(&mut buf).unwrap();
+    src.marshal_sync(&mut buf).unwrap();
+    assert_eq!(size, buf.len());
+    assert_eq!(bin, buf);
 
+    // Async.
+    let mut buf = Vec::<u8>::with_capacity(size);
+    src.marshal_async(&mut buf).await.unwrap();
     assert_eq!({ size }, buf.len());
     assert_eq!(bin, buf);
 }

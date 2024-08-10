@@ -1,7 +1,7 @@
 use crate::{error::GenerateInitError, types::VIDEO_TRACK_ID};
 use bytes::Bytes;
 use common::{time::H264_TIMESCALE, TrackParameters};
-use mp4::ImmutableBox;
+use mp4::{ImmutableBox, ImmutableBoxSync};
 
 #[allow(clippy::module_name_repetitions)]
 pub fn generate_init(params: &TrackParameters) -> Result<Bytes, GenerateInitError> {
@@ -193,7 +193,7 @@ fn generate_trak(params: &TrackParameters) -> mp4::Boxes {
 
 struct MyAvcC(Vec<u8>);
 
-impl mp4::ImmutableBox for MyAvcC {
+impl ImmutableBox for MyAvcC {
     fn box_type(&self) -> mp4::BoxType {
         mp4::TYPE_AVCC
     }
@@ -201,14 +201,16 @@ impl mp4::ImmutableBox for MyAvcC {
     fn size(&self) -> usize {
         self.0.len()
     }
+}
 
+impl ImmutableBoxSync for MyAvcC {
     fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), mp4::Mp4Error> {
         w.write_all(&self.0)?;
         Ok(())
     }
 }
 
-impl From<MyAvcC> for Box<dyn ImmutableBox> {
+impl From<MyAvcC> for Box<dyn ImmutableBoxSync> {
     fn from(value: MyAvcC) -> Self {
         Box::new(value)
     }

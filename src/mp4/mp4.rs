@@ -1,16 +1,13 @@
-#![allow(dead_code)]
-
 #[cfg(test)]
 mod test;
 
+use async_trait::async_trait;
 use std::io::Write;
-
 use thiserror::Error;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 // Mpeg box type.
 pub type BoxType = [u8; 4];
-
-//pub type ImmutableBoxes = Vec<dyn ImmutableBox>;
 
 // ImmutableBox is the common trait of boxes.
 pub trait ImmutableBox {
@@ -21,9 +18,58 @@ pub trait ImmutableBox {
     // The size must be known before marshaling
     // since the box header contains the size.
     fn size(&self) -> usize;
+}
 
+pub trait ImmutableBoxSync: ImmutableBox {
     // Marshal box to writer.
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error>;
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error>;
+}
+
+#[async_trait]
+pub trait ImmutableBoxAsync: ImmutableBox + Send + Sync {
+    // Marshal box to writer.
+    async fn marshal(&self, w: &mut (dyn AsyncWrite + Unpin + Send + Sync))
+        -> Result<(), Mp4Error>;
+}
+
+#[cfg(test)]
+#[async_trait]
+trait ImmutableBoxBoth: ImmutableBoxSync + ImmutableBoxAsync {
+    // Upcasting coercion is unstable: https://github.com/rust-lang/rust/issues/65991
+    fn marshal_sync(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
+        ImmutableBoxSync::marshal(self, w)
+    }
+    async fn marshal_async(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        ImmutableBoxAsync::marshal(self, w).await
+    }
+}
+
+macro_rules! impl_from {
+    ($x:ident) => {
+        impl From<$x> for Box<dyn ImmutableBoxSync> {
+            fn from(value: $x) -> Self {
+                Box::new(value)
+            }
+        }
+        impl From<$x> for Box<dyn ImmutableBoxAsync> {
+            fn from(value: $x) -> Self {
+                Box::new(value)
+            }
+        }
+
+        #[cfg(test)]
+        impl ImmutableBoxBoth for $x {}
+
+        #[cfg(test)]
+        impl From<$x> for Box<dyn ImmutableBoxBoth> {
+            fn from(value: $x) -> Self {
+                Box::new(value)
+            }
+        }
+    };
 }
 
 #[derive(Debug, Error)]
@@ -37,13 +83,13 @@ pub enum Mp4Error {
 
 // Tree of boxes that can be marshaled together.
 pub struct Boxes {
-    pub mp4_box: Box<dyn ImmutableBox>,
+    pub mp4_box: Box<dyn ImmutableBoxSync>,
     pub children: Vec<Boxes>,
 }
 
 impl Boxes {
     #[must_use]
-    pub fn new<T: Into<Box<dyn ImmutableBox>>>(mp4_box: T) -> Self {
+    pub fn new<T: Into<Box<dyn ImmutableBoxSync>>>(mp4_box: T) -> Self {
         Self {
             mp4_box: mp4_box.into(),
             children: Vec::new(),
@@ -143,7 +189,7 @@ impl Boxes {
     pub fn marshal<W: Write>(&self, w: &mut W) -> Result<(), Mp4Error> {
         let size = self.size();
 
-        write_box_info(w, size, self.mp4_box.box_type())?;
+        write_box_header(w, size, self.mp4_box.box_type())?;
 
         // The size of a empty box is 8 bytes.
         if size != 8 {
@@ -157,7 +203,137 @@ impl Boxes {
     }
 }
 
-pub fn write_box_info<W: Write>(w: &mut W, size: usize, typ: BoxType) -> Result<(), Mp4Error> {
+// Tree of boxes that can be marshaled together.
+pub struct BoxesAsync {
+    pub mp4_box: Box<dyn ImmutableBoxAsync>,
+    pub children: Vec<BoxesAsync>,
+}
+
+impl BoxesAsync {
+    #[must_use]
+    pub fn new<T: Into<Box<dyn ImmutableBoxAsync>>>(mp4_box: T) -> Self {
+        Self {
+            mp4_box: mp4_box.into(),
+            children: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_child(mut self, child: BoxesAsync) -> Self {
+        self.children.push(child);
+        self
+    }
+
+    #[must_use]
+    pub fn with_children2(mut self, child1: BoxesAsync, child2: BoxesAsync) -> Self {
+        self.children.extend([child1, child2]);
+        self
+    }
+    #[must_use]
+
+    pub fn with_children3(
+        mut self,
+        child1: BoxesAsync,
+        child2: BoxesAsync,
+        child3: BoxesAsync,
+    ) -> Self {
+        self.children.extend([child1, child2, child3]);
+        self
+    }
+
+    #[must_use]
+    pub fn with_children4(
+        mut self,
+        child1: BoxesAsync,
+        child2: BoxesAsync,
+        child3: BoxesAsync,
+        child4: BoxesAsync,
+    ) -> Self {
+        self.children.extend([child1, child2, child3, child4]);
+        self
+    }
+
+    #[must_use]
+    pub fn with_children5(
+        mut self,
+        child1: BoxesAsync,
+        child2: BoxesAsync,
+        child3: BoxesAsync,
+        child4: BoxesAsync,
+        child5: BoxesAsync,
+    ) -> Self {
+        self.children
+            .extend([child1, child2, child3, child4, child5]);
+        self
+    }
+
+    #[must_use]
+    pub fn with_children6(
+        mut self,
+        child1: BoxesAsync,
+        child2: BoxesAsync,
+        child3: BoxesAsync,
+        child4: BoxesAsync,
+        child5: BoxesAsync,
+        child6: BoxesAsync,
+    ) -> Self {
+        self.children
+            .extend([child1, child2, child3, child4, child5, child6]);
+        self
+    }
+
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_children7(
+        mut self,
+        child1: BoxesAsync,
+        child2: BoxesAsync,
+        child3: BoxesAsync,
+        child4: BoxesAsync,
+        child5: BoxesAsync,
+        child6: BoxesAsync,
+        child7: BoxesAsync,
+    ) -> Self {
+        self.children
+            .extend([child1, child2, child3, child4, child5, child6, child7]);
+        self
+    }
+
+    // Size returns the total size of the box including children.
+    #[must_use]
+    pub fn size(&self) -> usize {
+        let mut total = self.mp4_box.size() + 8;
+
+        for child in &self.children {
+            let size = child.size();
+            total += size;
+        }
+
+        total
+    }
+
+    // Marshal box including children.
+    pub async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        // DFS.
+        let mut items = vec![self];
+        while let Some(item) = items.pop() {
+            write_box_header2(w, item.size(), item.mp4_box.box_type()).await?;
+
+            let box_is_empty = item.size() == 8;
+            if !box_is_empty {
+                item.mp4_box.marshal(w).await?;
+            }
+
+            items.extend(item.children.iter().rev());
+        }
+        Ok(())
+    }
+}
+
+pub fn write_box_header<W: Write>(w: &mut W, size: usize, typ: BoxType) -> Result<(), Mp4Error> {
     w.write_all(
         &u32::try_from(size)
             .map_err(|e| Mp4Error::FromInt("write box info".to_owned(), e))?
@@ -167,14 +343,44 @@ pub fn write_box_info<W: Write>(w: &mut W, size: usize, typ: BoxType) -> Result<
     Ok(())
 }
 
-pub fn write_single_box<W: Write>(w: &mut W, b: &dyn ImmutableBox) -> Result<usize, Mp4Error> {
+pub async fn write_box_header2(
+    w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    size: usize,
+    typ: BoxType,
+) -> Result<(), Mp4Error> {
+    w.write_all(
+        &u32::try_from(size)
+            .map_err(|e| Mp4Error::FromInt("write box info".to_owned(), e))?
+            .to_be_bytes(),
+    )
+    .await?;
+    w.write_all(&typ).await?;
+    Ok(())
+}
+
+pub fn write_single_box<W: Write>(w: &mut W, b: &dyn ImmutableBoxSync) -> Result<usize, Mp4Error> {
     let size = 8 + b.size();
 
-    write_box_info(w, size, b.box_type())?;
+    write_box_header(w, size, b.box_type())?;
 
     // The size of a empty box is 8 bytes.
     if size != 8 {
         b.marshal(w)?;
+    }
+    Ok(size)
+}
+
+pub async fn write_single_box2(
+    w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    b: &dyn ImmutableBoxAsync,
+) -> Result<usize, Mp4Error> {
+    let size = 8 + b.size();
+
+    write_box_header2(w, size, b.box_type()).await?;
+
+    // The size of a empty box is 8 bytes.
+    if size != 8 {
+        b.marshal(w).await?;
     }
     Ok(size)
 }
@@ -218,9 +424,18 @@ impl FullBox {
         self.get_flags() & flag != 0
     }
 
-    pub fn marshal_field(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+    pub fn marshal_field(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         w.write_all(&[self.version])?;
         w.write_all(&self.flags)?;
+        Ok(())
+    }
+
+    pub async fn marshal_field2(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        w.write_all(&[self.version]).await?;
+        w.write_all(&self.flags).await?;
         Ok(())
     }
 }
@@ -249,6 +464,7 @@ pub struct Btrt {
     pub max_bitrate: u32,
     pub avg_bitrate: u32,
 }
+impl_from!(Btrt);
 
 impl ImmutableBox for Btrt {
     fn box_type(&self) -> BoxType {
@@ -258,8 +474,10 @@ impl ImmutableBox for Btrt {
     fn size(&self) -> usize {
         12
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Btrt {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         w.write_all(&self.buffer_size_db.to_be_bytes())?;
         w.write_all(&self.max_bitrate.to_be_bytes())?;
         w.write_all(&self.avg_bitrate.to_be_bytes())?;
@@ -267,9 +485,16 @@ impl ImmutableBox for Btrt {
     }
 }
 
-impl From<Btrt> for Box<dyn ImmutableBox> {
-    fn from(value: Btrt) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Btrt {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        w.write_all(&self.buffer_size_db.to_be_bytes()).await?;
+        w.write_all(&self.max_bitrate.to_be_bytes()).await?;
+        w.write_all(&self.avg_bitrate.to_be_bytes()).await?;
+        Ok(())
     }
 }
 
@@ -281,6 +506,7 @@ pub struct Ctts {
     pub flags: [u8; 3],
     pub entries: CttsEntries,
 }
+impl_from!(Ctts);
 
 pub enum CttsEntries {
     V0(Vec<CttsEntryV0>),
@@ -311,8 +537,10 @@ impl ImmutableBox for Ctts {
         };
         8 + num_entries * 8
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Ctts {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         match &self.entries {
             CttsEntries::V0(entries) => {
                 w.write_all(&[0])?;
@@ -348,9 +576,46 @@ impl ImmutableBox for Ctts {
     }
 }
 
-impl From<Ctts> for Box<dyn ImmutableBox> {
-    fn from(value: Ctts) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Ctts {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        match &self.entries {
+            CttsEntries::V0(entries) => {
+                w.write_all(&[0]).await?;
+                w.write_all(&self.flags).await?;
+
+                w.write_all(
+                    &(u32::try_from(entries.len())
+                        .map_err(|e| Mp4Error::FromInt("ctts".to_owned(), e))?)
+                    .to_be_bytes(),
+                )
+                .await?;
+                for entry in entries {
+                    w.write_all(&entry.sample_count.to_be_bytes()).await?;
+                    w.write_all(&entry.sample_offset.to_be_bytes()).await?;
+                }
+            }
+            CttsEntries::V1(entries) => {
+                w.write_all(&[1]).await?;
+                w.write_all(&self.flags).await?;
+
+                w.write_all(
+                    &(u32::try_from(entries.len())
+                        .map_err(|e| Mp4Error::FromInt("ctts".to_owned(), e))?)
+                    .to_be_bytes(),
+                )
+                .await?;
+                for entry in entries {
+                    w.write_all(&entry.sample_count.to_be_bytes()).await?;
+                    w.write_all(&entry.sample_offset.to_be_bytes()).await?;
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -359,6 +624,7 @@ impl From<Ctts> for Box<dyn ImmutableBox> {
 pub const TYPE_DINF: BoxType = *b"dinf";
 
 pub struct Dinf;
+impl_from!(Dinf);
 
 impl ImmutableBox for Dinf {
     fn box_type(&self) -> BoxType {
@@ -368,15 +634,21 @@ impl ImmutableBox for Dinf {
     fn size(&self) -> usize {
         0
     }
+}
 
-    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Dinf {
+    fn marshal(&self, _: &mut dyn Write) -> Result<(), Mp4Error> {
         Ok(())
     }
 }
 
-impl From<Dinf> for Box<dyn ImmutableBox> {
-    fn from(value: Dinf) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Dinf {
+    async fn marshal(
+        &self,
+        _: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        Ok(())
     }
 }
 
@@ -388,6 +660,7 @@ pub struct Dref {
     pub full_box: FullBox,
     pub entry_count: u32,
 }
+impl_from!(Dref);
 
 impl ImmutableBox for Dref {
     fn box_type(&self) -> BoxType {
@@ -397,17 +670,25 @@ impl ImmutableBox for Dref {
     fn size(&self) -> usize {
         8
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Dref {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(&self.entry_count.to_be_bytes())?;
         Ok(())
     }
 }
 
-impl From<Dref> for Box<dyn ImmutableBox> {
-    fn from(value: Dref) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Dref {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(&self.entry_count.to_be_bytes()).await?;
+        Ok(())
     }
 }
 
@@ -419,6 +700,7 @@ pub struct Url {
     pub full_box: FullBox,
     pub location: String,
 }
+impl_from!(Url);
 
 pub const URL_NOPT: u32 = 0x0000_0001;
 
@@ -434,8 +716,10 @@ impl ImmutableBox for Url {
             self.location.len() + 5
         }
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Url {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         if !self.full_box.check_flag(URL_NOPT) {
             w.write_all((self.location.clone() + "\0").as_bytes())?;
@@ -444,9 +728,18 @@ impl ImmutableBox for Url {
     }
 }
 
-impl From<Url> for Box<dyn ImmutableBox> {
-    fn from(value: Url) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Url {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        if !self.full_box.check_flag(URL_NOPT) {
+            w.write_all((self.location.clone() + "\0").as_bytes())
+                .await?;
+        }
+        Ok(())
     }
 }
 
@@ -455,6 +748,7 @@ impl From<Url> for Box<dyn ImmutableBox> {
 pub const TYPE_EDTS: BoxType = *b"edts";
 
 pub struct Edts;
+impl_from!(Edts);
 
 impl ImmutableBox for Edts {
     fn box_type(&self) -> BoxType {
@@ -464,15 +758,21 @@ impl ImmutableBox for Edts {
     fn size(&self) -> usize {
         0
     }
+}
 
-    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Edts {
+    fn marshal(&self, _: &mut dyn Write) -> Result<(), Mp4Error> {
         Ok(())
     }
 }
 
-impl From<Edts> for Box<dyn ImmutableBox> {
-    fn from(value: Edts) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Edts {
+    async fn marshal(
+        &self,
+        _: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        Ok(())
     }
 }
 
@@ -485,6 +785,7 @@ pub struct Elst {
     pub flags: [u8; 3],
     pub entries: ElstEntries,
 }
+impl_from!(Elst);
 
 impl ImmutableBox for Elst {
     fn box_type(&self) -> BoxType {
@@ -497,8 +798,10 @@ impl ImmutableBox for Elst {
             ElstEntries::V1(v) => 8 + v.len() * 20,
         }
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Elst {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         match &self.entries {
             ElstEntries::V0(entries) => {
                 w.write_all(&[0])?;
@@ -528,6 +831,52 @@ impl ImmutableBox for Elst {
                     w.write_all(&entry.media_time.to_be_bytes())?;
                     w.write_all(&entry.media_rate_integer.to_be_bytes())?;
                     w.write_all(&entry.media_rate_fraction.to_be_bytes())?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl ImmutableBoxAsync for Elst {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        match &self.entries {
+            ElstEntries::V0(entries) => {
+                w.write_all(&[0]).await?;
+                w.write_all(&self.flags).await?;
+                w.write_all(
+                    &u32::try_from(entries.len())
+                        .map_err(|e| Mp4Error::FromInt("elst".to_owned(), e))?
+                        .to_be_bytes(),
+                )
+                .await?;
+                for entry in entries {
+                    w.write_all(&entry.segment_duration.to_be_bytes()).await?;
+                    w.write_all(&entry.media_time.to_be_bytes()).await?;
+                    w.write_all(&entry.media_rate_integer.to_be_bytes()).await?;
+                    w.write_all(&entry.media_rate_fraction.to_be_bytes())
+                        .await?;
+                }
+            }
+            ElstEntries::V1(entries) => {
+                w.write_all(&[1]).await?;
+                w.write_all(&self.flags).await?;
+                w.write_all(
+                    &u32::try_from(entries.len())
+                        .map_err(|e| Mp4Error::FromInt("elst".to_owned(), e))?
+                        .to_be_bytes(),
+                )
+                .await?;
+                for entry in entries {
+                    w.write_all(&entry.segment_duration.to_be_bytes()).await?;
+                    w.write_all(&entry.media_time.to_be_bytes()).await?;
+                    w.write_all(&entry.media_rate_integer.to_be_bytes()).await?;
+                    w.write_all(&entry.media_rate_fraction.to_be_bytes())
+                        .await?;
                 }
             }
         }
@@ -579,12 +928,6 @@ impl Default for ElstEntryV1 {
     }
 }
 
-impl From<Elst> for Box<dyn ImmutableBox> {
-    fn from(value: Elst) -> Self {
-        Box::new(value)
-    }
-}
-
 /*************************** ftyp ****************************/
 
 pub const TYPE_FTYP: BoxType = *b"ftyp";
@@ -594,6 +937,7 @@ pub struct Ftyp {
     pub minor_version: u32,
     pub compatible_brands: Vec<CompatibleBrandElem>,
 }
+impl_from!(Ftyp);
 
 #[repr(transparent)]
 pub struct CompatibleBrandElem(pub [u8; 4]);
@@ -606,8 +950,10 @@ impl ImmutableBox for Ftyp {
     fn size(&self) -> usize {
         8 + self.compatible_brands.len() * 4
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Ftyp {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         w.write_all(&self.major_brand)?;
         w.write_all(&self.minor_version.to_be_bytes())?;
         for brands in &self.compatible_brands {
@@ -617,9 +963,18 @@ impl ImmutableBox for Ftyp {
     }
 }
 
-impl From<Ftyp> for Box<dyn ImmutableBox> {
-    fn from(value: Ftyp) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Ftyp {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        w.write_all(&self.major_brand).await?;
+        w.write_all(&self.minor_version.to_be_bytes()).await?;
+        for brands in &self.compatible_brands {
+            w.write_all(&brands.0).await?;
+        }
+        Ok(())
     }
 }
 
@@ -638,6 +993,7 @@ pub struct Hdlr {
     pub reserved: [u32; 3],
     pub name: String,
 }
+impl_from!(Hdlr);
 
 impl ImmutableBox for Hdlr {
     fn box_type(&self) -> BoxType {
@@ -647,8 +1003,10 @@ impl ImmutableBox for Hdlr {
     fn size(&self) -> usize {
         25 + self.name.len()
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Hdlr {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(&self.pre_defined.to_be_bytes())?;
         w.write_all(&self.handler_type)?;
@@ -660,9 +1018,20 @@ impl ImmutableBox for Hdlr {
     }
 }
 
-impl From<Hdlr> for Box<dyn ImmutableBox> {
-    fn from(value: Hdlr) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Hdlr {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(&self.pre_defined.to_be_bytes()).await?;
+        w.write_all(&self.handler_type).await?;
+        for reserved in &self.reserved {
+            w.write_all(&reserved.to_be_bytes()).await?;
+        }
+        w.write_all((self.name.clone() + "\0").as_bytes()).await?;
+        Ok(())
     }
 }
 
@@ -671,6 +1040,7 @@ impl From<Hdlr> for Box<dyn ImmutableBox> {
 pub const TYPE_MDAT: BoxType = *b"mdat";
 
 pub struct Mdat(pub Vec<u8>);
+impl_from!(Mdat);
 
 impl ImmutableBox for Mdat {
     fn box_type(&self) -> BoxType {
@@ -680,16 +1050,23 @@ impl ImmutableBox for Mdat {
     fn size(&self) -> usize {
         self.0.len()
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Mdat {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         w.write_all(&self.0)?;
         Ok(())
     }
 }
 
-impl From<Mdat> for Box<dyn ImmutableBox> {
-    fn from(value: Mdat) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Mdat {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        w.write_all(&self.0).await?;
+        Ok(())
     }
 }
 
@@ -698,6 +1075,7 @@ impl From<Mdat> for Box<dyn ImmutableBox> {
 pub const TYPE_MDIA: BoxType = *b"mdia";
 
 pub struct Mdia;
+impl_from!(Mdia);
 
 impl ImmutableBox for Mdia {
     fn box_type(&self) -> BoxType {
@@ -707,15 +1085,21 @@ impl ImmutableBox for Mdia {
     fn size(&self) -> usize {
         0
     }
+}
 
-    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Mdia {
+    fn marshal(&self, _: &mut dyn Write) -> Result<(), Mp4Error> {
         Ok(())
     }
 }
 
-impl From<Mdia> for Box<dyn ImmutableBox> {
-    fn from(value: Mdia) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Mdia {
+    async fn marshal(
+        &self,
+        _: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        Ok(())
     }
 }
 
@@ -733,6 +1117,7 @@ pub struct Mdhd {
     pub language: [u8; 3], // 5 bits. ISO-639-2/T language code
     pub pre_defined: u16,
 }
+impl_from!(Mdhd);
 
 pub enum MdhdVersion {
     V0(MdhdV0),
@@ -769,8 +1154,10 @@ impl ImmutableBox for Mdhd {
             MdhdVersion::V1(_) => 36,
         }
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Mdhd {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         match &self.version {
             MdhdVersion::V0(v) => {
                 w.write_all(&[0])?;
@@ -806,9 +1193,47 @@ impl ImmutableBox for Mdhd {
     }
 }
 
-impl From<Mdhd> for Box<dyn ImmutableBox> {
-    fn from(value: Mdhd) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Mdhd {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        match &self.version {
+            MdhdVersion::V0(v) => {
+                w.write_all(&[0]).await?;
+                w.write_all(&self.flags).await?;
+                w.write_all(&v.creation_time.to_be_bytes()).await?;
+                w.write_all(&v.modification_time.to_be_bytes()).await?;
+                w.write_all(&self.timescale.to_be_bytes()).await?;
+                w.write_all(&v.duration.to_be_bytes()).await?;
+            }
+            MdhdVersion::V1(v) => {
+                w.write_all(&[1]).await?;
+                w.write_all(&self.flags).await?;
+                w.write_all(&v.creation_time.to_be_bytes()).await?;
+                w.write_all(&v.modification_time.to_be_bytes()).await?;
+                w.write_all(&self.timescale.to_be_bytes()).await?;
+                w.write_all(&v.duration.to_be_bytes()).await?;
+            }
+        }
+
+        if self.pad {
+            w.write_all(&[(0b0000_0001 << 7
+                | (self.language[0] & 0b0001_1111) << 2
+                | (self.language[1] & 0b0001_1111) >> 3)])
+                .await?;
+        } else {
+            w.write_all(&[
+                ((self.language[0] & 0b0001_1111) << 2 | (self.language[1] & 0b0001_1111) >> 3)
+            ])
+            .await?;
+        }
+
+        w.write_all(&[(self.language[1] << 5 | self.language[2] & 0b0001_1111)])
+            .await?;
+        w.write_all(&self.pre_defined.to_be_bytes()).await?;
+        Ok(())
     }
 }
 
@@ -820,6 +1245,7 @@ pub struct Mfhd {
     pub full_box: FullBox,
     pub sequence_number: u32,
 }
+impl_from!(Mfhd);
 
 impl ImmutableBox for Mfhd {
     fn box_type(&self) -> BoxType {
@@ -829,17 +1255,25 @@ impl ImmutableBox for Mfhd {
     fn size(&self) -> usize {
         8
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Mfhd {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(&self.sequence_number.to_be_bytes())?;
         Ok(())
     }
 }
 
-impl From<Mfhd> for Box<dyn ImmutableBox> {
-    fn from(value: Mfhd) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Mfhd {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(&self.sequence_number.to_be_bytes()).await?;
+        Ok(())
     }
 }
 
@@ -848,6 +1282,7 @@ impl From<Mfhd> for Box<dyn ImmutableBox> {
 pub const TYPE_MINF: BoxType = *b"minf";
 
 pub struct Minf;
+impl_from!(Minf);
 
 impl ImmutableBox for Minf {
     fn box_type(&self) -> BoxType {
@@ -857,15 +1292,21 @@ impl ImmutableBox for Minf {
     fn size(&self) -> usize {
         0
     }
+}
 
-    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Minf {
+    fn marshal(&self, _: &mut dyn Write) -> Result<(), Mp4Error> {
         Ok(())
     }
 }
 
-impl From<Minf> for Box<dyn ImmutableBox> {
-    fn from(value: Minf) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Minf {
+    async fn marshal(
+        &self,
+        _: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        Ok(())
     }
 }
 
@@ -874,6 +1315,7 @@ impl From<Minf> for Box<dyn ImmutableBox> {
 pub const TYPE_MOOF: BoxType = *b"moof";
 
 pub struct Moof;
+impl_from!(Moof);
 
 impl ImmutableBox for Moof {
     fn box_type(&self) -> BoxType {
@@ -883,15 +1325,21 @@ impl ImmutableBox for Moof {
     fn size(&self) -> usize {
         0
     }
+}
 
-    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Moof {
+    fn marshal(&self, _: &mut dyn Write) -> Result<(), Mp4Error> {
         Ok(())
     }
 }
 
-impl From<Moof> for Box<dyn ImmutableBox> {
-    fn from(value: Moof) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Moof {
+    async fn marshal(
+        &self,
+        _: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        Ok(())
     }
 }
 
@@ -900,6 +1348,7 @@ impl From<Moof> for Box<dyn ImmutableBox> {
 pub const TYPE_MOOV: BoxType = *b"moov";
 
 pub struct Moov;
+impl_from!(Moov);
 
 impl ImmutableBox for Moov {
     fn box_type(&self) -> BoxType {
@@ -909,15 +1358,21 @@ impl ImmutableBox for Moov {
     fn size(&self) -> usize {
         0
     }
+}
 
-    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Moov {
+    fn marshal(&self, _: &mut dyn Write) -> Result<(), Mp4Error> {
         Ok(())
     }
 }
 
-impl From<Moov> for Box<dyn ImmutableBox> {
-    fn from(value: Moov) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Moov {
+    async fn marshal(
+        &self,
+        _: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        Ok(())
     }
 }
 
@@ -926,6 +1381,7 @@ impl From<Moov> for Box<dyn ImmutableBox> {
 pub const TYPE_MVEX: BoxType = *b"mvex";
 
 pub struct Mvex;
+impl_from!(Mvex);
 
 impl ImmutableBox for Mvex {
     fn box_type(&self) -> BoxType {
@@ -935,15 +1391,21 @@ impl ImmutableBox for Mvex {
     fn size(&self) -> usize {
         0
     }
+}
 
-    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Mvex {
+    fn marshal(&self, _: &mut dyn Write) -> Result<(), Mp4Error> {
         Ok(())
     }
 }
 
-impl From<Mvex> for Box<dyn ImmutableBox> {
-    fn from(value: Mvex) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Mvex {
+    async fn marshal(
+        &self,
+        _: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        Ok(())
     }
 }
 
@@ -964,6 +1426,7 @@ pub struct Mvhd {
     pub pre_defined: [i32; 6],
     pub next_track_id: u32,
 }
+impl_from!(Mvhd);
 
 pub enum MvhdVersion {
     V0(MvhdV0),
@@ -1000,8 +1463,10 @@ impl ImmutableBox for Mvhd {
             MvhdVersion::V1(_) => 112,
         }
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Mvhd {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         match &self.version {
             MvhdVersion::V0(v) => {
                 w.write_all(&[0])?;
@@ -1041,9 +1506,48 @@ impl ImmutableBox for Mvhd {
     }
 }
 
-impl From<Mvhd> for Box<dyn ImmutableBox> {
-    fn from(value: Mvhd) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Mvhd {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        match &self.version {
+            MvhdVersion::V0(v) => {
+                w.write_all(&[0]).await?;
+                w.write_all(&self.flags).await?;
+                w.write_all(&v.creation_time.to_be_bytes()).await?;
+                w.write_all(&v.modification_time.to_be_bytes()).await?;
+                w.write_all(&self.timescale.to_be_bytes()).await?;
+                w.write_all(&v.duration.to_be_bytes()).await?;
+            }
+            MvhdVersion::V1(v) => {
+                w.write_all(&[1]).await?;
+                w.write_all(&self.flags).await?;
+                w.write_all(&v.creation_time.to_be_bytes()).await?;
+                w.write_all(&v.modification_time.to_be_bytes()).await?;
+                w.write_all(&self.timescale.to_be_bytes()).await?;
+                w.write_all(&v.duration.to_be_bytes()).await?;
+            }
+        }
+
+        w.write_all(&self.rate.to_be_bytes()).await?;
+        w.write_all(&self.volume.to_be_bytes()).await?;
+        w.write_all(&self.reserved.to_be_bytes()).await?;
+
+        for reserved in &self.reserved2 {
+            w.write_all(&reserved.to_be_bytes()).await?;
+        }
+        for matrix in &self.matrix {
+            w.write_all(&matrix.to_be_bytes()).await?;
+        }
+        for pre_defined in &self.pre_defined {
+            w.write_all(&pre_defined.to_be_bytes()).await?;
+        }
+
+        w.write_all(&self.next_track_id.to_be_bytes()).await?;
+
+        Ok(())
     }
 }
 
@@ -1056,11 +1560,23 @@ pub struct SampleEntry {
 }
 
 impl SampleEntry {
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         for reserved in &self.reserved {
             w.write_all(&reserved.to_be_bytes())?;
         }
         w.write_all(&self.data_reference_index.to_be_bytes())?;
+        Ok(())
+    }
+
+    async fn marshal2(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        for reserved in &self.reserved {
+            w.write_all(&reserved.to_be_bytes()).await?;
+        }
+        w.write_all(&self.data_reference_index.to_be_bytes())
+            .await?;
         Ok(())
     }
 }
@@ -1085,6 +1601,7 @@ pub struct Avc1 {
     pub depth: u16,
     pub pre_defined3: i16,
 }
+impl_from!(Avc1);
 
 impl ImmutableBox for Avc1 {
     fn box_type(&self) -> BoxType {
@@ -1094,8 +1611,10 @@ impl ImmutableBox for Avc1 {
     fn size(&self) -> usize {
         78
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Avc1 {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.sample_entry.marshal(w)?;
         w.write_all(&self.pre_defined.to_be_bytes())?;
         w.write_all(&self.reserved.to_be_bytes())?;
@@ -1115,9 +1634,28 @@ impl ImmutableBox for Avc1 {
     }
 }
 
-impl From<Avc1> for Box<dyn ImmutableBox> {
-    fn from(value: Avc1) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Avc1 {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.sample_entry.marshal2(w).await?;
+        w.write_all(&self.pre_defined.to_be_bytes()).await?;
+        w.write_all(&self.reserved.to_be_bytes()).await?;
+        for pre_defined in &self.pre_defined2 {
+            w.write_all(&pre_defined.to_be_bytes()).await?;
+        }
+        w.write_all(&self.width.to_be_bytes()).await?;
+        w.write_all(&self.height.to_be_bytes()).await?;
+        w.write_all(&self.horiz_resolution.to_be_bytes()).await?;
+        w.write_all(&self.vert_resolution.to_be_bytes()).await?;
+        w.write_all(&self.reserved2.to_be_bytes()).await?;
+        w.write_all(&self.frame_count.to_be_bytes()).await?;
+        w.write_all(&self.compressor_name).await?;
+        w.write_all(&self.depth.to_be_bytes()).await?;
+        w.write_all(&self.pre_defined3.to_be_bytes()).await?;
+        Ok(())
     }
 }
 
@@ -1136,13 +1674,26 @@ impl AvcParameterSet {
         self.0.len() + 2
     }
 
-    fn marshal_field(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+    fn marshal_field(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         w.write_all(
             &u16::try_from(self.0.len())
                 .map_err(|e| Mp4Error::FromInt("parameter set".to_owned(), e))?
                 .to_be_bytes(),
         )?;
         w.write_all(&self.0)?;
+        Ok(())
+    }
+    async fn marshal_field2(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        w.write_all(
+            &u16::try_from(self.0.len())
+                .map_err(|e| Mp4Error::FromInt("parameter set".to_owned(), e))?
+                .to_be_bytes(),
+        )
+        .await?;
+        w.write_all(&self.0).await?;
         Ok(())
     }
 }
@@ -1173,6 +1724,7 @@ pub struct AvcC {
     pub num_of_sequence_parameter_set_ext: u8,
     pub sequence_parameter_sets_ext: Vec<AvcParameterSet>,
 }
+impl_from!(AvcC);
 
 impl ImmutableBox for AvcC {
     fn box_type(&self) -> BoxType {
@@ -1195,8 +1747,10 @@ impl ImmutableBox for AvcC {
         }
         total
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for AvcC {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         w.write_all(&self.configuration_version.to_be_bytes())?;
         w.write_all(&self.profile.to_be_bytes())?;
         w.write_all(&self.profile_compatibility.to_be_bytes())?;
@@ -1231,9 +1785,52 @@ impl ImmutableBox for AvcC {
     }
 }
 
-impl From<AvcC> for Box<dyn ImmutableBox> {
-    fn from(value: AvcC) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for AvcC {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        w.write_all(&self.configuration_version.to_be_bytes())
+            .await?;
+        w.write_all(&self.profile.to_be_bytes()).await?;
+        w.write_all(&self.profile_compatibility.to_be_bytes())
+            .await?;
+        w.write_all(&self.level.to_be_bytes()).await?;
+        w.write_all(&[self.reserved << 2 | self.length_size_minus_one & 0b0000_0011])
+            .await?;
+        w.write_all(&[self.reserved2 << 5 | self.num_of_sequence_parameter_sets & 0b0001_1111])
+            .await?;
+        for sets in &self.sequence_parameter_sets {
+            sets.marshal_field2(w).await?;
+        }
+        w.write_all(&self.num_of_picture_parameter_sets.to_be_bytes())
+            .await?;
+        for sets in &self.picture_parameter_sets {
+            sets.marshal_field2(w).await?;
+        }
+        if self.high_profile_fields_enabled
+            && self.profile != AVC_HIGH_PROFILE
+            && self.profile != AVC_HIGH_10_PROFILE
+            && self.profile != AVC_HIGH_422_PROFILE
+            && self.profile != 144
+        {
+            panic!("fmp4 each values of profile and high_profile_fields_enabled are inconsistent")
+        }
+        if self.reserved3 != 0 {
+            w.write_all(&[self.reserved3 << 2 | self.chroma_format & 0b0000_0011])
+                .await?;
+            w.write_all(&[self.reserved4 << 3 | self.bitdepth_luma_minus_8 & 0b0000_0111])
+                .await?;
+            w.write_all(&[self.reserved5 << 3 | self.bitdepth_chroma_minus_8 & 0b0000_0111])
+                .await?;
+            w.write_all(&self.num_of_sequence_parameter_set_ext.to_be_bytes())
+                .await?;
+            for sets in &self.sequence_parameter_sets_ext {
+                sets.marshal_field2(w).await?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -1242,6 +1839,7 @@ impl From<AvcC> for Box<dyn ImmutableBox> {
 pub const TYPE_STBL: BoxType = *b"stbl";
 
 pub struct Stbl;
+impl_from!(Stbl);
 
 impl ImmutableBox for Stbl {
     fn box_type(&self) -> BoxType {
@@ -1251,15 +1849,21 @@ impl ImmutableBox for Stbl {
     fn size(&self) -> usize {
         0
     }
+}
 
-    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Stbl {
+    fn marshal(&self, _: &mut dyn Write) -> Result<(), Mp4Error> {
         Ok(())
     }
 }
 
-impl From<Stbl> for Box<dyn ImmutableBox> {
-    fn from(value: Stbl) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Stbl {
+    async fn marshal(
+        &self,
+        _: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        Ok(())
     }
 }
 
@@ -1272,6 +1876,7 @@ pub struct Stco {
     pub full_box: FullBox,
     pub chunk_offsets: Vec<u32>,
 }
+impl_from!(Stco);
 
 impl ImmutableBox for Stco {
     fn box_type(&self) -> BoxType {
@@ -1281,8 +1886,10 @@ impl ImmutableBox for Stco {
     fn size(&self) -> usize {
         8 + (self.chunk_offsets.len()) * 4
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Stco {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(
             &u32::try_from(self.chunk_offsets.len())
@@ -1296,9 +1903,23 @@ impl ImmutableBox for Stco {
     }
 }
 
-impl From<Stco> for Box<dyn ImmutableBox> {
-    fn from(value: Stco) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Stco {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(
+            &u32::try_from(self.chunk_offsets.len())
+                .map_err(|e| Mp4Error::FromInt("stco".to_owned(), e))?
+                .to_be_bytes(),
+        )
+        .await?;
+        for offset in &self.chunk_offsets {
+            w.write_all(&offset.to_be_bytes()).await?;
+        }
+        Ok(())
     }
 }
 
@@ -1314,10 +1935,20 @@ pub struct StscEntry {
 }
 
 impl StscEntry {
-    fn marshal_field(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+    fn marshal_field(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         w.write_all(&self.first_chunk.to_be_bytes())?;
         w.write_all(&self.samples_per_chunk.to_be_bytes())?;
         w.write_all(&self.sample_description_index.to_be_bytes())?;
+        Ok(())
+    }
+    async fn marshal_field2(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        w.write_all(&self.first_chunk.to_be_bytes()).await?;
+        w.write_all(&self.samples_per_chunk.to_be_bytes()).await?;
+        w.write_all(&self.sample_description_index.to_be_bytes())
+            .await?;
         Ok(())
     }
 }
@@ -1327,6 +1958,7 @@ pub struct Stsc {
     pub full_box: FullBox,
     pub entries: Vec<StscEntry>,
 }
+impl_from!(Stsc);
 
 impl ImmutableBox for Stsc {
     fn box_type(&self) -> BoxType {
@@ -1336,8 +1968,10 @@ impl ImmutableBox for Stsc {
     fn size(&self) -> usize {
         8 + self.entries.len() * 12
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Stsc {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(
             &u32::try_from(self.entries.len())
@@ -1351,9 +1985,23 @@ impl ImmutableBox for Stsc {
     }
 }
 
-impl From<Stsc> for Box<dyn ImmutableBox> {
-    fn from(value: Stsc) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Stsc {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(
+            &u32::try_from(self.entries.len())
+                .map_err(|e| Mp4Error::FromInt("stsc".to_owned(), e))?
+                .to_be_bytes(),
+        )
+        .await?; // Entry count.
+        for entry in &self.entries {
+            entry.marshal_field2(w).await?;
+        }
+        Ok(())
     }
 }
 
@@ -1365,6 +2013,7 @@ pub struct Stsd {
     pub full_box: FullBox,
     pub entry_count: u32,
 }
+impl_from!(Stsd);
 
 impl ImmutableBox for Stsd {
     fn box_type(&self) -> BoxType {
@@ -1374,17 +2023,25 @@ impl ImmutableBox for Stsd {
     fn size(&self) -> usize {
         8
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Stsd {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(&self.entry_count.to_be_bytes())?;
         Ok(())
     }
 }
 
-impl From<Stsd> for Box<dyn ImmutableBox> {
-    fn from(value: Stsd) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Stsd {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(&self.entry_count.to_be_bytes()).await?;
+        Ok(())
     }
 }
 
@@ -1396,6 +2053,7 @@ pub struct Stss {
     pub full_box: FullBox,
     pub sample_numbers: Vec<u32>,
 }
+impl_from!(Stss);
 
 impl ImmutableBox for Stss {
     fn box_type(&self) -> BoxType {
@@ -1405,8 +2063,10 @@ impl ImmutableBox for Stss {
     fn size(&self) -> usize {
         8 + self.sample_numbers.len() * 4
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Stss {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(
             &u32::try_from(self.sample_numbers.len())
@@ -1420,9 +2080,23 @@ impl ImmutableBox for Stss {
     }
 }
 
-impl From<Stss> for Box<dyn ImmutableBox> {
-    fn from(value: Stss) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Stss {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(
+            &u32::try_from(self.sample_numbers.len())
+                .map_err(|e| Mp4Error::FromInt("stss".to_owned(), e))?
+                .to_be_bytes(),
+        )
+        .await?; // Entry count.
+        for number in &self.sample_numbers {
+            w.write_all(&number.to_be_bytes()).await?;
+        }
+        Ok(())
     }
 }
 
@@ -1437,6 +2111,7 @@ pub struct Stsz {
     pub sample_count: u32,
     pub entry_sizes: Vec<u32>,
 }
+impl_from!(Stsz);
 
 impl ImmutableBox for Stsz {
     fn box_type(&self) -> BoxType {
@@ -1446,8 +2121,10 @@ impl ImmutableBox for Stsz {
     fn size(&self) -> usize {
         12 + self.entry_sizes.len() * 4
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Stsz {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(&self.sample_size.to_be_bytes())?;
         w.write_all(&self.sample_count.to_be_bytes())?;
@@ -1458,9 +2135,19 @@ impl ImmutableBox for Stsz {
     }
 }
 
-impl From<Stsz> for Box<dyn ImmutableBox> {
-    fn from(value: Stsz) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Stsz {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(&self.sample_size.to_be_bytes()).await?;
+        w.write_all(&self.sample_count.to_be_bytes()).await?;
+        for entry in &self.entry_sizes {
+            w.write_all(&entry.to_be_bytes()).await?;
+        }
+        Ok(())
     }
 }
 
@@ -1473,6 +2160,7 @@ pub struct Stts {
     pub full_box: FullBox,
     pub entries: Vec<SttsEntry>,
 }
+impl_from!(Stts);
 
 #[derive(Clone)]
 pub struct SttsEntry {
@@ -1481,9 +2169,17 @@ pub struct SttsEntry {
 }
 
 impl SttsEntry {
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         w.write_all(&self.sample_count.to_be_bytes())?;
         w.write_all(&self.sample_delta.to_be_bytes())?;
+        Ok(())
+    }
+    async fn marshal2(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        w.write_all(&self.sample_count.to_be_bytes()).await?;
+        w.write_all(&self.sample_delta.to_be_bytes()).await?;
         Ok(())
     }
 }
@@ -1496,8 +2192,10 @@ impl ImmutableBox for Stts {
     fn size(&self) -> usize {
         8 + self.entries.len() * 8
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Stts {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(
             &u32::try_from(self.entries.len())
@@ -1511,9 +2209,23 @@ impl ImmutableBox for Stts {
     }
 }
 
-impl From<Stts> for Box<dyn ImmutableBox> {
-    fn from(value: Stts) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Stts {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(
+            &u32::try_from(self.entries.len())
+                .map_err(|e| Mp4Error::FromInt("stts".to_owned(), e))?
+                .to_be_bytes(),
+        )
+        .await?;
+        for entry in &self.entries {
+            entry.marshal2(w).await?;
+        }
+        Ok(())
     }
 }
 
@@ -1525,6 +2237,7 @@ pub struct Tfdt {
     pub flags: [u8; 3],
     pub base_media_decode_time: TfdtBaseMediaDecodeTime,
 }
+impl_from!(Tfdt);
 
 pub enum TfdtBaseMediaDecodeTime {
     V0(u32),
@@ -1542,8 +2255,10 @@ impl ImmutableBox for Tfdt {
             TfdtBaseMediaDecodeTime::V1(_) => 12,
         }
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Tfdt {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         match self.base_media_decode_time {
             TfdtBaseMediaDecodeTime::V0(v) => {
                 w.write_all(&[0])?;
@@ -1560,9 +2275,25 @@ impl ImmutableBox for Tfdt {
     }
 }
 
-impl From<Tfdt> for Box<dyn ImmutableBox> {
-    fn from(value: Tfdt) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Tfdt {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        match self.base_media_decode_time {
+            TfdtBaseMediaDecodeTime::V0(v) => {
+                w.write_all(&[0]).await?;
+                w.write_all(&self.flags).await?;
+                w.write_all(&v.to_be_bytes()).await?;
+            }
+            TfdtBaseMediaDecodeTime::V1(v) => {
+                w.write_all(&[1]).await?;
+                w.write_all(&self.flags).await?;
+                w.write_all(&v.to_be_bytes()).await?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -1582,6 +2313,7 @@ pub struct Tfhd {
     pub default_sample_size: u32,
     pub default_sample_flags: u32,
 }
+impl_from!(Tfhd);
 
 pub const TFHD_BASE_DATA_OFFSET_PRESENT: u32 = 0x0000_0001;
 pub const TFHD_SAMPLE_DESCRIPTION_INDEX_PRESENT: u32 = 0x0000_0002;
@@ -1619,9 +2351,11 @@ impl ImmutableBox for Tfhd {
         }
         total
     }
+}
 
+impl ImmutableBoxSync for Tfhd {
     // Marshal box to writer.
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(&self.track_id.to_be_bytes())?;
         if self.full_box.check_flag(TFHD_BASE_DATA_OFFSET_PRESENT) {
@@ -1649,9 +2383,39 @@ impl ImmutableBox for Tfhd {
     }
 }
 
-impl From<Tfhd> for Box<dyn ImmutableBox> {
-    fn from(value: Tfhd) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Tfhd {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(&self.track_id.to_be_bytes()).await?;
+        if self.full_box.check_flag(TFHD_BASE_DATA_OFFSET_PRESENT) {
+            w.write_all(&self.base_data_offset.to_be_bytes()).await?;
+        }
+        if self
+            .full_box
+            .check_flag(TFHD_SAMPLE_DESCRIPTION_INDEX_PRESENT)
+        {
+            w.write_all(&self.sample_descroption_index.to_be_bytes())
+                .await?;
+        }
+        if self
+            .full_box
+            .check_flag(TFHD_DEFAULT_SAMPLE_DURATION_PRESENT)
+        {
+            w.write_all(&self.default_sample_duration.to_be_bytes())
+                .await?;
+        }
+        if self.full_box.check_flag(TFHD_DEFAULT_SAMPLE_SIZE_PRESENT) {
+            w.write_all(&self.default_sample_size.to_be_bytes()).await?;
+        }
+        if self.full_box.check_flag(TFHD_DEFAULT_SAMPLE_FLAGS_PRESENT) {
+            w.write_all(&self.default_sample_flags.to_be_bytes())
+                .await?;
+        }
+        Ok(())
     }
 }
 
@@ -1674,6 +2438,7 @@ pub struct Tkhd {
     pub width: u32,       // fixed-point 16.16
     pub height: u32,      // fixed-point 16.16
 }
+impl_from!(Tkhd);
 
 pub enum TkhdVersion {
     V0(TkhdV0),
@@ -1710,8 +2475,10 @@ impl ImmutableBox for Tkhd {
             TkhdVersion::V1(_) => 96,
         }
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Tkhd {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         match &self.version {
             TkhdVersion::V0(v) => {
                 w.write_all(&[0])?;
@@ -1750,9 +2517,47 @@ impl ImmutableBox for Tkhd {
     }
 }
 
-impl From<Tkhd> for Box<dyn ImmutableBox> {
-    fn from(value: Tkhd) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Tkhd {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        match &self.version {
+            TkhdVersion::V0(v) => {
+                w.write_all(&[0]).await?;
+                w.write_all(&self.flags).await?;
+                w.write_all(&v.creation_time.to_be_bytes()).await?;
+                w.write_all(&v.modification_time.to_be_bytes()).await?;
+                w.write_all(&self.track_id.to_be_bytes()).await?;
+                w.write_all(&self.reserved0.to_be_bytes()).await?;
+                w.write_all(&v.duration.to_be_bytes()).await?;
+            }
+            TkhdVersion::V1(v) => {
+                w.write_all(&[1]).await?;
+                w.write_all(&self.flags).await?;
+                w.write_all(&v.creation_time.to_be_bytes()).await?;
+                w.write_all(&v.modification_time.to_be_bytes()).await?;
+                w.write_all(&self.track_id.to_be_bytes()).await?;
+                w.write_all(&self.reserved0.to_be_bytes()).await?;
+                w.write_all(&v.duration.to_be_bytes()).await?;
+            }
+        }
+
+        for reserved in &self.reserved1 {
+            w.write_all(&reserved.to_be_bytes()).await?;
+        }
+        w.write_all(&self.layer.to_be_bytes()).await?;
+        w.write_all(&self.alternate_group.to_be_bytes()).await?;
+        w.write_all(&self.volume.to_be_bytes()).await?;
+        w.write_all(&self.reserved2.to_be_bytes()).await?;
+        for matrix in &self.matrix {
+            w.write_all(&matrix.to_be_bytes()).await?;
+        }
+        w.write_all(&self.width.to_be_bytes()).await?;
+        w.write_all(&self.height.to_be_bytes()).await?;
+
+        Ok(())
     }
 }
 
@@ -1761,6 +2566,7 @@ impl From<Tkhd> for Box<dyn ImmutableBox> {
 pub const TYPE_TRAF: BoxType = *b"traf";
 
 pub struct Traf;
+impl_from!(Traf);
 
 impl ImmutableBox for Traf {
     fn box_type(&self) -> BoxType {
@@ -1770,15 +2576,21 @@ impl ImmutableBox for Traf {
     fn size(&self) -> usize {
         0
     }
+}
 
-    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Traf {
+    fn marshal(&self, _: &mut dyn Write) -> Result<(), Mp4Error> {
         Ok(())
     }
 }
 
-impl From<Traf> for Box<dyn ImmutableBox> {
-    fn from(value: Traf) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Traf {
+    async fn marshal(
+        &self,
+        _: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        Ok(())
     }
 }
 
@@ -1787,6 +2599,7 @@ impl From<Traf> for Box<dyn ImmutableBox> {
 pub const TYPE_TRAK: BoxType = *b"trak";
 
 pub struct Trak;
+impl_from!(Trak);
 
 impl ImmutableBox for Trak {
     fn box_type(&self) -> BoxType {
@@ -1796,15 +2609,21 @@ impl ImmutableBox for Trak {
     fn size(&self) -> usize {
         0
     }
+}
 
-    fn marshal(&self, _: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Trak {
+    fn marshal(&self, _: &mut dyn Write) -> Result<(), Mp4Error> {
         Ok(())
     }
 }
 
-impl From<Trak> for Box<dyn ImmutableBox> {
-    fn from(value: Trak) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Trak {
+    async fn marshal(
+        &self,
+        _: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        Ok(())
     }
 }
 
@@ -1821,6 +2640,7 @@ pub struct Trex {
     pub default_sample_size: u32,
     pub default_sample_flags: u32,
 }
+impl_from!(Trex);
 
 impl ImmutableBox for Trex {
     fn box_type(&self) -> BoxType {
@@ -1830,8 +2650,10 @@ impl ImmutableBox for Trex {
     fn size(&self) -> usize {
         24
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Trex {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(&self.track_id.to_be_bytes())?;
         w.write_all(&self.default_sample_description_index.to_be_bytes())?;
@@ -1842,9 +2664,22 @@ impl ImmutableBox for Trex {
     }
 }
 
-impl From<Trex> for Box<dyn ImmutableBox> {
-    fn from(value: Trex) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Trex {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(&self.track_id.to_be_bytes()).await?;
+        w.write_all(&self.default_sample_description_index.to_be_bytes())
+            .await?;
+        w.write_all(&self.default_sample_duration.to_be_bytes())
+            .await?;
+        w.write_all(&self.default_sample_size.to_be_bytes()).await?;
+        w.write_all(&self.default_sample_flags.to_be_bytes())
+            .await?;
+        Ok(())
     }
 }
 
@@ -1879,7 +2714,7 @@ pub struct TrunEntryV0 {
 }
 
 impl TrunEntryV0 {
-    fn marshal_field(&self, w: &mut dyn std::io::Write, flags: [u8; 3]) -> Result<(), Mp4Error> {
+    fn marshal_field(&self, w: &mut dyn Write, flags: [u8; 3]) -> Result<(), Mp4Error> {
         if check_fullbox_flag(flags, TRUN_SAMPLE_DURATION_PRESENT) {
             w.write_all(&self.sample_duration.to_be_bytes())?;
         }
@@ -1894,6 +2729,26 @@ impl TrunEntryV0 {
         }
         Ok(())
     }
+    async fn marshal_field2(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+        flags: [u8; 3],
+    ) -> Result<(), Mp4Error> {
+        if check_fullbox_flag(flags, TRUN_SAMPLE_DURATION_PRESENT) {
+            w.write_all(&self.sample_duration.to_be_bytes()).await?;
+        }
+        if check_fullbox_flag(flags, TRUN_SAMPLE_SIZE_PRESENT) {
+            w.write_all(&self.sample_size.to_be_bytes()).await?;
+        }
+        if check_fullbox_flag(flags, TRUN_SAMPLE_FLAGS_PRESENT) {
+            w.write_all(&self.sample_flags.to_be_bytes()).await?;
+        }
+        if check_fullbox_flag(flags, TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT) {
+            w.write_all(&self.sample_composition_time_offset.to_be_bytes())
+                .await?;
+        }
+        Ok(())
+    }
 }
 
 pub struct TrunEntryV1 {
@@ -1904,7 +2759,7 @@ pub struct TrunEntryV1 {
 }
 
 impl TrunEntryV1 {
-    fn marshal_field(&self, w: &mut dyn std::io::Write, flags: [u8; 3]) -> Result<(), Mp4Error> {
+    fn marshal_field(&self, w: &mut dyn Write, flags: [u8; 3]) -> Result<(), Mp4Error> {
         if check_fullbox_flag(flags, TRUN_SAMPLE_DURATION_PRESENT) {
             w.write_all(&self.sample_duration.to_be_bytes())?;
         }
@@ -1916,6 +2771,26 @@ impl TrunEntryV1 {
         }
         if check_fullbox_flag(flags, TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT) {
             w.write_all(&self.sample_composition_time_offset.to_be_bytes())?;
+        }
+        Ok(())
+    }
+    async fn marshal_field2(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+        flags: [u8; 3],
+    ) -> Result<(), Mp4Error> {
+        if check_fullbox_flag(flags, TRUN_SAMPLE_DURATION_PRESENT) {
+            w.write_all(&self.sample_duration.to_be_bytes()).await?;
+        }
+        if check_fullbox_flag(flags, TRUN_SAMPLE_SIZE_PRESENT) {
+            w.write_all(&self.sample_size.to_be_bytes()).await?;
+        }
+        if check_fullbox_flag(flags, TRUN_SAMPLE_FLAGS_PRESENT) {
+            w.write_all(&self.sample_flags.to_be_bytes()).await?;
+        }
+        if check_fullbox_flag(flags, TRUN_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT) {
+            w.write_all(&self.sample_composition_time_offset.to_be_bytes())
+                .await?;
         }
         Ok(())
     }
@@ -1930,6 +2805,7 @@ pub struct Trun {
     pub first_sample_flags: u32,
     pub entries: TrunEntries,
 }
+impl_from!(Trun);
 
 fn trun_field_size(fullbox_flags: [u8; 3]) -> usize {
     let mut total = 0;
@@ -1965,8 +2841,10 @@ impl ImmutableBox for Trun {
         total += field_size * self.entries.len();
         total
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Trun {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         match &self.entries {
             TrunEntries::V0(_) => w.write_all(&[0])?,
             TrunEntries::V1(_) => w.write_all(&[1])?,
@@ -1999,9 +2877,42 @@ impl ImmutableBox for Trun {
     }
 }
 
-impl From<Trun> for Box<dyn ImmutableBox> {
-    fn from(value: Trun) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Trun {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        match &self.entries {
+            TrunEntries::V0(_) => w.write_all(&[0]).await?,
+            TrunEntries::V1(_) => w.write_all(&[1]).await?,
+        }
+        w.write_all(&self.flags).await?;
+        w.write_all(
+            &u32::try_from(self.entries.len())
+                .map_err(|e| Mp4Error::FromInt("trun".to_owned(), e))?
+                .to_be_bytes(),
+        )
+        .await?;
+        if check_fullbox_flag(self.flags, TRUN_DATA_OFFSET_PRESENT) {
+            w.write_all(&self.data_offset.to_be_bytes()).await?;
+        }
+        if check_fullbox_flag(self.flags, TRUN_FIRST_SAMPLE_FLAGS_PRESENT) {
+            w.write_all(&self.first_sample_flags.to_be_bytes()).await?;
+        }
+        match &self.entries {
+            TrunEntries::V0(entries) => {
+                for entry in entries {
+                    entry.marshal_field2(w, self.flags).await?;
+                }
+            }
+            TrunEntries::V1(entries) => {
+                for entry in entries {
+                    entry.marshal_field2(w, self.flags).await?;
+                }
+            }
+        };
+        Ok(())
     }
 }
 
@@ -2015,6 +2926,7 @@ pub struct Vmhd {
     pub graphics_mode: u16, // template=0
     pub opcolor: [u16; 3],  // template={0, 0, 0}
 }
+impl_from!(Vmhd);
 
 impl ImmutableBox for Vmhd {
     fn box_type(&self) -> BoxType {
@@ -2024,8 +2936,10 @@ impl ImmutableBox for Vmhd {
     fn size(&self) -> usize {
         12
     }
+}
 
-    fn marshal(&self, w: &mut dyn std::io::Write) -> Result<(), Mp4Error> {
+impl ImmutableBoxSync for Vmhd {
+    fn marshal(&self, w: &mut dyn Write) -> Result<(), Mp4Error> {
         self.full_box.marshal_field(w)?;
         w.write_all(&self.graphics_mode.to_be_bytes())?;
         for color in &self.opcolor {
@@ -2035,8 +2949,17 @@ impl ImmutableBox for Vmhd {
     }
 }
 
-impl From<Vmhd> for Box<dyn ImmutableBox> {
-    fn from(value: Vmhd) -> Self {
-        Box::new(value)
+#[async_trait]
+impl ImmutableBoxAsync for Vmhd {
+    async fn marshal(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send + Sync),
+    ) -> Result<(), Mp4Error> {
+        self.full_box.marshal_field2(w).await?;
+        w.write_all(&self.graphics_mode.to_be_bytes()).await?;
+        for color in &self.opcolor {
+            w.write_all(&color.to_be_bytes()).await?;
+        }
+        Ok(())
     }
 }

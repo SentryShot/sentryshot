@@ -18,6 +18,7 @@ common.path = "../common"
 hls.path = "../hls"
 mp4.path = "../mp4"
 
+async-trait.workspace = true
 axum.workspace = true
 sentryshot_padded_bytes.workspace = true
 serde.workspace = true

@@ -272,12 +272,15 @@ async fn execute_query(
     assert_eq!(last.end().ok_or(End)?, q.end.into());
 
     let mut meta = Vec::new();
-    let mdat_size = usize::try_from(generate_mp4(
-        &mut meta,
-        q.start.into(),
-        recs.iter().flat_map(|v| &v.samples),
-        &params.expect("should be Some"),
-    )?)
+    let mdat_size = usize::try_from(
+        generate_mp4(
+            &mut meta,
+            q.start.into(),
+            recs.iter().flat_map(|v| &v.samples),
+            &params.expect("should be Some"),
+        )
+        .await?,
+    )
     .expect("u32 fit usize");
     let meta_size = meta.len();
 
