@@ -2,6 +2,7 @@
 
 import { jest } from "@jest/globals";
 
+import { NS_MILLISECOND } from "../libs/time.js";
 import { uidReset } from "../libs/common.js";
 import { newOptionsMenu, newOptionsBtn, newSelectMonitor } from "./optionsMenu.js";
 
@@ -65,7 +66,7 @@ describe("optionsGridSize", () => {
 describe("optionsDate", () => {
 	const setup = (content) => {
 		jest.useFakeTimers("modern");
-		jest.setSystemTime(Date.parse("2001-02-03T01:02:03+00:00"));
+		jest.setSystemTime(Date.parse("2001-02-03T01:02:03Z"));
 
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
@@ -175,10 +176,10 @@ describe("optionsDate", () => {
 		expect($minute.value).toBe("01");
 	});
 	test("applyAndReset", () => {
-		let month;
+		let time;
 		const content = {
-			setDate(date) {
-				month = date.getMonth();
+			setDate(t) {
+				time = t;
 			},
 		};
 		const [date, element] = setup(content);
@@ -186,10 +187,10 @@ describe("optionsDate", () => {
 
 		document.querySelector(".js-next-month").click();
 		document.querySelector(".js-apply").click();
-		expect(month).toBe(3);
+		expect(time).toBe(986259723000 * NS_MILLISECOND);
 
 		document.querySelector(".js-reset").click();
-		expect(month).toBe(1);
+		expect(time).toBe(981162123000 * NS_MILLISECOND);
 	});
 	test("popup", () => {
 		setup({ setDate() {} });

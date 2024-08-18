@@ -6,11 +6,15 @@ import {
 	getHashParam,
 	removeEmptyValues,
 } from "./libs/common.js";
+import { NS_MILLISECOND } from "./libs/time.js";
 import { newPlayer } from "./components/player.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
 
-/** @typedef {import("./components/player.js").Player} Player */
-/** @typedef {import("./components/player.js").RecordingData} RecordingData */
+/**
+ * @typedef {import("./components/player.js").Player} Player
+ * @typedef {import("./components/player.js").RecordingData} RecordingData
+ * @typedef {import("./libs/time.js").UnixNano} UnixNano
+ */
 
 async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 	let selectedMonitors = [];
@@ -133,6 +137,7 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 
 	return {
 		reset: reset,
+		/** @param {UnixNano} date */
 		setDate(date) {
 			selectedDate = dateToID(date);
 			reset();
@@ -162,17 +167,19 @@ function idToISOstring(id) {
 	);
 }
 
-function dateToID(d) {
+/** @param {UnixNano} t */
+function dateToID(t) {
+	const d = new Date(t / NS_MILLISECOND);
 	const pad = (n) => {
 		return n < 10 ? "0" + n : n;
 	};
 
-	const YY = d.getFullYear(),
-		MM = pad(d.getMonth() + 1),
-		DD = pad(d.getDate()), // Day.
-		hh = pad(d.getHours()),
-		mm = pad(d.getMinutes()),
-		ss = pad(d.getSeconds());
+	const YY = d.getUTCFullYear(),
+		MM = pad(d.getUTCMonth() + 1),
+		DD = pad(d.getUTCDate()), // Day.
+		hh = pad(d.getUTCHours()),
+		mm = pad(d.getUTCMinutes()),
+		ss = pad(d.getUTCSeconds());
 
 	return `${YY}-${MM}-${DD}_${hh}-${mm}-${ss}_x`;
 }

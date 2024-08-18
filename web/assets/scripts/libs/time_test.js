@@ -1,6 +1,279 @@
-import { toUTC, fromUTC, fromUTC2 } from "./time.js";
+import { newTime, fromUTC, fromUTC2 } from "./time.js";
 
-describe("toAndFromUTC", () => {
+describe("Time", () => {
+	test("format", () => {
+		const time = newTime(Date.parse("2000-01-02T03:04:05.006Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 08:49:05.006");
+	});
+	test("set noop", () => {
+		const time = newTime(Date.parse("2000-01-02T03:04:05.006Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 08:49:05.006");
+		time.setMilliseconds(6);
+		time.setSeconds(5);
+		time.setMinutes(49);
+		time.setHours(8);
+		time.setDate(2);
+		time.setMonth(0);
+		time.setYear(2000);
+		expect(time.format()).toBe("2000-01-02 08:49:05.006");
+	});
+	test("setMilliseconds", () => {
+		const time = newTime(Date.parse("2000-01-02T03:04:05.006Z"), "Asia/Katmandu");
+		time.setMilliseconds(123);
+		expect(time.format()).toBe("2000-01-02 08:49:05.123");
+	});
+	test("setSeconds", () => {
+		const time = newTime(Date.parse("2000-01-02T03:04:05.006Z"), "Asia/Katmandu");
+		time.setSeconds(12);
+		expect(time.format()).toBe("2000-01-02 08:49:12.006");
+	});
+	test("setMinutes", () => {
+		const time = newTime(Date.parse("2000-01-01T19:04:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 00:49:00.000");
+
+		time.setMinutes(0);
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+
+		time.setMinutes(30);
+		expect(time.format()).toBe("2000-01-02 00:30:00.000");
+
+		time.setMinutes(59);
+		expect(time.format()).toBe("2000-01-02 00:59:00.000");
+	});
+	test("setHours", () => {
+		const time = newTime(Date.parse("2000-01-02T03:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 09:00:00.000");
+
+		time.setHours(0);
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+
+		time.setHours(12);
+		expect(time.format()).toBe("2000-01-02 12:00:00.000");
+
+		time.setHours(23);
+		expect(time.format()).toBe("2000-01-02 23:00:00.000");
+	});
+	test("setDate", () => {
+		const time = newTime(Date.parse("2000-01-01T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+
+		time.setDate(1);
+		expect(time.format()).toBe("2000-01-01 00:00:00.000");
+
+		time.setDate(15);
+		expect(time.format()).toBe("2000-01-15 00:00:00.000");
+
+		time.setDate(31);
+		expect(time.format()).toBe("2000-01-31 00:00:00.000");
+	});
+	test("setMonth", () => {
+		const time = newTime(Date.parse("2000-01-01T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+
+		time.setMonth(0);
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+
+		time.setMonth(1);
+		expect(time.format()).toBe("2000-02-02 00:00:00.000");
+
+		time.setMonth(2);
+		expect(time.format()).toBe("2000-03-02 00:00:00.000");
+
+		time.setMonth(3);
+		expect(time.format()).toBe("2000-04-02 00:00:00.000");
+
+		time.setMonth(4);
+		expect(time.format()).toBe("2000-05-02 00:00:00.000");
+
+		time.setMonth(5);
+		expect(time.format()).toBe("2000-06-02 00:00:00.000");
+
+		time.setMonth(11);
+		expect(time.format()).toBe("2000-12-02 00:00:00.000");
+
+		time.setMonth(5);
+		expect(time.format()).toBe("2000-06-02 00:00:00.000");
+
+		time.setMonth(4);
+		expect(time.format()).toBe("2000-05-02 00:00:00.000");
+
+		time.setMonth(0);
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+	});
+	test("setMonth max day", () => {
+		const time = newTime(Date.parse("2001-01-30T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2001-01-31 00:00:00.000");
+
+		time.setMonth(1);
+		expect(time.format()).toBe("2001-02-28 00:00:00.000");
+	});
+	test("setYear", () => {
+		const time = newTime(Date.parse("2000-01-01T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+
+		time.setYear(2005);
+		expect(time.format()).toBe("2005-01-02 00:00:00.000");
+
+		time.setYear(1995);
+		expect(time.format()).toBe("1995-01-02 00:00:00.000");
+
+		time.setYear(3000);
+		expect(time.format()).toBe("3000-01-02 00:00:00.000");
+	});
+	test("setYear leap day", () => {
+		const time = newTime(Date.parse("2000-02-28T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-02-29 00:00:00.000");
+
+		time.setYear(2001);
+		expect(time.format()).toBe("2001-02-28 00:00:00.000");
+	});
+	test("setYear leap day2", () => {
+		const time = newTime(Date.parse("2000-02-28T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-02-29 00:00:00.000");
+
+		time.setYear(2004);
+		expect(time.format()).toBe("2004-02-29 00:00:00.000");
+	});
+	test("nextMonth", () => {
+		const time = newTime(Date.parse("2000-10-01T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-10-02 00:00:00.000");
+
+		time.nextMonth();
+		expect(time.format()).toBe("2000-11-02 00:00:00.000");
+
+		time.nextMonth();
+		expect(time.format()).toBe("2000-12-02 00:00:00.000");
+
+		time.nextMonth();
+		expect(time.format()).toBe("2001-01-02 00:00:00.000");
+
+		time.nextMonth();
+		expect(time.format()).toBe("2001-02-02 00:00:00.000");
+	});
+	test("nextMonth max day", () => {
+		const time = newTime(Date.parse("2001-01-30T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2001-01-31 00:00:00.000");
+
+		time.nextMonth();
+		expect(time.format()).toBe("2001-02-28 00:00:00.000");
+	});
+	test("prevMonth", () => {
+		const time = newTime(Date.parse("2000-03-01T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-03-02 00:00:00.000");
+
+		time.prevMonth();
+		expect(time.format()).toBe("2000-02-02 00:00:00.000");
+
+		time.prevMonth();
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+
+		time.prevMonth();
+		expect(time.format()).toBe("1999-12-02 00:00:00.000");
+
+		time.prevMonth();
+		expect(time.format()).toBe("1999-11-02 00:00:00.000");
+	});
+	test("prevMonth max day", () => {
+		const time = newTime(Date.parse("2001-03-30T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2001-03-31 00:00:00.000");
+
+		time.prevMonth();
+		expect(time.format()).toBe("2001-02-28 00:00:00.000");
+	});
+	test("nextYear", () => {
+		const time = newTime(Date.parse("2000-01-01T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+
+		time.nextYear();
+		expect(time.format()).toBe("2001-01-02 00:00:00.000");
+
+		time.nextYear();
+		expect(time.format()).toBe("2002-01-02 00:00:00.000");
+
+		time.nextYear();
+		expect(time.format()).toBe("2003-01-02 00:00:00.000");
+
+		time.nextYear();
+		expect(time.format()).toBe("2004-01-02 00:00:00.000");
+	});
+	test("nextYear leap day", () => {
+		const time = newTime(Date.parse("2000-02-28T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-02-29 00:00:00.000");
+
+		time.nextYear();
+		expect(time.format()).toBe("2001-02-28 00:00:00.000");
+	});
+	test("prevYear", () => {
+		const time = newTime(Date.parse("2000-01-01T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+
+		time.prevYear();
+		expect(time.format()).toBe("1999-01-02 00:00:00.000");
+
+		time.prevYear();
+		expect(time.format()).toBe("1998-01-02 00:00:00.000");
+
+		time.prevYear();
+		expect(time.format()).toBe("1997-01-02 00:00:00.000");
+
+		time.prevYear();
+		expect(time.format()).toBe("1996-01-02 00:00:00.000");
+	});
+	test("prevYear leap day", () => {
+		const time = newTime(Date.parse("2000-02-28T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-02-29 00:00:00.000");
+
+		time.prevYear();
+		expect(time.format()).toBe("1999-02-28 00:00:00.000");
+	});
+	test("getDay", () => {
+		const time = newTime(Date.parse("2000-01-01T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+		expect(time.getDay()).toBe(0);
+
+		time.setDate(3);
+		expect(time.getDay()).toBe(1);
+
+		time.setDate(4);
+		expect(time.getDay()).toBe(2);
+
+		time.setDate(5);
+		expect(time.getDay()).toBe(3);
+
+		time.setDate(6);
+		expect(time.getDay()).toBe(4);
+
+		time.setDate(7);
+		expect(time.getDay()).toBe(5);
+
+		time.setDate(8);
+		expect(time.getDay()).toBe(6);
+	});
+	test("getFirstDayInMonth", () => {
+		const time = newTime(Date.parse("2000-01-01T18:15:00.000Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 00:00:00.000");
+		expect(time.firstDayInMonth()).toBe(6);
+
+		time.setDate(1);
+		expect(time.format()).toBe("2000-01-01 00:00:00.000");
+		expect(time.getDay()).toBe(6);
+	});
+	test("getAll", () => {
+		const time = newTime(Date.parse("2000-01-01T21:19:05.006Z"), "Asia/Katmandu");
+		expect(time.format()).toBe("2000-01-02 03:04:05.006");
+
+		expect(time.getDay()).toBe(0);
+		expect(time.getMilliseconds()).toBe(6);
+		expect(time.getSeconds()).toBe(5);
+		expect(time.getMinutes()).toBe(4);
+		expect(time.getHours()).toBe(3);
+		expect(time.getDate()).toBe(2);
+		expect(time.getMonth()).toBe(0);
+		expect(time.getFullYear()).toBe(2000);
+	});
+});
+
+describe("fromUTC", () => {
 	test("summer", () => {
 		const run = (expected, timeZone) => {
 			const date = new Date("2001-01-02T00:00:00.000000Z");
@@ -8,10 +281,6 @@ describe("toAndFromUTC", () => {
 			const actual = `DAY:${localTime.getUTCDate()} HOUR:${localTime.getUTCHours()}`;
 
 			expect(actual).toEqual(expected);
-
-			const utc = toUTC(localTime, timeZone);
-			expect(utc.getUTCDate()).toBe(2);
-			expect(utc.getUTCHours()).toBe(0);
 		};
 
 		run("DAY:2 HOUR:9", "Asia/Tokyo");
@@ -26,10 +295,6 @@ describe("toAndFromUTC", () => {
 			const actual = `DAY:${localTime.getUTCDate()} HOUR:${localTime.getUTCHours()}`;
 
 			expect(actual).toEqual(expected);
-
-			const utc = toUTC(localTime, timeZone);
-			expect(utc.getUTCDate()).toBe(2);
-			expect(utc.getUTCHours()).toBe(0);
 		};
 		run("DAY:2 HOUR:9", "Asia/Tokyo");
 		run("DAY:2 HOUR:8", "Asia/Shanghai");
@@ -53,11 +318,6 @@ describe("toAndFromUTC", () => {
 		const actual = print(localTime);
 		const expected = "22:4:5.6";
 		expect(actual).toEqual(expected);
-
-		const utc = toUTC(localTime, "America/New_York");
-		const actual2 = print(utc);
-		const expected2 = "3:4:5.6";
-		expect(actual2).toEqual(expected2);
 	});
 	test("fromUTCerror", () => {
 		let alerted = false;
@@ -67,16 +327,6 @@ describe("toAndFromUTC", () => {
 
 		const date = new Date("2001-01-02T03:04:05.006+00:00");
 		fromUTC(date, "nil");
-		expect(alerted).toBe(true);
-	});
-	test("toUTCerror", () => {
-		let alerted = false;
-		window.alert = () => {
-			alerted = true;
-		};
-
-		const date = new Date("2001-01-02T03:04:05.006+00:00");
-		toUTC(date, "nil");
 		expect(alerted).toBe(true);
 	});
 });

@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import { sortByName, uniqueID } from "../libs/common.js";
-import { toUTC } from "../libs/time.js";
+import { newTimeNow } from "../libs/time.js";
 import { newModalSelect } from "../components/modal.js";
+
+/**
+ * @typedef {import("../libs/time.js").Time} Time
+ * @typedef {import("../libs/time.js").UnixNano} UnixNano
+ */
 
 /**
  * @typedef {Object} Button
@@ -190,54 +195,9 @@ const months = [
 	"December",
 ];
 
-/** @param {Date} date */
-function toMonthString(date) {
-	return months[date.getMonth()];
-}
-
-/** @param {string} input */
-function fromMonthString(input) {
-	for (const i in months) {
-		if (months[i] === input) {
-			return Number(i);
-		}
-	}
-}
-
-/**
- * @param {string} input
- * @return {[string, boolean]}
- */
-function nextMonth(input) {
-	for (const i in months) {
-		if (months[i] === input) {
-			if (Number(i) == 11) {
-				return [months[0], true];
-			}
-			return [months[Number(i) + 1], false];
-		}
-	}
-}
-
-/**
- * @param {string} input
- * @return {[string, boolean]}
- */
-function prevMonth(input) {
-	for (const i in months) {
-		if (months[i] === input) {
-			if (Number(i) == 0) {
-				return [months[11], true];
-			}
-			return [months[Number(i) - 1], false];
-		}
-	}
-}
-
-/** @param {Date} date */
-function daysInMonth(date) {
-	const d = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-	return d.getDate();
+/** @param {Time} time */
+function toMonthString(time) {
+	return months[time.getMonth()];
 }
 
 const datePickerHTML = `
@@ -251,7 +211,50 @@ const datePickerHTML = `
 				<img class="icon" src="assets/icons/feather/chevron-right.svg">
 			</button>
 		</div>
-		<div class="date-picker-calendar js-calendar"></div>
+		<div class="date-picker-calendar js-calendar">
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+			<button class="date-picker-day-btn">00</button>
+		</div>
 		<div class="date-picker-hour">
 			<div class="date-picker-hour-buttons">
 				<button class="date-picker-hour-btn js-next-hour">
@@ -295,7 +298,7 @@ const datePickerHTML = `
 
 /**
  * @typedef {Object} DatePickerContent
- * @property {(date: Date) => void} setDate
+ * @property {(date: UnixNano) => void} setDate
  */
 
 /**
@@ -303,71 +306,63 @@ const datePickerHTML = `
  * @param {DatePickerContent} content
  */
 function newDatePicker(timeZone, content) {
-	let $month, $calendar, $hour, $minute;
+	/** @type {Element} */
+	let $month;
+	/** @type {Element} */
+	let $calendar;
+	/** @type {HTMLButtonElement[]} */
+	let dayBtns;
+	/** @type {HTMLInputElement} */
+	let $hour;
+	/** @type {HTMLInputElement} */
+	let $minute;
 
-	/** @return {number} */
-	const getDay = () => {
-		for (const child of $calendar.children) {
-			if (child.classList.contains("date-picker-day-selected")) {
-				return child.innerHTML.trim();
-			}
+	/** @type {Time} */
+	let t;
+
+	// Writes the time state to the DOM.
+	const update = () => {
+		const year2 = t.getFullYear();
+		const month2 = toMonthString(t);
+		$month.textContent = `${year2} ${month2}`;
+		$hour.value = pad(t.getHours());
+		$minute.value = pad(t.getMinutes());
+
+		// Set day.
+		let day = (t.firstDayInMonth() - 2) * -1;
+		if (day > 1) {
+			day -= 7;
 		}
-	};
+		const daysInMonth = t.daysInMonth();
+		const selectedDay = t.getDate();
 
-	/** @param {Date} date */
-	const setDay = (date) => {
-		const firstDay = new Date(date.getTime());
-		firstDay.setDate(1);
-		let day = (firstDay.getDay() - 2) * -1;
-		if (day > 0) {
-			day = day - 7;
-		}
-		const nDays = daysInMonth(date);
-
-		let daysHTML = "";
 		for (let i = 0; i < 7 * 6; i++) {
-			const text = day > 0 && day <= nDays ? day : "";
-			if (day == date.getDate()) {
-				daysHTML += `
-						<button class="date-picker-day-btn date-picker-day-selected">
-							${text}
-						</button>`;
-				day++;
-				continue;
+			const btn = dayBtns[i];
+			if (day == selectedDay) {
+				btn.classList.add("date-picker-day-selected");
+			} else {
+				btn.classList.remove("date-picker-day-selected");
 			}
-			daysHTML += `<button class="date-picker-day-btn">${text}</button>`;
+			btn.textContent = day > 0 && day <= daysInMonth ? String(day) : "";
 			day++;
 		}
-		$calendar.innerHTML = daysHTML;
 	};
 
-	const getDate = () => {
-		const [year, monthString] = $month.innerHTML.split(" ");
-		const month = fromMonthString(monthString);
-		const day = getDay();
-		const hour = $hour.value;
-		const minute = $minute.value;
-
-		return new Date(year, month, day, hour, minute);
-	};
-
-	/** @param {Date} date */
-	const setDate = (date) => {
-		const year = date.getFullYear();
-		const month = toMonthString(date);
-		$month.textContent = `${year} ${month}`;
-		setDay(date);
-		$hour.value = pad(date.getHours());
-		$minute.value = pad(date.getMinutes());
+	// The hour and minute are not synced when pressed.
+	const readHourAndMinute = () => {
+		t.setHours(Number($hour.value));
+		t.setMinutes(Number($minute.value));
 	};
 
 	const apply = () => {
-		content.setDate(toUTC(getDate(), timeZone));
+		readHourAndMinute();
+		update();
+		content.setDate(t.unixNano());
 	};
 
 	const reset = () => {
-		const now = new Date(new Date().toLocaleString("en-US", { timeZone: timeZone }));
-		setDate(now);
+		t = newTimeNow(timeZone);
+		update();
 	};
 
 	return {
@@ -378,44 +373,35 @@ function newDatePicker(timeZone, content) {
 
 			$month = $parent.querySelector(".js-month");
 			$calendar = $parent.querySelector(".js-calendar");
+			// @ts-ignore
+			dayBtns = $calendar.querySelectorAll("button");
 			$hour = $parent.querySelector(".js-hour");
 			$minute = $parent.querySelector(".js-minute");
 
 			$parent.querySelector(".js-prev-month").addEventListener("click", () => {
-				let [year, month] = $month.innerHTML.split(" ");
-				let [month2, prevYear] = prevMonth(month);
-				if (prevYear) {
-					year--;
-				}
-				$month.textContent = `${year} ${month2}`;
-				setDay(new Date(year, fromMonthString(month2), getDay()));
+				readHourAndMinute();
+				t.prevMonth();
+				update();
 			});
 			$parent.querySelector(".js-next-month").addEventListener("click", () => {
-				let [year, month] = $month.innerHTML.split(" ");
-				let [month2, nextYear] = nextMonth(month);
-				if (nextYear) {
-					year++;
-				}
-				$month.textContent = `${year} ${month2}`;
-				setDay(new Date(year, fromMonthString(month2), getDay()));
+				readHourAndMinute();
+				t.nextMonth();
+				update();
 			});
 
 			$calendar.addEventListener("click", (e) => {
+				readHourAndMinute();
 				const target = e.target;
 				if (target instanceof HTMLElement) {
 					if (!target.classList.contains("date-picker-day-btn")) {
 						return;
 					}
-
 					if (target.innerHTML === "") {
 						return;
 					}
-
-					for (const child of $calendar.children) {
-						child.classList.remove("date-picker-day-selected");
-					}
-					target.classList.add("date-picker-day-selected");
+					t.setDate(Number(target.textContent));
 				}
+				update();
 			});
 
 			$parent.querySelector(".js-next-hour").addEventListener("click", () => {
@@ -434,6 +420,15 @@ function newDatePicker(timeZone, content) {
 				}
 				$hour.value = pad(Number(hour) - 1);
 			});
+			$parent.querySelector(".js-hour").addEventListener("change", (e) => {
+				const target = e.target;
+				if (target instanceof HTMLInputElement) {
+					const value = Number(target.value);
+					if (value < 10) {
+						target.value = "0" + value;
+					}
+				}
+			});
 
 			$parent.querySelector(".js-next-minute").addEventListener("click", () => {
 				const minute = $minute.value;
@@ -447,9 +442,19 @@ function newDatePicker(timeZone, content) {
 				const minute = $minute.value;
 				if (minute === "00") {
 					$minute.value = "59";
+					t.setMinutes(59);
 					return;
 				}
 				$minute.value = pad(Number(minute) - 1);
+			});
+			$parent.querySelector(".js-minute").addEventListener("change", (e) => {
+				const target = e.target;
+				if (target instanceof HTMLInputElement) {
+					const value = Number(target.value);
+					if (value < 10) {
+						target.value = "0" + value;
+					}
+				}
 			});
 
 			$parent.querySelector(".js-apply").addEventListener("click", () => {
@@ -624,10 +629,10 @@ function newSelectOne(options, onSelect, alias) {
 
 /**
  * @param {number} n
- * @return string
+ * @return {string}
  */
 function pad(n) {
-	return n < 10 ? "0" + n : n;
+	return n < 10 ? "0" + n : String(n);
 }
 
 export { newOptionsMenu, newOptionsBtn, newOptionsPopup, newSelectOne, newSelectMonitor };

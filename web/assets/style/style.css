@@ -350,7 +350,7 @@ img {
 
 .date-picker-month-btn img {
 	aspect-ratio: 1;
-	height: 1rem;
+	height: 0.9rem;
 }
 
 .date-picker-month-label {
@@ -400,6 +400,8 @@ img {
 .date-picker-hour {
 	display: flex;
 	justify-content: center;
+	margin-top: 0.05rem;
+	margin-bottom: 0.05rem;
 }
 
 .date-picker-hour-btn {
@@ -442,7 +444,6 @@ img {
 .date-picker-bottom {
 	display: flex;
 	justify-content: space-around;
-	margin-top: 0.2rem;
 }
 
 .date-picker-bottom-btn {

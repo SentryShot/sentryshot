@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+import { NS_MILLISECOND } from "./libs/time.js";
 import { newMonitorNameByID } from "./libs/common.js";
 import { newViewer } from "./recordings.js";
 
@@ -87,7 +88,7 @@ describe("newViewer", () => {
 			return mockFetch();
 		};
 
-		viewer.setDate(new Date("2000-01-02T03:04:05.000000"));
+		viewer.setDate(new Date("2000-01-02T03:04:05Z").getTime() * NS_MILLISECOND);
 		expect(fetchCalled).toBe(true);
 	});
 });
