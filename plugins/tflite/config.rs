@@ -4,7 +4,7 @@ use crate::detector::{DetectorName, Thresholds};
 use common::{
     monitor::MonitorConfig,
     recording::{denormalize, DurationSec, FeedRateSec},
-    PolygonNormalized,
+    DynMsgLogger, LogLevel, PolygonNormalized,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -48,7 +48,12 @@ pub(crate) struct Mask {
 }
 
 impl TfliteConfig {
-    pub(crate) fn parse(raw: serde_json::Value) -> Result<Option<TfliteConfig>, serde_json::Error> {
+    #[allow(clippy::needless_pass_by_value)]
+
+    pub(crate) fn parse(
+        raw: serde_json::Value,
+        logger: DynMsgLogger,
+    ) -> Result<Option<TfliteConfig>, serde_json::Error> {
         #[derive(Deserialize)]
         struct Temp {
             tflite: serde_json::Value,
@@ -65,6 +70,10 @@ impl TfliteConfig {
         let enable = c.enable;
         if !enable {
             return Ok(None);
+        }
+
+        if c.thresholds.is_empty() {
+            logger.log(LogLevel::Warning, "no thresholds are set");
         }
 
         //timestampOffset, err := ffmpeg.ParseTimestampOffset(c.Get("timestampOffset"))
@@ -195,7 +204,7 @@ impl CropSize {
 
 #[derive(Debug, Error)]
 pub(crate) enum ParseCropSizeError {
-    #[error("crop size cannot be larger than 99")]
+    #[error("crop size cannot be larger than 100")]
     TooLarge(u16),
 
     #[error("crop size cannot be zero")]
@@ -208,7 +217,7 @@ impl TryFrom<u32> for CropSize {
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         use ParseCropSizeError::*;
         let value = denormalize(value, 100);
-        if value > 99 {
+        if value > 100 {
             return Err(TooLarge(value));
         }
         Ok(Self(NonZeroU16::new(value).ok_or(Zero)?))
@@ -246,10 +255,14 @@ pub(crate) fn set_enable(config: &MonitorConfig, value: bool) -> Option<MonitorC
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{time::Duration, PointNormalized};
+    use common::{time::Duration, DummyLogger, PointNormalized};
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::collections::HashMap;
+
+    fn parse(raw: &serde_json::Value) -> Option<TfliteConfig> {
+        TfliteConfig::parse(raw.clone(), DummyLogger::new()).unwrap()
+    }
 
     #[test]
     fn test_parse_config_ok() {
@@ -266,7 +279,7 @@ mod tests {
             }
         });
 
-        let got = TfliteConfig::parse(raw).unwrap().unwrap();
+        let got = parse(&raw).unwrap();
 
         let want = TfliteConfig {
             thresholds: HashMap::from([(
@@ -296,13 +309,13 @@ mod tests {
     #[test]
     fn test_parse_config_empty() {
         let raw = serde_json::Value::String(String::new());
-        assert!(TfliteConfig::parse(raw).unwrap().is_none());
+        assert!(parse(&raw).is_none());
     }
 
     #[test]
     fn test_parse_config_empty2() {
         let raw = json!({"tflite": {}});
-        assert!(TfliteConfig::parse(raw).unwrap().is_none());
+        assert!(parse(&raw).is_none());
     }
 
     #[test]
@@ -330,12 +343,12 @@ mod tests {
             }
         });
         let config: MonitorConfig = serde_json::from_value(y).unwrap();
-        assert!(TfliteConfig::parse(config.raw().clone()).unwrap().is_some());
+        assert!(parse(config.raw()).is_some());
 
         let config = set_enable(&config, false).unwrap();
-        assert!(TfliteConfig::parse(config.raw().clone()).unwrap().is_none());
+        assert!(parse(config.raw()).is_none());
 
         let config = set_enable(&config, true).unwrap();
-        assert!(TfliteConfig::parse(config.raw().clone()).unwrap().is_some());
+        assert!(parse(config.raw()).is_some());
     }
 }

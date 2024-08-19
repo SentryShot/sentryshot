@@ -242,7 +242,7 @@ impl TflitePlugin {
         use StartError::*;
         let config = monitor.config();
 
-        let Some(config) = TfliteConfig::parse(config.raw().clone())? else {
+        let Some(config) = TfliteConfig::parse(config.raw().clone(), msg_logger.clone())? else {
             // Object detection is disabled.
             return Ok(());
         };

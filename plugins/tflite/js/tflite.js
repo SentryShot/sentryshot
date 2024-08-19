@@ -17,10 +17,10 @@ import { newPolygonEditor } from "./components/polygonEditor.js";
 
 /** @typedef {import("./components/form.js").Form} Form */
 
-const Detectors = JSON.parse(`$detectorsJSON`);
-
 /** @param {() => string} getMonitorId */
 export function tflite(getMonitorId) {
+	const Detectors = JSON.parse(`$detectorsJSON`);
+
 	// @ts-ignore
 	const monitorsInfo = MonitorsInfo; // eslint-disable-line no-undef
 
@@ -51,7 +51,7 @@ export function tflite(getMonitorId) {
  * @param {() => string} getMonitorId
  * @returns {Field<any>}
  */
-function _tflite(hls, detectors, hasSubStream, getMonitorId) {
+export function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 	let detectorNames = Object.keys(detectors);
 
 	let fields = {};
@@ -90,9 +90,11 @@ function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 
 	let value = {};
 
+	/** @type {Element} */
+	let element;
+
 	let isRendered = false;
-	/** @param {Element} element */
-	const render = (element) => {
+	const render = () => {
 		if (isRendered) {
 			return;
 		}
@@ -105,7 +107,13 @@ function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 		form.init($modalContent);
 
 		isRendered = true;
+		value = value === undefined ? {} : value;
 		form.set(value);
+	};
+
+	const open = () => {
+		render();
+		modal.open();
 	};
 
 	const id = uniqueID();
@@ -128,7 +136,7 @@ function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 			return value;
 		},
 		set(input) {
-			value = input === undefined ? {} : input;
+			value = input;
 			if (isRendered) {
 				form.set(value);
 			}
@@ -144,11 +152,14 @@ function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 			return;
 		},
 		init() {
-			const element = document.querySelector(`#${id}`);
+			element = document.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				render(element);
-				modal.open();
+				open();
 			});
+		},
+		// @ts-ignore
+		_open() {
+			open();
 		},
 	};
 }
@@ -311,7 +322,7 @@ function thresholds(detectors, getDetectorName) {
 		},
 		set(input) {
 			value = input ? input : {};
-			validateErr = "";
+			validateErr = undefined;
 		},
 		validate() {
 			return validateErr;
@@ -361,11 +372,8 @@ function crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName) {
 
 	const modal = newModal("Crop");
 
-	/**
-	 * @param {Element} element
-	 * @param {string} feedHTML
-	 */
-	const renderModal = (element, feedHTML) => {
+	/** @param {string} feedHTML */
+	const renderModal = (feedHTML) => {
 		const html = `
 			<li id="tfliteCrop-preview" class="form-field">
 				<label class="form-field-label" for="tfliteCrop-preview" style="width: auto;">Preview</label>
@@ -578,7 +586,7 @@ function crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName) {
 					$feed.innerHTML = feed.html;
 					$overlay.innerHTML = renderPreviewOverlay();
 				} else {
-					renderModal(element, feed.html);
+					renderModal(feed.html);
 					modal.onClose(() => {
 						feed.destroy();
 					});
@@ -592,20 +600,28 @@ function crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName) {
 	};
 }
 
-/** @param {Crop} crop */
+/**
+ * @param {Crop} crop
+ * @returns {Crop}
+ */
 function normalizeCrop(crop) {
-	crop.x = normalize(crop.x, 100);
-	crop.y = normalize(crop.y, 100);
-	crop.size = normalize(crop.size, 100);
-	return crop;
+	return {
+		x: normalize(crop.x, 100),
+		y: normalize(crop.y, 100),
+		size: normalize(crop.size, 100),
+	};
 }
 
-/** @param {Crop} crop */
+/**
+ * @param {Crop} crop
+ * @returns {Crop}
+ */
 function denormalizeCrop(crop) {
-	crop.x = denormalize(crop.x, 100);
-	crop.y = denormalize(crop.y, 100);
-	crop.size = denormalize(crop.size, 100);
-	return crop;
+	return {
+		x: denormalize(crop.x, 100),
+		y: denormalize(crop.y, 100),
+		size: denormalize(crop.size, 100),
+	};
 }
 
 /**
@@ -632,11 +648,8 @@ function mask(hls, hasSubStream, getMonitorId) {
 
 	let editor;
 
-	/**
-	 * @param {Element} element
-	 * @param {string} feedHTML
-	 */
-	const renderModal = (element, feedHTML) => {
+	/** @param {string} feedHTML */
+	const renderModal = (feedHTML) => {
 		const html = `
 			<li class="js-enable tfliteMask-enabled form-field">
 				<label class="form-field-label" for="tfliteMask-enable">Enable mask</label>
@@ -890,7 +903,7 @@ function mask(hls, hasSubStream, getMonitorId) {
 					// Update feed.
 					$feed.innerHTML = feed.html;
 				} else {
-					renderModal(element, feed.html);
+					renderModal(feed.html);
 					modal.onClose(() => {
 						feed.destroy();
 					});
@@ -904,22 +917,30 @@ function mask(hls, hasSubStream, getMonitorId) {
 	};
 }
 
-/** @param {Mask} mask */
+/**
+ * @param {Mask} mask
+ * @returns {Mask}
+ */
 function denormalizeMask(mask) {
-	for (let i = 0; i < mask.area.length; i++) {
-		const [x, y] = mask.area[i];
-		mask.area[i] = [denormalize(x, 100), denormalize(y, 100)];
-	}
-	return mask;
+	return {
+		enable: mask.enable,
+		area: mask.area.map(([x, y]) => {
+			return [denormalize(x, 100), denormalize(y, 100)];
+		}),
+	};
 }
 
-/** @param {Mask} mask */
+/**
+ * @param {Mask} mask
+ * @returns {Mask}
+ */
 function normalizeMask(mask) {
-	for (let i = 0; i < mask.area.length; i++) {
-		const [x, y] = mask.area[i];
-		mask.area[i] = [normalize(x, 100), normalize(y, 100)];
-	}
-	return mask;
+	return {
+		enable: mask.enable,
+		area: mask.area.map(([x, y]) => {
+			return [normalize(x, 100), normalize(y, 100)];
+		}),
+	};
 }
 
 /*function preview() {

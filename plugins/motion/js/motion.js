@@ -35,7 +35,7 @@ export function motion(getMonitorId) {
  * @param {() => string} getMonitorId
  * @returns {Field<any>}
  */
-function _motion(hls, hasSubStream, getMonitorId) {
+export function _motion(hls, hasSubStream, getMonitorId) {
 	const fields = {
 		enable: fieldTemplate.toggle("Enable motion detection", false),
 		feedRate: fieldTemplate.integer("Feed rate (fps)", "", "2"),
@@ -53,9 +53,11 @@ function _motion(hls, hasSubStream, getMonitorId) {
 
 	let value = {};
 
+	/** @type {Element} */
+	let element;
+
 	let isRendered = false;
-	/** @param {Element} element */
-	const render = (element) => {
+	const render = () => {
 		if (isRendered) {
 			return;
 		}
@@ -68,7 +70,13 @@ function _motion(hls, hasSubStream, getMonitorId) {
 		form.init($modalContent);
 
 		isRendered = true;
+		value = value === undefined ? {} : value;
 		form.set(value);
+	};
+
+	const open = () => {
+		render();
+		modal.open();
 	};
 
 	const id = uniqueID();
@@ -93,7 +101,7 @@ function _motion(hls, hasSubStream, getMonitorId) {
 			return value;
 		},
 		set(input) {
-			value = input === undefined ? {} : input;
+			value = input;
 			if (isRendered) {
 				form.set(value);
 			}
@@ -109,13 +117,16 @@ function _motion(hls, hasSubStream, getMonitorId) {
 			return;
 		},
 		init() {
-			const element = document.querySelector("#" + id);
+			element = document.querySelector(`#${id}`);
 			element
 				.querySelector(".form-field-edit-btn")
 				.addEventListener("click", () => {
-					render(element);
-					modal.open();
+					open();
 				});
+		},
+		// @ts-ignore
+		_open() {
+			open();
 		},
 	};
 }
@@ -128,8 +139,8 @@ function _motion(hls, hasSubStream, getMonitorId) {
  * @property {boolean} enable
  * @property {boolean} preview
  * @property {number} sensitivity
- * @property {number} thresholdMax
  * @property {number} thresholdMin
+ * @property {number} thresholdMax
  */
 
 /** @param {string} feedHTML */
@@ -750,26 +761,42 @@ function newZone($parent, value, stepSize, onChange) {
 	};
 }
 
-/** @param {ZoneData[]} zones  */
+/**
+ * @param {ZoneData[]} zones
+ * @returns {ZoneData[]}
+ */
 function normalizeZones(zones) {
-	for (const zone of zones) {
-		for (let i = 0; i < zone.area.length; i++) {
-			const [x, y] = zone.area[i];
-			zone.area[i] = [normalize(x, 100), normalize(y, 100)];
-		}
-	}
-	return zones;
+	return zones.map((z) => {
+		return {
+			area: z.area.map(([x, y]) => {
+				return [normalize(x, 100), normalize(y, 100)];
+			}),
+			enable: z.enable,
+			preview: z.preview,
+			sensitivity: z.sensitivity,
+			thresholdMin: z.thresholdMin,
+			thresholdMax: z.thresholdMax,
+		};
+	});
 }
 
-/** @param {ZoneData[]} zones  */
+/**
+ * @param {ZoneData[]} zones
+ * @returns {ZoneData[]}
+ */
 function denormalizeZones(zones) {
-	for (const zone of zones) {
-		for (let i = 0; i < zone.area.length; i++) {
-			const [x, y] = zone.area[i];
-			zone.area[i] = [denormalize(x, 100), denormalize(y, 100)];
-		}
-	}
-	return zones;
+	return zones.map((z) => {
+		return {
+			area: z.area.map(([x, y]) => {
+				return [denormalize(x, 100), denormalize(y, 100)];
+			}),
+			enable: z.enable,
+			preview: z.preview,
+			sensitivity: z.sensitivity,
+			thresholdMin: z.thresholdMin,
+			thresholdMax: z.thresholdMax,
+		};
+	});
 }
 
 // CSS.

@@ -404,6 +404,10 @@ impl ILogger for DummyLogger {
     fn log(&self, _: LogEntry) {}
 }
 
+impl MsgLogger for DummyLogger {
+    fn log(&self, _level: LogLevel, _msg: &str) {}
+}
+
 // Thread safe dyn `Authenticator`.
 pub type DynAuth = Arc<dyn Authenticator + Send + Sync>;
 
