@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+import { uidReset } from "./libs/common.js";
 import { newViewer, resBtn } from "./live.js";
 
 class mockHls {
@@ -20,16 +21,17 @@ describe("resBtn", () => {
 		reset() {},
 	};
 	test("ok", () => {
+		uidReset();
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
 
-		const res = resBtn();
+		const res = resBtn(mockContent);
 		element.innerHTML = res.html;
 
-		const $btn = document.querySelector(".js-res");
+		const $btn = document.querySelector("button");
 		expect($btn.textContent).toBe("X");
 
-		res.init(element, mockContent);
+		res.init();
 		expect($btn.textContent).toBe("HD");
 
 		// @ts-ignore
@@ -48,11 +50,9 @@ describe("resBtn", () => {
 		expect(localStorage.getItem("preferLowRes")).toBe("true");
 	});
 	test("contentCalled", () => {
+		uidReset();
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
-
-		const res = resBtn();
-		element.innerHTML = res.html;
 
 		let preferLowCalled, resetCalled;
 		const content = {
@@ -64,15 +64,19 @@ describe("resBtn", () => {
 			},
 		};
 
-		res.init(element, content);
+		const res = resBtn(content);
+		element.innerHTML = res.html;
+
+		res.init();
 		// @ts-ignore
-		document.querySelector(".js-res").click();
+		document.querySelector("button").click();
 		expect(preferLowCalled).toBe(true);
 		expect(resetCalled).toBe(true);
 	});
 });
 
 test("fullscreen", () => {
+	uidReset();
 	document.body.innerHTML = `<div></div>`;
 	const element = document.querySelector("div");
 	const viewer = newViewer(element, [{ enable: true }, { enable: true }], mockHls);

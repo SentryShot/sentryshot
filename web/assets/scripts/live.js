@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import Hls from "./vendor/hls.js";
-import { sortByName } from "./libs/common.js";
+import { uniqueID, sortByName } from "./libs/common.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
 import { newFeed, newFeedBtn } from "./components/feed.js";
 
-/** @typedef {import("./components/feed.js").FullscreenButton} FullscreenButton */
+/**
+ * @typedef {import("./components/feed.js").FullscreenButton} FullscreenButton
+ * @typedef {import("./components/optionsMenu.js").Button} Button
+ */
 
 function newViewer($parent, monitors, hls) {
 	let selectedMonitors = [];
@@ -32,8 +35,9 @@ function newViewer($parent, monitors, hls) {
 		setMonitors(input) {
 			selectedMonitors = input;
 		},
-		setPreferLowRes(bool) {
-			preferLowRes = bool;
+		/** @param {boolean} value */
+		setPreferLowRes(value) {
+			preferLowRes = value;
 		},
 		reset() {
 			for (const feed of feeds) {
@@ -84,7 +88,17 @@ function toAbsolutePath(input) {
 
 const preferLowResByDefault = false;
 
-function resBtn() {
+/**
+ * @typedef {Object} ResBtnContent
+ * @property {() => void} reset
+ * @property {(boolean) => void} setPreferLowRes
+ */
+
+/**
+ * @param {ResBtnContent} content
+ * @returns {Button}
+ */
+function resBtn(content) {
 	const getRes = () => {
 		const saved = localStorage.getItem("preferLowRes");
 		if (saved) {
@@ -92,7 +106,9 @@ function resBtn() {
 		}
 		return preferLowResByDefault;
 	};
-	let element, content;
+
+	/** @type {Element} */
+	let element;
 	const setRes = (preferLow) => {
 		localStorage.setItem("preferLowRes", preferLow);
 		if (preferLow) {
@@ -103,11 +119,13 @@ function resBtn() {
 			content.setPreferLowRes(false);
 		}
 	};
+
+	const id = uniqueID();
+
 	return {
-		html: `<button class="options-menu-btn js-res">X</button>`,
-		init($parent, c) {
-			content = c;
-			element = $parent.querySelector(".js-res");
+		html: `<button id=${id} class="options-menu-btn">X</button>`,
+		init() {
+			element = document.querySelector(`#${id}`);
 			element.addEventListener("click", () => {
 				setRes(!getRes());
 				content.reset();
@@ -128,7 +146,7 @@ function init() {
 
 	const buttons = [
 		newOptionsBtn.gridSize(viewer),
-		resBtn() /*newOptionsBtn.group(groups)*/,
+		resBtn(viewer) /*newOptionsBtn.group(groups)*/,
 	];
 	const optionsMenu = newOptionsMenu(buttons);
 	document.querySelector("#options-menu").innerHTML = optionsMenu.html();
