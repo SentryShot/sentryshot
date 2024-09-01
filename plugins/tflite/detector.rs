@@ -149,7 +149,7 @@ pub(crate) enum DetectError {
     #[error("detector did not repond in 1 second")]
     DetectorTimeout,
 
-    #[error("detection took longer than 1 second")]
+    #[error("detection took longer than 3 second")]
     DetectionTimeout,
 }
 
@@ -160,18 +160,18 @@ impl Detector {
         let (res_tx, res_rx) = oneshot::channel();
         let req = DetectRequest { data, res: res_tx };
 
-        let sleep = || {
+        let sleep = |secs: u64| {
             let _enter = self.rt_handle.enter();
-            tokio::time::sleep(Duration::from_secs(1))
+            tokio::time::sleep(Duration::from_secs(secs))
         };
         tokio::select!(
             _ = self.detect_tx.send(req) => {},
-            () = sleep() => return Err(DetectorTimeout),
+            () = sleep(1) => return Err(DetectorTimeout),
         );
 
         let res = tokio::select!(
             v = res_rx => v,
-            () = sleep() => return Err(DetectionTimeout),
+            () = sleep(3) => return Err(DetectionTimeout),
         );
         if let Ok(res) = res {
             Ok(Some(res?))

@@ -345,7 +345,7 @@ fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
     let tpl = String::from_utf8(tpl).unwrap();
     let tpl = tpl.replace(
         TARGET,
-        &("monitorFields.motion = motion(getMonitorId)\n".to_owned() + TARGET),
+        &("monitorFields.motion = motion(getMonitorId);\n".to_owned() + TARGET),
     );
     let tpl = IMPORT_STATEMENT.to_owned() + &tpl;
     tpl.as_bytes().to_owned()
