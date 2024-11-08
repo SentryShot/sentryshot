@@ -324,7 +324,11 @@ impl TflitePlugin {
         let rate_limiter =
             FrameRateLimiter::new(u64::try_from(*DurationH264::from(*config.feed_rate))?);
         let Some(feed) = source
-            .subscribe_decoded(self.rt_handle.clone(), Some(rate_limiter))
+            .subscribe_decoded(
+                self.rt_handle.clone(),
+                msg_logger.clone(),
+                Some(rate_limiter),
+            )
             .await
         else {
             // Cancelled.

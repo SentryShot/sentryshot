@@ -2137,9 +2137,9 @@ dependencies = [
 
 [[package]]
 name = "sentryshot_ffmpeg_h264"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "286a583b1df07f8d9c2320a400cf51d465f8efba1c089ad6e1b9133a21158f5b"
+checksum = "30ac935667e9cdef044378a936b467c808314a96032cf12ed688c63801e53ecc"
 dependencies = [
  "libc",
  "sentryshot_ffmpeg_h264_sys",

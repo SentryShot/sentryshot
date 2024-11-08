@@ -1,5 +1,6 @@
 ## unreleased
 
+-   make ffmpeg decode error a warning #41
 -   add vod api #1
 -   logdb: handle empty entries #37
 -   fix date picker

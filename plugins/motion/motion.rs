@@ -242,7 +242,7 @@ impl MotionPlugin {
         };
 
         let Some(feed) = source
-            .subscribe_decoded(self.rt_handle.clone(), Some(limiter))
+            .subscribe_decoded(self.rt_handle.clone(), msg_logger.clone(), Some(limiter))
             .await
         else {
             // Cancelled.

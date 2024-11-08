@@ -91,6 +91,7 @@ impl Source {
     pub async fn subscribe_decoded(
         &self,
         rt_handle: Handle,
+        logger: DynMsgLogger,
         limiter: Option<FrameRateLimiter>,
     ) -> Option<Result<FeedDecoded, SubscribeDecodedError>> {
         let feed = self.subscribe().await?;
@@ -103,7 +104,13 @@ impl Source {
             Ok(v) => v,
             Err(e) => return Some(Err(SubscribeDecodedError::NewH264Decoder(e))),
         };
-        Some(Ok(new_decoder(rt_handle, feed, h264_decoder, limiter)))
+        Some(Ok(new_decoder(
+            rt_handle,
+            logger,
+            feed,
+            h264_decoder,
+            limiter,
+        )))
     }
 }
 
@@ -540,6 +547,7 @@ pub enum DecoderError {
 
 fn new_decoder(
     rt_handle: Handle,
+    logger: DynMsgLogger,
     mut feed: Feed,
     mut h264_decoder: H264Decoder<Ready>,
     mut frame_rate_limiter: Option<FrameRateLimiter>,
@@ -564,20 +572,21 @@ fn new_decoder(
 
             // State juggling to avoid lifetime issue.
             let avcc = frame.avcc.clone();
-            let result = rt_handle
+            let result: Result<(), SendPacketError>;
+            (h264_decoder, result) = rt_handle
                 .spawn_blocking(move || {
-                    h264_decoder
-                        .send_packet(&Packet::new(&avcc).with_pts(*frame.pts))
-                        .map(|()| h264_decoder)
+                    let result = h264_decoder.send_packet(&Packet::new(&avcc).with_pts(*frame.pts));
+                    (h264_decoder, result)
                 })
                 .await
                 .expect("join");
-            h264_decoder = match result {
-                Ok(v) => v,
-                Err(e) => {
-                    _ = frame_tx.send(Err(SendFrame(e))).await;
-                    return;
+            if let Err(e) = result {
+                if let SendPacketError::Invaliddata = e {
+                    logger.log(LogLevel::Warning, "h264 decoder: send_packet: invalid data");
+                    continue;
                 }
+                _ = frame_tx.send(Err(SendFrame(e))).await;
+                return;
             };
 
             loop {

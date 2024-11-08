@@ -36,7 +36,7 @@ license = "GPL-2.0+"
 
 [workspace.dependencies]
 sentryshot_convert = "0.1.2"
-sentryshot_ffmpeg_h264 = "0.2.0"
+sentryshot_ffmpeg_h264 = "0.2.1"
 sentryshot_filter = "0.1.2"
 sentryshot_padded_bytes = "0.1.0"
 sentryshot_scale = "0.1.2"
