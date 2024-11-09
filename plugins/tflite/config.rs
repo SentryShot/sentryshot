@@ -4,7 +4,7 @@ use crate::detector::{DetectorName, Thresholds};
 use common::{
     monitor::MonitorConfig,
     recording::{denormalize, DurationSec, FeedRateSec},
-    DynMsgLogger, LogLevel, PolygonNormalized,
+    ArcMsgLogger, LogLevel, PolygonNormalized,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -52,7 +52,7 @@ impl TfliteConfig {
 
     pub(crate) fn parse(
         raw: serde_json::Value,
-        logger: DynMsgLogger,
+        logger: ArcMsgLogger,
     ) -> Result<Option<TfliteConfig>, serde_json::Error> {
         #[derive(Deserialize)]
         struct Temp {

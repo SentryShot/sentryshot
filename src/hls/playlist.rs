@@ -7,7 +7,7 @@ use crate::{
     DurationH264, HlsQuery,
 };
 use common::{
-    part_name, time::SECOND, DynLogger, LogEntry, LogLevel, PartFinalized, SegmentFinalized,
+    part_name, time::SECOND, ArcLogger, LogEntry, LogLevel, PartFinalized, SegmentFinalized,
 };
 use http::{HeaderName, HeaderValue, StatusCode};
 use std::{
@@ -89,7 +89,7 @@ impl Playlist {
     #[allow(clippy::too_many_lines)]
     pub fn new(
         token: CancellationToken,
-        logger: DynLogger,
+        logger: ArcLogger,
         segment_count: usize,
         muxer_id: u16,
     ) -> Self {
@@ -443,7 +443,7 @@ pub struct PlaylistDebugState {
 
 struct PlaylistState {
     is_cancelled: bool,
-    logger: DynLogger,
+    logger: ArcLogger,
     segment_count: usize,
     segments: VecDeque<SegmentOrGap>,
     segment_delete_count: usize,

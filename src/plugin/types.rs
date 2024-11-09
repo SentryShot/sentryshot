@@ -6,7 +6,7 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use common::{DynAuth, DynLogger, Username};
+use common::{ArcAuth, ArcLogger, Username};
 use http::{header, Request, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, path::Path};
@@ -30,7 +30,7 @@ pub enum NewAuthError {
 
 // Authenticator constructor function.
 pub type NewAuthFn =
-    fn(rt_handle: Handle, configs_dir: &Path, logger: DynLogger) -> Result<DynAuth, NewAuthError>;
+    fn(rt_handle: Handle, configs_dir: &Path, logger: ArcLogger) -> Result<ArcAuth, NewAuthError>;
 
 /// Main account definition.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -72,7 +72,7 @@ fn unauthorized() -> Response {
 }
 
 // Blocks unauthenticated requests.
-pub async fn user(State(auth): State<DynAuth>, request: Request<Body>, next: Next) -> Response {
+pub async fn user(State(auth): State<ArcAuth>, request: Request<Body>, next: Next) -> Response {
     let is_valid_user = auth.validate_request(request.headers()).await.is_some();
     if !is_valid_user {
         return unauthorized();
@@ -81,7 +81,7 @@ pub async fn user(State(auth): State<DynAuth>, request: Request<Body>, next: Nex
 }
 
 // Only allows authenticated requests from accounts with admin privileges.
-pub async fn admin(State(auth): State<DynAuth>, request: Request<Body>, next: Next) -> Response {
+pub async fn admin(State(auth): State<ArcAuth>, request: Request<Body>, next: Next) -> Response {
     match auth.validate_request(request.headers()).await {
         Some(valid_login) => {
             if !valid_login.is_admin {
@@ -96,7 +96,7 @@ pub async fn admin(State(auth): State<DynAuth>, request: Request<Body>, next: Ne
 // Blocks invalid Cross-site request forgery tokens.
 // Each account has a unique token. The request needs to
 // have a matching token in the "X-CSRF-TOKEN" header.
-pub async fn csrf(State(auth): State<DynAuth>, request: Request<Body>, next: Next) -> Response {
+pub async fn csrf(State(auth): State<ArcAuth>, request: Request<Body>, next: Next) -> Response {
     let valid_login = auth
         .validate_request(request.headers())
         .await

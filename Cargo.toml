@@ -129,6 +129,9 @@ strip = true
 strip = true
 
 
+[profile.release]
+lto = true
+
 
 [profile.bench]
 debug = true

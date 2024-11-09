@@ -6,8 +6,8 @@ use argon2::{
 };
 use async_trait::async_trait;
 use common::{
-    Account, AccountObfuscated, AccountSetRequest, AccountsMap, AuthAccountDeleteError,
-    AuthAccountSetError, AuthSaveToFileError, Authenticator, DynAuth, DynLogger, LogSource,
+    Account, AccountObfuscated, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger,
+    AuthAccountDeleteError, AuthAccountSetError, AuthSaveToFileError, Authenticator, LogSource,
     ValidateResponse,
 };
 use http::{HeaderMap, HeaderValue};
@@ -67,8 +67,8 @@ impl NoneAuth {
     pub fn new(
         rt_handle: Handle,
         configs_dir: &Path,
-        _: DynLogger,
-    ) -> Result<DynAuth, NewAuthError> {
+        _: ArcLogger,
+    ) -> Result<ArcAuth, NewAuthError> {
         use NewAuthError::*;
         let path = configs_dir.join("accounts.json");
         let path_string = path.to_string_lossy().to_string();

@@ -17,11 +17,11 @@ use axum::{
     Router,
 };
 use common::{
+    monitor::{ArcMonitor, ArcMonitorManager, ArcSource, DecoderError, SubscribeDecodedError},
     recording::FrameRateLimiter,
     time::{DurationH264, UnixNano},
-    DynAuth, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
+    ArcAuth, ArcLogger, ArcMsgLogger, Event, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
 };
-use monitor::{DecoderError, Monitor, MonitorManager, Source, SubscribeDecodedError};
 use plugin::{
     types::{admin, Assets},
     Application, Plugin, PreLoadPlugin,
@@ -67,9 +67,9 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
 pub struct MotionPlugin {
     rt_handle: Handle,
     _shutdown_complete_tx: mpsc::Sender<()>,
-    logger: DynLogger,
-    monitor_manager: MonitorManager,
-    auth: DynAuth,
+    logger: ArcLogger,
+    monitor_manager: ArcMonitorManager,
+    auth: ArcAuth,
 }
 
 const MOTION_MJS_FILE: &[u8] = include_bytes!("./js/motion.js");
@@ -87,7 +87,7 @@ impl Plugin for MotionPlugin {
         );
     }
 
-    async fn on_monitor_start(&self, token: CancellationToken, monitor: Arc<Monitor>) {
+    async fn on_monitor_start(&self, token: CancellationToken, monitor: ArcMonitor) {
         let msg_logger = Arc::new(MotionLogger {
             logger: self.logger.clone(),
             monitor_id: monitor.config().id().to_owned(),
@@ -125,7 +125,7 @@ impl Plugin for MotionPlugin {
 }
 
 struct MotionLogger {
-    logger: DynLogger,
+    logger: ArcLogger,
     monitor_id: MonitorId,
 }
 
@@ -165,8 +165,8 @@ impl MotionPlugin {
     async fn start(
         &self,
         token: CancellationToken,
-        msg_logger: DynMsgLogger,
-        monitor: Arc<Monitor>,
+        msg_logger: ArcMsgLogger,
+        monitor: ArcMonitor,
     ) -> Result<(), StartError> {
         let config = monitor.config();
 
@@ -207,10 +207,10 @@ impl MotionPlugin {
 
     async fn run(
         &self,
-        msg_logger: &DynMsgLogger,
-        monitor: &Arc<Monitor>,
+        msg_logger: &ArcMsgLogger,
+        monitor: &ArcMonitor,
         config: &MotionConfig,
-        source: &Arc<Source>,
+        source: &ArcSource,
     ) -> Result<(), RunError> {
         let Some(muxer) = source.muxer().await else {
             // Cancelled.
@@ -353,8 +353,8 @@ fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
 
 #[derive(Clone)]
 struct HandlerState {
-    logger: DynLogger,
-    monitor_manager: MonitorManager,
+    logger: ArcLogger,
+    monitor_manager: ArcMonitorManager,
 }
 
 async fn enable_handler(

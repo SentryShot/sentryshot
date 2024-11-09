@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::{source::Source, DynMonitorHooks};
+use crate::ArcMonitorHooks;
 use common::{
-    monitor::MonitorConfig,
+    monitor::{ArcSource, MonitorConfig},
     recording::{RecordingData, RecordingId},
     time::{DurationH264, UnixH264, UnixNano},
-    DynHlsMuxer, DynLogger, DynMsgLogger, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
+    ArcHlsMuxer, ArcLogger, ArcMsgLogger, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
     SegmentFinalized, TrackParameters,
 };
 use futures::Future;
@@ -32,10 +32,10 @@ use tokio_util::sync::CancellationToken;
 pub fn new_recorder(
     token: CancellationToken,
     shutdown_complete: mpsc::Sender<()>,
-    hooks: DynMonitorHooks,
-    logger: DynLogger,
+    hooks: ArcMonitorHooks,
+    logger: ArcLogger,
     monitor_id: MonitorId,
-    source_main: Arc<Source>,
+    source_main: ArcSource,
     config: MonitorConfig,
     rec_db: Arc<RecDb>,
 ) -> mpsc::Sender<Event> {
@@ -147,7 +147,7 @@ pub fn new_recorder(
 
 struct RecordingSession {
     token: CancellationToken,
-    logger: DynMsgLogger,
+    logger: ArcMsgLogger,
     timer_end: Option<UnixNano>,
     on_exit_rx: mpsc::Receiver<()>,
 }
@@ -258,9 +258,9 @@ enum RunRecordingError {
 
 #[derive(Clone)]
 struct RecordingContext {
-    hooks: DynMonitorHooks,
-    logger: DynMsgLogger,
-    source_main: Arc<Source>,
+    hooks: ArcMonitorHooks,
+    logger: ArcMsgLogger,
+    source_main: ArcSource,
     prev_seg: Arc<Mutex<Option<Arc<SegmentFinalized>>>>,
     config: MonitorConfig,
     rec_db: Arc<RecDb>,
@@ -370,7 +370,7 @@ enum GenerateVideoError {
 async fn generate_video(
     token: CancellationToken,
     recording: &RecordingHandle,
-    muxer: &DynHlsMuxer,
+    muxer: &ArcHlsMuxer,
     first_segment: Arc<SegmentFinalized>,
     params: &TrackParameters,
     max_duration: DurationH264,
@@ -460,8 +460,8 @@ enum GenerateThumbnailError {
 // The first h264 frame in firstSegment is wrapped in a mp4
 // container and piped into FFmpeg and then converted to jpeg.
 async fn generate_thumbnail(
-    hooks: DynMonitorHooks,
-    logger: &DynMsgLogger,
+    hooks: ArcMonitorHooks,
+    logger: &ArcMsgLogger,
     config: MonitorConfig,
     recording: &RecordingHandle,
     first_segment: &Arc<SegmentFinalized>,
@@ -528,7 +528,7 @@ enum AvccToJpegError {
 }
 
 fn avcc_to_jpeg(
-    hooks: &DynMonitorHooks,
+    hooks: &ArcMonitorHooks,
     config: &MonitorConfig,
     avcc: &PaddedBytes,
     extradata: PaddedBytes,
@@ -588,7 +588,7 @@ enum SaveRecordingError {
 }
 
 async fn save_recording(
-    logger: DynMsgLogger,
+    logger: ArcMsgLogger,
     rec_id: &RecordingId,
     recording: &RecordingHandle,
     event_cache: Arc<EventCache>,
@@ -653,12 +653,12 @@ impl EventCache {
 }
 
 struct RecorderMsgLogger {
-    logger: DynLogger,
+    logger: ArcLogger,
     monitor_id: MonitorId,
 }
 
 impl RecorderMsgLogger {
-    fn new(logger: DynLogger, monitor_id: MonitorId) -> Self {
+    fn new(logger: ArcLogger, monitor_id: MonitorId) -> Self {
         Self { logger, monitor_id }
     }
 }

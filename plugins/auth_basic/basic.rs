@@ -7,8 +7,8 @@ use argon2::{
 use async_trait::async_trait;
 use axum::{extract::State, response::IntoResponse, routing::get, Router};
 use common::{
-    Account, AccountObfuscated, AccountSetRequest, AccountsMap, AuthAccountDeleteError,
-    AuthAccountSetError, AuthSaveToFileError, Authenticator, DynAuth, DynLogger, LogEntry,
+    Account, AccountObfuscated, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger,
+    AuthAccountDeleteError, AuthAccountSetError, AuthSaveToFileError, Authenticator, LogEntry,
     LogLevel, LogSource, Username, ValidateLoginResponse, ValidateResponse,
 };
 use headers::authorization::{Basic, Credentials};
@@ -56,7 +56,7 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
 }
 
 struct AuthBasicPlugin {
-    auth: DynAuth,
+    auth: ArcAuth,
 }
 
 #[async_trait]
@@ -76,7 +76,7 @@ pub struct BasicAuth {
     // Limit parallel hashing operations to mitigate resource exhaustion attacks.
     hash_lock: Mutex<()>,
 
-    logger: DynLogger,
+    logger: ArcLogger,
     rt_handle: Handle,
 }
 
@@ -85,8 +85,8 @@ impl BasicAuth {
     pub fn new(
         rt_handle: Handle,
         configs_dir: &Path,
-        logger: DynLogger,
-    ) -> Result<DynAuth, NewAuthError> {
+        logger: ArcLogger,
+    ) -> Result<ArcAuth, NewAuthError> {
         use NewAuthError::*;
 
         let path = configs_dir.join("accounts.json");
@@ -392,7 +392,7 @@ fn edit_templates(tmpls: &mut Templates) {
 }
 
 #[allow(clippy::unwrap_used)]
-async fn logout(State(auth): State<DynAuth>, headers: HeaderMap) -> impl IntoResponse {
+async fn logout(State(auth): State<ArcAuth>, headers: HeaderMap) -> impl IntoResponse {
     let auth_is_valid = auth.validate_request(&headers).await.is_some();
     if auth_is_valid {
         (
@@ -434,7 +434,7 @@ func (a *Authenticator) MyToken() http.Handler {
 */
 
 // LogFailedLogin finds and logs the ip.
-pub fn log_failed_login(logger: &DynLogger, username: &str) {
+pub fn log_failed_login(logger: &ArcLogger, username: &str) {
     logger.log(LogEntry::new(
         LogLevel::Warning,
         "auth",

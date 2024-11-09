@@ -1,12 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#![allow(clippy::module_name_repetitions)]
+
 use crate::{
+    recording::{FrameRateLimiter, FrameRateLimiterError},
     time::{Duration, MINUTE},
-    MonitorId, NonEmptyString,
+    ArcHlsMuxer, ArcMsgLogger, Event, H264Data, MonitorId, NonEmptyString, StreamType,
 };
+use async_trait::async_trait;
+use sentryshot_ffmpeg_h264::{H264BuilderError, ReceiveFrameError, SendPacketError};
+use sentryshot_util::Frame;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::{collections::HashMap, ops::Deref, str::FromStr};
+use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 use thiserror::Error;
+use tokio::{
+    runtime::Handle,
+    sync::{broadcast, mpsc},
+};
+use tokio_util::sync::CancellationToken;
 use url::Url;
 
 #[allow(clippy::module_name_repetitions)]
@@ -247,4 +258,167 @@ impl Deref for RtspUrl {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+#[derive(Debug, Error)]
+pub enum DecoderError {
+    #[error("dropped frames")]
+    DroppedFrames,
+
+    #[error("{0}")]
+    SendFrame(#[from] SendPacketError),
+
+    #[error("receive frame: {0}")]
+    ReceiveFrame(#[from] ReceiveFrameError),
+
+    #[error("try from: {0}")]
+    TryFrom(#[from] std::num::TryFromIntError),
+
+    #[error("frame rate limiter: {0}")]
+    FrameRateLimiter(#[from] FrameRateLimiterError),
+}
+
+#[derive(Debug, Error)]
+pub enum SubscribeDecodedError {
+    #[error("new h264 decoder: {0}")]
+    NewH264Decoder(#[from] H264BuilderError),
+}
+
+// A 'broadcast' channel is used instead of a 'watch' channel to detect dropped frames.
+pub type Feed = broadcast::Receiver<H264Data>;
+pub type FeedDecoded = mpsc::Receiver<Result<Frame, DecoderError>>;
+
+pub type ArcSource = Arc<dyn Source + Send + Sync>;
+
+#[async_trait]
+pub trait Source {
+    #[must_use]
+    fn stream_type(&self) -> &StreamType;
+
+    // Returns the HLS muxer for this source. Will block until the source has started.
+    // Returns None if cancelled.
+    async fn muxer(&self) -> Option<ArcHlsMuxer>;
+
+    // Subscribe to the raw feed. Will block until the source has started.
+    async fn subscribe(&self) -> Option<Feed>;
+
+    // Subscribe to a decoded feed. Currently creates a new decoder for each
+    // call but this may change. Will block until the source has started.
+    // Will close channel when cancelled.
+    async fn subscribe_decoded(
+        &self,
+        rt_handle: Handle,
+        logger: ArcMsgLogger,
+        limiter: Option<FrameRateLimiter>,
+    ) -> Option<Result<FeedDecoded, SubscribeDecodedError>>;
+}
+
+pub type ArcMonitor = Arc<dyn IMonitor + Send + Sync>;
+
+#[async_trait]
+pub trait IMonitor {
+    fn config(&self) -> &MonitorConfig;
+
+    async fn stop(&self) {}
+
+    // Return sub stream if it exists otherwise returns main stream.
+    // Returns None if cancelled
+    async fn get_smallest_source(&self) -> Option<ArcSource>;
+
+    // Returns None if cancelled.
+    async fn source_main(&self) -> Option<ArcSource>;
+
+    // Returns None if cancelled and Some(None) if sub stream doesn't exist.
+    async fn source_sub(&self) -> Option<Option<ArcSource>>;
+
+    async fn send_event(&self, event: Event);
+}
+
+pub type ArcMonitorHooks = Arc<dyn MonitorHooks + Send + Sync>;
+
+#[async_trait]
+pub trait MonitorHooks {
+    async fn on_monitor_start(&self, token: CancellationToken, monitor: ArcMonitor);
+    // Blocking.
+    fn on_thumb_save(&self, config: &MonitorConfig, frame: Frame) -> Frame;
+}
+
+#[derive(Debug, Error)]
+pub enum MonitorRestartError {
+    #[error("monitor does not exist '{0}'")]
+    NotExist(String),
+}
+
+#[derive(Debug, Error)]
+pub enum MonitorSetError {
+    #[error("open file: {0}")]
+    OpenFile(std::io::Error),
+
+    #[error("serialize config: {0}")]
+    Serialize(#[from] serde_json::Error),
+
+    #[error("write config to file: {0}")]
+    WriteToFile(std::io::Error),
+
+    #[error("rename tempoary file: {0}")]
+    RenameTempFile(std::io::Error),
+}
+
+#[derive(Debug, Error)]
+pub enum MonitorSetAndRestartError {
+    #[error(transparent)]
+    Set(MonitorSetError),
+
+    #[error(transparent)]
+    Restart(MonitorRestartError),
+}
+
+#[derive(Debug, Error)]
+pub enum MonitorDeleteError {
+    #[error("monitor does not exist '{0}'")]
+    NotExist(String),
+
+    #[error("remove file: {0}")]
+    RemoveFile(#[from] std::io::Error),
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct MonitorInfo {
+    id: MonitorId,
+    name: NonEmptyString,
+    enable: bool,
+
+    #[serde(rename = "hasSubStream")]
+    has_sub_stream: bool,
+}
+
+impl MonitorInfo {
+    #[must_use]
+    pub fn new(id: MonitorId, name: NonEmptyString, enable: bool, has_sub_stream: bool) -> Self {
+        Self {
+            id,
+            name,
+            enable,
+            has_sub_stream,
+        }
+    }
+}
+
+pub type ArcMonitorManager = Arc<dyn IMonitorManager + Send + Sync>;
+
+#[async_trait]
+pub trait IMonitorManager {
+    async fn start_monitors(&self, hooks: ArcMonitorHooks);
+    async fn monitor_restart(&self, monitor_id: MonitorId) -> Result<(), MonitorRestartError>;
+    async fn monitor_set(&self, config: MonitorConfig) -> Result<bool, MonitorSetError>;
+    async fn monitor_set_and_restart(
+        &self,
+        config: MonitorConfig,
+    ) -> Result<bool, MonitorSetAndRestartError>;
+    async fn monitor_delete(&self, id: MonitorId) -> Result<(), MonitorDeleteError>;
+    async fn monitors_info(&self) -> HashMap<MonitorId, MonitorInfo>;
+    async fn monitor_config(&self, monitor_id: MonitorId) -> Option<MonitorConfig>;
+    async fn monitor_configs(&self) -> MonitorConfigs;
+    async fn stop(&self);
+    async fn monitor_is_running(&self, monitor_id: MonitorId) -> bool;
 }

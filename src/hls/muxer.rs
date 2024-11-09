@@ -7,7 +7,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use common::{time::DurationH264, DynLogger, H264Data, SegmentFinalized, TrackParameters};
+use common::{time::DurationH264, ArcLogger, H264Data, SegmentFinalized, TrackParameters};
 use http::{HeaderName, HeaderValue, StatusCode};
 use std::{collections::HashMap, fmt::Formatter, io::Cursor, sync::Arc};
 use tokio::{io::AsyncRead, sync::Mutex};
@@ -34,7 +34,7 @@ impl HlsMuxer {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         parent_token: &CancellationToken,
-        logger: &DynLogger,
+        logger: &ArcLogger,
         segment_count: usize,
         segment_duration: DurationH264,
         part_duration: DurationH264,

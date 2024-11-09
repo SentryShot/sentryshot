@@ -7,11 +7,12 @@ pub mod time;
 
 pub use event::*;
 
+pub use sentryshot_padded_bytes::PaddedBytes;
+
 use async_trait::async_trait;
 use bytes::Bytes;
 use bytesize::{ByteSize, MB};
 use http::{HeaderMap, HeaderValue};
-pub use sentryshot_padded_bytes::PaddedBytes;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow, collections::HashMap, convert::TryFrom, fmt, io::Cursor, ops::Deref, path::Path,
@@ -19,7 +20,7 @@ use std::{
 };
 use thiserror::Error;
 use time::{DtsOffset, DurationH264, UnixH264};
-use tokio::io::AsyncRead;
+use tokio::{self, io::AsyncRead};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct EnvPlugin {
@@ -94,8 +95,7 @@ impl<'de> Deserialize<'de> for NonZeroGb {
     }
 }
 
-/// Thread safe dyn '`ILogger`'.
-pub type DynLogger = Arc<dyn ILogger + Send + Sync>;
+pub type ArcLogger = Arc<dyn ILogger + Send + Sync>;
 
 pub trait ILogger {
     /// Send log.
@@ -409,7 +409,7 @@ impl MsgLogger for DummyLogger {
 }
 
 // Thread safe dyn `Authenticator`.
-pub type DynAuth = Arc<dyn Authenticator + Send + Sync>;
+pub type ArcAuth = Arc<dyn Authenticator + Send + Sync>;
 
 pub type AccountsMap = HashMap<String, AccountObfuscated>;
 
@@ -767,7 +767,7 @@ impl AsyncRead for PartsReader {
     }
 }
 
-pub type DynHlsMuxer = Arc<dyn HlsMuxer + Send + Sync>;
+pub type ArcHlsMuxer = Arc<dyn HlsMuxer + Send + Sync>;
 
 #[async_trait]
 pub trait HlsMuxer {
@@ -806,7 +806,7 @@ impl std::fmt::Display for H264Data {
     }
 }
 
-pub type DynMsgLogger = Arc<dyn MsgLogger + Send + Sync>;
+pub type ArcMsgLogger = Arc<dyn MsgLogger + Send + Sync>;
 
 pub trait MsgLogger {
     fn log(&self, level: LogLevel, msg: &str);

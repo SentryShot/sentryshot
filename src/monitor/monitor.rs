@@ -4,17 +4,19 @@ mod recorder;
 mod source;
 
 use recdb::RecDb;
-pub use source::{DecoderError, Source, SubscribeDecodedError};
+pub use source::MonitorSource;
 
 use crate::{recorder::new_recorder, source::SourceRtsp};
 use async_trait::async_trait;
 use common::{
-    monitor::{MonitorConfig, MonitorConfigs, SourceConfig},
-    DynLogger, Event, LogEntry, LogLevel, MonitorId, NonEmptyString, StreamType,
+    monitor::{
+        ArcMonitorHooks, ArcSource, IMonitor, IMonitorManager, MonitorConfig, MonitorConfigs,
+        MonitorDeleteError, MonitorInfo, MonitorRestartError, MonitorSetAndRestartError,
+        MonitorSetError, SourceConfig,
+    },
+    ArcLogger, Event, LogEntry, LogLevel, MonitorId, StreamType,
 };
 use hls::HlsServer;
-use sentryshot_convert::Frame;
-use serde::Serialize;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -22,6 +24,7 @@ use std::{
 };
 use thiserror::Error;
 use tokio::{
+    self,
     io::AsyncWriteExt,
     sync::{mpsc, oneshot, Mutex},
 };
@@ -32,13 +35,14 @@ pub struct Monitor {
     token: CancellationToken,
     config: MonitorConfig,
     shutdown_complete: Mutex<mpsc::Receiver<()>>,
-    source_main_tx: mpsc::Sender<oneshot::Sender<Arc<Source>>>,
-    source_sub_tx: mpsc::Sender<oneshot::Sender<Option<Arc<Source>>>>,
+    source_main_tx: mpsc::Sender<oneshot::Sender<ArcSource>>,
+    source_sub_tx: mpsc::Sender<oneshot::Sender<Option<ArcSource>>>,
     send_event_tx: mpsc::Sender<Event>,
 }
 
-impl Monitor {
-    pub fn config(&self) -> &MonitorConfig {
+#[async_trait]
+impl IMonitor for Monitor {
+    fn config(&self) -> &MonitorConfig {
         &self.config
     }
 
@@ -55,7 +59,7 @@ impl Monitor {
 
     // Return sub stream if it exists otherwise returns main stream.
     // Returns None if cancelled
-    pub async fn get_smallest_source(&self) -> Option<Arc<Source>> {
+    async fn get_smallest_source(&self) -> Option<ArcSource> {
         match self.source_sub().await {
             // Sub stream exists.
             Some(Some(sub_stream)) => Some(sub_stream),
@@ -67,7 +71,7 @@ impl Monitor {
     }
 
     // Returns None if cancelled.
-    pub async fn source_main(&self) -> Option<Arc<Source>> {
+    async fn source_main(&self) -> Option<ArcSource> {
         let (res_tx, res_rx) = oneshot::channel();
         tokio::select! {
             () = self.token.cancelled() => return None,
@@ -82,7 +86,7 @@ impl Monitor {
     }
 
     // Returns None if cancelled and Some(None) if sub stream doesn't exist.
-    pub async fn source_sub(&self) -> Option<Option<Arc<Source>>> {
+    async fn source_sub(&self) -> Option<Option<ArcSource>> {
         let (res_tx, res_rx) = oneshot::channel();
         tokio::select! {
             () = self.token.cancelled() => return None,
@@ -96,7 +100,7 @@ impl Monitor {
         }
     }
 
-    pub async fn send_event(&self, event: Event) {
+    async fn send_event(&self, event: Event) {
         tokio::select! {
             () = self.token.cancelled() => {},
             _ = self.send_event_tx.send(event) => {},
@@ -104,7 +108,7 @@ impl Monitor {
     }
 }
 
-pub fn log_monitor(logger: &DynLogger, level: LogLevel, id: &MonitorId, msg: &str) {
+pub fn log_monitor(logger: &ArcLogger, level: LogLevel, id: &MonitorId, msg: &str) {
     logger.log(LogEntry::new(
         level,
         "monitor",
@@ -137,48 +141,9 @@ pub enum NewMonitorManagerError {
     MissingId(String),
 }
 
-#[derive(Debug, Error)]
-pub enum MonitorSetError {
-    #[error("open file: {0}")]
-    OpenFile(std::io::Error),
-
-    #[error("serialize config: {0}")]
-    Serialize(#[from] serde_json::Error),
-
-    #[error("write config to file: {0}")]
-    WriteToFile(std::io::Error),
-
-    #[error("rename tempoary file: {0}")]
-    RenameTempFile(std::io::Error),
-}
-
-#[derive(Debug, Error)]
-pub enum MonitorDeleteError {
-    #[error("monitor does not exist '{0}'")]
-    NotExist(String),
-
-    #[error("remove file: {0}")]
-    RemoveFile(#[from] std::io::Error),
-}
-
-#[derive(Debug, Error)]
-pub enum MonitorRestartError {
-    #[error("monitor does not exist '{0}'")]
-    NotExist(String),
-}
-
-#[derive(Debug, Error)]
-pub enum MonitorSetAndRestartError {
-    #[error(transparent)]
-    Set(MonitorSetError),
-
-    #[error(transparent)]
-    Restart(MonitorRestartError),
-}
-
 #[rustfmt::skip]
 enum MonitorManagerRequest {
-    StartMonitors((oneshot::Sender<()>, DynMonitorHooks)),
+    StartMonitors((oneshot::Sender<()>, ArcMonitorHooks)),
     MonitorRestart((oneshot::Sender<Result<(), MonitorRestartError>>, MonitorId)),
     MonitorSet((oneshot::Sender<Result<bool, MonitorSetError>>, MonitorConfig)),
     MonitorSetAndRestart((oneshot::Sender<Result<bool, MonitorSetAndRestartError>>, MonitorConfig)),
@@ -197,7 +162,7 @@ impl MonitorManager {
     pub fn new(
         config_path: PathBuf,
         rec_db: Arc<RecDb>,
-        logger: DynLogger,
+        logger: ArcLogger,
         hls_server: Arc<HlsServer>,
         //hooks *Hooks,
     ) -> Result<Self, NewMonitorManagerError> {
@@ -247,8 +212,11 @@ impl MonitorManager {
 
         Ok(Self(tx))
     }
+}
 
-    pub async fn start_monitors(&self, hooks: DynMonitorHooks) {
+#[async_trait]
+impl IMonitorManager for MonitorManager {
+    async fn start_monitors(&self, hooks: ArcMonitorHooks) {
         let (tx, rx) = oneshot::channel();
         self.0
             .send(MonitorManagerRequest::StartMonitors((tx, hooks)))
@@ -258,7 +226,7 @@ impl MonitorManager {
         _ = rx.await;
     }
 
-    pub async fn monitor_restart(&self, monitor_id: MonitorId) -> Result<(), MonitorRestartError> {
+    async fn monitor_restart(&self, monitor_id: MonitorId) -> Result<(), MonitorRestartError> {
         let (tx, rx) = oneshot::channel();
         self.0
             .send(MonitorManagerRequest::MonitorRestart((tx, monitor_id)))
@@ -268,7 +236,7 @@ impl MonitorManager {
         rx.await.expect("actor should respond")
     }
 
-    pub async fn monitor_set(&self, config: MonitorConfig) -> Result<bool, MonitorSetError> {
+    async fn monitor_set(&self, config: MonitorConfig) -> Result<bool, MonitorSetError> {
         let (tx, rx) = oneshot::channel();
         self.0
             .send(MonitorManagerRequest::MonitorSet((tx, config)))
@@ -278,7 +246,7 @@ impl MonitorManager {
         rx.await.expect("actor should respond")
     }
 
-    pub async fn monitor_set_and_restart(
+    async fn monitor_set_and_restart(
         &self,
         config: MonitorConfig,
     ) -> Result<bool, MonitorSetAndRestartError> {
@@ -291,7 +259,7 @@ impl MonitorManager {
         rx.await.expect("actor should respond")
     }
 
-    pub async fn monitor_delete(&self, id: MonitorId) -> Result<(), MonitorDeleteError> {
+    async fn monitor_delete(&self, id: MonitorId) -> Result<(), MonitorDeleteError> {
         let (tx, rx) = oneshot::channel();
         self.0
             .send(MonitorManagerRequest::MonitorDelete((tx, id)))
@@ -301,7 +269,7 @@ impl MonitorManager {
         rx.await.expect("actor should respond")
     }
 
-    pub async fn monitors_info(&self) -> HashMap<MonitorId, MonitorInfo> {
+    async fn monitors_info(&self) -> HashMap<MonitorId, MonitorInfo> {
         let (tx, rx) = oneshot::channel();
         self.0
             .send(MonitorManagerRequest::MonitorsInfo(tx))
@@ -311,7 +279,7 @@ impl MonitorManager {
         rx.await.expect("actor should respond")
     }
 
-    pub async fn monitor_config(&self, monitor_id: MonitorId) -> Option<MonitorConfig> {
+    async fn monitor_config(&self, monitor_id: MonitorId) -> Option<MonitorConfig> {
         let (tx, rx) = oneshot::channel();
         self.0
             .send(MonitorManagerRequest::MonitorConfig((tx, monitor_id)))
@@ -321,7 +289,7 @@ impl MonitorManager {
         rx.await.expect("actor should respond")
     }
 
-    pub async fn monitor_configs(&self) -> MonitorConfigs {
+    async fn monitor_configs(&self) -> MonitorConfigs {
         let (tx, rx) = oneshot::channel();
         self.0
             .send(MonitorManagerRequest::MonitorConfigs(tx))
@@ -331,7 +299,7 @@ impl MonitorManager {
         rx.await.expect("actor should respond")
     }
 
-    pub async fn stop(&self) {
+    async fn stop(&self) {
         let (tx, rx) = oneshot::channel();
         self.0
             .send(MonitorManagerRequest::Stop(tx))
@@ -341,7 +309,7 @@ impl MonitorManager {
         rx.await.expect("actor should respond");
     }
 
-    pub async fn monitor_is_running(&self, monitor_id: MonitorId) -> bool {
+    async fn monitor_is_running(&self, monitor_id: MonitorId) -> bool {
         let (tx, rx) = oneshot::channel();
         self.0
             .send(MonitorManagerRequest::MonitorIsRunning((tx, monitor_id)))
@@ -359,11 +327,11 @@ struct MonitorManagerState {
     started_monitors: Monitors,
 
     rec_db: Arc<RecDb>,
-    logger: DynLogger,
+    logger: ArcLogger,
     hls_server: Arc<HlsServer>,
     path: PathBuf,
 
-    hooks: Option<DynMonitorHooks>,
+    hooks: Option<ArcMonitorHooks>,
 }
 
 impl MonitorManagerState {
@@ -419,7 +387,7 @@ impl MonitorManagerState {
         }
     }
 
-    pub async fn start_monitors(&mut self, hooks: DynMonitorHooks) {
+    pub async fn start_monitors(&mut self, hooks: ArcMonitorHooks) {
         self.hooks = Some(hooks);
         for (id, config) in &self.configs {
             if let Some(monitor) = self.start_monitor(config.to_owned()).await {
@@ -532,12 +500,12 @@ impl MonitorManagerState {
 
             configs.insert(
                 c.id().to_owned(),
-                MonitorInfo {
-                    id: c.id().to_owned(),
-                    name: c.name().to_owned(),
-                    enable: c.enabled(),
-                    has_sub_stream: c.has_sub_stream(),
-                },
+                MonitorInfo::new(
+                    c.id().to_owned(),
+                    c.name().to_owned(),
+                    c.enabled(),
+                    c.has_sub_stream(),
+                ),
             );
         }
         configs
@@ -562,7 +530,7 @@ impl MonitorManagerState {
         let monitor_token = self.token.child_token();
         let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel(1);
 
-        let (source_main, source_sub) = match config.source() {
+        let (source_main, source_sub): (ArcSource, Option<ArcSource>) = match config.source() {
             SourceConfig::Rtsp(conf) => {
                 let source_main = SourceRtsp::new(
                     monitor_token.child_token(),
@@ -585,7 +553,13 @@ impl MonitorManagerState {
                     StreamType::Sub,
                 );
 
-                (Arc::new(source_main), source_sub.map(Arc::new))
+                (
+                    Arc::new(source_main),
+                    source_sub.map(|v| {
+                        let v: ArcSource = Arc::new(v);
+                        v
+                    }),
+                )
             }
         };
 
@@ -654,25 +628,6 @@ impl MonitorManagerState {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq, Eq)]
-pub struct MonitorInfo {
-    id: MonitorId,
-    name: NonEmptyString,
-    enable: bool,
-
-    #[serde(rename = "hasSubStream")]
-    has_sub_stream: bool,
-}
-
-pub type DynMonitorHooks = Arc<dyn MonitorHooks + Send + Sync>;
-
-#[async_trait]
-pub trait MonitorHooks {
-    async fn on_monitor_start(&self, token: CancellationToken, monitor: Arc<Monitor>);
-    // Blocking.
-    fn on_thumb_save(&self, config: &MonitorConfig, frame: Frame) -> Frame;
-}
-
 #[allow(clippy::needless_pass_by_value, clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
@@ -680,7 +635,7 @@ mod tests {
     use bytesize::ByteSize;
     use common::{
         monitor::{Config, Protocol, SelectedSource, SourceConfig, SourceRtspConfig},
-        DummyLogger, ParseMonitorIdError,
+        DummyLogger, NonEmptyString, ParseMonitorIdError,
     };
     use pretty_assertions::assert_eq;
     use recdb::Disk;

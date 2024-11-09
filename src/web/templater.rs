@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+use common::monitor::ArcMonitorManager;
 use log::Logger;
-use monitor::MonitorManager;
 use std::{collections::HashMap, sync::Arc};
 
 pub struct Templater<'a> {
     logger: Arc<Logger>,
-    monitor_manager: MonitorManager,
+    monitor_manager: ArcMonitorManager,
     time_zone: String,
 
     engine: upon::Engine<'a>,
@@ -16,7 +16,7 @@ impl<'a> Templater<'a> {
     #[must_use]
     pub fn new(
         logger: Arc<log::Logger>,
-        monitor_manager: MonitorManager,
+        monitor_manager: ArcMonitorManager,
         templates: HashMap<&'a str, String>,
         time_zone: String,
     ) -> Self {

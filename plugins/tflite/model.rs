@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{FetchError, Fetcher};
-use common::{DynMsgLogger, LogLevel};
+use common::{ArcMsgLogger, LogLevel};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{
@@ -17,7 +17,7 @@ use thiserror::Error;
 use url::Url;
 
 pub(crate) struct ModelCache {
-    logger: DynMsgLogger,
+    logger: ArcMsgLogger,
     fetcher: &'static dyn Fetcher,
     path: PathBuf,
     models: HashMap<ModelChecksum, PathBuf>,
@@ -52,7 +52,7 @@ pub(crate) enum ModelCacheError {
 
 impl ModelCache {
     pub(crate) fn new(
-        logger: DynMsgLogger,
+        logger: ArcMsgLogger,
         fetcher: &'static dyn Fetcher,
         path: PathBuf,
     ) -> Result<Self, CreateModelCacheError> {

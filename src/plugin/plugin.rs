@@ -5,11 +5,10 @@ pub mod types;
 use async_trait::async_trait;
 use axum::Router;
 use common::{
-    monitor::MonitorConfig, DynAuth, DynEnvConfig, DynLogger, EnvPlugin, LogEntry, LogLevel,
-    LogSource,
+    monitor::{ArcMonitor, ArcMonitorManager, MonitorConfig, MonitorHooks},
+    ArcAuth, ArcLogger, DynEnvConfig, EnvPlugin, LogEntry, LogLevel, LogSource,
 };
 use libloading::{Library, Symbol};
-use monitor::{Monitor, MonitorHooks, MonitorManager};
 use sentryshot_util::Frame;
 use std::{
     path::{Path, PathBuf},
@@ -17,7 +16,7 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
-use tokio::{runtime::Handle, sync::mpsc};
+use tokio::{self, runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use types::{Assets, NewAuthFn, Templates};
 
@@ -46,7 +45,7 @@ pub trait Plugin {
     ) {
     }*/
 
-    async fn on_monitor_start(&self, _token: CancellationToken, _monitor: Arc<Monitor>) {}
+    async fn on_monitor_start(&self, _token: CancellationToken, _monitor: ArcMonitor) {}
     fn on_thumb_save(&self, _config: &MonitorConfig, frame: Frame) -> Frame {
         frame
     }
@@ -54,10 +53,10 @@ pub trait Plugin {
 
 pub trait Application {
     fn rt_handle(&self) -> Handle;
-    fn auth(&self) -> DynAuth;
-    fn monitor_manager(&self) -> MonitorManager;
+    fn auth(&self) -> ArcAuth;
+    fn monitor_manager(&self) -> ArcMonitorManager;
     fn shutdown_complete_tx(&self) -> mpsc::Sender<()>;
-    fn logger(&self) -> DynLogger;
+    fn logger(&self) -> ArcLogger;
     fn env(&self) -> DynEnvConfig;
 }
 
@@ -222,7 +221,7 @@ impl PluginManager {
 
 #[async_trait]
 impl MonitorHooks for PluginManager {
-    async fn on_monitor_start(&self, token: CancellationToken, monitor: Arc<Monitor>) {
+    async fn on_monitor_start(&self, token: CancellationToken, monitor: ArcMonitor) {
         let plugins = self.plugins.clone();
         for plugin in plugins {
             // Execute every call in a co-routine to avoid blocking.

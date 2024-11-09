@@ -19,12 +19,14 @@ bytes.workspace = true
 bytesize.workspace = true
 chrono.workspace = true
 http.workspace = true
+sentryshot_ffmpeg_h264.workspace = true
 sentryshot_padded_bytes.workspace = true
+sentryshot_util.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-#tokio-util.workspace = true
+tokio-util.workspace = true
 url.workspace = true
 
 

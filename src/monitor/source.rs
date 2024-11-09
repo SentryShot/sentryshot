@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::log_monitor;
+use async_trait::async_trait;
 use common::{
-    monitor::{Protocol, RtspUrl, SourceRtspConfig},
-    recording::{FrameRateLimiter, FrameRateLimiterError},
+    monitor::{
+        DecoderError, Feed, FeedDecoded, Protocol, RtspUrl, Source, SourceRtspConfig,
+        SubscribeDecodedError,
+    },
+    recording::FrameRateLimiter,
     time::{DtsOffset, UnixH264},
-    DynHlsMuxer, DynLogger, DynMsgLogger, H264Data, LogEntry, LogLevel, MonitorId, MsgLogger,
+    ArcHlsMuxer, ArcLogger, ArcMsgLogger, H264Data, LogEntry, LogLevel, MonitorId, MsgLogger,
     StreamType,
 };
 use futures::StreamExt;
@@ -19,8 +23,7 @@ use retina::{
 };
 use sentryshot_convert::Frame;
 use sentryshot_ffmpeg_h264::{
-    H264BuilderError, H264Decoder, H264DecoderBuilder, Packet, PaddedBytes, Ready,
-    ReceiveFrameError, SendPacketError,
+    H264Decoder, H264DecoderBuilder, Packet, PaddedBytes, Ready, ReceiveFrameError, SendPacketError,
 };
 use std::sync::Arc;
 use thiserror::Error;
@@ -31,21 +34,18 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-// A 'broadcast' channel is used instead of a 'watch' channel to detect dropped frames.
-pub type Feed = broadcast::Receiver<H264Data>;
-pub type FeedDecoded = mpsc::Receiver<Result<Frame, DecoderError>>;
-
-pub struct Source {
+#[allow(clippy::module_name_repetitions)]
+pub struct MonitorSource {
     stream_type: StreamType,
-    get_muxer_tx: mpsc::Sender<oneshot::Sender<DynHlsMuxer>>,
+    get_muxer_tx: mpsc::Sender<oneshot::Sender<ArcHlsMuxer>>,
     subscribe_tx: mpsc::Sender<oneshot::Sender<Feed>>,
 }
 
-impl Source {
+impl MonitorSource {
     #[must_use]
     pub fn new(
         stream_type: StreamType,
-        get_muxer_tx: mpsc::Sender<oneshot::Sender<DynHlsMuxer>>,
+        get_muxer_tx: mpsc::Sender<oneshot::Sender<ArcHlsMuxer>>,
         subscribe_tx: mpsc::Sender<oneshot::Sender<Feed>>,
     ) -> Self {
         Self {
@@ -54,15 +54,18 @@ impl Source {
             subscribe_tx,
         }
     }
+}
 
+#[async_trait]
+impl Source for MonitorSource {
     #[must_use]
-    pub fn stream_type(&self) -> &StreamType {
+    fn stream_type(&self) -> &StreamType {
         &self.stream_type
     }
 
     // Returns the HLS muxer for this source. Will block until the source has started.
     // Returns None if cancelled.
-    pub async fn muxer(&self) -> Option<DynHlsMuxer> {
+    async fn muxer(&self) -> Option<ArcHlsMuxer> {
         let (res_tx, res_rx) = oneshot::channel();
         if self.get_muxer_tx.send(res_tx).await.is_err() {
             return None;
@@ -74,7 +77,7 @@ impl Source {
     }
 
     // Subscribe to the raw feed. Will block until the source has started.
-    pub async fn subscribe(&self) -> Option<Feed> {
+    async fn subscribe(&self) -> Option<Feed> {
         let (res_tx, res_rx) = oneshot::channel();
         if self.subscribe_tx.send(res_tx).await.is_err() {
             return None;
@@ -88,10 +91,10 @@ impl Source {
     // Subscribe to a decoded feed. Currently creates a new decoder for each
     // call but this may change. Will block until the source has started.
     // Will close channel when cancelled.
-    pub async fn subscribe_decoded(
+    async fn subscribe_decoded(
         &self,
         rt_handle: Handle,
-        logger: DynMsgLogger,
+        logger: ArcMsgLogger,
         limiter: Option<FrameRateLimiter>,
     ) -> Option<Result<FeedDecoded, SubscribeDecodedError>> {
         let feed = self.subscribe().await?;
@@ -114,14 +117,8 @@ impl Source {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum SubscribeDecodedError {
-    #[error("new h264 decoder: {0}")]
-    NewH264Decoder(#[from] H264BuilderError),
-}
-
 struct SourceLogger {
-    logger: DynLogger,
+    logger: ArcLogger,
 
     monitor_id: MonitorId,
     source_name: String,
@@ -130,7 +127,7 @@ struct SourceLogger {
 
 impl SourceLogger {
     fn new(
-        logger: DynLogger,
+        logger: ArcLogger,
         monitor_id: MonitorId,
         source_name: String,
         stream_type: StreamType,
@@ -162,7 +159,7 @@ impl MsgLogger for SourceLogger {
 
 #[allow(clippy::module_name_repetitions)]
 pub struct SourceRtsp {
-    msg_logger: DynMsgLogger,
+    msg_logger: ArcMsgLogger,
     hls_server: Arc<HlsServer>,
 
     monitor_id: MonitorId,
@@ -175,12 +172,12 @@ impl SourceRtsp {
     pub fn new(
         token: CancellationToken,
         shutdown_complete: mpsc::Sender<()>,
-        logger: DynLogger,
+        logger: ArcLogger,
         hls_server: Arc<HlsServer>,
         monitor_id: MonitorId,
         config: SourceRtspConfig,
         stream_type: StreamType,
-    ) -> Option<Source> {
+    ) -> Option<MonitorSource> {
         if stream_type.is_sub() && config.sub_stream.is_none() {
             log_monitor(&logger, LogLevel::Debug, &monitor_id, "no sub stream");
             return None;
@@ -225,7 +222,7 @@ impl SourceRtsp {
             }
         });
 
-        let (get_muxer_tx, mut get_muxer_rx) = mpsc::channel::<oneshot::Sender<DynHlsMuxer>>(1);
+        let (get_muxer_tx, mut get_muxer_rx) = mpsc::channel::<oneshot::Sender<ArcHlsMuxer>>(1);
         let (subscribe_tx, mut subscribe_rx) = mpsc::channel::<oneshot::Sender<Feed>>(1);
 
         tokio::spawn(async move {
@@ -275,7 +272,7 @@ impl SourceRtsp {
             }
         });
 
-        Some(Source::new(stream_type, get_muxer_tx, subscribe_tx))
+        Some(MonitorSource::new(stream_type, get_muxer_tx, subscribe_tx))
     }
 
     fn log(&self, level: LogLevel, msg: &str) {
@@ -286,7 +283,7 @@ impl SourceRtsp {
     async fn run(
         &self,
         token: CancellationToken,
-        started_tx: mpsc::Sender<(DynHlsMuxer, broadcast::Sender<H264Data>)>,
+        started_tx: mpsc::Sender<(ArcHlsMuxer, broadcast::Sender<H264Data>)>,
     ) -> Result<(), SourceRtspRunError> {
         use SourceRtspRunError::*;
 
@@ -527,27 +524,9 @@ fn format_streams(streams: &[Stream]) -> String {
         .concat()
 }
 
-#[derive(Debug, Error)]
-pub enum DecoderError {
-    #[error("dropped frames")]
-    DroppedFrames,
-
-    #[error("{0}")]
-    SendFrame(#[from] SendPacketError),
-
-    #[error("receive frame: {0}")]
-    ReceiveFrame(#[from] ReceiveFrameError),
-
-    #[error("try from: {0}")]
-    TryFrom(#[from] std::num::TryFromIntError),
-
-    #[error("frame rate limiter: {0}")]
-    FrameRateLimiter(#[from] FrameRateLimiterError),
-}
-
 fn new_decoder(
     rt_handle: Handle,
-    logger: DynMsgLogger,
+    logger: ArcMsgLogger,
     mut feed: Feed,
     mut h264_decoder: H264Decoder<Ready>,
     mut frame_rate_limiter: Option<FrameRateLimiter>,

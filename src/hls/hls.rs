@@ -11,7 +11,7 @@ use crate::error::PartHlsQueryError;
 pub use crate::error::{CreateSegmenterError, SegmenterWriteH264Error};
 use common::{
     time::{DurationH264, H264_MILLISECOND},
-    DynLogger, H264Data, TrackParameters,
+    ArcLogger, H264Data, TrackParameters,
 };
 pub use error::ParseParamsError;
 pub use muxer::{HlsMuxer, NextSegmentGetter};
@@ -29,7 +29,7 @@ pub struct HlsServer {
 }
 
 impl HlsServer {
-    pub fn new(token: CancellationToken, logger: DynLogger) -> Self {
+    pub fn new(token: CancellationToken, logger: ArcLogger) -> Self {
         let (new_muxer_tx, mut new_muxer_rx) = mpsc::channel::<NewMuxerRequest>(1);
         let (muxer_by_name_tx, mut muxer_by_name_rx) = mpsc::channel::<MuxerByNameRequest>(1);
 

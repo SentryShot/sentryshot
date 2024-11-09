@@ -7,7 +7,10 @@ use axum::{
     Router,
 };
 use bytesize::ByteSize;
-use common::{time::Duration, DynAuth, DynEnvConfig, EnvConfig, ILogger, LogEntry, LogLevel};
+use common::{
+    monitor::ArcMonitorManager, time::Duration, ArcAuth, DynEnvConfig, EnvConfig, ILogger,
+    LogEntry, LogLevel,
+};
 use env::{EnvConf, EnvConfigNewError};
 use hls::HlsServer;
 use log::{
@@ -99,9 +102,9 @@ pub struct App {
     shutdown_complete_tx: mpsc::Sender<()>,
     shutdown_complete_rx: mpsc::Receiver<()>,
     log_db: Arc<LogDbHandle>,
-    auth: DynAuth,
+    auth: ArcAuth,
     hls_server: Arc<HlsServer>,
-    monitor_manager: MonitorManager,
+    monitor_manager: ArcMonitorManager,
     recdb: Arc<RecDb>,
     router: Router,
 }
@@ -155,12 +158,12 @@ impl App {
         let hls_server = Arc::new(HlsServer::new(token.clone(), logger.clone()));
 
         let monitors_dir = env.config_dir().join("monitors");
-        let monitor_manager = MonitorManager::new(
+        let monitor_manager = Arc::new(MonitorManager::new(
             monitors_dir,
             rec_db.clone(),
             logger.clone(),
             hls_server.clone(),
-        )?;
+        )?);
 
         let router = Router::new();
 
@@ -490,16 +493,16 @@ impl Application for App {
     fn rt_handle(&self) -> Handle {
         self.rt_handle.clone()
     }
-    fn auth(&self) -> DynAuth {
+    fn auth(&self) -> ArcAuth {
         self.auth.clone()
     }
-    fn monitor_manager(&self) -> MonitorManager {
+    fn monitor_manager(&self) -> ArcMonitorManager {
         self.monitor_manager.clone()
     }
     fn shutdown_complete_tx(&self) -> mpsc::Sender<()> {
         self.shutdown_complete_tx.clone()
     }
-    fn logger(&self) -> common::DynLogger {
+    fn logger(&self) -> common::ArcLogger {
         self.logger.clone()
     }
 

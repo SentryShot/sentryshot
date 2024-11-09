@@ -7,7 +7,7 @@ use crate::{
     Fetcher,
 };
 use common::{
-    Detection, Detections, DynMsgLogger, Label, Labels, LogLevel, RectangleNormalized, Region,
+    ArcMsgLogger, Detection, Detections, Label, Labels, LogLevel, RectangleNormalized, Region,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -238,7 +238,7 @@ impl DetectorManager {
     pub(crate) async fn new(
         rt_handle: Handle,
         shutdown_complete_tx: mpsc::Sender<()>,
-        logger: DynMsgLogger,
+        logger: ArcMsgLogger,
         fetcher: &'static dyn Fetcher,
         config_dir: &Path,
     ) -> Result<Self, DetectorManagerError> {
@@ -317,7 +317,7 @@ pub(crate) fn write_detector_config(path: &Path) -> Result<(), std::io::Error> {
 async fn parse_detector_configs(
     rt_handle: &Handle,
     shutdown_complete_tx: mpsc::Sender<()>,
-    logger: DynMsgLogger,
+    logger: ArcMsgLogger,
     model_cache: &mut ModelCache,
     label_cache: &mut LabelCache,
     configs: RawDetectorConfigs,
@@ -404,7 +404,7 @@ async fn parse_detector_configs(
 fn new_cpu_detector(
     rt_handle: Handle,
     shutdown_complete_tx: &mpsc::Sender<()>,
-    logger: &DynMsgLogger,
+    logger: &ArcMsgLogger,
     name: &DetectorName,
     width: NonZeroU16,
     height: NonZeroU16,
@@ -449,7 +449,7 @@ fn new_cpu_detector(
 fn new_edgetpu_detector(
     rt_handle: Handle,
     shutdown_complete_tx: mpsc::Sender<()>,
-    logger: &DynMsgLogger,
+    logger: &ArcMsgLogger,
     name: &DetectorName,
     width: NonZeroU16,
     height: NonZeroU16,

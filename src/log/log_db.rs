@@ -2,7 +2,7 @@ use super::{LogEntryWithTime, Logger, UnixMicro};
 use crate::rev_buf_reader::RevBufReader;
 use bytesize::ByteSize;
 use common::{
-    DynLogger, LogEntry, LogLevel, LogSource, MonitorId, ParseLogLevelError, ParseLogSourceError,
+    ArcLogger, LogEntry, LogLevel, LogSource, MonitorId, ParseLogLevelError, ParseLogSourceError,
     ParseMonitorIdError, ParseNonEmptyStringError, LOG_SOURCE_MAX_LENGTH, MONITOR_ID_MAX_LENGTH,
 };
 use csv::{deserialize_csv_option, deserialize_csv_option2};
@@ -93,7 +93,7 @@ impl LogDbHandle {
     }
 
     // Prunes logs every hour.
-    pub async fn prune_loop(&self, token: CancellationToken, logger: DynLogger) {
+    pub async fn prune_loop(&self, token: CancellationToken, logger: ArcLogger) {
         const MINUTE: u64 = 60;
         const HOUR: u64 = 60 * MINUTE;
         loop {

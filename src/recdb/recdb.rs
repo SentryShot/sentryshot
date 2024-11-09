@@ -9,7 +9,7 @@ pub use disk::Disk;
 use common::recording::{RecordingData, RecordingId, RecordingIdError};
 use common::{
     time::{Duration, UnixH264},
-    DynLogger, LogEntry, LogLevel, MonitorId,
+    ArcLogger, LogEntry, LogLevel, MonitorId,
 };
 use crawler::Crawler;
 use csv::deserialize_csv_option;
@@ -97,7 +97,7 @@ pub struct RecordingIncomplete {
 }
 
 pub struct RecDb {
-    logger: DynLogger,
+    logger: ArcLogger,
     recordings_dir: PathBuf,
     crawler: Crawler,
     disk: Disk,
@@ -144,7 +144,7 @@ pub enum DeleteRecordingError {
 
 impl RecDb {
     #[must_use]
-    pub fn new(logger: DynLogger, recording_dir: PathBuf, disk: Disk) -> Self {
+    pub fn new(logger: ArcLogger, recording_dir: PathBuf, disk: Disk) -> Self {
         Self {
             logger,
             recordings_dir: recording_dir.clone(),

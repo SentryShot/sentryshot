@@ -13,9 +13,9 @@ use axum::{
     Json,
 };
 use common::{
-    monitor::{MonitorConfig, MonitorConfigs},
+    monitor::{ArcMonitorManager, MonitorConfig, MonitorConfigs, MonitorDeleteError},
     recording::RecordingId,
-    AccountSetRequest, AccountsMap, AuthAccountDeleteError, DynAuth, DynLogger, ILogger, LogEntry,
+    AccountSetRequest, AccountsMap, ArcAuth, ArcLogger, AuthAccountDeleteError, ILogger, LogEntry,
     LogLevel, MonitorId,
 };
 use hls::{HlsQuery, HlsServer};
@@ -24,7 +24,6 @@ use log::{
     log_db::{LogDbHandle, LogQuery},
     Logger,
 };
-use monitor::{MonitorDeleteError, MonitorManager};
 use recdb::{DeleteRecordingError, RecDb, RecDbQuery, RecordingResponse};
 use recording::{new_video_reader, VideoCache};
 use rust_embed::EmbeddedFiles;
@@ -39,7 +38,7 @@ use web::{serve_mp4_content, Templater};
 #[derive(Clone)]
 pub struct TemplateHandlerState<'a> {
     pub templater: Arc<Templater<'a>>,
-    pub auth: DynAuth,
+    pub auth: ArcAuth,
 }
 
 pub async fn template_handler(
@@ -257,7 +256,7 @@ pub struct AccountDeleteQuery {
 }
 
 pub async fn account_delete_handler(
-    State(auth): State<DynAuth>,
+    State(auth): State<ArcAuth>,
     query: Query<AccountDeleteQuery>,
 ) -> (StatusCode, String) {
     use AuthAccountDeleteError::*;
@@ -269,7 +268,7 @@ pub async fn account_delete_handler(
 }
 
 pub async fn account_put_handler(
-    State(auth): State<DynAuth>,
+    State(auth): State<ArcAuth>,
     Json(payload): Json<AccountSetRequest>,
 ) -> Response {
     match auth.account_set(payload).await {
@@ -284,12 +283,12 @@ pub async fn account_put_handler(
     }
 }
 
-pub async fn accounts_handler(State(auth): State<DynAuth>) -> Json<AccountsMap> {
+pub async fn accounts_handler(State(auth): State<ArcAuth>) -> Json<AccountsMap> {
     Json(auth.accounts().await)
 }
 
 pub async fn account_my_token_handler(
-    State(auth): State<DynAuth>,
+    State(auth): State<ArcAuth>,
     request: Request<Body>,
 ) -> Response {
     match auth.validate_request(request.headers()).await {
@@ -325,7 +324,7 @@ pub async fn recording_query_handler(
 #[derive(Clone)]
 pub struct LogFeedHandlerState {
     pub logger: Arc<log::Logger>,
-    pub auth: DynAuth,
+    pub auth: ArcAuth,
 }
 
 pub async fn log_feed_handler(
@@ -395,7 +394,7 @@ pub struct MonitorIdQuery {
 }
 
 pub async fn monitor_delete_handler(
-    State(monitor_manager): State<MonitorManager>,
+    State(monitor_manager): State<ArcMonitorManager>,
     query: Query<MonitorIdQuery>,
 ) -> (StatusCode, String) {
     match monitor_manager.monitor_delete(query.id.clone()).await {
@@ -406,7 +405,7 @@ pub async fn monitor_delete_handler(
 }
 
 pub async fn monitor_put_handler(
-    State(monitor_manager): State<MonitorManager>,
+    State(monitor_manager): State<ArcMonitorManager>,
     Json(payload): Json<MonitorConfig>,
 ) -> Response {
     tokio::spawn(async move {
@@ -426,7 +425,7 @@ pub async fn monitor_put_handler(
 }
 
 pub async fn monitor_restart_handler(
-    State(monitor_manager): State<MonitorManager>,
+    State(monitor_manager): State<ArcMonitorManager>,
     query: Query<MonitorIdQuery>,
 ) -> Response {
     if let Err(e) = monitor_manager.monitor_restart(query.id.clone()).await {
@@ -437,7 +436,7 @@ pub async fn monitor_restart_handler(
 }
 
 pub async fn monitors_handler(
-    State(monitor_manager): State<MonitorManager>,
+    State(monitor_manager): State<ArcMonitorManager>,
 ) -> Json<MonitorConfigs> {
     Json(monitor_manager.monitor_configs().await.clone())
 }
@@ -481,7 +480,7 @@ pub async fn recording_thumbnail_handler(
 pub struct RecordingVideoState {
     pub rec_db: Arc<RecDb>,
     pub video_cache: Arc<Mutex<VideoCache>>,
-    pub logger: DynLogger,
+    pub logger: ArcLogger,
 }
 
 #[derive(Debug, Deserialize)]

@@ -16,7 +16,6 @@ doctest = false
 
 [dependencies]
 common.path = "../../src/common"
-monitor.path = "../../src/monitor"
 plugin.path = "../../src/plugin"
 
 async-trait.workspace = true

@@ -16,16 +16,16 @@ use axum::{
     Router,
 };
 use common::{
+    monitor::{ArcMonitor, ArcMonitorManager, ArcSource, DecoderError, SubscribeDecodedError},
     recording::{vertex_inside_poly2, FrameRateLimiter},
     time::{DurationH264, UnixNano},
-    Detection, Detections, DynAuth, DynEnvConfig, DynLogger, DynMsgLogger, Event, LogEntry,
+    ArcAuth, ArcLogger, ArcMsgLogger, Detection, Detections, DynEnvConfig, Event, LogEntry,
     LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
 };
 use config::{set_enable, Crop, Mask};
 use detector::{DetectError, Detector, DetectorName, Thresholds};
 use hyper::{body::HttpBody, http::uri::InvalidUri};
 use hyper_rustls::HttpsConnectorBuilder;
-use monitor::{DecoderError, Monitor, MonitorManager, Source, SubscribeDecodedError};
 use plugin::{
     types::{admin, Assets},
     Application, Plugin, PreLoadPlugin,
@@ -91,9 +91,9 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
 pub struct TflitePlugin {
     rt_handle: Handle,
     _shutdown_complete_tx: mpsc::Sender<()>,
-    logger: DynLogger,
-    auth: DynAuth,
-    monitor_manager: MonitorManager,
+    logger: ArcLogger,
+    auth: ArcAuth,
+    monitor_manager: ArcMonitorManager,
     detector_manager: DetectorManager,
 }
 
@@ -101,10 +101,10 @@ impl TflitePlugin {
     async fn new(
         rt_handle: Handle,
         shutdown_complete_tx: mpsc::Sender<()>,
-        logger: DynLogger,
+        logger: ArcLogger,
         env: DynEnvConfig,
-        auth: DynAuth,
-        monitor_manager: MonitorManager,
+        auth: ArcAuth,
+        monitor_manager: ArcMonitorManager,
     ) -> Self {
         let tflite_logger = Arc::new(TfliteLogger {
             logger: logger.clone(),
@@ -159,7 +159,7 @@ impl Plugin for TflitePlugin {
         );
     }
 
-    async fn on_monitor_start(&self, token: CancellationToken, monitor: Arc<Monitor>) {
+    async fn on_monitor_start(&self, token: CancellationToken, monitor: ArcMonitor) {
         let msg_logger = Arc::new(TfliteMonitorLogger {
             logger: self.logger.clone(),
             monitor_id: monitor.config().id().to_owned(),
@@ -236,8 +236,8 @@ impl TflitePlugin {
     async fn start(
         &self,
         token: &CancellationToken,
-        msg_logger: DynMsgLogger,
-        monitor: Arc<Monitor>,
+        msg_logger: ArcMsgLogger,
+        monitor: ArcMonitor,
     ) -> Result<(), StartError> {
         use StartError::*;
         let config = monitor.config();
@@ -299,10 +299,10 @@ impl TflitePlugin {
 
     async fn run(
         &self,
-        msg_logger: &DynMsgLogger,
-        monitor: &Arc<Monitor>,
+        msg_logger: &ArcMsgLogger,
+        monitor: &ArcMonitor,
         config: &TfliteConfig,
-        source: &Arc<Source>,
+        source: &ArcSource,
         detector: &Detector,
     ) -> Result<(), RunError> {
         use RunError::*;
@@ -716,7 +716,7 @@ fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
 }
 
 struct TfliteMonitorLogger {
-    logger: DynLogger,
+    logger: ArcLogger,
     monitor_id: MonitorId,
 }
 
@@ -749,7 +749,7 @@ pub enum FetchError {
 }
 
 struct TfliteLogger {
-    logger: DynLogger,
+    logger: ArcLogger,
 }
 
 impl MsgLogger for TfliteLogger {
@@ -790,8 +790,8 @@ impl Fetcher for Fetch {
 
 #[derive(Clone)]
 struct HandlerState {
-    logger: DynLogger,
-    monitor_manager: MonitorManager,
+    logger: ArcLogger,
+    monitor_manager: ArcMonitorManager,
 }
 
 async fn enable_handler(

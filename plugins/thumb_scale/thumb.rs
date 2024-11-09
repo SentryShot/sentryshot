@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use async_trait::async_trait;
-use common::{monitor::MonitorConfig, DynLogger, LogEntry, LogLevel};
+use common::{monitor::MonitorConfig, ArcLogger, LogEntry, LogLevel};
 use plugin::{types::Assets, Application, Plugin};
 use sentryshot_scale::{Frame, Scaler};
 use serde::Deserialize;
@@ -19,7 +19,7 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     })
 }
 struct ThumbScalePlugin {
-    logger: DynLogger,
+    logger: ArcLogger,
 }
 #[async_trait]
 impl Plugin for ThumbScalePlugin {

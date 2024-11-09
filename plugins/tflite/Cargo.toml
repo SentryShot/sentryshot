@@ -17,7 +17,6 @@ doctest = false
 [dependencies]
 tflite_lib.path = "./tflite_lib" 
 common.path = "../../src/common"
-monitor.path = "../../src/monitor"
 plugin.path = "../../src/plugin"
 
 async-trait.workspace = true

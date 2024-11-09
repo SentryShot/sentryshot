@@ -17,7 +17,6 @@ doctest = false
 common.path = "../common"
 hls.path = "../hls"
 log.path = "../log"
-monitor.path = "../monitor"
 recdb.path = "../recdb"
 recording.path = "../recording"
 vod.path = "../vod"

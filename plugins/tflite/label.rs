@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{FetchError, Fetcher};
-use common::{DynMsgLogger, Label, LogLevel, ParseLabelError};
+use common::{ArcMsgLogger, Label, LogLevel, ParseLabelError};
 use std::{collections::HashMap, num::ParseIntError, path::PathBuf, string::FromUtf8Error};
 use thiserror::Error;
 use url::Url;
@@ -10,7 +10,7 @@ pub(crate) type LabelMap = HashMap<u8, Label>;
 type LabelMaps = HashMap<Url, LabelMap>;
 
 pub(crate) struct LabelCache {
-    logger: DynMsgLogger,
+    logger: ArcMsgLogger,
     fetcher: &'static dyn Fetcher,
     path: PathBuf,
     label_maps: LabelMaps,
@@ -48,7 +48,7 @@ pub(crate) enum LabelCacheError {
 
 impl LabelCache {
     pub(crate) fn new(
-        logger: DynMsgLogger,
+        logger: ArcMsgLogger,
         fetcher: &'static dyn Fetcher,
         path: PathBuf,
     ) -> Result<Self, CreateLabelCacheError> {
