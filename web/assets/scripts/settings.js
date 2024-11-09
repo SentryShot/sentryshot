@@ -20,6 +20,8 @@ import {
 } from "./components/form.js";
 import { newModal } from "./components/modal.js";
 
+/** @typedef {import("./components/form.js").InputRule} InputRule */
+
 function newRenderer($parent) {
 	let categories = [];
 
@@ -295,8 +297,18 @@ function newMonitor(token, fields, getMonitorId) {
 
 	const category = newCategory(name, title);
 	const form = newForm(fields);
-	form.addButton("save");
-	form.addButton("delete");
+
+	const onSave = () => {
+		saveMonitor(form);
+	};
+	form.addButton("save", onSave);
+
+	const onDelete = () => {
+		if (confirm("delete monitor?")) {
+			deleteMonitor(form.fields.id.value());
+		}
+	};
+	form.addButton("delete", onDelete);
 	category.setForm(form);
 
 	const monitorLoad = (navElement, monitors) => {
@@ -355,6 +367,7 @@ function newMonitor(token, fields, getMonitorId) {
 		renderMonitorList(monitors);
 	};
 
+	/** @param {Form} form */
 	const saveMonitor = async (form) => {
 		const err = form.validate();
 		if (err !== undefined) {
@@ -402,19 +415,6 @@ function newMonitor(token, fields, getMonitorId) {
 		load();
 	};
 
-	const init = () => {
-		category.init();
-		form.buttons()["save"].onClick(() => {
-			saveMonitor(form);
-		});
-
-		form.buttons()["delete"].onClick(() => {
-			if (confirm("delete monitor?")) {
-				deleteMonitor(form.fields.id.value());
-			}
-		});
-	};
-
 	return {
 		name() {
 			return name;
@@ -425,12 +425,8 @@ function newMonitor(token, fields, getMonitorId) {
 		icon() {
 			return icon;
 		},
-		html() {
-			return category.html();
-		},
-		init() {
-			init();
-		},
+		html: category.html,
+		init: category.init,
 		open() {
 			category.open();
 			load();
@@ -583,6 +579,7 @@ function newGroup(token, fields) {
 
 /**
  * @typedef Account
+ * @property {string} id
  * @property {string} username
  * @property {boolean} isAdmin
  */
@@ -607,8 +604,18 @@ function newAccount(token, fields) {
 
 	const category = newCategory(name, title);
 	const form = newForm(fields);
-	form.addButton("save");
-	form.addButton("delete");
+
+	const onSave = () => {
+		saveAccount(form);
+	};
+	form.addButton("save", onSave);
+
+	const onDelete = () => {
+		if (confirm("delete account?")) {
+			deleteAccount(form.fields.id.value);
+		}
+	};
+	form.addButton("delete", onDelete);
 	category.setForm(form);
 
 	/** @param {Accounts} accounts */
@@ -631,31 +638,33 @@ function newAccount(token, fields) {
 		form.reset();
 		/** @type {AccountFields} */
 		const formFields = form.fields;
-		formFields.id.set(id);
+		formFields.id.value = id;
 		formFields.username.set(username);
 		formFields.isAdmin.set(isAdmin);
 	};
 
-	function sortByUsername(input) {
-		input = Object.values(input);
-		input.sort((a, b) => {
+	/**
+	 * @param {Accounts} accounts
+	 * @returns {Account[]}
+	 */
+	function sortByUsername(accounts) {
+		const accounts2 = Object.values(accounts);
+		accounts2.sort((a, b) => {
 			if (a["username"] > b["username"]) {
 				return 1;
 			}
 			return -1;
 		});
-		return input;
+		return accounts2;
 	}
 
+	/** @param {Accounts} accounts */
 	const renderAccountList = (accounts) => {
 		let html = "";
 
 		for (const u of sortByUsername(accounts)) {
 			html += `
-				<li
-					class="settings-nav-item js-nav"
-					data="${u.id}"
-				>
+				<li class="settings-nav-item js-nav" data="${u.id}">
 					<span
 						${u.isAdmin ? 'style="color: var(--color-red);"' : ""}
 					>${u.username}
@@ -680,6 +689,7 @@ function newAccount(token, fields) {
 		renderAccountList(accounts);
 	};
 
+	/** @param {Form} form */
 	const saveAccount = async (form) => {
 		const err = form.validate();
 		if (err !== undefined) {
@@ -720,19 +730,6 @@ function newAccount(token, fields) {
 		load();
 	};
 
-	const init = () => {
-		category.init();
-		form.buttons()["save"].onClick(() => {
-			saveAccount(form);
-		});
-
-		form.buttons()["delete"].onClick(() => {
-			if (confirm("delete account?")) {
-				deleteAccount(form.fields.id.value);
-			}
-		});
-	};
-
 	return {
 		name() {
 			return name;
@@ -743,12 +740,8 @@ function newAccount(token, fields) {
 		icon() {
 			return icon;
 		},
-		html() {
-			return category.html();
-		},
-		init() {
-			init();
-		},
+		html: category.html,
+		init: category.init,
 		open() {
 			category.open();
 			load();
@@ -891,6 +884,8 @@ function newSelectMonitor(id) {
 function newSourceField(options, getField) {
 	/** @type {HTMLInputElement} */
 	let $input;
+	/** @type {HTMLSpanElement} */
+	let $error;
 
 	const id = uniqueID();
 
@@ -909,6 +904,7 @@ function newSourceField(options, getField) {
 		html: (() => {
 			return newHTMLfield(
 				{
+					errorField: true,
 					select: options,
 					custom: true,
 				},
@@ -918,7 +914,7 @@ function newSourceField(options, getField) {
 		})(),
 		init() {
 			const element = document.querySelector(`#js-${id}`);
-			[$input] = $getInputAndError(element);
+			[$input, $error] = $getInputAndError(element);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				selectedSourceField().open();
 			});
@@ -926,9 +922,12 @@ function newSourceField(options, getField) {
 		value: value,
 		set(input) {
 			$input.value = input === undefined ? "rtsp" : input;
+			$error.textContent = "";
 		},
 		validate() {
-			return selectedSourceField().validateSource();
+			const err = selectedSourceField().validateSource();
+			$error.textContent = err == undefined ? "" : err;
+			return err;
 		},
 	};
 }
@@ -980,8 +979,8 @@ function newSourceRTSP() {
 		element.insertAdjacentHTML("beforeend", modal.html);
 		element.querySelector(".js-modal").style.maxWidth = "12rem";
 
-		const $modalContent = modal.init();
-		form.init($modalContent);
+		modal.init();
+		form.init();
 
 		isRendered = true;
 		form.set(value);
@@ -995,9 +994,6 @@ function newSourceRTSP() {
 		open() {
 			render(element);
 			modal.open();
-		},
-		render() {
-			render(element);
 		},
 		html: `<div id="${id}"></div>`,
 		init() {
@@ -1017,9 +1013,8 @@ function newSourceRTSP() {
 		},
 		// Validation is done through the source field.
 		validateSource() {
-			if (!isRendered) {
-				return;
-			}
+			// Have to render form to validate.
+			render(element);
 			const err = form.validate();
 			if (err !== undefined) {
 				return "RTSP source: " + err;
@@ -1048,7 +1043,7 @@ function init() {
 			return monitorFields[name];
 		};
 
-		/** @type {import("./components/form.js").InputRule} */
+		/** @type {InputRule} */
 		const maxLength24 = [/^.{25}/, "maximum length is 24 characters"];
 		monitorFields.id = newField(
 			[
@@ -1070,11 +1065,7 @@ function init() {
 		monitorFields.source = newSourceField(["rtsp"], getMonitorField);
 		monitorFields.sourcertsp = newSourceRTSP();
 		monitorFields.alwaysRecord = fieldTemplate.toggle("Always record", false);
-		monitorFields.videoLength = fieldTemplate.number(
-			"Video length (min)",
-			"15",
-			"15"
-		);
+		monitorFields.videoLength = fieldTemplate.number("Video length (min)", "15", 15);
 		//timestampOffset: fieldTemplate.integer("Timestamp offset (ms)", "500", "500"),
 		/* SETTINGS_LAST_MONITOR_FIELD */
 

@@ -38,13 +38,13 @@ export function motion(getMonitorId) {
 export function _motion(hls, hasSubStream, getMonitorId) {
 	const fields = {
 		enable: fieldTemplate.toggle("Enable motion detection", false),
-		feedRate: fieldTemplate.integer("Feed rate (fps)", "", "2"),
+		feedRate: fieldTemplate.integer("Feed rate (fps)", "", 2),
 		/*frameScale: fieldTemplate.select(
 			"Frame scale",
 			["full", "half", "third", "quarter", "sixth", "eighth"],
 			"full"
 		),*/
-		duration: fieldTemplate.integer("Trigger duration (sec)", "", "120"),
+		duration: fieldTemplate.integer("Trigger duration (sec)", "", 120),
 		zones: zones(hls, hasSubStream, getMonitorId),
 	};
 
@@ -66,8 +66,8 @@ export function _motion(hls, hasSubStream, getMonitorId) {
 		const $modal = element.querySelector(".js-modal");
 		$modal.style.maxWidth = "12rem";
 
-		const $modalContent = modal.init();
-		form.init($modalContent);
+		modal.init();
+		form.init();
 
 		isRendered = true;
 		value = value === undefined ? {} : value;
@@ -107,6 +107,7 @@ export function _motion(hls, hasSubStream, getMonitorId) {
 			}
 		},
 		validate() {
+			// Unrendered fields should always be valid.
 			if (!isRendered) {
 				return;
 			}

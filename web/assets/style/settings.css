@@ -164,6 +164,7 @@
 	color: var(--color-red);
 	font-size: 0.4rem;
 	white-space: nowrap;
+	overflow: auto;
 }
 
 .password-strength {

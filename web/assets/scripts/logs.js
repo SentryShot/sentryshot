@@ -520,7 +520,7 @@ function newLogSelector(logger, formFields) {
 			const $list = $parent.querySelector(".js-list");
 
 			$sidebar.innerHTML = html;
-			form.init($sidebar);
+			form.init();
 			form.reset();
 			apply();
 

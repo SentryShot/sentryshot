@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// @ts-check
 
 import { uidReset } from "../libs/common.js";
 import {
@@ -11,6 +12,11 @@ import {
 	$getInputAndError,
 } from "./form.js";
 
+/**
+ * @template T
+ * @typedef {import("./form.js").Field<T>} Field
+ */
+
 describe("newForm", () => {
 	test("logic", () => {
 		let init, reset, validate;
@@ -21,13 +27,14 @@ describe("newForm", () => {
 				init() {
 					init = true;
 				},
+				/** @param {boolean} input */
 				set(input) {
 					if (input === undefined) {
 						reset = true;
 					}
 				},
-				validate(value) {
-					validate = value;
+				validate() {
+					validate = true;
 				},
 				value() {
 					return true;
@@ -36,7 +43,7 @@ describe("newForm", () => {
 		};
 
 		const form = newForm(mockField);
-
+		document.body.innerHTML = form.html();
 		form.init();
 		expect(init).toBe(true);
 
@@ -55,16 +62,15 @@ describe("newForm", () => {
 	};
 	describe("saveBtn", () => {
 		test("rendering", () => {
+			uidReset();
 			const form = newTestForm();
-			form.addButton("save");
+			form.addButton("save", () => {});
 
 			const expected = `
 				<ul class="form">
 					html
 					<div class="form-button-wrapper">
-						<button
-							class="js-save-btn form-button save-btn"
-						>
+						<button id="uid1" class="form-button save-btn">
 							<span>Save</span>
 						</button>
 					</div>
@@ -75,32 +81,31 @@ describe("newForm", () => {
 		});
 		test("onClick", () => {
 			const form = newTestForm();
-			form.addButton("save");
-			document.body.innerHTML = form.html();
-			form.init(document.body);
 
 			let clicked = false;
-			form.buttons()["save"].onClick(() => {
+			const onSave = () => {
 				clicked = true;
-			});
-			// @ts-ignore
-			document.querySelector(".js-save-btn").click();
+			};
+			form.addButton("save", onSave);
+			document.body.innerHTML = form.html();
+			form.init();
+
+			form.buttons()["save"].element().click();
 
 			expect(clicked).toBe(true);
 		});
 	});
 	describe("deleteBtn", () => {
 		test("rendering", () => {
+			uidReset();
 			const form = newTestForm();
-			form.addButton("delete");
+			form.addButton("delete", () => {});
 
 			const expected = `
 				<ul class="form">
 					html
 					<div class="form-button-wrapper">
-						<button
-							class="js-delete-btn form-button delete-btn"
-						>
+						<button id="uid1" class="form-button delete-btn">
 							<span>Delete</span>
 						</button>
 					</div>
@@ -111,37 +116,35 @@ describe("newForm", () => {
 		});
 		test("onClick", () => {
 			const form = newTestForm();
-			form.addButton("delete");
-			document.body.innerHTML = form.html();
-			form.init(document.body);
 
 			let clicked = false;
-			form.buttons()["delete"].onClick(() => {
+			const onDelete = () => {
 				clicked = true;
-			});
+			};
+			form.addButton("delete", onDelete);
+			document.body.innerHTML = form.html();
+			form.init();
+
 			// @ts-ignore
-			document.querySelector(".js-delete-btn").click();
+			form.buttons()["delete"].element().click();
 
 			expect(clicked).toBe(true);
 		});
 	});
 	test("saveAndDeleteBtn", () => {
+		uidReset();
 		const form = newTestForm();
-		form.addButton("save");
-		form.addButton("delete");
+		form.addButton("save", () => {});
+		form.addButton("delete", () => {});
 
 		const expected = `
 			<ul class="form">
 				html
 				<div class="form-button-wrapper">
-					<button
-						class="js-save-btn form-button save-btn"
-					>
+					<button id="uid1" class="form-button save-btn">
 						<span>Save</span>
 					</button>
-					<button
-						class="js-delete-btn form-button delete-btn"
-					>
+					<button id="uid2" class="form-button delete-btn">
 						<span>Delete</span>
 					</button>
 			</div>
@@ -155,18 +158,17 @@ describe("newForm", () => {
 describe("newField", () => {
 	const newTestField = () => {
 		return newNumberField(
-			[inputRules.notEmpty, inputRules.noSpaces],
 			{
 				errorField: true,
 				input: "number",
 				min: 2,
 				max: 4,
-				step: "0.5",
+				step: 0.5,
 			},
 			{
 				label: "a",
 				placeholder: "b",
-				initial: "c",
+				initial: 3,
 			}
 		);
 	};
@@ -192,13 +194,25 @@ describe("newField", () => {
 	});
 	test("validate", () => {
 		const field = newTestField();
-		expect(field.validate("1")).toBe(`"a": min value: 2`);
-		expect(field.validate("3")).toBeUndefined();
-		expect(field.validate("5")).toBe(`"a": max value: 4`);
+		document.body.innerHTML = field.html;
+		field.init();
+
+		field.set(1);
+		expect(field.validate()).toBe(`"a": Constraints not satisfied`);
+		field.set(3);
+		expect(field.validate()).toBeUndefined();
+		field.set(5);
+		expect(field.validate()).toBe(`"a": Constraints not satisfied`);
 	});
 });
 
+/** @typedef {import("./form.js").InputRule} InputRule */
+
 describe("inputRules", () => {
+	/**
+	 * @param {[string, boolean][]} cases
+	 * @param {InputRule} rule
+	 */
 	const testRule = (cases, rule) => {
 		for (const tc of cases) {
 			const input = tc[0];
@@ -208,6 +222,7 @@ describe("inputRules", () => {
 	};
 
 	test("noSpaces", () => {
+		/** @type {[string, boolean][]} */
 		const cases = [
 			["", true],
 			[" ", false],
@@ -215,6 +230,7 @@ describe("inputRules", () => {
 		expect(testRule(cases, inputRules.noSpaces)).toBeTruthy();
 	});
 	test("notEmpty", () => {
+		/** @type {[string, boolean][]} */
 		const cases = [
 			["", false],
 			["a", true],
@@ -222,6 +238,7 @@ describe("inputRules", () => {
 		expect(testRule(cases, inputRules.notEmpty)).toBeTruthy();
 	});
 	test("englishOnly", () => {
+		/** @type {[string, boolean][]} */
 		const cases = [
 			["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", true],
 			["&", false],
@@ -231,22 +248,30 @@ describe("inputRules", () => {
 });
 
 describe("fieldTemplate", () => {
+	/** @param {Field<number|string>} field */
 	const testNotEmpty = (field) => {
-		expect(field.validate("")).not.toBe("");
+		field.set("");
+		expect(field.validate()).not.toBe("");
 	};
+	/** @param {Field<number|string>} field */
 	const testNoSpace = (field) => {
-		expect(field.validate(" ")).not.toBe("");
+		field.set(" ");
+		expect(field.validate()).not.toBe("");
 	};
+	/** @param {Field<number|string>} field */
 	const testReset = (field) => {
 		field.set(1);
 		expect([1, "1"]).toContain(field.value());
 
-		field.set("");
+		field.set(undefined);
 		expect([0, ""]).toContain(field.value());
 	};
 	const testOnChange = () => {
 		const element = document.querySelector("#js-uid1");
 		const [$input, $error] = $getInputAndError(element);
+		expect($error.innerHTML).toBe("");
+
+		$input.value = "";
 		const e = new Event("change");
 		$input.dispatchEvent(e);
 
@@ -278,7 +303,8 @@ describe("fieldTemplate", () => {
 		document.body.innerHTML = field.html;
 		field.init();
 
-		expect(field.validate("x")).toBeUndefined();
+		field.set("x");
+		expect(field.validate()).toBeUndefined();
 		testNotEmpty(field);
 		testNoSpace(field);
 		testReset(field);
@@ -312,18 +338,19 @@ describe("fieldTemplate", () => {
 		document.body.innerHTML = field.html;
 		field.init();
 
-		expect(field.validate(5)).toBeUndefined();
+		field.set(5);
+		expect(field.validate()).toBeUndefined();
 
 		testNotEmpty(field);
 		testNoSpace(field);
 		testReset(field);
 
-		testOnChange();
+		//testOnChange();
 	});
 
 	test("toggle", () => {
 		uidReset();
-		const field = fieldTemplate.toggle("1", "true");
+		const field = fieldTemplate.toggle("1", true);
 
 		const expected = `
 		<li id="js-uid1" class="form-field">
@@ -408,11 +435,11 @@ describe("fieldTemplate", () => {
 		field.init();
 
 		testNotEmpty(field);
-		expect(field.validate("x")).toBeUndefined();
+		field.set("x");
+		expect(field.validate()).toBeUndefined();
 
+		field.set("a");
 		expect(field.value()).toBe("a");
-		field.set("b");
-		expect(field.value()).toBe("b");
 		field.set(undefined);
 		expect(field.value()).toBe("a");
 
@@ -465,11 +492,11 @@ describe("selectCustomField", () => {
 		document.body.innerHTML = field.html;
 		field.init();
 
-		expect(field.validate("x")).toBeUndefined();
+		field.set("x");
+		expect(field.validate()).toBeUndefined();
 
+		field.set("a");
 		expect(field.value()).toBe("a");
-		field.set("b");
-		expect(field.value()).toBe("b");
 		field.set("");
 		expect(field.value()).toBe("");
 

@@ -3,7 +3,7 @@
 
 import Hls from "./vendor/hls.js";
 import { uniqueID, normalize, denormalize } from "./libs/common.js";
-import { newForm, newNumberField, inputRules, fieldTemplate } from "./components/form.js";
+import { newForm, newNumberField, fieldTemplate } from "./components/form.js";
 import { newFeed } from "./components/feed.js";
 import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
@@ -69,19 +69,19 @@ export function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 		detectorNames.at(-1) // Last item.
 	);
 	fields.feedRate = newNumberField(
-		[inputRules.notEmpty, inputRules.noSpaces],
 		{
 			errorField: true,
 			input: "number",
 			min: 0,
+			step: 0.1,
 		},
 		{
 			label: "Feed rate (fps)",
 			placeholder: "",
-			initial: "0.2",
+			initial: 0.2,
 		}
 	);
-	fields.duration = fieldTemplate.integer("Trigger duration (sec)", "", "120");
+	fields.duration = fieldTemplate.integer("Trigger duration (sec)", "", 120);
 	fields.useSubStream = fieldTemplate.toggle("Use sub stream", true);
 	//fields.preview = preview()
 
@@ -103,8 +103,8 @@ export function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 		const $modal = element.querySelector(".js-modal");
 		$modal.style.maxWidth = "12rem";
 
-		const $modalContent = modal.init();
-		form.init($modalContent);
+		modal.init();
+		form.init();
 
 		isRendered = true;
 		value = value === undefined ? {} : value;
@@ -189,38 +189,17 @@ function thresholds(detectors, getDetectorName) {
 						max=100
 					/>
 				</li>`,
-			init() {
-				/** @type {HTMLInputElement} */
-				const element = document.querySelector(`#${id}`);
-				element.addEventListener("change", () => {
-					if (Number(element.value) < 0) {
-						element.value = "0";
-					} else if (Number(element.value) > 100) {
-						element.value = "100";
-					}
-				});
-			},
 			value() {
 				// @ts-ignore
-				return document.querySelector(`#${id}`).value;
+				return document.getElementById(id).value;
 			},
 			label() {
 				return label;
 			},
-			/** @param {string} input */
-			validate(input) {
-				if (0 > Number(input)) {
-					return "min value: 0";
-				} else if (Number(input) > 100) {
-					return "max value: 100";
-				} else {
-					return;
-				}
-			},
 		};
 	};
 
-	let value, modal, fields, $modalContent, validateErr;
+	let value, modal, fields, $modalContent;
 	let isRendered = false;
 	/** @param {Element} element */
 	const render = (element) => {
@@ -231,21 +210,26 @@ function thresholds(detectors, getDetectorName) {
 		element.insertAdjacentHTML("beforeend", modal.html);
 		$modalContent = modal.init();
 
+		$modalContent.addEventListener("change", (e) => {
+			const target = e.target;
+			if (target instanceof HTMLInputElement) {
+				const input = target.value;
+				if (Number(input) < 0) {
+					target.value = "0";
+				} else if (Number(input) > 100) {
+					target.value = "100";
+				}
+				if (input === "") {
+					target.value = "100";
+				}
+			}
+		});
+
+		// Read values when modal is closed.
 		modal.onClose(() => {
-			// Get value.
 			value = {};
 			for (const field of fields) {
 				value[field.label()] = Number(field.value());
-			}
-
-			// Validate fields.
-			validateErr = undefined;
-			for (const field of fields) {
-				const err = field.validate(field.value());
-				if (err !== undefined) {
-					validateErr = `"Thresholds": "${field.label()}": ${err}`;
-					break;
-				}
 			}
 		});
 		isRendered = true;
@@ -291,11 +275,6 @@ function thresholds(detectors, getDetectorName) {
 			html += field.html;
 		}
 		$modalContent.innerHTML = html;
-
-		// Init fields.
-		for (const field of fields) {
-			field.init();
-		}
 	};
 
 	const id = uniqueID();
@@ -322,10 +301,6 @@ function thresholds(detectors, getDetectorName) {
 		},
 		set(input) {
 			value = input ? input : {};
-			validateErr = undefined;
-		},
-		validate() {
-			return validateErr;
 		},
 		init() {
 			const element = document.querySelector(`#${id}`);

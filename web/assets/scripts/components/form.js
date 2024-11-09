@@ -12,13 +12,13 @@ import { uniqueID } from "../libs/common.js";
  *
  * set(input)   Set form field value. Reset field to initial value if input is undefined.
  *
- * validate(input)
- * Takes value() and returns undefined or error,
- * if empty string is returned it's assumed that the field is valid.
+ * validate()
+ * Returns undefined or error string.
+ * If undefined is returned, it's assumed that the field is valid.
  *
  * init()
  * Called after the html has been rendered.
- * Used to set pointers to elements and to add event listeners.
+ * Used to query rendered elements and to add event listeners.
  *
  * element()   Returns field element. optional
  */
@@ -30,19 +30,19 @@ import { uniqueID } from "../libs/common.js";
  * @property {() => void} init
  * @property {() => T} value
  * @property {(input: T|undefined) => void} set
- * @property {(input: T) => string|undefined=} validate
+ * @property {() => string|undefined=} validate
  * @property {() => HTMLElement=} element
  */
 
 /**
  * @typedef {Object} Form
  * @property {() => Buttons} buttons
- * @property {(type: string) => void} addButton
+ * @property {(type: string, onClick: () => void) => void} addButton
  * @property {any} fields
  * @property {() => void} reset
  * @property {() => string|undefined} validate
  * @property {() => string} html
- * @property {($parent: Element) => void} init
+ * @property {() => void} init
  * @property {(values: {[x: string]: any}) => void} set
  * @property {(values: {[x: string]: any}) => void} get
  */
@@ -57,48 +57,48 @@ import { uniqueID } from "../libs/common.js";
  * @returns {Form}
  */
 function newForm(fields) {
-	/** @type {Fields<any>} */
-	const f = fields;
 	/** @type {Buttons} */
 	let buttons = {};
 	return {
 		buttons() {
 			return buttons;
 		},
-		addButton(type) {
+		addButton(type, onClick) {
 			switch (type) {
 				case "save": {
-					buttons["save"] = newSaveBtn();
+					buttons["save"] = newSaveBtn(onClick);
 					break;
 				}
 				case "delete": {
-					buttons["delete"] = newDeleteBtn();
+					buttons["delete"] = newDeleteBtn(onClick);
 					break;
+				}
+				default: {
+					console.error("unknown button type:", type);
 				}
 			}
 		},
-		fields: f,
+		fields: fields,
 		reset() {
-			for (const item of Object.values(f)) {
+			for (const item of Object.values(fields)) {
 				if (item.set) {
 					item.set(undefined);
 				}
 			}
 		},
 		validate() {
-			for (const item of Object.values(f)) {
+			for (const item of Object.values(fields)) {
 				if (item.validate) {
-					const err = item.validate(item.value());
+					const err = item.validate();
 					if (err !== undefined) {
 						return err;
 					}
 				}
 			}
-			return;
 		},
 		html() {
 			let htmlFields = "";
-			for (const item of Object.values(f)) {
+			for (const item of Object.values(fields)) {
 				if (item && item.html) {
 					htmlFields += item.html;
 				}
@@ -106,7 +106,7 @@ function newForm(fields) {
 			let htmlButtons = "";
 			if (buttons) {
 				for (const btn of Object.values(buttons)) {
-					htmlButtons += btn.html();
+					htmlButtons += btn.html;
 				}
 			}
 			return `
@@ -115,23 +115,23 @@ function newForm(fields) {
 					<div class="form-button-wrapper">${htmlButtons}</div>
 				</ul>`;
 		},
-		init($parent) {
-			for (const item of Object.values(f)) {
+		init() {
+			for (const item of Object.values(fields)) {
 				if (item && item.init) {
 					item.init();
 				}
 			}
 			for (const btn of Object.values(buttons)) {
-				btn.init($parent);
+				btn.init();
 			}
 		},
 		set(values) {
-			for (const [key, field] of Object.entries(f)) {
+			for (const [key, field] of Object.entries(fields)) {
 				field.set(values[key]);
 			}
 		},
 		get(values) {
-			for (const [key, field] of Object.entries(f)) {
+			for (const [key, field] of Object.entries(fields)) {
 				values[key] = field.value();
 			}
 		},
@@ -140,65 +140,61 @@ function newForm(fields) {
 
 /**
  * @typedef Button
- * @property {((func: () => void) => void)} onClick
- * @property {() => string} html
- * @property {($parent: Element) => void} init
+ * @property {string} html
+ * @property {() => void} init
+ * @property {() => HTMLButtonElement} element
  */
 
-/** @typedef {Object.<string, Button>} Buttons */
+/** @typedef {{[x: string]: Button}} Buttons */
 
-/** @returns {Button} */
-function newSaveBtn() {
-	let element, onClick;
+/**
+ * @param {() => void} onClick
+ * @returns {Button}
+ */
+function newSaveBtn(onClick) {
+	const id = uniqueID();
+	/** @type {HTMLButtonElement} */
+	let element;
 	return {
-		onClick(func) {
-			onClick = func;
-		},
-		html() {
-			return `
-				<button
-					class="
-						js-save-btn
-						form-button
-						save-btn
-					"
-				>
-					<span>Save</span>
-				</button>`;
-		},
-		init($parent) {
-			element = $parent.querySelector(".js-save-btn");
+		html: `
+			<button id="${id}" class="form-button save-btn">
+				<span>Save</span>
+			</button>`,
+		init() {
+			// @ts-ignore
+			element = document.getElementById(id);
 			element.addEventListener("click", () => {
 				onClick();
 			});
+		},
+		element() {
+			return element;
 		},
 	};
 }
 
-/** @returns {Button} */
-function newDeleteBtn() {
-	let element, onClick;
+/**
+ * @param {() => void} onClick
+ * @returns {Button}
+ */
+function newDeleteBtn(onClick) {
+	const id = uniqueID();
+	/** @type {HTMLButtonElement} */
+	let element;
 	return {
-		onClick(func) {
-			onClick = func;
-		},
-		html() {
-			return `
-				<button
-					class="
-						js-delete-btn
-						form-button
-						delete-btn
-					"
-				>
-					<span>Delete</span>
-				</button>`;
-		},
-		init($parent) {
-			element = $parent.querySelector(".js-delete-btn");
+		html: `
+			<button id="${id}" class="form-button delete-btn">
+				<span>Delete</span>
+			</button>`,
+		init() {
+			// @ts-ignore
+			element = document.getElementById(id);
 			element.addEventListener("click", () => {
 				onClick();
 			});
+		},
+		element() {
+			return element;
 		},
 	};
 }
@@ -241,12 +237,11 @@ const fieldTemplate = {
 	/**
 	 * @param {string} label
 	 * @param {string} placeholder
-	 * @param {string} initial
+	 * @param {number} initial
 	 * @return {Field<number>}
 	 */
-	integer(label, placeholder, initial = "0") {
+	integer(label, placeholder, initial = 0) {
 		return newNumberField(
-			[inputRules.notEmpty, inputRules.noSpaces],
 			{
 				errorField: true,
 				input: "number",
@@ -263,12 +258,11 @@ const fieldTemplate = {
 	/**
 	 * @param {string} label
 	 * @param {string} placeholder
-	 * @param {string} initial
+	 * @param {number} initial
 	 * @return {Field<number>}
 	 */
-	number(label, placeholder, initial = "0") {
+	number(label, placeholder, initial = 0) {
 		return newNumberField(
-			[inputRules.notEmpty, inputRules.noSpaces],
 			{
 				errorField: true,
 				input: "number",
@@ -333,16 +327,18 @@ const fieldTemplate = {
  */
 
 /**
+ * @template T
  * @typedef {Object} Values
  * @property {string} label
  * @property {string=} placeholder
- * @property {string=} initial
+ * @property {T=} initial
  */
 
 /**
+ * @template T
  * @param {InputRule[]} inputRules
  * @param {Options} options
- * @param {Values} values
+ * @param {Values<T>} values
  * @return {Field<string>}
  */
 function newField(inputRules, options, values) {
@@ -354,21 +350,20 @@ function newField(inputRules, options, values) {
 	const { errorField } = options;
 	const { label, placeholder, initial } = values;
 
-	/** @param {string|number} input */
-	const validate = (input) => {
+	const validate = () => {
 		if (!errorField) {
 			return;
 		}
+
+		const value = $input.value;
 		for (const rule of inputRules) {
-			if (rule[0].test(String(input))) {
+			if (rule[0].test(String(value))) {
+				$error.textContent = rule[1];
 				return rule[1];
 			}
 		}
+		$error.textContent = "";
 		return;
-	};
-
-	const value = () => {
-		return $input.value;
 	};
 
 	const id = uniqueID();
@@ -378,27 +373,23 @@ function newField(inputRules, options, values) {
 		init() {
 			element = document.querySelector(`#js-${id}`);
 			[$input, $error] = $getInputAndError(element);
-			$input.addEventListener("change", () => {
-				if (errorField) {
-					const err = validate(value());
-					if (err !== undefined) {
-						$error.innerHTML = err;
-					}
-				}
-			});
+			$input.addEventListener("change", validate);
 		},
 		value() {
-			return value();
+			return $input.value;
 		},
 		set(input) {
 			if (input === undefined) {
-				$input.value = initial ? initial : "";
+				$input.value = initial ? String(initial) : "";
 			} else {
 				$input.value = input;
 			}
+			if (errorField) {
+				$error.textContent = "";
+			}
 		},
-		validate(input) {
-			const err = validate(input);
+		validate() {
+			const err = validate();
 			if (err !== undefined) {
 				return `"${label}": ${err}`;
 			}
@@ -411,12 +402,11 @@ function newField(inputRules, options, values) {
 }
 
 /**
- * @param {InputRule[]} inputRules
  * @param {Options} options
- * @param {Values} values
+ * @param {Values<number>} values
  * @return {Field<number>}
  */
-function newNumberField(inputRules, options, values) {
+function newNumberField(options, values) {
 	let element;
 	/** @type HTMLInputElement */
 	let $input;
@@ -425,23 +415,17 @@ function newNumberField(inputRules, options, values) {
 	const { errorField, min, max } = options;
 	const { label, placeholder, initial } = values;
 
-	/** @param {string|number} input */
-	const validate = (input) => {
+	const validate = () => {
 		if (!errorField) {
 			return;
 		}
-		for (const rule of inputRules) {
-			if (rule[0].test(String(input))) {
-				return rule[1];
-			}
+
+		if ($input.validationMessage !== "") {
+			$error.textContent = $input.validationMessage;
+			return $input.validationMessage;
 		}
-		input = Number(input);
-		if (min !== undefined && input < min) {
-			return `min value: ${min}`;
-		}
-		if (max !== undefined && input > max) {
-			return `max value: ${max}`;
-		}
+
+		$error.textContent = "";
 		return;
 	};
 
@@ -453,22 +437,30 @@ function newNumberField(inputRules, options, values) {
 			element = document.querySelector(`#js-${id}`);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
-				if (errorField) {
-					const err = validate($input.value);
-					if (err !== undefined) {
-						$error.innerHTML = err;
+				// Only contains one or more digits.
+				if (/^\d+$/.test($input.value)) {
+					const input = Number($input.value);
+					if (min !== undefined && input < min) {
+						$input.value = String(min);
+					}
+					if (max !== undefined && input > max) {
+						$input.value = String(max);
 					}
 				}
+				validate();
 			});
 		},
 		value() {
 			return Number($input.value);
 		},
 		set(input) {
-			$input.value = input === undefined ? initial : String(input);
+			$input.value = input === undefined ? String(initial) : String(input);
+			if (errorField) {
+				$error.textContent = "";
+			}
 		},
-		validate(input) {
-			const err = validate(input);
+		validate() {
+			const err = validate();
 			if (err !== undefined) {
 				return `"${label}": ${err}`;
 			}
@@ -581,7 +573,7 @@ function newToggleField(label, initial) {
  *
  * @param {InputRule[]} inputRules
  * @param {string[]} options
- * @param {Values} values
+ * @param {Values<string>} values
  * @return {Field<string>}
  */
 function newSelectCustomField(inputRules, options, values) {
@@ -591,14 +583,13 @@ function newSelectCustomField(inputRules, options, values) {
 	let validate;
 	const id = uniqueID();
 
-	const value = () => {
-		return $input.value;
-	};
+	const errorField = inputRules.length > 0;
+
 	/** @param {string|undefined} input */
 	const set = (input) => {
 		if (input === undefined) {
 			$input.value = values.initial;
-			if (inputRules.length > 0) {
+			if (errorField) {
 				$error.innerHTML = "";
 			}
 			return;
@@ -618,16 +609,19 @@ function newSelectCustomField(inputRules, options, values) {
 		$input.value = input;
 	};
 
-	/**
-	 * @param {string} input
-	 * @returns {string|undefined}
-	 */
-	validate = (input) => {
+	/** @returns {string|undefined} */
+	validate = () => {
+		if (!errorField) {
+			return;
+		}
+		const value = $input.value;
 		for (const rule of inputRules) {
-			if (rule[0].test(input)) {
+			if (rule[0].test(value)) {
+				$error.textContent = `${values.label} ${rule[1]}`;
 				return `${values.label} ${rule[1]}`;
 			}
 		}
+		$error.textContent = "";
 		return;
 	};
 
@@ -637,7 +631,7 @@ function newSelectCustomField(inputRules, options, values) {
 				{
 					select: options,
 					custom: true,
-					errorField: inputRules.length > 0,
+					errorField: errorField,
 				},
 				id,
 				values.label,
@@ -646,19 +640,19 @@ function newSelectCustomField(inputRules, options, values) {
 		})(),
 		init() {
 			const element = document.querySelector(`#js-${id}`);
-			[$input, $error] = $getInputAndError(element);
-			$input.addEventListener("change", () => {
-				const err = validate(value());
-				$error.innerHTML = err === undefined ? "" : err;
-			});
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const input = prompt("Custom value");
 				if (input !== "") {
 					set(input);
 				}
 			});
+
+			[$input, $error] = $getInputAndError(element);
+			$input.addEventListener("change", validate);
 		},
-		value: value,
+		value() {
+			return $input.value;
+		},
 		set: set,
 		validate: validate,
 	};
@@ -725,9 +719,7 @@ function newPasswordField() {
 	const checkPassword = () => {
 		$newError.innerHTML = passwordStrength($newInput.value);
 		const err = validate();
-		if (err !== undefined) {
-			$repeatError.textContent = validate();
-		}
+		$repeatError.textContent = err === undefined ? "" : err;
 	};
 
 	return {
@@ -735,10 +727,12 @@ function newPasswordField() {
 			passwordHTML(newID, "New password") +
 			passwordHTML(repeatID, "Repeat password"),
 		value: value,
-		set(input) {
-			$newInput.value = input;
-			$repeatInput.value = input;
-			checkPassword();
+		// Always called with undefined.
+		set() {
+			$newInput.value = "";
+			$repeatInput.value = "";
+			$newError.textContent = "";
+			$repeatError.textContent = "";
 		},
 		init() {
 			[$newInput, $newError] = $getInputAndError(
@@ -761,7 +755,7 @@ function newPasswordField() {
 
 /**
  * @param {Element} $parent
- * @returns {[HTMLInputElement, HTMLElement]}
+ * @returns {[HTMLInputElement, HTMLSpanElement]}
  */
 function $getInputAndError($parent) {
 	return [$parent.querySelector(".js-input"), $parent.querySelector(".js-error")];

@@ -73,7 +73,8 @@
 			"unicorn/filename-case": ["off"],
 			"unicorn/prefer-add-event-listener": "off",
 			"unicorn/numeric-separators-style": "off",
-			"unicorn/prefer-logical-operator-over-ternary": "off"
+			"unicorn/prefer-logical-operator-over-ternary": "off",
+			"unicorn/prefer-query-selector" : "off"
 		}
 	},
 	"stylelint": {
