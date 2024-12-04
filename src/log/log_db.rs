@@ -217,8 +217,11 @@ impl LogDb {
         let entry_index = {
             if let Some(time) = q.time {
                 decoder.search(time).await?
+            } else if let Some(last_index) = decoder.last_index() {
+                last_index + 1
             } else {
-                decoder.last_index() + 1
+                // Chunk is empty.
+                return Ok(());
             }
         };
 
@@ -545,8 +548,9 @@ impl ChunkDecoder {
         })
     }
 
-    fn last_index(&self) -> usize {
-        self.n_entries - 1
+    // Returns None if there are no entries.
+    fn last_index(&self) -> Option<usize> {
+        self.n_entries.checked_sub(1)
     }
 
     // Binary search.
@@ -738,20 +742,21 @@ impl ChunkEncoder {
 
             // Find the first valid entry from the end.
             // Treat file as empty if no valid entry is found.
-            let last_index = decoder.last_index();
-            for i in (0..=last_index).rev() {
-                let (last_entry, msg_offset) = match decoder.decode(i).await {
-                    Ok(v) => v,
-                    Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
-                        eprintln!("log store warning: {data_path:?} {e}");
-                        continue;
-                    }
-                    Err(e) => return Err(NewChunkEncoderError::Decode(data_path.clone(), e)),
-                };
+            if let Some(last_index) = decoder.last_index() {
+                for i in (0..=last_index).rev() {
+                    let (last_entry, msg_offset) = match decoder.decode(i).await {
+                        Ok(v) => v,
+                        Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
+                            eprintln!("log store warning: {data_path:?} {e}");
+                            continue;
+                        }
+                        Err(e) => return Err(NewChunkEncoderError::Decode(data_path.clone(), e)),
+                    };
 
-                prev_entry_time = last_entry.time;
-                data_end = calculate_data_end(data_file_size)?;
-                msg_pos = msg_offset + u32::try_from(last_entry.message.len())? + 1;
+                    prev_entry_time = last_entry.time;
+                    data_end = calculate_data_end(data_file_size)?;
+                    msg_pos = msg_offset + u32::try_from(last_entry.message.len())? + 1;
+                }
             }
         }
 
@@ -1320,6 +1325,37 @@ mod tests {
 
         assert!(db.query(empty_query()).await.unwrap().is_empty());
 
+        db.save_log(entry2.clone()).await.unwrap();
+        let got = db.query(empty_query()).await.unwrap();
+        assert_eq!([entry2].as_slice(), got.as_slice());
+    }
+
+    #[tokio::test]
+    async fn test_empty_chunk() {
+        let temp_dir = tempdir().unwrap();
+
+        let entry1 = new_test_entry2(1, "missing");
+
+        let db = new_test_db(temp_dir.path());
+        db.save_log(entry1.clone()).await.unwrap();
+
+        // Clear data file.
+        let file_path = temp_dir.path().join("00000.data");
+        tokio::fs::remove_file(&file_path).await.unwrap();
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(file_path)
+            .await
+            .unwrap();
+        file.write_all(&[0]).await.unwrap();
+        file.flush().await.unwrap();
+
+        let db = new_test_db(temp_dir.path());
+
+        assert!(db.query(empty_query()).await.unwrap().is_empty());
+
+        let entry2 = new_test_entry2(1, "good");
         db.save_log(entry2.clone()).await.unwrap();
         let got = db.query(empty_query()).await.unwrap();
         assert_eq!([entry2].as_slice(), got.as_slice());
