@@ -1,5 +1,7 @@
 ## unreleased
 
+-	fix logdb panic #37
+
 ## `v0.2.19`
 
 -	reduced the binary size by 14 MIB

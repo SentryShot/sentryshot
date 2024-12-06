@@ -142,6 +142,12 @@ impl<R: AsyncRead + AsyncSeek> AsyncBufRead for RevBufReader<R> {
             *me.buf_end = *me.buf_start + buf.filled().len();
             *me.inner_pos = *me.buf_end;
 
+            if *me.buf_end <= *me.buf_pos {
+                // Cursor is outside the file.
+                *me.read_state = ReadState::Init;
+                return Poll::Ready(Ok(&[])); // EOF.
+            }
+
             *me.read_state = ReadState::Init;
             Poll::Ready(Ok(
                 &me.buf[(*me.buf_pos - *me.buf_start)..(*me.buf_end - *me.buf_start)]
@@ -259,6 +265,26 @@ mod tests {
     use futures::task::noop_waker_ref;
     use std::{cmp, io::Cursor, task::Poll};
     use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncReadExt, AsyncSeekExt};
+
+    #[tokio::test]
+    async fn test_seek_outside_file() {
+        let mut buf = Cursor::new(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        let mut reader = RevBufReader::new(&mut buf);
+
+        reader.seek(SeekFrom::Start(14)).await.unwrap();
+        reader.seek(SeekFrom::Start(11)).await.unwrap();
+        reader.read_exact(&mut [0]).await.unwrap_err();
+
+        // Seek back into the file.
+        reader.seek(SeekFrom::Start(5)).await.unwrap();
+        let mut tmp = vec![0, 0, 0, 0];
+        reader.read_exact(&mut tmp).await.unwrap();
+        assert_eq!(&[5, 6, 7, 8], tmp.as_slice());
+
+        let mut tmp = vec![0];
+        reader.read_exact(&mut tmp).await.unwrap();
+        assert_eq!(&[9], tmp.as_slice());
+    }
 
     macro_rules! run_fill_buf {
         ($reader:expr) => {{
