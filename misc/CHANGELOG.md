@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.20`
+
 -	fix logdb panic #37
 
 ## `v0.2.19`
