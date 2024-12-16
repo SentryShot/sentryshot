@@ -24,6 +24,7 @@ use log::{
     log_db::{LogDbHandle, LogQuery},
     Logger,
 };
+use monitor_groups::ArcMonitorGroups;
 use recdb::{DeleteRecordingError, RecDb, RecDbQuery, RecordingResponse};
 use recording::{new_video_reader, VideoCache};
 use rust_embed::EmbeddedFiles;
@@ -439,6 +440,26 @@ pub async fn monitors_handler(
     State(monitor_manager): State<ArcMonitorManager>,
 ) -> Json<MonitorConfigs> {
     Json(monitor_manager.monitor_configs().await.clone())
+}
+
+pub async fn monitor_groups_get_handler(
+    State(monitor_groups): State<ArcMonitorGroups>,
+) -> Json<monitor_groups::Groups> {
+    Json(monitor_groups.get().await)
+}
+
+pub async fn monitor_groups_put_handler(
+    State(monitor_groups): State<ArcMonitorGroups>,
+    Json(payload): Json<monitor_groups::Groups>,
+) -> Response {
+    tokio::spawn(async move {
+        match monitor_groups.set(payload).await {
+            Ok(()) => StatusCode::OK.into_response(),
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        }
+    })
+    .await
+    .expect("join")
 }
 
 pub async fn recording_delete_handler(

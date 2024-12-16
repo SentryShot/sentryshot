@@ -953,6 +953,7 @@ dependencies = [
  "hyper 0.14.28",
  "log 0.2.20",
  "mime_guess",
+ "monitor_groups",
  "pretty_assertions",
  "recdb",
  "recording",
@@ -1487,6 +1488,19 @@ dependencies = [
  "tokio",
  "tokio-util",
  "url",
+]
+
+[[package]]
+name = "monitor_groups"
+version = "0.2.20"
+dependencies = [
+ "common",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -2110,6 +2124,7 @@ dependencies = [
  "hyper 0.14.28",
  "log 0.2.20",
  "monitor",
+ "monitor_groups",
  "pico-args",
  "plugin",
  "pretty_assertions",
@@ -2977,6 +2992,7 @@ dependencies = [
  "http-body 1.0.0",
  "httpdate",
  "log 0.2.20",
+ "monitor_groups",
  "pin-project",
  "pretty_assertions",
  "serde_json",

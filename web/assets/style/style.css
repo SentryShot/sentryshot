@@ -476,7 +476,7 @@ img {
 
 .select-one-label {
 	padding: 0.1rem;
-	font-size: 0.8rem;
+	font-size: 0.6rem;
 }
 
 .select-one-item {
@@ -837,10 +837,11 @@ img {
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	width: 0.8rem;
-	height: 0.8rem;
+	width: 0.8em;
+	height: 0.8em;
 	background: var(--color2);
-	border-radius: 0.2rem;
+	border-radius: 0.14rem;
+	user-select: none;
 }
 
 .checkbox-checkbox {
@@ -854,15 +855,15 @@ img {
 
 .checkbox-box {
 	position: absolute;
-	width: 0.65rem;
-	height: 0.65rem;
+	width: 0.62em;
+	height: 0.62em;
 	background: var(--color1);
-	border-radius: 0.14rem;
+	border-radius: 0.1rem;
 }
 
 .checkbox-check {
 	position: absolute;
-	width: 0.8rem;
+	width: 0.8em;
 	visibility: hidden;
 	filter: invert();
 }

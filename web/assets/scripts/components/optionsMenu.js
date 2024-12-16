@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-check
+
 import { sortByName, uniqueID } from "../libs/common.js";
 import { newTimeNow } from "../libs/time.js";
 import { newModalSelect } from "../components/modal.js";
@@ -34,6 +36,15 @@ function newOptionsMenu(buttons) {
 }
 
 /**
+ * @typedef MonitorGroup
+ * @property {string} id
+ * @property {string} name
+ * @property {string[]} monitors
+ */
+
+/** @typedef {{[id: string]: MonitorGroup}} MonitorGroups */
+
+/**
  * @typedef GridSizeContent
  * @property {() => void} reset
  */
@@ -60,9 +71,10 @@ const newOptionsBtn = {
 					.trim()
 			);
 		};
-		const setGridSize = (value) => {
-			localStorage.setItem("gridsize", value);
-			document.documentElement.style.setProperty("--gridsize", value);
+		/** @param {number} size */
+		const setGridSize = (size) => {
+			localStorage.setItem("gridsize", String(size));
+			document.documentElement.style.setProperty("--gridsize", String(size));
 		};
 		const idPlus = uniqueID();
 		const idMinus = uniqueID();
@@ -107,6 +119,7 @@ const newOptionsBtn = {
 			},
 		};
 	},
+
 	/**
 	 * @param {Monitors} monitors
 	 * @param {SelectMonitorContent} content
@@ -116,22 +129,36 @@ const newOptionsBtn = {
 	monitor(monitors, content, remember = false) {
 		return newSelectMonitor(monitors, content, remember);
 	},
-	/*group(groups) {
-		if (Object.keys(groups).length === 0) {
-			return;
+
+	/**
+	 * @param {MonitorGroups} monitorGroups
+	 * @param {SelectMonitorContent} content
+	 * @return {Button}
+	 */
+	monitorGroup(monitorGroups, content) {
+		/** @type {Options} */
+		let options = {};
+		for (const group of Object.values(monitorGroups)) {
+			options[group.id] = { id: group.id, label: group.name };
 		}
-		const groupPicker = newGroupPicker(groups);
+		/** @param {string} selected */
+		const onSelect = (selected) => {
+			content.setMonitors(monitorGroups[selected].monitors);
+			content.reset();
+		};
+		const selectOne = newSelectOne(options, onSelect, "group");
+
 		const icon = "assets/icons/feather/group.svg";
-		const popup = newOptionsPopup("group", icon, groupPicker.html);
+		const popup = newOptionsPopup("group", icon, selectOne.html);
 
 		return {
 			html: popup.html,
-			init($parent, content) {
-				popup.init($parent);
-				groupPicker.init(popup, content);
+			init() {
+				popup.init();
+				selectOne.init();
 			},
 		};
-	},*/
+	},
 };
 
 /**
@@ -508,6 +535,7 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 				<img class="icon" src="assets/icons/feather/video.svg">
 			</button>`,
 		init() {
+			/** @param {string} selected */
 			const onSelect = (selected) => {
 				const monitorID = monitorNameToID[selected];
 				if (remember) {
@@ -533,70 +561,58 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 	};
 }
 
-/*
-function newGroupPicker(groups) {
-	let options = [];
-	let nameToID = {};
-	for (const group of sortByName(groups)) {
-		options.push(group.name);
-		nameToID[group.name] = group.id;
-	}
-
-	let content;
-	const onSelect = (selected) => {
-		const selectedGroup = groups[nameToID[selected]];
-		const groupMonitors = JSON.parse(selectedGroup["monitors"]);
-		content.setMonitors(groupMonitors);
-		content.reset();
-	};
-
-	const selectOne = newSelectOne(options, onSelect, "group");
-
-	return {
-		html: selectOne.html,
-		init(popup, c) {
-			content = c;
-			selectOne.init(popup);
-		},
-	};
-}*/
+/**
+ * @template {{ label: string }} T
+ * @param {{[x: string]: T}} input
+ * @return {T[]}
+ */
+function sortByLabel(input) {
+	const ret = Object.values(input);
+	ret.sort((a, b) => {
+		if (a["label"] > b["label"]) {
+			return 1;
+		}
+		return -1;
+	});
+	return ret;
+}
 
 /**
- * @param {string[]} options
+ * @typedef IDAndLabel
+ * @property {string} id
+ * @property {string} label
+ */
+
+/** @typedef {{[id: string]: IDAndLabel}} Options */
+
+/**
+ * @param {Options} options
  * @param {(selected: string) => void} onSelect
  * @param {string} alias
  */
 function newSelectOne(options, onSelect, alias) {
-	options.sort();
 	let optionsHTML = "";
-	for (const option of options) {
+	for (const option of sortByLabel(options)) {
 		optionsHTML += `
 			<span 
 				class="select-one-item"
-				data="${option}"
-			>${option}</span>`;
+				data="${option.id}"
+			>${option.label}</span>`;
 	}
 
+	const id = uniqueID();
+
 	return {
-		value() {
-			const saved = localStorage.getItem(alias);
-			if (options.includes(saved)) {
-				return saved;
-			}
-			return options[0];
-		},
 		html: `
-			<div class="select-one">
+			<div id=${id} class="select-one">
 				<span class="select-one-label">Groups</span>
 				${optionsHTML}
 			</div>`,
-		/** @param {Popup} popup */
-		init(popup) {
-			const $parent = popup.element();
-			const element = $parent.querySelector(".select-one");
+		init() {
+			const element = document.getElementById(id);
 
 			const saved = localStorage.getItem(alias);
-			if (options.includes(saved)) {
+			if (options[saved] !== undefined) {
 				element
 					.querySelector(`.select-one-item[data="${saved}"]`)
 					.classList.add("select-one-item-selected");

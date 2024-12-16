@@ -180,17 +180,23 @@
 	position: relative;
 	display: flex;
 	align-items: center;
-	width: 100%;
+	width: auto;
 	padding: 0.1rem 0.2rem;
 	border-width: 0.01rem;
 	border-style: solid;
 	border-color: var(--color1);
+	font-size: 0.7rem;
+}
+
+.monitor-selector-item:hover .checkbox-box {
+	visibility: hidden;
 }
 
 .monitor-selector-label {
 	margin-right: auto;
 	color: var(--color-text);
-	font-size: 1rem;
+	padding-right: 0.2rem;
+	user-select: none;
 }
 
 /* Mobile Landscape mode. */
@@ -206,6 +212,7 @@
 
 	.settings-sub-category {
 		height: 100%;
+		width: 100%;
 		overflow-y: auto;
 	}
 
@@ -244,14 +251,23 @@
 	}
 
 	.settings-sub-category {
+		visibility: hidden;
 		position: relative;
 		max-width: 12rem;
-		visibility: hidden;
 		transition: transform 0ms;
 	}
 
 	.settings-subcategory-open {
 		visibility: visible;
+	}
+
+	/* Checked checkboxes cannot be hidden I guess. */
+	.settings-sub-category .checkbox-check {
+		display: none;
+	}
+
+	.settings-subcategory-open .checkbox-check {
+		display: flex;
 	}
 
 	.settings-menubar {
@@ -269,17 +285,5 @@
 	.settings-users-info {
 		display: flex;
 		align-items: center;
-	}
-
-	.monitor-selector {
-		grid-auto-columns: min-content;
-	}
-
-	.monitor-selector-item {
-		width: auto;
-	}
-
-	.monitor-selector-label {
-		padding-right: 0.3rem;
 	}
 }

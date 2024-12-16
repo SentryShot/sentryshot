@@ -1,5 +1,7 @@
 ## unreleased
 
+-	add back monitor groups #46
+
 ## `v0.2.20`
 
 -	fix logdb panic #37

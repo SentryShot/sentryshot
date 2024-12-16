@@ -18,6 +18,7 @@ use log::{
     Logger,
 };
 use monitor::{MonitorManager, NewMonitorManagerError};
+use monitor_groups::{ArcMonitorGroups, CreateMonitorGroupsError, MonitorGroups};
 use plugin::{
     pre_load_plugins,
     types::{admin, csrf, user, NewAuthError},
@@ -73,6 +74,9 @@ pub enum RunError {
     #[error("create monitor manager: {0}")]
     NewMonitorManager(#[from] NewMonitorManagerError),
 
+    #[error("create monitor groups: {0}")]
+    CreateMonitorGroups(#[from] CreateMonitorGroupsError),
+
     #[error("determine time zone")]
     TimeZone,
 
@@ -82,7 +86,7 @@ pub enum RunError {
 
 pub async fn run(rt_handle: Handle, config_path: &PathBuf) -> Result<(), RunError> {
     // Initialize app.
-    let (mut app, pre_loaded_plugins) = App::new(rt_handle.clone(), config_path)?;
+    let (mut app, pre_loaded_plugins) = App::new(rt_handle.clone(), config_path).await?;
     let mut plugin_manager = PluginManager::new(pre_loaded_plugins, &app);
     app.setup_routes(&mut plugin_manager)?;
 
@@ -105,12 +109,13 @@ pub struct App {
     auth: ArcAuth,
     hls_server: Arc<HlsServer>,
     monitor_manager: ArcMonitorManager,
+    monitor_groups: ArcMonitorGroups,
     recdb: Arc<RecDb>,
     router: Router,
 }
 
 impl App {
-    pub fn new(
+    pub async fn new(
         rt_handle: Handle,
         config_path: &PathBuf,
     ) -> Result<(App, PreLoadedPlugins), RunError> {
@@ -165,6 +170,8 @@ impl App {
             hls_server.clone(),
         )?);
 
+        let monitor_groups = Arc::new(MonitorGroups::new(env.storage_dir()).await?);
+
         let router = Router::new();
 
         Ok((
@@ -179,6 +186,7 @@ impl App {
                 auth,
                 hls_server,
                 monitor_manager,
+                monitor_groups,
                 recdb: rec_db,
                 router,
             },
@@ -213,6 +221,7 @@ impl App {
         let templater = Arc::new(Templater::new(
             self.logger.clone(),
             self.monitor_manager.clone(),
+            self.monitor_groups.clone(),
             templates,
             time_zone().ok_or(RunError::TimeZone)?,
         ));
@@ -385,6 +394,15 @@ impl App {
                 "/api/monitors",
                 get(monitors_handler)
                     .with_state(self.monitor_manager.clone())
+                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
+                    .with_state(self.auth.clone()),
+            )
+            // Monitor groups.
+            .route(
+                "/api/monitor-groups",
+                get(monitor_groups_get_handler)
+                    .put(monitor_groups_put_handler)
+                    .with_state(self.monitor_groups.clone())
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
                     .with_state(self.auth.clone()),
             )

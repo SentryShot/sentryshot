@@ -16,6 +16,7 @@ doctest = false
 [dependencies]
 common.path = "../common"
 log.path = "../log"
+monitor_groups.path = "../monitor_groups"
 
 axum.workspace = true
 futures.workspace = true

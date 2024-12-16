@@ -2,11 +2,13 @@
 
 use common::monitor::ArcMonitorManager;
 use log::Logger;
+use monitor_groups::ArcMonitorGroups;
 use std::{collections::HashMap, sync::Arc};
 
 pub struct Templater<'a> {
     logger: Arc<Logger>,
     monitor_manager: ArcMonitorManager,
+    monitor_groups: ArcMonitorGroups,
     time_zone: String,
 
     engine: upon::Engine<'a>,
@@ -17,6 +19,7 @@ impl<'a> Templater<'a> {
     pub fn new(
         logger: Arc<log::Logger>,
         monitor_manager: ArcMonitorManager,
+        monitor_groups: ArcMonitorGroups,
         templates: HashMap<&'a str, String>,
         time_zone: String,
     ) -> Self {
@@ -28,6 +31,7 @@ impl<'a> Templater<'a> {
         Self {
             logger,
             monitor_manager,
+            monitor_groups,
             time_zone,
             engine,
         }
@@ -64,12 +68,19 @@ impl<'a> Templater<'a> {
         let monitors_info_json = serde_json::to_string(&self.monitor_manager.monitors_info().await)
             .expect("serialization to never fail");
 
+        let monitor_groups_json = serde_json::to_string(&self.monitor_groups.get().await)
+            .expect("serialization to never fail");
+
         HashMap::from([
             ("groups_json".to_owned(), Value::String("{}".to_owned())),
             ("monitors_json".to_owned(), Value::String(monitors_json)),
             (
                 "monitors_info_json".to_owned(),
                 Value::String(monitors_info_json),
+            ),
+            (
+                "monitor_groups_json".to_owned(),
+                Value::String(monitor_groups_json),
             ),
             ("tz".to_owned(), Value::String(self.time_zone.clone())),
             (

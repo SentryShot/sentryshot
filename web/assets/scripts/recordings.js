@@ -190,9 +190,10 @@ async function init() {
 
 	// @ts-ignore
 	const timeZone = TZ; // eslint-disable-line no-undef
-	//const groups = Groups; // eslint-disable-line no-undef
 	// @ts-ignore
 	const monitors = MonitorsInfo; // eslint-disable-line no-undef
+	// @ts-ignore
+	const monitorGroups = MonitorGroups; // eslint-disable-line no-undef
 	// @ts-ignore
 	const isAdmin = IsAdmin; // eslint-disable-line no-undef
 	// @ts-ignore
@@ -210,8 +211,11 @@ async function init() {
 		newOptionsBtn.gridSize(viewer),
 		newOptionsBtn.date(timeZone, viewer),
 		newOptionsBtn.monitor(monitors, viewer),
-		//newOptionsBtn.group(groups),
 	];
+	// Add the group picker if there are any groups.
+	if (Object.keys(monitorGroups).length > 0) {
+		buttons.push(newOptionsBtn.monitorGroup(monitorGroups, viewer));
+	}
 	const optionsMenu = newOptionsMenu(buttons);
 	document.querySelector("#options-menu").innerHTML = optionsMenu.html();
 	optionsMenu.init();

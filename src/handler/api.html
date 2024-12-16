@@ -381,6 +381,61 @@
 			<pre></pre>
 		</article>
 
+		<article class="js-monitor-groups">
+			<div>
+				<h5>unstable</h5>
+				<span>GET /api/monitor-groups</span>
+				<button
+					onclick='
+				(async () => {
+					const now = performance.now()
+					const res = await fetch("api/monitor-groups");
+					const elapsed = performance.now() - now;
+					const element = document.querySelector(".js-monitor-groups pre");
+					element.innerHTML = await formatJsonResponse(res, elapsed);
+					element.style.display = "block";
+				})()
+				'
+				>
+					Submit
+				</button>
+			</div>
+			<pre class="json-response"></pre>
+		</article>
+		<article class="js-put-monitor-groups">
+			<div>
+				<h5>unstable</h5>
+				<span>PUT /api/monitor-groups</span>
+			</div>
+			<textarea></textarea>
+			<button
+				style="margin-left: 0"
+				onclick='
+				(async () => {
+					const element = document.querySelector(".js-put-monitor-groups");
+					const token = await fetch("api/account/my-token");
+					const jsonRequest = element.querySelector("textarea").value;
+					const now = performance.now()
+					const res = await fetch("api/monitor-groups", {
+						body: jsonRequest,
+						headers: {
+							"Content-Type": "application/json",
+							"X-CSRF-TOKEN": token,
+						},
+						method: "put",
+					});
+					const elapsed = performance.now() - now;
+					const $pre = element.querySelector("pre");
+					$pre.innerHTML = await formatResponse(res, elapsed);
+					$pre.style.display = "block";
+				})()
+				'
+			>
+				Submit
+			</button>
+			<pre></pre>
+		</article>
+
 		<article class="js-log-query">
 			<div style="flex-wrap: wrap">
 				<div>

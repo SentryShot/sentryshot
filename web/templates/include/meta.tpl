@@ -15,6 +15,7 @@
 		const Monitors = JSON.parse(`{{ monitors_json }}`);
 		{% endif %}
 		const MonitorsInfo = JSON.parse(`{{ monitors_info_json }}`);
+		const MonitorGroups = JSON.parse(`{{ monitor_groups_json }}`);
 		const LogSources = JSON.parse(`{{ log_sources_json }}`);
 		const IsAdmin = "{{ is_admin }}" === "true";
 		const CSRFToken = "{{ csrf_token }}";

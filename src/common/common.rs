@@ -214,7 +214,7 @@ impl FromStr for LogLevel {
 
 pub const MONITOR_ID_MAX_LENGTH: usize = 24;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize)]
 pub struct MonitorId(String);
 
 impl fmt::Display for MonitorId {
@@ -250,6 +250,16 @@ impl TryFrom<String> for MonitorId {
             return Err(TooLong);
         }
         Ok(Self(s))
+    }
+}
+
+impl<'de> Deserialize<'de> for MonitorId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        TryFrom::try_from(s).map_err(serde::de::Error::custom)
     }
 }
 
