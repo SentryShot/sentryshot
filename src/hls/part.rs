@@ -4,7 +4,7 @@ use crate::{
 };
 use bytes::Bytes;
 use common::{
-    time::{DurationH264, UnixH264},
+    time::{DurationH264, UnixH264, UnixNano},
     PartFinalized, VideoSample,
 };
 use mp4::{ImmutableBox, ImmutableBoxSync, TfdtBaseMediaDecodeTime, TrunEntries};
@@ -154,7 +154,7 @@ fn generate_traf(
 #[allow(clippy::module_name_repetitions)]
 pub struct MuxerPart {
     pub id: u64,
-    pub muxer_start_time: UnixH264,
+    pub muxer_start_time: UnixNano,
     pub is_independent: bool,
     pub video_samples: Vec<VideoSample>,
 }
@@ -172,7 +172,7 @@ impl std::fmt::Debug for MuxerPart {
 }
 
 impl MuxerPart {
-    pub fn new(id: u64, muxer_start_time: UnixH264) -> Self {
+    pub fn new(id: u64, muxer_start_time: UnixNano) -> Self {
         Self {
             id,
             muxer_start_time,
@@ -195,7 +195,10 @@ impl MuxerPart {
         let rendered_content = if video_samples.is_empty() {
             None
         } else {
-            Some(generate_part(self.muxer_start_time, video_samples.clone())?)
+            Some(generate_part(
+                self.muxer_start_time.into(),
+                video_samples.clone(),
+            )?)
         };
 
         Ok(PartFinalized {

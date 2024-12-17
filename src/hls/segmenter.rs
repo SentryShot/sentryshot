@@ -5,7 +5,7 @@ use crate::{
     types::IdCounter,
 };
 use common::{
-    time::{DurationH264, UnixH264, H264_MILLISECOND, H264_SECOND},
+    time::{DurationH264, UnixNano, H264_MILLISECOND, H264_SECOND},
     H264Data, VideoSample,
 };
 use std::{collections::HashSet, sync::Arc};
@@ -36,7 +36,7 @@ impl H264Writer {
         use sentryshot_padded_bytes::PaddedBytes;
 
         self.write_h264(H264Data {
-            pts: UnixH264::new(pts),
+            pts: common::time::UnixH264::new(pts),
             dts_offset: DtsOffset::new(0),
             avcc: Arc::new(PaddedBytes::new(avcc)),
             random_access_present: random_access,
@@ -53,8 +53,7 @@ pub struct Segmenter {
     playlist: Arc<Playlist>,
     muxer_id: u16,
 
-    first_sample_time: DurationH264,
-    muxer_start_time: UnixH264,
+    muxer_start_time: UnixNano,
     //last_video_params: Vec<Vec<u8>>,
     current_segment: Option<Segment>,
     segment_id_counter: IdCounter,
@@ -72,6 +71,7 @@ impl Segmenter {
         segment_max_size: u64,
         playlist: Arc<Playlist>,
         muxer_id: u16,
+        muxer_start_time: UnixNano,
         first_sample: H264Data,
     ) -> Result<Self, CreateSegmenterError> {
         if !first_sample.random_access_present {
@@ -81,11 +81,8 @@ impl Segmenter {
             return Err(CreateSegmenterError::DtsNotZero);
         }
 
-        let first_sample_time = first_sample.pts.into();
-        let muxer_start_time = UnixH264::now();
-
         let next_sample = VideoSample {
-            pts: muxer_start_time,
+            pts: muxer_start_time.into(),
             dts_offset: first_sample.dts_offset,
             avcc: first_sample.avcc,
             random_access_present: first_sample.random_access_present,
@@ -97,7 +94,6 @@ impl Segmenter {
             part_duration,
             segment_max_size,
             playlist,
-            first_sample_time,
             muxer_start_time,
             muxer_id,
             //last_video_params: Vec::new(),
@@ -135,15 +131,8 @@ impl Segmenter {
     pub async fn write_h264(&mut self, data: H264Data) -> Result<(), SegmenterWriteH264Error> {
         use crate::error::SegmenterWriteH264Error::*;
 
-        let pts = data
-            .pts
-            .checked_sub(self.first_sample_time.into())
-            .ok_or(Sub)?
-            .checked_add(self.muxer_start_time)
-            .ok_or(Add)?;
-
         let sample = VideoSample {
-            pts,
+            pts: data.pts,
             dts_offset: data.dts_offset,
             avcc: data.avcc,
             random_access_present: data.random_access_present,

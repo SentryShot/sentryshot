@@ -7,7 +7,10 @@ use crate::{
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use common::{time::DurationH264, ArcLogger, H264Data, SegmentFinalized, TrackParameters};
+use common::{
+    time::{DurationH264, UnixNano},
+    ArcLogger, H264Data, SegmentFinalized, TrackParameters,
+};
 use http::{HeaderName, HeaderValue, StatusCode};
 use std::{collections::HashMap, fmt::Formatter, io::Cursor, sync::Arc};
 use tokio::{io::AsyncRead, sync::Mutex};
@@ -41,6 +44,7 @@ impl HlsMuxer {
         segment_max_size: u64,
         params: TrackParameters,
         id: u16,
+        start_time: UnixNano,
         first_sample: H264Data,
     ) -> Result<(Self, H264Writer), CreateSegmenterError> {
         let token = parent_token.child_token();
@@ -57,6 +61,7 @@ impl HlsMuxer {
             segment_max_size,
             playlist.clone(),
             id,
+            start_time,
             first_sample,
         )?;
 

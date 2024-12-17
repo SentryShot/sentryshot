@@ -5,7 +5,7 @@ use crate::{
     types::IdCounter,
 };
 use common::{
-    time::{DurationH264, UnixH264},
+    time::{DurationH264, UnixH264, UnixNano},
     PartFinalized, SegmentFinalized, VideoSample,
 };
 use std::{mem, sync::Arc};
@@ -15,7 +15,7 @@ pub struct Segment {
     id: u64,
     muxer_id: u16,
     start_dts: UnixH264,
-    muxer_start_time: UnixH264,
+    muxer_start_time: UnixNano,
     segment_max_size: u64,
     playlist: Arc<Playlist>,
 
@@ -31,7 +31,7 @@ impl Segment {
         id: u64,
         muxer_id: u16,
         start_dts: UnixH264,
-        muxer_start_time: UnixH264,
+        muxer_start_time: UnixNano,
         segment_max_size: u64,
         playlist: Arc<Playlist>,
         part_id_counter: &mut IdCounter,

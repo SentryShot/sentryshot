@@ -1,5 +1,6 @@
 ## unreleased
 
+-	detect camera clock drift
 -	add back monitor groups #46
 
 ## `v0.2.20`

@@ -27,7 +27,7 @@ pub struct Detection {
 }
 
 // Region where detection occurred.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Region {
     pub rectangle: Option<RectangleNormalized>,
     pub polygon: Option<PolygonNormalized>,

@@ -18,7 +18,7 @@ use axum::{
 use common::{
     monitor::{ArcMonitor, ArcMonitorManager, ArcSource, DecoderError, SubscribeDecodedError},
     recording::{vertex_inside_poly2, FrameRateLimiter},
-    time::{DurationH264, UnixNano},
+    time::{DurationH264, UnixH264, UnixNano},
     ArcAuth, ArcLogger, ArcMsgLogger, Detection, Detections, DynEnvConfig, Event, LogEntry,
     LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
 };
@@ -350,7 +350,7 @@ impl TflitePlugin {
             };
             let frame = frame?;
 
-            let time = UnixNano::now();
+            let time = UnixNano::from(UnixH264::new(frame.pts()));
 
             state = self
                 .rt_handle

@@ -8,7 +8,7 @@ use common::{
         SubscribeDecodedError,
     },
     recording::FrameRateLimiter,
-    time::{DtsOffset, UnixH264},
+    time::{DtsOffset, UnixH264, UnixNano, H264_SECOND},
     ArcHlsMuxer, ArcLogger, ArcMsgLogger, H264Data, LogEntry, LogLevel, MonitorId, MsgLogger,
     StreamType,
 };
@@ -353,7 +353,7 @@ impl SourceRtsp {
         // Buffer 10 frame to reduce dropped frames.
         let (feed_tx, _) = broadcast::channel(10);
 
-        let mut hls_writer: Option<H264Writer> = None;
+        let mut stream_started: Option<StreamStarted> = None;
         loop {
             tokio::select! {
                 () = token.cancelled() => {
@@ -365,9 +365,14 @@ impl SourceRtsp {
                     };
                     match pkt {
                         Ok(retina::codec::CodecItem::VideoFrame(frame)) => {
-                            if let Some(hls_writer) = &mut hls_writer {
-                                let data = frame_to_sample(frame);
-                                hls_writer.write_h264(data.clone()).await?;
+                            if let Some(stream_started) = &mut stream_started {
+                                let data = parse_frame(
+                                    frame,
+                                    stream_started.start_time,
+                                    stream_started.first_sample_pts,
+                                )?;
+                                check_clock_drift(data.pts)?;
+                                stream_started.hls_writer.write_h264(data.clone()).await?;
                                 _ = feed_tx.send(data);
 
                             } else {
@@ -378,17 +383,21 @@ impl SourceRtsp {
 
                                 let stream = &session.streams()[frame.stream_id()];
                                 if let Some(ParametersRef::Video(params)) = stream.parameters() {
+                                    let start_time = UnixNano::now();
+                                    let first_sample_pts = UnixH264::new(frame.timestamp().pts());
+                                    let first_sample = parse_frame(frame, start_time, first_sample_pts)?;
                                     let result = self.hls_server.new_muxer(
                                         token.clone(),
                                         self.hls_name(),
                                         track_params_from_video_params(params)?,
-                                        frame_to_sample(frame),
+                                        start_time,
+                                        first_sample.clone(),
                                     ).await?;
-                                    let Some((muxer, hls_writer2)) = result else {
+                                    let Some((muxer, hls_writer)) = result else {
                                         // Cancelled.
                                         return Ok(());
                                     };
-                                    hls_writer = Some(hls_writer2);
+                                    stream_started = Some(StreamStarted{ hls_writer, start_time, first_sample_pts });
                                     // Notify successful start.
                                     _ = started_tx.send((muxer, feed_tx.clone())).await;
                                 };
@@ -422,18 +431,61 @@ impl SourceRtsp {
     }
 }
 
+struct StreamStarted {
+    hls_writer: H264Writer,
+    start_time: UnixNano,
+    first_sample_pts: UnixH264,
+}
+
+#[derive(Debug, Error)]
+enum ParseFrameError {
+    #[error("subtract first sample pts")]
+    SubFirstSample,
+
+    #[error("add start time")]
+    AddStartTime,
+}
+
 #[allow(clippy::similar_names)]
-fn frame_to_sample(frame: VideoFrame) -> H264Data {
+fn parse_frame(
+    frame: VideoFrame,
+    start_time: UnixNano,
+    first_sample_time: UnixH264,
+) -> Result<H264Data, ParseFrameError> {
+    use ParseFrameError::*;
     let timestamp = frame.timestamp();
+
     let pts = timestamp.pts();
     let dts = timestamp.dts();
-    let dts_offset = DtsOffset::new(i32::try_from(pts - dts).unwrap_or(0)); // Todo.
-    H264Data {
-        pts: UnixH264::new(pts),
+    let dts_offset = DtsOffset::new(i32::try_from(pts - dts).unwrap_or(0));
+
+    let pts = UnixH264::new(pts)
+        .checked_sub(first_sample_time)
+        .ok_or(SubFirstSample)?
+        .checked_add(UnixH264::from(start_time))
+        .ok_or(AddStartTime)?;
+
+    Ok(H264Data {
+        pts,
         dts_offset,
         random_access_present: frame.is_random_access_point(),
         avcc: Arc::new(PaddedBytes::new(frame.into_data())),
+    })
+}
+
+fn check_clock_drift(pts: UnixH264) -> Result<(), SourceRtspRunError> {
+    let now = UnixH264::now();
+    let diff = (pts - now).abs();
+    // This shouldnt be more than one or two frames, but we will try 30 sec for now.
+    if diff > 30 * H264_SECOND {
+        let diff_secs = diff / H264_SECOND;
+        return if now < pts {
+            Err(SourceRtspRunError::CameraClockAhead(diff_secs))
+        } else {
+            Err(SourceRtspRunError::CameraClockBehind(diff_secs))
+        };
     }
+    Ok(())
 }
 
 #[derive(Debug, Error)]
@@ -470,6 +522,15 @@ enum SourceRtspRunError {
 
     #[error("create segmenter")]
     CreateSegmenter(#[from] CreateSegmenterError),
+
+    #[error("parse frame: {0}")]
+    ParseFrame(#[from] ParseFrameError),
+
+    #[error("camera clock drifted {0} seconds ahead")]
+    CameraClockAhead(i64),
+
+    #[error("camera clock drifted {0} seconds behind")]
+    CameraClockBehind(i64),
 }
 
 #[derive(Debug, Error)]
@@ -551,6 +612,7 @@ fn new_decoder(
 
             // State juggling to avoid lifetime issue.
             let avcc = frame.avcc.clone();
+
             let result: Result<(), SendPacketError>;
             (h264_decoder, result) = rt_handle
                 .spawn_blocking(move || {

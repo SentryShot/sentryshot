@@ -598,7 +598,7 @@ impl StreamType {
 
 #[derive(Clone, Debug, Default)]
 pub struct VideoSample {
-    pub pts: UnixH264,         // Relative presentation timestamp.
+    pub pts: UnixH264, // Absolute presentation timestamp, reported by the camera.
     pub dts_offset: DtsOffset, // Composition time offset.
     pub avcc: Arc<PaddedBytes>,
     pub random_access_present: bool,
@@ -800,7 +800,7 @@ pub struct TrackParameters {
 
 #[derive(Clone, Debug, Default)]
 pub struct H264Data {
-    pub pts: UnixH264,         // Absolute presentation timestamp.
+    pub pts: UnixH264, // Absolute presentation timestamp, reported by the camera.
     pub dts_offset: DtsOffset, // Composition time offset.
     pub avcc: Arc<PaddedBytes>,
     pub random_access_present: bool,

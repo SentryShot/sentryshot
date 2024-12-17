@@ -110,12 +110,6 @@ pub enum SegmenterWriteH264Error {
     #[error("switch segment")]
     SwitchSegment,
 
-    #[error("sub")]
-    Sub,
-
-    #[error("add")]
-    Add,
-
     #[error("dts")]
     Dts,
 }

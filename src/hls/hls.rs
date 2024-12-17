@@ -10,7 +10,7 @@ mod types;
 use crate::error::PartHlsQueryError;
 pub use crate::error::{CreateSegmenterError, SegmenterWriteH264Error};
 use common::{
-    time::{DurationH264, H264_MILLISECOND},
+    time::{DurationH264, UnixNano, H264_MILLISECOND},
     ArcLogger, H264Data, TrackParameters,
 };
 pub use error::ParseParamsError;
@@ -58,6 +58,7 @@ impl HlsServer {
                             HLS_SEGMENT_MAX_SIZE,
                             req.params,
                             muxer_id_counter.next_id(),
+                            req.start_time,
                             req.first_sample,
                         );
                         match result {
@@ -97,6 +98,7 @@ impl HlsServer {
         token: CancellationToken,
         name: String,
         params: TrackParameters,
+        start_time: UnixNano,
         first_sample: H264Data,
     ) -> Result<Option<(Arc<HlsMuxer>, H264Writer)>, CreateSegmenterError> {
         let (res_tx, res_rx) = oneshot::channel();
@@ -104,6 +106,7 @@ impl HlsServer {
             token,
             name,
             params,
+            start_time,
             first_sample,
             res_tx,
         };
@@ -148,6 +151,7 @@ struct NewMuxerRequest {
     token: CancellationToken,
     name: String,
     params: TrackParameters,
+    start_time: UnixNano,
     first_sample: H264Data,
     res_tx: oneshot::Sender<Result<(Arc<HlsMuxer>, H264Writer), CreateSegmenterError>>,
 }
@@ -250,7 +254,13 @@ mod tests {
         };
 
         let (_, mut writer) = server
-            .new_muxer(token, "test".to_owned(), params, first_sample)
+            .new_muxer(
+                token,
+                "test".to_owned(),
+                params,
+                UnixNano::new(0),
+                first_sample,
+            )
             .await
             .unwrap()
             .unwrap();
@@ -324,7 +334,13 @@ seg7.mp4
         };
 
         let (_, mut writer) = server
-            .new_muxer(token, "test".to_owned(), params, first_sample)
+            .new_muxer(
+                token,
+                "test".to_owned(),
+                params,
+                UnixNano::new(0),
+                first_sample,
+            )
             .await
             .unwrap()
             .unwrap();
@@ -416,6 +432,7 @@ seg7.mp4
                 token.clone(),
                 "test".to_owned(),
                 params.clone(),
+                UnixNano::new(0),
                 first_sample.clone(),
             )
             .await
@@ -440,7 +457,13 @@ seg7.mp4
 
         // Attempt to use segments from a different muxer.
         let (muxer2, mut writer2) = server
-            .new_muxer(token, "test".to_owned(), params, first_sample)
+            .new_muxer(
+                token,
+                "test".to_owned(),
+                params,
+                UnixNano::new(0),
+                first_sample,
+            )
             .await
             .unwrap()
             .unwrap();

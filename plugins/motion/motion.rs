@@ -19,8 +19,9 @@ use axum::{
 use common::{
     monitor::{ArcMonitor, ArcMonitorManager, ArcSource, DecoderError, SubscribeDecodedError},
     recording::FrameRateLimiter,
-    time::{DurationH264, UnixNano},
-    ArcAuth, ArcLogger, ArcMsgLogger, Event, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
+    time::{DurationH264, UnixH264, UnixNano},
+    ArcAuth, ArcLogger, ArcMsgLogger, Event, Label, LogEntry, LogLevel, LogSource, MonitorId,
+    MsgLogger, Region,
 };
 use plugin::{
     types::{admin, Assets},
@@ -256,18 +257,19 @@ impl MotionPlugin {
                 // Feed was cancelled.
                 return Ok(());
             };
+            let mut frame = frame?;
 
             let detections: Vec<_>;
-            (detections, state) = self
+            (detections, state, frame) = self
                 .rt_handle
                 .spawn_blocking(move || -> Result<_, RunError> {
-                    convert_frame(&mut state.raw_frame, &frame?)?;
+                    convert_frame(&mut state.raw_frame, &frame)?;
                     let detections = state.zones.analyze(
                         &state.raw_frame,
                         &state.prev_raw_frame,
                         &mut state.raw_frame_diff,
                     );
-                    Ok((detections, state))
+                    Ok((detections, state, frame))
                 })
                 .await
                 .expect("join")?;
@@ -280,23 +282,35 @@ impl MotionPlugin {
                 continue;
             }
 
-            for (zone, score) in detections {
+            if detections.is_empty() {
+                continue;
+            }
+
+            for (zone, score) in &detections {
                 msg_logger.log(
                     LogLevel::Debug,
                     &format!("detection: zone:{zone} score:{score:.2}"),
                 );
-
-                let time = UnixNano::now();
-                //t := time.Now().Add(-d.config.timestampOffset)
-                monitor
-                    .send_event(Event {
-                        time,
-                        duration: *config.feed_rate,
-                        rec_duration: *config.duration,
-                        detections: Vec::new(),
-                    })
-                    .await;
             }
+
+            let detections = detections
+                .into_iter()
+                .map(|(zone, score)| common::Detection {
+                    label: Label::try_from(format!("zone{zone}")).expect("infallable"),
+                    score,
+                    region: Region::default(),
+                })
+                .collect();
+
+            let time = UnixNano::from(UnixH264::new(frame.pts()));
+            monitor
+                .send_event(Event {
+                    time,
+                    duration: *config.feed_rate,
+                    rec_duration: *config.duration,
+                    detections,
+                })
+                .await;
         }
     }
 }
