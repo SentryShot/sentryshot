@@ -3,6 +3,7 @@ members = [
 	"plugins/auth_basic",
 	"plugins/auth_none",
 	"plugins/motion",
+	"plugins/mqtt",
 	"plugins/tflite",
 	"plugins/thumb_scale",
 
@@ -52,7 +53,7 @@ argon2 = "0.5.0"
 axum = { version = "0.7.0", default-features = false, features = ["tokio", "http2", "json", "query", "ws"] }
 bytes = "1.4.0"
 bytesize = "1.2.0"
-chrono = "0.4.24"
+chrono = { version= "0.4.35", default-features = false, features = ["std", "serde"] }
 console-subscriber = "0.2.0"
 criterion = { version="0.5.0", features = ["async_tokio"] }
 futures = "0.3.27"

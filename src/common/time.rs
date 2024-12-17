@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
@@ -74,11 +74,17 @@ impl UnixNano {
     }
 
     #[must_use]
-    #[allow(clippy::cast_sign_loss, clippy::as_conversions)]
+    #[allow(clippy::cast_sign_loss, clippy::as_conversions, deprecated)]
     pub fn as_chrono(&self) -> Option<NaiveDateTime> {
         let sec = self.0 / SECOND;
         let nanosec = self.0 % SECOND;
         NaiveDateTime::from_timestamp_opt(sec, nanosec as u32)
+    }
+}
+
+impl From<UnixNano> for DateTime<Utc> {
+    fn from(val: UnixNano) -> Self {
+        DateTime::from_timestamp_nanos(val.0)
     }
 }
 

@@ -41,11 +41,11 @@ pub fn new_recorder(
 ) -> mpsc::Sender<Event> {
     let (send_event_tx, mut send_event_rx) = mpsc::channel::<Event>(1);
     let c = RecordingContext {
-        hooks,
+        hooks: hooks.clone(),
         logger: Arc::new(RecorderMsgLogger::new(logger, monitor_id)),
         source_main,
         prev_seg: Arc::new(Mutex::new(None)),
-        config,
+        config: config.clone(),
         rec_db,
         event_cache: Arc::new(EventCache::new()),
     };
@@ -79,7 +79,8 @@ pub fn new_recorder(
                         let Some(event) = event else {
                             continue
                         };
-                        //r.hooks.Event(r, &event)
+                        hooks.on_event(event.clone(), config.clone()).await;
+
 
                         let Some(end) = event.time.checked_add(event.rec_duration.into()) else {
                             continue
@@ -997,6 +998,7 @@ mod tests {
                 duration: Duration::new(0),
                 rec_duration: Duration::new(0),
                 detections: Vec::new(),
+                source: Some("test".to_owned().try_into().unwrap()),
             },
             Event {
                 time: UnixNano::new(2 * MINUTE),
@@ -1018,12 +1020,14 @@ mod tests {
                         ]),
                     },
                 }],
+                source: Some("test".to_owned().try_into().unwrap()),
             },
             Event {
                 time: UnixNano::new(11 * MINUTE),
                 duration: Duration::new(0),
                 rec_duration: Duration::new(0),
                 detections: Vec::new(),
+                source: Some("monitor".to_owned().try_into().expect("valid")),
             },
         ])));
 
@@ -1079,7 +1083,8 @@ mod tests {
             ]
           }
         }
-      ]
+      ],
+      \"source\": \"test\"
     }
   ]
 }";

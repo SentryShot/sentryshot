@@ -51,7 +51,6 @@ impl Plugin for ThumbScalePlugin {
             return frame;
         };
         let scale = temp.thumb_scale;
-        println!("SCALE {scale}");
         let scale = match scale.as_str() {
             "full" => return frame,
             "half" => 2,

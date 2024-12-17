@@ -511,6 +511,9 @@ impl Application for App {
     fn rt_handle(&self) -> Handle {
         self.rt_handle.clone()
     }
+    fn token(&self) -> CancellationToken {
+        self.token.clone()
+    }
     fn auth(&self) -> ArcAuth {
         self.auth.clone()
     }
@@ -523,7 +526,6 @@ impl Application for App {
     fn logger(&self) -> common::ArcLogger {
         self.logger.clone()
     }
-
     fn env(&self) -> DynEnvConfig {
         Box::new(self.env.clone())
     }

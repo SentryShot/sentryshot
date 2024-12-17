@@ -341,6 +341,7 @@ pub trait MonitorHooks {
     async fn on_monitor_start(&self, token: CancellationToken, monitor: ArcMonitor);
     // Blocking.
     fn on_thumb_save(&self, config: &MonitorConfig, frame: Frame) -> Frame;
+    async fn on_event(&self, event: Event, config: MonitorConfig);
 }
 
 #[derive(Debug, Error)]

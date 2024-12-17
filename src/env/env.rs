@@ -21,6 +21,7 @@ pub struct EnvConf {
     plugin_dir: PathBuf,
     max_disk_usage: NonZeroGb,
     plugin: Option<Vec<EnvPlugin>>,
+    raw: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -49,7 +50,7 @@ impl EnvConf {
         }
 
         let env_toml = fs::read_to_string(config_path).map_err(ReadFile)?;
-        let env = parse_config(&env_toml)?;
+        let env = parse_config(env_toml)?;
 
         Ok(env)
     }
@@ -74,9 +75,11 @@ impl EnvConfig for EnvConf {
     fn max_disk_usage(&self) -> ByteSize {
         *self.max_disk_usage
     }
-
     fn plugins(&self) -> &Option<Vec<EnvPlugin>> {
         &self.plugin
+    }
+    fn raw(&self) -> &str {
+        &self.raw
     }
 }
 
@@ -142,60 +145,7 @@ fn generate_config(path: &Path, cwd: &Path) -> Result<(), GenerateEnvConfigError
     Ok(())
 }
 
-const CONFIG_TEMPLATE: &str = "\
-# Port app will be served on.
-port = 2020
-
-# Directory where recordings will be stored.
-storage_dir = \"{{ cwd }}/storage\"
-
-# Directory where configs will be stored.
-config_dir = \"{{ cwd }}/configs\"
-
-# Directory where the plugins are located.
-plugin_dir = \"{{ cwd }}/plugins\"
-
-
-# Maximum allowed storage space in GigaBytes.
-# Recordings are delete automatically before this limit is exceeded.
-max_disk_usage = 100
-
-
-
-# PLUGINS
-
-# Authentication. One must be enabled.
-
-# Basic Auth.
-[[plugin]]
-name = \"auth_basic\"
-enable = false
-
-# No authentication.
-[[plugin]]
-name = \"auth_none\"
-enable = false
-
-
-
-# Motion detection.
-# Documentation ./plugins/motion/README.md
-[[plugin]]
-name = \"motion\"
-enable = false
-
-# TFlite object detection.
-# Enabling will generate a `tflite.toml` file.
-[[plugin]]
-name = \"tflite\"
-enable = false
-
-
-# Thumbnail downscaling.
-# Downscale video thumbnails to improve page load times and data usage.
-[[plugin]]
-name = \"thumb_scale\"
-enable = false";
+const CONFIG_TEMPLATE: &str = include_str!("./default_config.tpl");
 
 #[derive(Debug, Error)]
 pub enum ParseEnvConfigError {
@@ -215,9 +165,9 @@ pub enum ParseEnvConfigError {
     Canonicalize(PathBuf, std::io::Error),
 }
 
-fn parse_config(env_toml: &str) -> Result<EnvConf, ParseEnvConfigError> {
+fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
     use ParseEnvConfigError::*;
-    let raw: RawEnvConf = toml::from_str(env_toml)?;
+    let raw: RawEnvConf = toml::from_str(&env_toml)?;
 
     if !raw.storage_dir.is_absolute() {
         return Err(PathNotAbsolute("storage_dir".to_owned(), raw.storage_dir));
@@ -261,6 +211,7 @@ fn parse_config(env_toml: &str) -> Result<EnvConf, ParseEnvConfigError> {
         plugin_dir,
         max_disk_usage: raw.max_disk_usage,
         plugin: raw.plugin,
+        raw: env_toml,
     })
 }
 
@@ -314,14 +265,15 @@ mod tests {
             plugin_dir: plugin_dir.parse().unwrap(),
             max_disk_usage: NonZeroGb::new(ByteSize(GB)).unwrap(),
             plugin: None,
+            raw: config.clone(),
         };
-        let got = parse_config(&config).unwrap();
+        let got = parse_config(config).unwrap();
         assert_eq!(want, got);
     }
     #[test]
     fn test_parse_config_deserialize_error() {
         assert!(matches!(
-            parse_config("&"),
+            parse_config("&".to_owned()),
             Err(ParseEnvConfigError::DeserializeToml(_)),
         ));
     }
@@ -336,7 +288,7 @@ mod tests {
         ";
 
         assert!(matches!(
-            parse_config(config),
+            parse_config(config.to_owned()),
             Err(ParseEnvConfigError::PathNotAbsolute(..))
         ));
     }
@@ -351,7 +303,7 @@ mod tests {
         ";
 
         assert!(matches!(
-            parse_config(config),
+            parse_config(config.to_owned()),
             Err(ParseEnvConfigError::PathNotAbsolute(..))
         ));
     }
@@ -366,7 +318,7 @@ mod tests {
         ";
 
         assert!(matches!(
-            parse_config(config),
+            parse_config(config.to_owned()),
             Err(ParseEnvConfigError::PathNotAbsolute(..))
         ));
     }

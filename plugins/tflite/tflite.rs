@@ -54,10 +54,10 @@ pub extern "Rust" fn version() -> String {
 
 #[no_mangle]
 pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
-    Box::new(PreLoadAuthNone)
+    Box::new(PreLoadTflite)
 }
-struct PreLoadAuthNone;
-impl PreLoadPlugin for PreLoadAuthNone {
+struct PreLoadTflite;
+impl PreLoadPlugin for PreLoadTflite {
     fn add_log_source(&self) -> Option<LogSource> {
         #[allow(clippy::unwrap_used)]
         Some("tflite".try_into().unwrap())
@@ -381,6 +381,7 @@ impl TflitePlugin {
                     duration: *config.feed_rate,
                     rec_duration: *config.duration,
                     detections,
+                    source: Some("tflite".to_owned().try_into().expect("valid")),
                 })
                 .await;
         }

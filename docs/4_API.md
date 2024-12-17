@@ -1,5 +1,6 @@
 #### Warning: undocumented APIs do not have any stability guarantees and may change without warning.
 
+-   [MQTT API](#mqtt-api)
 -   [REST API](#rest-api)
     -   [Account](#Account)
     -   [Monitor](#monitor)
@@ -8,9 +9,44 @@
     -   [Logs](#logs)
 
 
-There is a `/api` page where you can try the endpoints.
+<br>
+
+# MQTT API
+
+Enable the `mqtt` plugin and configure the external broker address in `sentryshot.toml`
+
+### sentryshot/events/tflite
+
+``` json
+{
+  "monitorID": "one",
+  "monitorName": "camera_1",
+  "label": "person",
+  "score": 63.671875,
+  "time": "2024-11-20T14:23:15.437494909Z",
+  "source": "tflite"
+}
+```
+
+### sentryshot/events/motion
+
+``` json
+{
+  "monitorID": "one",
+  "monitorName": "camera_1",
+  "label": "zone0",
+  "score": 48.39815,
+  "time": "2024-11-20T14:23:15.437494909Z",
+  "source": "motion"
+}
+```
+
+<br>
+<br>
 
 # REST API
+
+There is a `/api` page where you can try the endpoints.
 
 All requests require basic auth, POST, PUT and DELETE requests need to have a matching CSRF-token in the `X-CSRF-TOKEN` header.
 

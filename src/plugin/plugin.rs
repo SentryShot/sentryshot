@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use axum::Router;
 use common::{
     monitor::{ArcMonitor, ArcMonitorManager, MonitorConfig, MonitorHooks},
-    ArcAuth, ArcLogger, DynEnvConfig, EnvPlugin, LogEntry, LogLevel, LogSource,
+    ArcAuth, ArcLogger, DynEnvConfig, EnvPlugin, Event, LogEntry, LogLevel, LogSource,
 };
 use libloading::{Library, Symbol};
 use sentryshot_util::Frame;
@@ -49,10 +49,12 @@ pub trait Plugin {
     fn on_thumb_save(&self, _config: &MonitorConfig, frame: Frame) -> Frame {
         frame
     }
+    async fn on_event(&self, _event: Event, _config: MonitorConfig) {}
 }
 
 pub trait Application {
     fn rt_handle(&self) -> Handle;
+    fn token(&self) -> CancellationToken;
     fn auth(&self) -> ArcAuth;
     fn monitor_manager(&self) -> ArcMonitorManager;
     fn shutdown_complete_tx(&self) -> mpsc::Sender<()>;
@@ -238,6 +240,17 @@ impl MonitorHooks for PluginManager {
             frame = plugin.on_thumb_save(config, frame);
         }
         frame
+    }
+    async fn on_event(&self, event: Event, config: MonitorConfig) {
+        let plugins = self.plugins.clone();
+        for plugin in plugins {
+            // Execute every call in a co-routine to avoid blocking.
+            let event = event.clone();
+            let config = config.clone();
+            tokio::spawn(async move {
+                plugin.on_event(event, config).await;
+            });
+        }
     }
 }
 

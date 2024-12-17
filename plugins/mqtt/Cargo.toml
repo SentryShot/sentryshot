@@ -1,0 +1,34 @@
+[package]
+name = "mqtt"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "mqtt"
+path = "mqtt.rs"
+crate-type = ["dylib"]
+doctest = false
+
+[dependencies]
+common.path = "../../src/common"
+plugin.path = "../../src/plugin"
+
+rumqttc = { version ="0.24.0", default-features = false }
+
+async-trait.workspace = true
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+flume = "0.11.1"
+pretty_assertions.workspace = true

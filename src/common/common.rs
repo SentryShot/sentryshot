@@ -50,6 +50,7 @@ pub trait EnvConfig {
     fn plugin_dir(&self) -> &Path;
     fn max_disk_usage(&self) -> ByteSize;
     fn plugins(&self) -> &Option<Vec<EnvPlugin>>;
+    fn raw(&self) -> &str;
 }
 
 impl NonZeroGb {
