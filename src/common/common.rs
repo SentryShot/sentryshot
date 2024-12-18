@@ -272,6 +272,69 @@ impl Deref for MonitorId {
     }
 }
 
+pub const MONITOR_NAME_MAX_LENGTH: usize = 64;
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize)]
+pub struct MonitorName(String);
+
+impl fmt::Display for MonitorName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum ParseMonitorNameError {
+    #[error("empty string")]
+    Empty,
+
+    #[error("invalid character: '{0}'")]
+    InvalidChar(char),
+
+    #[error("too long")]
+    TooLong,
+}
+
+const ALLOWED_MONITOR_NAME_CHARS: [char; 2] = ['_', '-'];
+
+impl TryFrom<String> for MonitorName {
+    type Error = ParseMonitorNameError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        use ParseMonitorNameError::*;
+        if s.is_empty() {
+            return Err(Empty);
+        }
+        for c in s.chars() {
+            if !c.is_alphanumeric() && !ALLOWED_MONITOR_NAME_CHARS.contains(&c) {
+                return Err(InvalidChar(c));
+            }
+        }
+        if s.len() > MONITOR_ID_MAX_LENGTH {
+            return Err(TooLong);
+        }
+        Ok(Self(s))
+    }
+}
+
+impl<'de> Deserialize<'de> for MonitorName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        TryFrom::try_from(s).map_err(serde::de::Error::custom)
+    }
+}
+
+impl Deref for MonitorName {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 pub const LOG_SOURCE_MAX_LENGTH: usize = 8;
 
 #[repr(transparent)]
@@ -832,4 +895,21 @@ impl MsgLogger for DummyMsgLogger {
 #[must_use]
 pub fn new_dummy_msg_logger() -> Arc<impl MsgLogger> {
     Arc::new(DummyMsgLogger {})
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_monitor_name() {
+        MonitorName::try_from("abc".to_owned()).unwrap();
+        MonitorName::try_from("123".to_owned()).unwrap();
+        MonitorName::try_from("a-a".to_owned()).unwrap();
+        MonitorName::try_from("a_a".to_owned()).unwrap();
+
+        MonitorName::try_from(String::new()).unwrap_err();
+        MonitorName::try_from("a a".to_owned()).unwrap_err();
+    }
 }

@@ -5,7 +5,7 @@
 use crate::{
     recording::{FrameRateLimiter, FrameRateLimiterError},
     time::{Duration, MINUTE},
-    ArcHlsMuxer, ArcMsgLogger, Event, H264Data, MonitorId, NonEmptyString, StreamType,
+    ArcHlsMuxer, ArcMsgLogger, Event, H264Data, MonitorId, MonitorName, StreamType,
 };
 use async_trait::async_trait;
 use sentryshot_ffmpeg_h264::{H264BuilderError, ReceiveFrameError, SendPacketError};
@@ -71,7 +71,7 @@ impl MonitorConfig {
 
     // Name returns the monitor name.
     #[must_use]
-    pub fn name(&self) -> &NonEmptyString {
+    pub fn name(&self) -> &MonitorName {
         &self.config.name
     }
 
@@ -120,7 +120,7 @@ impl MonitorConfig {
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Config {
     pub id: MonitorId,
-    pub name: NonEmptyString,
+    pub name: MonitorName,
     pub enable: bool,
     pub source: SelectedSource,
 
@@ -386,7 +386,7 @@ pub enum MonitorDeleteError {
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct MonitorInfo {
     id: MonitorId,
-    name: NonEmptyString,
+    name: MonitorName,
     enable: bool,
 
     #[serde(rename = "hasSubStream")]
@@ -395,7 +395,7 @@ pub struct MonitorInfo {
 
 impl MonitorInfo {
     #[must_use]
-    pub fn new(id: MonitorId, name: NonEmptyString, enable: bool, has_sub_stream: bool) -> Self {
+    pub fn new(id: MonitorId, name: MonitorName, enable: bool, has_sub_stream: bool) -> Self {
         Self {
             id,
             name,

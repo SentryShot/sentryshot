@@ -635,7 +635,7 @@ mod tests {
     use bytesize::ByteSize;
     use common::{
         monitor::{Config, Protocol, SelectedSource, SourceConfig, SourceRtspConfig},
-        DummyLogger, NonEmptyString, ParseMonitorIdError,
+        DummyLogger, MonitorName, ParseMonitorIdError,
     };
     use pretty_assertions::assert_eq;
     use recdb::Disk;
@@ -725,7 +725,7 @@ mod tests {
     fn m_id(s: &str) -> MonitorId {
         s.to_owned().try_into().unwrap()
     }
-    fn name(s: &str) -> NonEmptyString {
+    fn name(s: &str) -> MonitorName {
         s.to_owned().try_into().unwrap()
     }
 

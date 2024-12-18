@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use common::{
     monitor::MonitorConfig, ArcLogger, Event, EventSource, Label, LogEntry, LogLevel, LogSource,
-    MonitorId, NonEmptyString,
+    MonitorId, MonitorName,
 };
 use config::Config;
 use plugin::{Application, Plugin, PreLoadPlugin};
@@ -178,7 +178,7 @@ impl Publisher {
         &self,
         event: Event,
         monitor_id: &MonitorId,
-        monitor_name: &NonEmptyString,
+        monitor_name: &MonitorName,
     ) -> Result<(), PublishError> {
         for event in parse_event(event, monitor_id, monitor_name) {
             let msg = serde_json::to_string_pretty(&event)?;
@@ -205,7 +205,7 @@ struct MqttEvent {
     #[serde(rename = "monitorID")]
     monitor_id: MonitorId,
     #[serde(rename = "monitorName")]
-    monitor_name: NonEmptyString,
+    monitor_name: MonitorName,
 
     label: Label,
     score: f32,
@@ -217,7 +217,7 @@ struct MqttEvent {
 fn parse_event(
     mut event: Event,
     monitor_id: &MonitorId,
-    monitor_name: &NonEmptyString,
+    monitor_name: &MonitorName,
 ) -> Vec<MqttEvent> {
     let Some(source) = event.source.take() else {
         return Vec::new();
