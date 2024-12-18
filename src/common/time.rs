@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
@@ -71,14 +71,6 @@ impl UnixNano {
     #[must_use]
     pub fn until(time: Self) -> Option<Duration> {
         Some(time.checked_sub(UnixNano::now())?.into())
-    }
-
-    #[must_use]
-    #[allow(clippy::cast_sign_loss, clippy::as_conversions, deprecated)]
-    pub fn as_chrono(&self) -> Option<NaiveDateTime> {
-        let sec = self.0 / SECOND;
-        let nanosec = self.0 % SECOND;
-        NaiveDateTime::from_timestamp_opt(sec, nanosec as u32)
     }
 }
 
@@ -238,10 +230,11 @@ impl UnixH264 {
     pub fn after(&self, other: Self) -> bool {
         self.0 > other.0
     }
+}
 
-    #[must_use]
-    pub fn as_chrono(&self) -> Option<NaiveDateTime> {
-        UnixNano::from(*self).as_chrono()
+impl From<UnixH264> for DateTime<Utc> {
+    fn from(val: UnixH264) -> Self {
+        UnixNano::from(val).into()
     }
 }
 

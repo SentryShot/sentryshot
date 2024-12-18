@@ -4,6 +4,7 @@ use crate::{
     time::{Duration, UnixNano, SECOND},
     Event, MonitorId, ParseMonitorIdError, Point, PointNormalized, Polygon, PolygonNormalized,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     num::ParseIntError,
@@ -62,9 +63,6 @@ pub enum RecordingIdError {
 
     #[error("time is negative: {0:?}")]
     NegativeTime(UnixNano),
-
-    #[error("chrono")]
-    Chrono,
 }
 
 #[derive(Clone, Hash, PartialEq, Eq)]
@@ -92,10 +90,8 @@ impl RecordingId {
         if value.is_negative() {
             return Err(RecordingIdError::NegativeTime(value));
         }
-        value
-            .as_chrono()
-            .ok_or(RecordingIdError::Chrono)?
-            .format(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
+        let time: DateTime<Utc> = value.into();
+        time.format(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
             .to_string()
             .try_into()
     }

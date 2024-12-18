@@ -3,6 +3,7 @@
 mod crawler;
 mod disk;
 
+use chrono::{DateTime, Utc};
 pub use crawler::CrawlerError;
 pub use disk::Disk;
 
@@ -111,9 +112,6 @@ pub enum NewRecordingError {
     #[error("recording is already active")]
     AlreadyActive,
 
-    #[error("chrono")]
-    Chrono,
-
     #[error("recording already exists")]
     AlreadyExist,
 
@@ -192,12 +190,12 @@ impl RecDb {
         start_time: UnixH264,
     ) -> Result<RecordingHandle, NewRecordingError> {
         use NewRecordingError::*;
-        let start_time_chrono = start_time.as_chrono().ok_or(Chrono)?;
-        let ymd = start_time_chrono.format("%Y/%m/%d").to_string();
+        let start_time: DateTime<Utc> = start_time.into();
+        let ymd = start_time.format("%Y/%m/%d").to_string();
 
         let file_dir = self.recordings_dir.join(ymd).join(&*monitor_id);
 
-        let ymd_hms_id = start_time_chrono
+        let ymd_hms_id = start_time
             .format(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
             .to_string();
 
