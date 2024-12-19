@@ -15,8 +15,8 @@ use axum::{
 use common::{
     monitor::{ArcMonitorManager, MonitorConfig, MonitorConfigs, MonitorDeleteError},
     recording::RecordingId,
-    AccountSetRequest, AccountsMap, ArcAuth, ArcLogger, AuthAccountDeleteError, ILogger, LogEntry,
-    LogLevel, MonitorId,
+    AccountId, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger, AuthAccountDeleteError, ILogger,
+    LogEntry, LogLevel, MonitorId,
 };
 use hls::{HlsQuery, HlsServer};
 use http::{HeaderValue, Request};
@@ -253,7 +253,7 @@ pub async fn api_page_handler() -> Response {
 
 #[derive(Debug, Deserialize)]
 pub struct AccountDeleteQuery {
-    pub id: String,
+    pub id: AccountId,
 }
 
 pub async fn account_delete_handler(

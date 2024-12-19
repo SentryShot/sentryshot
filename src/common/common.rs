@@ -495,9 +495,69 @@ impl MsgLogger for DummyLogger {
 // Thread safe dyn `Authenticator`.
 pub type ArcAuth = Arc<dyn Authenticator + Send + Sync>;
 
-pub type AccountsMap = HashMap<String, AccountObfuscated>;
+pub type AccountsMap = HashMap<AccountId, AccountObfuscated>;
 
-// Username is lowercase only.
+#[repr(transparent)]
+#[derive(Clone, Debug, Hash, Serialize, PartialEq, Eq)]
+pub struct AccountId(String);
+
+impl<'de> Deserialize<'de> for AccountId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        String::deserialize(deserializer)?
+            .try_into()
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum ParseAccountIdError {
+    #[error("expected length {ACCOUNT_ID_LENGTH}, got {0}")]
+    WrongLength(usize),
+
+    #[error("invalid character: '{0}'")]
+    InvalidChar(char),
+}
+
+const ACCOUNT_ID_LENGTH: usize = 16;
+const ACCOUNT_ID_CHARSET: [char; 32] = [
+    '2', '3', '4', '5', '6', '5', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k',
+    'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+];
+
+impl TryFrom<String> for AccountId {
+    type Error = ParseAccountIdError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        use ParseAccountIdError::*;
+        if s.len() != ACCOUNT_ID_LENGTH {
+            return Err(WrongLength(s.len()));
+        }
+        for c in s.chars() {
+            if !ACCOUNT_ID_CHARSET.contains(&c) {
+                return Err(InvalidChar(c));
+            }
+        }
+        Ok(Self(s))
+    }
+}
+
+impl Deref for AccountId {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl fmt::Display for AccountId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[repr(transparent)]
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Username(String);
@@ -507,13 +567,44 @@ impl<'de> Deserialize<'de> for Username {
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(String::deserialize(deserializer)?.into())
+        String::deserialize(deserializer)?
+            .try_into()
+            .map_err(serde::de::Error::custom)
     }
 }
 
-impl From<String> for Username {
-    fn from(value: String) -> Self {
-        Self(value.to_lowercase())
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum ParseUsernameError {
+    #[error("empty string")]
+    Empty,
+
+    #[error("invalid character: '{0}'")]
+    InvalidChar(char),
+
+    #[error("too long")]
+    TooLong,
+}
+
+const USERNAME_MAX_LENGTH: usize = 64;
+const ALLOWED_USERNAME_CHARS: [char; 2] = ['-', '_'];
+
+impl TryFrom<String> for Username {
+    type Error = ParseUsernameError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        use ParseUsernameError::*;
+        if s.is_empty() {
+            return Err(Empty);
+        }
+        for c in s.chars() {
+            if (!c.is_alphanumeric() || c.is_uppercase()) && !ALLOWED_USERNAME_CHARS.contains(&c) {
+                return Err(InvalidChar(c));
+            }
+        }
+        if s.len() > USERNAME_MAX_LENGTH {
+            return Err(TooLong);
+        }
+        Ok(Self(s))
     }
 }
 
@@ -525,17 +616,16 @@ impl Deref for Username {
     }
 }
 
-impl Username {
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+impl fmt::Display for Username {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
 /// Account without sensitive information.
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct AccountObfuscated {
-    pub id: String,
+    pub id: AccountId,
     pub username: Username,
 
     #[serde(rename = "isAdmin")]
@@ -556,7 +646,7 @@ pub trait Authenticator {
     async fn account_set(&self, req: AccountSetRequest) -> Result<bool, AuthAccountSetError>;
 
     // Deletes account by id.
-    async fn account_delete(&self, id: &str) -> Result<(), AuthAccountDeleteError>;
+    async fn account_delete(&self, id: &AccountId) -> Result<(), AuthAccountDeleteError>;
 
     // Handlers.
     //MyToken() http.Handler
@@ -566,7 +656,7 @@ pub trait Authenticator {
 /// Set account details request.
 #[derive(Clone, Debug, Deserialize)]
 pub struct AccountSetRequest {
-    pub id: String,
+    pub id: AccountId,
     pub username: Username,
 
     #[serde(rename = "plainPassword")]
@@ -578,12 +668,6 @@ pub struct AccountSetRequest {
 
 #[derive(Debug, Error)]
 pub enum AuthAccountSetError {
-    #[error("missing ID")]
-    IdMissing(),
-
-    #[error("missing username")]
-    UsernameMissing(),
-
     #[error("password is required for new accounts")]
     PasswordMissing(),
 
@@ -594,7 +678,7 @@ pub enum AuthAccountSetError {
 #[derive(Debug, Error)]
 pub enum AuthAccountDeleteError {
     #[error("account does not exist '{0}'")]
-    AccountNotExist(String),
+    AccountNotExist(AccountId),
 
     #[error("save accounts: {0}")]
     SaveAccounts(#[from] AuthSaveToFileError),
@@ -621,7 +705,7 @@ pub enum AuthSaveToFileError {
 /// Main account definition.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Account {
-    pub id: String,
+    pub id: AccountId,
     pub username: Username,
     pub password: String, // Hashed password PHC string.
 
@@ -933,5 +1017,23 @@ mod tests {
         LogMessage::try_from("a a".to_owned()).unwrap();
 
         LogMessage::try_from(String::new()).unwrap_err();
+    }
+
+    #[test]
+    fn test_parse_account_id() {
+        AccountId::try_from("a222222222222222".to_owned()).unwrap();
+        AccountId::try_from("a222222222222221".to_owned()).unwrap_err();
+    }
+
+    #[test]
+    fn test_parse_username() {
+        Username::try_from("abc".to_owned()).unwrap();
+        Username::try_from("123".to_owned()).unwrap();
+        Username::try_from("a-a".to_owned()).unwrap();
+        Username::try_from("a_a".to_owned()).unwrap();
+
+        Username::try_from(String::new()).unwrap_err();
+        Username::try_from("A".to_owned()).unwrap_err();
+        Username::try_from("a a".to_owned()).unwrap_err();
     }
 }

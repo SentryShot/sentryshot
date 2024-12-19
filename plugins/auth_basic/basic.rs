@@ -7,7 +7,7 @@ use argon2::{
 use async_trait::async_trait;
 use axum::{extract::State, response::IntoResponse, routing::get, Router};
 use common::{
-    Account, AccountObfuscated, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger,
+    Account, AccountId, AccountObfuscated, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger,
     AuthAccountDeleteError, AuthAccountSetError, AuthSaveToFileError, Authenticator, LogEntry,
     LogLevel, LogSource, Username, ValidateLoginResponse, ValidateResponse,
 };
@@ -92,7 +92,7 @@ impl BasicAuth {
         let path = configs_dir.join("accounts.json");
         let path_string = path.to_string_lossy().to_string();
 
-        let mut accounts = HashMap::<String, Account>::new();
+        let mut accounts = HashMap::<AccountId, Account>::new();
 
         let file_exist = Path::new(&path).exists();
         if file_exist {
@@ -139,7 +139,9 @@ impl BasicAuth {
             return None;
         };
 
-        let username: Username = auth_header.username().to_owned().into();
+        let Ok(username) = Username::try_from(auth_header.username().to_owned()) else {
+            return None;
+        };
         let plain_password = auth_header.password();
 
         let account = {
@@ -240,14 +242,6 @@ impl Authenticator for BasicAuth {
     async fn account_set(&self, req: AccountSetRequest) -> Result<bool, AuthAccountSetError> {
         use AuthAccountSetError::*;
 
-        if req.id.is_empty() {
-            return Err(IdMissing());
-        }
-
-        if req.username.is_empty() {
-            return Err(UsernameMissing());
-        }
-
         let data_guard = &mut self.data.lock().await;
         let created = if let Some(accont) = data_guard.accounts.get_mut(&req.id) {
             // Update existing account.
@@ -284,7 +278,7 @@ impl Authenticator for BasicAuth {
     }
 
     // Delete account by id and save changes.
-    async fn account_delete(&self, id: &str) -> Result<(), AuthAccountDeleteError> {
+    async fn account_delete(&self, id: &AccountId) -> Result<(), AuthAccountDeleteError> {
         use AuthAccountDeleteError::*;
 
         let mut data_guard = self.data.lock().await;
@@ -301,7 +295,7 @@ impl Authenticator for BasicAuth {
 
 struct BasicAuthData {
     path: PathBuf, // Path to `accounts.json`.
-    accounts: HashMap<String, Account>,
+    accounts: HashMap<AccountId, Account>,
     response_cache: HashMap<String, Option<ValidateLoginResponse>>,
     rt_handle: Handle,
 }
@@ -447,19 +441,33 @@ pub fn log_failed_login(logger: &ArcLogger, username: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::DummyLogger;
+    use common::{AccountId, DummyLogger};
     use pretty_assertions::assert_eq;
     use std::fs::File;
     use tempfile::{tempdir, TempDir};
     use test_case::test_case;
+
+    fn id(v: &str) -> AccountId {
+        v.to_owned().try_into().unwrap()
+    }
+    fn id1() -> AccountId {
+        id("aaaaaaaaaaaaaaaa")
+    }
+    fn id2() -> AccountId {
+        id("bbbbbbbbbbbbbbbb")
+    }
+
+    fn name(v: &str) -> Username {
+        v.to_owned().try_into().unwrap()
+    }
 
     const PASS1: &str = "$argon2id$v=19$m=4096,t=3,p=1$Yjsk9LHMODCVG0Sk4OPkaQ$dPvksQlleIce6EDHkchy4GMQlO0Q8e2f8e3wIf3m4H4";
     const PASS2: &str = "$argon2id$v=19$m=4096,t=3,p=1$k5jIgbJ0SfZOKF7uwsBLgg$FtdOr17iJZ8/+ZE/8EjWDN/wxo7peHgIMd3b9ZgaE9Q";
 
     fn test_admin() -> Account {
         Account {
-            id: "1".to_owned(),
-            username: "admin".to_owned().into(),
+            id: id1(),
+            username: name("admin"),
             password: PASS1.to_owned(),
             is_admin: true,
             token: "token1".to_owned(),
@@ -467,8 +475,8 @@ mod tests {
     }
     fn test_user() -> Account {
         Account {
-            id: "2".to_owned(),
-            username: "user".to_owned().into(),
+            id: id2(),
+            username: name("user"),
             password: PASS2.to_owned(),
             is_admin: false,
             token: "token2".to_owned(),
@@ -480,10 +488,7 @@ mod tests {
 
         let accounts_path = temp_dir.path().join("accounts.json");
 
-        let test_accounts = HashMap::from([
-            ("1".to_owned(), test_admin()),
-            ("2".to_owned(), test_user()),
-        ]);
+        let test_accounts = HashMap::from([(id1(), test_admin()), (id2(), test_user())]);
 
         let file = File::create(&accounts_path).unwrap();
         serde_json::to_writer(file, &test_accounts).unwrap();
@@ -510,17 +515,12 @@ mod tests {
     #[tokio::test]
     async fn test_auth_account_by_name(username: &str, want: Option<Account>) {
         let (_, auth) = new_test_auth();
-        let got = auth
-            .data
-            .lock()
-            .await
-            .account_by_name(&username.to_owned().into());
+        let got = auth.data.lock().await.account_by_name(&name(username));
         assert_eq!(want, got);
     }
 
     #[test_case("admin", "pass1", true, true, "token1", true; "ok_admin")]
     #[test_case("user", "pass2",  true, false, "token2", true; "ok_user")]
-    #[test_case("User", "pass2",  true, false, "token2", true; "uppercase")]
     #[test_case("user", "wrongPass",  false, false, "token2", false; "wrong_pass")]
     #[test_case("admin", "pass1", true, true, "invalid", false;"invalid_token")]
     #[test_case("nil", "", false, false, "", false; "nil")]
@@ -556,18 +556,18 @@ mod tests {
 
         let want = HashMap::from([
             (
-                "1".to_owned(),
+                id1(),
                 AccountObfuscated {
-                    id: "1".to_owned(),
-                    username: "admin".to_owned().into(),
+                    id: id1(),
+                    username: name("admin"),
                     is_admin: true,
                 },
             ),
             (
-                "2".to_owned(),
+                id2(),
                 AccountObfuscated {
-                    id: "2".to_owned(),
-                    username: "user".to_owned().into(),
+                    id: id2(),
+                    username: name("user"),
                     is_admin: false,
                 },
             ),
@@ -582,8 +582,8 @@ mod tests {
 
         // Update username.
         let req = AccountSetRequest {
-            id: "1".to_owned(),
-            username: "new_name".to_owned().into(),
+            id: id1(),
+            username: name("new_name"),
             plain_password: None,
             is_admin: true,
         };
@@ -600,53 +600,23 @@ mod tests {
 
         // Save to file.
         let file = fs::File::open(temp_dir.path().join("accounts.json")).unwrap();
-        let accounts: HashMap<String, Account> = serde_json::from_reader(file).unwrap();
-        let account = &accounts["1"];
+        let accounts: HashMap<AccountId, Account> = serde_json::from_reader(file).unwrap();
+        let account = &accounts[&id1()];
         assert_eq!(req.id, account.id);
         assert_eq!(req.username, account.username);
         assert_eq!(req.is_admin, account.is_admin);
 
         // Missing password.
-        match auth
+        let err = auth
             .account_set(AccountSetRequest {
-                id: "10".to_owned(),
-                username: "admin".to_owned().into(),
+                id: id("xxxxxxxxxxxxxxxx"),
+                username: name("admin"),
                 plain_password: None,
                 is_admin: false,
             })
             .await
-        {
-            Ok(_) => panic!("expected error"),
-            Err(e) => assert!(matches!(e, AuthAccountSetError::PasswordMissing())),
-        };
-
-        // Missing Id.
-        match auth
-            .account_set(AccountSetRequest {
-                id: String::new(),
-                username: "admin".to_owned().into(),
-                plain_password: Some("pass".to_owned()),
-                is_admin: false,
-            })
-            .await
-        {
-            Ok(_) => panic!("expected error"),
-            Err(e) => assert!(matches!(e, AuthAccountSetError::IdMissing())),
-        };
-
-        // Missing username.
-        match auth
-            .account_set(AccountSetRequest {
-                id: "1".to_owned(),
-                username: String::new().into(),
-                plain_password: Some("pass".to_owned()),
-                is_admin: false,
-            })
-            .await
-        {
-            Ok(_) => panic!("expected error"),
-            Err(e) => assert!(matches!(e, AuthAccountSetError::UsernameMissing())),
-        }
+            .unwrap_err();
+        assert!(matches!(err, AuthAccountSetError::PasswordMissing()));
     }
 
     #[tokio::test]
@@ -654,17 +624,14 @@ mod tests {
         let (_temp_dir, auth) = new_test_auth();
 
         assert!(matches!(
-            auth.account_delete("nil").await,
+            auth.account_delete(&id("xxxxxxxxxxxxxxxx")).await,
             Err(AuthAccountDeleteError::AccountNotExist(_)),
         ));
 
-        auth.account_delete("2").await.unwrap();
+        auth.account_delete(&id2()).await.unwrap();
         assert_eq!(
             None,
-            auth.data
-                .lock()
-                .await
-                .account_by_name(&"2".to_owned().into()),
+            auth.data.lock().await.account_by_name(&name("2")),
             "user was not deleted"
         );
     }
