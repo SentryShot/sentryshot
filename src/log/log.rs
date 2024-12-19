@@ -3,7 +3,7 @@
 pub mod log_db;
 pub mod rev_buf_reader;
 
-use common::{ILogger, LogEntry, LogLevel, LogSource, MonitorId, NonEmptyString};
+use common::{ILogger, LogEntry, LogLevel, LogMessage, LogSource, MonitorId};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt,
@@ -111,23 +111,17 @@ impl Deref for UnixMicro {
     }
 }
 
-/// Log entry with time.
+/// Log entry with timestamp.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct LogEntryWithTime {
-    /// Severity.
     pub level: LogLevel,
-
-    /// Source.
     pub source: LogSource,
 
     /// Optional monitor ID if the message can be tied to a monitor.
     #[serde(rename = "monitorID", skip_serializing_if = "Option::is_none")]
     pub monitor_id: Option<MonitorId>,
 
-    /// Message.
-    pub message: NonEmptyString,
-
-    // Timestamp.
+    pub message: LogMessage,
     pub time: UnixMicro,
 }
 
@@ -164,7 +158,7 @@ fn make_ascii_titlecase(s: &mut str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{ParseLogSourceError, ParseNonEmptyStringError};
+    use common::{ParseLogMessageError, ParseLogSourceError};
     use pretty_assertions::assert_eq;
     use test_case::test_case;
 
@@ -174,7 +168,7 @@ mod tests {
     fn m_id(s: &str) -> MonitorId {
         s.to_owned().try_into().unwrap()
     }
-    fn msg(s: &str) -> NonEmptyString {
+    fn msg(s: &str) -> LogMessage {
         s.to_owned().try_into().unwrap()
     }
 
@@ -259,11 +253,11 @@ mod tests {
         );
     }
 
-    #[test_case("", ParseNonEmptyStringError::Empty; "empty")]
-    fn message_parse(input: &str, want: ParseNonEmptyStringError) {
+    #[test_case("", ParseLogMessageError::Empty; "empty")]
+    fn message_parse(input: &str, want: ParseLogMessageError) {
         assert_eq!(
             want,
-            NonEmptyString::try_from(input.to_owned()).expect_err("expected error")
+            LogMessage::try_from(input.to_owned()).expect_err("expected error")
         );
     }
 }

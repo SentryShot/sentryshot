@@ -109,7 +109,7 @@ pub struct LogEntry {
     pub level: LogLevel,
     pub source: LogSource,
     pub monitor_id: Option<MonitorId>,
-    pub message: NonEmptyString,
+    pub message: LogMessage,
 }
 
 impl LogEntry {
@@ -125,9 +125,11 @@ impl LogEntry {
             .to_owned()
             .try_into()
             .expect("source should be valid");
-        let message: NonEmptyString = message
-            .try_into()
-            .unwrap_or("invalid_message".to_owned().try_into().unwrap());
+        let message = match LogMessage::try_from(message) {
+            Ok(v) => v,
+            Err(e) => LogMessage::try_from(format!("bad message: {e}"))
+                .expect("error message should be a valid log message"),
+        };
         Self {
             level,
             source,
@@ -421,9 +423,9 @@ impl Deref for LogSource {
 
 #[repr(transparent)]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
-pub struct NonEmptyString(String);
+pub struct LogMessage(String);
 
-impl<'de> Deserialize<'de> for NonEmptyString {
+impl<'de> Deserialize<'de> for LogMessage {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -434,30 +436,38 @@ impl<'de> Deserialize<'de> for NonEmptyString {
     }
 }
 
-impl fmt::Display for NonEmptyString {
+impl fmt::Display for LogMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
-pub enum ParseNonEmptyStringError {
+pub enum ParseLogMessageError {
     #[error("empty string")]
     Empty,
+
+    #[error("too long")]
+    TooLong,
 }
 
-impl TryFrom<String> for NonEmptyString {
-    type Error = ParseNonEmptyStringError;
+const LOG_MESSAGE_MAX_LENGTH: usize = 1024 * 4;
+
+impl TryFrom<String> for LogMessage {
+    type Error = ParseLogMessageError;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
         if s.is_empty() {
-            return Err(ParseNonEmptyStringError::Empty);
+            return Err(ParseLogMessageError::Empty);
+        }
+        if s.len() > LOG_MESSAGE_MAX_LENGTH {
+            return Err(ParseLogMessageError::TooLong);
         }
         Ok(Self(s))
     }
 }
 
-impl Deref for NonEmptyString {
+impl Deref for LogMessage {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
@@ -488,6 +498,7 @@ pub type ArcAuth = Arc<dyn Authenticator + Send + Sync>;
 pub type AccountsMap = HashMap<String, AccountObfuscated>;
 
 // Username is lowercase only.
+#[repr(transparent)]
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Username(String);
 
@@ -911,5 +922,16 @@ mod tests {
 
         MonitorName::try_from(String::new()).unwrap_err();
         MonitorName::try_from("a a".to_owned()).unwrap_err();
+    }
+
+    #[test]
+    fn test_parse_log_message() {
+        LogMessage::try_from("abc".to_owned()).unwrap();
+        LogMessage::try_from("123".to_owned()).unwrap();
+        LogMessage::try_from("a-a".to_owned()).unwrap();
+        LogMessage::try_from("a_a".to_owned()).unwrap();
+        LogMessage::try_from("a a".to_owned()).unwrap();
+
+        LogMessage::try_from(String::new()).unwrap_err();
     }
 }

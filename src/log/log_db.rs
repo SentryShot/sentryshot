@@ -2,8 +2,8 @@ use super::{LogEntryWithTime, Logger, UnixMicro};
 use crate::rev_buf_reader::RevBufReader;
 use bytesize::ByteSize;
 use common::{
-    ArcLogger, LogEntry, LogLevel, LogSource, MonitorId, ParseLogLevelError, ParseLogSourceError,
-    ParseMonitorIdError, ParseNonEmptyStringError, LOG_SOURCE_MAX_LENGTH, MONITOR_ID_MAX_LENGTH,
+    ArcLogger, LogEntry, LogLevel, LogSource, MonitorId, ParseLogLevelError, ParseLogMessageError,
+    ParseLogSourceError, ParseMonitorIdError, LOG_SOURCE_MAX_LENGTH, MONITOR_ID_MAX_LENGTH,
 };
 use csv::{deserialize_csv_option, deserialize_csv_option2};
 use futures::TryFutureExt;
@@ -916,7 +916,7 @@ enum RecoverableDecodeEntryError {
     ParseLogLevel(#[from] ParseLogLevelError),
 
     #[error("parse log message: {0}")]
-    ParseLogMessage(#[from] ParseNonEmptyStringError),
+    ParseLogMessage(#[from] ParseLogMessageError),
 }
 
 async fn decode_entry<T: AsyncRead + AsyncSeek + Unpin>(
@@ -989,7 +989,7 @@ async fn get_file_size(path: &Path) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::NonEmptyString;
+    use common::LogMessage;
     use pretty_assertions::assert_eq;
     use std::io::Cursor;
     use tempfile::tempdir;
@@ -1012,7 +1012,7 @@ mod tests {
     fn m_id(s: &str) -> MonitorId {
         s.to_owned().try_into().unwrap()
     }
-    fn msg(s: &str) -> NonEmptyString {
+    fn msg(s: &str) -> LogMessage {
         s.to_owned().try_into().unwrap()
     }
 
