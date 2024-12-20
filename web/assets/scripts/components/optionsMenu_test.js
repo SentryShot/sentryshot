@@ -6,13 +6,16 @@ import { NS_MILLISECOND } from "../libs/time.js";
 import { uidReset } from "../libs/common.js";
 import { newOptionsMenu, newOptionsBtn, newSelectMonitor } from "./optionsMenu.js";
 
+/** @typedef {import("./optionsMenu.js").Button} Button */
+
 describe("optionsGridSize", () => {
+	/** @param {Button} button */
 	const setup = (button) => {
 		document.body.innerHTML = `<div id="options-menu"></div>`;
 		const element = document.querySelector("#options-menu");
 
 		element.innerHTML = button.html;
-		button.init(element);
+		button.init();
 
 		return element;
 	};
@@ -267,9 +270,10 @@ test("optionsMonitor", () => {
 	expect(localStorage.getItem("selected-monitor")).toBe("a");
 });
 
-/*
-describe("optionsGroup", () => {
-	const setup = () => {
+describe("optionsMonitorGroups", () => {
+	/** @returns {Button} */
+	// eslint-disable-next-line unicorn/no-object-as-default-parameter
+	const setup = (content = { setMonitors() {}, reset() {} }) => {
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
 
@@ -286,18 +290,18 @@ describe("optionsGroup", () => {
 			},
 		};
 
-		const group = newOptionsBtn.group(groups);
+		const group = newOptionsBtn.monitorGroup(groups, content);
 		element.innerHTML = group.html;
-		group.init(element, { setMonitors() {}, reset() {} });
+		group.init();
 
-		return [group, element];
+		return group;
 	};
 	test("rendering", () => {
 		setup();
 		const expected = `
 			<span class="select-one-label">Groups</span>
-			<span class="select-one-item" data="group1">group1</span>
-			<span class="select-one-item" data="group2">group2</span>`.replaceAll(/\s/g, "");
+			<span class="select-one-item" data="a">group1</span>
+			<span class="select-one-item" data="b">group2</span>`.replaceAll(/\s/g, "");
 		const $picker = document.querySelector(".select-one");
 
 		let actual = $picker.innerHTML.replaceAll(/\s/g, "");
@@ -307,13 +311,12 @@ describe("optionsGroup", () => {
 		actual = $picker.innerHTML.replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 
-		const $group1 = document.querySelector(".select-one-item[data='group1']");
+		const $group1 = document.querySelector(".select-one-item[data='a']");
 		expect($group1.classList.contains("select-one-item-selected")).toBe(false);
 		$group1.click();
 		expect($group1.classList.contains("select-one-item-selected")).toBe(true);
 	});
 	test("content", () => {
-		const [group, element] = setup();
 		let setMonitorsCalled = false;
 		let resetCalled = false;
 		const content = {
@@ -324,8 +327,10 @@ describe("optionsGroup", () => {
 				resetCalled = true;
 			},
 		};
-		group.init(element, content);
-		const $group1 = document.querySelector(".select-one-item[data='group1']");
+		const group = setup(content);
+
+		group.init();
+		const $group1 = document.querySelector(".select-one-item[data='a']");
 		$group1.click();
 
 		expect(setMonitorsCalled).toBe(true);
@@ -340,11 +345,7 @@ describe("optionsGroup", () => {
 		document.querySelector(".js-group").click();
 		expect($popup.classList.contains("options-popup-open")).toBe(false);
 	});
-	test("noGroups", () => {
-		const group = newOptionsBtn.group({}, {});
-		expect(group).toBeUndefined();
-	});
-});*/
+});
 
 describe("newOptionsMenu", () => {
 	test("rendering", () => {
