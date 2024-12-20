@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.2.21`
+
 -	add mqtt api #44
 -	detect camera clock drift
 -	add back monitor groups #46
