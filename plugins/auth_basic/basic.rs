@@ -428,7 +428,7 @@ func (a *Authenticator) MyToken() http.Handler {
 */
 
 // LogFailedLogin finds and logs the ip.
-pub fn log_failed_login(logger: &ArcLogger, username: &str) {
+pub fn log_failed_login(logger: &ArcLogger, username: &Username) {
     logger.log(LogEntry::new(
         LogLevel::Warning,
         "auth",

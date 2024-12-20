@@ -215,16 +215,33 @@ impl FromStr for LogLevel {
     }
 }
 
+#[macro_export]
+macro_rules! impl_deserialize_try_from_and_display {
+    ($type:ident) => {
+        impl<'de> Deserialize<'de> for $type {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                String::deserialize(deserializer)?
+                    .try_into()
+                    .map_err(serde::de::Error::custom)
+            }
+        }
+
+        impl std::fmt::Display for $type {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+    };
+}
+
 pub const MONITOR_ID_MAX_LENGTH: usize = 24;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize)]
 pub struct MonitorId(String);
-
-impl fmt::Display for MonitorId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+impl_deserialize_try_from_and_display!(MonitorId);
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseMonitorIdError {
@@ -256,16 +273,6 @@ impl TryFrom<String> for MonitorId {
     }
 }
 
-impl<'de> Deserialize<'de> for MonitorId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        TryFrom::try_from(s).map_err(serde::de::Error::custom)
-    }
-}
-
 impl Deref for MonitorId {
     type Target = str;
 
@@ -278,12 +285,7 @@ pub const MONITOR_NAME_MAX_LENGTH: usize = 64;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize)]
 pub struct MonitorName(String);
-
-impl fmt::Display for MonitorName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+impl_deserialize_try_from_and_display!(MonitorName);
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseMonitorNameError {
@@ -319,29 +321,12 @@ impl TryFrom<String> for MonitorName {
     }
 }
 
-impl<'de> Deserialize<'de> for MonitorName {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        TryFrom::try_from(s).map_err(serde::de::Error::custom)
-    }
-}
-
-impl Deref for MonitorName {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 pub const LOG_SOURCE_MAX_LENGTH: usize = 8;
 
 #[repr(transparent)]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, PartialOrd, Ord)]
 pub struct LogSource(Cow<'static, str>);
+impl_deserialize_try_from_and_display!(LogSource);
 
 impl LogSource {
     #[must_use]
@@ -352,16 +337,6 @@ impl LogSource {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
-    }
-}
-
-impl<'de> Deserialize<'de> for LogSource {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        s.try_into().map_err(serde::de::Error::custom)
     }
 }
 
@@ -424,23 +399,7 @@ impl Deref for LogSource {
 #[repr(transparent)]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct LogMessage(String);
-
-impl<'de> Deserialize<'de> for LogMessage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)?
-            .try_into()
-            .map_err(serde::de::Error::custom)
-    }
-}
-
-impl fmt::Display for LogMessage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+impl_deserialize_try_from_and_display!(LogMessage);
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseLogMessageError {
@@ -500,17 +459,7 @@ pub type AccountsMap = HashMap<AccountId, AccountObfuscated>;
 #[repr(transparent)]
 #[derive(Clone, Debug, Hash, Serialize, PartialEq, Eq)]
 pub struct AccountId(String);
-
-impl<'de> Deserialize<'de> for AccountId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)?
-            .try_into()
-            .map_err(serde::de::Error::custom)
-    }
-}
+impl_deserialize_try_from_and_display!(AccountId);
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseAccountIdError {
@@ -544,34 +493,10 @@ impl TryFrom<String> for AccountId {
     }
 }
 
-impl Deref for AccountId {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl fmt::Display for AccountId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 #[repr(transparent)]
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Username(String);
-
-impl<'de> Deserialize<'de> for Username {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)?
-            .try_into()
-            .map_err(serde::de::Error::custom)
-    }
-}
+impl_deserialize_try_from_and_display!(Username);
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseUsernameError {
@@ -605,20 +530,6 @@ impl TryFrom<String> for Username {
             return Err(TooLong);
         }
         Ok(Self(s))
-    }
-}
-
-impl Deref for Username {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl fmt::Display for Username {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 

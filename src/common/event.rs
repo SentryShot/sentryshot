@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::time::{Duration, UnixNano};
+use crate::{
+    impl_deserialize_try_from_and_display,
+    time::{Duration, UnixNano},
+};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, num::NonZeroU32, ops::Deref};
+use std::num::NonZeroU32;
 use thiserror::Error;
 
 // Recording trigger event.
@@ -63,6 +66,7 @@ pub type Labels = Vec<Label>;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize)]
 pub struct Label(String);
+impl_deserialize_try_from_and_display!(Label);
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseLabelError {
@@ -90,36 +94,13 @@ impl TryFrom<String> for Label {
     }
 }
 
-impl<'de> Deserialize<'de> for Label {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)?
-            .try_into()
-            .map_err(serde::de::Error::custom)
-    }
-}
-
-impl Deref for Label {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Display for Label {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 const EVENT_SOURCE_MAX_LENGTH: usize = 7;
 
+#[repr(transparent)]
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct EventSource(String);
+impl_deserialize_try_from_and_display!(EventSource);
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseEventSourceError {
@@ -145,31 +126,6 @@ impl TryFrom<String> for EventSource {
             }
         }
         Ok(Self(s))
-    }
-}
-
-impl<'de> Deserialize<'de> for EventSource {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)?
-            .try_into()
-            .map_err(serde::de::Error::custom)
-    }
-}
-
-impl Deref for EventSource {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Display for EventSource {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 
