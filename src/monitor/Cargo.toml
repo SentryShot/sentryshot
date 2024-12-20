@@ -22,7 +22,7 @@ recording.path = "../recording"
 
 async-trait.workspace = true
 bytesize.workspace = true
-futures.workspace = true
+futures-lite.workspace = true
 jpeg-encoder.workspace = true
 retina.workspace = true
 sentryshot_convert.workspace = true

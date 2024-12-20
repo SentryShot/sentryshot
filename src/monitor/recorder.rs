@@ -8,7 +8,7 @@ use common::{
     ArcHlsMuxer, ArcLogger, ArcMsgLogger, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
     SegmentFinalized, TrackParameters,
 };
-use futures::Future;
+use futures_lite::Future;
 use recdb::{NewRecordingError, OpenFileError, RecDb, RecordingHandle};
 use recording::{CreateVideoWriterError, MetaHeader, VideoWriter, WriteSampleError};
 use sentryshot_convert::{

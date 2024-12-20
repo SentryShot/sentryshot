@@ -12,7 +12,7 @@ use common::{
     ArcHlsMuxer, ArcLogger, ArcMsgLogger, H264Data, LogEntry, LogLevel, MonitorId, MsgLogger,
     StreamType,
 };
-use futures::StreamExt;
+use futures_lite::StreamExt;
 use hls::{
     track_params_from_video_params, CreateSegmenterError, H264Writer, HlsServer, ParseParamsError,
     SegmenterWriteH264Error,

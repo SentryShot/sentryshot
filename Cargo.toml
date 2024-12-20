@@ -56,7 +56,7 @@ bytesize = "1.2.0"
 chrono = { version= "0.4.35", default-features = false, features = ["std", "serde"] }
 console-subscriber = "0.2.0"
 criterion = { version="0.5.0", features = ["async_tokio"] }
-futures = "0.3.27"
+futures-lite = "2"
 headers = "0.4.0"
 http = "1.0.0"
 httpdate = "1.0.2"

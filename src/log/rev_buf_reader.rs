@@ -262,8 +262,12 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for RevBufReader<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::task::noop_waker_ref;
-    use std::{cmp, io::Cursor, task::Poll};
+    use std::{
+        cmp,
+        io::Cursor,
+        ptr::null,
+        task::{Poll, RawWaker, RawWakerVTable, Waker},
+    };
     use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncReadExt, AsyncSeekExt};
 
     #[tokio::test]
@@ -284,6 +288,30 @@ mod tests {
         let mut tmp = vec![0];
         reader.read_exact(&mut tmp).await.unwrap();
         assert_eq!(&[9], tmp.as_slice());
+    }
+
+    unsafe fn noop_clone(_data: *const ()) -> RawWaker {
+        noop_raw_waker()
+    }
+
+    unsafe fn noop(_data: *const ()) {}
+
+    const NOOP_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(noop_clone, noop, noop, noop);
+
+    const fn noop_raw_waker() -> RawWaker {
+        RawWaker::new(null(), &NOOP_WAKER_VTABLE)
+    }
+
+    #[inline]
+    #[allow(clippy::ptr_as_ptr)]
+    pub fn noop_waker_ref() -> &'static Waker {
+        struct SyncRawWaker(RawWaker);
+        unsafe impl Sync for SyncRawWaker {}
+
+        static NOOP_WAKER_INSTANCE: SyncRawWaker = SyncRawWaker(noop_raw_waker());
+
+        // SAFETY: `Waker` is #[repr(transparent)] over its `RawWaker`.
+        unsafe { &*(std::ptr::addr_of!(NOOP_WAKER_INSTANCE.0) as *const Waker) }
     }
 
     macro_rules! run_fill_buf {

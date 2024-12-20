@@ -6,7 +6,6 @@ use common::{
     ParseLogSourceError, ParseMonitorIdError, LOG_SOURCE_MAX_LENGTH, MONITOR_ID_MAX_LENGTH,
 };
 use csv::{deserialize_csv_option, deserialize_csv_option2};
-use futures::TryFutureExt;
 use serde::Deserialize;
 use std::{
     cmp::Ordering,
@@ -939,7 +938,7 @@ async fn decode_entry<T: AsyncRead + AsyncSeek + Unpin>(
         .map_err(Seek)?;
 
     let mut msg_buf = vec![0; msg_size.into()];
-    msg_file.read_exact(&mut msg_buf).map_err(Read).await?;
+    msg_file.read_exact(&mut msg_buf).await.map_err(Read)?;
 
     let monitor_id = {
         if monitor_id.is_empty() {

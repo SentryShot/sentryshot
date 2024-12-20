@@ -801,6 +801,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a44623e20b9681a318efdd71c299b6b222ed6f231972bfe2f224ebad6311f0c1"
 
 [[package]]
+name = "futures-lite"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cef40d21ae2c515b51041df9ed313ed21e572df340ea58a922a0aefe7e8891a1"
+dependencies = [
+ "fastrand",
+ "futures-core",
+ "futures-io",
+ "parking",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "futures-macro"
 version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1345,7 +1358,6 @@ dependencies = [
  "common",
  "criterion",
  "csv",
- "futures",
  "pin-project",
  "pretty_assertions",
  "rand",
@@ -1444,7 +1456,7 @@ dependencies = [
  "async-trait",
  "bytesize",
  "common",
- "futures",
+ "futures-lite",
  "hls",
  "jpeg-encoder",
  "log 0.2.20",
@@ -3015,7 +3027,6 @@ version = "0.2.20"
 dependencies = [
  "axum 0.7.4",
  "common",
- "futures",
  "http 1.1.0",
  "http-body 1.0.0",
  "httpdate",
