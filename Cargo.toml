@@ -44,13 +44,13 @@ sentryshot_padded_bytes = "0.1.0"
 sentryshot_scale = "0.1.2"
 sentryshot_util = "0.1.2"
 
-retina = { git = "https://github.com/Curid/retina", branch = "sps" }
+retina = { git = "https://github.com/Curid/retina", branch = "dts" }
 
 async-channel = "2.0.0"
 async-recursion = "1.1.1"
 async-trait = "0.1.64"
 argon2 = "0.5.0"
-axum = { version = "0.7.0", default-features = false, features = ["tokio", "http2", "json", "query", "ws"] }
+axum = { version = "0.7.9", default-features = false, features = ["tokio", "http1", "http2", "json", "query", "ws"] }
 bytes = "1.4.0"
 bytesize = "1.2.0"
 chrono = { version= "0.4.35", default-features = false, features = ["std", "serde"] }

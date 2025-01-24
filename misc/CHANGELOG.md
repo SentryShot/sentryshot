@@ -1,5 +1,7 @@
 ## unreleased
 
+-	update retina to fix v380 pro #42
+
 ## `v0.2.21`
 
 -	add mqtt api #44
