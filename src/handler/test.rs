@@ -8,7 +8,7 @@ use axum::{
     extract::{Path, State},
     response::IntoResponse,
 };
-use http::{header, StatusCode};
+use http::{header, HeaderMap, StatusCode};
 use pretty_assertions::assert_eq;
 use std::{borrow::Cow, collections::HashMap};
 
@@ -16,7 +16,7 @@ use std::{borrow::Cow, collections::HashMap};
 async fn handle_assets_ok() {
     let path = "a.json".to_owned();
     let files = HashMap::from([("a.json".to_owned(), Cow::from("test".as_bytes()))]);
-    let response = asset_handler(Path(path), State(files))
+    let response = asset_handler(Path(path), HeaderMap::new(), State((files, String::new())))
         .await
         .into_response();
 
@@ -35,7 +35,7 @@ async fn handle_assets_ok() {
 async fn handle_assets_404() {
     let path = "x".to_owned();
     let files = HashMap::from([("a".to_owned(), Cow::from("test".as_bytes()))]);
-    let response = asset_handler(Path(path), State(files))
+    let response = asset_handler(Path(path), HeaderMap::new(), State((files, String::new())))
         .await
         .into_response();
 

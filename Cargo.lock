@@ -2219,6 +2219,7 @@ dependencies = [
  "pico-args",
  "plugin",
  "pretty_assertions",
+ "rand",
  "recdb",
  "recording",
  "rust-embed",

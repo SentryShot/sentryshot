@@ -70,7 +70,10 @@ pub async fn template_handler(
 
     match template.render(data).to_string() {
         Ok(content) => (
-            [(header::CONTENT_TYPE, "text/html; charset=UTF-8")],
+            [
+                (header::CONTENT_TYPE, "text/html; charset=UTF-8"),
+                (header::CACHE_CONTROL, "private, no-cache"),
+            ],
             content,
         )
             .into_response(),
@@ -87,13 +90,28 @@ pub async fn template_handler(
 
 pub async fn asset_handler(
     Path(path): Path<String>,
-    State(assets): State<EmbeddedFiles>,
+    headers: HeaderMap,
+    State(assets_and_etag): State<(EmbeddedFiles, String)>,
 ) -> Response {
+    let (assets, etag) = assets_and_etag;
+
+    if let Some(if_none_match) = headers.get(header::IF_NONE_MATCH) {
+        if let Ok(if_none_match) = if_none_match.to_str() {
+            if if_none_match == etag {
+                return StatusCode::NOT_MODIFIED.into_response();
+            }
+        }
+    }
+
     match assets.get(path.as_str()) {
         Some(content) => {
             let body = Body::from(content.clone());
             let mime = mime_guess::from_path(path).first_or_octet_stream();
-            ([(header::CONTENT_TYPE, mime.as_ref())], body).into_response()
+            (
+                [(header::CONTENT_TYPE, mime.as_ref()), (header::ETAG, &etag)],
+                body,
+            )
+                .into_response()
         }
         None => (StatusCode::NOT_FOUND, "404").into_response(),
     }

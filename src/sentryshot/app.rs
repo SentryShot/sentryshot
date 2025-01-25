@@ -24,6 +24,7 @@ use plugin::{
     types::{admin, csrf, user, NewAuthError},
     Application, PluginManager, PreLoadPluginsError, PreLoadedPlugins,
 };
+use rand::{distributions::Alphanumeric, Rng};
 use recdb::{Disk, RecDb};
 use recording::VideoCache;
 use rust_embed::RustEmbed;
@@ -196,6 +197,13 @@ impl App {
 
     #[allow(clippy::similar_names)]
     pub fn setup_routes(&mut self, plugin_manager: &mut PluginManager) -> Result<(), RunError> {
+        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
+        let assets_etag: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(8)
+            .map(char::from)
+            .collect();
+
         let mut assets = Asset::load();
         plugin_manager.edit_assets_hooks(&mut assets);
 
@@ -276,7 +284,7 @@ impl App {
             .route(
                 "/assets/*file",
                 get(asset_handler)
-                    .with_state(assets)
+                    .with_state((assets, assets_etag))
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
                     .with_state(self.auth.clone()),
             )

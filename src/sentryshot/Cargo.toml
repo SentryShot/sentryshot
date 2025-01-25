@@ -34,6 +34,7 @@ bytesize.workspace = true
 console-subscriber.workspace = true
 hyper.workspace = true
 pico-args.workspace = true
+rand.workspace = true
 thiserror.workspace = true
 tower.workspace = true
 tokio.workspace = true
