@@ -45,7 +45,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tower::ServiceBuilder;
 use vod::VodCache;
-use web::Templater;
+use web::{minify, Templater};
 
 #[allow(clippy::wildcard_imports)]
 use handler::*;
@@ -206,6 +206,7 @@ impl App {
 
         let mut assets = Asset::load();
         plugin_manager.edit_assets_hooks(&mut assets);
+        minify(&mut assets);
 
         let tpls = Tpls::load();
 
