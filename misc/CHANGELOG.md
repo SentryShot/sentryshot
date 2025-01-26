@@ -1,6 +1,7 @@
 ## unreleased
 
 -	update retina to fix v380 pro #42
+- 	faster page loads
 
 ## `v0.2.21`
 
