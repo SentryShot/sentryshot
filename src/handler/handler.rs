@@ -512,7 +512,14 @@ pub async fn recording_thumbnail_handler(
     let stream = ReaderStream::new(file);
     let body = Body::from_stream(stream);
 
-    (([(header::CONTENT_TYPE, "image/jpeg")]), body).into_response()
+    (
+        ([
+            (header::CONTENT_TYPE, "image/jpeg"),
+            (header::CACHE_CONTROL, "max-age=31536000, immutable"),
+        ]),
+        body,
+    )
+        .into_response()
 }
 
 #[derive(Clone)]
