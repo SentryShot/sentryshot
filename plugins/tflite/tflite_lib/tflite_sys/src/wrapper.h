@@ -7,19 +7,34 @@ typedef struct CDetector CDetector;
 
 CDetector *c_detector_allocate();
 
+typedef struct TfLiteTensor TfLiteTensor;
+
 enum edgetpu_device_type {
   EDGETPU_APEX_PCI = 0,
   EDGETPU_APEX_USB = 1,
 };
 
+extern int TfLiteTensorType(const TfLiteTensor *tensor);
+
+extern size_t TfLiteTensorByteSize(const TfLiteTensor *tensor);
+
 int c_detector_load_model(CDetector *d, const char *model_path,
-                          size_t *input_tensor_size, const char *device,
+                          const char *device,
                           const enum edgetpu_device_type device_type);
 
-int c_detector_detect(CDetector *d, const uint8_t *buf, size_t buf_size,
-                      uint8_t **t0_data, uint8_t **t1_data, uint8_t **t2_data,
-                      uint8_t **t3_data, size_t *t0_size, size_t *t1_size,
-                      size_t *t2_size, size_t *t3_size);
+int32_t c_detector_input_tensor_count(CDetector *d);
+int32_t c_detector_output_tensor_count(CDetector *d);
+
+TfLiteTensor *c_detector_input_tensor(CDetector *d, int32_t index);
+const TfLiteTensor *c_detector_output_tensor(CDetector *d, int32_t index);
+
+extern int TfLiteTensorCopyFromBuffer(TfLiteTensor *tensor,
+                                      const void *input_data,
+                                      size_t input_data_size);
+
+int c_detector_invoke_interpreter(CDetector *d);
+
+extern void *TfLiteTensorData(const TfLiteTensor *tensor);
 
 void c_detector_free(CDetector *d);
 

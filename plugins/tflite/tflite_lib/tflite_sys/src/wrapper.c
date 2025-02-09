@@ -18,27 +18,22 @@ void reporter(void *user_data, const char *format, va_list args) {
 
 typedef struct {
   TfLiteInterpreter *interpreter;
-  TfLiteTensor *input_tensor;
   TfLiteOpaqueDelegate *delegate;
 } CDetector;
 
 CDetector *c_detector_allocate() {
   CDetector *d = malloc(sizeof(CDetector));
   d->interpreter = NULL;
-  d->input_tensor = NULL;
   d->delegate = NULL;
   return d;
 }
 
 int c_detector_load_model(CDetector *d, const char *model_path,
-                          size_t *input_tensor_size, const char *device,
+                          const char *device,
                           const enum edgetpu_device_type device_type) {
 #define ERROR_CREATE_FROM_FILE 10000;
 #define ERROR_INTERPRETER_CREATE 10001;
-#define ERROR_INPUT_TENSOR_COUNT 10002;
-#define ERROR_INPUT_TENSOR_TYPE 10003;
-#define ERROR_OUTPUT_TENSOR_COUNT 10004;
-#define ERROR_EDGETPU_DELEGATE_CREATE 10005;
+#define ERROR_EDGETPU_DELEGATE_CREATE 10002;
 
   int ret;
 
@@ -74,75 +69,30 @@ int c_detector_load_model(CDetector *d, const char *model_path,
     return ret;
   }
 
-  int32_t inputTensorCount =
-      TfLiteInterpreterGetInputTensorCount(d->interpreter);
-  if (inputTensorCount != 1) {
-    return ERROR_INPUT_TENSOR_COUNT;
-  }
-
-  d->input_tensor = TfLiteInterpreterGetInputTensor(d->interpreter, 0);
-
-  *input_tensor_size = TfLiteTensorByteSize(d->input_tensor);
-
-  int input_tensor_type = TfLiteTensorType(d->input_tensor);
-  if (input_tensor_type != 3) {
-    return ERROR_INPUT_TENSOR_TYPE;
-  }
-
-  int32_t output_tensor_count =
-      TfLiteInterpreterGetOutputTensorCount(d->interpreter);
-  if (output_tensor_count != 4) {
-    return ERROR_OUTPUT_TENSOR_COUNT;
-  }
-
   return 0;
 }
 
-int c_detector_detect(CDetector *d, const uint8_t *buf, size_t buf_size,
-                      uint8_t **t0_data, uint8_t **t1_data, uint8_t **t2_data,
-                      uint8_t **t3_data, size_t *t0_size, size_t *t1_size,
-                      size_t *t2_size, size_t *t3_size) {
-#define ERROR_OUTPUT_TENSOR_TYPE 20000;
-  // Populate input tensor data.
-  int ret;
-  if ((ret = TfLiteTensorCopyFromBuffer(d->input_tensor, buf, buf_size)) != 0) {
-    return ret;
-  }
+int32_t c_detector_input_tensor_count(CDetector *d) {
+  return TfLiteInterpreterGetInputTensorCount(d->interpreter);
+}
+int32_t c_detector_output_tensor_count(CDetector *d) {
+  return TfLiteInterpreterGetOutputTensorCount(d->interpreter);
+}
 
-  // Execute inference.
-  if ((ret = TfLiteInterpreterInvoke(d->interpreter)) != 0) {
-    return ret;
-  }
+TfLiteTensor *c_detector_input_tensor(CDetector *d, int32_t index) {
+  return TfLiteInterpreterGetInputTensor(d->interpreter, index);
+}
+const TfLiteTensor *c_detector_output_tensor(CDetector *d, int32_t index) {
+  return TfLiteInterpreterGetOutputTensor(d->interpreter, index);
+}
 
-  const TfLiteTensor *t0 = TfLiteInterpreterGetOutputTensor(d->interpreter, 0);
-  const TfLiteTensor *t1 = TfLiteInterpreterGetOutputTensor(d->interpreter, 1);
-  const TfLiteTensor *t2 = TfLiteInterpreterGetOutputTensor(d->interpreter, 2);
-  const TfLiteTensor *t3 = TfLiteInterpreterGetOutputTensor(d->interpreter, 3);
-
-  if (TfLiteTensorType(t0) != 1 && TfLiteTensorType(t1) != 1 &&
-      TfLiteTensorType(t2) != 1 && TfLiteTensorType(t3) != 1) {
-    return ERROR_OUTPUT_TENSOR_TYPE;
-  }
-
-  *t0_data = TfLiteTensorData(t0);
-  *t1_data = TfLiteTensorData(t1);
-  *t2_data = TfLiteTensorData(t2);
-  *t3_data = TfLiteTensorData(t3);
-
-  *t0_size = TfLiteTensorByteSize(t0);
-  *t1_size = TfLiteTensorByteSize(t1);
-  *t2_size = TfLiteTensorByteSize(t2);
-  *t3_size = TfLiteTensorByteSize(t3);
-
-  return 0;
+int c_detector_invoke_interpreter(CDetector *d) {
+  return TfLiteInterpreterInvoke(d->interpreter);
 }
 
 void c_detector_free(CDetector *d) {
   if (d->interpreter != NULL) {
     TfLiteInterpreterDelete(d->interpreter);
-  }
-  if (d->input_tensor != NULL) {
-    TfLiteTensorFree(d->input_tensor);
   }
   if (d->delegate != NULL) {
     edgetpu_free_delegate(d->delegate);

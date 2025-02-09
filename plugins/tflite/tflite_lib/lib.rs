@@ -9,8 +9,11 @@ use std::{
     time::Duration,
 };
 use tflite_sys::{
-    c_detector_allocate, c_detector_detect, c_detector_free, c_detector_load_model, c_free_devices,
-    c_list_devices, c_poke_devices, c_probe_device, CDetector,
+    c_detector_allocate, c_detector_free, c_detector_input_tensor, c_detector_input_tensor_count,
+    c_detector_invoke_interpreter, c_detector_load_model, c_detector_output_tensor,
+    c_detector_output_tensor_count, c_free_devices, c_list_devices, c_poke_devices, c_probe_device,
+    CDetector, TfLiteTensor, TfLiteTensorByteSize, TfLiteTensorCopyFromBuffer, TfLiteTensorData,
+    TfLiteTensorType,
 };
 use thiserror::Error;
 
@@ -31,15 +34,6 @@ pub enum NewDetectorError {
     #[error("interpreter create")]
     InterpreterCreate,
 
-    #[error("input tensor count")]
-    InputTensorCount,
-
-    #[error("input tensor type")]
-    InputTensorType,
-
-    #[error("output tensor count")]
-    OutputTensorCount,
-
     #[error("create edgetpu delegate")]
     EdgetpuDelegateCreate,
 
@@ -51,19 +45,228 @@ pub enum NewDetectorError {
 
     #[error("debug device: {0}")]
     DebugDevice(#[from] DebugDeviceError),
+
+    #[error("input tensor type")]
+    InputTensorType,
+
+    #[error("output tensor type")]
+    OutputTensorType,
+
+    #[error("invalid input tensor count: {0}")]
+    InvalidInputTensorCount(i32),
+
+    #[error("invalid output tensor count: {0}")]
+    InvalidOutputTensorCount(i32),
 }
 
 const ERROR_CREATE_FROM_FILE: c_int = 10000;
 const ERROR_INTERPRETER_CREATE: c_int = 10001;
-const ERROR_INPUT_TENSOR_COUNT: c_int = 10002;
-const ERROR_INPUT_TENSOR_TYPE: c_int = 10003;
-const ERROR_OUTPUT_TENSOR_COUNT: c_int = 10004;
-const ERROR_EDGETPU_DELEGATE_CREATE: c_int = 10005;
+const ERROR_EDGETPU_DELEGATE_CREATE: c_int = 10002;
+
+#[derive(Debug, Error)]
+#[error("invoke interpreter: {0}")]
+pub struct InvokeInterpreterError(i32);
+
+// Safe wrapper for C detector with loaded model.
+struct RDetector {
+    inner: *mut CDetector,
+    input_tensors: Vec<InputTensor>,
+    output_tensors: Vec<OutputTensor>,
+}
+
+impl Drop for RDetector {
+    fn drop(&mut self) {
+        unsafe { c_detector_free(self.inner) }
+    }
+}
+
+unsafe impl Send for RDetector {}
+
+impl RDetector {
+    fn new(model_path: &Path, edgetpu: Option<&EdgetpuDevice>) -> Result<Self, NewDetectorError> {
+        use NewDetectorError::*;
+        let model_path = model_path
+            .to_str()
+            .ok_or_else(|| NewDetectorError::PathToString(model_path.to_path_buf()))?;
+        let model_path = CString::new(model_path)?;
+
+        let c_detector = unsafe { c_detector_allocate() };
+        if c_detector.is_null() {
+            return Err(DetectorNull);
+        }
+
+        let res = match edgetpu {
+            Some(device) => {
+                if let Err(e) = probe_device(&device.path) {
+                    return Err(ProbeDevice(e, device.path.clone()));
+                };
+                let path = CString::new(device.path.clone())?;
+                unsafe {
+                    c_detector_load_model(
+                        c_detector,
+                        model_path.as_ptr(),
+                        path.as_ptr(),
+                        device.typ.as_uint(),
+                    )
+                }
+            }
+            None => unsafe {
+                c_detector_load_model(c_detector, model_path.as_ptr(), std::ptr::null(), 0)
+            },
+        };
+        if res != 0 {
+            return Err(match res {
+                ERROR_CREATE_FROM_FILE => CreateFromFile,
+                ERROR_INTERPRETER_CREATE => InterpreterCreate,
+                ERROR_EDGETPU_DELEGATE_CREATE => EdgetpuDelegateCreate,
+                _ => LoadModel(res),
+            });
+        }
+
+        let input_tensor_count = unsafe { c_detector_input_tensor_count(c_detector) };
+        let input_tensor_count = u8::try_from(input_tensor_count)
+            .map_err(|_| InvalidInputTensorCount(input_tensor_count))?;
+
+        let input_tensors: Vec<InputTensor> = (0..input_tensor_count)
+            .map(|i| {
+                let tensor = unsafe { c_detector_input_tensor(c_detector, i.into()) };
+                assert!(!tensor.is_null());
+                unsafe { InputTensor::new(tensor) }
+            })
+            .collect();
+
+        let output_tensor_count = unsafe { c_detector_output_tensor_count(c_detector) };
+        let output_tensor_count = u8::try_from(output_tensor_count)
+            .map_err(|_| InvalidInputTensorCount(output_tensor_count))?;
+
+        let output_tensors: Vec<OutputTensor> = (0..output_tensor_count)
+            .map(|i| {
+                let tensor = unsafe { c_detector_output_tensor(c_detector, i.into()) };
+                assert!(!tensor.is_null());
+                unsafe { OutputTensor::new(tensor) }
+            })
+            .collect();
+
+        if !matches!(input_tensors[0].typ, TensorType::UInt8) {
+            return Err(InputTensorType);
+        }
+        if !matches!(output_tensors[0].typ, TensorType::Float32) {
+            return Err(OutputTensorType);
+        }
+
+        Ok(Self {
+            inner: c_detector,
+            input_tensors,
+            output_tensors,
+        })
+    }
+
+    fn invoke_interpreter(&mut self) -> Result<(), InvokeInterpreterError> {
+        let res = unsafe { c_detector_invoke_interpreter(self.inner) };
+        if res != 0 {
+            return Err(InvokeInterpreterError(res));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum WriteTensorError {
+    #[error("buffer size: {0}vs{1}")]
+    BufferSize(usize, usize),
+
+    #[error("write error: {0}")]
+    Write(i32),
+}
+
+struct InputTensor {
+    inner: *mut TfLiteTensor,
+    size: usize,
+    typ: TensorType,
+}
+
+impl InputTensor {
+    unsafe fn new(inner: *mut TfLiteTensor) -> Self {
+        let size = unsafe { TfLiteTensorByteSize(inner) };
+        let typ = unsafe { TensorType::from_tensor(inner) };
+        Self { inner, size, typ }
+    }
+
+    fn write_u8(&mut self, buf: &[u8]) -> Result<(), WriteTensorError> {
+        use WriteTensorError::*;
+        assert!(matches!(self.typ, TensorType::UInt8));
+        if self.size != buf.len() {
+            return Err(BufferSize(self.size, buf.len()));
+        }
+        let ret = unsafe {
+            TfLiteTensorCopyFromBuffer(self.inner.cast(), buf.as_ptr().cast(), buf.len())
+        };
+        if ret != 0 {
+            return Err(Write(ret));
+        }
+        Ok(())
+    }
+}
+
+struct OutputTensor {
+    inner: *const TfLiteTensor,
+    size: usize,
+    typ: TensorType,
+}
+
+impl OutputTensor {
+    unsafe fn new(inner: *const TfLiteTensor) -> Self {
+        let size = unsafe { TfLiteTensorByteSize(inner) };
+        let typ = unsafe { TensorType::from_tensor(inner) };
+        Self { inner, size, typ }
+    }
+
+    fn data_f32(&self) -> &[f32] {
+        assert!(matches!(self.typ, TensorType::Float32));
+        unsafe { from_raw_parts(TfLiteTensorData(self.inner).cast(), self.size / 4) }
+    }
+}
+
+enum TensorType {
+    NoType,
+    Float32,
+    Int32,
+    UInt8,
+    Int64,
+    String,
+    Bool,
+    Int16,
+    Complex64,
+    Int8,
+    Unknown(i32),
+}
+
+impl TensorType {
+    unsafe fn from_tensor(tensor: *const TfLiteTensor) -> Self {
+        let v = unsafe { TfLiteTensorType(tensor) };
+        match v {
+            0 => TensorType::NoType,
+            1 => TensorType::Float32,
+            2 => TensorType::Int32,
+            3 => TensorType::UInt8,
+            4 => TensorType::Int64,
+            5 => TensorType::String,
+            6 => TensorType::Bool,
+            7 => TensorType::Int16,
+            8 => TensorType::Complex64,
+            9 => TensorType::Int8,
+            _ => TensorType::Unknown(v),
+        }
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum DetectError {
-    #[error("buffer size: {0}vs{1}")]
-    BufferSize(usize, usize),
+    #[error(transparent)]
+    WriteTensor(#[from] WriteTensorError),
+
+    #[error(transparent)]
+    Invoke(#[from] InvokeInterpreterError),
 
     #[error("output tensor type")]
     OutputTensorType,
@@ -72,127 +275,38 @@ pub enum DetectError {
     Detect(i32),
 
     #[error("parse output tensors: {0:?} {1}")]
-    ParseOutputTensors([usize; 4], ParseOutputTensorsError),
+    ParseOutputTensors(String, ParseOutputTensorsError),
 }
-
-const ERROR_OUTPUT_TENSOR_TYPE: i32 = 20000;
 
 pub struct Detector {
-    c_detector: *mut CDetector,
-    input_tensor_size: usize,
+    detector: RDetector,
 }
-
-unsafe impl Send for Detector {}
 
 impl Detector {
     pub fn new(
         model_path: &Path,
         edgetpu: Option<&EdgetpuDevice>,
     ) -> Result<Self, NewDetectorError> {
-        use NewDetectorError::*;
-        let model_path = model_path
-            .to_str()
-            .ok_or_else(|| NewDetectorError::PathToString(model_path.to_path_buf()))?;
-        let model_path = CString::new(model_path)?;
-
-        unsafe {
-            let c_detector = c_detector_allocate();
-            if c_detector.is_null() {
-                return Err(DetectorNull);
-            }
-
-            let mut input_tensor_size = 0;
-            let res = match edgetpu {
-                Some(device) => {
-                    if let Err(e) = probe_device(&device.path) {
-                        return Err(ProbeDevice(e, device.path.clone()));
-                    };
-                    let path = CString::new(device.path.clone())?;
-                    c_detector_load_model(
-                        c_detector,
-                        model_path.as_ptr(),
-                        &mut input_tensor_size,
-                        path.as_ptr(),
-                        device.typ.as_uint(),
-                    )
-                }
-                None => c_detector_load_model(
-                    c_detector,
-                    model_path.as_ptr(),
-                    &mut input_tensor_size,
-                    std::ptr::null(),
-                    0,
-                ),
-            };
-            if res != 0 {
-                return Err(match res {
-                    ERROR_CREATE_FROM_FILE => CreateFromFile,
-                    ERROR_INTERPRETER_CREATE => InterpreterCreate,
-                    ERROR_INPUT_TENSOR_COUNT => InputTensorCount,
-                    ERROR_INPUT_TENSOR_TYPE => InputTensorType,
-                    ERROR_OUTPUT_TENSOR_COUNT => OutputTensorCount,
-                    ERROR_EDGETPU_DELEGATE_CREATE => EdgetpuDelegateCreate,
-                    _ => LoadModel(res),
-                });
-            }
-
-            Ok(Self {
-                c_detector,
-                input_tensor_size,
-            })
-        }
+        let detector = RDetector::new(model_path, edgetpu)?;
+        Ok(Self { detector })
     }
 
     pub fn detect(&mut self, buf: &[u8]) -> Result<Vec<Detection>, DetectError> {
         use DetectError::*;
-        assert_eq!(self.input_tensor_size, buf.len());
-        if self.input_tensor_size != buf.len() {
-            return Err(BufferSize(self.input_tensor_size, buf.len()));
-        }
-        unsafe {
-            let t0_data: *mut *mut u8 = &mut std::ptr::null_mut();
-            let t1_data: *mut *mut u8 = &mut std::ptr::null_mut();
-            let t2_data: *mut *mut u8 = &mut std::ptr::null_mut();
-            let t3_data: *mut *mut u8 = &mut std::ptr::null_mut();
-            let mut t0_size = 0;
-            let mut t1_size = 0;
-            let mut t2_size = 0;
-            let mut t3_size = 0;
 
-            let res = c_detector_detect(
-                self.c_detector,
-                buf.as_ptr(),
-                buf.len(),
-                t0_data,
-                t1_data,
-                t2_data,
-                t3_data,
-                &mut t0_size,
-                &mut t1_size,
-                &mut t2_size,
-                &mut t3_size,
-            );
-            if res != 0 {
-                return Err(match res {
-                    ERROR_OUTPUT_TENSOR_TYPE => OutputTensorType,
-                    _ => Detect(res),
-                });
-            }
+        self.detector.input_tensors[0].write_u8(buf)?;
+        self.detector.invoke_interpreter()?;
 
-            let t0 = from_raw_parts(*t0_data, t0_size);
-            let t1 = from_raw_parts(*t1_data, t1_size);
-            let t2 = from_raw_parts(*t2_data, t2_size);
-            let t3 = from_raw_parts(*t3_data, t3_size);
-
-            parse_output_tensors(t0, t1, t2, t3)
-                .map_err(|e| ParseOutputTensors([t0_size, t1_size, t2_size, t3_size], e))
-        }
-    }
-}
-
-impl Drop for Detector {
-    fn drop(&mut self) {
-        unsafe { c_detector_free(self.c_detector) }
+        let t0 = self.detector.output_tensors[0].data_f32();
+        let t1 = self.detector.output_tensors[1].data_f32();
+        let t2 = self.detector.output_tensors[2].data_f32();
+        let t3 = self.detector.output_tensors[3].data_f32();
+        parse_output_tensors(t0, t1, t2, t3).map_err(|e| {
+            ParseOutputTensors(
+                format!("[{}, {}, {}, {}]", t0.len(), t1.len(), t2.len(), t3.len()),
+                e,
+            )
+        })
     }
 }
 
@@ -220,16 +334,12 @@ pub enum ParseOutputTensorsError {
     clippy::as_conversions
 )]
 fn parse_output_tensors(
-    t0: &[u8],
-    t1: &[u8],
-    t2: &[u8],
-    t3: &[u8],
+    t0: &[f32],
+    t1: &[f32],
+    t2: &[f32],
+    t3: &[f32],
 ) -> Result<Vec<Detection>, ParseOutputTensorsError> {
     use ParseOutputTensorsError::*;
-    let t0 = u8_to_f32(t0);
-    let t1 = u8_to_f32(t1);
-    let t2 = u8_to_f32(t2);
-    let t3 = u8_to_f32(t3);
 
     let mut detections = Vec::new();
     let count = *t3.first().ok_or(GetCount)? as usize;
@@ -246,6 +356,7 @@ fn parse_output_tensors(
         let bottom = t0.get(4 * i + 2).ok_or(RectBounds(i))?;
         let right = t0.get(4 * i + 3).ok_or(RectBounds(i))?;
 
+        let score = score.max(0.0).min(1.0);
         let top = top.max(0.0).min(1.0);
         let left = left.max(0.0).min(1.0);
         let bottom = bottom.max(0.0).min(1.0);
@@ -263,13 +374,7 @@ fn parse_output_tensors(
     Ok(detections)
 }
 
-fn u8_to_f32(input: &[u8]) -> Vec<f32> {
-    input
-        .chunks_exact(4)
-        .map(|i| f32::from_ne_bytes([i[0], i[1], i[2], i[3]]))
-        .collect()
-}
-
+// All values besides class are between zero and one.
 pub struct Detection {
     pub score: f32,
     pub class: u8,
