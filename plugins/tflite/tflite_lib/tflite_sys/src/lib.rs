@@ -5,7 +5,7 @@ pub use bindings::{
     c_detector_invoke_interpreter, c_detector_load_model, c_detector_output_tensor,
     c_detector_output_tensor_count, c_free_devices, c_list_devices, c_poke_devices, c_probe_device,
     edgetpu_device, CDetector, TfLiteTensor, TfLiteTensorByteSize, TfLiteTensorCopyFromBuffer,
-    TfLiteTensorData, TfLiteTensorType,
+    TfLiteTensorData, TfLiteTensorDim, TfLiteTensorNumDims, TfLiteTensorType,
 };
 
 extern "C" {

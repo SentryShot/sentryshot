@@ -151,11 +151,19 @@ extern const TfLiteTensor *
 TfLiteInterpreterGetOutputTensor(const TfLiteInterpreter *interpreter,
                                  int32_t output_index);
 
-/// Returns the size of the underlying data in bytes.
-extern size_t TfLiteTensorByteSize(const TfLiteTensor *tensor);
-
 /// Returns the type of a tensor element.
 extern int TfLiteTensorType(const TfLiteTensor *tensor);
+
+/// Returns the number of dimensions that the tensor has.  Returns -1 in case
+/// the 'opaque_tensor' does not have its dimensions property set.
+extern int32_t TfLiteTensorNumDims(const TfLiteTensor *tensor);
+
+/// Returns the length of the tensor in the "dim_index" dimension.
+/// REQUIRES: 0 <= dim_index < TFLiteTensorNumDims(tensor)
+extern int32_t TfLiteTensorDim(const TfLiteTensor *tensor, int32_t dim_index);
+
+/// Returns the size of the underlying data in bytes.
+extern size_t TfLiteTensorByteSize(const TfLiteTensor *tensor);
 
 /// Copies from the provided input buffer into the tensor's buffer.
 /// REQUIRES: input_data_size == TfLiteTensorByteSize(tensor)

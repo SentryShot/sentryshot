@@ -15,7 +15,8 @@ enum edgetpu_device_type {
 };
 
 extern int TfLiteTensorType(const TfLiteTensor *tensor);
-
+extern int32_t TfLiteTensorNumDims(const TfLiteTensor *tensor);
+extern int32_t TfLiteTensorDim(const TfLiteTensor *tensor, int32_t dim_index);
 extern size_t TfLiteTensorByteSize(const TfLiteTensor *tensor);
 
 int c_detector_load_model(CDetector *d, const char *model_path,

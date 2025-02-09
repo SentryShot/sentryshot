@@ -418,7 +418,7 @@ fn new_cpu_detector(
         let shutdown_complete_tx = shutdown_complete_tx.clone();
         let rt_handle2 = rt_handle.clone();
         let detect_rx = detect_rx.clone();
-        let mut detector = tflite_lib::Detector::new(model_path, None)?;
+        let mut detector = tflite_lib::Detector::new(model_path, None, width, height)?;
         let label_map = label_map.clone();
 
         rt_handle.spawn(async move {
@@ -464,7 +464,7 @@ fn new_edgetpu_detector(
         let err = debug_device(device_path, device_cache.devices());
         return Err(NewDetectorError::DebugDevice(err));
     };
-    let mut detector = match tflite_lib::Detector::new(model_path, Some(device)) {
+    let mut detector = match tflite_lib::Detector::new(model_path, Some(device), width, height) {
         Ok(v) => v,
         Err(e) => {
             if matches!(e, NewDetectorError::EdgetpuDelegateCreate) {

@@ -1,6 +1,7 @@
 use std::{
     ffi::{c_uint, CStr, CString, NulError},
     fmt::{Debug, Display, Formatter},
+    num::NonZeroU16,
     os::raw::c_int,
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -13,7 +14,7 @@ use tflite_sys::{
     c_detector_invoke_interpreter, c_detector_load_model, c_detector_output_tensor,
     c_detector_output_tensor_count, c_free_devices, c_list_devices, c_poke_devices, c_probe_device,
     CDetector, TfLiteTensor, TfLiteTensorByteSize, TfLiteTensorCopyFromBuffer, TfLiteTensorData,
-    TfLiteTensorType,
+    TfLiteTensorDim, TfLiteTensorNumDims, TfLiteTensorType,
 };
 use thiserror::Error;
 
@@ -46,17 +47,17 @@ pub enum NewDetectorError {
     #[error("debug device: {0}")]
     DebugDevice(#[from] DebugDeviceError),
 
-    #[error("input tensor type")]
-    InputTensorType,
-
-    #[error("output tensor type")]
-    OutputTensorType,
-
     #[error("invalid input tensor count: {0}")]
     InvalidInputTensorCount(i32),
 
     #[error("invalid output tensor count: {0}")]
     InvalidOutputTensorCount(i32),
+
+    #[error("mismatched input tensor shapes: config={0:?}, model={1:?}")]
+    MismatchedInputShapes(String, String),
+
+    #[error("mismatched output tensor shape: config={0:?}, model={1:?}")]
+    MismatchedOutputShape(String, String),
 }
 
 const ERROR_CREATE_FROM_FILE: c_int = 10000;
@@ -83,7 +84,12 @@ impl Drop for RDetector {
 unsafe impl Send for RDetector {}
 
 impl RDetector {
-    fn new(model_path: &Path, edgetpu: Option<&EdgetpuDevice>) -> Result<Self, NewDetectorError> {
+    fn new(
+        model_path: &Path,
+        edgetpu: Option<&EdgetpuDevice>,
+        width: NonZeroU16,
+        height: NonZeroU16,
+    ) -> Result<Self, NewDetectorError> {
         use NewDetectorError::*;
         let model_path = model_path
             .to_str()
@@ -128,11 +134,7 @@ impl RDetector {
             .map_err(|_| InvalidInputTensorCount(input_tensor_count))?;
 
         let input_tensors: Vec<InputTensor> = (0..input_tensor_count)
-            .map(|i| {
-                let tensor = unsafe { c_detector_input_tensor(c_detector, i.into()) };
-                assert!(!tensor.is_null());
-                unsafe { InputTensor::new(tensor) }
-            })
+            .map(|i| unsafe { InputTensor::new(c_detector, i) })
             .collect();
 
         let output_tensor_count = unsafe { c_detector_output_tensor_count(c_detector) };
@@ -140,18 +142,20 @@ impl RDetector {
             .map_err(|_| InvalidInputTensorCount(output_tensor_count))?;
 
         let output_tensors: Vec<OutputTensor> = (0..output_tensor_count)
-            .map(|i| {
-                let tensor = unsafe { c_detector_output_tensor(c_detector, i.into()) };
-                assert!(!tensor.is_null());
-                unsafe { OutputTensor::new(tensor) }
-            })
+            .map(|i| unsafe { OutputTensor::new(c_detector, i) })
             .collect();
 
-        if !matches!(input_tensors[0].typ, TensorType::UInt8) {
-            return Err(InputTensorType);
+        let expected_input_shapes = format!("(uint8[1, {height}, {width}, 3])");
+        let expected_output_shape = "(float32, float32, float32, float32)".to_owned();
+
+        let input_shapes = format_list(input_tensors.iter().map(InputTensor::shape));
+        let output_shape = format_list(output_tensors.iter().map(|t| t.typ));
+
+        if expected_input_shapes != input_shapes {
+            return Err(MismatchedInputShapes(expected_input_shapes, input_shapes));
         }
-        if !matches!(output_tensors[0].typ, TensorType::Float32) {
-            return Err(OutputTensorType);
+        if expected_output_shape != output_shape {
+            return Err(MismatchedOutputShape(expected_output_shape, output_shape));
         }
 
         Ok(Self {
@@ -183,13 +187,27 @@ struct InputTensor {
     inner: *mut TfLiteTensor,
     size: usize,
     typ: TensorType,
+    dims: Vec<i32>,
 }
 
 impl InputTensor {
-    unsafe fn new(inner: *mut TfLiteTensor) -> Self {
-        let size = unsafe { TfLiteTensorByteSize(inner) };
-        let typ = unsafe { TensorType::from_tensor(inner) };
-        Self { inner, size, typ }
+    unsafe fn new(c_detector: *mut CDetector, index: u8) -> Self {
+        let tensor = unsafe { c_detector_input_tensor(c_detector, index.into()) };
+        assert!(!tensor.is_null());
+        let size = unsafe { TfLiteTensorByteSize(tensor) };
+        let typ = unsafe { TensorType::from_tensor(tensor) };
+        let num_dims = unsafe { TfLiteTensorNumDims(tensor) };
+        let dims = (0..num_dims).map(|i| TfLiteTensorDim(tensor, i)).collect();
+        Self {
+            inner: tensor,
+            size,
+            typ,
+            dims,
+        }
+    }
+
+    fn shape(&self) -> String {
+        format!("{}{:?}", self.typ, self.dims)
     }
 
     fn write_u8(&mut self, buf: &[u8]) -> Result<(), WriteTensorError> {
@@ -215,10 +233,16 @@ struct OutputTensor {
 }
 
 impl OutputTensor {
-    unsafe fn new(inner: *const TfLiteTensor) -> Self {
-        let size = unsafe { TfLiteTensorByteSize(inner) };
-        let typ = unsafe { TensorType::from_tensor(inner) };
-        Self { inner, size, typ }
+    unsafe fn new(c_detector: *mut CDetector, index: u8) -> Self {
+        let tensor = unsafe { c_detector_output_tensor(c_detector, index.into()) };
+        assert!(!tensor.is_null());
+        let size = unsafe { TfLiteTensorByteSize(tensor) };
+        let typ = unsafe { TensorType::from_tensor(tensor) };
+        Self {
+            inner: tensor,
+            size,
+            typ,
+        }
     }
 
     fn data_f32(&self) -> &[f32] {
@@ -227,7 +251,8 @@ impl OutputTensor {
     }
 }
 
-enum TensorType {
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TensorType {
     NoType,
     Float32,
     Int32,
@@ -239,6 +264,25 @@ enum TensorType {
     Complex64,
     Int8,
     Unknown(i32),
+}
+
+impl Display for TensorType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            TensorType::NoType => "none",
+            TensorType::Float32 => "float32",
+            TensorType::Int32 => "int32",
+            TensorType::UInt8 => "uint8",
+            TensorType::Int64 => "int64",
+            TensorType::String => "string",
+            TensorType::Bool => "boolean",
+            TensorType::Int16 => "int16",
+            TensorType::Complex64 => "complex64",
+            TensorType::Int8 => "int8",
+            TensorType::Unknown(v) => return f.write_str(&v.to_string()),
+        };
+        f.write_str(s)
+    }
 }
 
 impl TensorType {
@@ -286,8 +330,10 @@ impl Detector {
     pub fn new(
         model_path: &Path,
         edgetpu: Option<&EdgetpuDevice>,
+        width: NonZeroU16,
+        height: NonZeroU16,
     ) -> Result<Self, NewDetectorError> {
-        let detector = RDetector::new(model_path, edgetpu)?;
+        let detector = RDetector::new(model_path, edgetpu, width, height)?;
         Ok(Self { detector })
     }
 
@@ -372,6 +418,11 @@ fn parse_output_tensors(
         });
     }
     Ok(detections)
+}
+
+fn format_list<T: Display, I: Iterator<Item = T>>(v: I) -> String {
+    let values: Vec<String> = v.map(|v| v.to_string()).collect();
+    format!("({})", values.join(", "))
 }
 
 // All values besides class are between zero and one.

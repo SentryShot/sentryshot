@@ -279,6 +279,12 @@ extern "C" {
     pub fn TfLiteTensorType(tensor: *const TfLiteTensor) -> ::std::os::raw::c_int;
 }
 extern "C" {
+    pub fn TfLiteTensorNumDims(tensor: *const TfLiteTensor) -> i32;
+}
+extern "C" {
+    pub fn TfLiteTensorDim(tensor: *const TfLiteTensor, dim_index: i32) -> i32;
+}
+extern "C" {
     pub fn TfLiteTensorByteSize(tensor: *const TfLiteTensor) -> usize;
 }
 extern "C" {
