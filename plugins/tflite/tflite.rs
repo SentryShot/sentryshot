@@ -177,14 +177,14 @@ impl Plugin for TflitePlugin {
         };
         router
             .route(
-                "/api/monitor/:id/tflite/enable",
+                "/api/monitor/{id}/tflite/enable",
                 patch(enable_handler)
                     .with_state(state.clone())
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
                     .with_state(self.auth.clone()),
             )
             .route(
-                "/api/monitor/:id/tflite/disable",
+                "/api/monitor/{id}/tflite/disable",
                 patch(disable_handler)
                     .with_state(state)
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))

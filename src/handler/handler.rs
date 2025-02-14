@@ -381,7 +381,7 @@ pub async fn log_feed_handler(
             let entry_json =
                 serde_json::to_string(&entry).expect("serializing `log::Entry` to never fail");
 
-            if let Err(e) = socket.send(Message::Text(entry_json)).await {
+            if let Err(e) = socket.send(Message::Text(entry_json.into())).await {
                 if e.to_string() == "IO error: Broken pipe (os error 32)" {
                     return;
                 }

@@ -195,7 +195,7 @@ impl App {
         ))
     }
 
-    #[allow(clippy::similar_names)]
+    #[allow(clippy::similar_names, clippy::too_many_lines)]
     pub fn setup_routes(&mut self, plugin_manager: &mut PluginManager) -> Result<(), RunError> {
         // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
         let assets_etag: String = rand::thread_rng()
@@ -283,7 +283,7 @@ impl App {
             )
             // Assets.
             .route(
-                "/assets/*file",
+                "/assets/{*file}",
                 get(asset_handler)
                     .with_state((assets, assets_etag))
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
@@ -291,7 +291,7 @@ impl App {
             )
             // Hls server.
             .route(
-                "/hls/*path",
+                "/hls/{*path}",
                 any(hls_handler)
                     .with_state(self.hls_server.clone())
                     .layer(middleware::from_fn_with_state(self.auth.clone(), user))
@@ -417,7 +417,7 @@ impl App {
             )
             // Recording delete.
             .route(
-                "/api/recording/delete/*id",
+                "/api/recording/delete/{*id}",
                 delete(recording_delete_handler)
                     .with_state(self.recdb.clone())
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
@@ -425,7 +425,7 @@ impl App {
             )
             // Recording thumbnail.
             .route(
-                "/api/recording/thumbnail/*id",
+                "/api/recording/thumbnail/{*id}",
                 get(recording_thumbnail_handler)
                     .with_state(self.recdb.clone())
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
@@ -433,7 +433,7 @@ impl App {
             )
             // Recording video.
             .route(
-                "/api/recording/video/*id",
+                "/api/recording/video/{*id}",
                 get(recording_video_handler)
                     .with_state(RecordingVideoState {
                         rec_db: self.recdb.clone(),

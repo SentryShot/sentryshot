@@ -108,7 +108,7 @@ version = "0.2.22"
 dependencies = [
  "argon2",
  "async-trait",
- "axum 0.7.9",
+ "axum 0.8.1",
  "common",
  "headers",
  "http 1.1.0",
@@ -158,7 +158,7 @@ dependencies = [
  "http-body 0.4.6",
  "hyper 0.14.28",
  "itoa",
- "matchit",
+ "matchit 0.7.3",
  "memchr",
  "mime",
  "percent-encoding",
@@ -173,14 +173,14 @@ dependencies = [
 
 [[package]]
 name = "axum"
-version = "0.7.9"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
+checksum = "6d6fd624c75e18b3b4c6b9caf42b1afe24437daaee904069137d8bab077be8b8"
 dependencies = [
- "async-trait",
- "axum-core 0.4.5",
+ "axum-core 0.5.0",
  "base64 0.22.1",
  "bytes",
+ "form_urlencoded",
  "futures-util",
  "http 1.1.0",
  "http-body 1.0.0",
@@ -188,7 +188,7 @@ dependencies = [
  "hyper 1.2.0",
  "hyper-util",
  "itoa",
- "matchit",
+ "matchit 0.8.4",
  "memchr",
  "mime",
  "percent-encoding",
@@ -226,11 +226,10 @@ dependencies = [
 
 [[package]]
 name = "axum-core"
-version = "0.4.5"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09f2bd6146b97ae3359fa0cc6d6b376d9539582c7b4220f041a33ec24c226199"
+checksum = "df1362f362fd16024ae199c1970ce98f9661bf5ef94b9808fee734bc3698b733"
 dependencies = [
- "async-trait",
  "bytes",
  "futures-util",
  "http 1.1.0",
@@ -336,9 +335,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.5.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
+checksum = "f61dac84819c6588b558454b194026eb1f09c293b9036ae9b159e74e73ab6cf9"
 
 [[package]]
 name = "bytesize"
@@ -442,7 +441,7 @@ dependencies = [
  "serde",
  "serde_json",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
  "url",
@@ -653,7 +652,7 @@ dependencies = [
  "pretty_assertions",
  "serde",
  "tempfile",
- "thiserror",
+ "thiserror 1.0.57",
  "toml",
  "upon",
 ]
@@ -755,7 +754,7 @@ name = "fs"
 version = "0.2.22"
 dependencies = [
  "pretty_assertions",
- "thiserror",
+ "thiserror 1.0.57",
 ]
 
 [[package]]
@@ -954,7 +953,7 @@ dependencies = [
 name = "handler"
 version = "0.2.22"
 dependencies = [
- "axum 0.7.9",
+ "axum 0.8.1",
  "common",
  "hls",
  "http 1.1.0",
@@ -969,7 +968,7 @@ dependencies = [
  "serde",
  "serde_json",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
  "vod",
@@ -1057,7 +1056,7 @@ dependencies = [
  "retina",
  "sentryshot_padded_bytes",
  "serde",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
 ]
@@ -1402,7 +1401,7 @@ dependencies = [
  "serde",
  "tempfile",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
 ]
@@ -1427,6 +1426,12 @@ name = "matchit"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
+
+[[package]]
+name = "matchit"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "md-5"
@@ -1509,7 +1514,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
  "url",
@@ -1524,7 +1529,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
 ]
 
@@ -1533,7 +1538,7 @@ name = "motion"
 version = "0.2.22"
 dependencies = [
  "async-trait",
- "axum 0.7.9",
+ "axum 0.8.1",
  "common",
  "plugin",
  "pretty_assertions",
@@ -1542,7 +1547,7 @@ dependencies = [
  "serde",
  "serde_json",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
 ]
@@ -1554,7 +1559,7 @@ dependencies = [
  "async-trait",
  "pretty_assertions",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
 ]
 
@@ -1586,7 +1591,7 @@ dependencies = [
  "rumqttc",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
  "toml",
@@ -1751,14 +1756,14 @@ name = "plugin"
 version = "0.2.22"
 dependencies = [
  "async-trait",
- "axum 0.7.9",
+ "axum 0.8.1",
  "common",
  "http 1.1.0",
  "libloading",
  "sentryshot_util",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
 ]
@@ -1940,7 +1945,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
 ]
@@ -1950,7 +1955,7 @@ name = "recording"
 version = "0.2.22"
 dependencies = [
  "async-trait",
- "axum 0.7.9",
+ "axum 0.8.1",
  "common",
  "hls",
  "mp4",
@@ -1961,7 +1966,7 @@ dependencies = [
  "serde",
  "tempfile",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
 ]
 
@@ -2032,7 +2037,7 @@ dependencies = [
  "sdp-types",
  "smallvec",
  "test-case 3.3.1",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
  "url",
@@ -2086,7 +2091,7 @@ dependencies = [
  "flume",
  "futures-util",
  "log 0.4.21",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
 ]
 
@@ -2203,7 +2208,7 @@ dependencies = [
 name = "sentryshot"
 version = "0.2.22"
 dependencies = [
- "axum 0.7.9",
+ "axum 0.8.1",
  "bytesize",
  "common",
  "console-subscriber",
@@ -2224,7 +2229,7 @@ dependencies = [
  "recording",
  "rust-embed",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
  "tower 0.4.13",
@@ -2239,7 +2244,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56a3312ce7fb54bc4d219ce18390a0c1f2d147950364d3ea972ec45fbdc6d760"
 dependencies = [
  "sentryshot_util",
- "thiserror",
+ "thiserror 1.0.57",
 ]
 
 [[package]]
@@ -2252,7 +2257,7 @@ dependencies = [
  "sentryshot_ffmpeg_h264_sys",
  "sentryshot_padded_bytes",
  "sentryshot_util",
- "thiserror",
+ "thiserror 1.0.57",
 ]
 
 [[package]]
@@ -2273,7 +2278,7 @@ checksum = "dbcdae1341c84db16e62e31bcc7d710cede81665f13bfade64e8941267e6888c"
 dependencies = [
  "sentryshot_padded_bytes",
  "sentryshot_util",
- "thiserror",
+ "thiserror 1.0.57",
 ]
 
 [[package]]
@@ -2290,7 +2295,7 @@ checksum = "f00dfc63af84e604b5f6ac0f282243e5bb9c09d905b053ec7cf648945d07ef4c"
 dependencies = [
  "sentryshot_padded_bytes",
  "sentryshot_util",
- "thiserror",
+ "thiserror 1.0.57",
 ]
 
 [[package]]
@@ -2300,7 +2305,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ef28e7ca92ff1c0407578c79ee11a9410135fe49ca3e9d5f29d89edd62b6f0a"
 dependencies = [
  "sentryshot_padded_bytes",
- "thiserror",
+ "thiserror 1.0.57",
 ]
 
 [[package]]
@@ -2552,7 +2557,7 @@ version = "0.2.22"
 dependencies = [
  "async-channel",
  "async-trait",
- "axum 0.7.9",
+ "axum 0.8.1",
  "common",
  "hyper 0.14.28",
  "hyper-rustls",
@@ -2567,7 +2572,7 @@ dependencies = [
  "sha2",
  "test-case 2.2.2",
  "tflite_lib",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
  "toml",
@@ -2581,7 +2586,7 @@ dependencies = [
  "pretty_assertions",
  "test-case 2.2.2",
  "tflite_sys",
- "thiserror",
+ "thiserror 1.0.57",
 ]
 
 [[package]]
@@ -2597,7 +2602,16 @@ version = "1.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e45bcbe8ed29775f228095caf2cd67af7a4ccf756ebff23a306bf3e8b47b24b"
 dependencies = [
- "thiserror-impl",
+ "thiserror-impl 1.0.57",
+]
+
+[[package]]
+name = "thiserror"
+version = "2.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d452f284b73e6d76dd36758a0c8684b1d5be31f92b89d07fd5822175732206fc"
+dependencies = [
+ "thiserror-impl 2.0.11",
 ]
 
 [[package]]
@@ -2605,6 +2619,17 @@ name = "thiserror-impl"
 version = "1.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a953cb265bef375dae3de6663da4d3804eee9682ea80d8e2542529b73c531c81"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "2.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26afc1baea8a989337eeb52b6e72a039780ce45c3edfcc9c5b9d112feeb173c2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2722,9 +2747,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.24.0"
+version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edc5f74e248dc973e0dbb7b74c7e0d6fcc301c694ff50049504004ef4d0cdcd9"
+checksum = "be4bf6fecd69fcdede0ec680aaf474cdab988f9de6bc73d3758f0160e3b7025a"
 dependencies = [
  "futures-util",
  "log 0.4.21",
@@ -2910,9 +2935,9 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "tungstenite"
-version = "0.24.0"
+version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18e5b8366ee7a95b16d32197d0b2604b43a0be89dc5fac9f8e96ccafbaedda8a"
+checksum = "413083a99c579593656008130e29255e54dcaae495be556cc26888f211648c24"
 dependencies = [
  "byteorder",
  "bytes",
@@ -2922,7 +2947,7 @@ dependencies = [
  "log 0.4.21",
  "rand",
  "sha1",
- "thiserror",
+ "thiserror 2.0.11",
  "utf-8",
 ]
 
@@ -3031,7 +3056,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
 ]
 
@@ -3118,7 +3143,7 @@ checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
 name = "web"
 version = "0.2.22"
 dependencies = [
- "axum 0.7.9",
+ "axum 0.8.1",
  "common",
  "http 1.1.0",
  "http-body 1.0.0",
@@ -3129,7 +3154,7 @@ dependencies = [
  "pretty_assertions",
  "serde_json",
  "test-case 2.2.2",
- "thiserror",
+ "thiserror 1.0.57",
  "tokio",
  "tokio-util",
  "upon",

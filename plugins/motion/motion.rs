@@ -109,14 +109,14 @@ impl Plugin for MotionPlugin {
         };
         router
             .route(
-                "/api/monitor/:id/motion/enable",
+                "/api/monitor/{id}/motion/enable",
                 patch(enable_handler)
                     .with_state(state.clone())
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
                     .with_state(self.auth.clone()),
             )
             .route(
-                "/api/monitor/:id/motion/disable",
+                "/api/monitor/{id}/motion/disable",
                 patch(disable_handler)
                     .with_state(state)
                     .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
