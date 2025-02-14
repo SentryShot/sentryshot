@@ -6,7 +6,7 @@ use std::{collections::HashMap, num::ParseIntError, path::PathBuf, string::FromU
 use thiserror::Error;
 use url::Url;
 
-pub(crate) type LabelMap = HashMap<u8, Label>;
+pub(crate) type LabelMap = HashMap<u16, Label>;
 type LabelMaps = HashMap<Url, LabelMap>;
 
 pub(crate) struct LabelCache {
@@ -117,7 +117,7 @@ pub(crate) fn parse_labels(raw: &str) -> Result<LabelMap, ParseLabelsError> {
         let (key, label) = line
             .split_once(' ')
             .ok_or_else(|| ParseLabelsError(i, line.to_owned(), SplitLine))?;
-        let key: u8 = key
+        let key: u16 = key
             .parse()
             .map_err(|e| ParseLabelsError(i, line.to_owned(), ParseKey(e)))?;
         let label = label
@@ -164,7 +164,7 @@ mod tests {
         ]
         .into_iter()
         .map(|(k, v)| (k, Label::try_from(v.to_owned()).unwrap()))
-        .collect::<HashMap<u8, Label>>();
+        .collect::<HashMap<u16, Label>>();
 
         assert_eq!(want, got);
     }

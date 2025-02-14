@@ -17,4 +17,7 @@ doctest = false
 tflite_sys.path="./tflite_sys"
 
 thiserror.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
 test-case.workspace = true

@@ -14,6 +14,14 @@ enum edgetpu_device_type {
   EDGETPU_APEX_USB = 1,
 };
 
+typedef struct TfLiteQuantizationParams {
+  float scale;
+  int32_t zero_point;
+} TfLiteQuantizationParams;
+
+TfLiteQuantizationParams
+TfLiteTensorQuantizationParams(const TfLiteTensor *tensor);
+
 extern int TfLiteTensorType(const TfLiteTensor *tensor);
 extern int32_t TfLiteTensorNumDims(const TfLiteTensor *tensor);
 extern int32_t TfLiteTensorDim(const TfLiteTensor *tensor, int32_t dim_index);

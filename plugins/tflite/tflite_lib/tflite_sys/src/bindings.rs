@@ -275,6 +275,51 @@ pub struct TfLiteTensor {
 pub const edgetpu_device_type_EDGETPU_APEX_PCI: edgetpu_device_type = 0;
 pub const edgetpu_device_type_EDGETPU_APEX_USB: edgetpu_device_type = 1;
 pub type edgetpu_device_type = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct TfLiteQuantizationParams {
+    pub scale: f32,
+    pub zero_point: i32,
+}
+#[test]
+fn bindgen_test_layout_TfLiteQuantizationParams() {
+    const UNINIT: ::std::mem::MaybeUninit<TfLiteQuantizationParams> =
+        ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<TfLiteQuantizationParams>(),
+        8_usize,
+        concat!("Size of: ", stringify!(TfLiteQuantizationParams))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<TfLiteQuantizationParams>(),
+        4_usize,
+        concat!("Alignment of ", stringify!(TfLiteQuantizationParams))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).scale) as usize - ptr as usize },
+        0_usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(TfLiteQuantizationParams),
+            "::",
+            stringify!(scale)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).zero_point) as usize - ptr as usize },
+        4_usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(TfLiteQuantizationParams),
+            "::",
+            stringify!(zero_point)
+        )
+    );
+}
+extern "C" {
+    pub fn TfLiteTensorQuantizationParams(tensor: *const TfLiteTensor) -> TfLiteQuantizationParams;
+}
 extern "C" {
     pub fn TfLiteTensorType(tensor: *const TfLiteTensor) -> ::std::os::raw::c_int;
 }

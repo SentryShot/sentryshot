@@ -255,3 +255,15 @@ void edgetpu_free_devices(struct edgetpu_device *dev);
 // Sets verbosity of operating logs related to edge TPU.
 // Verbosity level can be set to [0-10], in which 10 is the most verbose.
 void edgetpu_verbosity(int verbosity);
+
+typedef struct TfLiteQuantizationParams {
+  float scale;
+  int32_t zero_point;
+} TfLiteQuantizationParams;
+
+/// Returns the parameters for asymmetric quantization. The quantization
+/// parameters are only valid when the tensor type is `kTfLiteUInt8` and the
+/// `scale != 0`. Quantized values can be converted back to float using:
+///    real_value = scale * (quantized_value - zero_point);
+TfLiteQuantizationParams
+TfLiteTensorQuantizationParams(const TfLiteTensor *tensor);

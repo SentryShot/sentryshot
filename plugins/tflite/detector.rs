@@ -20,7 +20,8 @@ use std::{
     time::Duration,
 };
 use tflite_lib::{
-    debug_device, edgetpu_verbosity, list_edgetpu_devices, EdgetpuDevice, NewDetectorError,
+    debug_device, edgetpu_verbosity, list_edgetpu_devices, EdgetpuDevice, ModelFormat,
+    NewDetectorError,
 };
 use thiserror::Error;
 use tokio::{
@@ -45,6 +46,9 @@ struct RawDetectorConfigCpu {
     model: Url,
     sha256sum: ModelChecksum,
     label_map: Url,
+
+    #[serde(default)]
+    format: Format,
     threads: NonZeroU8,
 }
 
@@ -57,6 +61,9 @@ struct RawDetectorConfigEdgeTpu {
     model: Url,
     sha256sum: ModelChecksum,
     label_map: Url,
+
+    #[serde(default)]
+    format: Format,
     device: String,
 }
 
@@ -125,6 +132,25 @@ impl Deref for DetectorName {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+enum Format {
+    #[default]
+    #[serde(rename = "odapi")]
+    OdAPi,
+
+    #[serde(rename = "nolo")]
+    Nolo,
+}
+
+impl From<Format> for ModelFormat {
+    fn from(val: Format) -> Self {
+        match val {
+            Format::OdAPi => ModelFormat::OdAPi,
+            Format::Nolo => ModelFormat::Nolo,
+        }
     }
 }
 
@@ -354,6 +380,7 @@ async fn parse_detector_configs(
             cpu.height,
             &model_path,
             cpu.threads,
+            cpu.format,
             &label_map,
         )?;
         detectors.insert(cpu.name, Arc::new(detector));
@@ -387,6 +414,7 @@ async fn parse_detector_configs(
             edgetpu.width,
             edgetpu.height,
             &model_path,
+            edgetpu.format,
             label_map,
             edgetpu.device,
             &mut device_cache,
@@ -410,6 +438,7 @@ fn new_cpu_detector(
     height: NonZeroU16,
     model_path: &Path,
     threads: NonZeroU8,
+    format: Format,
     label_map: &LabelMap,
 ) -> Result<Detector, NewDetectorError> {
     let (detect_tx, detect_rx) = async_channel::bounded::<DetectRequest>(1);
@@ -418,16 +447,17 @@ fn new_cpu_detector(
         let shutdown_complete_tx = shutdown_complete_tx.clone();
         let rt_handle2 = rt_handle.clone();
         let detect_rx = detect_rx.clone();
-        let mut detector = tflite_lib::Detector::new(model_path, None, width, height)?;
+        let mut detector =
+            tflite_lib::Detector::new(model_path, format.into(), None, width, height)?;
         let label_map = label_map.clone();
 
         rt_handle.spawn(async move {
             let _shutdown_complete_tx = shutdown_complete_tx;
-            while let Ok(req) = detect_rx.recv().await {
+            while let Ok(mut req) = detect_rx.recv().await {
                 let result;
                 (detector, result) = rt_handle2
                     .spawn_blocking(move || {
-                        let result = detector.detect(&req.data);
+                        let result = detector.detect(&mut req.data);
                         (detector, result)
                     })
                     .await
@@ -454,6 +484,7 @@ fn new_edgetpu_detector(
     width: NonZeroU16,
     height: NonZeroU16,
     model_path: &Path,
+    format: Format,
     label_map: LabelMap,
     device_path: String,
     device_cache: &mut DeviceCache,
@@ -464,25 +495,26 @@ fn new_edgetpu_detector(
         let err = debug_device(device_path, device_cache.devices());
         return Err(NewDetectorError::DebugDevice(err));
     };
-    let mut detector = match tflite_lib::Detector::new(model_path, Some(device), width, height) {
-        Ok(v) => v,
-        Err(e) => {
-            if matches!(e, NewDetectorError::EdgetpuDelegateCreate) {
-                let _ = debug_device(device_path, device_cache.devices());
+    let mut detector =
+        match tflite_lib::Detector::new(model_path, format.into(), Some(device), width, height) {
+            Ok(v) => v,
+            Err(e) => {
+                if matches!(e, NewDetectorError::EdgetpuDelegateCreate) {
+                    let _ = debug_device(device_path, device_cache.devices());
+                }
+                return Err(e);
             }
-            return Err(e);
-        }
-    };
+        };
 
     let (detect_tx, detect_rx) = async_channel::bounded::<DetectRequest>(1);
     let rt_handle2 = rt_handle.clone();
     rt_handle.spawn(async move {
         let _shutdown_complete_tx = shutdown_complete_tx;
-        while let Ok(req) = detect_rx.recv().await {
+        while let Ok(mut req) = detect_rx.recv().await {
             let result;
             (detector, result) = rt_handle2
                 .spawn_blocking(move || {
-                    let result = detector.detect(&req.data);
+                    let result = detector.detect(&mut req.data);
                     (detector, result)
                 })
                 .await
@@ -589,6 +621,7 @@ mod tests {
             model = \"file:///11\"
             sha256sum = \"1212121212121212121212121212121212121212121212121212121212121212\"
             label_map = \"file:///13\"
+            format = \"nolo\"
             device = \"14\"
         ";
         let got = parse_raw_detector_configs(raw).unwrap();
@@ -603,6 +636,7 @@ mod tests {
                     .parse()
                     .unwrap(),
                 label_map: "file:///6".parse().unwrap(),
+                format: Format::OdAPi,
                 threads: NonZeroU8::new(7).unwrap(),
             }],
             detector_edgetpu: vec![RawDetectorConfigEdgeTpu {
@@ -615,6 +649,7 @@ mod tests {
                     .parse()
                     .unwrap(),
                 label_map: "file:///13".parse().unwrap(),
+                format: Format::Nolo,
                 device: "14".parse().unwrap(),
             }],
         };

@@ -1,3 +1,6 @@
+mod nms;
+
+use ::std::os::raw::c_void;
 use std::{
     ffi::{c_uint, CStr, CString, NulError},
     fmt::{Debug, Display, Formatter},
@@ -13,10 +16,13 @@ use tflite_sys::{
     c_detector_allocate, c_detector_free, c_detector_input_tensor, c_detector_input_tensor_count,
     c_detector_invoke_interpreter, c_detector_load_model, c_detector_output_tensor,
     c_detector_output_tensor_count, c_free_devices, c_list_devices, c_poke_devices, c_probe_device,
-    CDetector, TfLiteTensor, TfLiteTensorByteSize, TfLiteTensorCopyFromBuffer, TfLiteTensorData,
-    TfLiteTensorDim, TfLiteTensorNumDims, TfLiteTensorType,
+    CDetector, TfLiteQuantizationParams, TfLiteTensor, TfLiteTensorByteSize,
+    TfLiteTensorCopyFromBuffer, TfLiteTensorData, TfLiteTensorDim, TfLiteTensorNumDims,
+    TfLiteTensorQuantizationParams, TfLiteTensorType,
 };
 use thiserror::Error;
+
+use crate::nms::non_max_suppression;
 
 #[derive(Debug, Error)]
 pub enum NewDetectorError {
@@ -58,6 +64,12 @@ pub enum NewDetectorError {
 
     #[error("mismatched output tensor shape: config={0:?}, model={1:?}")]
     MismatchedOutputShape(String, String),
+
+    #[error("invalid dimenstion: {0}")]
+    InvalidDimension(i32),
+
+    #[error("unexpected number of output dims: got={0} want={1}")]
+    UnexpectedNumberOfOutputDims(usize, usize),
 }
 
 const ERROR_CREATE_FROM_FILE: c_int = 10000;
@@ -68,24 +80,23 @@ const ERROR_EDGETPU_DELEGATE_CREATE: c_int = 10002;
 #[error("invoke interpreter: {0}")]
 pub struct InvokeInterpreterError(i32);
 
-// Safe wrapper for C detector with loaded model.
-struct RDetector {
+pub struct Detector {
     inner: *mut CDetector,
-    input_tensors: Vec<InputTensor>,
-    output_tensors: Vec<OutputTensor>,
+    format: Format,
 }
 
-impl Drop for RDetector {
+impl Drop for Detector {
     fn drop(&mut self) {
         unsafe { c_detector_free(self.inner) }
     }
 }
 
-unsafe impl Send for RDetector {}
+unsafe impl Send for Detector {}
 
-impl RDetector {
-    fn new(
+impl Detector {
+    pub fn new(
         model_path: &Path,
+        model_format: ModelFormat,
         edgetpu: Option<&EdgetpuDevice>,
         width: NonZeroU16,
         height: NonZeroU16,
@@ -133,23 +144,30 @@ impl RDetector {
         let input_tensor_count = u8::try_from(input_tensor_count)
             .map_err(|_| InvalidInputTensorCount(input_tensor_count))?;
 
-        let input_tensors: Vec<InputTensor> = (0..input_tensor_count)
-            .map(|i| unsafe { InputTensor::new(c_detector, i) })
-            .collect();
-
         let output_tensor_count = unsafe { c_detector_output_tensor_count(c_detector) };
         let output_tensor_count = u8::try_from(output_tensor_count)
             .map_err(|_| InvalidInputTensorCount(output_tensor_count))?;
 
-        let output_tensors: Vec<OutputTensor> = (0..output_tensor_count)
-            .map(|i| unsafe { OutputTensor::new(c_detector, i) })
-            .collect();
+        let (expected_input_shapes, expected_output_shape) = match model_format {
+            ModelFormat::OdAPi => (
+                format!("(uint8[1, {height}, {width}, 3])"),
+                "(float32, float32, float32, float32)".to_owned(),
+            ),
+            ModelFormat::Nolo => (
+                format!("(int8[1, {height}, {width}, 3])"),
+                "(int8)".to_owned(),
+            ),
+        };
 
-        let expected_input_shapes = format!("(uint8[1, {height}, {width}, 3])");
-        let expected_output_shape = "(float32, float32, float32, float32)".to_owned();
+        let input_shapes = format_list(
+            (0..input_tensor_count).map(|i| unsafe { InputTensor::new(c_detector, i).shape() }),
+        );
 
-        let input_shapes = format_list(input_tensors.iter().map(InputTensor::shape));
-        let output_shape = format_list(output_tensors.iter().map(|t| t.typ));
+        let output_shape = format_list((0..output_tensor_count).map(|i| {
+            let tensor = unsafe { c_detector_output_tensor(c_detector, i.into()) };
+            assert!(!tensor.is_null());
+            unsafe { TensorType::from_tensor(tensor) }
+        }));
 
         if expected_input_shapes != input_shapes {
             return Err(MismatchedInputShapes(expected_input_shapes, input_shapes));
@@ -158,11 +176,43 @@ impl RDetector {
             return Err(MismatchedOutputShape(expected_output_shape, output_shape));
         }
 
+        let format = unsafe {
+            match model_format {
+                ModelFormat::OdAPi => Format::OdAPi(OdApi {
+                    input_tensor: InputTensor::new(c_detector, 0),
+                    output_tensors: [
+                        OutputTensor::new(c_detector, 0),
+                        OutputTensor::new(c_detector, 1),
+                        OutputTensor::new(c_detector, 2),
+                        OutputTensor::new(c_detector, 3),
+                    ],
+                }),
+                ModelFormat::Nolo => Format::Nolo({
+                    let input_tensor = InputTensor::new(c_detector, 0);
+                    let output_tensor = OutputTensor::new(c_detector, 0);
+                    let output_dims = output_tensor.get_dims()?;
+                    Nolo {
+                        input_quantization_params: input_tensor.quantization_params(),
+                        output_quantization_params: output_tensor.quantization_params(),
+                        input_tensor,
+                        output_tensor,
+                        output_dims,
+                    }
+                }),
+            }
+        };
+
         Ok(Self {
             inner: c_detector,
-            input_tensors,
-            output_tensors,
+            format,
         })
+    }
+
+    // Buffer may be preprocessed in-place.
+    pub fn detect(&mut self, buf: &mut [u8]) -> Result<Vec<Detection>, DetectError> {
+        self.format.write_buf(buf)?;
+        self.invoke_interpreter()?;
+        self.format.read_result()
     }
 
     fn invoke_interpreter(&mut self) -> Result<(), InvokeInterpreterError> {
@@ -183,11 +233,79 @@ pub enum WriteTensorError {
     Write(i32),
 }
 
+#[derive(Clone, Copy)]
+pub enum ModelFormat {
+    OdAPi,
+    Nolo,
+}
+
+enum Format {
+    // Input: u8[width, height, 3]
+    // Output0: f32 bbox [top, left, bottom, right] 0..1
+    // Output1: f32 class integer
+    // Output2: f32 score 0..1
+    // Output3: f32 count integer
+    OdAPi(OdApi),
+
+    // Input: quantized i8[width, height, 3]
+    // Output: quantized i8[zip(x_center, y_center, width, height, *classes)]
+    Nolo(Nolo),
+}
+
+struct OdApi {
+    input_tensor: InputTensor,
+    output_tensors: [OutputTensor; 4],
+}
+
+struct Nolo {
+    input_tensor: InputTensor,
+    output_tensor: OutputTensor,
+    input_quantization_params: TfLiteQuantizationParams,
+    output_quantization_params: TfLiteQuantizationParams,
+    output_dims: [u16; 3],
+}
+
+impl Format {
+    fn write_buf(&mut self, buf: &mut [u8]) -> Result<(), WriteTensorError> {
+        match self {
+            Format::OdAPi(f) => f.input_tensor.write_u8(buf),
+            Format::Nolo(f) => {
+                let p = f.input_quantization_params;
+                f.input_tensor
+                    .write_i8(quantize(buf, p.scale, p.zero_point))
+            }
+        }
+    }
+
+    fn read_result(&self) -> Result<Vec<Detection>, DetectError> {
+        match self {
+            Format::OdAPi(f) => {
+                let t0 = f.output_tensors[0].data_f32();
+                let t1 = f.output_tensors[1].data_f32();
+                let t2 = f.output_tensors[2].data_f32();
+                let t3 = f.output_tensors[3].data_f32();
+                parse_odapi_tensors_output(t0, t1, t2, t3).map_err(|e| {
+                    DetectError::ParseOutputTensors(
+                        format!("[{}, {}, {}, {}]", t0.len(), t1.len(), t2.len(), t3.len()),
+                        e,
+                    )
+                })
+            }
+            Format::Nolo(f) => {
+                let params = f.output_quantization_params;
+                let data = f.output_tensor.data_i8();
+                let data = dequantize(data, params.scale, params.zero_point);
+
+                Ok(parse_nolo_tensor_output(&data, f.output_dims))
+            }
+        }
+    }
+}
+
 struct InputTensor {
     inner: *mut TfLiteTensor,
     size: usize,
     typ: TensorType,
-    dims: Vec<i32>,
 }
 
 impl InputTensor {
@@ -196,31 +314,53 @@ impl InputTensor {
         assert!(!tensor.is_null());
         let size = unsafe { TfLiteTensorByteSize(tensor) };
         let typ = unsafe { TensorType::from_tensor(tensor) };
-        let num_dims = unsafe { TfLiteTensorNumDims(tensor) };
-        let dims = (0..num_dims).map(|i| TfLiteTensorDim(tensor, i)).collect();
         Self {
             inner: tensor,
             size,
             typ,
-            dims,
         }
+    }
+
+    fn dims(&self) -> Vec<i32> {
+        let num_dims = unsafe { TfLiteTensorNumDims(self.inner) };
+        (0..num_dims)
+            .map(|i| unsafe { TfLiteTensorDim(self.inner, i) })
+            .collect()
     }
 
     fn shape(&self) -> String {
-        format!("{}{:?}", self.typ, self.dims)
+        format!("{}{:?}", self.typ, self.dims())
+    }
+
+    fn quantization_params(&self) -> TfLiteQuantizationParams {
+        unsafe { TfLiteTensorQuantizationParams(self.inner) }
     }
 
     fn write_u8(&mut self, buf: &[u8]) -> Result<(), WriteTensorError> {
-        use WriteTensorError::*;
         assert!(matches!(self.typ, TensorType::UInt8));
         if self.size != buf.len() {
-            return Err(BufferSize(self.size, buf.len()));
+            return Err(WriteTensorError::BufferSize(self.size, buf.len()));
         }
-        let ret = unsafe {
-            TfLiteTensorCopyFromBuffer(self.inner.cast(), buf.as_ptr().cast(), buf.len())
-        };
+        self.write_data(buf.as_ptr().cast(), buf.len())
+    }
+
+    fn write_i8(&mut self, buf: &[i8]) -> Result<(), WriteTensorError> {
+        assert!(matches!(self.typ, TensorType::Int8));
+        if self.size != buf.len() {
+            return Err(WriteTensorError::BufferSize(self.size, buf.len()));
+        }
+        self.write_data(buf.as_ptr().cast(), buf.len())
+    }
+
+    fn write_data(
+        &mut self,
+        input_data: *const c_void,
+        input_data_size: usize,
+    ) -> Result<(), WriteTensorError> {
+        let ret =
+            unsafe { TfLiteTensorCopyFromBuffer(self.inner.cast(), input_data, input_data_size) };
         if ret != 0 {
-            return Err(Write(ret));
+            return Err(WriteTensorError::Write(ret));
         }
         Ok(())
     }
@@ -243,6 +383,33 @@ impl OutputTensor {
             size,
             typ,
         }
+    }
+
+    fn dims(&self) -> Vec<i32> {
+        let num_dims = unsafe { TfLiteTensorNumDims(self.inner) };
+        (0..num_dims)
+            .map(|i| unsafe { TfLiteTensorDim(self.inner, i) })
+            .collect()
+    }
+
+    fn get_dims<const N: usize>(&self) -> Result<[u16; N], NewDetectorError> {
+        use NewDetectorError::*;
+        let num_dims = self.dims().len();
+        self.dims()
+            .into_iter()
+            .map(|v| u16::try_from(v).map_err(|_| InvalidDimension(v)))
+            .collect::<Result<Vec<_>, _>>()?
+            .try_into()
+            .map_err(|_| UnexpectedNumberOfOutputDims(num_dims, N))
+    }
+
+    fn quantization_params(&self) -> TfLiteQuantizationParams {
+        unsafe { TfLiteTensorQuantizationParams(self.inner) }
+    }
+
+    fn data_i8(&self) -> &[i8] {
+        assert!(matches!(self.typ, TensorType::Int8));
+        unsafe { from_raw_parts(TfLiteTensorData(self.inner).cast(), self.size) }
     }
 
     fn data_f32(&self) -> &[f32] {
@@ -319,45 +486,11 @@ pub enum DetectError {
     Detect(i32),
 
     #[error("parse output tensors: {0:?} {1}")]
-    ParseOutputTensors(String, ParseOutputTensorsError),
-}
-
-pub struct Detector {
-    detector: RDetector,
-}
-
-impl Detector {
-    pub fn new(
-        model_path: &Path,
-        edgetpu: Option<&EdgetpuDevice>,
-        width: NonZeroU16,
-        height: NonZeroU16,
-    ) -> Result<Self, NewDetectorError> {
-        let detector = RDetector::new(model_path, edgetpu, width, height)?;
-        Ok(Self { detector })
-    }
-
-    pub fn detect(&mut self, buf: &[u8]) -> Result<Vec<Detection>, DetectError> {
-        use DetectError::*;
-
-        self.detector.input_tensors[0].write_u8(buf)?;
-        self.detector.invoke_interpreter()?;
-
-        let t0 = self.detector.output_tensors[0].data_f32();
-        let t1 = self.detector.output_tensors[1].data_f32();
-        let t2 = self.detector.output_tensors[2].data_f32();
-        let t3 = self.detector.output_tensors[3].data_f32();
-        parse_output_tensors(t0, t1, t2, t3).map_err(|e| {
-            ParseOutputTensors(
-                format!("[{}, {}, {}, {}]", t0.len(), t1.len(), t2.len(), t3.len()),
-                e,
-            )
-        })
-    }
+    ParseOutputTensors(String, ParseTensorOutputError),
 }
 
 #[derive(Debug, Error)]
-pub enum ParseOutputTensorsError {
+pub enum ParseTensorOutputError {
     #[error("count tensor is empty")]
     GetCount,
 
@@ -379,13 +512,13 @@ pub enum ParseOutputTensorsError {
     clippy::cast_possible_truncation,
     clippy::as_conversions
 )]
-fn parse_output_tensors(
+fn parse_odapi_tensors_output(
     t0: &[f32],
     t1: &[f32],
     t2: &[f32],
     t3: &[f32],
-) -> Result<Vec<Detection>, ParseOutputTensorsError> {
-    use ParseOutputTensorsError::*;
+) -> Result<Vec<Detection>, ParseTensorOutputError> {
+    use ParseTensorOutputError::*;
 
     let mut detections = Vec::new();
     let count = *t3.first().ok_or(GetCount)? as usize;
@@ -396,7 +529,7 @@ fn parse_output_tensors(
             return Err(ClassRange(class));
         }
 
-        let class = class as u8;
+        let class = class as u16;
         let top = t0.get(4 * i).ok_or(RectBounds(i))?;
         let left = t0.get(4 * i + 1).ok_or(RectBounds(i))?;
         let bottom = t0.get(4 * i + 2).ok_or(RectBounds(i))?;
@@ -420,6 +553,90 @@ fn parse_output_tensors(
     Ok(detections)
 }
 
+fn parse_nolo_tensor_output(data: &[f32], dims: [u16; 3]) -> Vec<Detection> {
+    assert_eq!(data.len(), usize::from(dims[1]) * usize::from(dims[2]));
+    // Number of classes plus 4.
+    let num_classes4 = dims[1];
+    let num_classes = num_classes4 - 4;
+    let num_items = usize::from(dims[2]);
+
+    // Finding the good items first is +25% faster.
+    let mut good_indexes: Vec<(usize, u16)> = Vec::new();
+    for class in 4..num_classes4 {
+        let class_offset = num_items * usize::from(class);
+        for i in 0..num_items {
+            let score = data[class_offset + i];
+            if score < 0.3 {
+                continue;
+            }
+            good_indexes.push((i, class));
+        }
+    }
+
+    let mut detections_by_class: Vec<Vec<Detection>> =
+        (0..num_classes).map(|_| Vec::new()).collect();
+    for (i, class) in good_indexes {
+        let class = class - 4;
+
+        let score = data[num_items * usize::from(class) + i];
+        let x = data[i];
+        let y = data[num_items + i];
+        let w = data[num_items * 2 + i];
+        let h = data[num_items * 3 + i];
+
+        let w2 = w / 2.0;
+        let h2 = h / 2.0;
+
+        let top = y - h2;
+        let left = x - w2;
+        let bottom = y + h2;
+        let right = x + w2;
+
+        let score = score.max(0.0).min(1.0);
+        let top = top.max(0.0).min(1.0);
+        let left = left.max(0.0).min(1.0);
+        let bottom = bottom.max(0.0).min(1.0);
+        let right = right.max(0.0).min(1.0);
+
+        let detection = Detection {
+            score,
+            class,
+            top,
+            left,
+            bottom,
+            right,
+        };
+        detections_by_class[usize::from(class)].push(detection);
+    }
+
+    detections_by_class
+        .into_iter()
+        .flat_map(|d| non_max_suppression(d, 0.6))
+        .collect()
+}
+
+#[allow(
+    clippy::as_conversions,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation
+)]
+fn quantize(buf: &mut [u8], scale: f32, zero_point: i32) -> &[i8] {
+    for b in &mut *buf {
+        let v = f32::from(*b) / 255.0;
+        let v = v / scale + (zero_point as f32);
+        *b = v as i8 as u8;
+    }
+    unsafe { &*(buf as *const [u8] as *const [i8]) }
+}
+
+#[allow(clippy::as_conversions, clippy::cast_precision_loss)]
+fn dequantize(buf: &[i8], scale: f32, zero_point: i32) -> Vec<f32> {
+    buf.iter()
+        .map(|b| (f32::from(*b) - (zero_point as f32)) * scale)
+        .collect()
+}
+
 fn format_list<T: Display, I: Iterator<Item = T>>(v: I) -> String {
     let values: Vec<String> = v.map(|v| v.to_string()).collect();
     format!("({})", values.join(", "))
@@ -428,11 +645,17 @@ fn format_list<T: Display, I: Iterator<Item = T>>(v: I) -> String {
 // All values besides class are between zero and one.
 pub struct Detection {
     pub score: f32,
-    pub class: u8,
+    pub class: u16,
     pub top: f32,
     pub left: f32,
     pub bottom: f32,
     pub right: f32,
+}
+
+impl Detection {
+    pub(crate) fn area(&self) -> f32 {
+        (self.bottom - self.top) * (self.right - self.left)
+    }
 }
 
 impl Debug for Detection {
@@ -737,7 +960,35 @@ fn poke_devices() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use test_case::test_case;
+
+    #[test]
+    #[allow(clippy::float_cmp)]
+    fn test_quantize() {
+        let mut buf = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240];
+        let want = [14, 18, 22, 26, 30, 35, 39, 43, 47, 51, 56, 60, 64];
+        let got = quantize(&mut buf, 0.018_658_448, 14);
+        assert_eq!(want, got);
+
+        let want = [
+            -0.560_717_34,
+            -0.541_043_04,
+            -0.521_368_74,
+            -0.501_694_44,
+            -0.482_020_14,
+            -0.457_427_3,
+            -0.437_753,
+            -0.418_078_7,
+            -0.398_404_42,
+            -0.378_730_12,
+            -0.354_137_24,
+            -0.334_462_97,
+            -0.314_788_67,
+        ];
+        let got = dequantize(got, 0.004_918_573, 128);
+        assert_eq!(want, got.as_slice());
+    }
 
     #[allow(clippy::needless_pass_by_value)]
     #[test_case("", None; "empty")]

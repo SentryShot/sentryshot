@@ -2578,6 +2578,7 @@ dependencies = [
 name = "tflite_lib"
 version = "0.2.22"
 dependencies = [
+ "pretty_assertions",
  "test-case 2.2.2",
  "tflite_sys",
  "thiserror",
