@@ -265,7 +265,7 @@ impl DetectorManager {
         rt_handle: Handle,
         shutdown_complete_tx: mpsc::Sender<()>,
         logger: ArcMsgLogger,
-        fetcher: &'static dyn Fetcher,
+        fetcher: Box<dyn Fetcher>,
         config_dir: &Path,
     ) -> Result<Self, DetectorManagerError> {
         use DetectorManagerError::*;
@@ -284,7 +284,7 @@ impl DetectorManager {
         }
 
         let labels_path = tflite_dir.join("labels.json");
-        let mut label_cache = LabelCache::new(logger.clone(), fetcher, labels_path)?;
+        let mut label_cache = LabelCache::new(logger.clone(), fetcher.clone(), labels_path)?;
 
         let models_dir = tflite_dir.join("models");
         if !models_dir.exists() {

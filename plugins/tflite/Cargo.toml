@@ -19,17 +19,20 @@ tflite_lib.path = "./tflite_lib"
 common.path = "../../src/common"
 plugin.path = "../../src/plugin"
 
-async-trait.workspace = true
-axum.workspace = true
-hyper.workspace = true
-hyper-rustls.workspace = true
-sha2.workspace = true
 sentryshot_convert.workspace = true
 sentryshot_filter.workspace = true
 sentryshot_scale.workspace = true
 sentryshot_util.workspace = true
+
+async-trait.workspace = true
+axum.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-rustls.workspace = true
+hyper-util.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true

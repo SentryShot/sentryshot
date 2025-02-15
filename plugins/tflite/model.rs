@@ -18,7 +18,7 @@ use url::Url;
 
 pub(crate) struct ModelCache {
     logger: ArcMsgLogger,
-    fetcher: &'static dyn Fetcher,
+    fetcher: Box<dyn Fetcher>,
     path: PathBuf,
     models: HashMap<ModelChecksum, PathBuf>,
 }
@@ -53,7 +53,7 @@ pub(crate) enum ModelCacheError {
 impl ModelCache {
     pub(crate) fn new(
         logger: ArcMsgLogger,
-        fetcher: &'static dyn Fetcher,
+        fetcher: Box<dyn Fetcher>,
         path: PathBuf,
     ) -> Result<Self, CreateModelCacheError> {
         use CreateModelCacheError::*;

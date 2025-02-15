@@ -11,7 +11,7 @@ type LabelMaps = HashMap<Url, LabelMap>;
 
 pub(crate) struct LabelCache {
     logger: ArcMsgLogger,
-    fetcher: &'static dyn Fetcher,
+    fetcher: Box<dyn Fetcher>,
     path: PathBuf,
     label_maps: LabelMaps,
 }
@@ -49,7 +49,7 @@ pub(crate) enum LabelCacheError {
 impl LabelCache {
     pub(crate) fn new(
         logger: ArcMsgLogger,
-        fetcher: &'static dyn Fetcher,
+        fetcher: Box<dyn Fetcher>,
         path: PathBuf,
     ) -> Result<Self, CreateLabelCacheError> {
         use CreateLabelCacheError::*;

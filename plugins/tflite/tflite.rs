@@ -9,7 +9,7 @@ use crate::{config::TfliteConfig, detector::DetectorManager};
 use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{uri::InvalidUri, StatusCode},
     middleware,
     response::{IntoResponse, Response},
     routing::patch,
@@ -24,8 +24,7 @@ use common::{
 };
 use config::{set_enable, Crop, Mask};
 use detector::{DetectError, Detector, DetectorName, Thresholds};
-use hyper::{body::HttpBody, http::uri::InvalidUri};
-use hyper_rustls::HttpsConnectorBuilder;
+use http_body_util::BodyExt;
 use plugin::{
     types::{admin, Assets},
     Application, Plugin, PreLoadPlugin,
@@ -38,12 +37,13 @@ use sentryshot_scale::{CreateScalerError, Scaler, ScalerError};
 use sentryshot_util::ImageCopyToBufferError;
 use std::{
     borrow::Cow,
+    future::Future,
     num::{NonZeroU16, NonZeroU32, TryFromIntError},
     sync::Arc,
     time::Duration,
 };
 use thiserror::Error;
-use tokio::{io::AsyncWriteExt, runtime::Handle, sync::mpsc};
+use tokio::{runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -66,26 +66,19 @@ impl PreLoadPlugin for PreLoadTflite {
 
 #[no_mangle]
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
-    // This is very dirty and may break horribly.
-    // Tokio normally forbids multiple runtimes, but plugins have a different
-    // static namespace and tokio can't access the globals from the other runtime.
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime should start")
-        .block_on(async {
-            Arc::new(
-                TflitePlugin::new(
-                    app.rt_handle(),
-                    app.shutdown_complete_tx(),
-                    app.logger(),
-                    app.env(),
-                    app.auth(),
-                    app.monitor_manager(),
-                )
-                .await,
+    app.rt_handle().block_on(async {
+        Arc::new(
+            TflitePlugin::new(
+                app.rt_handle(),
+                app.shutdown_complete_tx(),
+                app.logger(),
+                app.env(),
+                app.auth(),
+                app.monitor_manager(),
             )
-        })
+            .await,
+        )
+    })
 }
 
 pub struct TflitePlugin {
@@ -113,7 +106,7 @@ impl TflitePlugin {
             rt_handle.clone(),
             shutdown_complete_tx.clone(),
             tflite_logger,
-            &Fetch,
+            Box::new(Fetch::new(rt_handle.clone())),
             env.config_dir(),
         )
         .await
@@ -735,6 +728,8 @@ impl MsgLogger for TfliteMonitorLogger {
 #[async_trait]
 trait Fetcher {
     async fn fetch(&self, url: &Url) -> Result<Vec<u8>, FetchError>;
+
+    fn clone(&self) -> Box<dyn Fetcher>;
 }
 
 #[derive(Debug, Error)]
@@ -743,10 +738,10 @@ pub enum FetchError {
     ParseUri(#[from] InvalidUri),
 
     #[error("get: {0}")]
-    Get(hyper::Error),
+    Get(hyper_util::client::legacy::Error),
 
-    #[error("Chunk: {0}")]
-    Chunk(hyper::Error),
+    #[error("collect: {0}")]
+    Collect(hyper::Error),
 }
 
 struct TfliteLogger {
@@ -760,32 +755,56 @@ impl MsgLogger for TfliteLogger {
     }
 }
 
+#[derive(Clone)]
+struct TokioExecutor(Handle);
+
+impl<Fut> hyper::rt::Executor<Fut> for TokioExecutor
+where
+    Fut: Future + Send + 'static,
+    Fut::Output: Send + 'static,
+{
+    fn execute(&self, fut: Fut) {
+        self.0.spawn(fut);
+    }
+}
+
 #[allow(clippy::similar_names)]
-async fn fetch(url: &Url) -> Result<Vec<u8>, FetchError> {
+async fn fetch(url: &Url, rt_handle: Handle) -> Result<Vec<u8>, FetchError> {
+    use http_body_util::Full;
+    use hyper::body::Bytes;
+    use hyper_util::client::legacy::Client;
     use FetchError::*;
 
     let uri = url.as_str().parse()?;
-    let https = HttpsConnectorBuilder::new()
+    let https = hyper_rustls::HttpsConnectorBuilder::new()
         .with_webpki_roots()
         .https_or_http()
         .enable_http1()
         .build();
-    let client = hyper::client::Client::builder().build::<_, hyper::Body>(https);
-    let mut res = client.get(uri).await.map_err(Get)?;
-    let mut body = Vec::new();
-    while let Some(chunk) = res.body_mut().data().await {
-        let chunk = chunk.map_err(Chunk)?;
-        body.write_all(&chunk).await.expect("write");
-    }
+    let executor = TokioExecutor(rt_handle);
+    let client: Client<_, Full<Bytes>> = Client::builder(executor).build(https);
+
+    //let client = hyper::client::Client::builder().build::<_, hyper::Body>(https);
+    let res = client.get(uri).await.map_err(Get)?;
+    let body = res.collect().await.map_err(Collect)?.to_bytes().to_vec();
     Ok(body)
 }
 
-struct Fetch;
+struct Fetch(Handle);
+
+impl Fetch {
+    fn new(rt_handle: Handle) -> Self {
+        Self(rt_handle)
+    }
+}
 
 #[async_trait]
 impl Fetcher for Fetch {
     async fn fetch(&self, url: &Url) -> Result<Vec<u8>, FetchError> {
-        fetch(url).await
+        fetch(url, self.0.clone()).await
+    }
+    fn clone(&self) -> Box<dyn Fetcher> {
+        Box::new(Fetch(self.0.clone()))
     }
 }
 
