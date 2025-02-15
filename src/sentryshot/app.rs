@@ -24,7 +24,7 @@ use plugin::{
     types::{admin, csrf, user, NewAuthError},
     Application, PluginManager, PreLoadPluginsError, PreLoadedPlugins,
 };
-use rand::{distributions::Alphanumeric, Rng};
+use rand::{distr::Alphanumeric, Rng};
 use recdb::{Disk, RecDb};
 use recording::VideoCache;
 use rust_embed::RustEmbed;
@@ -198,7 +198,7 @@ impl App {
     #[allow(clippy::similar_names, clippy::too_many_lines)]
     pub fn setup_routes(&mut self, plugin_manager: &mut PluginManager) -> Result<(), RunError> {
         // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
-        let assets_etag: String = rand::thread_rng()
+        let assets_etag: String = rand::rng()
             .sample_iter(&Alphanumeric)
             .take(8)
             .map(char::from)

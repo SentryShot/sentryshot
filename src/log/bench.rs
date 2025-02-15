@@ -8,7 +8,7 @@ use log::{
     LogEntryWithTime, UnixMicro,
 };
 use rand::{
-    distributions::{Alphanumeric, DistString},
+    distr::{Alphanumeric, SampleString},
     Rng, SeedableRng,
 };
 use rand_chacha::ChaCha8Rng;
@@ -142,14 +142,14 @@ impl Helper {
         } else {
             // Get average length.
             // cat *.msg | awk '{print length}' | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; total+=$1; count+=1} END {print total/count, max, min}'
-            let message_len = self.rng.gen_range(18..=42);
+            let message_len = self.rng.random_range(18..=42);
             Alphanumeric.sample_string(&mut self.rng, message_len)
         };
 
         LogEntryWithTime {
-            level: levels[self.rng.gen_range(0..levels.len())],
-            source: sources[self.rng.gen_range(0..sources.len())].clone(),
-            monitor_id: Some(monitor_ids[self.rng.gen_range(0..monitor_ids.len())].clone()),
+            level: levels[self.rng.random_range(0..levels.len())],
+            source: sources[self.rng.random_range(0..sources.len())].clone(),
+            monitor_id: Some(monitor_ids[self.rng.random_range(0..monitor_ids.len())].clone()),
             message: message.try_into().unwrap(),
             time: UnixMicro::new(self.count),
         }
