@@ -562,23 +562,21 @@ fn parse_nolo_tensor_output(data: &[f32], dims: [u16; 3]) -> Vec<Detection> {
 
     // Finding the good items first is +25% faster.
     let mut good_indexes: Vec<(usize, u16)> = Vec::new();
-    for class in 4..num_classes4 {
-        let class_offset = num_items * usize::from(class);
+    for class4 in 4..num_classes4 {
+        let class4_offset = num_items * usize::from(class4);
         for i in 0..num_items {
-            let score = data[class_offset + i];
-            if score < 0.3 {
+            let score = data[class4_offset + i];
+            if score < 0.05 {
                 continue;
             }
-            good_indexes.push((i, class));
+            good_indexes.push((i, class4));
         }
     }
 
     let mut detections_by_class: Vec<Vec<Detection>> =
         (0..num_classes).map(|_| Vec::new()).collect();
-    for (i, class) in good_indexes {
-        let class = class - 4;
-
-        let score = data[num_items * usize::from(class) + i];
+    for (i, class4) in good_indexes {
+        let score = data[num_items * usize::from(class4) + i];
         let x = data[i];
         let y = data[num_items + i];
         let w = data[num_items * 2 + i];
@@ -593,6 +591,7 @@ fn parse_nolo_tensor_output(data: &[f32], dims: [u16; 3]) -> Vec<Detection> {
         let right = x + w2;
 
         let score = score.max(0.0).min(1.0);
+        let class = class4 - 4;
         let top = top.max(0.0).min(1.0);
         let left = left.max(0.0).min(1.0);
         let bottom = bottom.max(0.0).min(1.0);
