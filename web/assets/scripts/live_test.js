@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-check
+
 import { uidReset } from "./libs/common.js";
 import { newViewer, resBtn } from "./live.js";
 
@@ -79,6 +81,7 @@ test("fullscreen", () => {
 	uidReset();
 	document.body.innerHTML = `<div></div>`;
 	const element = document.querySelector("div");
+	// @ts-ignore
 	const viewer = newViewer(element, [{ enable: true }, { enable: true }], mockHls);
 	viewer.reset();
 

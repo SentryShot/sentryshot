@@ -5,6 +5,7 @@ import {
 	newMonitorNameByID,
 	getHashParam,
 	removeEmptyValues,
+	globals,
 } from "./libs/common.js";
 import { NS_MILLISECOND } from "./libs/time.js";
 import { newPlayer } from "./components/player.js";
@@ -186,31 +187,21 @@ function dateToID(t) {
 
 // Init.
 async function init() {
-	const hashMonitors = getHashParam("monitors").split(",");
+	const { tz, monitorsInfo, monitorGroups, isAdmin, csrfToken } = globals();
 
-	// @ts-ignore
-	const timeZone = TZ; // eslint-disable-line no-undef
-	// @ts-ignore
-	const monitors = MonitorsInfo; // eslint-disable-line no-undef
-	// @ts-ignore
-	const monitorGroups = MonitorGroups; // eslint-disable-line no-undef
-	// @ts-ignore
-	const isAdmin = IsAdmin; // eslint-disable-line no-undef
-	// @ts-ignore
-	const csrfToken = CSRFToken; // eslint-disable-line no-undef
-
-	const monitorNameByID = newMonitorNameByID(monitors);
-
+	const monitorNameByID = newMonitorNameByID(monitorsInfo);
 	const $grid = document.querySelector("#content-grid");
-	const viewer = await newViewer(monitorNameByID, $grid, timeZone, isAdmin, csrfToken);
+	const viewer = await newViewer(monitorNameByID, $grid, tz, isAdmin, csrfToken);
+
+	const hashMonitors = getHashParam("monitors").split(",");
 	if (hashMonitors) {
 		viewer.setMonitors(hashMonitors);
 	}
 
 	const buttons = [
 		newOptionsBtn.gridSize(viewer),
-		newOptionsBtn.date(timeZone, viewer),
-		newOptionsBtn.monitor(monitors, viewer),
+		newOptionsBtn.date(tz, viewer),
+		newOptionsBtn.monitor(monitorsInfo, viewer),
 	];
 	// Add the group picker if there are any groups.
 	if (Object.keys(monitorGroups).length > 0) {

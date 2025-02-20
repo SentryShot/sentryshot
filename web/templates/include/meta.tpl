@@ -8,15 +8,16 @@
 		href="assets/style/manifest.json"
 	/>
 	<script>
-		// Global variables.
-		const TZ = "{{ tz }}";
-		const Groups = JSON.parse(`{{ groups_json }}`);
+		// Global variables, see `./src/web/templater.rs` and `./web/assets/scripts/libs/common.js`.
+		const CSRFToken = `{{ csrf_token }}`;
+		const IsAdmin = `{{ is_admin }}` === "true";
+		const TZ = `{{ tz }}`;
+		const LogSources = JSON.parse(`{{ log_sources_json }}`);
+		const MonitorGroups = JSON.parse(`{{ monitor_groups_json }}`);
+
 		{% if is_admin %}
 		const Monitors = JSON.parse(`{{ monitors_json }}`);
 		{% endif %}
+
 		const MonitorsInfo = JSON.parse(`{{ monitors_info_json }}`);
-		const MonitorGroups = JSON.parse(`{{ monitor_groups_json }}`);
-		const LogSources = JSON.parse(`{{ log_sources_json }}`);
-		const IsAdmin = "{{ is_admin }}" === "true";
-		const CSRFToken = "{{ csrf_token }}";
 	</script>

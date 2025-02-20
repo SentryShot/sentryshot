@@ -7,6 +7,7 @@ import {
 	sortByName,
 	newMonitorNameByID,
 	removeEmptyValues,
+	globals,
 } from "./libs/common.js";
 import { fromUTC2 } from "./libs/time.js";
 import { newForm, fieldTemplate } from "./components/form.js";
@@ -540,15 +541,10 @@ function newLogSelector(logger, formFields) {
 }
 
 async function init() {
-	// @ts-ignore
-	const logSources = LogSources; // eslint-disable-line no-undef
-	// @ts-ignore
-	const monitors = Monitors; // eslint-disable-line no-undef
-	// @ts-ignore
-	const timeZone = TZ; // eslint-disable-line no-undef
+	const { logSources, monitors, tz } = globals();
 
 	const monitorNameByID = newMonitorNameByID(monitors);
-	const formatLog = newFormater(monitorNameByID, timeZone);
+	const formatLog = newFormater(monitorNameByID, tz);
 
 	const logger = newLogger(formatLog);
 

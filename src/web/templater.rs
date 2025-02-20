@@ -52,7 +52,7 @@ impl<'a> Templater<'a> {
         mut current_page: String,
         is_admin: bool,
         csrf_token: String,
-    ) -> HashMap<String, upon::Value> {
+    ) -> HashMap<&'static str, upon::Value> {
         use upon::Value;
 
         make_ascii_titlecase(&mut current_page);
@@ -72,24 +72,15 @@ impl<'a> Templater<'a> {
             .expect("serialization to never fail");
 
         HashMap::from([
-            ("groups_json".to_owned(), Value::String("{}".to_owned())),
-            ("monitors_json".to_owned(), Value::String(monitors_json)),
-            (
-                "monitors_info_json".to_owned(),
-                Value::String(monitors_info_json),
-            ),
-            (
-                "monitor_groups_json".to_owned(),
-                Value::String(monitor_groups_json),
-            ),
-            ("tz".to_owned(), Value::String(self.time_zone.clone())),
-            (
-                "log_sources_json".to_owned(),
-                Value::String(log_sources_json),
-            ),
-            ("is_admin".to_owned(), Value::Bool(is_admin)),
-            ("csrf_token".to_owned(), Value::String(csrf_token)),
-            ("current_page".to_owned(), Value::String(current_page)),
+            ("current_page", Value::String(current_page)),
+            // globals.
+            ("csrf_token", Value::String(csrf_token)),
+            ("is_admin", Value::Bool(is_admin)),
+            ("log_sources_json", Value::String(log_sources_json)),
+            ("monitor_groups_json", Value::String(monitor_groups_json)),
+            ("monitors_json", Value::String(monitors_json)),
+            ("monitors_info_json", Value::String(monitors_info_json)),
+            ("tz", Value::String(self.time_zone.clone())),
         ])
     }
 }

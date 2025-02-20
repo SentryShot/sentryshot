@@ -2,7 +2,7 @@
 // @ts-check
 
 import Hls from "./vendor/hls.js";
-import { uniqueID, normalize, denormalize } from "./libs/common.js";
+import { uniqueID, normalize, denormalize, globals } from "./libs/common.js";
 import { newForm, newNumberField, fieldTemplate } from "./components/form.js";
 import { newFeed } from "./components/feed.js";
 import { newModal } from "./components/modal.js";
@@ -21,8 +21,7 @@ import { newPolygonEditor } from "./components/polygonEditor.js";
 export function tflite(getMonitorId) {
 	const Detectors = JSON.parse(`$detectorsJSON`);
 
-	// @ts-ignore
-	const monitorsInfo = MonitorsInfo; // eslint-disable-line no-undef
+	const { monitorsInfo } = globals();
 
 	/** @param {string} monitorID */
 	const hasSubStream = (monitorID) => {

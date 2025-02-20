@@ -10,6 +10,7 @@ import {
 	sortByName,
 	uniqueID,
 	removeEmptyValues,
+	globals,
 } from "./libs/common.js";
 import {
 	newForm,
@@ -613,13 +614,9 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 }
 
 /**
- * @typedef MonitorGroup
- * @property {string} id
- * @property {string} name
- * @property {string[]} monitors
+ * @typedef {import("./libs/common.js").MonitorGroup} MonitorGroup
+ * @typedef {import("./libs/common.js").MonitorGroups} MonitorGroups
  */
-
-/** @typedef {{[id: string]: MonitorGroup}} MonitorGroups */
 
 /**
  * @param {string} token
@@ -1325,22 +1322,11 @@ function newSourceRTSP() {
 	};
 }
 
-// Globals.
-// @ts-ignore
-const csrfToken = CSRFToken; // eslint-disable-line no-undef
-// @ts-ignore
-const isAdmin = IsAdmin; // eslint-disable-line no-undef
-
 function init() {
+	const { csrfToken, isAdmin, monitorGroups, monitors } = globals();
 	if (!isAdmin) {
 		return;
 	}
-
-	// GLOBALS.
-	// @ts-ignore
-	const monitors = Monitors; // eslint-disable-line no-undef
-	// @ts-ignore
-	const monitorGroups = MonitorGroups; // eslint-disable-line no-undef
 
 	const renderer = newRenderer(document.querySelector(".js-content"));
 

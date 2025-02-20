@@ -201,6 +201,60 @@ function denormalize(input, max) {
 	return Math.round((input * max) / 1000000);
 }
 
+/**
+ * @typedef MonitorGroup
+ * @property {string} id
+ * @property {string} name
+ * @property {string[]} monitors
+ */
+
+/** @typedef {{[id: string]: MonitorGroup}} MonitorGroups */
+
+/**
+ * @typedef MonitorInfo
+ * @property {boolean} enable
+ * @property {boolean} hasSubStream
+ * @property {string} id
+ * @property {string} name
+ */
+
+/** @typedef {{[id: string]: MonitorInfo}} MonitorsInfo */
+
+// The globals are injected in `./web/templates/include/meta.tpl`
+/* eslint-disable no-undef */
+function globals() {
+	return {
+		/** @type {string} */
+		// @ts-ignore
+		csrfToken: CSRFToken,
+
+		/** @type {boolean} */
+		// @ts-ignore
+		isAdmin: IsAdmin,
+
+		/** @type {string} */
+		// @ts-ignore
+		tz: TZ,
+
+		/** @type {string[]} */
+		// @ts-ignore
+		logSources: LogSources,
+
+		/** @type {MonitorGroups} */
+		// @ts-ignore
+		monitorGroups: MonitorGroups,
+
+		/** @type {{[x: string]: any}} */
+		// @ts-ignore
+		monitors: Monitors,
+
+		/** @type {MonitorsInfo} */
+		// @ts-ignore
+		monitorsInfo: MonitorsInfo,
+	};
+}
+/* eslint-enable no-undef */
+
 export {
 	fetchGet,
 	fetchPost,
@@ -215,4 +269,5 @@ export {
 	removeEmptyValues,
 	normalize,
 	denormalize,
+	globals,
 };

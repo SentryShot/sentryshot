@@ -1,15 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import Hls from "./vendor/hls.js";
-import { uniqueID, sortByName } from "./libs/common.js";
+import { uniqueID, sortByName, globals } from "./libs/common.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
 import { newFeed, newFeedBtn } from "./components/feed.js";
 
 /**
+ * @typedef {import("./libs/common.js").MonitorsInfo} MonitorsInfo
  * @typedef {import("./components/feed.js").FullscreenButton} FullscreenButton
  * @typedef {import("./components/optionsMenu.js").Button} Button
  */
 
+/**
+ * @param {Element} $parent
+ * @param {MonitorsInfo} monitors
+ */
 function newViewer($parent, monitors, hls) {
 	let selectedMonitors = [];
 	const isMonitorSelected = (monitor) => {
@@ -136,14 +141,10 @@ function resBtn(content) {
 }
 
 function init() {
-	// Globals.
-	// @ts-ignore
-	const monitors = MonitorsInfo; // eslint-disable-line no-undef
-	// @ts-ignore
-	const monitorGroups = MonitorGroups; // eslint-disable-line no-undef
+	const { monitorGroups, monitorsInfo } = globals();
 
 	const $contentGrid = document.querySelector("#content-grid");
-	const viewer = newViewer($contentGrid, monitors, Hls);
+	const viewer = newViewer($contentGrid, monitorsInfo, Hls);
 
 	const buttons = [newOptionsBtn.gridSize(viewer), resBtn(viewer)];
 	// Add the group picker if there are any groups.
