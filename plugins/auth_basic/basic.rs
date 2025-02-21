@@ -5,7 +5,7 @@ use argon2::{
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
 use async_trait::async_trait;
-use axum::{extract::State, response::IntoResponse, routing::get, Router};
+use axum::{extract::State, response::IntoResponse, routing::get};
 use common::{
     Account, AccountId, AccountObfuscated, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger,
     AuthAccountDeleteError, AuthAccountSetError, AuthSaveToFileError, Authenticator, LogEntry,
@@ -14,7 +14,7 @@ use common::{
 use headers::authorization::{Basic, Credentials};
 use http::{header, HeaderMap, HeaderValue, StatusCode};
 use plugin::{
-    types::{NewAuthError, NewAuthFn, Templates},
+    types::{NewAuthError, NewAuthFn, Router, Templates},
     Application, Plugin, PreLoadPlugin,
 };
 use rand::{distr::Alphanumeric, Rng};
@@ -66,7 +66,7 @@ impl plugin::Plugin for AuthBasicPlugin {
     }
 
     fn route(&self, router: Router) -> Router {
-        router.route("/logout", get(logout).with_state(self.auth.clone()))
+        router.route_no_auth("/logout", get(logout).with_state(self.auth.clone()))
     }
 }
 

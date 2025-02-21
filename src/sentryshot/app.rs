@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use axum::{
-    middleware,
     response::Html,
     routing::{any, delete, get, post},
-    Router,
 };
 use bytesize::ByteSize;
 use common::{
@@ -21,7 +19,7 @@ use monitor::{MonitorManager, NewMonitorManagerError};
 use monitor_groups::{ArcMonitorGroups, CreateMonitorGroupsError, MonitorGroups};
 use plugin::{
     pre_load_plugins,
-    types::{admin, csrf, user, NewAuthError},
+    types::{NewAuthError, Router},
     Application, PluginManager, PreLoadPluginsError, PreLoadedPlugins,
 };
 use rand::{distr::Alphanumeric, Rng};
@@ -43,7 +41,6 @@ use tokio::{
     sync::{mpsc, oneshot, Mutex},
 };
 use tokio_util::sync::CancellationToken;
-use tower::ServiceBuilder;
 use vod::VodCache;
 use web::{minify, Templater};
 
@@ -173,7 +170,7 @@ impl App {
 
         let monitor_groups = Arc::new(MonitorGroups::new(env.storage_dir()).await?);
 
-        let router = Router::new();
+        let router = Router::new(axum::Router::new(), auth.clone());
 
         Ok((
             App {
@@ -243,205 +240,123 @@ impl App {
             .router
             .clone()
             // Root.
-            .route(
-                "/",
-                get(|| async { Html("<a href='./live'>/live</a>") })
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
-            )
+            .route_user_no_csrf("/", get(|| async { Html("<a href='./live'>/live</a>") }))
             // Live page.
-            .route(
+            .route_user_no_csrf(
                 "/live",
-                get(template_handler)
-                    .with_state(template_handler_state.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
+                get(template_handler).with_state(template_handler_state.clone()),
             )
             // Recordings page.
-            .route(
+            .route_user_no_csrf(
                 "/recordings",
-                get(template_handler)
-                    .with_state(template_handler_state.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
+                get(template_handler).with_state(template_handler_state.clone()),
             )
             // Settings page.
-            .route(
+            .route_admin_no_csrf(
                 "/settings",
-                get(template_handler)
-                    .with_state(template_handler_state.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                get(template_handler).with_state(template_handler_state.clone()),
             )
             // Logs page.
-            .route(
+            .route_admin_no_csrf(
                 "/logs",
-                get(template_handler)
-                    .with_state(template_handler_state.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                get(template_handler).with_state(template_handler_state.clone()),
             )
             // Assets.
-            .route(
+            .route_user_no_csrf(
                 "/assets/{*file}",
-                get(asset_handler)
-                    .with_state((assets, assets_etag))
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
+                get(asset_handler).with_state((assets, assets_etag)),
             )
             // Hls server.
-            .route(
+            .route_user_no_csrf(
                 "/hls/{*path}",
-                any(hls_handler)
-                    .with_state(self.hls_server.clone())
-                    .layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
+                any(hls_handler).with_state(self.hls_server.clone()),
             )
             // Video on demand.
-            .route(
+            .route_user_no_csrf(
                 "/vod/vod.mp4",
-                get(vod_handler)
-                    .with_state(VodHandlerState {
-                        logger: self.logger.clone(),
-                        recdb: self.recdb.clone(),
-                        cache: VodCache::new(),
-                    })
-                    .layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
+                get(vod_handler).with_state(VodHandlerState {
+                    logger: self.logger.clone(),
+                    recdb: self.recdb.clone(),
+                    cache: VodCache::new(),
+                }),
             )
             // API page.
-            .route(
-                "/api",
-                get(api_page_handler)
-                    .layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
-            )
+            .route_admin_no_csrf("/api", get(api_page_handler))
             // Account.
-            .route(
+            .route_admin(
                 "/api/account",
-                delete(account_delete_handler)
-                    .put(account_put_handler)
-                    .route_layer(
-                        ServiceBuilder::new()
-                            .layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                            .layer(middleware::from_fn_with_state(self.auth.clone(), csrf)),
-                    )
-                    .with_state(self.auth.clone()),
+                delete(account_delete_handler).put(account_put_handler),
             )
             // Account token.
-            .route(
-                "/api/account/my-token",
-                get(account_my_token_handler)
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
-            )
+            .route_user_no_csrf("/api/account/my-token", get(account_my_token_handler))
             // Accounts list.
-            .route(
+            .route_admin_no_csrf(
                 "/api/accounts",
-                get(accounts_handler)
-                    .with_state(self.auth.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                get(accounts_handler).with_state(self.auth.clone()),
             )
             // Recording query.
-            .route(
+            .route_user_no_csrf(
                 "/api/recording/query",
-                get(recording_query_handler)
-                    .with_state(RecordingQueryHandlerState {
-                        logger: self.logger.clone(),
-                        rec_db: self.recdb.clone(),
-                    })
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
+                get(recording_query_handler).with_state(RecordingQueryHandlerState {
+                    logger: self.logger.clone(),
+                    rec_db: self.recdb.clone(),
+                }),
             )
             // Log WebSocket feed.
-            .route(
+            .route_admin_no_csrf(
                 "/api/log/feed",
-                get(log_feed_handler)
-                    .with_state(LogFeedHandlerState {
-                        logger: self.logger.clone(),
-                        auth: self.auth.clone(),
-                    })
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                get(log_feed_handler).with_state(LogFeedHandlerState {
+                    logger: self.logger.clone(),
+                    auth: self.auth.clone(),
+                }),
             )
             // Log query.
-            .route(
+            .route_admin_no_csrf(
                 "/api/log/query",
-                get(log_query_handler)
-                    .with_state(self.log_db.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                get(log_query_handler).with_state(self.log_db.clone()),
             )
             // Monitor.
-            .route(
+            .route_admin(
                 "/api/monitor",
                 delete(monitor_delete_handler)
                     .put(monitor_put_handler)
-                    .with_state(self.monitor_manager.clone())
-                    .route_layer(
-                        ServiceBuilder::new()
-                            .layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                            .layer(middleware::from_fn_with_state(self.auth.clone(), csrf)),
-                    )
-                    .with_state(self.auth.clone()),
+                    .with_state(self.monitor_manager.clone()),
             )
             // Monitor restart.
-            .route(
+            .route_admin(
                 "/api/monitor/restart",
-                post(monitor_restart_handler)
-                    .with_state(self.monitor_manager.clone())
-                    .route_layer(
-                        ServiceBuilder::new()
-                            .layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                            .layer(middleware::from_fn_with_state(self.auth.clone(), csrf)),
-                    )
-                    .with_state(self.auth.clone()),
+                post(monitor_restart_handler).with_state(self.monitor_manager.clone()),
             )
             // Monitors.
-            .route(
+            .route_admin_no_csrf(
                 "/api/monitors",
-                get(monitors_handler)
-                    .with_state(self.monitor_manager.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                get(monitors_handler).with_state(self.monitor_manager.clone()),
             )
             // Monitor groups.
-            .route(
+            .route_admin_no_csrf(
                 "/api/monitor-groups",
                 get(monitor_groups_get_handler)
                     .put(monitor_groups_put_handler)
-                    .with_state(self.monitor_groups.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                    .with_state(self.monitor_groups.clone()),
             )
             // Recording delete.
-            .route(
+            .route_user_no_csrf(
                 "/api/recording/delete/{*id}",
-                delete(recording_delete_handler)
-                    .with_state(self.recdb.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
+                delete(recording_delete_handler).with_state(self.recdb.clone()),
             )
             // Recording thumbnail.
-            .route(
+            .route_user_no_csrf(
                 "/api/recording/thumbnail/{*id}",
-                get(recording_thumbnail_handler)
-                    .with_state(self.recdb.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
+                get(recording_thumbnail_handler).with_state(self.recdb.clone()),
             )
             // Recording video.
-            .route(
+            .route_user_no_csrf(
                 "/api/recording/video/{*id}",
-                get(recording_video_handler)
-                    .with_state(RecordingVideoState {
-                        rec_db: self.recdb.clone(),
-                        video_cache: Arc::new(Mutex::new(VideoCache::new())),
-                        logger: self.logger.clone(),
-                    })
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), user))
-                    .with_state(self.auth.clone()),
+                get(recording_video_handler).with_state(RecordingVideoState {
+                    rec_db: self.recdb.clone(),
+                    video_cache: Arc::new(Mutex::new(VideoCache::new())),
+                    logger: self.logger.clone(),
+                }),
             );
 
         self.router = plugin_manager.router_hooks(router);
@@ -563,7 +478,7 @@ async fn start_server(
             return;
         }
     };
-    let graceful = axum::serve(listener, router)
+    let graceful = axum::serve(listener, router.inner())
         .with_graceful_shutdown(async move { token.cancelled().await });
     let _ = on_exit.send(graceful.await.map_err(ServerError::Server));
 }

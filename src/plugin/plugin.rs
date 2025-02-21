@@ -3,7 +3,6 @@
 pub mod types;
 
 use async_trait::async_trait;
-use axum::Router;
 use common::{
     monitor::{ArcMonitor, ArcMonitorManager, MonitorConfig, MonitorHooks},
     ArcAuth, ArcLogger, DynEnvConfig, EnvPlugin, Event, LogEntry, LogLevel, LogSource,
@@ -18,7 +17,7 @@ use std::{
 use thiserror::Error;
 use tokio::{self, runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
-use types::{Assets, NewAuthFn, Templates};
+use types::{Assets, NewAuthFn, Router, Templates};
 
 pub trait PreLoadPlugin {
     fn add_log_source(&self) -> Option<LogSource> {
@@ -212,6 +211,7 @@ impl PluginManager {
         }
     }
 
+    #[must_use]
     pub fn router_hooks(&self, router: Router) -> Router {
         let mut router = router;
         for plugin in &self.plugins {

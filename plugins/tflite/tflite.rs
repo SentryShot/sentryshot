@@ -10,23 +10,21 @@ use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
     http::{uri::InvalidUri, StatusCode},
-    middleware,
     response::{IntoResponse, Response},
     routing::patch,
-    Router,
 };
 use common::{
     monitor::{ArcMonitor, ArcMonitorManager, ArcSource, DecoderError, SubscribeDecodedError},
     recording::{vertex_inside_poly2, FrameRateLimiter},
     time::{DurationH264, UnixH264, UnixNano},
-    ArcAuth, ArcLogger, ArcMsgLogger, Detection, Detections, DynEnvConfig, Event, LogEntry,
-    LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
+    ArcLogger, ArcMsgLogger, Detection, Detections, DynEnvConfig, Event, LogEntry, LogLevel,
+    LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
 };
 use config::{set_enable, Crop, Mask};
 use detector::{DetectError, Detector, DetectorName, Thresholds};
 use http_body_util::BodyExt;
 use plugin::{
-    types::{admin, Assets},
+    types::{Assets, Router},
     Application, Plugin, PreLoadPlugin,
 };
 use sentryshot_convert::{
@@ -73,7 +71,6 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
                 app.shutdown_complete_tx(),
                 app.logger(),
                 app.env(),
-                app.auth(),
                 app.monitor_manager(),
             )
             .await,
@@ -85,7 +82,6 @@ pub struct TflitePlugin {
     rt_handle: Handle,
     _shutdown_complete_tx: mpsc::Sender<()>,
     logger: ArcLogger,
-    auth: ArcAuth,
     monitor_manager: ArcMonitorManager,
     detector_manager: DetectorManager,
 }
@@ -96,7 +92,6 @@ impl TflitePlugin {
         shutdown_complete_tx: mpsc::Sender<()>,
         logger: ArcLogger,
         env: DynEnvConfig,
-        auth: ArcAuth,
         monitor_manager: ArcMonitorManager,
     ) -> Self {
         let tflite_logger = Arc::new(TfliteLogger {
@@ -122,7 +117,6 @@ impl TflitePlugin {
             rt_handle,
             _shutdown_complete_tx: shutdown_complete_tx,
             logger,
-            auth,
             monitor_manager,
             detector_manager,
         }
@@ -169,19 +163,13 @@ impl Plugin for TflitePlugin {
             monitor_manager: self.monitor_manager.clone(),
         };
         router
-            .route(
+            .route_admin_no_csrf(
                 "/api/monitor/{id}/tflite/enable",
-                patch(enable_handler)
-                    .with_state(state.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                patch(enable_handler).with_state(state.clone()),
             )
-            .route(
+            .route_admin_no_csrf(
                 "/api/monitor/{id}/tflite/disable",
-                patch(disable_handler)
-                    .with_state(state)
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                patch(disable_handler).with_state(state),
             )
     }
 }

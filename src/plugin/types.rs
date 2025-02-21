@@ -3,8 +3,9 @@
 use axum::{
     body::Body,
     extract::State,
-    middleware::Next,
+    middleware::{self, Next},
     response::{IntoResponse, Response},
+    routing::MethodRouter,
 };
 use common::{ArcAuth, ArcLogger, Username};
 use http::{header, Request, StatusCode};
@@ -12,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, path::Path};
 use thiserror::Error;
 use tokio::runtime::Handle;
+use tower::ServiceBuilder;
 
 #[derive(Debug, Error)]
 pub enum NewAuthError {
@@ -72,7 +74,11 @@ fn unauthorized() -> Response {
 }
 
 // Blocks unauthenticated requests.
-pub async fn user(State(auth): State<ArcAuth>, request: Request<Body>, next: Next) -> Response {
+async fn user_middleware(
+    State(auth): State<ArcAuth>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
     let is_valid_user = auth.validate_request(request.headers()).await.is_some();
     if !is_valid_user {
         return unauthorized();
@@ -81,7 +87,11 @@ pub async fn user(State(auth): State<ArcAuth>, request: Request<Body>, next: Nex
 }
 
 // Only allows authenticated requests from accounts with admin privileges.
-pub async fn admin(State(auth): State<ArcAuth>, request: Request<Body>, next: Next) -> Response {
+async fn admin_middleware(
+    State(auth): State<ArcAuth>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
     match auth.validate_request(request.headers()).await {
         Some(valid_login) => {
             if !valid_login.is_admin {
@@ -96,7 +106,11 @@ pub async fn admin(State(auth): State<ArcAuth>, request: Request<Body>, next: Ne
 // Blocks invalid Cross-site request forgery tokens.
 // Each account has a unique token. The request needs to
 // have a matching token in the "X-CSRF-TOKEN" header.
-pub async fn csrf(State(auth): State<ArcAuth>, request: Request<Body>, next: Next) -> Response {
+async fn csrf_middleware(
+    State(auth): State<ArcAuth>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
     let valid_login = auth
         .validate_request(request.headers())
         .await
@@ -107,4 +121,76 @@ pub async fn csrf(State(auth): State<ArcAuth>, request: Request<Body>, next: Nex
     }
 
     next.run(request).await
+}
+
+#[derive(Clone)]
+#[allow(clippy::module_name_repetitions)]
+pub struct Router {
+    router: axum::Router,
+    auth: ArcAuth,
+}
+
+impl Router {
+    pub fn new(router: axum::Router, auth: ArcAuth) -> Self {
+        Self { router, auth }
+    }
+
+    #[must_use]
+    pub fn route_admin(mut self, path: &str, method_router: MethodRouter<ArcAuth>) -> Self {
+        self.router = self.router.route(
+            path,
+            method_router
+                .route_layer(
+                    ServiceBuilder::new()
+                        .layer(middleware::from_fn_with_state(
+                            self.auth.clone(),
+                            admin_middleware,
+                        ))
+                        .layer(middleware::from_fn_with_state(
+                            self.auth.clone(),
+                            csrf_middleware,
+                        )),
+                )
+                .with_state(self.auth.clone()),
+        );
+        self
+    }
+
+    #[must_use]
+    pub fn route_admin_no_csrf(mut self, path: &str, method_router: MethodRouter<ArcAuth>) -> Self {
+        self.router = self.router.route(
+            path,
+            method_router
+                .layer(middleware::from_fn_with_state(
+                    self.auth.clone(),
+                    admin_middleware,
+                ))
+                .with_state(self.auth.clone()),
+        );
+        self
+    }
+
+    #[must_use]
+    pub fn route_user_no_csrf(mut self, path: &str, method_router: MethodRouter<ArcAuth>) -> Self {
+        self.router = self.router.route(
+            path,
+            method_router
+                .layer(middleware::from_fn_with_state(
+                    self.auth.clone(),
+                    user_middleware,
+                ))
+                .with_state(self.auth.clone()),
+        );
+        self
+    }
+
+    #[must_use]
+    pub fn route_no_auth(mut self, path: &str, method_router: MethodRouter<()>) -> Self {
+        self.router = self.router.route(path, method_router);
+        self
+    }
+
+    pub fn inner(self) -> axum::Router {
+        self.router
+    }
 }

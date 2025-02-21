@@ -11,20 +11,18 @@ use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    middleware,
     response::{IntoResponse, Response},
     routing::patch,
-    Router,
 };
 use common::{
     monitor::{ArcMonitor, ArcMonitorManager, ArcSource, DecoderError, SubscribeDecodedError},
     recording::FrameRateLimiter,
     time::{DurationH264, UnixH264, UnixNano},
-    ArcAuth, ArcLogger, ArcMsgLogger, Event, Label, LogEntry, LogLevel, LogSource, MonitorId,
-    MsgLogger, Region,
+    ArcLogger, ArcMsgLogger, Event, Label, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
+    Region,
 };
 use plugin::{
-    types::{admin, Assets},
+    types::{Assets, Router},
     Application, Plugin, PreLoadPlugin,
 };
 use sentryshot_convert::{
@@ -61,7 +59,6 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
         _shutdown_complete_tx: app.shutdown_complete_tx(),
         logger: app.logger(),
         monitor_manager: app.monitor_manager(),
-        auth: app.auth(),
     })
 }
 
@@ -70,7 +67,6 @@ pub struct MotionPlugin {
     _shutdown_complete_tx: mpsc::Sender<()>,
     logger: ArcLogger,
     monitor_manager: ArcMonitorManager,
-    auth: ArcAuth,
 }
 
 const MOTION_MJS_FILE: &[u8] = include_bytes!("./js/motion.js");
@@ -108,19 +104,13 @@ impl Plugin for MotionPlugin {
             monitor_manager: self.monitor_manager.clone(),
         };
         router
-            .route(
+            .route_admin_no_csrf(
                 "/api/monitor/{id}/motion/enable",
-                patch(enable_handler)
-                    .with_state(state.clone())
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                patch(enable_handler).with_state(state.clone()),
             )
-            .route(
+            .route_admin_no_csrf(
                 "/api/monitor/{id}/motion/disable",
-                patch(disable_handler)
-                    .with_state(state)
-                    .route_layer(middleware::from_fn_with_state(self.auth.clone(), admin))
-                    .with_state(self.auth.clone()),
+                patch(disable_handler).with_state(state),
             )
     }
 }
