@@ -231,10 +231,6 @@ impl App {
             templates,
             time_zone().ok_or(RunError::TimeZone)?,
         ));
-        let template_handler_state = TemplateHandlerState {
-            templater: templater.clone(),
-            auth: self.auth.clone(),
-        };
 
         let router = self
             .router
@@ -242,25 +238,19 @@ impl App {
             // Root.
             .route_user_no_csrf("/", get(|| async { Html("<a href='./live'>/live</a>") }))
             // Live page.
-            .route_user_no_csrf(
-                "/live",
-                get(template_handler).with_state(template_handler_state.clone()),
-            )
+            .route_user_no_csrf("/live", get(template_handler).with_state(templater.clone()))
             // Recordings page.
             .route_user_no_csrf(
                 "/recordings",
-                get(template_handler).with_state(template_handler_state.clone()),
+                get(template_handler).with_state(templater.clone()),
             )
             // Settings page.
             .route_admin_no_csrf(
                 "/settings",
-                get(template_handler).with_state(template_handler_state.clone()),
+                get(template_handler).with_state(templater.clone()),
             )
             // Logs page.
-            .route_admin_no_csrf(
-                "/logs",
-                get(template_handler).with_state(template_handler_state.clone()),
-            )
+            .route_admin_no_csrf("/logs", get(template_handler).with_state(templater.clone()))
             // Assets.
             .route_user_no_csrf(
                 "/assets/{*file}",
@@ -285,7 +275,9 @@ impl App {
             // Account.
             .route_admin(
                 "/api/account",
-                delete(account_delete_handler).put(account_put_handler),
+                delete(account_delete_handler)
+                    .put(account_put_handler)
+                    .with_state(self.auth.clone()),
             )
             // Account token.
             .route_user_no_csrf("/api/account/my-token", get(account_my_token_handler))

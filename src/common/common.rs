@@ -548,7 +548,7 @@ pub struct AccountObfuscated {
 #[async_trait]
 pub trait Authenticator {
     // ValidateRequest validates raw http requests.
-    async fn validate_request(&self, req: &HeaderMap<HeaderValue>) -> Option<ValidateResponse>;
+    async fn validate_request(&self, req: &HeaderMap<HeaderValue>) -> ValidateResponse;
 
     // Returns obfuscated account map.
     async fn accounts(&self) -> AccountsMap;
@@ -627,17 +627,13 @@ pub struct Account {
     pub token: String,
 }
 
-#[derive(Clone)]
-pub struct ValidateResponse {
-    pub is_admin: bool,
-    pub token: String,
-    pub token_valid: bool,
-}
+pub type ValidateResponse = Option<AuthenticatedUser>;
 
-#[derive(Clone)]
-pub struct ValidateLoginResponse {
+#[derive(Clone, Debug)]
+pub struct AuthenticatedUser {
     pub is_admin: bool,
-    pub token: String,
+    pub stored_token: String,
+    pub token_valid: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

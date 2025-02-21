@@ -7,8 +7,8 @@ use argon2::{
 use async_trait::async_trait;
 use common::{
     Account, AccountId, AccountObfuscated, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger,
-    AuthAccountDeleteError, AuthAccountSetError, AuthSaveToFileError, Authenticator, LogSource,
-    ValidateResponse,
+    AuthAccountDeleteError, AuthAccountSetError, AuthSaveToFileError, AuthenticatedUser,
+    Authenticator, LogSource, ValidateResponse,
 };
 use http::{HeaderMap, HeaderValue};
 use plugin::{
@@ -108,10 +108,10 @@ impl NoneAuth {
 
 #[async_trait]
 impl Authenticator for NoneAuth {
-    async fn validate_request(&self, _: &HeaderMap<HeaderValue>) -> Option<ValidateResponse> {
-        Some(ValidateResponse {
+    async fn validate_request(&self, _: &HeaderMap<HeaderValue>) -> ValidateResponse {
+        Some(AuthenticatedUser {
             is_admin: true,
-            token: self.csrf_token.clone(),
+            stored_token: self.csrf_token.clone(),
             token_valid: true,
         })
     }

@@ -10,16 +10,16 @@ use axum::{
     extract::{Path, Query, State, WebSocketUpgrade},
     http::{header, HeaderMap, Method, StatusCode, Uri},
     response::{IntoResponse, Response},
-    Json,
+    Extension, Json,
 };
 use common::{
     monitor::{ArcMonitorManager, MonitorConfig, MonitorConfigs, MonitorDeleteError},
     recording::RecordingId,
-    AccountId, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger, AuthAccountDeleteError, ILogger,
-    LogEntry, LogLevel, MonitorId,
+    AccountId, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger, AuthAccountDeleteError,
+    AuthenticatedUser, ILogger, LogEntry, LogLevel, MonitorId,
 };
 use hls::{HlsQuery, HlsServer};
-use http::{HeaderValue, Request};
+use http::HeaderValue;
 use log::{
     log_db::{LogDbHandle, LogQuery},
     Logger,
@@ -36,37 +36,28 @@ use tokio_util::io::ReaderStream;
 use vod::{CreateVodReaderError, VodCache, VodQuery, VodReader};
 use web::{serve_mp4_content, Templater};
 
-#[derive(Clone)]
-pub struct TemplateHandlerState<'a> {
-    pub templater: Arc<Templater<'a>>,
-    pub auth: ArcAuth,
-}
-
 pub async fn template_handler(
+    Extension(user): Extension<AuthenticatedUser>,
+    State(templater): State<Arc<Templater<'_>>>,
     uri: Uri,
-    headers: HeaderMap,
-    State(s): State<TemplateHandlerState<'_>>,
 ) -> Response {
     let path = uri.to_string();
     let path = path.strip_prefix('/').unwrap_or(&path);
 
     let log = |msg: String| {
-        s.templater
+        templater
             .logger()
             .log(LogEntry::new(LogLevel::Info, "app", None, msg));
     };
 
-    let Some(template) = s.templater.get_template(path) else {
+    let Some(template) = templater.get_template(path) else {
         log(format!("handle_templates: get template for path: {path}"));
         return (StatusCode::INTERNAL_SERVER_ERROR, "template does not exist").into_response();
     };
 
-    let (is_admin, token) = match s.auth.validate_request(&headers).await {
-        Some(valid_login) => (valid_login.is_admin, valid_login.token),
-        None => (false, String::new()),
-    };
-
-    let data = s.templater.get_data(path.to_owned(), is_admin, token).await;
+    let data = templater
+        .get_data(path.to_owned(), user.is_admin, user.stored_token)
+        .await;
 
     match template.render(data).to_string() {
         Ok(content) => (
@@ -306,14 +297,8 @@ pub async fn accounts_handler(State(auth): State<ArcAuth>) -> Json<AccountsMap> 
     Json(auth.accounts().await)
 }
 
-pub async fn account_my_token_handler(
-    State(auth): State<ArcAuth>,
-    request: Request<Body>,
-) -> Response {
-    match auth.validate_request(request.headers()).await {
-        Some(res) => res.token.into_response(),
-        None => (StatusCode::UNAUTHORIZED).into_response(),
-    }
+pub async fn account_my_token_handler(Extension(user): Extension<AuthenticatedUser>) -> Response {
+    user.stored_token.into_response()
 }
 
 #[derive(Clone)]

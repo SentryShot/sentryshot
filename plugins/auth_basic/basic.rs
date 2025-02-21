@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use axum::{extract::State, response::IntoResponse, routing::get};
 use common::{
     Account, AccountId, AccountObfuscated, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger,
-    AuthAccountDeleteError, AuthAccountSetError, AuthSaveToFileError, Authenticator, LogEntry,
-    LogLevel, LogSource, Username, ValidateLoginResponse, ValidateResponse,
+    AuthAccountDeleteError, AuthAccountSetError, AuthSaveToFileError, AuthenticatedUser,
+    Authenticator, LogEntry, LogLevel, LogSource, Username, ValidateResponse,
 };
 use headers::authorization::{Basic, Credentials};
 use http::{header, HeaderMap, HeaderValue, StatusCode};
@@ -165,7 +165,7 @@ impl BasicAuth {
         {
             let response = Some(ValidateLoginResponse {
                 is_admin: account.is_admin,
-                token: account.token,
+                stored_token: account.token,
             });
             // Only cache valid responses.
             self.data
@@ -198,9 +198,15 @@ impl BasicAuth {
     }
 }
 
+#[derive(Clone)]
+pub struct ValidateLoginResponse {
+    pub is_admin: bool,
+    pub stored_token: String,
+}
+
 #[async_trait]
 impl Authenticator for BasicAuth {
-    async fn validate_request(&self, headers: &HeaderMap<HeaderValue>) -> Option<ValidateResponse> {
+    async fn validate_request(&self, headers: &HeaderMap<HeaderValue>) -> ValidateResponse {
         let Some(valid_login) = self.validate_login(headers).await else {
             return None;
         };
@@ -212,12 +218,12 @@ impl Authenticator for BasicAuth {
             let Ok(csrf_string) = csrf_header.to_str() else {
                 return false;
             };
-            csrf_string == valid_login.token
+            csrf_string == valid_login.stored_token
         };
 
-        Some(ValidateResponse {
+        Some(AuthenticatedUser {
             is_admin: valid_login.is_admin,
-            token: valid_login.token.clone(),
+            stored_token: valid_login.stored_token.clone(),
             token_valid: token_matches(),
         })
     }

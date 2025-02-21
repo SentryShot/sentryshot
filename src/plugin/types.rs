@@ -6,10 +6,10 @@ use axum::{
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::MethodRouter,
+    Extension,
 };
-use common::{ArcAuth, ArcLogger, Username};
+use common::{ArcAuth, ArcLogger, AuthenticatedUser};
 use http::{header, Request, StatusCode};
-use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, path::Path};
 use thiserror::Error;
 use tokio::runtime::Handle;
@@ -34,33 +34,6 @@ pub enum NewAuthError {
 pub type NewAuthFn =
     fn(rt_handle: Handle, configs_dir: &Path, logger: ArcLogger) -> Result<ArcAuth, NewAuthError>;
 
-/// Main account definition.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Account {
-    pub id: String,
-    pub username: Username,
-    pub password: String, // Hashed password PHC string.
-
-    #[serde(rename = "isAdmin")]
-    pub is_admin: bool,
-
-    #[serde(skip)]
-    pub token: String,
-}
-
-#[derive(Clone)]
-pub struct ValidateResponse {
-    pub is_admin: bool,
-    pub token: String,
-    pub token_valid: bool,
-}
-
-#[derive(Clone)]
-pub struct ValidateLoginResponse {
-    pub is_admin: bool,
-    pub token: String,
-}
-
 pub type Assets<'a> = HashMap<String, Cow<'a, [u8]>>;
 pub type Templates<'a> = HashMap<&'a str, String>;
 
@@ -73,53 +46,41 @@ fn unauthorized() -> Response {
         .into_response()
 }
 
-// Blocks unauthenticated requests.
-async fn user_middleware(
+async fn block_unauthenticted_requests_middleware(
     State(auth): State<ArcAuth>,
-    request: Request<Body>,
+    mut request: Request<Body>,
     next: Next,
 ) -> Response {
-    let is_valid_user = auth.validate_request(request.headers()).await.is_some();
-    if !is_valid_user {
+    let Some(valid_login) = auth.validate_request(request.headers()).await else {
         return unauthorized();
-    }
+    };
+    request.extensions_mut().insert(valid_login);
     next.run(request).await
 }
 
-// Only allows authenticated requests from accounts with admin privileges.
-async fn admin_middleware(
-    State(auth): State<ArcAuth>,
+async fn block_non_admins_middleware(
+    Extension(valid_login): Extension<AuthenticatedUser>,
     request: Request<Body>,
     next: Next,
 ) -> Response {
-    match auth.validate_request(request.headers()).await {
-        Some(valid_login) => {
-            if !valid_login.is_admin {
-                return unauthorized();
-            }
-        }
-        None => return unauthorized(),
+    if valid_login.is_admin {
+        next.run(request).await
+    } else {
+        unauthorized()
     }
-    next.run(request).await
 }
 
 // Blocks invalid Cross-site request forgery tokens.
 // Each account has a unique token. The request needs to
 // have a matching token in the "X-CSRF-TOKEN" header.
-async fn csrf_middleware(
-    State(auth): State<ArcAuth>,
+async fn block_invalid_csrf_middleware(
+    Extension(valid_login): Extension<AuthenticatedUser>,
     request: Request<Body>,
     next: Next,
 ) -> Response {
-    let valid_login = auth
-        .validate_request(request.headers())
-        .await
-        .expect("someone put the csrf middleware in the wrong order");
-
     if !valid_login.token_valid {
         return (StatusCode::UNAUTHORIZED, "Invalid CSRF-token").into_response();
     }
-
     next.run(request).await
 }
 
@@ -136,50 +97,46 @@ impl Router {
     }
 
     #[must_use]
-    pub fn route_admin(mut self, path: &str, method_router: MethodRouter<ArcAuth>) -> Self {
+    pub fn route_admin(mut self, path: &str, method_router: MethodRouter<()>) -> Self {
         self.router = self.router.route(
             path,
-            method_router
-                .route_layer(
-                    ServiceBuilder::new()
-                        .layer(middleware::from_fn_with_state(
-                            self.auth.clone(),
-                            admin_middleware,
-                        ))
-                        .layer(middleware::from_fn_with_state(
-                            self.auth.clone(),
-                            csrf_middleware,
-                        )),
-                )
-                .with_state(self.auth.clone()),
+            method_router.layer(
+                ServiceBuilder::new()
+                    .layer(middleware::from_fn_with_state(
+                        self.auth.clone(),
+                        block_unauthenticted_requests_middleware,
+                    ))
+                    .layer(middleware::from_fn(block_non_admins_middleware))
+                    .layer(middleware::from_fn(block_invalid_csrf_middleware)),
+            ),
         );
         self
     }
 
     #[must_use]
-    pub fn route_admin_no_csrf(mut self, path: &str, method_router: MethodRouter<ArcAuth>) -> Self {
+    pub fn route_admin_no_csrf(mut self, path: &str, method_router: MethodRouter<()>) -> Self {
         self.router = self.router.route(
             path,
-            method_router
-                .layer(middleware::from_fn_with_state(
-                    self.auth.clone(),
-                    admin_middleware,
-                ))
-                .with_state(self.auth.clone()),
+            method_router.layer(
+                ServiceBuilder::new()
+                    .layer(middleware::from_fn_with_state(
+                        self.auth.clone(),
+                        block_unauthenticted_requests_middleware,
+                    ))
+                    .layer(middleware::from_fn(block_non_admins_middleware)),
+            ),
         );
         self
     }
 
     #[must_use]
-    pub fn route_user_no_csrf(mut self, path: &str, method_router: MethodRouter<ArcAuth>) -> Self {
+    pub fn route_user_no_csrf(mut self, path: &str, method_router: MethodRouter<()>) -> Self {
         self.router = self.router.route(
             path,
-            method_router
-                .layer(middleware::from_fn_with_state(
-                    self.auth.clone(),
-                    user_middleware,
-                ))
-                .with_state(self.auth.clone()),
+            method_router.layer(middleware::from_fn_with_state(
+                self.auth.clone(),
+                block_unauthenticted_requests_middleware,
+            )),
         );
         self
     }
