@@ -93,6 +93,7 @@ impl Helper {
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(0),
+            0,
         )
         .unwrap();
 

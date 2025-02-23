@@ -131,6 +131,7 @@ impl App {
             log_dir,
             env.max_disk_usage(),
             ByteSize::mb(100),
+            1024,
         )?);
 
         {

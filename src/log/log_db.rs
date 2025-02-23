@@ -9,6 +9,7 @@ use csv::{deserialize_csv_option, deserialize_csv_option2};
 use serde::Deserialize;
 use std::{
     cmp::Ordering,
+    collections::VecDeque,
     io::SeekFrom,
     num::NonZeroUsize,
     path::{Path, PathBuf},
@@ -125,6 +126,9 @@ pub struct LogDb {
     disk_space: ByteSize,
     min_disk_usage: ByteSize,
 
+    cache: VecDeque<LogEntryWithTime>,
+    cache_size: usize,
+
     _shutdown_complete: mpsc::Sender<()>,
 }
 
@@ -141,6 +145,7 @@ impl LogDb {
         log_dir: PathBuf,
         disk_space: ByteSize,
         min_disk_usage: ByteSize,
+        cache_size: usize,
     ) -> Result<LogDbHandle, NewLogDbError> {
         std::fs::create_dir_all(&log_dir)
             .map_err(|e| NewLogDbError::MakeLogDir(log_dir.to_string_lossy().to_string(), e))?;
@@ -151,6 +156,8 @@ impl LogDb {
             prev_entry_time: UnixMicro::new(0),
             disk_space,
             min_disk_usage,
+            cache: VecDeque::new(),
+            cache_size,
             _shutdown_complete: shutdown_complete,
         })))
     }
@@ -181,28 +188,64 @@ impl LogDb {
                 .ok_or(SaveLogError::IncrementPrevTime)?;
         }
 
-        encoder.encode(&entry).await?;
+        encoder.write(&entry).await?;
+
+        self.cache_push(entry.clone());
 
         self.prev_entry_time = entry.time;
 
         Ok(())
     }
 
-    // Query logs in database.
+    fn cache_push(&mut self, entry: LogEntryWithTime) {
+        self.cache.push_front(entry);
+        if self.cache.len() > self.cache_size {
+            self.cache.pop_back();
+        }
+    }
+
     async fn query(&self, mut q: LogQuery) -> Result<Vec<LogEntryWithTime>, QueryLogsError> {
+        let mut entries = Vec::new();
+        self.query_cache(&mut q, &mut entries);
+        self.query_db(q, &mut entries).await?;
+        Ok(entries)
+    }
+
+    fn query_cache(&self, q: &mut LogQuery, entries: &mut Vec<LogEntryWithTime>) {
+        for entry in &self.cache {
+            if let Some(time) = q.time {
+                if entry.time >= time {
+                    continue;
+                }
+            }
+            if !q.entry_matches_filter(entry) {
+                continue;
+            }
+            entries.push(entry.clone());
+            q.time = Some(entry.time);
+            if let Some(limit) = q.limit {
+                if entries.len() >= limit.get() {
+                    return;
+                }
+            }
+        }
+    }
+
+    async fn query_db(
+        &self,
+        mut q: LogQuery,
+        entries: &mut Vec<LogEntryWithTime>,
+    ) -> Result<(), QueryLogsError> {
         let chunk_ids = self.list_chunks_before(q.time).await?;
 
-        let mut entries = Vec::new();
-        //for i := len(chunkIDs) - 1; i >= 0; i-- {
         for chunk_id in chunk_ids.iter().rev() {
-            if let Err(e) = self.query_chunk(&q, &mut entries, chunk_id).await {
+            if let Err(e) = self.query_chunk(&q, entries, chunk_id).await {
                 eprintln!("log store warning: {e}");
             }
             // Time is only relevant for the first iteration.
             q.time = None;
         }
-
-        Ok(entries)
+        Ok(())
     }
 
     async fn query_chunk(
@@ -594,7 +637,15 @@ impl ChunkDecoder {
         let (mut l, mut r) = (0, self.n_entries - 1);
         while l <= r {
             let i = (l + r) / 2;
-            let (entry, _) = self.decode(i).await?;
+            let entry = match self.decode(i).await {
+                Ok((v, _)) => v,
+                Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
+                    r -= 1;
+                    eprintln!("logdb: search: decode error: {e}");
+                    continue;
+                }
+                Err(e) => return Err(DecoderSearchError::Decode(e)),
+            };
 
             match entry.time.cmp(&time) {
                 Ordering::Less => l = i + 1,
@@ -891,9 +942,9 @@ impl ChunkEncoder {
         ))
     }
 
-    async fn encode(&mut self, entry: &LogEntryWithTime) -> Result<(), EncodeError> {
+    async fn write(&mut self, entry: &LogEntryWithTime) -> Result<(), EncodeError> {
         let mut buf = Vec::with_capacity(DATA_SIZE);
-        encode_entry(&mut buf, entry, &mut self.msg_file, &mut self.msg_pos).await?;
+        write_entry(&mut buf, entry, &mut self.msg_file, &mut self.msg_pos).await?;
 
         self.data_file
             .write_all(&buf)
@@ -933,10 +984,10 @@ enum EncodeEntryError {
     Add,
 }
 
-async fn encode_entry(
-    buf: &mut (impl AsyncWrite + Unpin),
+async fn write_entry<T: AsyncWrite + Unpin, T2: AsyncWrite + Unpin>(
+    buf: &mut T,
     entry: &LogEntryWithTime,
-    msg_file: &mut (impl AsyncWrite + Unpin),
+    msg_file: &mut T2,
     msg_offset: &mut u32,
 ) -> Result<(), EncodeEntryError> {
     use EncodeEntryError::*;
@@ -1096,6 +1147,7 @@ mod tests {
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(0),
+            2,
         )
         .unwrap()
     }
@@ -1557,6 +1609,7 @@ mod tests {
             new_dir.clone(),
             ByteSize(0),
             ByteSize(0),
+            0,
         )
         .unwrap();
 
@@ -1581,7 +1634,7 @@ mod tests {
         let mut msg_buf = Cursor::new(Vec::new());
         let mut msg_pos = 0;
 
-        encode_entry(&mut buf, &test_entry(), &mut msg_buf, &mut msg_pos)
+        write_entry(&mut buf, &test_entry(), &mut msg_buf, &mut msg_pos)
             .await
             .unwrap();
 
@@ -1612,7 +1665,7 @@ mod tests {
 
         msg_buf.seek(SeekFrom::Start(10)).await.unwrap();
 
-        encode_entry(&mut buf, &test_entry(), &mut msg_buf, &mut msg_pos)
+        write_entry(&mut buf, &test_entry(), &mut msg_buf, &mut msg_pos)
             .await
             .unwrap();
 
@@ -1680,6 +1733,7 @@ mod tests {
             log_dir.to_owned(),
             ByteSize::kb(10),
             ByteSize(0),
+            0,
         )
         .unwrap();
 
@@ -1714,6 +1768,7 @@ mod tests {
             log_dir.to_owned(),
             ByteSize::kb(10),
             ByteSize(0),
+            0,
         )
         .unwrap();
 
@@ -1740,6 +1795,7 @@ mod tests {
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(100),
+            0,
         )
         .unwrap();
 
@@ -1766,6 +1822,7 @@ mod tests {
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(0),
+            0,
         )
         .unwrap();
 
@@ -1810,6 +1867,8 @@ mod tests {
             disk_space: ByteSize(0),
             min_disk_usage: ByteSize(0),
             _shutdown_complete: shutdown_complete,
+            cache: VecDeque::new(),
+            cache_size: 0,
         };
         db.list_chunks().await.unwrap().len()
     }
