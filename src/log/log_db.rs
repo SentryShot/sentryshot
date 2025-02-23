@@ -232,7 +232,7 @@ impl LogDb {
                 }
             }
 
-            let entry = match decoder.decode(i).await {
+            let entry = match decoder.decode_lazy(i).await {
                 Ok((v, _)) => v,
                 Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
                     let (data_path, _) = chunk_id_to_paths(&self.log_dir, chunk_id);
@@ -245,6 +245,14 @@ impl LogDb {
             if !q.entry_matches_filter(&entry) {
                 continue;
             }
+            let entry = match entry.finalize().await {
+                Ok(v) => v,
+                Err(e) => {
+                    let (data_path, _) = chunk_id_to_paths(&self.log_dir, chunk_id);
+                    eprintln!("log store warning: {data_path:?} {e}");
+                    continue;
+                }
+            };
 
             match time_to_id(entry.time) {
                 Ok(entry_chunk_id) => {
@@ -417,12 +425,41 @@ pub struct LogQuery {
     pub limit: Option<NonZeroUsize>,
 }
 
+pub struct LevelSourceMonitorId<'a> {
+    level: LogLevel,
+    source: &'a LogSource,
+    monitor_id: Option<&'a MonitorId>,
+}
+
+impl<'a> From<&'a LogEntryWithTime> for LevelSourceMonitorId<'a> {
+    fn from(entry: &'a LogEntryWithTime) -> Self {
+        LevelSourceMonitorId {
+            level: entry.level,
+            source: &entry.source,
+            monitor_id: entry.monitor_id.as_ref(),
+        }
+    }
+}
+
+impl<'a, T: AsyncRead + AsyncSeek + Unpin> From<&'a LazyLogEntryWithTime<'_, T>>
+    for LevelSourceMonitorId<'a>
+{
+    fn from(entry: &'a LazyLogEntryWithTime<'_, T>) -> Self {
+        LevelSourceMonitorId {
+            level: entry.level,
+            source: &entry.source,
+            monitor_id: entry.monitor_id.as_ref(),
+        }
+    }
+}
+
 impl LogQuery {
     #[must_use]
-    pub fn entry_matches_filter(&self, entry: &LogEntryWithTime) -> bool {
+    pub fn entry_matches_filter<'a, T: Into<LevelSourceMonitorId<'a>>>(&self, entry: T) -> bool {
+        let entry = entry.into();
         level_in_levels(entry.level, &self.levels)
-            && source_in_souces(&entry.source, &self.sources)
-            && monitor_id_in_monitor_ids(&entry.monitor_id, &self.monitors)
+            && source_in_souces(entry.source, &self.sources)
+            && monitor_id_in_monitor_ids(entry.monitor_id, &self.monitors)
     }
 }
 
@@ -437,7 +474,7 @@ fn source_in_souces(source: &LogSource, sources: &[LogSource]) -> bool {
 }
 
 // Returns true if monitor_id is in monitors or if monitor_ids is empty.
-fn monitor_id_in_monitor_ids(monitor_id: &Option<MonitorId>, monitors_ids: &[MonitorId]) -> bool {
+fn monitor_id_in_monitor_ids(monitor_id: Option<&MonitorId>, monitors_ids: &[MonitorId]) -> bool {
     let Some(monitor_id) = monitor_id else {
         return true;
     };
@@ -590,6 +627,65 @@ impl ChunkDecoder {
         decode_entry(&raw_entry, &mut self.msg_file)
             .await
             .map_err(|e| RecoverableDecodeEntry(index, entry_pos, e))
+    }
+
+    async fn decode_lazy(
+        &mut self,
+        index: usize,
+    ) -> Result<(LazyLogEntryWithTime<RevBufReader<File>>, u32), DecodeError> {
+        use DecodeError::*;
+        let index = u64::try_from(index)?;
+        let data_size_u64 = u64::try_from(DATA_SIZE)?;
+        let entry_pos: u64 = CHUNK_HEADER_LENGTH
+            .checked_add(index.checked_mul(data_size_u64).ok_or(Mul)?)
+            .ok_or(Add)?;
+
+        self.data_file
+            .seek(SeekFrom::Start(entry_pos))
+            .await
+            .map_err(Seek)?;
+
+        let mut raw_entry = [0; DATA_SIZE];
+        self.data_file
+            .read_exact(&mut raw_entry)
+            .await
+            .map_err(Read)?;
+
+        decode_entry_lazy(&raw_entry, &mut self.msg_file)
+            .map_err(|e| RecoverableDecodeEntry(index, entry_pos, e))
+    }
+}
+
+#[derive(Debug)]
+struct LazyLogEntryWithTime<'a, T: AsyncRead + AsyncSeek + Unpin> {
+    level: LogLevel,
+    source: LogSource,
+    monitor_id: Option<MonitorId>,
+    time: UnixMicro,
+
+    msg_file: &'a mut T,
+    msg_offset: u32,
+    msg_size: u16,
+}
+
+impl<T: AsyncRead + AsyncSeek + Unpin> LazyLogEntryWithTime<'_, T> {
+    async fn finalize(self) -> Result<LogEntryWithTime, RecoverableDecodeEntryError> {
+        use RecoverableDecodeEntryError::*;
+        self.msg_file
+            .seek(SeekFrom::Start(self.msg_offset.into()))
+            .await
+            .map_err(Seek)?;
+
+        let mut msg_buf = vec![0; self.msg_size.into()];
+        self.msg_file.read_exact(&mut msg_buf).await.map_err(Read)?;
+        let message = String::from_utf8(msg_buf)?.try_into()?;
+        Ok(LogEntryWithTime {
+            level: self.level,
+            source: self.source,
+            monitor_id: self.monitor_id,
+            message,
+            time: self.time,
+        })
     }
 }
 
@@ -918,12 +1014,19 @@ enum RecoverableDecodeEntryError {
     ParseLogMessage(#[from] ParseLogMessageError),
 }
 
-async fn decode_entry<T: AsyncRead + AsyncSeek + Unpin>(
+async fn decode_entry<'a, T: AsyncRead + AsyncSeek + Unpin>(
     buf: &[u8; DATA_SIZE],
-    msg_file: &mut T,
+    msg_file: &'a mut T,
 ) -> Result<(LogEntryWithTime, u32), RecoverableDecodeEntryError> {
-    use RecoverableDecodeEntryError::*;
+    let (entry, msg_offset) = decode_entry_lazy(buf, msg_file)?;
+    let entry = entry.finalize().await?;
+    Ok((entry, msg_offset))
+}
 
+fn decode_entry_lazy<'a, T: AsyncRead + AsyncSeek + Unpin>(
+    buf: &[u8; DATA_SIZE],
+    msg_file: &'a mut T,
+) -> Result<(LazyLogEntryWithTime<'a, T>, u32), RecoverableDecodeEntryError> {
     let time = u64::from_be_bytes(buf[..8].try_into()?);
     let source = String::from_utf8(buf[8..16].to_owned())?;
     let monitor_id = String::from_utf8(buf[16..40].to_owned())?;
@@ -932,29 +1035,21 @@ async fn decode_entry<T: AsyncRead + AsyncSeek + Unpin>(
     let msg_size = u16::from_be_bytes(buf[44..46].try_into()?);
     let level = buf[46].to_owned();
 
-    msg_file
-        .seek(SeekFrom::Start(msg_offset.into()))
-        .await
-        .map_err(Seek)?;
-
-    let mut msg_buf = vec![0; msg_size.into()];
-    msg_file.read_exact(&mut msg_buf).await.map_err(Read)?;
-
-    let monitor_id = {
-        if monitor_id.is_empty() {
-            None
-        } else {
-            Some(monitor_id.to_owned().try_into()?)
-        }
+    let monitor_id = if monitor_id.is_empty() {
+        None
+    } else {
+        Some(monitor_id.to_owned().try_into()?)
     };
 
     Ok((
-        LogEntryWithTime {
+        LazyLogEntryWithTime {
             time: UnixMicro::new(time),
             source: source.trim().to_owned().try_into()?,
             monitor_id,
             level: LogLevel::try_from(level)?,
-            message: String::from_utf8(msg_buf)?.try_into()?,
+            msg_file,
+            msg_offset,
+            msg_size,
         },
         msg_offset,
     ))
