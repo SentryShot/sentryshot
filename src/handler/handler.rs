@@ -383,7 +383,7 @@ pub async fn log_feed_handler(
 }
 
 pub async fn log_query_handler(
-    State(log_db): State<Arc<LogDbHandle>>,
+    State(log_db): State<LogDbHandle>,
     query: Query<LogQuery>,
 ) -> Response {
     match log_db.query(query.0).await {

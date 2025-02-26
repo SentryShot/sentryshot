@@ -1,5 +1,7 @@
 ## unreleased
 
+-	several log database optimizations
+
 ## `v0.2.22`
 
 -	update retina to fix v380 pro #42

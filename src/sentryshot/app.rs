@@ -103,7 +103,7 @@ pub struct App {
     logger: Arc<Logger>,
     shutdown_complete_tx: mpsc::Sender<()>,
     shutdown_complete_rx: mpsc::Receiver<()>,
-    log_db: Arc<LogDbHandle>,
+    log_db: LogDbHandle,
     auth: ArcAuth,
     hls_server: Arc<HlsServer>,
     monitor_manager: ArcMonitorManager,
@@ -126,13 +126,15 @@ impl App {
         let logger = Arc::new(Logger::new(pre_loaded_plugins.log_sources().to_owned()));
 
         let log_dir = env.storage_dir().join("logs");
-        let log_db = Arc::new(LogDb::new(
+        let log_db = LogDb::new(
+            token.child_token(),
             shutdown_complete_tx.clone(),
             log_dir,
             env.max_disk_usage(),
             ByteSize::mb(100),
+            10000,
             1024,
-        )?);
+        )?;
 
         {
             let log_db2 = log_db.clone();

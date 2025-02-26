@@ -15,15 +15,16 @@ use rand_chacha::ChaCha8Rng;
 use std::{num::NonZeroUsize, path::Path};
 use tempfile::tempdir;
 use tokio::{
-    runtime::Runtime,
+    runtime::{Handle, Runtime},
     sync::{mpsc, RwLock},
 };
+use tokio_util::sync::CancellationToken;
 
 pub fn logdb_insert(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let temp_dir = tempdir().unwrap();
-    let h = RwLock::new(Helper::new(temp_dir.path()));
+    let h = RwLock::new(Helper::new(rt.handle(), temp_dir.path()));
     c.bench_with_input(BenchmarkId::new("insert", ""), &h, |b, h| {
         b.to_async(&rt).iter(|| async {
             let entry = h.write().await.random_entry();
@@ -36,7 +37,7 @@ pub fn logdb_query(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let temp_dir = tempdir().unwrap();
-    let mut h = Helper::new(temp_dir.path());
+    let mut h = Helper::new(rt.handle(), temp_dir.path());
 
     let h = rt.block_on(async {
         for _ in 0..100_000 {
@@ -79,6 +80,7 @@ criterion_group!(benches, logdb_insert, logdb_query);
 criterion_main!(benches);
 
 struct Helper {
+    _token: CancellationToken,
     db: LogDbHandle,
     rng: ChaCha8Rng,
     count: u64,
@@ -86,13 +88,17 @@ struct Helper {
 }
 
 impl Helper {
-    fn new(log_dir: &Path) -> Self {
+    fn new(rt_handle: &Handle, log_dir: &Path) -> Self {
+        let token = CancellationToken::new();
         let (shutdown_complete_tx, _) = mpsc::channel::<()>(1);
+        let _enter = rt_handle.enter();
         let db = LogDb::new(
+            token.child_token(),
             shutdown_complete_tx,
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(0),
+            0,
             0,
         )
         .unwrap();
@@ -101,6 +107,7 @@ impl Helper {
         let identical_msg = Alphanumeric.sample_string(&mut rng, 26);
 
         Self {
+            _token: token,
             db,
             rng,
             count: 0,

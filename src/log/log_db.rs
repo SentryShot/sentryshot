@@ -53,8 +53,9 @@ const CHUNK_HEADER_LENGTH: u64 = 1;
 
 const DATA_SIZE: usize = 47;
 
+#[derive(Clone)]
 #[allow(clippy::module_name_repetitions)]
-pub struct LogDbHandle(Mutex<LogDb>);
+pub struct LogDbHandle(Arc<Mutex<LogDb>>);
 
 impl LogDbHandle {
     pub async fn save_log_testing(&self, entry: LogEntryWithTime) {
@@ -127,8 +128,10 @@ pub struct LogDb {
     min_disk_usage: ByteSize,
 
     cache: VecDeque<LogEntryWithTime>,
-    cache_size: usize,
+    cache_capacity: usize,
+    write_buf_capacify: usize,
 
+    stopping: bool,
     _shutdown_complete: mpsc::Sender<()>,
 }
 
@@ -141,44 +144,75 @@ pub enum NewLogDbError {
 impl LogDb {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(
+        token: CancellationToken,
         shutdown_complete: mpsc::Sender<()>,
         log_dir: PathBuf,
         disk_space: ByteSize,
         min_disk_usage: ByteSize,
-        cache_size: usize,
+        cache_capacity: usize,
+        write_buf_capacify: usize,
     ) -> Result<LogDbHandle, NewLogDbError> {
+        assert!(cache_capacity >= write_buf_capacify);
         std::fs::create_dir_all(&log_dir)
             .map_err(|e| NewLogDbError::MakeLogDir(log_dir.to_string_lossy().to_string(), e))?;
 
-        Ok(LogDbHandle(Mutex::new(Self {
+        let handle = LogDbHandle(Arc::new(Mutex::new(Self {
             log_dir,
             encoder: None,
             prev_entry_time: UnixMicro::new(0),
             disk_space,
             min_disk_usage,
-            cache: VecDeque::new(),
-            cache_size,
+            cache: VecDeque::with_capacity(cache_capacity),
+            cache_capacity,
+            write_buf_capacify,
+            stopping: false,
             _shutdown_complete: shutdown_complete,
-        })))
+        })));
+
+        let handle2 = handle.clone();
+        tokio::spawn(async move {
+            token.cancelled().await;
+
+            let mut db = handle2.0.lock().await;
+            db.stopping = true;
+            if let Some(encoder) = db.encoder.take() {
+                match encoder.flush().await {
+                    Ok(encoder) => db.encoder = Some(encoder),
+                    Err(e) => eprintln!("logdb: cancelled: flush: {e}"),
+                }
+            }
+        });
+
+        Ok(handle)
     }
 
     async fn save_log(&mut self, mut entry: LogEntryWithTime) -> Result<(), SaveLogError> {
+        // Get encoder.
         let chunk_id = time_to_id(entry.time)?;
-
-        let encoder = if let Some(encoder) = &mut self.encoder {
+        let encoder = if let Some(encoder) = self.encoder.take() {
+            // If entry belongs to chunk tied to this encoder.
             if chunk_id == encoder.chunk_id {
                 encoder
             } else {
+                // Flush and replace encoder.
+                if let Err(e) = encoder.flush().await {
+                    eprintln!("logdb: save log: flush: {e}");
+                }
                 let (encoder, prev_entry_time) =
-                    ChunkEncoder::new(self.log_dir.clone(), chunk_id).await?;
-                self.prev_entry_time = prev_entry_time;
-                self.encoder.insert(encoder)
+                    ChunkEncoder::new(self.log_dir.clone(), chunk_id, self.write_buf_capacify)
+                        .await?;
+                // This should only be true if the system clock was rewined at some point.
+                if self.prev_entry_time < prev_entry_time {
+                    self.prev_entry_time = prev_entry_time;
+                }
+                encoder
             }
         } else {
+            // Encoder was None.
             let (encoder, prev_entry_time) =
-                ChunkEncoder::new(self.log_dir.clone(), chunk_id).await?;
+                ChunkEncoder::new(self.log_dir.clone(), chunk_id, self.write_buf_capacify).await?;
             self.prev_entry_time = prev_entry_time;
-            self.encoder.insert(encoder)
+            encoder
         };
 
         if entry.time <= self.prev_entry_time {
@@ -188,7 +222,7 @@ impl LogDb {
                 .ok_or(SaveLogError::IncrementPrevTime)?;
         }
 
-        encoder.write(&entry).await?;
+        self.encoder = Some(encoder.write_entry(&entry, self.stopping).await?);
 
         self.cache_push(entry.clone());
 
@@ -198,10 +232,14 @@ impl LogDb {
     }
 
     fn cache_push(&mut self, entry: LogEntryWithTime) {
-        self.cache.push_front(entry);
-        if self.cache.len() > self.cache_size {
+        if self.cache_capacity == 0 {
+            return;
+        }
+        assert!(self.cache.len() <= self.cache_capacity);
+        if self.cache.len() == self.cache_capacity {
             self.cache.pop_back();
         }
+        self.cache.push_front(entry);
     }
 
     async fn query(&self, mut q: LogQuery) -> Result<Vec<LogEntryWithTime>, QueryLogsError> {
@@ -236,6 +274,12 @@ impl LogDb {
         mut q: LogQuery,
         entries: &mut Vec<LogEntryWithTime>,
     ) -> Result<(), QueryLogsError> {
+        if let Some(limit) = q.limit {
+            if entries.len() >= limit.get() {
+                return Ok(());
+            }
+        }
+
         let chunk_ids = self.list_chunks_before(q.time).await?;
 
         for chunk_id in chunk_ids.iter().rev() {
@@ -257,10 +301,12 @@ impl LogDb {
         let mut decoder = ChunkDecoder::new(&self.log_dir, chunk_id).await?;
 
         let entry_index = {
-            if let Some(time) = q.time {
-                decoder.search(time).await?
-            } else if let Some(last_index) = decoder.last_index() {
-                last_index + 1
+            if let Some(last_index) = decoder.last_index() {
+                if let Some(time) = q.time {
+                    decoder.search(time).await?
+                } else {
+                    last_index + 1
+                }
             } else {
                 // Chunk is empty.
                 return Ok(());
@@ -634,10 +680,11 @@ impl ChunkDecoder {
 
     // Binary search.
     async fn search(&mut self, time: UnixMicro) -> Result<usize, DecoderSearchError> {
+        assert!(self.n_entries != 0);
         let (mut l, mut r) = (0, self.n_entries - 1);
         while l <= r {
             let i = (l + r) / 2;
-            let entry = match self.decode(i).await {
+            let entry = match self.decode_lazy(i).await {
                 Ok((v, _)) => v,
                 Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
                     r -= 1;
@@ -654,30 +701,6 @@ impl ChunkDecoder {
             }
         }
         Ok(l)
-    }
-
-    async fn decode(&mut self, index: usize) -> Result<(LogEntryWithTime, u32), DecodeError> {
-        use DecodeError::*;
-        let index = u64::try_from(index)?;
-        let data_size_u64 = u64::try_from(DATA_SIZE)?;
-        let entry_pos: u64 = CHUNK_HEADER_LENGTH
-            .checked_add(index.checked_mul(data_size_u64).ok_or(Mul)?)
-            .ok_or(Add)?;
-
-        self.data_file
-            .seek(SeekFrom::Start(entry_pos))
-            .await
-            .map_err(Seek)?;
-
-        let mut raw_entry = [0; DATA_SIZE];
-        self.data_file
-            .read_exact(&mut raw_entry)
-            .await
-            .map_err(Read)?;
-
-        decode_entry(&raw_entry, &mut self.msg_file)
-            .await
-            .map_err(|e| RecoverableDecodeEntry(index, entry_pos, e))
     }
 
     async fn decode_lazy(
@@ -855,12 +878,19 @@ struct ChunkEncoder {
     data_file: File,
     msg_file: File,
     msg_pos: u32,
+
+    write_buf_capacity: usize,
+    buf_count: usize,
+    data_buf: Vec<u8>,
+    msg_buf: Vec<u8>,
 }
 
 impl ChunkEncoder {
+    // Must be flushed before being dropped.
     async fn new(
         log_dir: PathBuf,
         chunk_id: String,
+        write_buf_capacity: usize,
     ) -> Result<(Self, UnixMicro), NewChunkEncoderError> {
         use NewChunkEncoderError::*;
         let (data_path, msg_path) = chunk_id_to_paths(&log_dir, &chunk_id);
@@ -890,7 +920,7 @@ impl ChunkEncoder {
             // Treat file as empty if no valid entry is found.
             if let Some(last_index) = decoder.last_index() {
                 for i in (0..=last_index).rev() {
-                    let (last_entry, msg_offset) = match decoder.decode(i).await {
+                    let (last_entry, msg_offset) = match decoder.decode_lazy(i).await {
                         Ok(v) => v,
                         Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
                             eprintln!("log store warning: {data_path:?} {e}");
@@ -901,7 +931,7 @@ impl ChunkEncoder {
 
                     prev_entry_time = last_entry.time;
                     data_end = calculate_data_end(data_file_size)?;
-                    msg_pos = msg_offset + u32::try_from(last_entry.message.len())? + 1;
+                    msg_pos = msg_offset + u32::from(last_entry.msg_size) + 1;
                 }
             }
         }
@@ -937,23 +967,67 @@ impl ChunkEncoder {
                 data_file,
                 msg_file,
                 msg_pos,
+                write_buf_capacity,
+                buf_count: 0,
+                data_buf: Vec::with_capacity(DATA_SIZE * write_buf_capacity),
+                msg_buf: Vec::new(),
             },
             prev_entry_time,
         ))
     }
 
-    async fn write(&mut self, entry: &LogEntryWithTime) -> Result<(), EncodeError> {
-        let mut buf = Vec::with_capacity(DATA_SIZE);
-        write_entry(&mut buf, entry, &mut self.msg_file, &mut self.msg_pos).await?;
+    async fn write_entry(
+        mut self,
+        entry: &LogEntryWithTime,
+        stopping: bool,
+    ) -> Result<Self, EncodeError> {
+        let mut data_buf = Vec::new();
+        let mut msg_buf = Vec::new();
+        encode_entry(&mut data_buf, &mut msg_buf, entry, &mut self.msg_pos).await?;
+        self.data_buf
+            .write_all(&data_buf)
+            .await
+            .expect("writing to Vec should not fail");
+        self.msg_buf
+            .write_all(&msg_buf)
+            .await
+            .expect("writing to Vec should not fail");
+
+        self.buf_count += 1;
+
+        if stopping || self.buf_count >= self.write_buf_capacity {
+            self = self.flush().await?;
+        }
+
+        Ok(self)
+    }
+
+    // Encoder should be discarded if this fails.
+    async fn flush(mut self) -> Result<Self, EncoderFlushError> {
+        use EncoderFlushError::*;
+        if self.buf_count == 0 {
+            return Ok(self);
+        }
+        self.buf_count = 0;
+
+        self.msg_file
+            .write_all(&self.msg_buf)
+            .await
+            .map_err(Write)?;
+
+        self.msg_file.flush().await.map_err(Flush)?;
 
         self.data_file
-            .write_all(&buf)
+            .write_all(&self.data_buf)
             .await
-            .map_err(EncodeError::Write)?;
+            .map_err(Write)?;
 
-        self.data_file.flush().await.map_err(EncodeError::Flush)?;
+        self.data_file.flush().await.map_err(Flush)?;
 
-        Ok(())
+        self.msg_buf.clear();
+        self.data_buf.clear();
+
+        Ok(self)
     }
 }
 
@@ -962,6 +1036,12 @@ enum EncodeError {
     #[error("encode entry: {0}")]
     EncodeEntry(#[from] EncodeEntryError),
 
+    #[error("flush: {0}")]
+    Flush(#[from] EncoderFlushError),
+}
+
+#[derive(Debug, Error)]
+enum EncoderFlushError {
     #[error("write: {0}")]
     Write(std::io::Error),
 
@@ -974,9 +1054,6 @@ enum EncodeEntryError {
     #[error("write: {0}")]
     Write(#[from] std::io::Error),
 
-    #[error("flush: {0}")]
-    Flush(std::io::Error),
-
     #[error("{0}")]
     TryIntError(#[from] std::num::TryFromIntError),
 
@@ -984,10 +1061,10 @@ enum EncodeEntryError {
     Add,
 }
 
-async fn write_entry<T: AsyncWrite + Unpin, T2: AsyncWrite + Unpin>(
+async fn encode_entry<T: AsyncWrite + Unpin, T2: AsyncWrite + Unpin>(
     buf: &mut T,
+    msg_buf: &mut T2,
     entry: &LogEntryWithTime,
-    msg_file: &mut T2,
     msg_offset: &mut u32,
 ) -> Result<(), EncodeEntryError> {
     use EncodeEntryError::*;
@@ -1002,9 +1079,8 @@ async fn write_entry<T: AsyncWrite + Unpin, T2: AsyncWrite + Unpin>(
     };
 
     // Write message and newline.
-    msg_file.write_all(entry.message.as_bytes()).await?;
-    msg_file.write_all(&[b'\n']).await?;
-    msg_file.flush().await.map_err(EncodeEntryError::Flush)?;
+    msg_buf.write_all(entry.message.as_bytes()).await?;
+    msg_buf.write_all(&[b'\n']).await?;
 
     // Time.
     buf.write_all(entry.time.to_be_bytes().as_slice()).await?;
@@ -1063,15 +1139,6 @@ enum RecoverableDecodeEntryError {
 
     #[error("parse log message: {0}")]
     ParseLogMessage(#[from] ParseLogMessageError),
-}
-
-async fn decode_entry<'a, T: AsyncRead + AsyncSeek + Unpin>(
-    buf: &[u8; DATA_SIZE],
-    msg_file: &'a mut T,
-) -> Result<(LogEntryWithTime, u32), RecoverableDecodeEntryError> {
-    let (entry, msg_offset) = decode_entry_lazy(buf, msg_file)?;
-    let entry = entry.finalize().await?;
-    Ok((entry, msg_offset))
 }
 
 fn decode_entry_lazy<'a, T: AsyncRead + AsyncSeek + Unpin>(
@@ -1140,16 +1207,20 @@ mod tests {
     use tempfile::tempdir;
     use test_case::test_case;
 
-    fn new_test_db(log_dir: &Path) -> LogDbHandle {
+    fn new_test_db(log_dir: &Path) -> (LogDbHandle, CancellationToken) {
+        let token = CancellationToken::new();
         let (shutdown_complete_tx, _) = mpsc::channel::<()>(1);
-        LogDb::new(
+        let db = LogDb::new(
+            token.child_token(),
             shutdown_complete_tx,
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(0),
             2,
+            0,
         )
-        .unwrap()
+        .unwrap();
+        (db, token)
     }
 
     fn src(s: &'static str) -> LogSource {
@@ -1308,7 +1379,7 @@ mod tests {
     #[tokio::test]
     async fn test_log_db_query(input: LogQuery, want: &[LogEntryWithTime]) {
         let temp_dir = tempdir().unwrap();
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
 
         // Populate database.
         db.save_log(msg3()).await.unwrap();
@@ -1322,7 +1393,7 @@ mod tests {
     #[tokio::test]
     async fn test_log_db_query_no_entries() {
         let temp_dir = tempdir().unwrap();
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
 
         let entries = db.query(empty_query()).await.unwrap();
         assert_eq!(0, entries.len());
@@ -1351,7 +1422,7 @@ mod tests {
         let msg3 = new_test_entry(3);
 
         let temp_dir = tempdir().unwrap();
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
 
         db.save_log(msg1.clone()).await.unwrap();
         let entries = db.query(empty_query()).await.unwrap();
@@ -1373,7 +1444,7 @@ mod tests {
         let msg3 = new_test_entry(CHUNK_DURATION * 2);
 
         let temp_dir = tempdir().unwrap();
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
 
         db.save_log(msg1.clone()).await.unwrap();
         db.save_log(msg2.clone()).await.unwrap();
@@ -1401,10 +1472,10 @@ mod tests {
 
         let temp_dir = tempdir().unwrap();
 
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
         db.save_log(msg1.clone()).await.unwrap();
 
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
         db.save_log(msg2.clone()).await.unwrap();
 
         let want = vec![msg2, msg1];
@@ -1424,7 +1495,7 @@ mod tests {
         let entry2 = new_test_entry2(2, "bad");
         let entry3 = new_test_entry2(3, "good2");
 
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
         db.save_log(entry1.clone()).await.unwrap();
         db.save_log(entry2).await.unwrap();
 
@@ -1438,7 +1509,7 @@ mod tests {
         file.write_all(&[0].repeat(48)).await.unwrap();
         file.flush().await.unwrap();
 
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
 
         let got = db.query(empty_query()).await.unwrap();
         assert_eq!([entry1.clone()].as_slice(), got.as_slice());
@@ -1455,7 +1526,7 @@ mod tests {
         let entry1 = new_test_entry2(1, "bad");
         let entry2 = new_test_entry2(2, "good");
 
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
         db.save_log(entry1.clone()).await.unwrap();
 
         // Overwrite first entry with zeros.
@@ -1467,7 +1538,7 @@ mod tests {
         file.write_all(&[0].repeat(48)).await.unwrap();
         file.flush().await.unwrap();
 
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
 
         assert!(db.query(empty_query()).await.unwrap().is_empty());
 
@@ -1482,7 +1553,7 @@ mod tests {
 
         let entry1 = new_test_entry2(1, "missing");
 
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
         db.save_log(entry1.clone()).await.unwrap();
 
         // Clear data file.
@@ -1497,7 +1568,7 @@ mod tests {
         file.write_all(&[0]).await.unwrap();
         file.flush().await.unwrap();
 
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
 
         assert!(db.query(empty_query()).await.unwrap().is_empty());
 
@@ -1511,10 +1582,10 @@ mod tests {
     async fn test_log_db_order() {
         let temp_dir = tempdir().unwrap();
 
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
         db.save_log(new_test_entry(100)).await.unwrap();
 
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
         db.save_log(new_test_entry(90)).await.unwrap();
         db.save_log(new_test_entry(120)).await.unwrap();
         db.save_log(new_test_entry(0)).await.unwrap();
@@ -1532,7 +1603,7 @@ mod tests {
     #[tokio::test]
     async fn test_log_db_search() {
         let temp_dir = tempdir().unwrap();
-        let db = new_test_db(temp_dir.path());
+        let (db, _token) = new_test_db(temp_dir.path());
 
         let msg1 = new_test_entry(1);
         let msg2 = new_test_entry(2);
@@ -1598,6 +1669,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_store_mkdir() {
+        let token = CancellationToken::new();
         let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
         let temp_dir = tempdir().unwrap();
 
@@ -1605,16 +1677,19 @@ mod tests {
         assert!(std::fs::metadata(&new_dir).is_err());
 
         LogDb::new(
+            token.child_token(),
             shutdown_complete_tx,
             new_dir.clone(),
             ByteSize(0),
             ByteSize(0),
+            0,
             0,
         )
         .unwrap();
 
         std::fs::metadata(new_dir).unwrap();
 
+        token.cancel();
         let _ = shutdown_complete_rx.recv().await;
     }
 
@@ -1630,11 +1705,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_log_entry_encode() {
-        let mut buf = Vec::with_capacity(DATA_SIZE);
+        let mut data_buf = Vec::with_capacity(DATA_SIZE);
         let mut msg_buf = Cursor::new(Vec::new());
         let mut msg_pos = 0;
 
-        write_entry(&mut buf, &test_entry(), &mut msg_buf, &mut msg_pos)
+        encode_entry(&mut data_buf, &mut msg_buf, &test_entry(), &mut msg_pos)
             .await
             .unwrap();
 
@@ -1649,7 +1724,7 @@ mod tests {
             48, // Level.
         ];
 
-        assert_eq!(want, buf);
+        assert_eq!(want, data_buf);
         assert_eq!(vec![b'a', b'\n'], msg_buf.into_inner());
         assert_eq!(
             test_entry().message.len() + 1,
@@ -1659,19 +1734,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_log_entry_decode() {
-        let mut buf = Cursor::new(Vec::new());
+        let mut data_buf = Cursor::new(Vec::new());
         let mut msg_buf = Cursor::new(Vec::new());
         let mut msg_pos: u32 = 10;
 
         msg_buf.seek(SeekFrom::Start(10)).await.unwrap();
 
-        write_entry(&mut buf, &test_entry(), &mut msg_buf, &mut msg_pos)
+        encode_entry(&mut data_buf, &mut msg_buf, &test_entry(), &mut msg_pos)
             .await
             .unwrap();
 
-        let buf: [u8; DATA_SIZE] = buf.into_inner().try_into().unwrap();
+        let buf: [u8; DATA_SIZE] = data_buf.into_inner().try_into().unwrap();
 
-        let (entry, msg_offset) = decode_entry(&buf, &mut msg_buf).await.unwrap();
+        let (entry, msg_offset) = decode_entry_lazy(&buf, &mut msg_buf).unwrap();
+        let entry = entry.finalize().await.unwrap();
         assert_eq!(test_entry(), entry);
         assert_eq!(10, msg_offset);
     }
@@ -1702,7 +1778,7 @@ mod tests {
         std::fs::write(log_dir.path().join("0.data"), [255]).unwrap();
 
         assert!(matches!(
-            ChunkEncoder::new(log_dir.path().to_owned(), chunk_id.to_owned()).await,
+            ChunkEncoder::new(log_dir.path().to_owned(), chunk_id.to_owned(), 0).await,
             Err(NewChunkEncoderError::NewChunkDecoder(
                 NewChunkDecoderError::UnknownChunkVersion
             ))
@@ -1727,12 +1803,15 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let log_dir = temp_dir.path();
 
+        let token = CancellationToken::new();
         let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
         let db = LogDb::new(
+            token.child_token(),
             shutdown_complete_tx,
             log_dir.to_owned(),
             ByteSize::kb(10),
             ByteSize(0),
+            0,
             0,
         )
         .unwrap();
@@ -1754,6 +1833,7 @@ mod tests {
         assert_eq!(want, list_files(log_dir));
 
         drop(db);
+        token.cancel();
         _ = shutdown_complete_rx.recv().await;
     }
 
@@ -1762,12 +1842,15 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let log_dir = temp_dir.path();
 
+        let token = CancellationToken::new();
         let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
         let db = LogDb::new(
+            token.child_token(),
             shutdown_complete_tx,
             log_dir.to_owned(),
             ByteSize::kb(10),
             ByteSize(0),
+            0,
             0,
         )
         .unwrap();
@@ -1781,6 +1864,7 @@ mod tests {
         assert_eq!(1, chunk_count(log_dir).await);
 
         drop(db);
+        token.cancel();
         _ = shutdown_complete_rx.recv().await;
     }
 
@@ -1789,12 +1873,15 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let log_dir = temp_dir.path();
 
+        let token = CancellationToken::new();
         let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
         let db = LogDb::new(
+            token.child_token(),
             shutdown_complete_tx,
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(100),
+            0,
             0,
         )
         .unwrap();
@@ -1808,6 +1895,7 @@ mod tests {
         assert_eq!(1, chunk_count(log_dir).await);
 
         drop(db);
+        token.cancel();
         _ = shutdown_complete_rx.recv().await;
     }
 
@@ -1816,12 +1904,15 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let log_dir = temp_dir.path();
 
+        let token = CancellationToken::new();
         let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
         let db = LogDb::new(
+            token.child_token(),
             shutdown_complete_tx,
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(0),
+            0,
             0,
         )
         .unwrap();
@@ -1830,6 +1921,7 @@ mod tests {
         db.prune().await.unwrap();
 
         drop(db);
+        token.cancel();
         _ = shutdown_complete_rx.recv().await;
     }
     /*
@@ -1866,9 +1958,11 @@ mod tests {
             prev_entry_time: UnixMicro::new(0),
             disk_space: ByteSize(0),
             min_disk_usage: ByteSize(0),
-            _shutdown_complete: shutdown_complete,
             cache: VecDeque::new(),
-            cache_size: 0,
+            cache_capacity: 0,
+            write_buf_capacify: 0,
+            stopping: false,
+            _shutdown_complete: shutdown_complete,
         };
         db.list_chunks().await.unwrap().len()
     }
