@@ -13,6 +13,7 @@ use env::{EnvConf, EnvConfigNewError};
 use hls::HlsServer;
 use log::{
     log_db::{LogDb, LogDbHandle, NewLogDbError},
+    slow_poller::SlowPoller,
     Logger,
 };
 use monitor::{MonitorManager, NewMonitorManagerError};
@@ -304,6 +305,11 @@ impl App {
                     logger: self.logger.clone(),
                     auth: self.auth.clone(),
                 }),
+            )
+            // Log slow poll.
+            .route_admin_no_csrf(
+                "/api/log/slow-poll",
+                get(log_slow_poll_handler).with_state(SlowPoller::new(self.logger.subscribe())),
             )
             // Log query.
             .route_admin_no_csrf(

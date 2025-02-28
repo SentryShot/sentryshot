@@ -2,6 +2,7 @@
 
 pub mod log_db;
 pub mod rev_buf_reader;
+pub mod slow_poller;
 
 use common::{ILogger, LogEntry, LogLevel, LogMessage, LogSource, MonitorId};
 use serde::{Deserialize, Serialize};
@@ -84,6 +85,16 @@ impl UnixMicro {
         Self(v)
     }
 
+    #[must_use]
+    pub fn from_millis(ms: u32) -> Self {
+        Self(u64::from(ms) * 1000)
+    }
+
+    #[must_use]
+    pub fn from_secs(s: u16) -> Self {
+        Self(u64::from(s) * 1_000_000)
+    }
+
     /// Current time as `UnixMicro`.
     fn now() -> Self {
         UnixMicro(
@@ -100,6 +111,11 @@ impl UnixMicro {
     #[must_use]
     pub fn checked_add(&self, rhs: Self) -> Option<Self> {
         Some(Self(self.0.checked_add(rhs.0)?))
+    }
+
+    #[must_use]
+    pub fn checked_sub(&self, rhs: Self) -> Option<Self> {
+        Some(Self(self.0.checked_sub(rhs.0)?))
     }
 }
 

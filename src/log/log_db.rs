@@ -1,5 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 use super::{LogEntryWithTime, Logger, UnixMicro};
-use crate::rev_buf_reader::RevBufReader;
+use crate::{rev_buf_reader::RevBufReader, slow_poller::PollQuery};
 use bytesize::ByteSize;
 use common::{
     ArcLogger, LogEntry, LogLevel, LogSource, MonitorId, ParseLogLevelError, ParseLogMessageError,
@@ -256,7 +258,7 @@ impl LogDb {
                     continue;
                 }
             }
-            if !q.entry_matches_filter(entry) {
+            if !entry_matches_query(entry, &*q) {
                 continue;
             }
             entries.push(entry.clone());
@@ -331,7 +333,7 @@ impl LogDb {
                 Err(e) => return Err(QueryChunkError::Decode(e)),
             };
 
-            if !q.entry_matches_filter(&entry) {
+            if !entry_matches_query(&entry, q) {
                 continue;
             }
             let entry = match entry.finalize().await {
@@ -505,6 +507,7 @@ pub struct LogQuery {
     #[serde(deserialize_with = "deserialize_csv_option")]
     pub sources: Vec<LogSource>,
 
+    // BREAKING: this should probably be mandatory.
     pub time: Option<UnixMicro>,
 
     #[serde(default)]
@@ -514,15 +517,15 @@ pub struct LogQuery {
     pub limit: Option<NonZeroUsize>,
 }
 
-pub struct LevelSourceMonitorId<'a> {
+pub struct Entry<'a> {
     level: LogLevel,
     source: &'a LogSource,
     monitor_id: Option<&'a MonitorId>,
 }
 
-impl<'a> From<&'a LogEntryWithTime> for LevelSourceMonitorId<'a> {
+impl<'a> From<&'a LogEntryWithTime> for Entry<'a> {
     fn from(entry: &'a LogEntryWithTime) -> Self {
-        LevelSourceMonitorId {
+        Entry {
             level: entry.level,
             source: &entry.source,
             monitor_id: entry.monitor_id.as_ref(),
@@ -530,11 +533,9 @@ impl<'a> From<&'a LogEntryWithTime> for LevelSourceMonitorId<'a> {
     }
 }
 
-impl<'a, T: AsyncRead + AsyncSeek + Unpin> From<&'a LazyLogEntryWithTime<'_, T>>
-    for LevelSourceMonitorId<'a>
-{
+impl<'a, T: AsyncRead + AsyncSeek + Unpin> From<&'a LazyLogEntryWithTime<'_, T>> for Entry<'a> {
     fn from(entry: &'a LazyLogEntryWithTime<'_, T>) -> Self {
-        LevelSourceMonitorId {
+        Entry {
             level: entry.level,
             source: &entry.source,
             monitor_id: entry.monitor_id.as_ref(),
@@ -542,14 +543,43 @@ impl<'a, T: AsyncRead + AsyncSeek + Unpin> From<&'a LazyLogEntryWithTime<'_, T>>
     }
 }
 
-impl LogQuery {
-    #[must_use]
-    pub fn entry_matches_filter<'a, T: Into<LevelSourceMonitorId<'a>>>(&self, entry: T) -> bool {
-        let entry = entry.into();
-        level_in_levels(entry.level, &self.levels)
-            && source_in_souces(entry.source, &self.sources)
-            && monitor_id_in_monitor_ids(entry.monitor_id, &self.monitors)
+pub struct Query<'a> {
+    levels: &'a [LogLevel],
+    sources: &'a [LogSource],
+    monitors: &'a [MonitorId],
+}
+
+impl<'a> From<&'a LogQuery> for Query<'a> {
+    fn from(q: &'a LogQuery) -> Self {
+        Self {
+            levels: &q.levels,
+            sources: &q.sources,
+            monitors: &q.monitors,
+        }
     }
+}
+
+impl<'a> From<&'a PollQuery> for Query<'a> {
+    fn from(q: &'a PollQuery) -> Self {
+        Self {
+            levels: &q.levels,
+            sources: &q.sources,
+            monitors: &q.monitors,
+        }
+    }
+}
+
+#[must_use]
+pub fn entry_matches_query<'a, E, Q>(entry: E, q: Q) -> bool
+where
+    E: Into<Entry<'a>>,
+    Q: Into<Query<'a>>,
+{
+    let entry = entry.into();
+    let q = q.into();
+    level_in_levels(entry.level, q.levels)
+        && source_in_souces(entry.source, q.sources)
+        && monitor_id_in_monitor_ids(entry.monitor_id, q.monitors)
 }
 
 // Returns true if level is in levels or if levels is empty.

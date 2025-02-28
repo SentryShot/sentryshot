@@ -21,7 +21,8 @@ use common::{
 use hls::{HlsQuery, HlsServer};
 use http::HeaderValue;
 use log::{
-    log_db::{LogDbHandle, LogQuery},
+    log_db::{entry_matches_query, LogDbHandle, LogQuery},
+    slow_poller::{self, PollQuery, SlowPoller},
     Logger,
 };
 use monitor_groups::ArcMonitorGroups;
@@ -350,7 +351,7 @@ pub async fn log_feed_handler(
                 Err(RecvError::Lagged(_)) => continue,
             };
 
-            if !q.entry_matches_filter(&entry) {
+            if !entry_matches_query(&entry, &q) {
                 continue;
             }
 
@@ -380,6 +381,17 @@ pub async fn log_feed_handler(
             }
         }
     })
+}
+
+pub async fn log_slow_poll_handler(
+    State(poller): State<SlowPoller>,
+    query: Query<PollQuery>,
+) -> Response {
+    match poller.slow_poll(query.0).await {
+        slow_poller::Response::Ok(v) => Json::from(v).into_response(),
+        slow_poller::Response::TooManyConncetions => StatusCode::TOO_MANY_REQUESTS.into_response(),
+        slow_poller::Response::Cancelled => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 pub async fn log_query_handler(
