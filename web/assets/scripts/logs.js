@@ -30,178 +30,232 @@ const LevelDebug = "debug";
 
 /**
  * @typedef {Object} Logger
- * @property {() => Promise<void>} init
  * @property {() => Promise<void>} lazyLoadSavedLogs
- * @property {(levels: string[], sources: string[], monitors: string[]) => Promise<void>} set
+ * @property {(levels: string[], sources: string[], monitors: string[]) => void} set
  */
 
 /**
  * @param {Formatter} formatLog
+ * @param {Element} element
  * @returns {Logger}
  */
-function newLogger(formatLog) {
-	const $logList = document.querySelector("#log-list");
+function newLogger(formatLog, element) {
+	/** @type FeedLogger */
+	let feedLogger;
+	/** @type SavedLogsLoader */
+	let savedlogsLoader;
 
-	/** @type WebSocket */
-	let logStream;
+	return {
+		set(levels, sources, monitors) {
+			if (feedLogger) {
+				feedLogger.cancel();
+			}
+			if (savedlogsLoader) {
+				savedlogsLoader.cancel();
+			}
+			element.innerHTML = "";
 
-	const startLogFeed = () => {
-		const query = new URLSearchParams(
-			removeEmptyValues({
-				levels: levels,
-				sources: sources,
-				monitors: monitors,
-			})
-		);
-
-		const proto = window.location.protocol === "http:" ? "ws:" : "wss:";
-		// Use relative path.
-		const path = window.location.pathname.replace("logs", "api/log/feed");
-		logStream = new WebSocket(`${proto}//${window.location.host}${path}?` + query);
-
-		logStream.addEventListener("open", () => {
-			console.log("connected...");
-		});
-
-		logStream.addEventListener("error", (error) => {
-			console.error(error);
-		});
-
-		logStream.addEventListener("message", ({ data }) => {
-			const log = JSON.parse(data);
-			$logList.insertBefore(createSpan(formatLog(log)), $logList.childNodes[0]);
-		});
-
-		logStream.addEventListener("close", () => {
-			console.log("disconnected.");
-		});
+			/** @type {number} */
+			let time;
+			feedLogger = newFeedLogger(formatLog, element, levels, sources, monitors);
+			savedlogsLoader = newSavedLogsLoader(
+				formatLog,
+				fetchLogs,
+				element,
+				time,
+				levels,
+				sources,
+				monitors
+			);
+			savedlogsLoader.lazyLoad();
+		},
+		async lazyLoadSavedLogs() {
+			savedlogsLoader.lazyLoad();
+		},
 	};
+}
 
-	let lastLog = false;
-	/** @type {Number} */
-	let currentTime;
-	/** @type {string[]} */
-	let levels;
-	/** @type {string[]} */
-	let sources;
-	/** @type {string[]} */
-	let monitors;
+/**
+ * @param {AbortSignal} abortSignal
+ * @param {string[]} levels
+ * @param {string[]} sources
+ * @param {string[]} monitors
+ * @param {number} time
+ * @returns {Promise<LogEntry[]>}
+ */
+async function fetchLogs(abortSignal, levels, sources, monitors, time) {
+	let query = new URLSearchParams(
+		removeEmptyValues({
+			levels: levels,
+			sources: sources,
+			monitors: monitors,
+			time: time,
+			limit: 20,
+		})
+	);
 
-	/** @type {AbortController | undefined} */
-	let fetchInProgress;
-	/** @type {Promise<void> | undefined} */
-	let loadInProgress;
-	let stopped = false;
+	// Use relative path.
+	const path = window.location.pathname.replace("logs", "api/log/query");
+	const url = `${path}?` + query;
 
-	const loadSavedLogs = async () => {
-		if (fetchInProgress) {
+	try {
+		const response = await fetch(url, {
+			method: "get",
+			signal: abortSignal,
+		});
+
+		if (response.status !== 200) {
+			alert(`failed to fetch logs: ${response.status}, ${await response.text()}`);
 			return;
 		}
+		return await response.json();
+	} catch (error) {
+		if (error instanceof DOMException && error.name === "AbortError") {
+			return;
+		}
+		console.error(error);
+	}
+}
 
-		fetchInProgress = new AbortController();
+/**
+ * @typedef FeedLogger
+ * @property {() => void} cancel
+ */
 
-		loadInProgress = fetchLogs(fetchInProgress.signal);
-		await loadInProgress;
+/**
+ * @param {Formatter} formatLog
+ * @param {Element} element
+ * @param {string[]} levels
+ * @param {string[]} sources
+ * @param {string[]} monitors
+ * @returns {FeedLogger}
+ */
+function newFeedLogger(formatLog, element, levels, sources, monitors) {
+	const query = new URLSearchParams(
+		removeEmptyValues({
+			levels: levels,
+			sources: sources,
+			monitors: monitors,
+		})
+	);
 
-		loadInProgress = undefined;
-		fetchInProgress = undefined;
+	const proto = window.location.protocol === "http:" ? "ws:" : "wss:";
+	// Use relative path.
+	const path = window.location.pathname.replace("logs", "api/log/feed");
+	const logStream = new WebSocket(`${proto}//${window.location.host}${path}?` + query);
+
+	logStream.addEventListener("open", () => {
+		console.log("connected...");
+	});
+
+	logStream.addEventListener("error", (error) => {
+		console.error(error);
+	});
+
+	logStream.addEventListener("message", ({ data }) => {
+		const log = JSON.parse(data);
+		element.insertBefore(createSpan(formatLog(log)), element.childNodes[0]);
+	});
+
+	logStream.addEventListener("close", () => {
+		console.log("disconnected.");
+	});
+
+	return {
+		cancel() {
+			if (logStream !== undefined) {
+				logStream.close();
+			}
+		},
 	};
+}
 
-	/** @param {AbortSignal} abortSignal */
-	const fetchLogs = async (abortSignal) => {
-		let query = new URLSearchParams(
-			removeEmptyValues({
-				levels: levels,
-				sources: sources,
-				monitors: monitors,
-				time: currentTime,
-				limit: 20,
-			})
-		);
+/**
+ * @callback LogFetchFunc
+ * @param {AbortSignal} abortSignal
+ * @param {string[]} levels
+ * @param {string[]} sources
+ * @param {string[]} monitors
+ * @param {number} time
+ * @returns {Promise<LogEntry[]>}
+ */
 
-		// Use relative path.
-		const path = window.location.pathname.replace("logs", "api/log/query");
-		const url = `${path}?` + query;
+/**
+ * @typedef SavedLogsLoader
+ * @property {() => Promise<void>} lazyLoad
+ * @property {() => void} cancel
+ */
 
-		try {
-			const response = await fetch(url, {
-				method: "get",
-				signal: abortSignal,
-			});
+/**
+ * @param {Formatter} formatLog
+ * @param {LogFetchFunc} fetchLogs
+ * @param {Element} element
+ * @param {number} time
+ * @param {string[]} levels
+ * @param {string[]} sources
+ * @param {string[]} monitors
+ * @returns {SavedLogsLoader}
+ */
+function newSavedLogsLoader(
+	formatLog,
+	fetchLogs,
+	element,
+	time,
+	levels,
+	sources,
+	monitors
+) {
+	const IDLE = 0;
+	const FETCHING = 1;
+	const CANCELLED = 2;
 
-			if (response.status !== 200) {
-				alert(`could not get logs: ${response.status}, ${await response.text()}`);
-				return;
-			}
-			const logs = await response.json();
+	let state = IDLE;
+	let abort = new AbortController();
 
-			if (logs.length === 0) {
-				lastLog = true;
-				console.log("last log.");
-				return;
-			}
-
-			for (const log of logs) {
-				currentTime = log.time;
-				$logList.append(createSpan(formatLog(log)));
-			}
-		} catch (error) {
-			if (error instanceof DOMException && error.name === "AbortError") {
-				return;
-			}
-			console.error(error);
-		}
-	};
-
-	const lazyLoadSavedLogs = async () => {
-		while (
-			!stopped &&
-			!fetchInProgress &&
-			!lastLog &&
-			$logList.lastChild &&
-			// @ts-ignore
-			$logList.lastChild.getBoundingClientRect().top < window.screen.height * 3
-		) {
-			await loadSavedLogs();
-		}
-	};
-
-	const reset = async () => {
-		stopped = true;
-
-		if (fetchInProgress !== undefined) {
-			fetchInProgress.abort();
-		}
-		if (loadInProgress !== undefined) {
-			await loadInProgress;
-		}
-		if (logStream) {
-			logStream.close();
-		}
-
-		lastLog = false;
-		currentTime = undefined;
-		$logList.innerHTML = "";
-
-		stopped = false;
-
-		startLogFeed();
-		await loadSavedLogs();
-		lazyLoadSavedLogs();
+	const ThreeScreensLoadedAhead = () => {
+		const lastChild = element.lastChild;
+		return lastChild && lastChild instanceof HTMLSpanElement
+			? lastChild.getBoundingClientRect().top > window.screen.height * 3
+			: false;
 	};
 
 	return {
-		async init() {
-			startLogFeed();
-			await loadSavedLogs();
-			lazyLoadSavedLogs();
+		// Called on scroll and on window resize.
+		async lazyLoad() {
+			while (state === IDLE && !ThreeScreensLoadedAhead()) {
+				state = FETCHING;
+
+				const logs = await fetchLogs(
+					abort.signal,
+					levels,
+					sources,
+					monitors,
+					time
+				);
+				// Check state after await point.
+				if (state !== FETCHING) {
+					return;
+				}
+
+				if (logs.length === 0) {
+					state = CANCELLED;
+					element.append(createSpan("Last log."));
+					console.log("last log.");
+					return;
+				}
+
+				for (const log of logs) {
+					element.append(createSpan(formatLog(log)));
+				}
+				const [lastLog] = logs.slice(-1);
+				time = lastLog.time;
+
+				state = IDLE;
+			}
 		},
-		lazyLoadSavedLogs: lazyLoadSavedLogs,
-		async set(l, s, m) {
-			levels = l;
-			sources = s;
-			monitors = m;
-			await reset();
+		cancel() {
+			state = CANCELLED;
+			abort.abort();
 		},
 	};
 }
@@ -473,7 +527,7 @@ function newLogSelector(logger, formFields) {
 	const form = newForm(formFields);
 
 	let $sidebar;
-	const apply = async () => {
+	const apply = () => {
 		const level = form.fields["level"].value();
 		let levels;
 		switch (level) {
@@ -500,7 +554,7 @@ function newLogSelector(logger, formFields) {
 
 		const sources = form.fields["sources"].value();
 		const monitors = [form.fields["monitor"].value()];
-		await logger.set(levels, sources, monitors);
+		logger.set(levels, sources, monitors);
 	};
 
 	const html = `
@@ -546,7 +600,8 @@ async function init() {
 	const monitorNameByID = newMonitorNameByID(monitors);
 	const formatLog = newFormater(monitorNameByID, tz);
 
-	const logger = newLogger(formatLog);
+	const $logList = document.querySelector("#log-list");
+	const logger = newLogger(formatLog, $logList);
 
 	/** @type {LogSelectorFields} */
 	const formFields = {
