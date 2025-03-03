@@ -1,5 +1,6 @@
 ## unreleased
 
+-	logs page: replace websockets with slow-polling
 -	several log database optimizations
 
 ## `v0.2.22`

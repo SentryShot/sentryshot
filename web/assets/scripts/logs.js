@@ -25,7 +25,7 @@ const LevelDebug = "debug";
  * @property {string} source
  * @property {string} monitorID
  * @property {string} message
- * @property {Number} time
+ * @property {Number} time      Unix timestamp in microseconds. Number is barely large enough
  */
 
 /**
@@ -55,9 +55,17 @@ function newLogger(formatLog, element) {
 			}
 			element.innerHTML = "";
 
-			/** @type {number} */
-			let time;
-			feedLogger = newFeedLogger(formatLog, element, levels, sources, monitors);
+			const fiveSecMs = 5000;
+			const time = (Date.now() - fiveSecMs) * 1000;
+
+			feedLogger = newFeedLogger(
+				formatLog,
+				element,
+				time - 1,
+				levels,
+				sources,
+				monitors
+			);
 			savedlogsLoader = newSavedLogsLoader(
 				formatLog,
 				fetchLogs,
@@ -100,7 +108,6 @@ async function fetchLogs(abortSignal, levels, sources, monitors, time) {
 
 	try {
 		const response = await fetch(url, {
-			method: "get",
 			signal: abortSignal,
 		});
 
@@ -125,49 +132,125 @@ async function fetchLogs(abortSignal, levels, sources, monitors, time) {
 /**
  * @param {Formatter} formatLog
  * @param {Element} element
+ * @param {number} time
  * @param {string[]} levels
  * @param {string[]} sources
  * @param {string[]} monitors
  * @returns {FeedLogger}
  */
-function newFeedLogger(formatLog, element, levels, sources, monitors) {
-	const query = new URLSearchParams(
-		removeEmptyValues({
-			levels: levels,
-			sources: sources,
-			monitors: monitors,
-		})
-	);
+function newFeedLogger(formatLog, element, time, levels, sources, monitors) {
+	const POLL_INTERVAL_MS = 200;
 
-	const proto = window.location.protocol === "http:" ? "ws:" : "wss:";
-	// Use relative path.
-	const path = window.location.pathname.replace("logs", "api/log/feed");
-	const logStream = new WebSocket(`${proto}//${window.location.host}${path}?` + query);
+	/** @type {AbortController} */
+	let abort = new AbortController();
+	let cancelled = false;
 
-	logStream.addEventListener("open", () => {
-		console.log("connected...");
-	});
+	const poll = async () => {
+		// Use relative path.
+		const path = window.location.pathname.replace("logs", "api/log/slow-poll");
 
-	logStream.addEventListener("error", (error) => {
-		console.error(error);
-	});
+		let query = new URLSearchParams(
+			removeEmptyValues({
+				levels: levels,
+				sources: sources,
+				monitors: monitors,
+				time: time,
+			})
+		);
+		const url = `${path}?` + query;
 
-	logStream.addEventListener("message", ({ data }) => {
-		const log = JSON.parse(data);
-		element.insertBefore(createSpan(formatLog(log)), element.childNodes[0]);
-	});
+		return fetch(url, {
+			signal: abort.signal,
+		});
+	};
 
-	logStream.addEventListener("close", () => {
-		console.log("disconnected.");
-	});
+	let time_of_last_poll = Date.now();
+
+	// Start background task.
+	(async () => {
+		while (!cancelled) {
+			const now = Date.now();
+			const time_since_last_poll = now - time_of_last_poll;
+
+			if (time_since_last_poll < POLL_INTERVAL_MS) {
+				const time_until_next_poll = POLL_INTERVAL_MS - time_since_last_poll;
+				await sleep(abort.signal, time_until_next_poll);
+				if (cancelled) {
+					return;
+				}
+			}
+			time_of_last_poll = Date.now();
+
+			/** @type {LogEntry[]} */
+			let logs;
+			try {
+				const response = await poll();
+				if (response.status !== 200) {
+					alert(
+						`failed to fetch logs: ${
+							response.status
+						}, ${await response.text()}`
+					);
+					return;
+				}
+				logs = await response.json();
+			} catch (error) {
+				if (error instanceof DOMException && error.name === "AbortError") {
+					return;
+				}
+				console.error(error);
+				await sleep(abort.signal, 3000);
+				continue;
+			}
+			if (!logs || logs.length === 0) {
+				console.error("returned logs list is empty:", logs);
+				await sleep(abort.signal, 3000);
+				continue;
+			}
+			if (cancelled) {
+				return;
+			}
+
+			for (const log of logs) {
+				element.insertBefore(createSpan(formatLog(log)), element.childNodes[0]);
+			}
+			const [lastLog] = logs.slice(-1);
+			time = lastLog.time;
+		}
+	})();
 
 	return {
 		cancel() {
-			if (logStream !== undefined) {
-				logStream.close();
-			}
+			cancelled = true;
+			abort.abort();
 		},
 	};
+}
+
+/**
+ * @param {AbortSignal} abortSignal
+ * @param {number} ms
+ */
+function sleep(abortSignal, ms) {
+	return new Promise((resolve, reject) => {
+		if (ms <= 0) {
+			resolve();
+			return;
+		}
+		abortSignal.throwIfAborted();
+
+		const timeout = setTimeout(() => {
+			resolve();
+			abortSignal.removeEventListener("abort", abort);
+		}, ms);
+
+		const abort = () => {
+			clearTimeout(timeout);
+			reject(abortSignal.reason);
+		};
+
+		abortSignal.addEventListener("abort", abort);
+	});
 }
 
 /**
