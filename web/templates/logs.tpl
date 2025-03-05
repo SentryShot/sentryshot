@@ -24,7 +24,7 @@
 					<img src="assets/icons/feather/arrow-left.svg" />
 				</nav>
 			</div>
-			<div id="log-list"></div>
+			<div id="js-log-lists" class="log-lists"></div>
 		</div>
 	</div>
 </body>
@@ -100,20 +100,19 @@
 	.log-list-open {
 		transform: none;
 	}
-	#log-list {
-		overflow-y: auto;
+	.log-lists {
 		color: var(--color-text);
 		font-size: 0.5rem;
 		word-wrap: break-word;
 		background: var(--color3);
 	}
-	#log-list > span {
-		border-color: var(--color4);
-		border-top: solid;
-		border-top-width: 0.04rem;
+	.log-list {
+		overflow-y: auto;
 	}
-	#log-list > span:first-of-type {
-		border-top: none;
+	.log-list > span {
+		border-color: var(--color4);
+		border-bottom: solid;
+		border-bottom-width: 0.04rem;
 	}
 
 	/* Mobile Landscape mode. */

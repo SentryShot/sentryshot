@@ -53,23 +53,33 @@ function newLogger(formatLog, element) {
 			if (savedlogsLoader) {
 				savedlogsLoader.cancel();
 			}
-			element.innerHTML = "";
+			element.innerHTML = `
+				<div class="js-new-logs log-list"></div>
+				<div class="js-old-logs log-list"></div>
+				<span class="js-loading-indicator"></div>
+			`;
+
+			const $newLogs = element.querySelector(".js-new-logs");
+			const $oldLogs = element.querySelector(".js-old-logs");
+			/** @type {HTMLSpanElement} */
+			const $loadingIndicator = element.querySelector(".js-loading-indicator");
 
 			const fiveSecMs = 5000;
 			const time = (Date.now() - fiveSecMs) * 1000;
 
 			feedLogger = newFeedLogger(
 				formatLog,
-				element,
+				$newLogs,
 				time - 1,
 				levels,
 				sources,
 				monitors
 			);
 			savedlogsLoader = newSavedLogsLoader(
+				newLoadingIndicator($loadingIndicator),
 				formatLog,
 				fetchLogs,
-				element,
+				$oldLogs,
 				time,
 				levels,
 				sources,
@@ -174,8 +184,8 @@ function newFeedLogger(formatLog, element, time, levels, sources, monitors) {
 
 			if (time_since_last_poll < POLL_INTERVAL_MS) {
 				const time_until_next_poll = POLL_INTERVAL_MS - time_since_last_poll;
-				await sleep(abort.signal, time_until_next_poll);
-				if (cancelled) {
+				const aborted = await sleep(abort.signal, time_until_next_poll);
+				if (aborted || cancelled) {
 					return;
 				}
 			}
@@ -228,25 +238,92 @@ function newFeedLogger(formatLog, element, time, levels, sources, monitors) {
 }
 
 /**
+ * @typedef LoadingIndicator
+ * @property {(v: boolean) => void} setLoading
+ * @property {() => void} cancel
+ */
+
+/**
+ * @param {HTMLSpanElement} element
+ * @return {LoadingIndicator}
+ */
+function newLoadingIndicator(element) {
+	const INITIAL_DELAY_MS = 500;
+	const LOAD_INTERVAL_MS = 1000;
+
+	const [IDLE, WAITING, LOADING, CANCELLED] = [0, 1, 2, 3];
+	let state = IDLE;
+
+	let abort = new AbortController();
+
+	/** @param  {AbortSignal} abortSignal */
+	const start = async (abortSignal) => {
+		if (state !== IDLE) {
+			return;
+		}
+
+		state = WAITING;
+		let aborted = await sleep(abortSignal, INITIAL_DELAY_MS);
+		if (aborted || state !== WAITING) {
+			return;
+		}
+		element.textContent = "loading";
+
+		state = LOADING;
+		while (!(await sleep(abortSignal, LOAD_INTERVAL_MS))) {
+			element.textContent += ".";
+		}
+	};
+
+	const reset = () => {
+		state = IDLE;
+		abort.abort();
+		abort = new AbortController();
+		element.textContent = "";
+	};
+
+	return {
+		setLoading(v) {
+			if (state === CANCELLED) {
+				return;
+			}
+			if (v === true) {
+				if (state !== IDLE) {
+					reset();
+				}
+				start(abort.signal);
+			} else if (state !== IDLE) {
+				reset();
+			}
+		},
+		cancel() {
+			state = CANCELLED;
+			abort.abort();
+		},
+	};
+}
+
+/**
+ * Returns true if aborted.
  * @param {AbortSignal} abortSignal
  * @param {number} ms
  */
 function sleep(abortSignal, ms) {
-	return new Promise((resolve, reject) => {
+	return new Promise((resolve) => {
 		if (ms <= 0) {
-			resolve();
+			resolve(false);
 			return;
 		}
 		abortSignal.throwIfAborted();
 
 		const timeout = setTimeout(() => {
-			resolve();
+			resolve(false);
 			abortSignal.removeEventListener("abort", abort);
 		}, ms);
 
 		const abort = () => {
 			clearTimeout(timeout);
-			reject(abortSignal.reason);
+			resolve(true);
 		};
 
 		abortSignal.addEventListener("abort", abort);
@@ -270,6 +347,7 @@ function sleep(abortSignal, ms) {
  */
 
 /**
+ * @param {LoadingIndicator} loadingIndicator
  * @param {Formatter} formatLog
  * @param {LogFetchFunc} fetchLogs
  * @param {Element} element
@@ -280,6 +358,7 @@ function sleep(abortSignal, ms) {
  * @returns {SavedLogsLoader}
  */
 function newSavedLogsLoader(
+	loadingIndicator,
 	formatLog,
 	fetchLogs,
 	element,
@@ -288,11 +367,9 @@ function newSavedLogsLoader(
 	sources,
 	monitors
 ) {
-	const IDLE = 0;
-	const FETCHING = 1;
-	const CANCELLED = 2;
-
+	const [IDLE, FETCHING, CANCELLED] = [0, 1, 2];
 	let state = IDLE;
+
 	let abort = new AbortController();
 
 	const ThreeScreensLoadedAhead = () => {
@@ -308,6 +385,7 @@ function newSavedLogsLoader(
 			while (state === IDLE && !ThreeScreensLoadedAhead()) {
 				state = FETCHING;
 
+				loadingIndicator.setLoading(true);
 				const logs = await fetchLogs(
 					abort.signal,
 					levels,
@@ -315,6 +393,7 @@ function newSavedLogsLoader(
 					monitors,
 					time
 				);
+				loadingIndicator.setLoading(false);
 				// Check state after await point.
 				if (state !== FETCHING) {
 					return;
@@ -339,6 +418,7 @@ function newSavedLogsLoader(
 		cancel() {
 			state = CANCELLED;
 			abort.abort();
+			loadingIndicator.cancel();
 		},
 	};
 }
@@ -683,8 +763,8 @@ async function init() {
 	const monitorNameByID = newMonitorNameByID(monitors);
 	const formatLog = newFormater(monitorNameByID, tz);
 
-	const $logList = document.querySelector("#log-list");
-	const logger = newLogger(formatLog, $logList);
+	const $logLists = document.getElementById("js-log-lists");
+	const logger = newLogger(formatLog, $logLists);
 
 	/** @type {LogSelectorFields} */
 	const formFields = {
