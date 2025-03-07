@@ -141,7 +141,7 @@ function newMuteBtn(monitor) {
 	}
 
 	return {
-		html: html,
+		html,
 		init($parent, $video) {
 			if (audioEnabled) {
 				const $muteBtn = $parent.querySelector(".js-mute-btn");

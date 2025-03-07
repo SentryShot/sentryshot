@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+/* eslint-disable require-await */
+
 import { uidReset } from "./libs/common.js";
 import {
 	newFormater,
@@ -9,7 +13,7 @@ import {
 
 describe("logger", () => {
 	const monitorIDtoName = (input) => {
-		return "m" + input;
+		return `m${input}`;
 	};
 	test("time", () => {
 		const format = newFormater(monitorIDtoName, "utc");
@@ -58,7 +62,7 @@ describe("logger", () => {
 	});
 });
 
-/* eslint-disable no-useless-escape */
+/* eslint-disable no-useless-escape, no-script-url */
 describe("createSpanXSS", () => {
 	const cases = [
 		[
@@ -86,7 +90,7 @@ describe("createSpanXSS", () => {
 		expect(createSpan(input).innerHTML).toBe(want);
 	});
 });
-/* eslint-enable no-useless-escape */
+/* eslint-enable no-useless-escape, no-script-url */
 
 describe("MultiSelect", () => {
 	const setup = () => {
@@ -177,7 +181,7 @@ test("monitorPicker", () => {
 	};
 
 	let modalOnSelect;
-	let modalSetCalls = [];
+	const modalSetCalls = [];
 	let modalOpenCalled = false;
 	const mockModalSelect = (name, options, onSelect) => {
 		expect(name).toBe("Monitor");

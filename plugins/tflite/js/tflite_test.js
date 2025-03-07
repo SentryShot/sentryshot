@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import { _tflite } from "./tflite.js";
+import { tflite2 } from "./tflite.js";
 
 const defaultConfig = {
 	crop: {
@@ -49,7 +49,7 @@ describe("tflite", () => {
 		tf.init();
 		tf.set();
 		// @ts-ignore
-		tf._open();
+		tf.openTesting();
 		expect(tf.validate()).toBeUndefined();
 		expect(tf.validate()).toBeUndefined();
 		expect(tf.value()).toEqual(defaultConfig);
@@ -77,5 +77,5 @@ function newTflite() {
 	const getMonitorId = () => {
 		return "";
 	};
-	return _tflite(stubHls, detectors, hasSubStream, getMonitorId);
+	return tflite2(stubHls, detectors, hasSubStream, getMonitorId);
 }

@@ -76,7 +76,7 @@ describe("newForm", () => {
 					</div>
 				</ul>`.replaceAll(/\s/g, "");
 
-			let actual = form.html().replaceAll(/\s/g, "");
+			const actual = form.html().replaceAll(/\s/g, "");
 			expect(actual).toEqual(expected);
 		});
 		test("onClick", () => {
@@ -111,7 +111,7 @@ describe("newForm", () => {
 					</div>
 				</ul>`.replaceAll(/\s/g, "");
 
-			let actual = form.html().replaceAll(/\s/g, "");
+			const actual = form.html().replaceAll(/\s/g, "");
 			expect(actual).toEqual(expected);
 		});
 		test("onClick", () => {
@@ -150,7 +150,7 @@ describe("newForm", () => {
 			</div>
 		</ul>`.replaceAll(/\s/g, "");
 
-		let actual = form.html().replaceAll(/\s/g, "");
+		const actual = form.html().replaceAll(/\s/g, "");
 		expect(actual).toEqual(expected);
 	});
 });
@@ -217,8 +217,11 @@ describe("inputRules", () => {
 		for (const tc of cases) {
 			const input = tc[0];
 			const expected = !tc[1];
-			return rule[0].test(input) == expected;
+			if (rule[0].test(input) !== expected) {
+				return false;
+			}
 		}
+		return true;
 	};
 
 	test("noSpaces", () => {

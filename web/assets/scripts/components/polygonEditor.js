@@ -26,7 +26,8 @@
  * @param {PolygonEditorProps} props
  */
 function newPolygonEditor(element, props) {
-	let { color, opacity, stepSize, onChange, visible } = props;
+	const onChange = props.onChange;
+	let { color, opacity, stepSize, visible } = props;
 	if (color === undefined) {
 		color = "black";
 	}
@@ -54,7 +55,7 @@ function newPolygonEditor(element, props) {
 			const j = (i + 1) % value.length;
 			const k = (i + 2) % value.length;
 
-			if (j == selected) {
+			if (j === selected) {
 				continue;
 			}
 
@@ -65,12 +66,12 @@ function newPolygonEditor(element, props) {
 			const x3 = value[k][0];
 			const y3 = value[k][1];
 
-			const AB = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-			const BC = Math.sqrt(Math.pow(x2 - x3, 2) + Math.pow(y2 - y3, 2));
-			const AC = Math.sqrt(Math.pow(x3 - x1, 2) + Math.pow(y3 - y1, 2));
+			const AB = Math.hypot(x2 - x1, y2 - y1);
+			const BC = Math.hypot(x2 - x3, y2 - y3);
+			const AC = Math.hypot(x3 - x1, y3 - y1);
 
 			const angle = Math.acos((BC * BC + AB * AB - AC * AC) / (2 * BC * AB));
-			const degreesFrom180 = Math.abs((angle * 180) / Math.PI - 180);
+			const degreesFrom180 = Math.abs(angle * 180 / Math.PI - 180);
 
 			const minSegmentDegrees = 10;
 			if (degreesFrom180 < minSegmentDegrees) {
@@ -101,7 +102,7 @@ function newPolygonEditor(element, props) {
 		if (visible && enabled) {
 			// Points.
 			for (const [i, [x, y]] of value.entries()) {
-				if (i != selected) {
+				if (i !== selected) {
 					html += `<circle cx="${x}" cy="${y}" r="0.045rem" data="${i}" ${arrowStyle} class="js-point"></circle>`;
 				}
 			}
@@ -204,6 +205,7 @@ function newPolygonEditor(element, props) {
 					createPoint(Number(target.getAttribute("data")));
 					break;
 				}
+				default:
 			}
 			render();
 		}

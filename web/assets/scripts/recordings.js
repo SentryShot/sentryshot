@@ -17,9 +17,9 @@ import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
  * @typedef {import("./libs/time.js").UnixNano} UnixNano
  */
 
-async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
+function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 	let selectedMonitors = [];
-	let maxPlayingVideos = 2;
+	const maxPlayingVideos = 2;
 
 	/** @type {Player[]} */
 	let playingVideos;
@@ -35,10 +35,10 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 	const renderRecordings = async (recordings) => {
 		let current;
 		/** @type {Player[]} */
-		let players = [];
+		const players = [];
 		for (const rec of Object.values(recordings)) {
 			/** @type RecordingData */
-			let d = {};
+			const d = {};
 			d.id = rec.id;
 			d.videoPath = toAbsolutePath(`api/recording/video/${d.id}`);
 			if (rec.state === "active") {
@@ -87,14 +87,14 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 		const parameters = new URLSearchParams(
 			removeEmptyValues({
 				"recording-id": current,
-				limit: limit,
+				limit,
 				reverse: false,
 				monitors: selectedMonitors.join(","),
 				"include-data": true,
 			})
 		);
 		const recordings = await fetchGet(
-			"api/recording/query?" + parameters,
+			`api/recording/query?${parameters}`,
 			"could not get recording"
 		);
 
@@ -137,7 +137,7 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 	};
 
 	return {
-		reset: reset,
+		reset,
 		/** @param {UnixNano} date */
 		setDate(date) {
 			selectedDate = dateToID(date);
@@ -146,7 +146,7 @@ async function newViewer(monitorNameByID, $parent, timeZone, isAdmin, token) {
 		setMonitors(input) {
 			selectedMonitors = input;
 		},
-		lazyLoadRecordings: lazyLoadRecordings,
+		lazyLoadRecordings,
 		exitFullscreen() {
 			for (const player of playingVideos) {
 				player.exitFullscreen();
@@ -159,6 +159,10 @@ function toAbsolutePath(input) {
 	return window.location.href.replace("recordings", input);
 }
 
+/**
+ * @param {String} id
+ * @return {String}
+ */
 function idToISOstring(id) {
 	// Input  0000-00-00_00-00-00_x
 	// Output 0000-00-00T00:00:00
@@ -172,7 +176,7 @@ function idToISOstring(id) {
 function dateToID(t) {
 	const d = new Date(t / NS_MILLISECOND);
 	const pad = (n) => {
-		return n < 10 ? "0" + n : n;
+		return n < 10 ? `0${n}` : n;
 	};
 
 	const YY = d.getUTCFullYear(),
@@ -186,12 +190,12 @@ function dateToID(t) {
 }
 
 // Init.
-async function init() {
+function init() {
 	const { tz, monitorsInfo, monitorGroups, isAdmin, csrfToken } = globals();
 
 	const monitorNameByID = newMonitorNameByID(monitorsInfo);
 	const $grid = document.querySelector("#content-grid");
-	const viewer = await newViewer(monitorNameByID, $grid, tz, isAdmin, csrfToken);
+	const viewer = newViewer(monitorNameByID, $grid, tz, isAdmin, csrfToken);
 
 	const hashMonitors = getHashParam("monitors").split(",");
 	if (hashMonitors) {

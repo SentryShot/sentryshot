@@ -305,15 +305,7 @@ describe("fromUTC", () => {
 		const date = new Date("2001-01-02T03:04:05.006000Z");
 		const localTime = fromUTC(date, "America/New_York");
 		const print = (d) => {
-			return (
-				d.getUTCHours() +
-				":" +
-				d.getUTCMinutes() +
-				":" +
-				d.getUTCSeconds() +
-				"." +
-				d.getUTCMilliseconds()
-			);
+			return `${d.getUTCHours()}:${d.getUTCMinutes()}:${d.getUTCSeconds()}.${d.getUTCMilliseconds()}`;
 		};
 		const actual = print(localTime);
 		const expected = "22:4:5.6";

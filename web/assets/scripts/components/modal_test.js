@@ -15,7 +15,7 @@ test("newModal", () => {
 	});
 
 	modal.open();
-	let want = `
+	const want = `
 		<header class="modal-header">
 			<span class="modal-title">test</span>
 			<button class="modal-close-btn">
@@ -25,7 +25,7 @@ test("newModal", () => {
 		<div class="modal-content">a</div>
 		`.replaceAll(/\s/g, "");
 
-	let got = document.querySelector(".modal").innerHTML.replaceAll(/\s/g, "");
+	const got = document.querySelector(".modal").innerHTML.replaceAll(/\s/g, "");
 	expect(got).toEqual(want);
 
 	expect(modal.isOpen()).toBe(true);
@@ -69,7 +69,7 @@ test("modalSelect", () => {
 			</div>
 		</div>`.replaceAll(/\s/g, "");
 
-	let got = element.innerHTML.replaceAll(/\s/g, "");
+	const got = element.innerHTML.replaceAll(/\s/g, "");
 	expect(got).toEqual(want);
 
 	const item1 = document.querySelector(".js-option[data='m1']");

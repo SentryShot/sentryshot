@@ -25,7 +25,7 @@ export function motion(getMonitorId) {
 		return false;
 	};
 
-	return _motion(Hls, hasSubStream, getMonitorId);
+	return motion2(Hls, hasSubStream, getMonitorId);
 }
 
 /**
@@ -34,7 +34,7 @@ export function motion(getMonitorId) {
  * @param {() => string} getMonitorId
  * @returns {Field<any>}
  */
-export function _motion(hls, hasSubStream, getMonitorId) {
+export function motion2(hls, hasSubStream, getMonitorId) {
 	const fields = {
 		enable: fieldTemplate.toggle("Enable motion detection", false),
 		feedRate: fieldTemplate.integer("Feed rate (fps)", "", 2),
@@ -112,9 +112,8 @@ export function _motion(hls, hasSubStream, getMonitorId) {
 			}
 			const err = form.validate();
 			if (err !== undefined) {
-				return "Motion detection: " + err;
+				return `Motion detection: ${err}`;
 			}
-			return;
 		},
 		init() {
 			element = document.querySelector(`#${id}`);
@@ -125,7 +124,7 @@ export function _motion(hls, hasSubStream, getMonitorId) {
 				});
 		},
 		// @ts-ignore
-		_open() {
+		openTesting() {
 			open();
 		},
 	};
@@ -375,6 +374,9 @@ function zones(hls, hasSubStream, getMonitorId) {
 					$x20.classList.add(selectedClass);
 					break;
 				}
+				default: {
+					throw new Error(`invalid step size: ${v}`);
+				}
 			}
 			stepSize = v;
 			for (const zone of zones) {
@@ -430,6 +432,7 @@ function zones(hls, hasSubStream, getMonitorId) {
 					checkKeys();
 					break;
 				}
+				default:
 			}
 		});
 		window.addEventListener("keyup", (e) => {
@@ -444,6 +447,7 @@ function zones(hls, hasSubStream, getMonitorId) {
 					checkKeys();
 					break;
 				}
+				default:
 			}
 		});
 
@@ -491,7 +495,7 @@ function zones(hls, hasSubStream, getMonitorId) {
 
 	/** @param {number} index */
 	const setSelectedZoneIndex = (index) => {
-		return ($zoneSelect.value = `zone ${index}`);
+		$zoneSelect.value = `zone ${index}`;
 	};
 	/** @return {number} */
 	const getSelectedZoneIndex = () => {
@@ -672,15 +676,15 @@ function newZone($parent, value, stepSize, onChange) {
 		</svg>`.trim();
 	};
 
-	let template = document.createElement("template");
+	const template = document.createElement("template");
 	template.innerHTML = html();
 	const element = template.content.firstChild;
 	$parent.append(element);
 
 	// @ts-ignore
 	const editor = newPolygonEditor(element, {
-		stepSize: stepSize,
-		onChange: onChange,
+		stepSize,
+		onChange,
 		visible: value.preview,
 	});
 	editor.set(value.area);
@@ -800,7 +804,7 @@ function denormalizeZones(zones) {
 }
 
 // CSS.
-let $style = document.createElement("style");
+const $style = document.createElement("style");
 $style.innerHTML = `
 	.motion-modal-point {
 		display: flex;

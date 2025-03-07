@@ -105,8 +105,6 @@
 		font-size: 0.5rem;
 		word-wrap: break-word;
 		background: var(--color3);
-	}
-	.log-list {
 		overflow-y: auto;
 	}
 	.log-list > span {

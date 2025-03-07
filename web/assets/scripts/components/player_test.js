@@ -37,7 +37,7 @@ const data = {
 	start: 991440000000 * millisecond,
 	end: 991440600000 * millisecond,
 	timeZone: "gmt",
-	events: events,
+	events,
 };
 
 describe("newPlayer", () => {
@@ -191,7 +191,9 @@ describe("newPlayer", () => {
 
 		document.querySelector(".js-delete").click();
 		await (() => {
-			return new Promise((resolve) => setTimeout(resolve, 10));
+			return new Promise((resolve) => {
+				setTimeout(resolve, 10);
+			});
 		})();
 		expect(element.innerHTML.replaceAll(/\s/g, "")).toBe("");
 	});

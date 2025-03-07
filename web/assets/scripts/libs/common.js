@@ -105,7 +105,7 @@ let idCount = 0;
 /** @returm string */
 function uniqueID() {
 	idCount++;
-	return "uid" + idCount;
+	return `uid${idCount}`;
 }
 
 // Testing.
@@ -150,7 +150,7 @@ function newMonitorNameByID(monitors) {
  * @param {string} value
  */
 function setHashParam(key, value) {
-	let url = new URL("http://dummy.com");
+	const url = new URL("http://dummy.com");
 	url.search = window.location.hash.slice(1);
 	url.searchParams.set(key, value);
 	window.location.hash = url.search.slice(1).replace("%2C", ",");
@@ -165,7 +165,7 @@ function getHashParam(key) {
 		return "";
 	}
 
-	let url = new URL("http://dummy.com");
+	const url = new URL("http://dummy.com");
 	url.search = hash.slice(1);
 
 	const value = url.searchParams.get(key);
@@ -176,8 +176,8 @@ function getHashParam(key) {
 }
 
 function removeEmptyValues(obj) {
-	for (let field in obj) {
-		let v = obj[field];
+	for (const field in obj) {
+		const v = obj[field];
 		if (v === undefined || v.length === 0 || v[0] === "") {
 			delete obj[field];
 		}
@@ -190,7 +190,7 @@ function removeEmptyValues(obj) {
  * @param {number} max
  */
 function normalize(input, max) {
-	return Math.floor((1000000 * input) / max);
+	return Math.floor(1000000 * input / max);
 }
 
 /**
@@ -198,7 +198,7 @@ function normalize(input, max) {
  * @param {number} max
  */
 function denormalize(input, max) {
-	return Math.round((input * max) / 1000000);
+	return Math.round(input * max / 1000000);
 }
 
 /**

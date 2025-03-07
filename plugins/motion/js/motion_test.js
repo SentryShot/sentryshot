@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import { _motion } from "./motion.js";
+import { motion2 } from "./motion.js";
 
 const defaultConfig = {
 	duration: 120,
@@ -47,7 +47,7 @@ describe("tflite", () => {
 		motion.init();
 		motion.set();
 		// @ts-ignore
-		motion._open();
+		motion.openTesting();
 		expect(motion.validate()).toBeUndefined();
 		expect(motion.validate()).toBeUndefined();
 		expect(motion.value()).toEqual(defaultConfig);
@@ -73,5 +73,5 @@ function newMotion() {
 	const getMonitorId = () => {
 		return "";
 	};
-	return _motion(stubHls, hasSubStream, getMonitorId);
+	return motion2(stubHls, hasSubStream, getMonitorId);
 }

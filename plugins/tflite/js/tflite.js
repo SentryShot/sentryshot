@@ -31,7 +31,7 @@ export function tflite(getMonitorId) {
 		return false;
 	};
 
-	return _tflite(Hls, Detectors, hasSubStream, getMonitorId);
+	return tflite2(Hls, Detectors, hasSubStream, getMonitorId);
 }
 
 /**
@@ -50,10 +50,10 @@ export function tflite(getMonitorId) {
  * @param {() => string} getMonitorId
  * @returns {Field<any>}
  */
-export function _tflite(hls, detectors, hasSubStream, getMonitorId) {
-	let detectorNames = Object.keys(detectors);
+export function tflite2(hls, detectors, hasSubStream, getMonitorId) {
+	const detectorNames = Object.keys(detectors);
 
-	let fields = {};
+	const fields = {};
 	const getDetectorName = () => {
 		return fields.detectorName.value();
 	};
@@ -146,9 +146,8 @@ export function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 			}
 			const err = form.validate();
 			if (err !== undefined) {
-				return "TFlite: " + err;
+				return `TFlite: ${err}`;
 			}
-			return;
 		},
 		init() {
 			element = document.querySelector(`#${id}`);
@@ -157,7 +156,7 @@ export function _tflite(hls, detectors, hasSubStream, getMonitorId) {
 			});
 		},
 		// @ts-ignore
-		_open() {
+		openTesting() {
 			open();
 		},
 	};
@@ -240,9 +239,9 @@ function thresholds(detectors, getDetectorName) {
 	const setValue = (detectorName) => {
 		// Get labels from the detector.
 		/** @type {string[]} */
-		let labelNames = detectors[detectorName].labels;
+		const labelNames = detectors[detectorName].labels;
 
-		var labels = {};
+		const labels = {};
 		for (const name of labelNames) {
 			labels[name] = defaultThresh;
 		}
@@ -255,7 +254,7 @@ function thresholds(detectors, getDetectorName) {
 		}
 
 		// Sort keys.
-		let labelKeys = [];
+		const labelKeys = [];
 		for (const key of Object.keys(labels)) {
 			labelKeys.push(key);
 		}
@@ -438,11 +437,11 @@ function crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName) {
 			const paddingHeight = inputWidth * outputRatio - inputHeight;
 			$wrapper.style.display = "block";
 			$padding.style.width = "auto";
-			$padding.style.height = paddingHeight + "px";
+			$padding.style.height = `${paddingHeight}px`;
 		} else {
 			const paddingWidth = inputHeight * outputRatio - inputWidth;
 			$wrapper.style.display = "flex";
-			$padding.style.width = paddingWidth + "px";
+			$padding.style.width = `${paddingWidth}px`;
 			$padding.style.height = "auto";
 		}
 	};
@@ -685,7 +684,7 @@ function mask(hls, hasSubStream, getMonitorId) {
 		$enable = $modalContent.querySelector(".js-enable .js-input");
 		$enable.value = String(value.enable);
 		$enable.addEventListener("change", () => {
-			value.enable = $enable.value == "true";
+			value.enable = $enable.value === "true";
 		});
 
 		$overlay = $modalContent.querySelector(".js-tflite-overlay");
@@ -738,6 +737,9 @@ function mask(hls, hasSubStream, getMonitorId) {
 				case 20: {
 					$x20.classList.add(selectedClass);
 					break;
+				}
+				default: {
+					throw new Error(`invalid step size: ${v}`);
 				}
 			}
 
@@ -792,6 +794,7 @@ function mask(hls, hasSubStream, getMonitorId) {
 					checkKeys();
 					break;
 				}
+				default:
 			}
 		});
 		window.addEventListener("keyup", (e) => {
@@ -806,6 +809,7 @@ function mask(hls, hasSubStream, getMonitorId) {
 					checkKeys();
 					break;
 				}
+				default:
 			}
 		});
 	};
@@ -863,7 +867,7 @@ function mask(hls, hasSubStream, getMonitorId) {
 			}
 		},
 		init() {
-			var feed;
+			let feed;
 			const element = document.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const monitor = {
@@ -936,7 +940,7 @@ function normalizeMask(mask) {
 }*/
 
 // CSS.
-let $style = document.createElement("style");
+const $style = document.createElement("style");
 $style.innerHTML = `
 	.tflite-label-wrapper {
 		display: flex;

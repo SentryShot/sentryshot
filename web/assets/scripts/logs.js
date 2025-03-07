@@ -30,7 +30,7 @@ const LevelDebug = "debug";
 
 /**
  * @typedef {Object} Logger
- * @property {() => Promise<void>} lazyLoadSavedLogs
+ * @property {() => void} lazyLoadSavedLogs
  * @property {(levels: string[], sources: string[], monitors: string[]) => void} set
  */
 
@@ -87,7 +87,7 @@ function newLogger(formatLog, element) {
 			);
 			savedlogsLoader.lazyLoad();
 		},
-		async lazyLoadSavedLogs() {
+		lazyLoadSavedLogs() {
 			savedlogsLoader.lazyLoad();
 		},
 	};
@@ -102,19 +102,19 @@ function newLogger(formatLog, element) {
  * @returns {Promise<LogEntry[]>}
  */
 async function fetchLogs(abortSignal, levels, sources, monitors, time) {
-	let query = new URLSearchParams(
+	const query = new URLSearchParams(
 		removeEmptyValues({
-			levels: levels,
-			sources: sources,
-			monitors: monitors,
-			time: time,
+			levels,
+			sources,
+			monitors,
+			time,
 			limit: 20,
 		})
 	);
 
 	// Use relative path.
 	const path = window.location.pathname.replace("logs", "api/log/query");
-	const url = `${path}?` + query;
+	const url = `${path}?${query}`;
 
 	try {
 		const response = await fetch(url, {
@@ -152,44 +152,44 @@ function newFeedLogger(formatLog, element, time, levels, sources, monitors) {
 	const POLL_INTERVAL_MS = 200;
 
 	/** @type {AbortController} */
-	let abort = new AbortController();
+	const abort = new AbortController();
 	let cancelled = false;
 
-	const poll = async () => {
+	const poll = () => {
 		// Use relative path.
 		const path = window.location.pathname.replace("logs", "api/log/slow-poll");
 
-		let query = new URLSearchParams(
+		const query = new URLSearchParams(
 			removeEmptyValues({
-				levels: levels,
-				sources: sources,
-				monitors: monitors,
-				time: time,
+				levels,
+				sources,
+				monitors,
+				time,
 			})
 		);
-		const url = `${path}?` + query;
+		const url = `${path}?${query}`;
 
 		return fetch(url, {
 			signal: abort.signal,
 		});
 	};
 
-	let time_of_last_poll = Date.now();
+	let timeOfLastPoll = Date.now();
 
 	// Start background task.
 	(async () => {
 		while (!cancelled) {
 			const now = Date.now();
-			const time_since_last_poll = now - time_of_last_poll;
+			const timeSinceLastPoll = now - timeOfLastPoll;
 
-			if (time_since_last_poll < POLL_INTERVAL_MS) {
-				const time_until_next_poll = POLL_INTERVAL_MS - time_since_last_poll;
-				const aborted = await sleep(abort.signal, time_until_next_poll);
+			if (timeSinceLastPoll < POLL_INTERVAL_MS) {
+				const timeUntilNextPoll = POLL_INTERVAL_MS - timeSinceLastPoll;
+				const aborted = await sleep(abort.signal, timeUntilNextPoll);
 				if (aborted || cancelled) {
 					return;
 				}
 			}
-			time_of_last_poll = Date.now();
+			timeOfLastPoll = Date.now();
 
 			/** @type {LogEntry[]} */
 			let logs;
@@ -263,14 +263,14 @@ function newLoadingIndicator(element) {
 		}
 
 		state = WAITING;
-		let aborted = await sleep(abortSignal, INITIAL_DELAY_MS);
+		const aborted = await sleep(abortSignal, INITIAL_DELAY_MS);
 		if (aborted || state !== WAITING) {
 			return;
 		}
 		element.textContent = "loading";
 
 		state = LOADING;
-		while (!(await sleep(abortSignal, LOAD_INTERVAL_MS))) {
+		while (!await sleep(abortSignal, LOAD_INTERVAL_MS)) {
 			element.textContent += ".";
 		}
 	};
@@ -370,9 +370,9 @@ function newSavedLogsLoader(
 	const [IDLE, FETCHING, CANCELLED] = [0, 1, 2];
 	let state = IDLE;
 
-	let abort = new AbortController();
+	const abort = new AbortController();
 
-	const ThreeScreensLoadedAhead = () => {
+	const threeScreensLoadedAhead = () => {
 		const lastChild = element.lastChild;
 		return lastChild && lastChild instanceof HTMLSpanElement
 			? lastChild.getBoundingClientRect().top > window.screen.height * 3
@@ -382,7 +382,7 @@ function newSavedLogsLoader(
 	return {
 		// Called on scroll and on window resize.
 		async lazyLoad() {
-			while (state === IDLE && !ThreeScreensLoadedAhead()) {
+			while (state === IDLE && !threeScreensLoadedAhead()) {
 				state = FETCHING;
 
 				loadingIndicator.setLoading(true);
@@ -476,16 +476,19 @@ function newFormater(monitorNameByID, timeZone) {
 				output += "[DEBUG] ";
 				break;
 			}
+			default: {
+				output += `[${log.level}] `;
+			}
 		}
 
-		output += unixToDateStr(log.time) + " ";
+		output += `${unixToDateStr(log.time)} `;
 
 		if (log.source) {
-			output += log.source + ": ";
+			output += `${log.source}: `;
 		}
 
 		if (log.monitorID) {
-			output += monitorNameByID(log.monitorID) + ": ";
+			output += `${monitorNameByID(log.monitorID)}: `;
 		}
 
 		output += log.message;
@@ -532,7 +535,7 @@ function newMultiSelect(label, values, initial) {
 	/**
 	 * @type {Object<string, Field<boolean>>}
 	 */
-	let fields = {};
+	const fields = {};
 
 	values.sort();
 	for (const val of values) {
@@ -568,7 +571,7 @@ function newMultiSelect(label, values, initial) {
 			reset();
 		},
 		value() {
-			let output = [];
+			const output = [];
 			for (const key of Object.keys(fields)) {
 				if (fields[key].value()) {
 					output.push(key);
@@ -604,8 +607,8 @@ function newMultiSelect(label, values, initial) {
  * @returns {Field<string>}
  */
 function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
-	let monitorNames = [];
-	let monitorNameToID = {};
+	const monitorNames = [];
+	const monitorNameToID = {};
 	for (const { id, name } of sortByName(monitors)) {
 		monitorNames.push(name);
 		monitorNameToID[name] = id;
@@ -659,7 +662,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 		},
 		value() {
 			const value = $input.value;
-			if (value == "") {
+			if (value === "") {
 				return "";
 			}
 			return monitorNameToID[value];
@@ -711,7 +714,7 @@ function newLogSelector(logger, formFields) {
 				break;
 			}
 			default: {
-				console.error("invalid level:" + level);
+				console.error(`invalid level:${level}`);
 			}
 		}
 
@@ -757,7 +760,7 @@ function newLogSelector(logger, formFields) {
 	};
 }
 
-async function init() {
+function init() {
 	const { logSources, monitors, tz } = globals();
 
 	const monitorNameByID = newMonitorNameByID(monitors);
@@ -783,9 +786,7 @@ async function init() {
 
 	window.addEventListener("resize", logger.lazyLoadSavedLogs);
 	window.addEventListener("orientation", logger.lazyLoadSavedLogs);
-	document
-		.querySelector("#log-list")
-		.addEventListener("scroll", logger.lazyLoadSavedLogs);
+	$logLists.addEventListener("scroll", logger.lazyLoadSavedLogs);
 }
 
 export {

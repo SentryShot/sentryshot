@@ -59,7 +59,7 @@ function newTime(unixMs, timeZone) {
 
 	// Creating the formatter is the slow part that doesn't show in the profiler.
 	const formatter = new Intl.DateTimeFormat("en-US", {
-		timeZone: timeZone,
+		timeZone,
 		hour12: false,
 		year: "numeric",
 		month: "2-digit",
@@ -91,7 +91,7 @@ function newTime(unixMs, timeZone) {
 		day = Number(s.slice(3, 5));
 		year = Number(s.slice(6, 10));
 		hour = Number(s.slice(12, 14));
-		if (hour == 24) {
+		if (hour === 24) {
 			hour = 0;
 		}
 		minute = Number(s.slice(15, 17));
@@ -101,7 +101,7 @@ function newTime(unixMs, timeZone) {
 	update();
 
 	const isLeapYear = (year) => {
-		return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+		return year % 4 === 0 && year % 100 !== 0 || year % 400 === 0;
 	};
 
 	//  1 JAN: 31
@@ -143,7 +143,7 @@ function newTime(unixMs, timeZone) {
 				return isLeapYear(year) ? 29 : 28;
 			}
 			default: {
-				throw `invalid month: ${month}`;
+				throw new Error(`invalid month: ${month}`);
 			}
 		}
 	};
@@ -243,7 +243,7 @@ function newTime(unixMs, timeZone) {
 			}
 
 			// Leap day.
-			if (month === 2 && day == 29 && !isLeapYear(newYear)) {
+			if (month === 2 && day === 29 && !isLeapYear(newYear)) {
 				d.setTime(d.getTime() - MS_DAY);
 				update();
 			}
@@ -313,7 +313,7 @@ function newTime(unixMs, timeZone) {
 		},
 		nextYear() {
 			// Leap day.
-			if (month === 2 && day == 29) {
+			if (month === 2 && day === 29) {
 				d.setTime(d.getTime() - MS_DAY);
 				update();
 			}
@@ -337,7 +337,7 @@ function newTime(unixMs, timeZone) {
 		},
 		prevYear() {
 			// Leap day.
-			if (month === 2 && day == 29) {
+			if (month === 2 && day === 29) {
 				d.setTime(d.getTime() - MS_DAY);
 				update();
 			}
@@ -404,7 +404,7 @@ function newTime(unixMs, timeZone) {
  * @return string
  */
 function pad(n) {
-	return n < 10 ? "0" + n : n;
+	return n < 10 ? `0${n}` : n;
 }
 
 /**
@@ -413,9 +413,9 @@ function pad(n) {
  */
 function pad3(n) {
 	if (n < 10) {
-		return "00" + n;
+		return `00${n}`;
 	} else if (n < 100) {
-		return "0" + n;
+		return `0${n}`;
 	}
 	return n;
 }
@@ -429,7 +429,7 @@ function toUTC(date, timeZone) {
 		const tmp1 = new Date(date.toLocaleString("en-US", { timeZone: "utc" }));
 		const unix1 = tmp1.getTime();
 
-		const tmp2 = new Date(date.toLocaleString("en-US", { timeZone: timeZone }));
+		const tmp2 = new Date(date.toLocaleString("en-US", { timeZone }));
 		const unix2 = tmp2.getTime();
 
 		let utc;
@@ -456,7 +456,7 @@ function fromUTC(date, timeZone) {
 		const tmp1 = new Date(date.toLocaleString("en-US", { timeZone: "utc" }));
 		const unix1 = tmp1.getTime();
 
-		const tmp2 = new Date(date.toLocaleString("en-US", { timeZone: timeZone }));
+		const tmp2 = new Date(date.toLocaleString("en-US", { timeZone }));
 		const unix2 = tmp2.getTime();
 
 		let utc;
@@ -481,7 +481,7 @@ function fromUTC(date, timeZone) {
 function fromUTC2(date, timeZone) {
 	// "MM/DD/YY, hh:mm:ss"
 	const str = date.toLocaleString("en-US", {
-		timeZone: timeZone,
+		timeZone,
 		hour12: false,
 		year: "numeric",
 		month: "2-digit",
@@ -496,7 +496,7 @@ function fromUTC2(date, timeZone) {
 		YY: str.slice(6, 10),
 		MM: str.slice(0, 2),
 		DD: str.slice(3, 5),
-		hh: hh == "24" ? "00" : hh,
+		hh: hh === "24" ? "00" : hh,
 		mm: str.slice(15, 17),
 		ss: str.slice(18, 20),
 	};

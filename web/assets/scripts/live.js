@@ -22,7 +22,7 @@ function newViewer($parent, monitors, hls) {
 			return true;
 		}
 		for (const id of selectedMonitors) {
-			if (monitor["id"] == id) {
+			if (monitor["id"] === id) {
 				return true;
 			}
 		}
@@ -34,7 +34,7 @@ function newViewer($parent, monitors, hls) {
 	let feeds = [];
 
 	/** @type {FullscreenButton[]} */
-	let fullscreenButtons = [];
+	const fullscreenButtons = [];
 
 	return {
 		setMonitors(input) {

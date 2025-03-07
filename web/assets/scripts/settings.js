@@ -38,7 +38,7 @@ import { newModal } from "./components/modal.js";
 /** @param {Element} $parent */
 function newRenderer($parent) {
 	/** @type {Category[]} */
-	let categories = [];
+	const categories = [];
 
 	return {
 		/** @param {Category} category */
@@ -163,10 +163,10 @@ function newSimpleCategory(category, title) {
 
 // TODO: deprecate in favor of newCategory2.
 /**
- * @param {string} category_name
+ * @param {string} categoryName
  * @param {string} title
  */
-function newCategory(category_name, title) {
+function newCategory(categoryName, title) {
 	/** @type {Form} */
 	let form;
 
@@ -247,10 +247,10 @@ function newCategory(category_name, title) {
 				</div>`;
 		},
 		init() {
-			$wrapper = document.querySelector(`#js-settings-wrapper-${category_name}`);
+			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
 			$nav = $wrapper.querySelector(".settings-category-nav");
 
-			const $navBtn = document.querySelector(`#js-set-category-${category_name}`);
+			const $navBtn = document.querySelector(`#js-set-category-${categoryName}`);
 
 			form.init();
 
@@ -302,11 +302,11 @@ function newCategory(category_name, title) {
 }
 
 /**
- * @param {string} category_name
+ * @param {string} categoryName
  * @param {string} title
  * @param {Form} form
  */
-function newCategory2(category_name, title, form) {
+function newCategory2(categoryName, title, form) {
 	/** @type {(element: Element) => void} */
 	let onNav;
 
@@ -379,10 +379,10 @@ function newCategory2(category_name, title, form) {
 				</div>`;
 		},
 		init() {
-			$wrapper = document.querySelector(`#js-settings-wrapper-${category_name}`);
+			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
 			$nav = $wrapper.querySelector(".settings-category-nav");
 
-			const $navBtn = document.querySelector(`#js-set-category-${category_name}`);
+			const $navBtn = document.querySelector(`#js-set-category-${categoryName}`);
 
 			form.init();
 
@@ -554,7 +554,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		}
 
 		const id = getMonitorId();
-		let monitor = monitors[id] || {};
+		const monitor = monitors[id] || {};
 		for (const key of Object.keys(form.fields)) {
 			monitor[key] = form.fields[key].value();
 		}
@@ -570,7 +570,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		}
 
 		fetchPost(
-			"api/monitor/restart?id=" + id,
+			`api/monitor/restart?id=${id}`,
 			monitor,
 			token,
 			"failed to restart monitor"
@@ -583,7 +583,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 	const deleteMonitor = async (monitorID) => {
 		const params = new URLSearchParams({ id: monitorID });
 		const ok = await fetchDelete(
-			"api/monitor?" + params,
+			`api/monitor?${params}`,
 			token,
 			"failed to delete monitor"
 		);
@@ -643,7 +643,7 @@ function newMonitorGroups(token, fields, groups) {
 			groups[id] = {};
 		}
 		/** @typedef {MonitorGroup} */
-		let group = groups[id];
+		const group = groups[id];
 		for (const key of Object.keys(form.fields)) {
 			group[key] = form.fields[key].value();
 		}
@@ -664,9 +664,9 @@ function newMonitorGroups(token, fields, groups) {
 		saveGroup();
 	});
 
-	/** @param {string} group_id */
-	const deleteGroup = async (group_id) => {
-		delete groups[group_id];
+	/** @param {string} groupId */
+	const deleteGroup = async (groupId) => {
+		delete groups[groupId];
 
 		const ok = await fetchPut(
 			"api/monitor-groups",
@@ -718,7 +718,7 @@ function newMonitorGroups(token, fields, groups) {
 		}
 	};
 
-	const load = async () => {
+	const load = () => {
 		category.closeSubcategory();
 
 		let html = "";
@@ -915,7 +915,7 @@ function newAccount(token, fields) {
 	const deleteAccount = async (accountID) => {
 		const params = new URLSearchParams({ id: accountID });
 		const ok = await fetchDelete(
-			"api/account?" + params,
+			`api/account?${params}`,
 			token,
 			"failed to delete account"
 		);
@@ -947,8 +947,8 @@ function newAccount(token, fields) {
 
 /** @param {number} length */
 function randomString(length) {
-	var charSet = "234565789abcdefghjkmnpqrstuvwxyz";
-	var output = "";
+	const charSet = "234565789abcdefghjkmnpqrstuvwxyz";
+	let output = "";
 	for (let i = 0; i < length; i++) {
 		output += charSet.charAt(Math.floor(Math.random() * charSet.length));
 	}
@@ -1154,7 +1154,7 @@ function newSelectMonitorField(monitors) {
 			}
 		},
 		value() {
-			let value = [];
+			const value = [];
 			for (const [id, field] of Object.entries(fields)) {
 				if (field.value()) {
 					value.push(id);
@@ -1215,14 +1215,14 @@ function newSourceField(options, getField) {
 				selectedSourceField().open();
 			});
 		},
-		value: value,
+		value,
 		set(input) {
 			$input.value = input === undefined ? "rtsp" : input;
 			$error.textContent = "";
 		},
 		validate() {
 			const err = selectedSourceField().validateSource();
-			$error.textContent = err == undefined ? "" : err;
+			$error.textContent = err === undefined ? "" : err;
 			return err;
 		},
 	};
@@ -1315,9 +1315,8 @@ function newSourceRTSP() {
 			render(element);
 			const err = form.validate();
 			if (err !== undefined) {
-				return "RTSP source: " + err;
+				return `RTSP source: ${err}`;
 			}
-			return;
 		},
 	};
 }
@@ -1331,7 +1330,7 @@ function init() {
 	const renderer = newRenderer(document.querySelector(".js-content"));
 
 	/** @type {Fields<any>} */
-	let monitorFields = {};
+	const monitorFields = {};
 	const getMonitorId = () => {
 		return monitorFields.id.value();
 	};
@@ -1365,7 +1364,7 @@ function init() {
 	renderer.addCategory(monitor);
 
 	/** @type {Fields<any>} */
-	let monitorGroupsFields = {};
+	const monitorGroupsFields = {};
 	// @ts-ignore
 	monitorGroupsFields.id = (() => {
 		let value;

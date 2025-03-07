@@ -26,7 +26,7 @@ describe("optionsGridSize", () => {
 		};
 		setup(newOptionsBtn.gridSize(content));
 
-		let want = `
+		const want = `
 			<div id="options-menu">
 				<button id="uid1" class="options-menu-btn">
 					<img class="icon" src="assets/icons/feather/plus.svg">
@@ -36,7 +36,7 @@ describe("optionsGridSize", () => {
 				</button>
 			</div>`.replaceAll(/\s/g, "");
 
-		let got = document.body.innerHTML.replaceAll(/\s/g, "");
+		const got = document.body.innerHTML.replaceAll(/\s/g, "");
 		expect(got).toEqual(want);
 	});
 	test("logic", () => {
@@ -98,11 +98,11 @@ describe("optionsDate", () => {
 		const $calendar = document.querySelector(".js-calendar");
 
 		const pad = (n) => {
-			return n < 10 ? " " + n : n;
+			return n < 10 ? ` ${n}` : n;
 		};
 
 		const domState = () => {
-			let state = [];
+			const state = [];
 			for (const child of $calendar.children) {
 				if (child.textContent === "") {
 					state.push("  ");
@@ -233,7 +233,7 @@ test("optionsMonitor", () => {
 	};
 
 	let modalOnSelect;
-	let modalSetCalls = [];
+	const modalSetCalls = [];
 	let modalOpenCalled = false;
 	const mockModalSelect = (name, options, onSelect) => {
 		expect(name).toBe("Monitor");
@@ -369,11 +369,11 @@ describe("newOptionsMenu", () => {
 		element.innerHTML = options.html();
 		options.init(element);
 
-		let want = `
+		const want = `
 			<button id="topbar-options-btn" style="visibility:visible;"></button>
 			<div id="options-menu">ab</div>`.replaceAll(/\s/g, "");
 
-		let got = document.body.innerHTML.replaceAll(/\s/g, "");
+		const got = document.body.innerHTML.replaceAll(/\s/g, "");
 		expect(got).toEqual(want);
 	});
 	test("logic", () => {

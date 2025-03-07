@@ -137,7 +137,7 @@ const newOptionsBtn = {
 	 */
 	monitorGroup(monitorGroups, content) {
 		/** @type {Options} */
-		let options = {};
+		const options = {};
 		for (const group of Object.values(monitorGroups)) {
 			options[group.id] = { id: group.id, label: group.name };
 		}
@@ -177,13 +177,13 @@ const newOptionsBtn = {
  */
 function newOptionsPopup(label, icon, htmlContent) {
 	/** @type Element */
-	var element;
+	let element;
 	const toggle = () => {
 		element.classList.toggle("options-popup-open");
 	};
 
-	let buttonId = uniqueID();
-	let popupId = uniqueID();
+	const buttonId = uniqueID();
+	const popupId = uniqueID();
 	return {
 		html: `
 			<button id="${buttonId}" class="options-menu-btn js-${label}">
@@ -194,7 +194,7 @@ function newOptionsPopup(label, icon, htmlContent) {
 				${htmlContent}
 				</div>
 			</div>`,
-		toggle: toggle,
+		toggle,
 		init() {
 			element = document.querySelector(`#${popupId}`);
 			document.querySelector(`#${buttonId}`).addEventListener("click", () => {
@@ -365,7 +365,7 @@ function newDatePicker(timeZone, content) {
 
 		for (let i = 0; i < 7 * 6; i++) {
 			const btn = dayBtns[i];
-			if (day == selectedDay) {
+			if (day === selectedDay) {
 				btn.classList.add("date-picker-day-selected");
 			} else {
 				btn.classList.remove("date-picker-day-selected");
@@ -452,7 +452,7 @@ function newDatePicker(timeZone, content) {
 				if (target instanceof HTMLInputElement) {
 					const value = Number(target.value);
 					if (value < 10) {
-						target.value = "0" + value;
+						target.value = `0${value}`;
 					}
 				}
 			});
@@ -479,7 +479,7 @@ function newDatePicker(timeZone, content) {
 				if (target instanceof HTMLInputElement) {
 					const value = Number(target.value);
 					if (value < 10) {
-						target.value = "0" + value;
+						target.value = `0${value}`;
 					}
 				}
 			});
@@ -515,11 +515,11 @@ function newDatePicker(timeZone, content) {
  */
 function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModalSelect) {
 	/** @type {string[]} */
-	let monitorNames = [];
+	const monitorNames = [];
 	/** @type {Object.<string, string>} */
-	let monitorNameToID = {};
+	const monitorNameToID = {};
 	/** @type {Object.<string, string>} */
-	let monitorIDToName = {};
+	const monitorIDToName = {};
 	for (const { id, name } of sortByName(monitors)) {
 		monitorNames.push(name);
 		monitorNameToID[name] = id;
@@ -648,7 +648,7 @@ function newSelectOne(options, onSelect, alias) {
  * @return {string}
  */
 function pad(n) {
-	return n < 10 ? "0" + n : String(n);
+	return n < 10 ? `0${n}` : String(n);
 }
 
 export { newOptionsMenu, newOptionsBtn, newOptionsPopup, newSelectOne, newSelectMonitor };

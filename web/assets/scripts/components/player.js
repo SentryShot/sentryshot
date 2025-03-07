@@ -201,7 +201,7 @@ function newPlayer(data, isAdmin, token) {
 			$progress.value = newTime;
 			/** @type {HTMLElement} */
 			const $progressBar = $progress.querySelector(".player-progress-bar");
-			$progressBar.style.width = Math.floor((newTime / videoDuration) * 100) + "%";
+			$progressBar.style.width = `${Math.floor(newTime / videoDuration * 100)}%`;
 
 			const newDate = new Date(start.getTime());
 			newDate.setMilliseconds($video.currentTime * 1000);
@@ -313,7 +313,7 @@ function renderTimeline(data) {
 	 * Array of booleans representing events.
 	 * @type {boolean[]}
 	 */
-	let timeline = Array.from({ length: resolution }).fill(false);
+	const timeline = Array.from({ length: resolution }).fill(false);
 	for (const e of data.events) {
 		const eventTimeMs = e.time / millisecond;
 		const eventDurationMs = e.duration / millisecond;
@@ -321,8 +321,8 @@ function renderTimeline(data) {
 		const startTime = eventTimeMs - startMs;
 		const endTime = eventTimeMs + eventDurationMs - startMs;
 
-		const start2 = Math.round((startTime / offset) * resolution);
-		const end2 = Math.round((endTime / offset) * resolution);
+		const start2 = Math.round(startTime / offset * resolution);
+		const end2 = Math.round(endTime / offset * resolution);
 
 		for (let i = start2; i < end2; i++) {
 			if (i >= resolution) {
@@ -441,7 +441,7 @@ function newDetectionRenderer(startTimeMs, events) {
 
 /** @param {number} n */
 function pad(n) {
-	return String(n < 10 ? "0" + n : n);
+	return String(n < 10 ? `0${n}` : n);
 }
 
 export { newPlayer, newDetectionRenderer };

@@ -58,7 +58,7 @@ import { uniqueID } from "../libs/common.js";
  */
 function newForm(fields) {
 	/** @type {Buttons} */
-	let buttons = {};
+	const buttons = {};
 	return {
 		buttons() {
 			return buttons;
@@ -78,7 +78,7 @@ function newForm(fields) {
 				}
 			}
 		},
-		fields: fields,
+		fields,
 		reset() {
 			for (const item of Object.values(fields)) {
 				if (item.set) {
@@ -228,9 +228,9 @@ const fieldTemplate = {
 				input: "text",
 			},
 			{
-				label: label,
-				placeholder: placeholder,
-				initial: initial,
+				label,
+				placeholder,
+				initial,
 			}
 		);
 	},
@@ -249,9 +249,9 @@ const fieldTemplate = {
 				step: 1,
 			},
 			{
-				label: label,
-				placeholder: placeholder,
-				initial: initial,
+				label,
+				placeholder,
+				initial,
 			}
 		);
 	},
@@ -269,9 +269,9 @@ const fieldTemplate = {
 				min: 0,
 			},
 			{
-				label: label,
-				placeholder: placeholder,
-				initial: initial,
+				label,
+				placeholder,
+				initial,
 			}
 		);
 	},
@@ -296,8 +296,8 @@ const fieldTemplate = {
 				select: options,
 			},
 			{
-				label: label,
-				initial: initial,
+				label,
+				initial,
 			}
 		);
 	},
@@ -309,8 +309,8 @@ const fieldTemplate = {
 	 */
 	selectCustom(label, options, initial) {
 		return newSelectCustomField([inputRules.notEmpty], options, {
-			label: label,
-			initial: initial,
+			label,
+			initial,
 		});
 	},
 };
@@ -363,7 +363,6 @@ function newField(inputRules, options, values) {
 			}
 		}
 		$error.textContent = "";
-		return;
 	};
 
 	const id = uniqueID();
@@ -393,7 +392,6 @@ function newField(inputRules, options, values) {
 			if (err !== undefined) {
 				return `"${label}": ${err}`;
 			}
-			return;
 		},
 		element() {
 			return element;
@@ -426,7 +424,6 @@ function newNumberField(options, values) {
 		}
 
 		$error.textContent = "";
-		return;
 	};
 
 	const id = uniqueID();
@@ -438,7 +435,7 @@ function newNumberField(options, values) {
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
 				// Only contains one or more digits.
-				if (/^\d+$/.test($input.value)) {
+				if ((/^\d+$/).test($input.value)) {
 					const input = Number($input.value);
 					if (min !== undefined && input < min) {
 						$input.value = String(min);
@@ -464,7 +461,6 @@ function newNumberField(options, values) {
 			if (err !== undefined) {
 				return `"${label}": ${err}`;
 			}
-			return;
 		},
 		element() {
 			return element;
@@ -479,15 +475,18 @@ function newNumberField(options, values) {
  * @param {string} placeholder
  */
 function newHTMLfield(options, id, label, placeholder = "") {
-	let { errorField, input, select, min, max, step, custom } = options;
+	const { errorField, input, select, custom } = options;
+	let { min, max, step } = options;
 
-	placeholder ? "" : (placeholder = "");
+	/* eslint-disable no-unused-expressions */
+	placeholder ? "" : placeholder = "";
 	// @ts-ignore
-	min === undefined ? (min = "") : (min = `min="${min}"`);
+	min === undefined ? min = "" : min = `min="${min}"`;
 	// @ts-ignore
-	max === undefined ? (max = "") : (max = `max="${max}"`);
+	max === undefined ? max = "" : max = `max="${max}"`;
 	// @ts-ignore
-	step === undefined ? (step = "") : (step = `step="${step}"`);
+	step === undefined ? step = "" : step = `step="${step}"`;
+	/* eslint-enable no-unused-expressions */
 
 	let body = "";
 	if (input) {
@@ -580,7 +579,6 @@ function newSelectCustomField(inputRules, options, values) {
 	/** @type HTMLInputElement */
 	let $input;
 	let $error;
-	let validate;
 	const id = uniqueID();
 
 	const errorField = inputRules.length > 0;
@@ -610,7 +608,7 @@ function newSelectCustomField(inputRules, options, values) {
 	};
 
 	/** @returns {string|undefined} */
-	validate = () => {
+	const validate = () => {
 		if (!errorField) {
 			return;
 		}
@@ -622,7 +620,6 @@ function newSelectCustomField(inputRules, options, values) {
 			}
 		}
 		$error.textContent = "";
-		return;
 	};
 
 	return {
@@ -631,7 +628,7 @@ function newSelectCustomField(inputRules, options, values) {
 				{
 					select: options,
 					custom: true,
-					errorField: errorField,
+					errorField,
 				},
 				id,
 				values.label,
@@ -653,8 +650,8 @@ function newSelectCustomField(inputRules, options, values) {
 		value() {
 			return $input.value;
 		},
-		set: set,
-		validate: validate,
+		set,
+		validate,
 	};
 }
 
@@ -692,7 +689,6 @@ function newPasswordField() {
 		} else if ($repeatInput.value !== $newInput.value) {
 			return "Passwords do not match";
 		}
-		return;
 	};
 
 	const value = () => {
@@ -701,12 +697,9 @@ function newPasswordField() {
 
 	/** @param {string} string */
 	const passwordStrength = (string) => {
-		const strongRegex = new RegExp(
-			"^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*])(?=.{8,})"
-		);
-		const mediumRegex = new RegExp(
-			"^(((?=.*[a-z])(?=.*[A-Z]))|((?=.*[a-z])(?=.*\\d))|((?=.*[A-Z])(?=.*\\d)))(?=.{6,})"
-		);
+		const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!#$%&*@^])(?=.{8,})/;
+		const mediumRegex =
+			/^(?=.*[a-z])(?=.*[A-Z])|(?=.*[a-z])(?=.*\d)|(?=.*[A-Z](?=.*\d))(?=.{6,})/;
 
 		if (strongRegex.test(string) || string === "") {
 			return "";
@@ -726,7 +719,7 @@ function newPasswordField() {
 		html:
 			passwordHTML(newID, "New password") +
 			passwordHTML(repeatID, "Repeat password"),
-		value: value,
+		value,
 		// Always called with undefined.
 		set() {
 			$newInput.value = "";
@@ -736,10 +729,10 @@ function newPasswordField() {
 		},
 		init() {
 			[$newInput, $newError] = $getInputAndError(
-				document.querySelector("#js-" + newID)
+				document.querySelector(`#js-${newID}`)
 			);
 			[$repeatInput, $repeatError] = $getInputAndError(
-				document.querySelector("#js-" + repeatID)
+				document.querySelector(`#js-${repeatID}`)
 			);
 
 			$newInput.addEventListener("change", () => {
@@ -749,7 +742,7 @@ function newPasswordField() {
 				checkPassword();
 			});
 		},
-		validate: validate,
+		validate,
 	};
 }
 
