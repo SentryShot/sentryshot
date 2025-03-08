@@ -309,7 +309,10 @@ impl App {
             // Log slow poll.
             .route_admin_no_csrf(
                 "/api/log/slow-poll",
-                get(log_slow_poll_handler).with_state(SlowPoller::new(self.logger.subscribe())),
+                get(log_slow_poll_handler).with_state(SlowPoller::new(
+                    self.token.child_token(),
+                    self.logger.subscribe(),
+                )),
             )
             // Log query.
             .route_admin_no_csrf(

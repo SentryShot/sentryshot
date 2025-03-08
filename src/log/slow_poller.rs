@@ -6,6 +6,7 @@ use csv::{deserialize_csv_option, deserialize_csv_option2};
 use serde::Deserialize;
 use std::collections::VecDeque;
 use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio_util::sync::CancellationToken;
 
 enum Request {
     SlowPoll(SlowPollRequest),
@@ -41,7 +42,7 @@ impl SlowPoller {
 
     #[must_use]
     #[allow(clippy::manual_let_else)]
-    pub fn new(mut feed: broadcast::Receiver<LogEntryWithTime>) -> Self {
+    pub fn new(token: CancellationToken, mut feed: broadcast::Receiver<LogEntryWithTime>) -> Self {
         let (tx, mut rx) = mpsc::channel::<Request>(4);
 
         tokio::spawn(async move {
@@ -51,6 +52,7 @@ impl SlowPoller {
                 VecDeque::with_capacity(SlowPoller::MAX_CONNECTIONS);
             loop {
                 tokio::select! {
+                    () = token.cancelled() => return,
                     entry = feed.recv() => {
                         let mut entry = match entry {
                             Ok(v) => v,
@@ -220,8 +222,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_simple() {
+        let token = CancellationToken::new();
         let (tx, rx) = broadcast::channel(3);
-        let poller = SlowPoller::new(rx);
+        let poller = SlowPoller::new(token.child_token(), rx);
 
         let msg1 = new_test_entry(MINUTE + 1);
         let msg2 = new_test_entry(MINUTE + 2);
@@ -239,8 +242,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_prune_old() {
+        let token = CancellationToken::new();
         let (tx, rx) = broadcast::channel(3);
-        let poller = SlowPoller::new(rx);
+        let poller = SlowPoller::new(token.child_token(), rx);
 
         let msg1 = new_test_entry(MINUTE + 1);
         let msg2 = new_test_entry(MINUTE + 2);
@@ -258,8 +262,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_order() {
+        let token = CancellationToken::new();
         let (tx, rx) = broadcast::channel(3);
-        let poller = SlowPoller::new(rx);
+        let poller = SlowPoller::new(token.child_token(), rx);
 
         let msg1 = new_test_entry(MINUTE + 1);
         let msg2 = new_test_entry(MINUTE + 3);
@@ -277,8 +282,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_cancelled() {
+        let token = CancellationToken::new();
         let (tx, rx) = broadcast::channel(1);
-        let poller = SlowPoller::new(rx);
+        let poller = SlowPoller::new(token.child_token(), rx);
 
         drop(tx);
         while poller.debug().await.is_some() {}
@@ -291,8 +297,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_time_zero() {
+        let token = CancellationToken::new();
         let (tx, rx) = broadcast::channel(3);
-        let poller = SlowPoller::new(rx);
+        let poller = SlowPoller::new(token.child_token(), rx);
 
         let msg1 = new_test_entry(0);
         let msg2 = new_test_entry(MINUTE);
@@ -308,8 +315,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_time() {
+        let token = CancellationToken::new();
         let (tx, rx) = broadcast::channel(3);
-        let poller = SlowPoller::new(rx);
+        let poller = SlowPoller::new(token.child_token(), rx);
 
         let msg1 = new_test_entry(MINUTE + 1);
         let msg2 = new_test_entry(MINUTE + 2);
@@ -331,8 +339,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_filter() {
+        let token = CancellationToken::new();
         let (tx, rx) = broadcast::channel(3);
-        let poller = SlowPoller::new(rx);
+        let poller = SlowPoller::new(token.child_token(), rx);
 
         let msg1 = new_test_entry2(MINUTE + 1, LogLevel::Error);
         let msg2 = new_test_entry2(MINUTE + 2, LogLevel::Info);
@@ -354,8 +363,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_on_hold() {
+        let token = CancellationToken::new();
         let (tx, rx) = broadcast::channel(3);
-        let poller = SlowPoller::new(rx);
+        let poller = SlowPoller::new(token.child_token(), rx);
 
         let msg1 = new_test_entry(MINUTE + 1);
         let msg2 = new_test_entry(MINUTE + 2);
@@ -384,8 +394,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_max_connections() {
+        let token = CancellationToken::new();
         let (tx, rx) = broadcast::channel(3);
-        let poller = SlowPoller::new(rx);
+        let poller = SlowPoller::new(token.child_token(), rx);
 
         let msg1 = new_test_entry(MINUTE + 1);
         let msg2 = new_test_entry(MINUTE + 2);
