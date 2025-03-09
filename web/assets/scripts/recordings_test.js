@@ -13,12 +13,20 @@ describe("newViewer", () => {
 		{ id: "3", path: "c" },
 	];
 
-	const mockFetch = () => {
-		return {
-			status: 200,
-			json() {
-				return recordings;
-			},
+	const newMockFetch = () => {
+		let first = true;
+		return () => {
+			return {
+				status: 200,
+				json() {
+					if (first) {
+						first = false;
+						return recordings;
+					} else {
+						return [];
+					}
+				},
+			};
 		};
 	};
 
@@ -26,11 +34,11 @@ describe("newViewer", () => {
 		// @ts-ignore
 		window.HTMLMediaElement.prototype.play = () => {};
 		// @ts-ignore
-		window.fetch = mockFetch;
+		window.fetch = newMockFetch();
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
 
-		const viewer = await newViewer(monitorNameByID, element, "utc");
+		const viewer = newViewer(monitorNameByID, element, "utc", false, "");
 		await viewer.reset();
 
 		const domState = () => {
@@ -70,22 +78,36 @@ describe("newViewer", () => {
 		clickVideo(2);
 		expect(domState()).toEqual([true, false, false]);
 	});
+
 	test("setDate", async () => {
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
-		const viewer = await newViewer(monitorNameByID, element, "utc");
+		const viewer = newViewer(monitorNameByID, element, "utc", false, "");
 		await viewer.reset();
 
 		let fetchCalled = false;
 		// @ts-ignore
 		window.fetch = (r) => {
+			console.log(r);
 			if (
 				r ===
-				"api/recording/query?recording-id=2000-01-02_03-04-05_x&reverse=false&include-data=true"
+				"/?recording-id=2000-01-02_03-04-05_x&reverse=false&include-data=true"
 			) {
 				fetchCalled = true;
+				return {
+					status: 200,
+					json() {
+						return recordings;
+					},
+				};
+			} else {
+				return {
+					status: 200,
+					json() {
+						return [];
+					},
+				};
 			}
-			return mockFetch();
 		};
 
 		viewer.setDate(new Date("2000-01-02T03:04:05Z").getTime() * NS_MILLISECOND);

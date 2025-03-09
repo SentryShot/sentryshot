@@ -613,7 +613,7 @@ img {
 
 #content-grid {
 	display: grid;
-	grid-template-columns: repeat(var(--gridsize), auto);
+	grid-template-columns: repeat(var(--gridsize), 1fr);
 }
 
 .grid-fullscreen {
