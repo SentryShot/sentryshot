@@ -12,7 +12,7 @@ use common::{
 use env::{EnvConf, EnvConfigNewError};
 use hls::HlsServer;
 use log::{
-    log_db::{LogDb, LogDbHandle, NewLogDbError},
+    log_db::{CreateLogDBError, LogDb},
     slow_poller::SlowPoller,
     Logger,
 };
@@ -65,7 +65,7 @@ pub enum RunError {
     PreparePlugins(#[from] PreLoadPluginsError),
 
     #[error("create log db: {0}")]
-    NewLogDb(#[from] NewLogDbError),
+    NewLogDb(#[from] CreateLogDBError),
 
     #[error("create authenticator: {0}")]
     NewAuth(#[from] NewAuthError),
@@ -104,7 +104,7 @@ pub struct App {
     logger: Arc<Logger>,
     shutdown_complete_tx: mpsc::Sender<()>,
     shutdown_complete_rx: mpsc::Receiver<()>,
-    log_db: LogDbHandle,
+    log_db: LogDb,
     auth: ArcAuth,
     hls_server: Arc<HlsServer>,
     monitor_manager: ArcMonitorManager,
@@ -140,9 +140,9 @@ impl App {
         {
             let log_db2 = log_db.clone();
             let token2 = token.clone();
-            let logger2 = logger.clone();
+            let feed = logger.subscribe();
             tokio::spawn(async move {
-                log_db2.save_logs(token2, logger2).await;
+                log_db2.save_logs(token2, feed).await;
             });
 
             let log_db2 = log_db.clone();

@@ -21,7 +21,7 @@ use common::{
 use hls::{HlsQuery, HlsServer};
 use http::HeaderValue;
 use log::{
-    log_db::{entry_matches_query, LogDbHandle, LogQuery},
+    log_db::{entry_matches_query, LogDb, LogQuery},
     slow_poller::{self, PollQuery, SlowPoller},
     Logger,
 };
@@ -394,10 +394,7 @@ pub async fn log_slow_poll_handler(
     }
 }
 
-pub async fn log_query_handler(
-    State(log_db): State<LogDbHandle>,
-    query: Query<LogQuery>,
-) -> Response {
+pub async fn log_query_handler(State(log_db): State<LogDb>, query: Query<LogQuery>) -> Response {
     match log_db.query(query.0).await {
         Ok(v) => Json::from(v).into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),

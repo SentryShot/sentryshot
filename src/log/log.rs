@@ -27,7 +27,7 @@ impl Logger {
     #[must_use]
     #[allow(clippy::unwrap_used)]
     pub fn new(sources: Vec<LogSource>) -> Self {
-        let (feed, _) = broadcast::channel(64);
+        let (feed, _) = broadcast::channel(512);
 
         let mut sources = sources;
         sources.push("app".try_into().unwrap());

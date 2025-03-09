@@ -4,7 +4,7 @@ use bytesize::ByteSize;
 use common::{LogLevel, LogSource, MonitorId};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use log::{
-    log_db::{LogDb, LogDbHandle, LogQuery},
+    log_db::{LogDb, LogQuery},
     LogEntryWithTime, UnixMicro,
 };
 use rand::{
@@ -81,7 +81,7 @@ criterion_main!(benches);
 
 struct Helper {
     _token: CancellationToken,
-    db: LogDbHandle,
+    db: LogDb,
     rng: ChaCha8Rng,
     count: u64,
     identical_msg: String,

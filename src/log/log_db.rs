@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use super::{LogEntryWithTime, Logger, UnixMicro};
+use super::{LogEntryWithTime, UnixMicro};
 use crate::{rev_buf_reader::RevBufReader, slow_poller::PollQuery};
 use bytesize::ByteSize;
 use common::{
@@ -22,7 +22,8 @@ use thiserror::Error;
 use tokio::{
     fs::File,
     io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt},
-    sync::{mpsc, Mutex},
+    sync::{broadcast, mpsc, Mutex},
+    time::Instant,
 };
 use tokio_util::sync::CancellationToken;
 
@@ -56,39 +57,105 @@ const CHUNK_HEADER_LENGTH: u64 = 1;
 const DATA_SIZE: usize = 47;
 
 #[derive(Clone)]
-#[allow(clippy::module_name_repetitions)]
-pub struct LogDbHandle(Arc<Mutex<LogDb>>);
+pub struct LogDb {
+    log_dir: PathBuf,
+    writer: Arc<Mutex<LogDbWriter>>,
 
-impl LogDbHandle {
+    // The database will use up to 1% of total disk space or `min_disk_usage`.
+    disk_space: ByteSize,
+    min_disk_usage: ByteSize,
+}
+
+#[derive(Debug, Error)]
+pub enum CreateLogDBError {
+    #[error("make log directory: {0} {1}")]
+    MakeLogDir(String, std::io::Error),
+}
+
+impl LogDb {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(
+        token: CancellationToken,
+        shutdown_complete: mpsc::Sender<()>,
+        log_dir: PathBuf,
+        disk_space: ByteSize,
+        min_disk_usage: ByteSize,
+        cache_capacity: usize,
+        write_buf_capacify: usize,
+    ) -> Result<Self, CreateLogDBError> {
+        assert!(cache_capacity >= write_buf_capacify);
+        std::fs::create_dir_all(&log_dir)
+            .map_err(|e| CreateLogDBError::MakeLogDir(log_dir.to_string_lossy().to_string(), e))?;
+
+        let handle = Self {
+            log_dir: log_dir.clone(),
+            writer: Arc::new(Mutex::new(LogDbWriter {
+                log_dir,
+                encoder: None,
+                prev_entry_time: UnixMicro::new(0),
+                cache: VecDeque::with_capacity(cache_capacity),
+                cache_capacity,
+                write_buf_capacify,
+                cancelled: false,
+                _shutdown_complete: shutdown_complete,
+            })),
+            disk_space,
+            min_disk_usage,
+        };
+
+        let handle2 = handle.clone();
+        tokio::spawn(async move {
+            token.cancelled().await;
+            handle2.writer.lock().await.cancel().await;
+        });
+
+        Ok(handle)
+    }
+
     pub async fn save_log_testing(&self, entry: LogEntryWithTime) {
         #[allow(clippy::unwrap_used)]
         self.save_log(entry).await.unwrap();
     }
 
     async fn save_log(&self, entry: LogEntryWithTime) -> Result<(), SaveLogError> {
-        self.0.lock().await.save_log(entry).await
+        self.writer.lock().await.save_log(entry).await
     }
 
-    pub async fn query(&self, q: LogQuery) -> Result<Vec<LogEntryWithTime>, QueryLogsError> {
-        self.0.lock().await.query(q).await
-    }
-
-    async fn prune(&self) -> Result<(), PurgeError> {
-        self.0.lock().await.prune().await
+    pub async fn query(&self, mut q: LogQuery) -> Result<Vec<LogEntryWithTime>, QueryLogsError> {
+        let mut entries = Vec::new();
+        self.writer.lock().await.query_cache(&mut q, &mut entries);
+        self.new_reader().query_db(q, &mut entries).await?;
+        Ok(entries)
     }
 
     // Saves logs from the logger into the database.
-    pub async fn save_logs(&self, token: CancellationToken, logger: Arc<Logger>) {
-        let mut feed = logger.subscribe();
+    pub async fn save_logs(
+        &self,
+        token: CancellationToken,
+        mut feed: broadcast::Receiver<LogEntryWithTime>,
+    ) {
+        let mut time_of_last_print = Instant::now();
         loop {
             tokio::select! {
                 () = token.cancelled() => return,
                 log = feed.recv() => {
-                    let Ok(log) = log else {
-                        return
+                    use broadcast::error::RecvError::*;
+                    let log = match log {
+                        Ok(v) => v,
+                        Err(Closed) => return,
+                        Err(Lagged(_)) => {
+                            if time_of_last_print.elapsed() > Duration::from_secs(10) {
+                                eprintln!("logdb can't keep up");
+                                time_of_last_print = Instant::now();
+                            }
+                            continue
+                        },
                     };
                     if let Err(e) = self.save_log(log.clone()).await {
-                        eprintln!("could not save log: {} {}", log.message, e);
+                        if time_of_last_print.elapsed() > Duration::from_secs(5) {
+                            eprintln!("could not save log: {} {}", log.message, e);
+                            time_of_last_print = Instant::now();
+                        }
                     }
                 }
             }
@@ -115,9 +182,45 @@ impl LogDbHandle {
             }
         }
     }
+
+    // Prunes a single chunk if needed.
+    async fn prune(&self) -> Result<(), PurgeError> {
+        use PurgeError::*;
+        let dir_size = dir_size(self.log_dir.clone()).await?;
+
+        if dir_size <= ByteSize(self.disk_space.as_u64() / 100) || dir_size <= self.min_disk_usage {
+            return Ok(());
+        }
+
+        let chunks = list_chunks(self.log_dir.clone())
+            .await
+            .map_err(ListChunks)?;
+        let Some(chunk_to_remove) = chunks.first() else {
+            // No chunks.
+            return Ok(());
+        };
+
+        let (data_path, msg_path) = chunk_id_to_paths(&self.log_dir, chunk_to_remove);
+
+        tokio::fs::remove_file(&data_path)
+            .await
+            .map_err(|e| RemoveDataFile(data_path.to_string_lossy().to_string(), e))?;
+        tokio::fs::remove_file(&msg_path)
+            .await
+            .map_err(|e| RemoveMsgFile(msg_path.to_string_lossy().to_string(), e))?;
+
+        Ok(())
+    }
+
+    fn new_reader(&self) -> LogDBReader {
+        LogDBReader {
+            log_dir: self.log_dir.clone(),
+        }
+    }
 }
 
-pub struct LogDb {
+#[allow(clippy::module_name_repetitions)]
+pub struct LogDbWriter {
     log_dir: PathBuf,
     encoder: Option<ChunkEncoder>,
 
@@ -125,67 +228,23 @@ pub struct LogDb {
     // that the next entry will have a later time.
     prev_entry_time: UnixMicro,
 
-    // The database will use up to 1% of total disk space or `min_disk_usage`.
-    disk_space: ByteSize,
-    min_disk_usage: ByteSize,
-
     cache: VecDeque<LogEntryWithTime>,
     cache_capacity: usize,
     write_buf_capacify: usize,
 
-    stopping: bool,
+    cancelled: bool,
     _shutdown_complete: mpsc::Sender<()>,
 }
 
-#[derive(Debug, Error)]
-pub enum NewLogDbError {
-    #[error("make log directory: {0} {1}")]
-    MakeLogDir(String, std::io::Error),
-}
-
-impl LogDb {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(
-        token: CancellationToken,
-        shutdown_complete: mpsc::Sender<()>,
-        log_dir: PathBuf,
-        disk_space: ByteSize,
-        min_disk_usage: ByteSize,
-        cache_capacity: usize,
-        write_buf_capacify: usize,
-    ) -> Result<LogDbHandle, NewLogDbError> {
-        assert!(cache_capacity >= write_buf_capacify);
-        std::fs::create_dir_all(&log_dir)
-            .map_err(|e| NewLogDbError::MakeLogDir(log_dir.to_string_lossy().to_string(), e))?;
-
-        let handle = LogDbHandle(Arc::new(Mutex::new(Self {
-            log_dir,
-            encoder: None,
-            prev_entry_time: UnixMicro::new(0),
-            disk_space,
-            min_disk_usage,
-            cache: VecDeque::with_capacity(cache_capacity),
-            cache_capacity,
-            write_buf_capacify,
-            stopping: false,
-            _shutdown_complete: shutdown_complete,
-        })));
-
-        let handle2 = handle.clone();
-        tokio::spawn(async move {
-            token.cancelled().await;
-
-            let mut db = handle2.0.lock().await;
-            db.stopping = true;
-            if let Some(encoder) = db.encoder.take() {
-                match encoder.flush().await {
-                    Ok(encoder) => db.encoder = Some(encoder),
-                    Err(e) => eprintln!("logdb: cancelled: flush: {e}"),
-                }
+impl LogDbWriter {
+    async fn cancel(&mut self) {
+        self.cancelled = true;
+        if let Some(encoder) = self.encoder.take() {
+            match encoder.flush().await {
+                Ok(encoder) => self.encoder = Some(encoder),
+                Err(e) => eprintln!("logdb: cancelled: flush: {e}"),
             }
-        });
-
-        Ok(handle)
+        }
     }
 
     async fn save_log(&mut self, mut entry: LogEntryWithTime) -> Result<(), SaveLogError> {
@@ -224,7 +283,7 @@ impl LogDb {
                 .ok_or(SaveLogError::IncrementPrevTime)?;
         }
 
-        self.encoder = Some(encoder.write_entry(&entry, self.stopping).await?);
+        self.encoder = Some(encoder.write_entry(&entry, self.cancelled).await?);
 
         self.cache_push(entry.clone());
 
@@ -242,13 +301,6 @@ impl LogDb {
             self.cache.pop_back();
         }
         self.cache.push_front(entry);
-    }
-
-    async fn query(&self, mut q: LogQuery) -> Result<Vec<LogEntryWithTime>, QueryLogsError> {
-        let mut entries = Vec::new();
-        self.query_cache(&mut q, &mut entries);
-        self.query_db(q, &mut entries).await?;
-        Ok(entries)
     }
 
     fn query_cache(&self, q: &mut LogQuery, entries: &mut Vec<LogEntryWithTime>) {
@@ -270,7 +322,13 @@ impl LogDb {
             }
         }
     }
+}
 
+struct LogDBReader {
+    log_dir: PathBuf,
+}
+
+impl LogDBReader {
     async fn query_db(
         &self,
         mut q: LogQuery,
@@ -282,13 +340,23 @@ impl LogDb {
             }
         }
 
-        let chunk_ids = self.list_chunks_before(q.time).await?;
-
+        let chunk_ids = {
+            if let Some(time) = q.time {
+                let before_id = time_to_id(time)?;
+                list_chunks(self.log_dir.clone())
+                    .await?
+                    .into_iter()
+                    .filter(|c| c <= &before_id)
+                    .collect()
+            } else {
+                list_chunks(self.log_dir.clone()).await?
+            }
+        };
         for chunk_id in chunk_ids.iter().rev() {
             if let Err(e) = self.query_chunk(&q, entries, chunk_id).await {
                 eprintln!("log store warning: {e}");
             }
-            // Time is only relevant for the first iteration.
+            // Time is only relevant for the first iteration chunk.
             q.time = None;
         }
         Ok(())
@@ -359,85 +427,32 @@ impl LogDb {
 
         Ok(())
     }
+}
 
-    async fn list_chunks_before(
-        &self,
-        time: Option<UnixMicro>,
-    ) -> Result<Vec<String>, ListChunksBeforeError> {
-        let chunks = self.list_chunks().await?;
-        let Some(time) = time else {
-            return Ok(chunks);
-        };
+async fn list_chunks(log_dir: PathBuf) -> Result<Vec<String>, std::io::Error> {
+    tokio::task::spawn_blocking(|| {
+        let mut chunks = Vec::new();
+        for file in std::fs::read_dir(log_dir)? {
+            let file = file?;
+            let name = file
+                .file_name()
+                .into_string()
+                .unwrap_or_else(|_| String::new());
 
-        let before_id = time_to_id(time)?;
-
-        let mut filtered = Vec::new();
-        for chunk in chunks {
-            if let Ordering::Greater = chunk.cmp(&before_id) {
+            let is_data_file = Path::new(&name)
+                .extension()
+                .map_or(false, |ext| ext.eq_ignore_ascii_case("data"));
+            if name.len() < CHUNK_ID_LENGTH + 5 || !is_data_file {
                 continue;
             }
-            filtered.push(chunk);
-            /* if strings.Compare(chunk, beforeID) <= 0 {
-                filtered.push(chunk);
-            }*/
+            chunks.push(name[..CHUNK_ID_LENGTH].to_owned());
         }
-        Ok(filtered)
-    }
+        chunks.sort();
 
-    async fn list_chunks(&self) -> Result<Vec<String>, std::io::Error> {
-        let log_dir = self.log_dir.clone();
-
-        tokio::task::spawn_blocking(|| {
-            let mut chunks = Vec::new();
-            for file in std::fs::read_dir(log_dir)? {
-                let file = file?;
-                let name = file
-                    .file_name()
-                    .into_string()
-                    .unwrap_or_else(|_| String::new());
-
-                let is_data_file = Path::new(&name)
-                    .extension()
-                    .map_or(false, |ext| ext.eq_ignore_ascii_case("data"));
-                if name.len() < CHUNK_ID_LENGTH + 5 || !is_data_file {
-                    continue;
-                }
-                chunks.push(name[..CHUNK_ID_LENGTH].to_owned());
-            }
-            chunks.sort();
-
-            Ok(chunks)
-        })
-        .await
-        .expect("join")
-    }
-
-    // Prunes a single chunk if needed.
-    async fn prune(&self) -> Result<(), PurgeError> {
-        use PurgeError::*;
-        let dir_size = dir_size(self.log_dir.clone()).await?;
-
-        if dir_size <= ByteSize(self.disk_space.as_u64() / 100) || dir_size <= self.min_disk_usage {
-            return Ok(());
-        }
-
-        let chunks = self.list_chunks().await.map_err(ListChunks)?;
-        let Some(chunk_to_remove) = chunks.first() else {
-            // No chunks.
-            return Ok(());
-        };
-
-        let (data_path, msg_path) = chunk_id_to_paths(&self.log_dir, chunk_to_remove);
-
-        tokio::fs::remove_file(&data_path)
-            .await
-            .map_err(|e| RemoveDataFile(data_path.to_string_lossy().to_string(), e))?;
-        tokio::fs::remove_file(&msg_path)
-            .await
-            .map_err(|e| RemoveMsgFile(msg_path.to_string_lossy().to_string(), e))?;
-
-        Ok(())
-    }
+        Ok(chunks)
+    })
+    .await
+    .expect("join")
 }
 
 #[derive(Debug, Error)]
@@ -453,18 +468,12 @@ enum QueryChunkError {
 }
 
 #[derive(Debug, Error)]
-pub enum ListChunksBeforeError {
+pub enum QueryLogsError {
     #[error("list chunks: {0}")]
     ListChunks(#[from] std::io::Error),
 
     #[error("time to id: {0}")]
     TimeToId(#[from] TimeToIdError),
-}
-
-#[derive(Debug, Error)]
-pub enum QueryLogsError {
-    #[error("list chunks before: {0}")]
-    ListChunksBefore(#[from] ListChunksBeforeError),
 }
 
 #[derive(Debug, Error)]
@@ -1237,7 +1246,7 @@ mod tests {
     use tempfile::tempdir;
     use test_case::test_case;
 
-    fn new_test_db(log_dir: &Path) -> (LogDbHandle, CancellationToken) {
+    fn new_test_db(log_dir: &Path) -> (LogDb, CancellationToken) {
         let token = CancellationToken::new();
         let (shutdown_complete_tx, _) = mpsc::channel::<()>(1);
         let db = LogDb::new(
@@ -1981,20 +1990,7 @@ mod tests {
     }
 
     async fn chunk_count(log_dir: &Path) -> usize {
-        let (shutdown_complete, _) = mpsc::channel::<()>(1);
-        let db = LogDb {
-            log_dir: log_dir.to_owned(),
-            encoder: None,
-            prev_entry_time: UnixMicro::new(0),
-            disk_space: ByteSize(0),
-            min_disk_usage: ByteSize(0),
-            cache: VecDeque::new(),
-            cache_capacity: 0,
-            write_buf_capacify: 0,
-            stopping: false,
-            _shutdown_complete: shutdown_complete,
-        };
-        db.list_chunks().await.unwrap().len()
+        list_chunks(log_dir.to_owned()).await.unwrap().len()
     }
 
     fn list_files(path: &Path) -> Vec<String> {
