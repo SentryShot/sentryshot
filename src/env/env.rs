@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use bytesize::ByteSize;
-use common::{EnvConfig, EnvPlugin, NonZeroGb};
+use common::{EnvConfig, EnvPlugin, Flags, NonZeroGb, Streamer};
 use serde::Deserialize;
 use std::{
     collections::HashMap,
@@ -20,6 +20,7 @@ pub struct EnvConf {
     config_dir: PathBuf,
     plugin_dir: PathBuf,
     max_disk_usage: NonZeroGb,
+    flags: Flags,
     plugin: Option<Vec<EnvPlugin>>,
     raw: String,
 }
@@ -74,6 +75,9 @@ impl EnvConfig for EnvConf {
     }
     fn max_disk_usage(&self) -> ByteSize {
         *self.max_disk_usage
+    }
+    fn flags(&self) -> Flags {
+        self.flags
     }
     fn plugins(&self) -> &Option<Vec<EnvPlugin>> {
         &self.plugin
@@ -203,6 +207,15 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
         .canonicalize()
         .map_err(|e| Canonicalize(raw.plugin_dir, e))?;
 
+    let streamer = {
+        if std::env::var("STREAMER").unwrap_or_default().to_lowercase() == "mp4" {
+            println!("USING EXPERIMENTAL MP4 STREAMER");
+            Streamer::MP4
+        } else {
+            Streamer::HLS
+        }
+    };
+
     Ok(EnvConf {
         port: raw.port,
         storage_dir,
@@ -210,6 +223,7 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
         config_dir,
         plugin_dir,
         max_disk_usage: raw.max_disk_usage,
+        flags: Flags { streamer },
         plugin: raw.plugin,
         raw: env_toml,
     })
@@ -264,6 +278,9 @@ mod tests {
             config_dir: config_dir.parse().unwrap(),
             plugin_dir: plugin_dir.parse().unwrap(),
             max_disk_usage: NonZeroGb::new(ByteSize(GB)).unwrap(),
+            flags: Flags {
+                streamer: Streamer::HLS,
+            },
             plugin: None,
             raw: config.clone(),
         };

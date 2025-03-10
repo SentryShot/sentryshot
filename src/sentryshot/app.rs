@@ -234,6 +234,7 @@ impl App {
             self.monitor_groups.clone(),
             templates,
             time_zone().ok_or(RunError::TimeZone)?,
+            self.env.flags(),
         ));
 
         let router = self

@@ -202,6 +202,11 @@ function denormalize(input, max) {
 }
 
 /**
+ * @typedef Flags
+ * @property {"hls"| "mp4"} streamer
+ */
+
+/**
  * @typedef MonitorGroup
  * @property {string} id
  * @property {string} name
@@ -227,6 +232,10 @@ function globals() {
 		/** @type {string} */
 		// @ts-ignore
 		csrfToken: CSRFToken,
+
+		/** @type {Flags} */
+		// @ts-ignore
+		flags: Flags,
 
 		/** @type {boolean} */
 		// @ts-ignore

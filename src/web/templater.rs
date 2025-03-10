@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use common::monitor::ArcMonitorManager;
+use common::{monitor::ArcMonitorManager, Flags};
 use log::Logger;
 use monitor_groups::ArcMonitorGroups;
 use std::{collections::HashMap, sync::Arc};
@@ -10,6 +10,7 @@ pub struct Templater<'a> {
     monitor_manager: ArcMonitorManager,
     monitor_groups: ArcMonitorGroups,
     time_zone: String,
+    flags: Flags,
 
     engine: upon::Engine<'a>,
 }
@@ -22,6 +23,7 @@ impl<'a> Templater<'a> {
         monitor_groups: ArcMonitorGroups,
         templates: HashMap<&'a str, String>,
         time_zone: String,
+        flags: Flags,
     ) -> Self {
         let mut engine = upon::Engine::new();
         for (k, v) in templates {
@@ -33,6 +35,7 @@ impl<'a> Templater<'a> {
             monitor_manager,
             monitor_groups,
             time_zone,
+            flags,
             engine,
         }
     }
@@ -71,10 +74,13 @@ impl<'a> Templater<'a> {
         let monitor_groups_json = serde_json::to_string(&self.monitor_groups.get().await)
             .expect("serialization to never fail");
 
+        let flags_json = serde_json::to_string(&self.flags).expect("serialization to never fail");
+
         HashMap::from([
             ("current_page", Value::String(current_page)),
             // globals.
             ("csrf_token", Value::String(csrf_token)),
+            ("flags", Value::String(flags_json)),
             ("is_admin", Value::Bool(is_admin)),
             ("log_sources_json", Value::String(log_sources_json)),
             ("monitor_groups_json", Value::String(monitor_groups_json)),

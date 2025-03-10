@@ -49,8 +49,20 @@ pub trait EnvConfig {
     fn config_dir(&self) -> &Path;
     fn plugin_dir(&self) -> &Path;
     fn max_disk_usage(&self) -> ByteSize;
+    fn flags(&self) -> Flags;
     fn plugins(&self) -> &Option<Vec<EnvPlugin>>;
     fn raw(&self) -> &str;
+}
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+pub struct Flags {
+    pub streamer: Streamer,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+pub enum Streamer {
+    HLS,
+    MP4,
 }
 
 impl NonZeroGb {
