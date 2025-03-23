@@ -5,6 +5,7 @@ mod source;
 
 use recdb::RecDb;
 pub use source::MonitorSource;
+pub use source::Streamer;
 
 use crate::{recorder::new_recorder, source::SourceRtsp};
 use async_trait::async_trait;
@@ -16,7 +17,6 @@ use common::{
     },
     ArcLogger, Event, LogEntry, LogLevel, MonitorId, StreamType,
 };
-use hls::HlsServer;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -163,7 +163,7 @@ impl MonitorManager {
         config_path: PathBuf,
         rec_db: Arc<RecDb>,
         logger: ArcLogger,
-        hls_server: Arc<HlsServer>,
+        streamer: Streamer,
         //hooks *Hooks,
     ) -> Result<Self, NewMonitorManagerError> {
         use NewMonitorManagerError::*;
@@ -202,7 +202,7 @@ impl MonitorManager {
                 started_monitors: HashMap::new(),
                 rec_db,
                 logger,
-                hls_server,
+                streamer,
                 path: config_path,
                 hooks: None,
             }
@@ -328,7 +328,7 @@ struct MonitorManagerState {
 
     rec_db: Arc<RecDb>,
     logger: ArcLogger,
-    hls_server: Arc<HlsServer>,
+    streamer: Streamer,
     path: PathBuf,
 
     hooks: Option<ArcMonitorHooks>,
@@ -536,7 +536,7 @@ impl MonitorManagerState {
                     monitor_token.child_token(),
                     shutdown_complete_tx.clone(),
                     self.logger.clone(),
-                    self.hls_server.clone(),
+                    self.streamer.clone(),
                     config.id().to_owned(),
                     conf.to_owned(),
                     StreamType::Main,
@@ -547,7 +547,7 @@ impl MonitorManagerState {
                     monitor_token.child_token(),
                     shutdown_complete_tx.clone(),
                     self.logger.clone(),
-                    self.hls_server.clone(),
+                    self.streamer.clone(),
                     config.id().to_owned(),
                     conf.to_owned(),
                     StreamType::Sub,
@@ -637,6 +637,7 @@ mod tests {
         monitor::{Config, Protocol, SelectedSource, SourceConfig, SourceRtspConfig},
         DummyLogger, MonitorName, ParseMonitorIdError,
     };
+    use hls::HlsServer;
     use pretty_assertions::assert_eq;
     use recdb::Disk;
     use serde_json::json;
@@ -710,7 +711,7 @@ mod tests {
             config_dir.clone(),
             Arc::new(new_test_recdb(temp_dir.path())),
             DummyLogger::new(),
-            Arc::new(HlsServer::new(token, DummyLogger::new())),
+            Streamer::Hls(HlsServer::new(token, DummyLogger::new())),
         )
         .unwrap();
 
@@ -738,7 +739,7 @@ mod tests {
             config_dir.clone(),
             Arc::new(new_test_recdb(temp_dir.path())),
             DummyLogger::new(),
-            Arc::new(HlsServer::new(token, DummyLogger::new())),
+            Streamer::Hls(HlsServer::new(token, DummyLogger::new())),
         )
         .unwrap();
 
@@ -761,7 +762,7 @@ mod tests {
                 DummyLogger::new(),
                 //&video.Server{},
                 //&Hooks{Migrate: func(RawConfig) error { return nil }},
-                Arc::new(HlsServer::new(token, DummyLogger::new())),
+                Streamer::Hls(HlsServer::new(token, DummyLogger::new())),
             ),
             Err(NewMonitorManagerError::Deserialize(..))
         ));

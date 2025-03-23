@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import Hls from "./vendor/hls.js";
 import { uniqueID, sortByName, globals } from "./libs/common.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
-import { newFeed, newFeedBtn } from "./components/feed.js";
+import { newStreamer, newMp4StreamBtn } from "./components/mp4Stream.js";
 
 /**
  * @typedef {import("./libs/common.js").MonitorsInfo} MonitorsInfo
@@ -15,7 +14,7 @@ import { newFeed, newFeedBtn } from "./components/feed.js";
  * @param {Element} $parent
  * @param {MonitorsInfo} monitors
  */
-function newViewer($parent, monitors, hls) {
+function newViewer($parent, monitors) {
 	let selectedMonitors = [];
 	const isMonitorSelected = (monitor) => {
 		if (selectedMonitors.length === 0) {
@@ -59,14 +58,14 @@ function newViewer($parent, monitors, hls) {
 
 				const recordingsPath = toAbsolutePath("recordings");
 
-				const fullscreenBtn = newFeedBtn.fullscreen();
+				const fullscreenBtn = newMp4StreamBtn.fullscreen();
 				fullscreenButtons.push(fullscreenBtn);
 				const buttons = [
-					newFeedBtn.recordings(recordingsPath, monitor["id"]),
+					newMp4StreamBtn.recordings(recordingsPath, monitor["id"]),
 					fullscreenBtn,
-					newFeedBtn.mute(monitor),
+					//newMp4StreamBtn.mute(monitor),
 				];
-				feeds.push(newFeed(hls, monitor, preferLowRes, buttons));
+				feeds.push(newStreamer(monitor, preferLowRes, buttons));
 			}
 
 			let html = "";
@@ -144,7 +143,7 @@ function init() {
 	const { monitorGroups, monitorsInfo } = globals();
 
 	const $contentGrid = document.querySelector("#content-grid");
-	const viewer = newViewer($contentGrid, monitorsInfo, Hls);
+	const viewer = newViewer($contentGrid, monitorsInfo);
 
 	const buttons = [newOptionsBtn.gridSize(viewer), resBtn(viewer)];
 	// Add the group picker if there are any groups.

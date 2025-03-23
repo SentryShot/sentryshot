@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
+    iter::Sum,
     ops::{Add, Deref, Sub},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -390,6 +391,12 @@ impl From<UnixNano> for DurationH264 {
 impl Display for DurationH264 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+impl Sum for DurationH264 {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        Self(iter.map(|v| v.0).sum())
     }
 }
 

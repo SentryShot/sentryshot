@@ -228,6 +228,10 @@ function denormalize(input, max) {
 // The globals are injected in `./web/templates/include/meta.tpl`
 /* eslint-disable no-undef */
 function globals() {
+	// @ts-ignore
+	if (typeof CSRFToken === "undefined") {
+		return testGlobals();
+	}
 	return {
 		/** @type {string} */
 		// @ts-ignore
@@ -260,6 +264,12 @@ function globals() {
 		/** @type {MonitorsInfo} */
 		// @ts-ignore
 		monitorsInfo: MonitorsInfo,
+	};
+}
+
+function testGlobals() {
+	return {
+		flags: {},
 	};
 }
 /* eslint-enable no-undef */

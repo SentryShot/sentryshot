@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use axum::{
-    response::Html,
+    response::{Html, IntoResponse},
     routing::{any, delete, get, post},
 };
 use bytesize::ByteSize;
@@ -11,13 +11,15 @@ use common::{
 };
 use env::{EnvConf, EnvConfigNewError};
 use hls::HlsServer;
+use hyper::StatusCode;
 use log::{
     log_db::{CreateLogDBError, LogDb},
     slow_poller::SlowPoller,
     Logger,
 };
-use monitor::{MonitorManager, NewMonitorManagerError};
+use monitor::{MonitorManager, NewMonitorManagerError, Streamer};
 use monitor_groups::{ArcMonitorGroups, CreateMonitorGroupsError, MonitorGroups};
+use mp4_streamer::Mp4Streamer;
 use plugin::{
     pre_load_plugins,
     types::{NewAuthError, Router},
@@ -106,7 +108,7 @@ pub struct App {
     shutdown_complete_rx: mpsc::Receiver<()>,
     log_db: LogDb,
     auth: ArcAuth,
-    hls_server: Arc<HlsServer>,
+    streamer: Streamer,
     monitor_manager: ArcMonitorManager,
     monitor_groups: ArcMonitorGroups,
     recdb: Arc<RecDb>,
@@ -162,14 +164,17 @@ impl App {
             Disk::new(env.storage_dir().to_path_buf(), env.max_disk_usage()),
         ));
 
-        let hls_server = Arc::new(HlsServer::new(token.clone(), logger.clone()));
+        let streamer = match env.flags().streamer {
+            common::Streamer::HLS => Streamer::Hls(HlsServer::new(token.clone(), logger.clone())),
+            common::Streamer::MP4 => Streamer::Mp4(Mp4Streamer::new(token.clone(), logger.clone())),
+        };
 
         let monitors_dir = env.config_dir().join("monitors");
         let monitor_manager = Arc::new(MonitorManager::new(
             monitors_dir,
             rec_db.clone(),
             logger.clone(),
-            hls_server.clone(),
+            streamer.clone(),
         )?);
 
         let monitor_groups = Arc::new(MonitorGroups::new(env.storage_dir()).await?);
@@ -186,7 +191,7 @@ impl App {
                 shutdown_complete_rx,
                 log_db,
                 auth,
-                hls_server,
+                streamer,
                 monitor_manager,
                 monitor_groups,
                 recdb: rec_db,
@@ -237,7 +242,7 @@ impl App {
             self.env.flags(),
         ));
 
-        let router = self
+        let mut router = self
             .router
             .clone()
             // Root.
@@ -260,11 +265,6 @@ impl App {
             .route_user_no_csrf(
                 "/assets/{*file}",
                 get(asset_handler).with_state((assets, assets_etag)),
-            )
-            // Hls server.
-            .route_user_no_csrf(
-                "/hls/{*path}",
-                any(hls_handler).with_state(self.hls_server.clone()),
             )
             // Video on demand.
             .route_user_no_csrf(
@@ -363,6 +363,30 @@ impl App {
                     logger: self.logger.clone(),
                 }),
             );
+
+        match &self.streamer {
+            Streamer::Hls(hls_server) => {
+                router = router
+                    // Hls server.
+                    .route_user_no_csrf(
+                        "/hls/{*path}",
+                        any(hls_handler).with_state(hls_server.clone()),
+                    );
+            }
+            Streamer::Mp4(mp4_streamer) => {
+                router = router
+                    // Mp4 streamer start session.
+                    .route_user_no_csrf(
+                        "/api/mp4-streamer/start-session",
+                        post(mp4_streamer_start_session_handler).with_state(mp4_streamer.clone()),
+                    )
+                    // Mp4 streamer play.
+                    .route_user_no_csrf(
+                        "/api/mp4-streamer/play",
+                        get(mp4_streamer_play_handler).with_state(mp4_streamer.clone()),
+                    );
+            }
+        }
 
         self.router = plugin_manager.router_hooks(router);
 
@@ -483,9 +507,14 @@ async fn start_server(
             return;
         }
     };
-    let graceful = axum::serve(listener, router.inner())
+    let graceful = axum::serve(listener, router.inner().fallback(handler_404))
         .with_graceful_shutdown(async move { token.cancelled().await });
     let _ = on_exit.send(graceful.await.map_err(ServerError::Server));
+}
+
+async fn handler_404(request: axum::extract::Request) -> impl IntoResponse {
+    println!("404 {}", request.uri());
+    (StatusCode::NOT_FOUND, "nothing to see here")
 }
 
 // TimeZone returns system time zone location.

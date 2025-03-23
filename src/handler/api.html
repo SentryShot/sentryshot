@@ -436,8 +436,73 @@
 			<pre></pre>
 		</article>
 
-		<article class="js-log-query">
+		<article class="js-mp4-streamer">
 			<div style="flex-wrap: wrap">
+				<div style="flex-wrap: wrap">
+					<h5>unstable</h5>
+					<div>
+						<span>GET /api/mp4-streamer/start-session?session-id=</span>
+						<input class="js-id" type="text" value="1234" />
+					</div>
+					<div>
+						<span>&amp;monitor-id=</span>
+						<input
+							class="js-monitor-id"
+							type="text"
+							value=""
+						/>
+					</div>
+					<div>
+						<span>&amp;sub-stream=</span>
+						<select class="js-sub-stream">
+							<option>false</option>
+							<option>true</option>
+						</select>
+					</div>
+					<button
+						onclick='
+				(async () => {
+					const element = document.querySelector(".js-mp4-streamer");
+					const id = element.querySelector(".js-id").value;
+					const monitorId = element.querySelector(".js-monitor-id").value;
+					const subStream = element.querySelector(".js-sub-stream").value;
+					const $video = element.querySelector(".js-video");
+					const $videoUrl = element.querySelector(".js-video-url");
+					const $pre = element.querySelector("pre");
+
+					const url = `/api/mp4-streamer/start-session?session-id=${id}&monitor-id=${monitorId}&sub-stream=${subStream}`;
+					const videoUrl = `/api/mp4-streamer/play?session-id=${id}&monitor-id=${monitorId}&sub-stream=${subStream}`;
+					const res = await fetch(url, {method: "post"});
+
+					if (res.status != 200) {
+						let tmp = await res.text();
+						$pre.innerHTML = `${res.statusText}\nbody: ${tmp}`;
+						$pre.style.display = "block";
+					} else {
+						let start_time = await res.text();
+						console.log(start_time);
+						$pre.style.display = "none";
+					}
+
+					$videoUrl.textContent = videoUrl;
+					$videoUrl.style.display = "block";
+					$video.style.display = "block";
+					$video.src = videoUrl;
+				})()
+				'
+					>
+						Submit
+					</button>
+				</div>
+			</div>
+			<pre></pre>
+			<span class="js-video-url" style="display: none;"></span>
+			<video controls muted autoplay class="js-video" style="display: none"></video>
+		</article>
+
+
+		<article class="js-log-query">
+			<div style="flex-wrap: wrap;">
 				<div>
 					<span>GET /api/log/query?levels=</span
 					><input

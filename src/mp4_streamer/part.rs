@@ -1,20 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 use crate::{
-    error::{GeneratePartError, GenerateTrafError, PartFinalizeError},
+    error::{GenerateMoofError, GenerateTrafError},
     types::VIDEO_TRACK_ID,
 };
 use bytes::Bytes;
-use common::{
-    time::{DurationH264, UnixH264, UnixNano},
-    VideoSample,
-};
+use common::{time::UnixH264, VideoSample};
 use mp4::{ImmutableBox, ImmutableBoxSync, TfdtBaseMediaDecodeTime, TrunEntries};
-use std::{io::Cursor, sync::Arc, task::Poll};
-use tokio::io::AsyncRead;
+use std::sync::Arc;
 
-fn generate_part(
+pub(crate) fn generate_moof(
     muxer_start_time: UnixH264,
-    video_samples: Arc<Vec<VideoSample>>,
-) -> Result<Bytes, GeneratePartError> {
+    frames: Arc<Vec<VideoSample>>,
+) -> Result<Bytes, GenerateMoofError> {
     /*
        moof
        - mfhd
@@ -34,15 +32,15 @@ fn generate_part(
     );
 
     let mfhd_offset = 24;
-    let video_trun_size = (video_samples.len() * 16) + 20;
+    let video_trun_size = (frames.len() * 16) + 20;
     let mdat_offset = mfhd_offset + video_trun_size + 44;
 
     let video_data_offset = i32::try_from(mdat_offset + 8)?;
-    let traf = generate_traf(muxer_start_time, &video_samples, video_data_offset)?;
+    let traf = generate_traf(muxer_start_time, &frames, video_data_offset)?;
 
     moof.children.push(traf);
 
-    let mdat = mp4::Boxes::new(MyMdat(video_samples));
+    let mdat = mp4::Boxes::new(MyMdat(frames));
 
     let mut buf = Vec::with_capacity(moof.size() + mdat.size());
     moof.marshal(&mut buf)?;
@@ -80,7 +78,7 @@ impl From<MyMdat> for Box<dyn ImmutableBoxSync> {
 
 fn generate_traf(
     muxer_start_time: UnixH264,
-    video_samples: &Vec<VideoSample>,
+    frames: &Arc<Vec<VideoSample>>,
     data_offset: i32,
 ) -> Result<mp4::Boxes, GenerateTrafError> {
     use GenerateTrafError::*;
@@ -91,8 +89,8 @@ fn generate_traf(
            - trun
     */
 
-    let mut trun_entries = Vec::with_capacity(video_samples.len());
-    for sample in video_samples {
+    let mut trun_entries = Vec::with_capacity(frames.len());
+    for sample in frames.iter() {
         let flags = if sample.random_access_present {
             0
         } else {
@@ -109,7 +107,7 @@ fn generate_traf(
         });
     }
 
-    let first_sample = &video_samples[0];
+    let first_sample = &frames[0];
     let dts = first_sample
         .dts()
         .ok_or(Dts(first_sample.pts, first_sample.dts_offset))?;
@@ -150,177 +148,18 @@ fn generate_traf(
     ))
 }
 
-// fmp4 part.
-#[derive(Clone)]
-#[allow(clippy::module_name_repetitions)]
-pub struct MuxerPart {
-    pub id: u64,
-    pub muxer_start_time: UnixNano,
-    pub is_independent: bool,
-    pub video_samples: Vec<VideoSample>,
-}
-
-impl std::fmt::Debug for MuxerPart {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{} {} {}",
-            self.id,
-            self.is_independent,
-            self.video_samples.len()
-        )
-    }
-}
-
-impl MuxerPart {
-    pub fn new(id: u64, muxer_start_time: UnixNano) -> Self {
-        Self {
-            id,
-            muxer_start_time,
-            is_independent: false,
-            video_samples: Vec::new(),
-        }
-    }
-
-    pub fn duration(&self) -> Option<DurationH264> {
-        let mut total = DurationH264::new(0);
-        for e in &self.video_samples {
-            total = total.checked_add(e.duration)?;
-        }
-        Some(total)
-    }
-
-    pub fn finalize(self) -> Result<PartFinalized, PartFinalizeError> {
-        let rendered_duration = self.duration().ok_or(PartFinalizeError::Duration)?;
-        let video_samples = Arc::new(self.video_samples);
-        let rendered_content = if video_samples.is_empty() {
-            None
-        } else {
-            Some(generate_part(
-                self.muxer_start_time.into(),
-                video_samples.clone(),
-            )?)
-        };
-
-        Ok(PartFinalized {
-            id: self.id,
-            is_independent: self.is_independent,
-            video_samples: video_samples.clone(),
-            rendered_duration,
-            rendered_content,
-        })
-    }
-
-    pub fn write_h264(&mut self, sample: VideoSample) {
-        if sample.random_access_present {
-            self.is_independent = true;
-        }
-        self.video_samples.push(sample);
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-#[allow(clippy::module_name_repetitions)]
-pub struct PartFinalized {
-    pub id: u64,
-
-    pub is_independent: bool,
-    pub video_samples: Arc<Vec<VideoSample>>,
-    pub rendered_content: Option<Bytes>,
-    pub rendered_duration: DurationH264,
-}
-
-impl PartFinalized {
-    pub fn name(&self) -> String {
-        part_name(self.id)
-    }
-
-    pub fn reader(&self) -> Box<dyn AsyncRead + Send + Unpin> {
-        let Some(rendered_content) = &self.rendered_content else {
-            return Box::new(Cursor::new(Vec::new()));
-        };
-        Box::new(Cursor::new(rendered_content.clone()))
-    }
-}
-
-#[must_use]
-#[allow(clippy::module_name_repetitions)]
-pub fn part_name(id: u64) -> String {
-    ["part", &id.to_string()].join("")
-}
-
-pub struct PartsReader {
-    parts: Vec<Arc<PartFinalized>>,
-    cur_part: usize,
-    cur_pos: usize,
-}
-
-impl PartsReader {
-    #[must_use]
-    pub fn new(parts: Vec<Arc<PartFinalized>>) -> Self {
-        Self {
-            parts,
-            cur_part: 0,
-            cur_pos: 0,
-        }
-    }
-}
-
-impl AsyncRead for PartsReader {
-    fn poll_read(
-        mut self: std::pin::Pin<&mut Self>,
-        _cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> std::task::Poll<std::io::Result<()>> {
-        let mut n = 0;
-        let buf_len = buf.remaining();
-
-        loop {
-            if self.cur_part >= self.parts.len() {
-                // EOF.
-                return Poll::Ready(Ok(()));
-            }
-
-            let Some(part) = &self.parts[self.cur_part].rendered_content else {
-                panic!("expected part to exist");
-            };
-
-            let part_len = part.len();
-
-            let start = self.cur_pos;
-            let amt = std::cmp::min(part.len() - start, buf.remaining());
-            let end = start + amt;
-
-            buf.put_slice(&part[start..end]);
-
-            self.cur_pos += amt;
-            n += amt;
-
-            if self.cur_pos == part_len {
-                self.cur_part += 1;
-                self.cur_pos = 0;
-            }
-
-            // If buffer is full.
-            if n == buf_len {
-                return Poll::Ready(Ok(()));
-            }
-        }
-    }
-}
-
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::time::{DtsOffset, UnixH264, SECOND};
+    use common::time::{DtsOffset, DurationH264, UnixH264, SECOND};
     use pretty_assertions::assert_eq;
     use pretty_hex::pretty_hex;
     use sentryshot_padded_bytes::PaddedBytes;
 
     #[test]
-    fn test_generate_part_minimal() {
-        let got = generate_part(UnixH264::new(0), Arc::new(vec![VideoSample::default()])).unwrap();
+    fn test_generate_moof_minimal() {
+        let got = generate_moof(UnixH264::new(0), Arc::new(vec![VideoSample::default()])).unwrap();
 
         let want = vec![
             0, 0, 0, 0x68, b'm', b'o', b'o', b'f', //
@@ -354,7 +193,7 @@ mod tests {
             ..Default::default()
         }];
 
-        let got = generate_part(UnixH264::new(0), Arc::new(samples)).unwrap();
+        let got = generate_moof(UnixH264::new(0), Arc::new(samples)).unwrap();
         let want = vec![
             0, 0, 0, 0x68, b'm', b'o', b'o', b'f', //
             0, 0, 0, 0x10, b'm', b'f', b'h', b'd', //
@@ -399,7 +238,7 @@ mod tests {
             },
         ];
 
-        let got = generate_part(UnixH264::new(0), Arc::new(samples)).unwrap();
+        let got = generate_moof(UnixH264::new(0), Arc::new(samples)).unwrap();
 
         let want = vec![
             0, 0, 0, 0x88, b'm', b'o', b'o', b'f', //
@@ -456,7 +295,7 @@ mod tests {
             },
         ];
 
-        let got = generate_part(start_time, Arc::new(samples)).unwrap();
+        let got = generate_moof(start_time, Arc::new(samples)).unwrap();
 
         let want = vec![
             0, 0, 0, 0x78, b'm', b'o', b'o', b'f', //

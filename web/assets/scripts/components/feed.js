@@ -117,18 +117,19 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 }
 
 const newFeedBtn = {
-	mute: newMuteBtn,
+	//mute: newMuteBtn,
 	fullscreen: newFullscreenBtn,
 	recordings: newRecordingsBtn,
 };
 
-const iconMutedPath = "assets/icons/feather/volume-x.svg";
-const iconUnmutedPath = "assets/icons/feather/volume.svg";
+//const iconMutedPath = "assets/icons/feather/volume-x.svg";
+//const iconUnmutedPath = "assets/icons/feather/volume.svg";
 
 /**
  * @param {Monitor} monitor
  * @return {Button}
  */
+/*
 function newMuteBtn(monitor) {
 	const audioEnabled = monitor["audioEnabled"] === "true";
 
@@ -161,6 +162,7 @@ function newMuteBtn(monitor) {
 		},
 	};
 }
+*/
 
 const iconMaximizePath = "assets/icons/feather/maximize.svg";
 const iconMinimizePath = "assets/icons/feather/minimize.svg";

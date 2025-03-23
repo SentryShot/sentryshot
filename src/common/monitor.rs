@@ -5,7 +5,7 @@
 use crate::{
     recording::{FrameRateLimiter, FrameRateLimiterError},
     time::{Duration, MINUTE},
-    ArcHlsMuxer, ArcMsgLogger, Event, H264Data, MonitorId, MonitorName, StreamType,
+    ArcMsgLogger, ArcStreamerMuxer, Event, H264Data, MonitorId, MonitorName, StreamType,
 };
 use async_trait::async_trait;
 use sentryshot_ffmpeg_h264::{H264BuilderError, ReceiveFrameError, SendPacketError};
@@ -297,7 +297,7 @@ pub trait Source {
 
     // Returns the HLS muxer for this source. Will block until the source has started.
     // Returns None if cancelled.
-    async fn muxer(&self) -> Option<ArcHlsMuxer>;
+    async fn muxer(&self) -> Option<ArcStreamerMuxer>;
 
     // Subscribe to the raw feed. Will block until the source has started.
     async fn subscribe(&self) -> Option<Feed>;

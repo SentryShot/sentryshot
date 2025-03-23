@@ -9,14 +9,12 @@ use common::{
     },
     recording::FrameRateLimiter,
     time::{DtsOffset, UnixH264, UnixNano, H264_SECOND},
-    ArcHlsMuxer, ArcLogger, ArcMsgLogger, H264Data, LogEntry, LogLevel, MonitorId, MsgLogger,
-    StreamType,
+    ArcLogger, ArcMsgLogger, ArcStreamerMuxer, H264Data, LogEntry, LogLevel, MonitorId, MsgLogger,
+    StreamType, TrackParameters,
 };
 use futures_lite::StreamExt;
-use hls::{
-    track_params_from_video_params, CreateSegmenterError, H264Writer, HlsServer, ParseParamsError,
-    SegmenterWriteH264Error,
-};
+use hls::{track_params_from_video_params, HlsServer, ParseParamsError, SegmenterWriteH264Error};
+use mp4_streamer::{Mp4Streamer, WriteFrameError};
 use retina::{
     client::Stream,
     codec::{ParametersRef, VideoFrame},
@@ -37,7 +35,7 @@ use url::Url;
 #[allow(clippy::module_name_repetitions)]
 pub struct MonitorSource {
     stream_type: StreamType,
-    get_muxer_tx: mpsc::Sender<oneshot::Sender<ArcHlsMuxer>>,
+    get_muxer_tx: mpsc::Sender<oneshot::Sender<ArcStreamerMuxer>>,
     subscribe_tx: mpsc::Sender<oneshot::Sender<Feed>>,
 }
 
@@ -45,7 +43,7 @@ impl MonitorSource {
     #[must_use]
     pub fn new(
         stream_type: StreamType,
-        get_muxer_tx: mpsc::Sender<oneshot::Sender<ArcHlsMuxer>>,
+        get_muxer_tx: mpsc::Sender<oneshot::Sender<ArcStreamerMuxer>>,
         subscribe_tx: mpsc::Sender<oneshot::Sender<Feed>>,
     ) -> Self {
         Self {
@@ -65,7 +63,7 @@ impl Source for MonitorSource {
 
     // Returns the HLS muxer for this source. Will block until the source has started.
     // Returns None if cancelled.
-    async fn muxer(&self) -> Option<ArcHlsMuxer> {
+    async fn muxer(&self) -> Option<ArcStreamerMuxer> {
         let (res_tx, res_rx) = oneshot::channel();
         if self.get_muxer_tx.send(res_tx).await.is_err() {
             return None;
@@ -160,11 +158,93 @@ impl MsgLogger for SourceLogger {
 #[allow(clippy::module_name_repetitions)]
 pub struct SourceRtsp {
     msg_logger: ArcMsgLogger,
-    hls_server: Arc<HlsServer>,
+    streamer: Streamer,
 
     monitor_id: MonitorId,
     config: SourceRtspConfig,
     stream_type: StreamType,
+}
+
+#[derive(Clone)]
+pub enum Streamer {
+    Hls(HlsServer),
+    Mp4(Mp4Streamer),
+}
+
+#[derive(Debug, Error)]
+enum NewMuxerError {
+    #[error(transparent)]
+    Hls(#[from] hls::CreateSegmenterError),
+
+    #[error(transparent)]
+    Mp4(#[from] mp4_streamer::CreateSegmenterError),
+}
+
+enum H264Writer {
+    Hls(hls::H264Writer),
+    Mp4(mp4_streamer::H264Writer),
+}
+
+#[derive(Debug, Error)]
+enum WriteH264Error {
+    #[error(transparent)]
+    Hls(#[from] SegmenterWriteH264Error),
+
+    #[error(transparent)]
+    Mp4(#[from] WriteFrameError),
+}
+
+impl H264Writer {
+    pub async fn write_h264(&mut self, data: H264Data) -> Result<(), WriteH264Error> {
+        match self {
+            H264Writer::Hls(hls) => hls.write_h264(data).await?,
+            H264Writer::Mp4(mp4) => mp4.write_h264(data).await?,
+        };
+        Ok(())
+    }
+}
+
+impl Streamer {
+    async fn new_muxer(
+        &self,
+        token: CancellationToken,
+        monitor_id: MonitorId,
+        sub_stream: bool,
+        params: TrackParameters,
+        start_time: UnixNano,
+        first_sample: H264Data,
+    ) -> Result<Option<(ArcStreamerMuxer, H264Writer)>, NewMuxerError> {
+        match self {
+            Streamer::Hls(hls) => {
+                let name = if sub_stream {
+                    monitor_id.to_string() + "_sub"
+                } else {
+                    monitor_id.to_string()
+                };
+                match hls
+                    .new_muxer(token, name, params, start_time, first_sample)
+                    .await?
+                {
+                    Some(v) => Ok(Some((v.0, H264Writer::Hls(v.1)))),
+                    None => Ok(None),
+                }
+            }
+            Streamer::Mp4(mp4) => match mp4
+                .new_muxer(
+                    token,
+                    monitor_id,
+                    sub_stream,
+                    params,
+                    start_time,
+                    first_sample,
+                )
+                .await?
+            {
+                Some(v) => Ok(Some((v.0, H264Writer::Mp4(v.1)))),
+                None => Ok(None),
+            },
+        }
+    }
 }
 
 impl SourceRtsp {
@@ -173,7 +253,7 @@ impl SourceRtsp {
         token: CancellationToken,
         shutdown_complete: mpsc::Sender<()>,
         logger: ArcLogger,
-        hls_server: Arc<HlsServer>,
+        streamer: Streamer,
         monitor_id: MonitorId,
         config: SourceRtspConfig,
         stream_type: StreamType,
@@ -192,7 +272,7 @@ impl SourceRtsp {
 
         let source = Self {
             msg_logger,
-            hls_server,
+            streamer,
             monitor_id,
             config,
             stream_type,
@@ -222,7 +302,8 @@ impl SourceRtsp {
             }
         });
 
-        let (get_muxer_tx, mut get_muxer_rx) = mpsc::channel::<oneshot::Sender<ArcHlsMuxer>>(1);
+        let (get_muxer_tx, mut get_muxer_rx) =
+            mpsc::channel::<oneshot::Sender<ArcStreamerMuxer>>(1);
         let (subscribe_tx, mut subscribe_rx) = mpsc::channel::<oneshot::Sender<Feed>>(1);
 
         tokio::spawn(async move {
@@ -283,7 +364,7 @@ impl SourceRtsp {
     async fn run(
         &self,
         token: CancellationToken,
-        started_tx: mpsc::Sender<(ArcHlsMuxer, broadcast::Sender<H264Data>)>,
+        started_tx: mpsc::Sender<(ArcStreamerMuxer, broadcast::Sender<H264Data>)>,
     ) -> Result<(), SourceRtspRunError> {
         use SourceRtspRunError::*;
 
@@ -386,9 +467,10 @@ impl SourceRtsp {
                                     let start_time = UnixNano::now();
                                     let first_sample_pts = UnixH264::new(frame.timestamp().pts());
                                     let first_sample = parse_frame(frame, start_time, first_sample_pts)?;
-                                    let result = self.hls_server.new_muxer(
+                                    let result = self.streamer.new_muxer(
                                         token.clone(),
-                                        self.hls_name(),
+                                        self.monitor_id.clone(),
+                                        self.stream_type.is_sub(),
                                         track_params_from_video_params(params)?,
                                         start_time,
                                         first_sample.clone(),
@@ -408,14 +490,6 @@ impl SourceRtsp {
                     }
                 }
             }
-        }
-    }
-
-    fn hls_name(&self) -> String {
-        if self.stream_type.is_main() {
-            self.monitor_id.to_string()
-        } else {
-            self.monitor_id.to_string() + "_sub"
         }
     }
 
@@ -515,13 +589,13 @@ enum SourceRtspRunError {
     Stream(retina::Error),
 
     #[error("write h264: {0}")]
-    WriteH264(#[from] SegmenterWriteH264Error),
+    WriteH264(#[from] WriteH264Error),
 
     #[error("convert params: {0}")]
     ConvertTrackParams(#[from] ParseParamsError),
 
-    #[error("create segmenter")]
-    CreateSegmenter(#[from] CreateSegmenterError),
+    #[error("new muxer: {0}")]
+    NewMuxer(#[from] NewMuxerError),
 
     #[error("parse frame: {0}")]
     ParseFrame(#[from] ParseFrameError),

@@ -54,18 +54,6 @@ describe("tflite", () => {
 	});
 });
 
-class stubHls {
-	onError() {}
-	onFatal() {}
-	constructor() {}
-	async init() {}
-	async start() {}
-	destroy() {}
-	static isSupported() {
-		return false;
-	}
-}
-
 function newMotion() {
 	const hasSubStream = () => {
 		return false;
@@ -73,5 +61,5 @@ function newMotion() {
 	const getMonitorId = () => {
 		return "";
 	};
-	return motion2(stubHls, hasSubStream, getMonitorId);
+	return motion2(hasSubStream, getMonitorId);
 }

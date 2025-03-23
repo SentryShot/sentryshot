@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-check
+
 /* eslint-disable require-await */
 
 import { uidReset } from "../libs/common.js";
-import { newFeed, newFeedBtn } from "./feed.js";
+import { newMp4Stream, newMp4StreamBtn } from "./mp4Stream.js";
 
 describe("feed", () => {
 	test("rendering", () => {
 		uidReset();
 		const monitor = { id: "a" };
-		const buttons = [newFeedBtn.fullscreen()];
-		const feed = newFeed(undefined, monitor, true, buttons);
+		const buttons = [newMp4StreamBtn.fullscreen()];
+		const feed = newMp4Stream(monitor, true, buttons);
 
 		const actual = feed.html.replaceAll(/\s/g, "");
 		const expected = `
@@ -35,9 +37,11 @@ describe("feed", () => {
 					</div>
 					<video
 						class="grid-item"
+						autoplay
 						muted
 						disablepictureinpicture
 						playsinline
+						type="video/mp4"
 					></video>
 				</div>
 			</div>`.replaceAll(/\s/g, "");
@@ -88,7 +92,7 @@ describe("muteBtn", () => {
 */
 
 test("recordingsBtn", async () => {
-	const actual = newFeedBtn.recordings("a", "b").html.replaceAll(/\s/g, "");
+	const actual = newMp4StreamBtn.recordings("a", "b").html.replaceAll(/\s/g, "");
 	const expected = `
 		<a href="a#monitors=b" class="feed-btn">
 			<img
@@ -101,7 +105,7 @@ test("recordingsBtn", async () => {
 });
 
 test("fullscreenBtn", () => {
-	const actual = newFeedBtn.fullscreen().html.replaceAll(/\s/g, "");
+	const actual = newMp4StreamBtn.fullscreen().html.replaceAll(/\s/g, "");
 	const expected = `
 	   <button class="js-fullscreen-btn feed-btn">
 		   <img class="feed-btn-img icon" src="assets/icons/feather/maximize.svg">

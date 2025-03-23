@@ -1,5 +1,5 @@
 [package]
-name = "monitor"
+name = "mp4_streamer"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,36 +9,29 @@ license.workspace = true
 workspace = true
 
 [lib]
-name = "monitor"
-path = "monitor.rs"
+name = "mp4_streamer"
+path = "mp4_streamer.rs"
 doctest = false
 
 [dependencies]
 common.path = "../common"
-hls.path = "../hls"
-log.path = "../log"
-mp4_streamer.path = "../mp4_streamer"
-recdb.path = "../recdb"
-recording.path = "../recording"
+mp4.path = "../mp4"
 
 async-trait.workspace = true
-bytesize.workspace = true
+bytes.workspace = true
 futures-lite.workspace = true
-jpeg-encoder.workspace = true
+http.workspace = true
 retina.workspace = true
-sentryshot_convert.workspace = true
-sentryshot_ffmpeg_h264.workspace = true
-sentryshot_util.workspace = true
+sentryshot_padded_bytes.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
-url.workspace = true
+tokio-stream.workspace = true
 
 
 [dev-dependencies]
 pretty_assertions.workspace = true
 pretty-hex.workspace = true
-test-case.workspace = true
-tempfile.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true

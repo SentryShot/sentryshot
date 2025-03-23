@@ -17,6 +17,7 @@ members = [
 	"src/monitor",
 	"src/monitor_groups",
 	"src/mp4",
+	"src/mp4_streamer",
 	"src/plugin",
 	"src/recdb",
 	"src/recording",
@@ -82,6 +83,7 @@ test-case = "2.2.2"
 thiserror = "2"
 toml = { version = "0.8.0", default-features = false, features = ["parse"] }
 tokio-util = { version = "0.7.7", features = ["io-util"] }
+tokio-stream = { version = "0.1", default-features = false, features = ["sync"] }
 tower = { version = "0.5", default-features = false }
 upon = "0.8.0"
 url = { version = "2.5", features = ["serde"] }
