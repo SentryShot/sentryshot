@@ -5,21 +5,21 @@ async function sendAlert(msg, response) {
 }
 
 /**
-	@param {RequestInfo | URL} url
+	@param {URL} url
 	@param {string} msg:
 	@return {Promise<any>}
  */
 async function fetchGet(url, msg) {
 	const response = await fetch(url, { method: "get" });
 	if (response.status !== 200) {
-		sendAlert(msg, await response);
+		sendAlert(msg, response);
 		return;
 	}
 	return await response.json();
 }
 
 /**
-	@param {RequestInfo | URL} url
+	@param {URL} url
 	@param {any} data
 	@param {string} token
 	@param {string} msg:
@@ -42,7 +42,7 @@ async function fetchPost(url, data, token, msg) {
 }
 
 /**
-	@param {RequestInfo | URL} url
+	@param {URL} url
 	@param {any} data
 	@param {string} token
 	@param {string} msg:
@@ -66,7 +66,7 @@ async function fetchPut(url, data, token, msg) {
 }
 
 /**
-	@param {RequestInfo | URL} url
+	@param {URL} url
 	@param {string} token
 	@param {string} msg:
 	@return {Promise<boolean>}
@@ -262,6 +262,21 @@ function globals() {
 		monitorsInfo: MonitorsInfo,
 	};
 }
+
+/** @param {String} pathname */
+function relativePathname(pathname) {
+	// @ts-ignore
+	if (typeof CurrentPage === "undefined") {
+		return `http://test.com/${pathname}`;
+	}
+	/** @type {String} */
+	// @ts-ignore
+	const currentPage = CurrentPage;
+	return (
+		window.location.origin +
+		window.location.pathname.replace(currentPage.toLowerCase(), pathname)
+	);
+}
 /* eslint-enable no-undef */
 
 export {
@@ -279,4 +294,5 @@ export {
 	normalize,
 	denormalize,
 	globals,
+	relativePathname,
 };

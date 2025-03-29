@@ -8,9 +8,9 @@ const millisecond = 1000000;
 /**
  * @typedef {Object} RecordingData
  * @property {string} id
- * @property {string} videoPath
- * @property {string} thumbPath
- * @property {string} deletePath
+ * @property {URL} videoPath
+ * @property {URL} thumbPath
+ * @property {URL} deletePath
  * @property {string} name
  * @property {string} timeZone
  * @property {number} start

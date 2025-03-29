@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { uniqueID } from "../libs/common.js";
+// @ts-check
+
+import { uniqueID, relativePathname } from "../libs/common.js";
 
 const hlsConfig = {
 	maxDelaySec: 2,
@@ -208,14 +210,14 @@ function newFullscreenBtn() {
 const iconRecordingsPath = "assets/icons/feather/film.svg";
 
 /**
- * @param {string} path
- * @param {string} id
+ * @param {String} monitorIds,
  * @return {Button}
  */
-function newRecordingsBtn(path, id) {
+function newRecordingsBtn(monitorIds) {
+	const recordingsPath = `${relativePathname("recordings")}#monitors=${monitorIds}`;
 	return {
 		html: `
-			<a href="${path}#monitors=${id}" class="feed-btn">
+			<a href="${recordingsPath}" class="feed-btn">
 				<img
 					class="feed-btn-img icon"
 					style="height: 0.65rem;"

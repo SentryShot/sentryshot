@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-check
+
 import Hls from "./vendor/hls.js";
 import { uniqueID, sortByName, globals } from "./libs/common.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
@@ -14,6 +16,7 @@ import { newFeed, newFeedBtn } from "./components/feed.js";
 /**
  * @param {Element} $parent
  * @param {MonitorsInfo} monitors
+ * @param {typeof Hls} hls
  */
 function newViewer($parent, monitors, hls) {
 	let selectedMonitors = [];
@@ -57,12 +60,10 @@ function newViewer($parent, monitors, hls) {
 					continue;
 				}
 
-				const recordingsPath = toAbsolutePath("recordings");
-
 				const fullscreenBtn = newFeedBtn.fullscreen();
 				fullscreenButtons.push(fullscreenBtn);
 				const buttons = [
-					newFeedBtn.recordings(recordingsPath, monitor["id"]),
+					newFeedBtn.recordings(monitor["id"]),
 					fullscreenBtn,
 					newFeedBtn.mute(monitor),
 				];
@@ -85,10 +86,6 @@ function newViewer($parent, monitors, hls) {
 			}
 		},
 	};
-}
-
-function toAbsolutePath(input) {
-	return window.location.href.replace("live", input);
 }
 
 const preferLowResByDefault = false;

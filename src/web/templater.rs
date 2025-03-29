@@ -78,7 +78,6 @@ impl<'a> Templater<'a> {
 
         HashMap::from([
             ("current_page", Value::String(current_page)),
-            // globals.
             ("csrf_token", Value::String(csrf_token)),
             ("flags", Value::String(flags_json)),
             ("is_admin", Value::Bool(is_admin)),

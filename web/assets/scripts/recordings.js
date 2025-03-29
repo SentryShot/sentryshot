@@ -7,6 +7,7 @@ import {
 	getHashParam,
 	removeEmptyValues,
 	globals,
+	relativePathname,
 } from "./libs/common.js";
 import { NS_MILLISECOND } from "./libs/time.js";
 import { newPlayer } from "./components/player.js";
@@ -74,13 +75,15 @@ function newViewer(monitorNameByID, element, timeZone, isAdmin, token) {
 			/** @type RecordingData */
 			const d = {};
 			d.id = rec.id;
-			d.videoPath = toAbsolutePath(`api/recording/video/${d.id}`);
+			let videoPath = relativePathname(`api/recording/video/${d.id}`);
 			if (rec.state === "active") {
 				const random = Math.floor(Math.random() * 99999);
-				d.videoPath += `?cache-id=${random}`;
+				videoPath += `?cache-id=${random}`;
 			}
-			d.thumbPath = toAbsolutePath(`api/recording/thumbnail/${d.id}`);
-			d.deletePath = toAbsolutePath(`api/recording/delete/${d.id}`);
+			console.log("AAAA", videoPath);
+			d.videoPath = new URL(videoPath);
+			d.thumbPath = new URL(relativePathname(`api/recording/thumbnail/${d.id}`));
+			d.deletePath = new URL(relativePathname(`api/recording/delete/${d.id}`));
 			d.name = monitorNameByID(d.id.slice(20));
 			d.timeZone = timeZone;
 
@@ -216,8 +219,7 @@ async function fetchRecordings(abortSignal, recID, limit, monitors) {
 		})
 	);
 
-	// Use relative path.
-	const path = window.location.pathname.replace("recordings", "api/recording/query");
+	const path = relativePathname("api/recording/query");
 	const url = `${path}?${query}`;
 
 	const response = await fetch(url, {
@@ -229,14 +231,6 @@ async function fetchRecordings(abortSignal, recID, limit, monitors) {
 		return;
 	}
 	return await response.json();
-}
-
-/**
- * @param {String} input
- * @return {String}
- */
-function toAbsolutePath(input) {
-	return window.location.href.replace("recordings", input);
 }
 
 /**

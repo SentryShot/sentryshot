@@ -86,9 +86,9 @@ describe("muteBtn", () => {
 });
 
 test("recordingsBtn", async () => {
-	const actual = newFeedBtn.recordings("a", "b").html.replaceAll(/\s/g, "");
+	const actual = newFeedBtn.recordings("b").html.replaceAll(/\s/g, "");
 	const expected = `
-		<a href="a#monitors=b" class="feed-btn">
+		<a href="http://test.com/recordings#monitors=b" class="feed-btn">
 			<img
 				class="feed-btn-img icon"
 				style="height: 0.65rem;"

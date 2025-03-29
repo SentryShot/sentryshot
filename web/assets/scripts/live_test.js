@@ -96,7 +96,7 @@ test("fullscreen", () => {
 				>
 				<label class="player-overlay-selector" for="uid2"></label>
 				<div class="js-overlay player-overlay feed-menu">
-					<a href="http://localhost/#monitors=undefined" class="feed-btn">
+					<a href="http://test.com/recordings#monitors=undefined" class="feed-btn">
 						<img
 							class="feed-btn-img icon"
 							style="height:0.65rem;"
@@ -124,7 +124,7 @@ test("fullscreen", () => {
 					>
 					<label class="player-overlay-selector" for="uid4"></label>
 					<div class="js-overlay player-overlay feed-menu">
-					<a href="http://localhost/#monitors=undefined" class="feed-btn">
+					<a href="http://test.com/recordings#monitors=undefined" class="feed-btn">
 						<img
 							class="feed-btn-imgicon"
 							style="height:0.65rem;"

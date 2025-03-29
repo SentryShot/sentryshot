@@ -11,6 +11,7 @@ import {
 	uniqueID,
 	removeEmptyValues,
 	globals,
+	relativePathname,
 } from "./libs/common.js";
 import {
 	newForm,
@@ -534,7 +535,10 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		category.closeSubcategory();
 
 		// Update global `montiors` object so the groups category has updated values.
-		const m = await fetchGet("api/monitors", "could not fetch monitors");
+		const m = await fetchGet(
+			new URL(relativePathname("api/monitors")),
+			"could not fetch monitors"
+		);
 		for (const key in monitors) {
 			delete monitors[key];
 		}
@@ -560,7 +564,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		}
 
 		const ok = await fetchPut(
-			"api/monitor",
+			new URL(relativePathname("api/monitor")),
 			monitor,
 			token,
 			"failed to save monitor"
@@ -569,8 +573,10 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 			return;
 		}
 
+		const pathname = relativePathname("api/monitor/restart");
+		const params = new URLSearchParams({ id });
 		fetchPost(
-			`api/monitor/restart?id=${id}`,
+			new URL(`${pathname}?${params}`),
 			monitor,
 			token,
 			"failed to restart monitor"
@@ -581,9 +587,10 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 
 	/** @param {string} monitorID */
 	const deleteMonitor = async (monitorID) => {
+		const pathname = relativePathname("api/monitor");
 		const params = new URLSearchParams({ id: monitorID });
 		const ok = await fetchDelete(
-			`api/monitor?${params}`,
+			new URL(`${pathname}?${params}`),
 			token,
 			"failed to delete monitor"
 		);
@@ -649,7 +656,7 @@ function newMonitorGroups(token, fields, groups) {
 		}
 
 		const ok = await fetchPut(
-			"api/monitor-groups",
+			new URL(relativePathname("api/monitor-groups")),
 			groups,
 			token,
 			"failed to save monitor groups"
@@ -669,7 +676,7 @@ function newMonitorGroups(token, fields, groups) {
 		delete groups[groupId];
 
 		const ok = await fetchPut(
-			"api/monitor-groups",
+			new URL(relativePathname("api/monitor-groups")),
 			groups,
 			token,
 			"failed to save monitor groups"
@@ -880,7 +887,10 @@ function newAccount(token, fields) {
 
 	const load = async () => {
 		category.closeSubcategory();
-		const accounts = await fetchGet("api/accounts", "failed to get accounts");
+		const accounts = await fetchGet(
+			new URL(relativePathname("api/accounts")),
+			"failed to get accounts"
+		);
 		renderAccountList(accounts);
 	};
 
@@ -899,7 +909,7 @@ function newAccount(token, fields) {
 		};
 
 		const ok = await fetchPut(
-			"api/account",
+			new URL(relativePathname("api/account")),
 			removeEmptyValues(account),
 			token,
 			"failed to save account"
@@ -913,9 +923,10 @@ function newAccount(token, fields) {
 
 	/** @param {string} accountID */
 	const deleteAccount = async (accountID) => {
+		const pathname = relativePathname("api/account");
 		const params = new URLSearchParams({ id: accountID });
 		const ok = await fetchDelete(
-			`api/account?${params}`,
+			new URL(`${pathname}?${params}`),
 			token,
 			"failed to delete account"
 		);

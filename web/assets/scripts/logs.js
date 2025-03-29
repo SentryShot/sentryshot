@@ -8,6 +8,7 @@ import {
 	newMonitorNameByID,
 	removeEmptyValues,
 	globals,
+	relativePathname,
 } from "./libs/common.js";
 import { fromUTC2 } from "./libs/time.js";
 import { newForm, fieldTemplate } from "./components/form.js";
@@ -112,9 +113,7 @@ async function fetchLogs(abortSignal, levels, sources, monitors, time) {
 		})
 	);
 
-	// Use relative path.
-	const path = window.location.pathname.replace("logs", "api/log/query");
-	const url = `${path}?${query}`;
+	const url = new URL(`${relativePathname("api/log/query")}?${query}`);
 
 	try {
 		const response = await fetch(url, {
@@ -156,8 +155,7 @@ function newFeedLogger(formatLog, element, time, levels, sources, monitors) {
 	let cancelled = false;
 
 	const poll = () => {
-		// Use relative path.
-		const path = window.location.pathname.replace("logs", "api/log/slow-poll");
+		const path = relativePathname("api/log/slow-poll");
 
 		const query = new URLSearchParams(
 			removeEmptyValues({

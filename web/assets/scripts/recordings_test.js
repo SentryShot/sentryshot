@@ -88,10 +88,9 @@ describe("newViewer", () => {
 		let fetchCalled = false;
 		// @ts-ignore
 		window.fetch = (r) => {
-			console.log(r);
 			if (
 				r ===
-				"/?recording-id=2000-01-02_03-04-05_x&reverse=false&include-data=true"
+				"http://test.com/api/recording/query?recording-id=2000-01-02_03-04-05_x&reverse=false&include-data=true"
 			) {
 				fetchCalled = true;
 				return {
