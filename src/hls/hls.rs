@@ -9,12 +9,14 @@ mod types;
 
 use crate::error::PartHlsQueryError;
 pub use crate::error::{CreateSegmenterError, SegmenterWriteH264Error};
+use async_trait::async_trait;
 use common::{
-    time::{DurationH264, UnixNano, H264_MILLISECOND},
-    ArcLogger, H264Data, TrackParameters,
+    monitor::{DynH264Writer, StreamerImpl},
+    time::{DurationH264, UnixH264, UnixNano, H264_MILLISECOND},
+    ArcLogger, ArcStreamerMuxer, DynError, H264Data, MonitorId, TrackParameters,
 };
 pub use error::ParseParamsError;
-pub use muxer::{HlsMuxer, NextSegmentGetter};
+pub use muxer::HlsMuxer;
 pub use segmenter::H264Writer;
 use serde::Deserialize;
 use std::{collections::HashMap, sync::Arc};
@@ -23,6 +25,7 @@ use tokio_util::sync::CancellationToken;
 use types::MuxerIdCounter;
 pub use types::{track_params_from_video_params, VIDEO_TRACK_ID};
 
+#[derive(Clone)]
 pub struct HlsServer {
     new_muxer_tx: mpsc::Sender<NewMuxerRequest>,
     muxer_by_name_tx: mpsc::Sender<MuxerByNameRequest>,
@@ -89,11 +92,8 @@ impl HlsServer {
         }
     }
 
-    // Creates muxer and returns a H264Writer to it.
-    // Stops and replaces existing muxer if present.
-    // Returns None if cancelled.
     #[allow(clippy::similar_names)]
-    pub async fn new_muxer(
+    pub async fn new_muxer2(
         &self,
         token: CancellationToken,
         name: String,
@@ -119,7 +119,7 @@ impl HlsServer {
         };
         match res {
             Ok(v) => Ok(Some(v)),
-            Err(v) => Err(v),
+            Err(e) => Err(e),
         }
     }
 
@@ -137,6 +137,34 @@ impl HlsServer {
             return None;
         };
         Some(res)
+    }
+}
+
+#[async_trait]
+impl StreamerImpl for HlsServer {
+    #[allow(clippy::similar_names)]
+    async fn new_muxer(
+        &self,
+        token: CancellationToken,
+        monitor_id: MonitorId,
+        sub_stream: bool,
+        params: TrackParameters,
+        start_time: UnixH264,
+        first_sample: H264Data,
+    ) -> Result<Option<(ArcStreamerMuxer, DynH264Writer)>, DynError> {
+        let name = if sub_stream {
+            monitor_id.to_string() + "_sub"
+        } else {
+            monitor_id.to_string()
+        };
+        match self
+            .new_muxer2(token, name, params, start_time.into(), first_sample)
+            .await
+        {
+            Ok(Some(v)) => Ok(Some((v.0, Box::new(v.1)))),
+            Ok(None) => Ok(None),
+            Err(e) => Err(Box::new(e)),
+        }
     }
 }
 
@@ -233,7 +261,7 @@ impl<'de> Deserialize<'de> for HlsQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{DummyLogger, HlsMuxer};
+    use common::{DummyLogger, StreamerMuxer};
     use pretty_assertions::assert_eq;
 
     #[tokio::test]
@@ -254,7 +282,7 @@ mod tests {
         };
 
         let (_, mut writer) = server
-            .new_muxer(
+            .new_muxer2(
                 token,
                 "test".to_owned(),
                 params,
@@ -334,7 +362,7 @@ seg7.mp4
         };
 
         let (_, mut writer) = server
-            .new_muxer(
+            .new_muxer2(
                 token,
                 "test".to_owned(),
                 params,
@@ -428,7 +456,7 @@ seg7.mp4
         };
 
         let (muxer, mut writer) = server
-            .new_muxer(
+            .new_muxer2(
                 token.clone(),
                 "test".to_owned(),
                 params.clone(),
@@ -450,14 +478,14 @@ seg7.mp4
 
         let seg7 = muxer.next_segment(None).await.unwrap();
         assert_eq!(seg7.id(), 7);
-        let seg8 = muxer.next_segment(Some(&seg7)).await.unwrap();
+        let seg8 = muxer.next_segment(Some(seg7)).await.unwrap();
         assert_eq!(seg8.id(), 8);
-        let seg9 = muxer.next_segment(Some(&seg8)).await.unwrap();
+        let seg9 = muxer.next_segment(Some(seg8.clone())).await.unwrap();
         assert_eq!(seg9.id(), 9);
 
         // Attempt to use segments from a different muxer.
         let (muxer2, mut writer2) = server
-            .new_muxer(
+            .new_muxer2(
                 token,
                 "test".to_owned(),
                 params,
@@ -469,7 +497,7 @@ seg7.mp4
             .unwrap();
 
         let muxer3 = muxer2.clone();
-        let pending = tokio::spawn(async move { muxer3.next_segment(Some(&seg9)).await.unwrap() });
+        let pending = tokio::spawn(async move { muxer3.next_segment(Some(seg9)).await.unwrap() });
 
         while muxer2.playlist_state().await.num_segments_on_hold != 1 {
             tokio::task::yield_now().await;
@@ -481,7 +509,7 @@ seg7.mp4
         assert_eq!(muxer2.playlist_state().await.num_segments, 3);
 
         assert_eq!(pending.await.unwrap().id(), 7);
-        assert_eq!(muxer2.next_segment(Some(&seg8)).await.unwrap().id(), 7);
+        assert_eq!(muxer2.next_segment(Some(seg8)).await.unwrap().id(), 7);
     }
 
     async fn get_playlist(muxer: &muxer::HlsMuxer, opts: Option<(u64, u64, bool)>) -> String {

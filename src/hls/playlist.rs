@@ -4,11 +4,11 @@ use crate::{
         MuxerFileResponse, MUXER_FILE_RESPONSE_BAD_REQUEST, MUXER_FILE_RESPONSE_CANCELLED,
         MUXER_FILE_RESPONSE_ERROR, MUXER_FILE_RESPONSE_NOT_FOUND,
     },
+    part::{part_name, PartFinalized},
+    segment::SegmentFinalized,
     DurationH264, HlsQuery,
 };
-use common::{
-    part_name, time::SECOND, ArcLogger, LogEntry, LogLevel, PartFinalized, SegmentFinalized,
-};
+use common::{time::SECOND, ArcLogger, LogEntry, LogLevel, Segment, SegmentImpl};
 use http::{HeaderName, HeaderValue, StatusCode};
 use std::{
     collections::{HashMap, VecDeque},
@@ -348,10 +348,7 @@ impl Playlist {
     }
 
     #[allow(clippy::similar_names)]
-    pub async fn next_segment(
-        &self,
-        prev_seg: Option<&SegmentFinalized>,
-    ) -> Option<Arc<SegmentFinalized>> {
+    pub async fn next_segment(&self, prev_seg: Option<Segment>) -> Option<Segment> {
         let res_rx: oneshot::Receiver<Arc<SegmentFinalized>>;
         {
             let mut state = self.get_state_lock().await?;
@@ -388,7 +385,13 @@ impl Playlist {
         }
 
         // Lock must be released at this point.
-        res_rx.await.ok()
+        res_rx
+            .await
+            .map(|v| {
+                let seg: Segment = v;
+                seg
+            })
+            .ok()
     }
 
     #[cfg(test)]

@@ -4,8 +4,9 @@
 
 use crate::{
     recording::{FrameRateLimiter, FrameRateLimiterError},
-    time::{Duration, MINUTE},
-    ArcHlsMuxer, ArcMsgLogger, Event, H264Data, MonitorId, MonitorName, StreamType,
+    time::{Duration, UnixH264, MINUTE},
+    ArcMsgLogger, ArcStreamerMuxer, DynError, Event, H264Data, MonitorId, MonitorName, StreamType,
+    TrackParameters,
 };
 use async_trait::async_trait;
 use sentryshot_ffmpeg_h264::{H264BuilderError, ReceiveFrameError, SendPacketError};
@@ -297,7 +298,7 @@ pub trait Source {
 
     // Returns the HLS muxer for this source. Will block until the source has started.
     // Returns None if cancelled.
-    async fn muxer(&self) -> Option<ArcHlsMuxer>;
+    async fn muxer(&self) -> Option<ArcStreamerMuxer>;
 
     // Subscribe to the raw feed. Will block until the source has started.
     async fn subscribe(&self) -> Option<Feed>;
@@ -423,3 +424,29 @@ pub trait IMonitorManager {
     async fn stop(&self);
     async fn monitor_is_running(&self, monitor_id: MonitorId) -> bool;
 }
+
+#[async_trait]
+pub trait H264WriterImpl {
+    // TODO: replace &mut with &.
+    async fn write_h264(&mut self, data: H264Data) -> Result<(), DynError>;
+}
+
+pub type DynH264Writer = Box<dyn H264WriterImpl + Send>;
+
+#[async_trait]
+pub trait StreamerImpl {
+    // Creates muxer and returns a H264Writer to it.
+    // Stops and replaces existing muxer if present.
+    // Returns None if cancelled.
+    async fn new_muxer(
+        &self,
+        token: CancellationToken,
+        monitor_id: MonitorId,
+        sub_stream: bool,
+        params: TrackParameters,
+        start_time: UnixH264,
+        first_sample: H264Data,
+    ) -> Result<Option<(ArcStreamerMuxer, DynH264Writer)>, DynError>;
+}
+
+pub type ArcStreamer = Arc<dyn StreamerImpl + Send + Sync>;

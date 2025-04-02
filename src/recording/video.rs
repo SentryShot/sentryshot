@@ -2,9 +2,8 @@
 
 use common::{
     time::{DtsOffset, DurationH264, UnixH264},
-    PartFinalized, VideoSample,
+    VideoSample,
 };
-use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncWrite, AsyncWriteExt};
 
@@ -127,17 +126,14 @@ impl<'a, W: AsyncWrite + Unpin> VideoWriter<'a, W> {
         })
     }
 
-    // Writes HLS parts in the custom format to the output files.
-    pub async fn write_parts(
+    pub async fn write_frames<'b, T: Iterator<Item = &'b VideoSample>>(
         &mut self,
-        parts: &Vec<Arc<PartFinalized>>,
+        frames: T,
     ) -> Result<(), WriteSampleError> {
         use WriteSampleError::*;
 
-        for part in parts {
-            for sample in part.video_samples.iter() {
-                self.write_sample(sample).await?;
-            }
+        for frame in frames {
+            self.write_sample(frame).await?;
         }
         self.mdat.flush().await.map_err(Flush)?;
         self.meta.flush().await.map_err(Flush)?;
@@ -387,26 +383,23 @@ mod tests {
             .await
             .unwrap();
 
-        let parts = vec![Arc::new(PartFinalized {
-            video_samples: Arc::new(vec![
-                VideoSample {
-                    pts: UnixH264::new(100_000_000_000_000_000),
-                    dts_offset: DtsOffset::new(-1_000_000_000),
-                    random_access_present: true,
-                    avcc: Arc::new(PaddedBytes::new(vec![3, 4])),
-                    duration: DurationH264::new(1_000_000_000),
-                },
-                VideoSample {
-                    pts: UnixH264::new(300_000_000_000_000_000),
-                    dts_offset: DtsOffset::new(-1_000_000_000),
-                    random_access_present: false,
-                    avcc: Arc::new(PaddedBytes::new(vec![5, 6, 7])),
-                    duration: DurationH264::new(1_000_000_000),
-                },
-            ]),
-            ..Default::default()
-        })];
-        w.write_parts(&parts).await.unwrap();
+        let frames = vec![
+            VideoSample {
+                pts: UnixH264::new(100_000_000_000_000_000),
+                dts_offset: DtsOffset::new(-1_000_000_000),
+                random_access_present: true,
+                avcc: Arc::new(PaddedBytes::new(vec![3, 4])),
+                duration: DurationH264::new(1_000_000_000),
+            },
+            VideoSample {
+                pts: UnixH264::new(300_000_000_000_000_000),
+                dts_offset: DtsOffset::new(-1_000_000_000),
+                random_access_present: false,
+                avcc: Arc::new(PaddedBytes::new(vec![5, 6, 7])),
+                duration: DurationH264::new(1_000_000_000),
+            },
+        ];
+        w.write_frames(frames.iter()).await.unwrap();
 
         #[rustfmt::skip]
         let want_meta = &[

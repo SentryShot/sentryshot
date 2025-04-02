@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use common::{
     time::{DurationH264, UnixNano},
-    ArcLogger, H264Data, SegmentFinalized, TrackParameters,
+    ArcLogger, H264Data, Segment, TrackParameters,
 };
 use http::{HeaderName, HeaderValue, StatusCode};
 use std::{collections::HashMap, fmt::Formatter, io::Cursor, sync::Arc};
@@ -133,24 +133,16 @@ impl HlsMuxer {
 }
 
 #[async_trait]
-impl common::HlsMuxer for HlsMuxer {
+impl common::StreamerMuxer for HlsMuxer {
     fn params(&self) -> &TrackParameters {
         &self.params
     }
 
     // Returns the first segment with a ID greater than prevID.
     // Will wait for new segments if the next segment isn't cached.
-    async fn next_segment(
-        &self,
-        prev_seg: Option<&SegmentFinalized>,
-    ) -> Option<Arc<SegmentFinalized>> {
+    async fn next_segment(&self, prev_seg: Option<Segment>) -> Option<Segment> {
         self.playlist.next_segment(prev_seg).await
     }
-}
-
-#[async_trait]
-pub trait NextSegmentGetter {
-    async fn next_segment(&self, prev_id: u64) -> Option<Arc<SegmentFinalized>>;
 }
 
 // Response of the Muxer's File() fn.

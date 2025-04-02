@@ -5,8 +5,8 @@ use common::{
     monitor::{ArcSource, MonitorConfig},
     recording::{RecordingData, RecordingId},
     time::{DurationH264, UnixH264, UnixNano},
-    ArcHlsMuxer, ArcLogger, ArcMsgLogger, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
-    SegmentFinalized, TrackParameters,
+    ArcLogger, ArcMsgLogger, ArcStreamerMuxer, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
+    Segment, TrackParameters,
 };
 use futures_lite::Future;
 use recdb::{NewRecordingError, OpenFileError, RecDb, RecordingHandle};
@@ -262,7 +262,7 @@ struct RecordingContext {
     hooks: ArcMonitorHooks,
     logger: ArcMsgLogger,
     source_main: ArcSource,
-    prev_seg: Arc<Mutex<Option<Arc<SegmentFinalized>>>>,
+    prev_seg: Arc<Mutex<Option<Segment>>>,
     config: MonitorConfig,
     rec_db: Arc<RecDb>,
     event_cache: Arc<EventCache>,
@@ -283,7 +283,7 @@ async fn run_recording(
         return Ok(());
     };
 
-    let Some(first_segment) = muxer.next_segment(c.prev_seg.lock().await.as_deref()).await else {
+    let Some(first_segment) = muxer.next_segment(c.prev_seg.lock().await.clone()).await else {
         c.log(LogLevel::Debug, "muxer cancelled");
         return Ok(());
     };
@@ -371,11 +371,11 @@ enum GenerateVideoError {
 async fn generate_video(
     token: CancellationToken,
     recording: &RecordingHandle,
-    muxer: &ArcHlsMuxer,
-    first_segment: Arc<SegmentFinalized>,
+    muxer: &ArcStreamerMuxer,
+    first_segment: Segment,
     params: &TrackParameters,
     max_duration: DurationH264,
-) -> Result<(Arc<SegmentFinalized>, UnixH264), GenerateVideoError> {
+) -> Result<(Segment, UnixH264), GenerateVideoError> {
     use GenerateVideoError::*;
 
     let start_time = first_segment.start_time();
@@ -400,7 +400,7 @@ async fn generate_video(
 
     let mut w = VideoWriter::new(&mut meta, &mut mdat, header).await?;
 
-    w.write_parts(first_segment.parts()).await?;
+    w.write_frames(first_segment.frames()).await?;
 
     let mut prev_seg = first_segment.clone();
     let mut end_time = first_segment
@@ -413,7 +413,7 @@ async fn generate_video(
             return Ok((prev_seg, end_time));
         }
 
-        let Some(seg) = muxer.next_segment(Some(&prev_seg)).await else {
+        let Some(seg) = muxer.next_segment(Some(prev_seg.clone())).await else {
             return Ok((prev_seg, end_time));
         };
 
@@ -422,7 +422,7 @@ async fn generate_video(
         }
 
         prev_seg = seg.clone();
-        w.write_parts(seg.parts()).await?;
+        w.write_frames(seg.frames()).await?;
         end_time = seg
             .start_time()
             .checked_add(seg.duration().into())
@@ -436,11 +436,8 @@ async fn generate_video(
 
 #[derive(Debug, Error)]
 enum GenerateThumbnailError {
-    #[error("no part")]
-    NoPart,
-
-    #[error("no sample")]
-    NoSample,
+    #[error("no frame")]
+    NoFrame,
 
     #[error("sample is not an IDR")]
     SampleNotIdr,
@@ -465,18 +462,15 @@ async fn generate_thumbnail(
     logger: &ArcMsgLogger,
     config: MonitorConfig,
     recording: &RecordingHandle,
-    first_segment: &Arc<SegmentFinalized>,
+    first_segment: &Segment,
     extradata: Vec<u8>,
 ) -> Result<(), GenerateThumbnailError> {
     use GenerateThumbnailError::*;
 
     logger.log(LogLevel::Debug, "generating thumbnail");
 
-    let Some(first_part) = first_segment.parts().first() else {
-        return Err(NoPart);
-    };
-    let Some(first_sample) = first_part.video_samples.first() else {
-        return Err(NoSample);
+    let Some(first_sample) = first_segment.frames().next() else {
+        return Err(NoFrame);
     };
     if !first_sample.random_access_present {
         return Err(SampleNotIdr);

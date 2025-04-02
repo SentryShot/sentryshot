@@ -3,20 +3,19 @@
 mod recorder;
 mod source;
 
-use recdb::RecDb;
 pub use source::MonitorSource;
 
 use crate::{recorder::new_recorder, source::SourceRtsp};
 use async_trait::async_trait;
 use common::{
     monitor::{
-        ArcMonitorHooks, ArcSource, IMonitor, IMonitorManager, MonitorConfig, MonitorConfigs,
-        MonitorDeleteError, MonitorInfo, MonitorRestartError, MonitorSetAndRestartError,
-        MonitorSetError, SourceConfig,
+        ArcMonitorHooks, ArcSource, ArcStreamer, IMonitor, IMonitorManager, MonitorConfig,
+        MonitorConfigs, MonitorDeleteError, MonitorInfo, MonitorRestartError,
+        MonitorSetAndRestartError, MonitorSetError, SourceConfig,
     },
     ArcLogger, Event, LogEntry, LogLevel, MonitorId, StreamType,
 };
-use hls::HlsServer;
+use recdb::RecDb;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -163,7 +162,7 @@ impl MonitorManager {
         config_path: PathBuf,
         rec_db: Arc<RecDb>,
         logger: ArcLogger,
-        hls_server: Arc<HlsServer>,
+        streamer: ArcStreamer,
         //hooks *Hooks,
     ) -> Result<Self, NewMonitorManagerError> {
         use NewMonitorManagerError::*;
@@ -202,7 +201,7 @@ impl MonitorManager {
                 started_monitors: HashMap::new(),
                 rec_db,
                 logger,
-                hls_server,
+                streamer,
                 path: config_path,
                 hooks: None,
             }
@@ -328,7 +327,7 @@ struct MonitorManagerState {
 
     rec_db: Arc<RecDb>,
     logger: ArcLogger,
-    hls_server: Arc<HlsServer>,
+    streamer: ArcStreamer,
     path: PathBuf,
 
     hooks: Option<ArcMonitorHooks>,
@@ -536,7 +535,7 @@ impl MonitorManagerState {
                     monitor_token.child_token(),
                     shutdown_complete_tx.clone(),
                     self.logger.clone(),
-                    self.hls_server.clone(),
+                    self.streamer.clone(),
                     config.id().to_owned(),
                     conf.to_owned(),
                     StreamType::Main,
@@ -547,7 +546,7 @@ impl MonitorManagerState {
                     monitor_token.child_token(),
                     shutdown_complete_tx.clone(),
                     self.logger.clone(),
-                    self.hls_server.clone(),
+                    self.streamer.clone(),
                     config.id().to_owned(),
                     conf.to_owned(),
                     StreamType::Sub,
@@ -634,8 +633,13 @@ mod tests {
     use super::*;
     use bytesize::ByteSize;
     use common::{
-        monitor::{Config, Protocol, SelectedSource, SourceConfig, SourceRtspConfig},
-        DummyLogger, MonitorName, ParseMonitorIdError,
+        monitor::{
+            Config, DynH264Writer, Protocol, SelectedSource, SourceConfig, SourceRtspConfig,
+            StreamerImpl,
+        },
+        time::UnixH264,
+        ArcStreamerMuxer, DummyLogger, DynError, H264Data, MonitorName, ParseMonitorIdError,
+        TrackParameters,
     };
     use pretty_assertions::assert_eq;
     use recdb::Disk;
@@ -705,12 +709,11 @@ mod tests {
     fn new_test_manager() -> (TempDir, PathBuf, MonitorManager) {
         let (temp_dir, config_dir) = prepare_dir();
 
-        let token = CancellationToken::new();
         let manager = MonitorManager::new(
             config_dir.clone(),
             Arc::new(new_test_recdb(temp_dir.path())),
             DummyLogger::new(),
-            Arc::new(HlsServer::new(token, DummyLogger::new())),
+            Arc::new(DummyStreamer {}),
         )
         .unwrap();
 
@@ -733,12 +736,11 @@ mod tests {
     async fn test_new_manager_ok() {
         let (temp_dir, config_dir, _) = new_test_manager();
 
-        let token = CancellationToken::new();
         let manager = MonitorManager::new(
             config_dir.clone(),
             Arc::new(new_test_recdb(temp_dir.path())),
             DummyLogger::new(),
-            Arc::new(HlsServer::new(token, DummyLogger::new())),
+            Arc::new(DummyStreamer {}),
         )
         .unwrap();
 
@@ -753,7 +755,6 @@ mod tests {
 
         std::fs::write(config_dir.join("1.json"), "{").unwrap();
 
-        let token = CancellationToken::new();
         assert!(matches!(
             MonitorManager::new(
                 config_dir,
@@ -761,7 +762,7 @@ mod tests {
                 DummyLogger::new(),
                 //&video.Server{},
                 //&Hooks{Migrate: func(RawConfig) error { return nil }},
-                Arc::new(HlsServer::new(token, DummyLogger::new())),
+                Arc::new(DummyStreamer {}),
             ),
             Err(NewMonitorManagerError::Deserialize(..))
         ));
@@ -1025,5 +1026,22 @@ mod tests {
             manager.monitor_restart(m_id("x")).await,
             Err(MonitorRestartError::NotExist(_))
         ));
+    }
+
+    struct DummyStreamer;
+
+    #[async_trait]
+    impl StreamerImpl for DummyStreamer {
+        async fn new_muxer(
+            &self,
+            _: CancellationToken,
+            _: MonitorId,
+            _: bool,
+            _: TrackParameters,
+            _: UnixH264,
+            _: H264Data,
+        ) -> Result<Option<(ArcStreamerMuxer, DynH264Writer)>, DynError> {
+            Ok(None)
+        }
     }
 }

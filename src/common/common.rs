@@ -10,17 +10,16 @@ pub use event::*;
 pub use sentryshot_padded_bytes::PaddedBytes;
 
 use async_trait::async_trait;
-use bytes::Bytes;
+
 use bytesize::{ByteSize, MB};
 use http::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Cow, collections::HashMap, convert::TryFrom, fmt, io::Cursor, ops::Deref, path::Path,
-    str::FromStr, sync::Arc, task::Poll,
+    borrow::Cow, collections::HashMap, convert::TryFrom, fmt, ops::Deref, path::Path, str::FromStr,
+    sync::Arc,
 };
 use thiserror::Error;
 use time::{DtsOffset, DurationH264, UnixH264};
-use tokio::{self, io::AsyncRead};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct EnvPlugin {
@@ -61,8 +60,8 @@ pub struct Flags {
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 pub enum Streamer {
-    HLS,
-    MP4,
+    #[serde(rename = "hls")]
+    Hls,
 }
 
 impl NonZeroGb {
@@ -691,181 +690,43 @@ impl VideoSample {
     }
 }
 
+impl PartialEq for VideoSample {
+    fn eq(&self, other: &Self) -> bool {
+        let a: &[u8] = &self.avcc;
+        let b: &[u8] = &other.avcc;
+        self.pts == other.pts
+            && self.dts_offset == other.dts_offset
+            && a == b
+            && self.random_access_present == other.random_access_present
+            && self.duration == other.duration
+    }
+}
+
 impl std::fmt::Debug for StreamType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name())
     }
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct PartFinalized {
-    pub id: u64,
-
-    pub is_independent: bool,
-    pub video_samples: Arc<Vec<VideoSample>>,
-    pub rendered_content: Option<Bytes>,
-    pub rendered_duration: DurationH264,
-}
-
-impl PartFinalized {
-    pub fn name(&self) -> String {
-        part_name(self.id)
-    }
-
-    pub fn reader(&self) -> Box<dyn AsyncRead + Send + Unpin> {
-        let Some(rendered_content) = &self.rendered_content else {
-            return Box::new(Cursor::new(Vec::new()));
-        };
-        Box::new(Cursor::new(rendered_content.clone()))
-    }
-}
-
-#[must_use]
-pub fn part_name(id: u64) -> String {
-    ["part", &id.to_string()].join("")
-}
-
-#[derive(Debug)]
-pub struct SegmentFinalized {
-    id: u64,
-    muxer_id: u16,
-    start_time: UnixH264,
-    //pub start_dts: i64,
-    //muxer_start_time: i64,
-    //playlist: Arc<Playlist>,
-    name: String,
-    //size: u64,
-    parts: Vec<Arc<PartFinalized>>,
-    duration: DurationH264,
-}
-
-impl SegmentFinalized {
-    #[must_use]
-    pub fn new(
-        id: u64,
-        muxer_id: u16,
-        start_time: UnixH264,
-        name: String,
-        parts: Vec<Arc<PartFinalized>>,
-        duration: DurationH264,
-    ) -> Self {
-        Self {
-            id,
-            muxer_id,
-            start_time,
-            name,
-            parts,
-            duration,
-        }
-    }
-
-    #[must_use]
-    pub fn id(&self) -> u64 {
-        self.id
-    }
-
-    #[must_use]
-    pub fn muxer_id(&self) -> u16 {
-        self.muxer_id
-    }
-
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    #[must_use]
-    pub fn parts(&self) -> &Vec<Arc<PartFinalized>> {
-        &self.parts
-    }
-
-    #[must_use]
-    pub fn duration(&self) -> DurationH264 {
-        self.duration
-    }
-
-    #[must_use]
-    pub fn reader(&self) -> Box<dyn AsyncRead + Send + Unpin> {
-        Box::new(PartsReader::new(self.parts.clone()))
-    }
-
-    #[must_use]
-    pub fn start_time(&self) -> UnixH264 {
-        self.start_time
-    }
-}
-
-pub struct PartsReader {
-    parts: Vec<Arc<PartFinalized>>,
-    cur_part: usize,
-    cur_pos: usize,
-}
-
-impl PartsReader {
-    #[must_use]
-    pub fn new(parts: Vec<Arc<PartFinalized>>) -> Self {
-        Self {
-            parts,
-            cur_part: 0,
-            cur_pos: 0,
-        }
-    }
-}
-
-impl AsyncRead for PartsReader {
-    fn poll_read(
-        mut self: std::pin::Pin<&mut Self>,
-        _cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> std::task::Poll<std::io::Result<()>> {
-        let mut n = 0;
-        let buf_len = buf.remaining();
-
-        loop {
-            if self.cur_part >= self.parts.len() {
-                // EOF.
-                return Poll::Ready(Ok(()));
-            }
-
-            let Some(part) = &self.parts[self.cur_part].rendered_content else {
-                panic!("expected part to exist");
-            };
-
-            let part_len = part.len();
-
-            let start = self.cur_pos;
-            let amt = std::cmp::min(part.len() - start, buf.remaining());
-            let end = start + amt;
-
-            buf.put_slice(&part[start..end]);
-
-            self.cur_pos += amt;
-            n += amt;
-
-            if self.cur_pos == part_len {
-                self.cur_part += 1;
-                self.cur_pos = 0;
-            }
-
-            // If buffer is full.
-            if n == buf_len {
-                return Poll::Ready(Ok(()));
-            }
-        }
-    }
-}
-
-pub type ArcHlsMuxer = Arc<dyn HlsMuxer + Send + Sync>;
+pub type Segment = Arc<dyn SegmentImpl + Send + Sync>;
 
 #[async_trait]
-pub trait HlsMuxer {
+pub trait SegmentImpl {
+    fn id(&self) -> u64;
+    fn muxer_id(&self) -> u16;
+    fn frames(&self) -> Box<dyn Iterator<Item = &VideoSample> + Send + '_>;
+    fn duration(&self) -> DurationH264;
+    fn start_time(&self) -> UnixH264;
+}
+
+pub type ArcStreamerMuxer = Arc<dyn StreamerMuxer + Send + Sync>;
+
+#[async_trait]
+pub trait StreamerMuxer {
     fn params(&self) -> &TrackParameters;
 
     // Returns none if cancelled.
-    async fn next_segment(
-        &self,
-        prev_seg: Option<&SegmentFinalized>,
-    ) -> Option<Arc<SegmentFinalized>>;
+    async fn next_segment(&self, prev_seg: Option<Segment>) -> Option<Segment>;
 }
 
 #[derive(Clone, Debug)]
@@ -882,6 +743,13 @@ pub struct H264Data {
     pub dts_offset: DtsOffset, // Composition time offset.
     pub avcc: Arc<PaddedBytes>,
     pub random_access_present: bool,
+}
+
+impl H264Data {
+    #[must_use]
+    pub fn dts(&self) -> Option<UnixH264> {
+        self.pts.checked_sub(self.dts_offset.into())
+    }
 }
 
 impl std::fmt::Display for H264Data {
@@ -910,6 +778,8 @@ impl MsgLogger for DummyMsgLogger {
 pub fn new_dummy_msg_logger() -> Arc<impl MsgLogger> {
     Arc::new(DummyMsgLogger {})
 }
+
+pub type DynError = Box<dyn std::error::Error>;
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]

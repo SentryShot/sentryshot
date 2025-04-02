@@ -4,9 +4,11 @@ use crate::{
     segment::Segment,
     types::IdCounter,
 };
+use async_trait::async_trait;
 use common::{
+    monitor::H264WriterImpl,
     time::{DurationH264, UnixNano, H264_MILLISECOND, H264_SECOND},
-    H264Data, VideoSample,
+    DynError, H264Data, VideoSample,
 };
 use std::{collections::HashSet, sync::Arc};
 use tokio_util::sync::DropGuard;
@@ -25,9 +27,6 @@ impl H264Writer {
             _guard: guard,
         }
     }
-    pub async fn write_h264(&mut self, data: H264Data) -> Result<(), SegmenterWriteH264Error> {
-        self.segmenter.write_h264(data).await
-    }
 
     #[cfg(test)]
     #[allow(clippy::unwrap_used)]
@@ -43,6 +42,13 @@ impl H264Writer {
         })
         .await
         .unwrap();
+    }
+}
+
+#[async_trait]
+impl H264WriterImpl for H264Writer {
+    async fn write_h264(&mut self, data: H264Data) -> Result<(), DynError> {
+        Ok(self.segmenter.write_h264(data).await?)
     }
 }
 

@@ -1517,7 +1517,6 @@ dependencies = [
  "bytesize",
  "common",
  "futures-lite",
- "hls",
  "jpeg-encoder",
  "log 0.2.22",
  "pretty-hex",

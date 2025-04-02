@@ -6,11 +6,13 @@ use axum::{
 };
 use bytesize::ByteSize;
 use common::{
-    monitor::ArcMonitorManager, time::Duration, ArcAuth, DynEnvConfig, EnvConfig, ILogger,
-    LogEntry, LogLevel,
+    monitor::{ArcMonitorManager, ArcStreamer},
+    time::Duration,
+    ArcAuth, DynEnvConfig, EnvConfig, ILogger, LogEntry, LogLevel,
 };
 use env::{EnvConf, EnvConfigNewError};
 use hls::HlsServer;
+
 use log::{
     log_db::{CreateLogDBError, LogDb},
     slow_poller::SlowPoller,
@@ -106,11 +108,24 @@ pub struct App {
     shutdown_complete_rx: mpsc::Receiver<()>,
     log_db: LogDb,
     auth: ArcAuth,
-    hls_server: Arc<HlsServer>,
+    streamer: Streamer,
     monitor_manager: ArcMonitorManager,
     monitor_groups: ArcMonitorGroups,
     recdb: Arc<RecDb>,
     router: Router,
+}
+
+#[derive(Clone)]
+pub enum Streamer {
+    Hls(HlsServer),
+}
+
+impl From<Streamer> for ArcStreamer {
+    fn from(val: Streamer) -> Self {
+        match val {
+            Streamer::Hls(v) => Arc::new(v),
+        }
+    }
 }
 
 impl App {
@@ -162,14 +177,16 @@ impl App {
             Disk::new(env.storage_dir().to_path_buf(), env.max_disk_usage()),
         ));
 
-        let hls_server = Arc::new(HlsServer::new(token.clone(), logger.clone()));
+        let streamer = match env.flags().streamer {
+            common::Streamer::Hls => Streamer::Hls(HlsServer::new(token.clone(), logger.clone())),
+        };
 
         let monitors_dir = env.config_dir().join("monitors");
         let monitor_manager = Arc::new(MonitorManager::new(
             monitors_dir,
             rec_db.clone(),
             logger.clone(),
-            hls_server.clone(),
+            streamer.clone().into(),
         )?);
 
         let monitor_groups = Arc::new(MonitorGroups::new(env.storage_dir()).await?);
@@ -186,7 +203,7 @@ impl App {
                 shutdown_complete_rx,
                 log_db,
                 auth,
-                hls_server,
+                streamer,
                 monitor_manager,
                 monitor_groups,
                 recdb: rec_db,
@@ -237,7 +254,7 @@ impl App {
             self.env.flags(),
         ));
 
-        let router = self
+        let mut router = self
             .router
             .clone()
             // Root.
@@ -260,11 +277,6 @@ impl App {
             .route_user_no_csrf(
                 "/assets/{*file}",
                 get(asset_handler).with_state((assets, assets_etag)),
-            )
-            // Hls server.
-            .route_user_no_csrf(
-                "/hls/{*path}",
-                any(hls_handler).with_state(self.hls_server.clone()),
             )
             // Video on demand.
             .route_user_no_csrf(
@@ -363,6 +375,17 @@ impl App {
                     logger: self.logger.clone(),
                 }),
             );
+
+        match &self.streamer {
+            Streamer::Hls(hls_server) => {
+                router = router
+                    // Hls server.
+                    .route_user_no_csrf(
+                        "/hls/{*path}",
+                        any(hls_handler).with_state(hls_server.clone()),
+                    );
+            }
+        }
 
         self.router = plugin_manager.router_hooks(router);
 

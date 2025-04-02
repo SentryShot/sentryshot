@@ -5,10 +5,11 @@ use crate::{
 use bytes::Bytes;
 use common::{
     time::{DurationH264, UnixH264, UnixNano},
-    PartFinalized, VideoSample,
+    VideoSample,
 };
 use mp4::{ImmutableBox, ImmutableBoxSync, TfdtBaseMediaDecodeTime, TrunEntries};
-use std::sync::Arc;
+use std::{io::Cursor, sync::Arc, task::Poll};
+use tokio::io::AsyncRead;
 
 fn generate_part(
     muxer_start_time: UnixH264,
@@ -215,6 +216,96 @@ impl MuxerPart {
             self.is_independent = true;
         }
         self.video_samples.push(sample);
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+#[allow(clippy::module_name_repetitions)]
+pub struct PartFinalized {
+    pub id: u64,
+
+    pub is_independent: bool,
+    pub video_samples: Arc<Vec<VideoSample>>,
+    pub rendered_content: Option<Bytes>,
+    pub rendered_duration: DurationH264,
+}
+
+impl PartFinalized {
+    pub fn name(&self) -> String {
+        part_name(self.id)
+    }
+
+    pub fn reader(&self) -> Box<dyn AsyncRead + Send + Unpin> {
+        let Some(rendered_content) = &self.rendered_content else {
+            return Box::new(Cursor::new(Vec::new()));
+        };
+        Box::new(Cursor::new(rendered_content.clone()))
+    }
+}
+
+#[must_use]
+#[allow(clippy::module_name_repetitions)]
+pub fn part_name(id: u64) -> String {
+    ["part", &id.to_string()].join("")
+}
+
+pub struct PartsReader {
+    parts: Vec<Arc<PartFinalized>>,
+    cur_part: usize,
+    cur_pos: usize,
+}
+
+impl PartsReader {
+    #[must_use]
+    pub fn new(parts: Vec<Arc<PartFinalized>>) -> Self {
+        Self {
+            parts,
+            cur_part: 0,
+            cur_pos: 0,
+        }
+    }
+}
+
+impl AsyncRead for PartsReader {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let mut n = 0;
+        let buf_len = buf.remaining();
+
+        loop {
+            if self.cur_part >= self.parts.len() {
+                // EOF.
+                return Poll::Ready(Ok(()));
+            }
+
+            let Some(part) = &self.parts[self.cur_part].rendered_content else {
+                panic!("expected part to exist");
+            };
+
+            let part_len = part.len();
+
+            let start = self.cur_pos;
+            let amt = std::cmp::min(part.len() - start, buf.remaining());
+            let end = start + amt;
+
+            buf.put_slice(&part[start..end]);
+
+            self.cur_pos += amt;
+            n += amt;
+
+            if self.cur_pos == part_len {
+                self.cur_part += 1;
+                self.cur_pos = 0;
+            }
+
+            // If buffer is full.
+            if n == buf_len {
+                return Poll::Ready(Ok(()));
+            }
+        }
     }
 }
 

@@ -112,7 +112,7 @@ pub async fn asset_handler(
 #[allow(clippy::unwrap_used)]
 pub async fn hls_handler(
     Path(path): Path<String>,
-    State(hls_server): State<Arc<HlsServer>>,
+    State(hls_server): State<HlsServer>,
     method: Method,
     req_headers: HeaderMap,
     query: Query<HlsQuery>,
@@ -158,7 +158,7 @@ pub async fn hls_handler(
     };
 
     let Some(Some(muxer)) = hls_server.muxer_by_name(muxer_name).await else {
-        return (StatusCode::NOT_FOUND, headers).into_response();
+        return (StatusCode::NOT_FOUND, headers, "muxer not found").into_response();
     };
     let res = muxer.file(&file_name, &query.0).await;
 

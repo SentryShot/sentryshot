@@ -1,16 +1,18 @@
 use crate::{
     error::{PartWriteH264Error, SegmentFinalizeError},
-    part::MuxerPart,
+    part::{MuxerPart, PartFinalized, PartsReader},
     playlist::Playlist,
     types::IdCounter,
 };
+use async_trait::async_trait;
 use common::{
     time::{DurationH264, UnixH264, UnixNano},
-    PartFinalized, SegmentFinalized, VideoSample,
+    SegmentImpl, VideoSample,
 };
 use std::{mem, sync::Arc};
+use tokio::io::AsyncRead;
 
-#[allow(clippy::struct_field_names)]
+#[allow(clippy::struct_field_names, clippy::module_name_repetitions)]
 pub struct Segment {
     id: u64,
     muxer_id: u16,
@@ -119,12 +121,89 @@ impl Segment {
     }
 }
 
+#[derive(Debug)]
+#[allow(clippy::module_name_repetitions)]
+pub struct SegmentFinalized {
+    id: u64,
+    muxer_id: u16,
+    start_time: UnixH264,
+    //pub start_dts: i64,
+    //muxer_start_time: i64,
+    //playlist: Arc<Playlist>,
+    name: String,
+    //size: u64,
+    parts: Vec<Arc<PartFinalized>>,
+    duration: DurationH264,
+}
+
+impl SegmentFinalized {
+    #[must_use]
+    pub fn new(
+        id: u64,
+        muxer_id: u16,
+        start_time: UnixH264,
+        name: String,
+        parts: Vec<Arc<PartFinalized>>,
+        duration: DurationH264,
+    ) -> Self {
+        Self {
+            id,
+            muxer_id,
+            start_time,
+            name,
+            parts,
+            duration,
+        }
+    }
+
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    #[must_use]
+    pub fn parts(&self) -> &Vec<Arc<PartFinalized>> {
+        &self.parts
+    }
+
+    #[must_use]
+    pub fn reader(&self) -> Box<dyn AsyncRead + Send + Unpin> {
+        Box::new(PartsReader::new(self.parts.clone()))
+    }
+}
+
+#[async_trait]
+impl SegmentImpl for SegmentFinalized {
+    #[must_use]
+    fn id(&self) -> u64 {
+        self.id
+    }
+
+    #[must_use]
+    fn muxer_id(&self) -> u16 {
+        self.muxer_id
+    }
+
+    fn frames(&self) -> Box<dyn Iterator<Item = &VideoSample> + Send + '_> {
+        Box::new(self.parts.iter().flat_map(|v| v.video_samples.iter()))
+    }
+
+    #[must_use]
+    fn duration(&self) -> DurationH264 {
+        self.duration
+    }
+
+    #[must_use]
+    fn start_time(&self) -> UnixH264 {
+        self.start_time
+    }
+}
+
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
     use bytes::Bytes;
-    use common::PartsReader;
     use tokio::io::AsyncReadExt;
 
     fn new_test_part(content: Vec<u8>) -> Arc<PartFinalized> {

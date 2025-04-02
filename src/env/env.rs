@@ -207,14 +207,7 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
         .canonicalize()
         .map_err(|e| Canonicalize(raw.plugin_dir, e))?;
 
-    let streamer = {
-        if std::env::var("STREAMER").unwrap_or_default().to_lowercase() == "mp4" {
-            println!("USING EXPERIMENTAL MP4 STREAMER");
-            Streamer::MP4
-        } else {
-            Streamer::HLS
-        }
-    };
+    let streamer = Streamer::Hls;
 
     Ok(EnvConf {
         port: raw.port,
@@ -279,7 +272,7 @@ mod tests {
             plugin_dir: plugin_dir.parse().unwrap(),
             max_disk_usage: NonZeroGb::new(ByteSize(GB)).unwrap(),
             flags: Flags {
-                streamer: Streamer::HLS,
+                streamer: Streamer::Hls,
             },
             plugin: None,
             raw: config.clone(),
