@@ -56,13 +56,15 @@ pub fn new_recorder(
 
         let mut recording_session: Option<RecordingSession> = None;
         if c.config.always_record() {
-            c.log(LogLevel::Debug, "always record");
+            c.log(LogLevel::Debug, "alwaysRecord=true");
             recording_session = Some(RecordingSession::new(
                 &token,
                 None,
                 c.clone(),
                 shutdown_complete.clone(),
             ));
+        } else {
+            c.log(LogLevel::Debug, "alwaysRecord=false");
         }
 
         loop {
