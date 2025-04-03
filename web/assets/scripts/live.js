@@ -2,23 +2,22 @@
 
 // @ts-check
 
-import Hls from "./vendor/hls.js";
 import { uniqueID, sortByName, globals } from "./libs/common.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
-import { newFeed, newFeedBtn } from "./components/feed.js";
+import { newStreamer, newStreamerBtn } from "./components/streamer.js";
 
 /**
  * @typedef {import("./libs/common.js").MonitorsInfo} MonitorsInfo
  * @typedef {import("./components/feed.js").FullscreenButton} FullscreenButton
  * @typedef {import("./components/optionsMenu.js").Button} Button
+ * @typedef {import("./components/streamer.js").Feed} Feed
  */
 
 /**
  * @param {Element} $parent
  * @param {MonitorsInfo} monitors
- * @param {typeof Hls} hls
  */
-function newViewer($parent, monitors, hls) {
+function newViewer($parent, monitors) {
 	let selectedMonitors = [];
 	const isMonitorSelected = (monitor) => {
 		if (selectedMonitors.length === 0) {
@@ -34,6 +33,7 @@ function newViewer($parent, monitors, hls) {
 
 	const sortedMonitors = sortByName(monitors);
 	let preferLowRes = false;
+	/** @type {Feed[]} */
 	let feeds = [];
 
 	/** @type {FullscreenButton[]} */
@@ -60,14 +60,14 @@ function newViewer($parent, monitors, hls) {
 					continue;
 				}
 
-				const fullscreenBtn = newFeedBtn.fullscreen();
+				const fullscreenBtn = newStreamerBtn.fullscreen();
 				fullscreenButtons.push(fullscreenBtn);
 				const buttons = [
-					newFeedBtn.recordings(monitor["id"]),
+					newStreamerBtn.recordings(monitor["id"]),
 					fullscreenBtn,
-					newFeedBtn.mute(monitor),
+					//newMp4StreamBtn.mute(monitor),
 				];
-				feeds.push(newFeed(hls, monitor, preferLowRes, buttons));
+				feeds.push(newStreamer(monitor, preferLowRes, buttons));
 			}
 
 			let html = "";
@@ -85,6 +85,12 @@ function newViewer($parent, monitors, hls) {
 				btn.exitFullscreen();
 			}
 		},
+		enableDebugging() {
+			console.log("enabling debugging");
+			for (const feed of feeds) {
+				feed.enableDebugging();
+			}
+		},
 	};
 }
 
@@ -93,7 +99,7 @@ const preferLowResByDefault = false;
 /**
  * @typedef {Object} ResBtnContent
  * @property {() => void} reset
- * @property {(boolean) => void} setPreferLowRes
+ * @property {(v: boolean) => void} setPreferLowRes
  */
 
 /**
@@ -111,8 +117,9 @@ function resBtn(content) {
 
 	/** @type {Element} */
 	let element;
+	/** @param {boolean} preferLow */
 	const setRes = (preferLow) => {
-		localStorage.setItem("preferLowRes", preferLow);
+		localStorage.setItem("preferLowRes", String(preferLow));
 		if (preferLow) {
 			element.textContent = "SD";
 			content.setPreferLowRes(true);
@@ -141,7 +148,7 @@ function init() {
 	const { monitorGroups, monitorsInfo } = globals();
 
 	const $contentGrid = document.querySelector("#content-grid");
-	const viewer = newViewer($contentGrid, monitorsInfo, Hls);
+	const viewer = newViewer($contentGrid, monitorsInfo);
 
 	const buttons = [newOptionsBtn.gridSize(viewer), resBtn(viewer)];
 	// Add the group picker if there are any groups.
@@ -152,11 +159,27 @@ function init() {
 	const optionsMenu = newOptionsMenu(buttons);
 	document.querySelector("#options-menu").innerHTML = optionsMenu.html();
 	optionsMenu.init();
+
+	/** @type {number[]} */
+	const clicks = [];
+	optionsMenu.onMenuBtnclick(() => {
+		const now = Date.now();
+		clicks.push(now);
+		if (clicks.length >= 6) {
+			const timeOfOldestClick = clicks.shift();
+			if (now - timeOfOldestClick < 2000) {
+				viewer.enableDebugging();
+			}
+		}
+	});
+
 	viewer.reset();
 
 	window.addEventListener("keydown", (e) => {
 		if (e.key === "Escape") {
 			viewer.exitFullscreen();
+		} else if (e.key === "m") {
+			viewer.enableDebugging();
 		}
 	});
 }

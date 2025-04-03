@@ -21,6 +21,7 @@ members = [
 	"src/recdb",
 	"src/recording",
 	"src/sentryshot",
+	"src/streamer",
 	"src/vod",
 	"src/web",
 

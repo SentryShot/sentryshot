@@ -979,6 +979,7 @@ dependencies = [
  "rust-embed",
  "serde",
  "serde_json",
+ "streamer",
  "test-case 2.2.2",
  "thiserror 2.0.11",
  "tokio",
@@ -2267,6 +2268,7 @@ dependencies = [
  "recdb",
  "recording",
  "rust-embed",
+ "streamer",
  "test-case 2.2.2",
  "thiserror 2.0.11",
  "tokio",
@@ -2481,6 +2483,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 dependencies = [
  "lock_api",
+]
+
+[[package]]
+name = "streamer"
+version = "0.2.22"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "common",
+ "futures-lite",
+ "http 1.1.0",
+ "mp4",
+ "pretty-hex",
+ "pretty_assertions",
+ "rand 0.9.0",
+ "rand_chacha 0.9.0",
+ "retina",
+ "sentryshot_padded_bytes",
+ "serde",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]

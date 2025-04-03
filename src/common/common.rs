@@ -62,6 +62,8 @@ pub struct Flags {
 pub enum Streamer {
     #[serde(rename = "hls")]
     Hls,
+    #[serde(rename = "sp")]
+    Sp,
 }
 
 impl NonZeroGb {

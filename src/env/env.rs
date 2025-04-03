@@ -207,7 +207,14 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
         .canonicalize()
         .map_err(|e| Canonicalize(raw.plugin_dir, e))?;
 
-    let streamer = Streamer::Hls;
+    let streamer = {
+        if std::env::var("STREAMER").unwrap_or_default().to_lowercase() == "sp" {
+            println!("USING NEW STREAMER");
+            Streamer::Sp
+        } else {
+            Streamer::Hls
+        }
+    };
 
     Ok(EnvConf {
         port: raw.port,

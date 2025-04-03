@@ -118,12 +118,14 @@ pub struct App {
 #[derive(Clone)]
 pub enum Streamer {
     Hls(HlsServer),
+    Sp(streamer::Streamer),
 }
 
 impl From<Streamer> for ArcStreamer {
     fn from(val: Streamer) -> Self {
         match val {
             Streamer::Hls(v) => Arc::new(v),
+            Streamer::Sp(v) => Arc::new(v),
         }
     }
 }
@@ -179,6 +181,9 @@ impl App {
 
         let streamer = match env.flags().streamer {
             common::Streamer::Hls => Streamer::Hls(HlsServer::new(token.clone(), logger.clone())),
+            common::Streamer::Sp => {
+                Streamer::Sp(streamer::Streamer::new(token.clone(), logger.clone()))
+            }
         };
 
         let monitors_dir = env.config_dir().join("monitors");
@@ -383,6 +388,19 @@ impl App {
                     .route_user_no_csrf(
                         "/hls/{*path}",
                         any(hls_handler).with_state(hls_server.clone()),
+                    );
+            }
+            Streamer::Sp(mp4_streamer) => {
+                router = router
+                    // Streamer start session.
+                    .route_user_no_csrf(
+                        "/api/streamer/start-session",
+                        post(streamer_start_session_handler).with_state(mp4_streamer.clone()),
+                    )
+                    // Streamer play.
+                    .route_user_no_csrf(
+                        "/api/streamer/play",
+                        get(streamer_play_handler).with_state(mp4_streamer.clone()),
                     );
             }
         }

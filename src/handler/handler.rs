@@ -31,6 +31,7 @@ use recording::{new_video_reader, VideoCache};
 use rust_embed::EmbeddedFiles;
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc};
+use streamer::{PlayReponse, StartSessionReponse, Streamer};
 use thiserror::Error;
 use tokio::sync::{broadcast::error::RecvError, Mutex};
 use tokio_util::io::ReaderStream;
@@ -472,6 +473,66 @@ pub async fn monitor_groups_put_handler(
     })
     .await
     .expect("join")
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Mp4StreamerQuery {
+    #[serde(rename = "session-id")]
+    session_id: u32,
+
+    #[serde(rename = "monitor-id")]
+    monitor_id: MonitorId,
+
+    #[serde(rename = "sub-stream")]
+    sub_stream: bool,
+}
+
+pub async fn streamer_start_session_handler(
+    State(mp4_streamer): State<Streamer>,
+    query: Query<Mp4StreamerQuery>,
+) -> Response {
+    use StartSessionReponse::*;
+    let result = mp4_streamer
+        .start_session(query.monitor_id.clone(), query.sub_stream, query.session_id)
+        .await;
+    match result {
+        Ready(v) => {
+            let mut headers = HeaderMap::new();
+            headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+            (headers, Json(v)).into_response()
+        }
+        SessionAlreadyExist => (StatusCode::BAD_REQUEST, "session already exists").into_response(),
+        NotReady | MuxerNotExist | StreamerCancelled | MuxerCancelled => {
+            StatusCode::NOT_FOUND.into_response()
+        }
+    }
+}
+
+pub async fn streamer_play_handler(
+    State(mp4_streamer): State<Streamer>,
+    query: Query<Mp4StreamerQuery>,
+) -> Response {
+    use PlayReponse::*;
+    let result = mp4_streamer
+        .play(query.monitor_id.clone(), query.sub_stream, query.session_id)
+        .await;
+    match result {
+        Ready(ready) => {
+            let mut headers = HeaderMap::new();
+            headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+            (headers, Body::from_stream(ready.0)).into_response()
+        }
+        NotImplemented(err) => (StatusCode::INTERNAL_SERVER_ERROR, err).into_response(),
+        FramesExpired => StatusCode::GONE.into_response(),
+        SessionNotExist => (
+            StatusCode::PRECONDITION_REQUIRED,
+            "start a session with /api/streamer/start-session first",
+        )
+            .into_response(),
+        NotReady | MuxerNotExist | StreamerCancelled | MuxerCancelled => {
+            StatusCode::NOT_FOUND.into_response()
+        }
+    }
 }
 
 pub async fn recording_delete_handler(

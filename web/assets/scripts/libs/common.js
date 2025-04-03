@@ -228,6 +228,10 @@ function denormalize(input, max) {
 // The globals are injected in `./web/templates/include/meta.tpl`
 /* eslint-disable no-undef */
 function globals() {
+	// @ts-ignore
+	if (typeof CSRFToken === "undefined") {
+		return testGlobals();
+	}
 	return {
 		/** @type {string} */
 		// @ts-ignore
@@ -263,6 +267,12 @@ function globals() {
 	};
 }
 
+function testGlobals() {
+	return {
+		flags: {},
+	};
+}
+
 /** @param {String} pathname */
 function relativePathname(pathname) {
 	// @ts-ignore
@@ -278,6 +288,33 @@ function relativePathname(pathname) {
 	);
 }
 /* eslint-enable no-undef */
+
+/**
+ * Returns true if aborted.
+ * @param {AbortSignal} abortSignal
+ * @param {number} ms
+ */
+function sleep(abortSignal, ms) {
+	return new Promise((resolve) => {
+		if (ms <= 0) {
+			resolve(false);
+			return;
+		}
+		abortSignal.throwIfAborted();
+
+		const timeout = setTimeout(() => {
+			resolve(false);
+			abortSignal.removeEventListener("abort", abort);
+		}, ms);
+
+		const abort = () => {
+			clearTimeout(timeout);
+			resolve(true);
+		};
+
+		abortSignal.addEventListener("abort", abort);
+	});
+}
 
 export {
 	fetchGet,
@@ -295,4 +332,5 @@ export {
 	denormalize,
 	globals,
 	relativePathname,
+	sleep,
 };

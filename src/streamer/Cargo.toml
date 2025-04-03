@@ -1,0 +1,36 @@
+[package]
+name = "streamer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "streamer"
+path = "streamer.rs"
+doctest = false
+
+[dependencies]
+common.path = "../common"
+mp4.path = "../mp4"
+
+async-trait.workspace = true
+bytes.workspace = true
+futures-lite.workspace = true
+http.workspace = true
+retina.workspace = true
+sentryshot_padded_bytes.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+pretty-hex.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true

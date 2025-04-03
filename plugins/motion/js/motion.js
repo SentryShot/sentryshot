@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import Hls from "./vendor/hls.js";
 import { uniqueID, normalize, denormalize, globals } from "./libs/common.js";
 import { newForm, fieldTemplate } from "./components/form.js";
-import { newFeed } from "./components/feed.js";
+import { newStreamer } from "./components/streamer.js";
 import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
 
@@ -25,16 +24,15 @@ export function motion(getMonitorId) {
 		return false;
 	};
 
-	return motion2(Hls, hasSubStream, getMonitorId);
+	return motion2(hasSubStream, getMonitorId);
 }
 
 /**
- * @param {typeof Hls} hls
  * @param {(montitorID: string) => boolean} hasSubStream
  * @param {() => string} getMonitorId
  * @returns {Field<any>}
  */
-export function motion2(hls, hasSubStream, getMonitorId) {
+export function motion2(hasSubStream, getMonitorId) {
 	const fields = {
 		enable: fieldTemplate.toggle("Enable motion detection", false),
 		feedRate: fieldTemplate.integer("Feed rate (fps)", "", 2),
@@ -44,7 +42,7 @@ export function motion2(hls, hasSubStream, getMonitorId) {
 			"full"
 		),*/
 		duration: fieldTemplate.integer("Trigger duration (sec)", "", 120),
-		zones: zones(hls, hasSubStream, getMonitorId),
+		zones: zones(hasSubStream, getMonitorId),
 	};
 
 	const form = newForm(fields);
@@ -258,12 +256,11 @@ function zonesModalHTML(feedHTML) {
  */
 
 /**
- * @param {typeof Hls} hls
  * @param {(monitorID: string) => void} hasSubStream
  * @param {() => string} getMonitorId
  * @return {Field<ZoneData[]>}
  */
-function zones(hls, hasSubStream, getMonitorId) {
+function zones(hasSubStream, getMonitorId) {
 	/** @type {Modal} */
 	let modal;
 	/** @type {ZoneData[]} */
@@ -591,7 +588,7 @@ function zones(hls, hasSubStream, getMonitorId) {
 						audioEnabled: "false",
 						hasSubStream: hasSubStream(getMonitorId()),
 					};
-					feed = newFeed(hls, monitor, true);
+					feed = newStreamer(monitor, true);
 
 					if (rendered) {
 						// Update feed.

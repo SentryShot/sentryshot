@@ -20,12 +20,16 @@ import { newModalSelect } from "../components/modal.js";
 /** @param {Button[]} buttons */
 function newOptionsMenu(buttons) {
 	/** @type {HTMLElement} */
-	const $optionsBtn = document.querySelector("#topbar-options-btn");
+	const $optionsBtn = document.getElementById("topbar-options-btn");
 	$optionsBtn.style.visibility = "visible";
 
 	return {
 		html() {
 			return buttons.map((btn) => btn.html).join("");
+		},
+		/** @param {() => void} cb */
+		onMenuBtnclick(cb) {
+			document.getElementById("options-btn").addEventListener("click", cb);
 		},
 		init() {
 			for (const btn of buttons) {

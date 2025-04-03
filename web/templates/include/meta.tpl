@@ -11,7 +11,7 @@
 		// Global variables, see `./src/web/templater.rs` and `./web/assets/scripts/libs/common.js`.
 		const CurrentPage = `{{ current_page }}`;
 		const CSRFToken = `{{ csrf_token }}`;
-		const Flags = `{{ flags }}`;
+		const Flags = JSON.parse(`{{ flags }}`);
 		const IsAdmin = `{{ is_admin }}` === "true";
 		const TZ = `{{ tz }}`;
 		const LogSources = JSON.parse(`{{ log_sources_json }}`);

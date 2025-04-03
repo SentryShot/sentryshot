@@ -9,6 +9,7 @@ import {
 	removeEmptyValues,
 	globals,
 	relativePathname,
+	sleep,
 } from "./libs/common.js";
 import { fromUTC2 } from "./libs/time.js";
 import { newForm, fieldTemplate } from "./components/form.js";
@@ -299,33 +300,6 @@ function newLoadingIndicator(element) {
 			abort.abort();
 		},
 	};
-}
-
-/**
- * Returns true if aborted.
- * @param {AbortSignal} abortSignal
- * @param {number} ms
- */
-function sleep(abortSignal, ms) {
-	return new Promise((resolve) => {
-		if (ms <= 0) {
-			resolve(false);
-			return;
-		}
-		abortSignal.throwIfAborted();
-
-		const timeout = setTimeout(() => {
-			resolve(false);
-			abortSignal.removeEventListener("abort", abort);
-		}, ms);
-
-		const abort = () => {
-			clearTimeout(timeout);
-			resolve(true);
-		};
-
-		abortSignal.addEventListener("abort", abort);
-	});
 }
 
 /**

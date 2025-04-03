@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import Hls from "./vendor/hls.js";
 import { uniqueID, normalize, denormalize, globals } from "./libs/common.js";
 import { newForm, newNumberField, fieldTemplate } from "./components/form.js";
-import { newFeed } from "./components/feed.js";
+import { newStreamer } from "./components/streamer.js";
 import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
 
@@ -31,7 +30,7 @@ export function tflite(getMonitorId) {
 		return false;
 	};
 
-	return tflite2(Hls, Detectors, hasSubStream, getMonitorId);
+	return tflite2(Detectors, hasSubStream, getMonitorId);
 }
 
 /**
@@ -44,13 +43,12 @@ export function tflite(getMonitorId) {
 /** @typedef {Object.<string, Detector>} Detectors */
 
 /**
- * @param {typeof Hls} hls
  * @param {Detectors} detectors
  * @param {(montitorID: string) => boolean} hasSubStream
  * @param {() => string} getMonitorId
  * @returns {Field<any>}
  */
-export function tflite2(hls, detectors, hasSubStream, getMonitorId) {
+export function tflite2(detectors, hasSubStream, getMonitorId) {
 	const detectorNames = Object.keys(detectors);
 
 	const fields = {};
@@ -60,8 +58,8 @@ export function tflite2(hls, detectors, hasSubStream, getMonitorId) {
 
 	fields.enable = fieldTemplate.toggle("Enable object detection", false);
 	fields.thresholds = thresholds(detectors, getDetectorName);
-	fields.crop = crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName);
-	fields.mask = mask(hls, hasSubStream, getMonitorId);
+	fields.crop = crop(detectors, hasSubStream, getMonitorId, getDetectorName);
+	fields.mask = mask(hasSubStream, getMonitorId);
 	fields.detectorName = fieldTemplate.select(
 		"Detector",
 		detectorNames,
@@ -325,14 +323,13 @@ function thresholds(detectors, getDetectorName) {
  */
 
 /**
- * @param {typeof Hls} hls
  * @param {Detectors} detectors
  * @param {(monitorID: string) => boolean} hasSubStream
  * @param {() => string} getMonitorId
  * @param {() => string} getDetectorName
  * @returns {Field<Crop>}
  */
-function crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName) {
+function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 	/** @param {string} name */
 	const detectorAspectRatio = (name) => {
 		const detector = detectors[name];
@@ -552,7 +549,7 @@ function crop(hls, detectors, hasSubStream, getMonitorId, getDetectorName) {
 					audioEnabled: "false",
 					hasSubStream: hasSubStream(getMonitorId()),
 				};
-				const feed = newFeed(hls, monitor, true);
+				const feed = newStreamer(monitor, true);
 
 				if (rendered) {
 					// Update feed and preview.
@@ -604,12 +601,11 @@ function denormalizeCrop(crop) {
  */
 
 /**
- * @param {typeof Hls} hls
  * @param {(monitorID: string) => boolean} hasSubStream
  * @param {() => string} getMonitorId
  * @returns {Field<Mask>}
  */
-function mask(hls, hasSubStream, getMonitorId) {
+function mask(hasSubStream, getMonitorId) {
 	/** @type {Mask} */
 	let value;
 
@@ -875,7 +871,7 @@ function mask(hls, hasSubStream, getMonitorId) {
 					audioEnabled: "false",
 					hasSubStream: hasSubStream(getMonitorId()),
 				};
-				feed = newFeed(hls, monitor, true);
+				feed = newStreamer(monitor, true);
 
 				if (rendered) {
 					// Update feed.
