@@ -1,5 +1,8 @@
 ## unreleased
 
+## `v0.2.22`
+
+-	add new streamer #50
 -	logs page: replace websockets with slow-polling
 -	several log database optimizations
 
