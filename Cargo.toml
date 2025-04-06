@@ -9,6 +9,7 @@ members = [
 
 	"src/common",
 	"src/csv",
+	"src/db_utils",
 	"src/env",
 	"src/fs",
 	"src/handler",

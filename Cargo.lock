@@ -621,6 +621,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e962a19be5cfc3f3bf6dd8f61eb50107f356ad6270fbb3ed41476571db78be5"
 
 [[package]]
+name = "db_utils"
+version = "0.2.23"
+dependencies = [
+ "bytesize",
+ "common",
+ "criterion",
+ "csv",
+ "pin-project",
+ "pretty_assertions",
+ "rand 0.9.0",
+ "rand_chacha 0.9.0",
+ "serde",
+ "tempfile",
+ "test-case 2.2.2",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "diff"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1413,6 +1433,7 @@ dependencies = [
  "common",
  "criterion",
  "csv",
+ "db_utils",
  "pin-project",
  "pretty_assertions",
  "rand 0.9.0",

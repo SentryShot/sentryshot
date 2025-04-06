@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 use pin_project::pin_project;
 use std::{
     io::SeekFrom,
@@ -21,7 +23,7 @@ use tokio::io::{AsyncBufRead, AsyncRead, AsyncSeek, ReadBuf};
 /// `RevBufReader` will seek backwards before refilling the buffer if the
 /// previous seek was backwards
 #[pin_project]
-pub(crate) struct RevBufReader<R> {
+pub struct RevBufReader<R> {
     #[pin]
     inner: R,
     inner_pos: usize,
@@ -38,13 +40,8 @@ pub(crate) struct RevBufReader<R> {
 impl<R: AsyncRead + AsyncSeek> RevBufReader<R> {
     /// Creates a new `RevBufReader` with a default buffer capacity. The default is currently 32KIB,
     /// but may change in the future.
-    pub(crate) fn new(inner: R) -> Self {
-        //Self::with_capacity(131072, inner)
-        //Self::with_capacity(65535, inner)
+    pub fn new(inner: R) -> Self {
         Self::with_capacity(32768, inner)
-        //Self::with_capacity(16384, inner)
-        //Self::with_capacity(8192, inner)
-        //Self::with_capacity(4096, inner)
     }
 
     /// Creates a new `RevBufReader` with the specified buffer capacity.

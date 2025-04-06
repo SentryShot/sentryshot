@@ -1,5 +1,5 @@
 [package]
-name = "log"
+name = "db_utils"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,14 +9,13 @@ license.workspace = true
 workspace = true
 
 [lib]
-name = "log"
-path = "log.rs"
+name = "db_utils"
+path = "db_utils.rs"
 doctest = false
 
 [dependencies]
 common.path = "../common"
 csv.path = "../csv"
-db_utils.path = "../db_utils"
 
 bytesize.workspace = true
 pin-project.workspace = true
@@ -33,9 +32,3 @@ rand.workspace = true
 rand_chacha.workspace = true
 tempfile.workspace = true
 test-case.workspace = true
-
-
-[[bench]]
-name = "logdb"
-path = "./bench.rs"
-harness = false
