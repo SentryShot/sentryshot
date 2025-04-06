@@ -605,7 +605,7 @@ fn source_in_souces(source: &LogSource, sources: &[LogSource]) -> bool {
 // Returns true if monitor_id is in monitors or if monitor_ids is empty.
 fn monitor_id_in_monitor_ids(monitor_id: Option<&MonitorId>, monitors_ids: &[MonitorId]) -> bool {
     let Some(monitor_id) = monitor_id else {
-        return true;
+        return monitors_ids.is_empty();
     };
     monitors_ids.is_empty() || monitors_ids.contains(monitor_id)
 }
@@ -1415,6 +1415,14 @@ mod tests {
         },
         &[msg2(), msg3()];
         "time"
+    )]
+    #[test_case(
+        LogQuery{
+            monitors: vec![m_id("m2")],
+            ..Default::default()
+        },
+        &[msg3()];
+        "entry without monitor id"
     )]
     #[tokio::test]
     async fn test_log_db_query(input: LogQuery, want: &[LogEntryWithTime]) {
