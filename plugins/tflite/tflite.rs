@@ -357,13 +357,15 @@ impl TflitePlugin {
             );
 
             monitor
-                .send_event(Event {
-                    time,
-                    duration: *config.feed_rate,
-                    rec_duration: *config.duration,
-                    detections,
-                    source: Some("tflite".to_owned().try_into().expect("valid")),
-                })
+                .trigger(
+                    *config.trigger_duration,
+                    Event {
+                        time,
+                        duration: *config.feed_rate,
+                        detections,
+                        source: Some("tflite".to_owned().try_into().expect("valid")),
+                    },
+                )
                 .await;
         }
     }

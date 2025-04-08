@@ -9,10 +9,11 @@ use crate::{recorder::new_recorder, source::SourceRtsp};
 use async_trait::async_trait;
 use common::{
     monitor::{
-        ArcMonitorHooks, ArcSource, ArcStreamer, IMonitor, IMonitorManager, MonitorConfig,
-        MonitorConfigs, MonitorDeleteError, MonitorInfo, MonitorRestartError,
+        ArcMonitorHooks, ArcSource, ArcStreamer, IMonitorManager, MonitorConfig, MonitorConfigs,
+        MonitorDeleteError, MonitorImpl, MonitorInfo, MonitorRestartError,
         MonitorSetAndRestartError, MonitorSetError, SourceConfig,
     },
+    time::Duration,
     ArcLogger, Event, LogEntry, LogLevel, MonitorId, StreamType,
 };
 use recdb::RecDb;
@@ -36,11 +37,11 @@ pub struct Monitor {
     shutdown_complete: Mutex<mpsc::Receiver<()>>,
     source_main_tx: mpsc::Sender<oneshot::Sender<ArcSource>>,
     source_sub_tx: mpsc::Sender<oneshot::Sender<Option<ArcSource>>>,
-    send_event_tx: mpsc::Sender<Event>,
+    send_event_tx: mpsc::Sender<(Duration, Event)>,
 }
 
 #[async_trait]
-impl IMonitor for Monitor {
+impl MonitorImpl for Monitor {
     fn config(&self) -> &MonitorConfig {
         &self.config
     }
@@ -99,10 +100,10 @@ impl IMonitor for Monitor {
         }
     }
 
-    async fn send_event(&self, event: Event) {
+    async fn trigger(&self, trigger_duration: Duration, event: Event) {
         tokio::select! {
             () = self.token.cancelled() => {},
-            _ = self.send_event_tx.send(event) => {},
+            _ = self.send_event_tx.send((trigger_duration, event)) => {},
         }
     }
 }

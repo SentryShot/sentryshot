@@ -11,7 +11,7 @@ use serde_json::Value;
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct MotionConfig {
     pub(crate) feed_rate: FeedRateSec,
-    pub(crate) duration: DurationSec,
+    pub(crate) trigger_duration: DurationSec,
     //scale           int
     pub(crate) zones: Vec<ZoneConfig>,
 }
@@ -37,7 +37,7 @@ impl MotionConfig {
 
         Ok(Some(Self {
             feed_rate: config.feed_rate,
-            duration: config.duration,
+            trigger_duration: config.duration,
             zones: config.zones,
         }))
     }
@@ -52,6 +52,7 @@ struct RawConfigV0 {
     //#[serde(rename = "frameScale")]
     //frame_scale: String,
     //FrameScale string `json:"frameScale"`
+    // Trigger duration.
     duration: DurationSec,
     zones: Vec<ZoneConfig>,
 }
@@ -126,7 +127,7 @@ mod tests {
         let got = MotionConfig::parse(raw).unwrap().unwrap();
         let want = MotionConfig {
             feed_rate: FeedRateSec::new(Duration::from_millis(200)),
-            duration: DurationSec::new(Duration::from_secs(6)),
+            trigger_duration: DurationSec::new(Duration::from_secs(6)),
             zones: vec![ZoneConfig {
                 enable: true,
                 sensitivity: 7.0,

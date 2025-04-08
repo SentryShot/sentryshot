@@ -13,10 +13,6 @@ use thiserror::Error;
 pub struct Event {
     pub time: UnixNano,
     pub duration: Duration,
-
-    #[serde(skip)]
-    pub rec_duration: Duration,
-
     pub detections: Detections,
 
     // BREAKING: make this mandatory.

@@ -328,7 +328,6 @@ mod tests {
         Event {
             time: UnixNano::new(time),
             duration: Duration::new(0),
-            rec_duration: Duration::new(0),
             detections,
             source: Some(source.to_owned().try_into().unwrap()),
         }

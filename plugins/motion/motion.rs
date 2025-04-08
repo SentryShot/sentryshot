@@ -294,13 +294,15 @@ impl MotionPlugin {
 
             let time = UnixNano::from(UnixH264::new(frame.pts()));
             monitor
-                .send_event(Event {
-                    time,
-                    duration: *config.feed_rate,
-                    rec_duration: *config.duration,
-                    detections,
-                    source: Some("motion".to_owned().try_into().expect("valid")),
-                })
+                .trigger(
+                    *config.trigger_duration,
+                    Event {
+                        time,
+                        duration: *config.feed_rate,
+                        detections,
+                        source: Some("motion".to_owned().try_into().expect("valid")),
+                    },
+                )
                 .await;
         }
     }

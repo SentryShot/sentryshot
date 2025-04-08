@@ -19,7 +19,7 @@ pub(crate) struct TfliteConfig {
     pub mask: Mask,
     pub detector_name: DetectorName,
     pub feed_rate: FeedRateSec,
-    pub duration: DurationSec,
+    pub trigger_duration: DurationSec,
     pub use_sub_stream: bool,
 }
 
@@ -35,6 +35,7 @@ struct RawConfigV1 {
 
     #[serde(rename = "feedRate")]
     feed_rate: FeedRateSec,
+    // Trigger duration.
     duration: DurationSec,
 
     #[serde(rename = "useSubStream")]
@@ -85,7 +86,7 @@ impl TfliteConfig {
             mask: c.mask,
             detector_name: c.detector_name,
             feed_rate: c.feed_rate,
-            duration: c.duration,
+            trigger_duration: c.duration,
             use_sub_stream: c.use_sub_stream,
         }))
     }
@@ -300,7 +301,7 @@ mod tests {
             },
             detector_name: "14".to_owned().try_into().unwrap(),
             feed_rate: FeedRateSec::new(Duration::from_secs(5)),
-            duration: DurationSec::new(Duration::from_secs(15)),
+            trigger_duration: DurationSec::new(Duration::from_secs(15)),
             use_sub_stream: true,
         };
         assert_eq!(want, got);

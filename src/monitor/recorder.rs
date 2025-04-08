@@ -4,7 +4,7 @@ use crate::ArcMonitorHooks;
 use common::{
     monitor::{ArcSource, MonitorConfig},
     recording::{RecordingData, RecordingId},
-    time::{DurationH264, UnixH264, UnixNano},
+    time::{Duration, DurationH264, UnixH264, UnixNano},
     ArcLogger, ArcMsgLogger, ArcStreamerMuxer, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
     Segment, TrackParameters,
 };
@@ -38,8 +38,8 @@ pub fn new_recorder(
     source_main: ArcSource,
     config: MonitorConfig,
     rec_db: Arc<RecDb>,
-) -> mpsc::Sender<Event> {
-    let (send_event_tx, mut send_event_rx) = mpsc::channel::<Event>(1);
+) -> mpsc::Sender<(Duration, Event)> {
+    let (send_event_tx, mut send_event_rx) = mpsc::channel::<(Duration, Event)>(1);
     let c = RecordingContext {
         hooks: hooks.clone(),
         logger: Arc::new(RecorderMsgLogger::new(logger, monitor_id)),
@@ -78,13 +78,13 @@ pub fn new_recorder(
                     }
 
                     event = send_event_rx.recv() => { // Incomming events.
-                        let Some(event) = event else {
+                        let Some((trigger_duration, event)) = event else {
                             continue
                         };
                         hooks.on_event(event.clone(), config.clone()).await;
 
 
-                        let Some(end) = event.time.checked_add(event.rec_duration.into()) else {
+                        let Some(end) = event.time.checked_add(trigger_duration.into()) else {
                             continue
                         };
 
@@ -120,12 +120,12 @@ pub fn new_recorder(
                 tokio::select! {
                     () = token.cancelled() => return,
                     event = send_event_rx.recv() => { // Incomming events.
-                        let Some(event) = event else {
+                        let Some((trigger_duration, event)) = event else {
                             return
                         };
                         //r.hooks.Event(r, &event)
 
-                        let Some(end) = event.time.checked_add(event.rec_duration.into()) else {
+                        let Some(end) = event.time.checked_add(trigger_duration.into()) else {
                             continue
                         };
                         if !end.after(UnixNano::now()) {
@@ -992,14 +992,12 @@ mod tests {
             Event {
                 time: UnixNano::new(0),
                 duration: Duration::new(0),
-                rec_duration: Duration::new(0),
                 detections: Vec::new(),
                 source: Some("test".to_owned().try_into().unwrap()),
             },
             Event {
                 time: UnixNano::new(2 * MINUTE),
                 duration: Duration::new(11),
-                rec_duration: Duration::new(0),
                 detections: vec![Detection {
                     label: "10".to_owned().try_into().unwrap(),
                     score: 9.0,
@@ -1021,7 +1019,6 @@ mod tests {
             Event {
                 time: UnixNano::new(11 * MINUTE),
                 duration: Duration::new(0),
-                rec_duration: Duration::new(0),
                 detections: Vec::new(),
                 source: Some("monitor".to_owned().try_into().expect("valid")),
             },

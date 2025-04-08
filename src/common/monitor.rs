@@ -314,10 +314,10 @@ pub trait Source {
     ) -> Option<Result<FeedDecoded, SubscribeDecodedError>>;
 }
 
-pub type ArcMonitor = Arc<dyn IMonitor + Send + Sync>;
+pub type ArcMonitor = Arc<dyn MonitorImpl + Send + Sync>;
 
 #[async_trait]
-pub trait IMonitor {
+pub trait MonitorImpl {
     fn config(&self) -> &MonitorConfig;
 
     async fn stop(&self) {}
@@ -332,7 +332,7 @@ pub trait IMonitor {
     // Returns None if cancelled and Some(None) if sub stream doesn't exist.
     async fn source_sub(&self) -> Option<Option<ArcSource>>;
 
-    async fn send_event(&self, event: Event);
+    async fn trigger(&self, trigger_duration: Duration, event: Event);
 }
 
 pub type ArcMonitorHooks = Arc<dyn MonitorHooks + Send + Sync>;
