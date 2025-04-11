@@ -17,42 +17,29 @@ use common::{
     ArcLogger, ArcStreamerMuxer, DynError, H264Data, MonitorId, TrackParameters,
 };
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{oneshot, Mutex, MutexGuard};
+use tokio::sync::{oneshot, Mutex};
 use tokio_util::sync::CancellationToken;
 
 use crate::muxer::PlayRequest;
 
 #[derive(Clone)]
-pub struct Streamer(Arc<Mutex<StreamerState>>);
+pub struct Streamer(Arc<Mutex<Option<StreamerState>>>);
 
 impl Streamer {
     pub fn new(token: CancellationToken, logger: ArcLogger) -> Self {
-        let state = Arc::new(Mutex::new(StreamerState {
+        let state = Arc::new(Mutex::new(Some(StreamerState {
             logger,
             muxers: HashMap::new(),
             muxer_id_count: 0,
-            cancelled: false,
-        }));
+        })));
 
         let state2 = state.clone();
         tokio::spawn(async move {
             token.cancelled().await;
-            let mut state = state2.lock().await;
-            state.cancelled = true;
-            for (_, muxer) in state.muxers.drain() {
-                muxer.cancel().await;
-            }
+            *state2.lock().await = None;
         });
 
         Self(state)
-    }
-
-    async fn get_state_lock(&self) -> Option<MutexGuard<StreamerState>> {
-        let state = self.0.lock().await;
-        if state.cancelled {
-            return None;
-        }
-        Some(state)
     }
 
     pub async fn new_muxer2(
@@ -64,11 +51,13 @@ impl Streamer {
         start_time: UnixH264,
         first_frame: H264Data,
     ) -> Result<Option<(Arc<Muxer>, H264Writer)>, CreateMuxerError> {
-        let Some(mut state) = self.get_state_lock().await else {
+        let mut state = self.0.lock().await;
+        let Some(state) = state.as_mut() else {
+            // Cancelled.
             return Ok(None);
         };
         if let Some(old_muxer) = state.muxers.remove(&(monitor_id.clone(), sub_stream)) {
-            old_muxer.cancel().await;
+            old_muxer.cancel();
         }
 
         state.muxer_id_count += 1;
@@ -91,7 +80,9 @@ impl Streamer {
         monitor_id: MonitorId,
         sub_stream: bool,
     ) -> Option<Option<Arc<Muxer>>> {
-        let Some(state) = self.get_state_lock().await else {
+        let state = self.0.lock().await;
+        let Some(state) = state.as_ref() else {
+            // Cancelled.
             return None;
         };
         Some(state.muxers.get(&(monitor_id, sub_stream)).cloned())
@@ -105,13 +96,14 @@ impl Streamer {
         session_id: u32,
     ) -> StartSessionReponse {
         use StartSessionReponse::*;
-        let Some(state) = self.get_state_lock().await else {
+        let state2 = self.0.lock().await;
+        let Some(state) = state2.as_ref() else {
             return StreamerCancelled;
         };
         let Some(muxer) = state.muxers.get(&(monitor_id, sub_stream)).cloned() else {
             return MuxerNotExist;
         };
-        drop(state); // Release lock.
+        drop(state2); // Release lock.
         muxer.start_session(session_id).await
     }
 
@@ -122,13 +114,14 @@ impl Streamer {
         session_id: u32,
     ) -> PlayReponse {
         use PlayReponse::*;
-        let Some(state) = self.get_state_lock().await else {
+        let state2 = self.0.lock().await;
+        let Some(state) = state2.as_ref() else {
             return StreamerCancelled;
         };
         let Some(muxer) = state.muxers.get(&(monitor_id, sub_stream)).cloned() else {
             return MuxerNotExist;
         };
-        drop(state); // Release lock.
+        drop(state2); // Release lock.
 
         let (tx, rx) = oneshot::channel();
         let req = PlayRequest {
@@ -179,6 +172,4 @@ struct StreamerState {
 
     muxers: HashMap<(MonitorId, bool), Arc<Muxer>>,
     muxer_id_count: u16,
-
-    cancelled: bool,
 }

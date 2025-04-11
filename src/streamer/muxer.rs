@@ -12,7 +12,7 @@ use sentryshot_padded_bytes::PaddedBytes;
 use serde::Serialize;
 use std::{collections::VecDeque, fmt::Formatter, iter, ops::Deref, sync::Arc};
 use thiserror::Error;
-use tokio::sync::{oneshot, Mutex, MutexGuard};
+use tokio::sync::{oneshot, Mutex};
 use tokio_util::{
     io::{ReaderStream, StreamReader},
     sync::{CancellationToken, DropGuard},
@@ -24,7 +24,7 @@ use crate::boxes::{generate_init, generate_moof_and_empty_mdat, GenerateMoofErro
 pub struct Muxer {
     token: CancellationToken,
     params: TrackParameters,
-    state: Arc<Mutex<MuxerState>>,
+    state: Arc<Mutex<Option<MuxerState>>>,
 }
 
 #[derive(Debug, Error)]
@@ -55,29 +55,32 @@ impl Muxer {
     ) -> Result<(Self, H264Writer), CreateMuxerError> {
         let token = parent_token.child_token();
 
-        let state = MuxerState::new(token.clone(), id, &params, start_time, first_frame)?;
+        let state = Arc::new(Mutex::new(Some(MuxerState::new(
+            id,
+            &params,
+            start_time,
+            first_frame,
+        )?)));
         let muxer = Self {
             token: token.clone(),
             params,
             state: state.clone(),
         };
-        let writer = H264Writer::new(state, token.drop_guard());
+        let writer = H264Writer::new(state.clone(), token.clone().drop_guard());
+
+        tokio::spawn(async move {
+            token.cancelled().await;
+            *state.lock().await = None;
+        });
 
         Ok((muxer, writer))
-    }
-
-    async fn get_state_lock(&self) -> Option<MutexGuard<MuxerState>> {
-        let state = self.state.lock().await;
-        if state.cancelled {
-            return None;
-        }
-        Some(state)
     }
 
     // Starts a session and returns the date time of the first frame.
     pub(crate) async fn start_session(&self, session_id: u32) -> StartSessionReponse {
         use StartSessionReponse::*;
-        let Some(mut state) = self.get_state_lock().await else {
+        let mut state = self.state.lock().await;
+        let Some(state) = state.as_mut() else {
             return MuxerCancelled;
         };
         let state = state.split_borrow();
@@ -116,11 +119,12 @@ impl Muxer {
     #[allow(clippy::too_many_lines)]
     pub(crate) async fn play(&self, req: PlayRequest) {
         use PlayReponse::*;
-        let Some(mut state2) = self.get_state_lock().await else {
+        let mut state2 = self.state.lock().await;
+        let Some(state) = state2.as_mut() else {
             _ = req.res_tx.send(MuxerCancelled);
             return;
         };
-        let state = state2.split_borrow();
+        let state = state.split_borrow();
 
         let session = state
             .sessions
@@ -187,7 +191,8 @@ impl Muxer {
     #[cfg(test)]
     #[allow(clippy::unwrap_used)]
     pub async fn debug_state(&self) -> DebugState {
-        let state = self.get_state_lock().await.unwrap();
+        let state = self.state.lock().await;
+        let state = state.as_ref().unwrap();
         DebugState {
             num_sessions: state.sessions.len(),
             gop_count: state.gops.len(),
@@ -196,15 +201,8 @@ impl Muxer {
         }
     }
 
-    pub(crate) async fn cancel(&self) {
+    pub(crate) fn cancel(&self) {
         self.token.cancel();
-        let mut state = self.state.lock().await;
-
-        state.next_segments_on_hold.clear();
-        state.frames_on_hold.clear();
-        state.gops.clear();
-        state.gop_in_progress.clear();
-        state.frames.clear();
     }
 }
 
@@ -219,7 +217,8 @@ impl common::StreamerMuxer for Muxer {
     async fn next_segment(&self, prev_seg: Option<Segment>) -> Option<Segment> {
         let res_rx: oneshot::Receiver<Segment>;
         {
-            let mut state = self.get_state_lock().await?;
+            let mut state = self.state.lock().await;
+            let state = state.as_mut()?;
 
             let prev_id = match prev_seg {
                 Some(seg) if seg.muxer_id() == state.id && seg.id() < state.gop_count => seg.id(),
@@ -268,17 +267,15 @@ struct MuxerState {
 
     // The is the first bytes in the mp4 file that contain the decoding parameters.
     init_content: Bytes,
-    cancelled: bool,
 }
 
 impl MuxerState {
     fn new(
-        token: CancellationToken,
         id: u16,
         params: &TrackParameters,
         muxer_start_time: UnixH264,
         mut first_frame: H264Data,
-    ) -> Result<Arc<Mutex<Self>>, CreateMuxerError> {
+    ) -> Result<Self, CreateMuxerError> {
         if !first_frame.random_access_present {
             return Err(CreateMuxerError::NotIdr);
         }
@@ -288,7 +285,7 @@ impl MuxerState {
 
         first_frame.pts = muxer_start_time;
 
-        let state = Arc::new(Mutex::new(Self {
+        Ok(Self {
             id,
             frame_count: 0,
             next_frame: first_frame,
@@ -301,17 +298,7 @@ impl MuxerState {
             next_segments_on_hold: Vec::new(),
             frames_on_hold: Vec::new(),
             init_content: generate_init(params)?,
-            cancelled: false,
-        }));
-
-        let state2 = state.clone();
-        tokio::spawn(async move {
-            token.cancelled().await;
-            let mut state = state2.lock().await;
-            state.cancelled = true;
-        });
-
-        Ok(state)
+        })
     }
 
     pub fn write_frame(&mut self, frame: H264Data) -> Result<(), WriteFrameError> {
@@ -610,13 +597,13 @@ impl SegmentImpl for Gop {
 
 // Opaque wrapper around segmenter that will cancel the muxer when dropped.
 pub struct H264Writer {
-    state: Arc<Mutex<MuxerState>>,
+    state: Arc<Mutex<Option<MuxerState>>>,
     _guard: DropGuard,
 }
 
 impl H264Writer {
     #[must_use]
-    fn new(state: Arc<Mutex<MuxerState>>, guard: DropGuard) -> Self {
+    fn new(state: Arc<Mutex<Option<MuxerState>>>, guard: DropGuard) -> Self {
         Self {
             state,
             _guard: guard,
@@ -643,9 +630,10 @@ impl H264Writer {
 impl H264WriterImpl for H264Writer {
     async fn write_h264(&mut self, data: H264Data) -> Result<(), DynError> {
         let mut state = self.state.lock().await;
-        if state.cancelled {
+        let Some(state) = state.as_mut() else {
+            // Cancelled.
             return Ok(());
-        }
+        };
         Ok(state.write_frame(data)?)
     }
 }
