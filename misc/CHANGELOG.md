@@ -1,5 +1,9 @@
 ## unreleased
 
+## `v0.2.24`
+
+-	fix new streamer random monitor save deadlock #52
+
 ## `v0.2.23`
 
 -	add new streamer #50
