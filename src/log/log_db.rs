@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use super::{LogEntryWithTime, UnixMicro};
-use crate::slow_poller::PollQuery;
+use crate::{rev_buf_reader::RevBufReader, slow_poller::PollQuery};
 use bytesize::ByteSize;
 use common::{
     ArcLogger, LogEntry, LogLevel, LogSource, MonitorId, ParseLogLevelError, ParseLogMessageError,
     ParseLogSourceError, ParseMonitorIdError, LOG_SOURCE_MAX_LENGTH, MONITOR_ID_MAX_LENGTH,
 };
 use csv::{deserialize_csv_option, deserialize_csv_option2};
-use db_utils::RevBufReader;
 use serde::Deserialize;
 use std::{
     cmp::Ordering,

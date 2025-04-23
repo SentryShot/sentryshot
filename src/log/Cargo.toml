@@ -16,7 +16,6 @@ doctest = false
 [dependencies]
 common.path = "../common"
 csv.path = "../csv"
-db_utils.path = "../db_utils"
 
 bytesize.workspace = true
 pin-project.workspace = true

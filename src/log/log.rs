@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 pub mod log_db;
+pub mod rev_buf_reader;
 pub mod slow_poller;
 
 use common::{ILogger, LogEntry, LogLevel, LogMessage, LogSource, MonitorId};
