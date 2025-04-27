@@ -539,13 +539,14 @@ pub async fn recording_delete_handler(
     State(rec_db): State<Arc<RecDb>>,
     Path(rec_id): Path<RecordingId>,
 ) -> Response {
-    match rec_db.delete_recording(rec_id).await {
-        Ok(()) => StatusCode::OK.into_response(),
-        Err(e @ DeleteRecordingError::Active) => {
+    let (_, err) = rec_db.delete_recording(rec_id).await;
+    match err {
+        None => StatusCode::OK.into_response(),
+        Some(e @ DeleteRecordingError::Active) => {
             (StatusCode::BAD_REQUEST, e.to_string()).into_response()
         }
-        Err(DeleteRecordingError::NotExist) => StatusCode::NOT_FOUND.into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Some(DeleteRecordingError::NotExist) => StatusCode::NOT_FOUND.into_response(),
+        Some(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 

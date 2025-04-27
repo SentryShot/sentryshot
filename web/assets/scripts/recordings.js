@@ -80,7 +80,6 @@ function newViewer(monitorNameByID, element, timeZone, isAdmin, token) {
 				const random = Math.floor(Math.random() * 99999);
 				videoPath += `?cache-id=${random}`;
 			}
-			console.log("AAAA", videoPath);
 			d.videoPath = new URL(videoPath);
 			d.thumbPath = new URL(relativePathname(`api/recording/thumbnail/${d.id}`));
 			d.deletePath = new URL(relativePathname(`api/recording/delete/${d.id}`));
@@ -171,7 +170,7 @@ function newViewer(monitorNameByID, element, timeZone, isAdmin, token) {
 		abort.abort();
 		abort = new AbortController();
 		playingVideos = [];
-		current = selectedDate ? selectedDate : "9999-12-28_23-59-59_x";
+		current = selectedDate ? selectedDate : "2200-12-28_23-59-59_x";
 		element.innerHTML = "";
 
 		gridSize = getComputedStyle(document.documentElement)

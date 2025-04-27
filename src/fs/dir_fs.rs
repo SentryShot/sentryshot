@@ -72,6 +72,7 @@ impl File for DirFsDir {
         &self.name
     }
 
+    #[track_caller]
     fn read(&mut self) -> Result<Vec<u8>, FsError> {
         todo!()
     }
@@ -114,6 +115,7 @@ impl File for DirFsEntryFile {
         &self.name
     }
 
+    #[track_caller]
     fn read(&mut self) -> Result<Vec<u8>, FsError> {
         todo!()
     }

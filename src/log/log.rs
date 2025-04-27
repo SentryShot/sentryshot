@@ -32,6 +32,7 @@ impl Logger {
         let mut sources = sources;
         sources.push("app".try_into().unwrap());
         sources.push("monitor".try_into().unwrap());
+        sources.push("recdb".try_into().unwrap());
         sources.sort();
 
         Self { feed, sources }

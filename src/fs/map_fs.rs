@@ -143,6 +143,7 @@ impl Dir for MapEntryInfo {
         &self.name
     }
 
+    #[track_caller]
     fn read_dir_file(&mut self) -> Result<Vec<Entry>, FsError> {
         todo!()
     }
@@ -173,6 +174,7 @@ impl File for MapDir {
         &self.name
     }
 
+    #[track_caller]
     fn read(&mut self) -> Result<Vec<u8>, FsError> {
         todo!()
     }

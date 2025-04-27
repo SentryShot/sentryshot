@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use async_trait::async_trait;
-use bytesize::{ByteSize, GB};
+use bytesize::ByteSize;
 use common::time::{Duration, UnixNano};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -66,6 +66,10 @@ impl Disk {
         }
     }
 
+    pub(crate) fn max_usage(&self) -> ByteSize {
+        self.max_disk_usage
+    }
+
     pub(crate) async fn usage(&self, max_age: Duration) -> Result<DiskUsage, UsageError> {
         use UsageError::*;
         let max_time = UnixNano::now().checked_sub(max_age.into()).ok_or(Sub)?;
@@ -113,11 +117,10 @@ impl Disk {
     async fn calculate_disk_usage(&self) -> Result<DiskUsage, UsageBytesError> {
         let used = self.disk_usage.bytes(self.storage_dir.clone()).await?;
         let percent = (((used * 100) as f64) / (self.max_disk_usage.as_u64() as f64)) as f32;
-        let max = self.max_disk_usage.as_u64() / GB;
         Ok(DiskUsage {
             used,
             percent,
-            max,
+            //max,
             //formatted: format_disk_usage(used),
         })
     }
@@ -129,7 +132,7 @@ impl Disk {
 pub struct DiskUsage {
     pub(crate) used: u64,
     pub(crate) percent: f32,
-    pub(crate) max: u64,
+    //pub(crate) max: ByteSize,
     //formatted: String,
 }
 
@@ -230,24 +233,24 @@ impl DiskBytesUsed for StubDiskUsageBytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytesize::{ByteSize, MB, TB};
+    use bytesize::{ByteSize, GB, MB, TB};
     use common::time::SECOND;
     use pretty_assertions::assert_eq;
     use std::sync::Arc;
     use test_case::test_case;
     use tokio::sync::oneshot;
 
-    fn du(used: u64, percent: f32, max: u64) -> DiskUsage {
-        DiskUsage { used, percent, max }
+    fn du(used: u64, percent: f32) -> DiskUsage {
+        DiskUsage { used, percent }
     }
 
-    #[test_case(  11*MB,  100*MB, du(         11_000_000, 11.0,         0); "MB")]
-    #[test_case(2345*MB,   10*GB, du(      2_345_000_000, 23.45,       10); "GB2")]
-    #[test_case(  22*GB,  100*GB, du(     22_000_000_000, 22.0,       100); "GB1")]
-    #[test_case( 234*GB, 1000*GB, du(    234_000_000_000, 23.4,      1000); "GB0")]
-    #[test_case(2345*GB,   10*TB, du(  2_345_000_000_000, 23.45,    10000); "TB2")]
-    #[test_case(  22*TB,  100*TB, du( 22_000_000_000_000, 22.0,   100_000); "TB1")]
-    #[test_case( 234*TB, 1000*TB, du(234_000_000_000_000, 23.4, 1_000_000); "default")]
+    #[test_case(  11*MB,  100*MB, du(         11_000_000, 11.0);  "MB")]
+    #[test_case(2345*MB,   10*GB, du(      2_345_000_000, 23.45); "GB2")]
+    #[test_case(  22*GB,  100*GB, du(     22_000_000_000, 22.0);  "GB1")]
+    #[test_case( 234*GB, 1000*GB, du(    234_000_000_000, 23.4);  "GB0")]
+    #[test_case(2345*GB,   10*TB, du(  2_345_000_000_000, 23.45); "TB2")]
+    #[test_case(  22*TB,  100*TB, du( 22_000_000_000_000, 22.0);  "TB1")]
+    #[test_case( 234*TB, 1000*TB, du(234_000_000_000_000, 23.4);  "default")]
     #[tokio::test]
     async fn test_disk(used: u64, space: u64, want: DiskUsage) {
         let d = Disk::with_disk_usage(
@@ -264,7 +267,6 @@ mod tests {
         let usage = DiskUsage {
             used: 1,
             percent: 0.0,
-            max: 0,
         };
         let d = Disk {
             cache: Mutex::new(Some(DiskCache {
@@ -301,7 +303,6 @@ mod tests {
         let usage = DiskUsage {
             used: 1,
             percent: 0.0,
-            max: 0,
         };
 
         *d.cache.lock().await = Some(DiskCache {
@@ -325,7 +326,6 @@ mod tests {
         let want = DiskUsage {
             used: 1000,
             percent: f32::INFINITY,
-            max: 0,
         };
         assert_eq!(want, got);
     }

@@ -8,7 +8,7 @@ use bytesize::ByteSize;
 use common::{
     monitor::{ArcMonitorManager, ArcStreamer},
     time::Duration,
-    ArcAuth, DynEnvConfig, EnvConfig, ILogger, LogEntry, LogLevel,
+    ArcAuth, ArcLogger, DynEnvConfig, EnvConfig, ILogger, LogEntry, LogLevel,
 };
 use env::{EnvConf, EnvConfigNewError};
 use hls::HlsServer;
@@ -412,12 +412,19 @@ impl App {
 
     // `App` must be dropped when this returns.
     pub async fn run(self, plugin_manager: PluginManager) -> Result<mpsc::Receiver<()>, RunError> {
-        let rec_db = self.recdb.clone();
         let token2 = self.token.clone();
+        let shutdown_complete = self.shutdown_complete_tx.clone();
+        let logger = self.logger.clone();
+        let rec_db = self.recdb.clone();
         tokio::spawn(async move {
-            rec_db
-                .prune_loop(token2, Duration::from_minutes(10).as_std().expect(""))
-                .await;
+            prune_loop(
+                token2,
+                shutdown_complete,
+                logger,
+                rec_db,
+                Duration::from_minutes(10).as_std().expect(""),
+            )
+            .await;
         });
 
         self.logger.log(LogEntry {
@@ -588,4 +595,28 @@ fn time_zone() -> Option<String> {
         }
     }
     zone.map(|v| v.to_string_lossy().to_string().trim().to_owned())
+}
+
+pub async fn prune_loop(
+    token: CancellationToken,
+    _shutdown_complete: mpsc::Sender<()>,
+    logger: ArcLogger,
+    rec_db: Arc<RecDb>,
+    interval: std::time::Duration,
+) {
+    loop {
+        tokio::select! {
+            () = token.cancelled() => return,
+            () = tokio::time::sleep(interval) => {
+                if let Some(e) = rec_db.prune().await.1 {
+                    logger.log(LogEntry::new(
+                        LogLevel::Error,
+                        "recdb",
+                        None,
+                        format!("prune recordings: {e}"),
+                    ));
+                }
+            }
+        }
+    }
 }

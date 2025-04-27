@@ -4,7 +4,7 @@ use crate::{
     time::{Duration, UnixNano, SECOND},
     Event, MonitorId, ParseMonitorIdError, Point, PointNormalized, Polygon, PolygonNormalized,
 };
-use chrono::{DateTime, Utc};
+use chrono::{offset::LocalResult, DateTime, TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     num::ParseIntError,
@@ -25,6 +25,138 @@ pub struct RecordingData {
 
     #[serde(rename = "events")]
     pub events: Vec<Event>,
+}
+
+#[derive(Clone, Hash, PartialEq, Eq)]
+#[allow(clippy::module_name_repetitions)]
+pub struct RecordingId {
+    raw: String,
+    nanos: UnixNano,
+
+    year: u16,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+    second: u8,
+    monitor_id: MonitorId,
+}
+
+impl std::fmt::Debug for RecordingId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.raw)
+    }
+}
+
+impl std::fmt::Display for RecordingId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.raw)
+    }
+}
+
+impl RecordingId {
+    pub fn from_nanos(value: UnixNano, monitor_id: &MonitorId) -> Result<Self, RecordingIdError> {
+        if value.is_negative() {
+            return Err(RecordingIdError::NegativeTime(value));
+        }
+        let time: DateTime<Utc> = value.into();
+        time.format(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
+            .to_string()
+            .try_into()
+            .map(|mut id: Self| {
+                id.nanos = value;
+                id
+            })
+    }
+
+    #[must_use]
+    pub fn zero() -> Self {
+        "1700-01-01_00-00-00_x"
+            .to_owned()
+            .try_into()
+            .expect("should be valid")
+    }
+
+    #[must_use]
+    pub fn max() -> Self {
+        "2200-01-01_00-00-00_x"
+            .to_owned()
+            .try_into()
+            .expect("should be valid")
+    }
+
+    #[must_use]
+    pub fn year_month_day(&self) -> [PathBuf; 3] {
+        [
+            PathBuf::from(&self.raw[..4]),   // year.
+            PathBuf::from(&self.raw[5..7]),  // month.
+            PathBuf::from(&self.raw[8..10]), // day.
+        ]
+    }
+
+    #[must_use]
+    pub fn year(&self) -> u16 {
+        self.year
+    }
+    #[must_use]
+    pub fn month(&self) -> u8 {
+        self.month
+    }
+    #[must_use]
+    pub fn day(&self) -> u8 {
+        self.day
+    }
+    #[must_use]
+    pub fn hour(&self) -> u8 {
+        self.hour
+    }
+    #[must_use]
+    pub fn minute(&self) -> u8 {
+        self.minute
+    }
+    #[must_use]
+    pub fn second(&self) -> u8 {
+        self.second
+    }
+
+    #[must_use]
+    pub fn nanos_inexact(&self) -> UnixNano {
+        self.nanos
+    }
+
+    #[must_use]
+    pub fn monitor_id(&self) -> &MonitorId {
+        &self.monitor_id
+    }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.raw
+    }
+
+    #[must_use]
+    pub fn as_path(&self) -> &Path {
+        Path::new(&self.raw)
+    }
+
+    #[must_use]
+    pub fn as_full_path(&self) -> PathBuf {
+        let [year, month, day] = self.year_month_day();
+        year.join(month)
+            .join(day)
+            .join(self.monitor_id().to_string())
+            .join(self.as_path())
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.raw.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.raw.is_empty()
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -63,113 +195,15 @@ pub enum RecordingIdError {
 
     #[error("time is negative: {0:?}")]
     NegativeTime(UnixNano),
-}
 
-#[derive(Clone, Hash, PartialEq, Eq)]
-#[allow(clippy::module_name_repetitions)]
-pub struct RecordingId {
-    raw: String,
+    #[error("time is ambiguous: {0}")]
+    Ambiguous(String),
 
-    year: u16,
-    month: u8,
-    day: u8,
-    hour: u8,
-    minute: u8,
-    second: u8,
-    monitor_id: MonitorId,
-}
+    #[error("time does not exist: {0}")]
+    None(String),
 
-impl std::fmt::Debug for RecordingId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.raw)
-    }
-}
-
-impl RecordingId {
-    pub fn from_nanos(value: UnixNano, monitor_id: &MonitorId) -> Result<Self, RecordingIdError> {
-        if value.is_negative() {
-            return Err(RecordingIdError::NegativeTime(value));
-        }
-        let time: DateTime<Utc> = value.into();
-        time.format(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
-            .to_string()
-            .try_into()
-    }
-
-    #[must_use]
-    pub fn zero(monitor_id: &MonitorId) -> Self {
-        format!("0000-00-00_00-00-00_{monitor_id}")
-            .try_into()
-            .expect("should be valid for any monitor id")
-    }
-
-    #[must_use]
-    pub fn year_month_day(&self) -> [PathBuf; 3] {
-        [
-            PathBuf::from(&self.raw[..4]),   // year.
-            PathBuf::from(&self.raw[5..7]),  // month.
-            PathBuf::from(&self.raw[8..10]), // day.
-        ]
-    }
-
-    #[must_use]
-    pub fn year(&self) -> u16 {
-        self.year
-    }
-    #[must_use]
-    pub fn month(&self) -> u8 {
-        self.month
-    }
-    #[must_use]
-    pub fn day(&self) -> u8 {
-        self.day
-    }
-    #[must_use]
-    pub fn hour(&self) -> u8 {
-        self.hour
-    }
-    #[must_use]
-    pub fn minute(&self) -> u8 {
-        self.minute
-    }
-    #[must_use]
-    pub fn second(&self) -> u8 {
-        self.second
-    }
-
-    #[must_use]
-    fn monitor_id(&self) -> &str {
-        &self.raw[20..]
-    }
-
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.raw
-    }
-
-    #[must_use]
-    pub fn as_path(&self) -> &Path {
-        Path::new(&self.raw)
-    }
-
-    #[must_use]
-    pub fn as_full_path(&self) -> PathBuf {
-        let [year, month, day] = self.year_month_day();
-        year.join(month)
-            .join(day)
-            .join(self.monitor_id())
-            .join(self.as_path())
-    }
-
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.raw.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.raw.is_empty()
-    }
+    #[error("can't convert to nanos: {0}")]
+    ConvertToNanos(DateTime<Utc>),
 }
 
 impl TryFrom<String> for RecordingId {
@@ -217,8 +251,23 @@ impl TryFrom<String> for RecordingId {
             return Err(BadSecond(second));
         }
 
+        let time = match Utc.with_ymd_and_hms(
+            year.into(),
+            month.into(),
+            day.into(),
+            hour.into(),
+            minute.into(),
+            second.into(),
+        ) {
+            LocalResult::Single(v) => v,
+            LocalResult::Ambiguous(_, _) => return Err(Ambiguous(s)),
+            LocalResult::None => return Err(None(s)),
+        };
+        let nanos = UnixNano::new(time.timestamp_nanos_opt().ok_or(ConvertToNanos(time))?);
+
         Ok(Self {
             raw: s,
+            nanos,
             year,
             month,
             day,
@@ -531,19 +580,18 @@ mod tests {
     #[test_case("1970-01-01_00-00-01_x", SECOND)]
     #[test_case("1970-01-01_00-00-01_x", 2*SECOND-1)]
     #[test_case("1970-01-01_00-00-02_x", 2*SECOND)]
-    fn test_recording_id_from_nanos(want: &str, input: i64) {
-        assert_eq!(
-            want,
-            RecordingId::from_nanos(UnixNano::new(input), &"x".to_owned().try_into().unwrap())
-                .unwrap()
-                .as_str()
-        );
+    fn test_recording_id_to_and_from_nanos(id: &str, nanos: i64) {
+        let nanos = UnixNano::new(nanos);
+        let id2 = RecordingId::from_nanos(nanos, &"x".to_owned().try_into().unwrap()).unwrap();
+        assert_eq!(id, id2.as_str());
+        assert_eq!(nanos, id2.nanos_inexact());
     }
 
     #[test]
-    fn test_recording_id_zero() {
+    fn test_recording_id_zero_and_max() {
         // Should not panic.
-        _ = RecordingId::zero(&"x".to_owned().try_into().unwrap());
+        _ = RecordingId::zero();
+        _ = RecordingId::max();
     }
 
     #[test]

@@ -36,6 +36,9 @@ pub enum CrawlerError {
 
     #[error("{0:?}: unexpected directory")]
     UnexpectedDir(PathBuf),
+
+    #[error("{0:?}: unexpected symlink")]
+    UnexpectedSymlink(PathBuf),
 }
 
 // Crawls through storage looking for recordings.
@@ -407,8 +410,14 @@ impl DirIterRec {
 
             let files = montor_fs.read_dir()?;
             for file in &files {
-                let Entry::File(file) = file else {
-                    return Err(CrawlerError::UnexpectedDir(PathBuf::from("todo!")));
+                let file = match file {
+                    Entry::Dir(d) => {
+                        return Err(CrawlerError::UnexpectedDir(d.name().to_path_buf()));
+                    }
+                    Entry::File(v) => v,
+                    Entry::Symlink(s) => {
+                        return Err(CrawlerError::UnexpectedDir(s.name().to_path_buf()));
+                    }
                 };
                 let Some(name) = file.name().to_str() else {
                     continue;
@@ -517,6 +526,7 @@ mod tests {
         ))
     }
 
+    #[track_caller]
     fn r_id(s: &str) -> RecordingId {
         s.to_owned().try_into().unwrap()
     }
@@ -542,9 +552,9 @@ mod tests {
         ]
     }";
 
-    #[test_case("0000-01-01_01-01-01_m1", "";                       "no files")]
+    #[test_case("1700-01-01_01-01-01_m1", "";                       "no files")]
     #[test_case("1999-01-01_01-01-01_m1", "";                       "EOF")]
-    #[test_case("9999-01-01_01-01-01_m1", "2099-01-01_01-01-11_m1"; "latest")]
+    #[test_case("2200-01-01_01-01-01_m1", "2099-01-01_01-01-11_m1"; "latest")]
     #[test_case("2000-01-01_01-01-22_m1", "2000-01-01_01-01-11_m1"; "prev hour")]
     #[test_case("2000-01-01_01-01-23_m1", "2000-01-01_01-01-22_m1"; "prev hour inexact")]
     #[test_case("2000-01-02_01-01-11_m1", "2000-01-01_01-01-22_m1"; "prev day")]
@@ -584,7 +594,7 @@ mod tests {
         }
     }
 
-    #[test_case("1111-01-01_01-01-01_m1", "2000-01-01_01-01-11_m1"; "latest")]
+    #[test_case("1711-01-01_01-01-01_m1", "2000-01-01_01-01-11_m1"; "latest")]
     #[test_case("2000-01-01_01-01-11_m1", "2000-01-01_01-01-22_m1"; "next hour")]
     #[test_case("2000-01-01_01-01-10_m1", "2000-01-01_01-01-11_m1"; "next hour inexact")]
     #[test_case("2000-01-01_01-01-22_m1", "2000-01-02_01-01-11_m1"; "next day")]
@@ -624,7 +634,7 @@ mod tests {
     async fn test_recording_by_query_multiple() {
         let c = Crawler::new(crawler_test_fs());
         let query = RecDbQuery {
-            recording_id: r_id("9999-01-01_01-01-01_x"),
+            recording_id: RecordingId::max(),
             end: None,
             limit: NonZeroUsize::new(5).unwrap(),
             reverse: false,
@@ -674,7 +684,7 @@ mod tests {
     async fn test_recording_by_query_data() {
         let c = Crawler::new(crawler_test_fs());
         let query = RecDbQuery {
-            recording_id: r_id("9999-01-01_01-01-01_m1"),
+            recording_id: RecordingId::max(),
             end: None,
             limit: NonZeroUsize::new(1).unwrap(),
             reverse: false,
@@ -719,7 +729,7 @@ mod tests {
         ));
 
         let query = RecDbQuery {
-            recording_id: r_id("9999-12-28_23-59-59_x"),
+            recording_id: RecordingId::max(),
             end: None,
             limit: NonZeroUsize::new(1).unwrap(),
             reverse: false,
@@ -746,7 +756,7 @@ mod tests {
     async fn test_recording_by_query_end() {
         let c = Crawler::new(crawler_test_fs());
         let query = RecDbQuery {
-            recording_id: r_id("9999-01-01_01-01-01_x"),
+            recording_id: RecordingId::max(),
             end: Some(r_id("2003-01-01_01-01-11_m1")),
             limit: NonZeroUsize::new(100).unwrap(),
             reverse: false,
@@ -776,7 +786,7 @@ mod tests {
     async fn test_recording_by_query_end_reverse() {
         let c = Crawler::new(crawler_test_fs());
         let query = RecDbQuery {
-            recording_id: r_id("0000-01-01_01-01-01_x"),
+            recording_id: RecordingId::zero(),
             end: Some(r_id("2003-01-01_01-01-11_m1")),
             limit: NonZeroUsize::new(100).unwrap(),
             reverse: true,

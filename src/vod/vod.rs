@@ -161,7 +161,7 @@ async fn execute_query(
 
     let first_rec_id = match recordings.first() {
         Some(v) => v.id().clone(),
-        None => RecordingId::zero(&q.monitor_id),
+        None => RecordingId::zero(),
     };
 
     // Find all matching recorings by querying from the first recording.
