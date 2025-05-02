@@ -89,16 +89,12 @@ impl LogDb {
 
         let handle = Self {
             log_dir: log_dir.clone(),
-            writer: Arc::new(Mutex::new(LogDbWriter {
+            writer: Arc::new(Mutex::new(LogDbWriter::new(
                 log_dir,
-                encoder: None,
-                prev_entry_time: UnixMicro::new(0),
-                cache: VecDeque::with_capacity(cache_capacity),
                 cache_capacity,
                 write_buf_capacify,
-                cancelled: false,
-                _shutdown_complete: shutdown_complete,
-            })),
+                shutdown_complete,
+            ))),
             disk_space,
             min_disk_usage,
         };
@@ -237,6 +233,25 @@ pub struct LogDbWriter {
 }
 
 impl LogDbWriter {
+    #[must_use]
+    pub fn new(
+        log_dir: PathBuf,
+        cache_capacity: usize,
+        write_buf_capacify: usize,
+        shutdown_complete: mpsc::Sender<()>,
+    ) -> Self {
+        Self {
+            log_dir,
+            encoder: None,
+            prev_entry_time: UnixMicro::new(0),
+            cache: VecDeque::with_capacity(cache_capacity),
+            cache_capacity,
+            write_buf_capacify,
+            cancelled: false,
+            _shutdown_complete: shutdown_complete,
+        }
+    }
+
     async fn cancel(&mut self) {
         self.cancelled = true;
         if let Some(encoder) = self.encoder.take() {
@@ -1247,6 +1262,9 @@ mod tests {
     use test_case::test_case;
 
     fn new_test_db(log_dir: &Path) -> (LogDb, CancellationToken) {
+        new_test_db2(log_dir, 0)
+    }
+    fn new_test_db2(log_dir: &Path, cache_cap: usize) -> (LogDb, CancellationToken) {
         let token = CancellationToken::new();
         let (shutdown_complete_tx, _) = mpsc::channel::<()>(1);
         let db = LogDb::new(
@@ -1255,8 +1273,8 @@ mod tests {
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(0),
-            2,
-            0,
+            cache_cap,
+            cache_cap,
         )
         .unwrap();
         (db, token)
@@ -1272,7 +1290,7 @@ mod tests {
         s.to_owned().try_into().unwrap()
     }
 
-    fn msg1() -> LogEntryWithTime {
+    fn entry1() -> LogEntryWithTime {
         LogEntryWithTime {
             level: LogLevel::Error,
             source: src("s1"),
@@ -1281,7 +1299,7 @@ mod tests {
             time: UnixMicro::new(4000),
         }
     }
-    fn msg2() -> LogEntryWithTime {
+    fn entry2() -> LogEntryWithTime {
         LogEntryWithTime {
             level: LogLevel::Warning,
             source: src("s1"),
@@ -1290,7 +1308,7 @@ mod tests {
             time: UnixMicro::new(3000),
         }
     }
-    fn msg3() -> LogEntryWithTime {
+    fn entry3() -> LogEntryWithTime {
         LogEntryWithTime {
             level: LogLevel::Info,
             source: src("s2"),
@@ -1312,7 +1330,7 @@ mod tests {
             sources: vec![src("s1")],
             ..Default::default()
         },
-        &[msg2()];
+        &[entry2()];
         "single level"
     )]
     #[test_case(
@@ -1321,7 +1339,7 @@ mod tests {
             sources: vec![src("s1")],
             ..Default::default()
         },
-        &[msg1(), msg2()];
+        &[entry1(), entry2()];
         "multiple levels"
     )]
     #[test_case(
@@ -1330,7 +1348,7 @@ mod tests {
             sources: vec![src("s1")],
             ..Default::default()
         },
-        &[msg1()];
+        &[entry1()];
         "single source"
     )]
     #[test_case(
@@ -1339,7 +1357,7 @@ mod tests {
             sources: vec![src("s1"), src("s2")],
             ..Default::default()
         },
-        &[msg1(), msg3()];
+        &[entry1(), entry3()];
         "multiple sources"
     )]
     #[test_case(
@@ -1349,7 +1367,7 @@ mod tests {
             monitors: vec![m_id("m1")],
             ..Default::default()
         },
-        &[msg1()];
+        &[entry1()];
         "single monitor"
     )]
     #[test_case(
@@ -1359,7 +1377,7 @@ mod tests {
             monitors: vec![m_id("m1"), m_id("m2")],
             ..Default::default()
         },
-        &[msg1(), msg3()];
+        &[entry1(), entry3()];
         "multiple monitors"
     )]
     #[test_case(
@@ -1368,12 +1386,12 @@ mod tests {
             sources: vec![src("s1"), src("s2")],
             ..Default::default()
         },
-        &[msg1(), msg2(), msg3()];
+        &[entry1(), entry2(), entry3()];
         "all"
     )]
     #[test_case(
         LogQuery{..Default::default()},
-        &[msg1(), msg2(), msg3()];
+        &[entry1(), entry2(), entry3()];
         "none"
     )]
     #[test_case(
@@ -1383,7 +1401,7 @@ mod tests {
             limit: Some(NonZeroUsize::new(2).unwrap()),
             ..Default::default()
         },
-        &[msg1(), msg2()];
+        &[entry1(), entry2()];
         "limit"
     )]
     #[test_case(
@@ -1392,7 +1410,7 @@ mod tests {
             limit: Some(NonZeroUsize::new(1).unwrap()),
             ..Default::default()
         },
-        &[msg3()];
+        &[entry3()];
         "limit2"
     )]
     #[test_case(
@@ -1402,7 +1420,7 @@ mod tests {
             time: Some(UnixMicro::new(4000)),
             ..Default::default()
         },
-        &[msg2(), msg3()];
+        &[entry2(), entry3()];
         "exactTime"
     )]
     #[test_case(
@@ -1412,7 +1430,7 @@ mod tests {
             time: Some(UnixMicro::new(3500)),
             ..Default::default()
         },
-        &[msg2(), msg3()];
+        &[entry2(), entry3()];
         "time"
     )]
     #[test_case(
@@ -1420,7 +1438,7 @@ mod tests {
             monitors: vec![m_id("m2")],
             ..Default::default()
         },
-        &[msg3()];
+        &[entry3()];
         "entry without monitor id"
     )]
     #[tokio::test]
@@ -1429,9 +1447,9 @@ mod tests {
         let (db, _token) = new_test_db(temp_dir.path());
 
         // Populate database.
-        db.save_log(msg3()).await.unwrap();
-        db.save_log(msg2()).await.unwrap();
-        db.save_log(msg1()).await.unwrap();
+        db.save_log(entry3()).await.unwrap();
+        db.save_log(entry2()).await.unwrap();
+        db.save_log(entry1()).await.unwrap();
 
         let got = db.query(input).await.unwrap();
         assert_eq!(want, got);
@@ -1649,68 +1667,58 @@ mod tests {
 
     #[tokio::test]
     async fn test_log_db_search() {
-        let temp_dir = tempdir().unwrap();
-        let (db, _token) = new_test_db(temp_dir.path());
-
-        let msg1 = new_test_entry(1);
-        let msg2 = new_test_entry(2);
-        let msg3 = new_test_entry(3);
-        let msg4 = new_test_entry(4);
-        let msg5 = new_test_entry(CHUNK_DURATION);
-        let msg6 = new_test_entry(CHUNK_DURATION + 1);
-        let msg7 = new_test_entry(CHUNK_DURATION + 2);
-        let msg8 = new_test_entry(CHUNK_DURATION * 2);
-        let msg9 = new_test_entry(CHUNK_DURATION * 2 + 1);
-
-        db.save_log(msg1.clone()).await.unwrap();
-        db.save_log(msg2.clone()).await.unwrap();
-        db.save_log(msg3.clone()).await.unwrap();
-        db.save_log(msg4.clone()).await.unwrap();
-        db.save_log(msg5.clone()).await.unwrap();
-        db.save_log(msg6.clone()).await.unwrap();
-        db.save_log(msg7.clone()).await.unwrap();
-        db.save_log(msg8.clone()).await.unwrap();
-        db.save_log(msg9.clone()).await.unwrap();
+        let e1 = new_test_entry(1);
+        let e2 = new_test_entry(2);
+        let e3 = new_test_entry(3);
+        let e4 = new_test_entry(4);
+        let e5 = new_test_entry(CHUNK_DURATION);
+        let e6 = new_test_entry(CHUNK_DURATION + 1);
+        let e7 = new_test_entry(CHUNK_DURATION + 2);
+        let e8 = new_test_entry(CHUNK_DURATION * 2);
+        let e9 = new_test_entry(CHUNK_DURATION * 2 + 1);
 
         #[rustfmt::skip]
         let cases = vec![
-            (0,              vec![&msg9, &msg8, &msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (*msg9.time+1, vec![&msg9, &msg8, &msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (*msg9.time,   vec![&msg8, &msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (*msg8.time,   vec![&msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (*msg8.time-1, vec![&msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (*msg7.time+1, vec![&msg7, &msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (*msg7.time,   vec![&msg6, &msg5, &msg4, &msg3, &msg2, &msg1]),
-            (*msg6.time,   vec![&msg5, &msg4, &msg3, &msg2, &msg1]),
-            (*msg5.time,   vec![&msg4, &msg3, &msg2, &msg1]),
-            (*msg5.time-1, vec![&msg4, &msg3, &msg2, &msg1]),
-            (*msg4.time+1, vec![&msg4, &msg3, &msg2, &msg1]),
-            (*msg4.time,   vec![&msg3, &msg2, &msg1]),
-            (*msg3.time,   vec![&msg2, &msg1]),
-            (*msg2.time,   vec![&msg1]),
-            (*msg1.time,   vec![]),
+            (0,          vec![&e9, &e8, &e7, &e6, &e5, &e4, &e3, &e2, &e1]),
+            (*e9.time+1, vec![&e9, &e8, &e7, &e6, &e5, &e4, &e3, &e2, &e1]),
+            (*e9.time,   vec![&e8, &e7, &e6, &e5, &e4, &e3, &e2, &e1]),
+            (*e8.time,   vec![&e7, &e6, &e5, &e4, &e3, &e2, &e1]),
+            (*e8.time-1, vec![&e7, &e6, &e5, &e4, &e3, &e2, &e1]),
+            (*e7.time+1, vec![&e7, &e6, &e5, &e4, &e3, &e2, &e1]),
+            (*e7.time,   vec![&e6, &e5, &e4, &e3, &e2, &e1]),
+            (*e6.time,   vec![&e5, &e4, &e3, &e2, &e1]),
+            (*e5.time,   vec![&e4, &e3, &e2, &e1]),
+            (*e5.time-1, vec![&e4, &e3, &e2, &e1]),
+            (*e4.time+1, vec![&e4, &e3, &e2, &e1]),
+            (*e4.time,   vec![&e3, &e2, &e1]),
+            (*e3.time,   vec![&e2, &e1]),
+            (*e2.time,   vec![&e1]),
+            (*e1.time,   vec![]),
         ];
 
-        for (input_time, want) in cases {
-            let time = {
-                if input_time == 0 {
-                    None
-                } else {
-                    Some(UnixMicro::new(input_time))
-                }
-            };
-            let got = db
-                .query(LogQuery {
+        for cache_cap in 0..10 {
+            let temp_dir = tempdir().unwrap();
+            let (db, _token) = new_test_db2(temp_dir.path(), cache_cap);
+            for msg in [&e1, &e2, &e3, &e4, &e5, &e6, &e7, &e8, &e9] {
+                db.save_log(msg.clone()).await.unwrap();
+            }
+
+            for (input_time, want) in &cases {
+                let time = {
+                    if *input_time == 0 {
+                        None
+                    } else {
+                        Some(UnixMicro::new(*input_time))
+                    }
+                };
+                let query = LogQuery {
                     time,
                     ..Default::default()
-                })
-                .await
-                .unwrap();
-            let want: Vec<LogEntryWithTime> = want
-                .into_iter()
-                .map(std::borrow::ToOwned::to_owned)
-                .collect();
-            assert_eq!(want, got);
+                };
+                let got = db.query(query).await.unwrap();
+                let want: Vec<_> = want.iter().copied().cloned().collect();
+                assert_eq!(want, got);
+            }
         }
     }
 
