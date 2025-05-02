@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     iter::Sum,
-    ops::{Add, Deref, Sub},
+    ops::{Add, AddAssign, Deref, Sub},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -15,6 +15,7 @@ pub const MILLISECOND: i64 = MICROSECOND * 1000;
 pub const SECOND: i64 = MILLISECOND * 1000;
 pub const MINUTE: i64 = SECOND * 60;
 pub const HOUR: i64 = MINUTE * 60;
+pub const DAY: i64 = HOUR * 24;
 
 // Nanoseconds since the Unix epoch.
 #[repr(transparent)]
@@ -27,6 +28,11 @@ impl UnixNano {
     #[must_use]
     pub fn new(v: i64) -> Self {
         Self(v)
+    }
+
+    #[must_use]
+    pub fn from_secs(secs: u32) -> Self {
+        Self(i64::from(secs) * SECOND)
     }
 
     #[must_use]
@@ -117,6 +123,12 @@ impl Sub for UnixNano {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0 - rhs.0)
+    }
+}
+
+impl AddAssign for UnixNano {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
     }
 }
 

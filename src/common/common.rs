@@ -770,17 +770,6 @@ pub trait MsgLogger {
     fn log(&self, level: LogLevel, msg: &str);
 }
 
-pub struct DummyMsgLogger;
-
-impl MsgLogger for DummyMsgLogger {
-    fn log(&self, _: LogLevel, _: &str) {}
-}
-
-#[must_use]
-pub fn new_dummy_msg_logger() -> Arc<impl MsgLogger> {
-    Arc::new(DummyMsgLogger {})
-}
-
 pub type DynError = Box<dyn std::error::Error>;
 
 #[cfg(test)]

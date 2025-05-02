@@ -679,7 +679,6 @@ mod tests {
     use super::*;
     use bytesize::ByteSize;
     use common::{
-        new_dummy_msg_logger,
         time::{Duration, MINUTE},
         Detection, DummyLogger, PointNormalized, RectangleNormalized, Region,
     };
@@ -1032,7 +1031,7 @@ mod tests {
         let recording = rec_db.test_recording().await;
 
         save_recording(
-            new_dummy_msg_logger(),
+            DummyLogger::new(),
             &"2000-01-01_01-01-01_x".to_owned().try_into().unwrap(),
             &recording,
             event_cache,

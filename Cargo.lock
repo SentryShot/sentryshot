@@ -695,6 +695,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "eventdb"
+version = "0.2.24"
+dependencies = [
+ "bytesize",
+ "common",
+ "criterion",
+ "csv",
+ "pin-project",
+ "pretty-hex",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "test-case 2.2.2",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2253,6 +2273,7 @@ dependencies = [
  "console-subscriber",
  "csv",
  "env",
+ "eventdb",
  "fs",
  "handler",
  "hls",

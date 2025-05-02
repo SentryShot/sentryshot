@@ -8,23 +8,21 @@ use std::{
 };
 use tokio::io::{AsyncBufRead, AsyncRead, AsyncSeek, ReadBuf};
 
-/// The `RevBufReader` struct adds reverse buffering to any readseeker.
+/// The `BufSeekReader` struct adds buffering to any readseeker.
 ///
 /// It can be excessively inefficient to work directly with a [`AsyncRead`]
-/// instance. A `RevBufReader` performs large, infrequent reads on the underlying
+/// instance. A `BufSeekReader` performs large, infrequent reads on the underlying
 /// [`AsyncRead`] and maintains an in-memory buffer of the results.
 ///
-/// `RevBufReader` can improve the speed of programs that make *small* and
+/// `BufSeekReader` can improve the speed of programs that make *small* and
 /// *repeated* read calls to the same file. It does not help when reading
 /// very  large amounts at once, or reading just one or a few times.
 /// It also provides no advantage when reading from a source that is
 /// already in memory, like a `Vec<u8>`.
 ///
-/// `RevBufReader` will seek backwards before refilling the buffer if the
-/// previous seek was backwards
 /// Unlike `tokio::io::BufReader`, the internal buffer does not get cleared when seeking.
 #[pin_project]
-pub(crate) struct RevBufReader<R> {
+pub struct BufSeekReader<R> {
     #[pin]
     inner: R,
     inner_pos: usize,
@@ -32,19 +30,11 @@ pub(crate) struct RevBufReader<R> {
     buf_start: usize,
     buf_pos: usize,
     buf_end: usize,
-    seek_pos: usize,
-    prev_seek_pos: usize,
     read_state: ReadState,
     seek_state: SeekState,
 }
 
-impl<R: AsyncRead + AsyncSeek> RevBufReader<R> {
-    /// Creates a new `RevBufReader` with a default buffer capacity. The default is currently 32KIB,
-    /// but may change in the future.
-    pub(crate) fn new(inner: R) -> Self {
-        Self::with_capacity(32768, inner)
-    }
-
+impl<R: AsyncRead + AsyncSeek> BufSeekReader<R> {
     /// Creates a new `RevBufReader` with the specified buffer capacity.
     pub(crate) fn with_capacity(capacity: usize, inner: R) -> Self {
         Self {
@@ -54,8 +44,6 @@ impl<R: AsyncRead + AsyncSeek> RevBufReader<R> {
             buf_start: 0,
             buf_pos: 0,
             buf_end: 0,
-            seek_pos: 0,
-            prev_seek_pos: 0,
             read_state: ReadState::Init,
             seek_state: SeekState::Init,
         }
@@ -90,7 +78,7 @@ macro_rules! ready {
     };
 }
 
-impl<R: AsyncRead + AsyncSeek> AsyncRead for RevBufReader<R> {
+impl<R: AsyncRead + AsyncSeek> AsyncRead for BufSeekReader<R> {
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -121,7 +109,7 @@ enum ReadState {
     Read(usize),
 }
 
-impl<R: AsyncRead + AsyncSeek> AsyncBufRead for RevBufReader<R> {
+impl<R: AsyncRead + AsyncSeek> AsyncBufRead for BufSeekReader<R> {
     fn poll_fill_buf<'a>(
         mut self: Pin<&'a mut Self>,
         cx: &mut Context<'_>,
@@ -171,13 +159,8 @@ impl<R: AsyncRead + AsyncSeek> AsyncBufRead for RevBufReader<R> {
                 // back to the end of the prevous buffer or to buffer backwards.
                 let me = self.as_mut().project();
                 if *me.buf_pos < *me.buf_start || *me.buf_end <= *me.buf_pos {
-                    let back_seek = me.seek_pos < me.prev_seek_pos;
-                    let prev_pos_minus_cap = (*me.prev_seek_pos).saturating_sub(me.buf.len());
-                    let new_pos = if back_seek && prev_pos_minus_cap <= *me.buf_pos {
-                        prev_pos_minus_cap
-                    } else {
-                        *me.buf_pos
-                    };
+                    let new_pos = *me.buf_pos;
+
                     // Skip seeking if the position didn't change.
                     if new_pos == *me.inner_pos {
                         return read(self, cx, new_pos);
@@ -215,7 +198,7 @@ enum SeekState {
 /// Seeks to an offset, in bytes, in the underlying reader.
 ///
 /// See [`AsyncSeek`] for more details.
-impl<R: AsyncRead + AsyncSeek> AsyncSeek for RevBufReader<R> {
+impl<R: AsyncRead + AsyncSeek> AsyncSeek for BufSeekReader<R> {
     fn start_seek(self: Pin<&mut Self>, pos: SeekFrom) -> std::io::Result<()> {
         // We needs to call seek operation multiple times.
         // And we should always call both start_seek and poll_complete,
@@ -238,8 +221,6 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for RevBufReader<R> {
             SeekState::Start(SeekFrom::Start(pos)) => {
                 let me = self.as_mut().project();
                 *me.buf_pos = usize::try_from(pos).expect("seek pos should fit usize");
-                *me.prev_seek_pos = *me.seek_pos;
-                *me.seek_pos = *me.buf_pos;
                 *me.seek_state = SeekState::Init;
                 Poll::Ready(Ok(pos))
             }
@@ -271,7 +252,7 @@ mod tests {
     #[tokio::test]
     async fn test_seek_outside_file() {
         let mut buf = Cursor::new(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        let mut reader = RevBufReader::new(&mut buf);
+        let mut reader = BufSeekReader::with_capacity(64, &mut buf);
 
         reader.seek(SeekFrom::Start(14)).await.unwrap();
         reader.seek(SeekFrom::Start(11)).await.unwrap();
@@ -393,7 +374,7 @@ mod tests {
     #[tokio::test]
     async fn test_buffered_reader() {
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-        let mut reader = RevBufReader::with_capacity(2, Cursor::new(inner));
+        let mut reader = BufSeekReader::with_capacity(2, Cursor::new(inner));
 
         let mut buf = [0, 0, 0];
         let nread = reader.read(&mut buf).await.unwrap();
@@ -430,7 +411,7 @@ mod tests {
     #[tokio::test]
     async fn test_buffered_reader_seek() {
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-        let mut reader = RevBufReader::with_capacity(2, Cursor::new(inner));
+        let mut reader = BufSeekReader::with_capacity(2, Cursor::new(inner));
 
         assert_eq!(reader.seek(SeekFrom::Start(3)).await.unwrap(), 3);
         assert_eq!(run_fill_buf!(reader).unwrap(), &[0, 1][..]);
@@ -485,7 +466,7 @@ mod tests {
             }
         }
 
-        let mut reader = RevBufReader::with_capacity(5, PositionReader { pos: 0 });
+        let mut reader = BufSeekReader::with_capacity(5, PositionReader { pos: 0 });
         assert_eq!(run_fill_buf!(reader).unwrap(), &[0, 1, 2, 3, 4][..]);
         assert_eq!(
             reader.seek(SeekFrom::Start(u64::MAX - 5)).await.unwrap(),
@@ -537,7 +518,7 @@ mod tests {
         let inner = ShortReader {
             lengths: vec![0, 1, 2, 0, 1, 0],
         };
-        let mut reader = RevBufReader::new(inner);
+        let mut reader = BufSeekReader::with_capacity(64, inner);
         let mut buf = [0, 0];
         assert_eq!(reader.read(&mut buf).await.unwrap(), 0);
         assert_eq!(reader.read(&mut buf).await.unwrap(), 1);
@@ -551,7 +532,7 @@ mod tests {
     #[tokio::test]
     async fn maybe_pending() {
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-        let mut reader = RevBufReader::with_capacity(2, MaybePending::new(inner));
+        let mut reader = BufSeekReader::with_capacity(2, MaybePending::new(inner));
 
         let mut buf = [0, 0, 0];
         let nread = reader.read(&mut buf).await.unwrap();
@@ -588,7 +569,7 @@ mod tests {
     #[tokio::test]
     async fn maybe_pending_buf_read() {
         let inner = MaybePending::new(&[0, 1, 2, 3, 1, 0]);
-        let mut reader = RevBufReader::with_capacity(2, inner);
+        let mut reader = BufSeekReader::with_capacity(2, inner);
         let mut v = Vec::new();
         reader.read_until(3, &mut v).await.unwrap();
         assert_eq!(v, [0, 1, 2, 3]);
@@ -668,7 +649,7 @@ mod tests {
         }
 
         let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-        let mut reader = RevBufReader::with_capacity(2, MaybePendingSeek::new(inner));
+        let mut reader = BufSeekReader::with_capacity(2, MaybePendingSeek::new(inner));
 
         assert_eq!(reader.seek(SeekFrom::Start(3)).await.unwrap(), 3);
         assert_eq!(run_fill_buf!(reader).unwrap(), &[0, 1][..]);

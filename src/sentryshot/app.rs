@@ -11,6 +11,7 @@ use common::{
     ArcAuth, ArcLogger, DynEnvConfig, EnvConfig, ILogger, LogEntry, LogLevel,
 };
 use env::{EnvConf, EnvConfigNewError};
+use eventdb::EventDb;
 use hls::HlsServer;
 
 use log::{
@@ -112,6 +113,7 @@ pub struct App {
     monitor_manager: ArcMonitorManager,
     monitor_groups: ArcMonitorGroups,
     recdb: Arc<RecDb>,
+    eventdb: EventDb,
     router: Router,
 }
 
@@ -173,11 +175,17 @@ impl App {
         let new_auth = pre_loaded_plugins.new_auth_fn();
         let auth = new_auth(rt_handle.clone(), env.config_dir(), logger.clone())?;
 
-        let rec_db = Arc::new(RecDb::new(
+        let recdb = Arc::new(RecDb::new(
             logger.clone(),
             env.recordings_dir().to_path_buf(),
             Disk::new(env.storage_dir().to_path_buf(), env.max_disk_usage()),
         ));
+        let eventdb = EventDb::new(
+            token.clone(),
+            shutdown_complete_tx.clone(),
+            logger.clone(),
+            env.storage_dir().join("eventdb"),
+        );
 
         let streamer = match env.flags().streamer {
             common::Streamer::Hls => Streamer::Hls(HlsServer::new(token.clone(), logger.clone())),
@@ -189,7 +197,7 @@ impl App {
         let monitors_dir = env.config_dir().join("monitors");
         let monitor_manager = Arc::new(MonitorManager::new(
             monitors_dir,
-            rec_db.clone(),
+            recdb.clone(),
             logger.clone(),
             streamer.clone().into(),
         )?);
@@ -211,7 +219,8 @@ impl App {
                 streamer,
                 monitor_manager,
                 monitor_groups,
-                recdb: rec_db,
+                recdb,
+                eventdb,
                 router,
             },
             pre_loaded_plugins,
@@ -416,12 +425,14 @@ impl App {
         let shutdown_complete = self.shutdown_complete_tx.clone();
         let logger = self.logger.clone();
         let rec_db = self.recdb.clone();
+        let event_db = self.eventdb.clone();
         tokio::spawn(async move {
             prune_loop(
                 token2,
                 shutdown_complete,
                 logger,
                 rec_db,
+                event_db,
                 Duration::from_minutes(10).as_std().expect(""),
             )
             .await;
@@ -601,20 +612,32 @@ pub async fn prune_loop(
     token: CancellationToken,
     _shutdown_complete: mpsc::Sender<()>,
     logger: ArcLogger,
-    rec_db: Arc<RecDb>,
+    recdb: Arc<RecDb>,
+    eventdb: EventDb,
     interval: std::time::Duration,
 ) {
     loop {
         tokio::select! {
             () = token.cancelled() => return,
             () = tokio::time::sleep(interval) => {
-                if let Some(e) = rec_db.prune().await.1 {
+                let (oldest_recording, err) = recdb.prune().await;
+                if let Some(e) = err {
                     logger.log(LogEntry::new(
                         LogLevel::Error,
                         "recdb",
                         None,
                         format!("prune recordings: {e}"),
                     ));
+                }
+                if let Some(oldest_recording) = oldest_recording {
+                    if let Err(e) = eventdb.prune(oldest_recording).await {
+                        logger.log(LogEntry::new(
+                            LogLevel::Error,
+                            "eventdb",
+                            None,
+                            format!("prune events: {e}"),
+                        ));
+                    }
                 }
             }
         }

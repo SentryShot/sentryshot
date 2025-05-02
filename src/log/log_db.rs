@@ -47,8 +47,8 @@ use tokio_util::sync::CancellationToken;
 // }
 
 // 16666 minutes or 27.7 hours.
-const CHUNK_DURATION: u64 = 1_000_000 * SECOND;
-const SECOND: u64 = 100_000;
+const CHUNK_DURATION: u64 = 100_000 * SECOND;
+const SECOND: u64 = 1_000_000;
 
 const CHUNK_API_VERSION: u8 = 0;
 const CHUNK_ID_LENGTH: usize = 5;

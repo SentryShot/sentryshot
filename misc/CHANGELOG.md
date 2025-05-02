@@ -1,5 +1,6 @@
 ## unreleased
 
+-	add dedicated event database
 -	rework recording pruning
 
 ## `v0.2.24`
