@@ -2,15 +2,11 @@
 
 use crate::{
     RecDbQuery, RecordingActive, RecordingFinalized, RecordingIncomplete, RecordingResponse,
+    StartAndEnd,
 };
 use common::recording::{RecordingData, RecordingId};
 use fs::{DynFs, Entry, FsError, Open};
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-    str::FromStr,
-    vec::IntoIter,
-};
+use std::{collections::HashMap, path::PathBuf, str::FromStr, vec::IntoIter};
 use thiserror::Error;
 
 // Recordings are stored in the following format.
@@ -57,7 +53,7 @@ impl Crawler {
     pub(crate) async fn recordings_by_query(
         &self,
         query: RecDbQuery,
-        active_recordings: HashSet<RecordingId>,
+        active_recordings: HashMap<RecordingId, StartAndEnd>,
     ) -> Result<Vec<RecordingResponse>, CrawlerError> {
         let fs = self.fs.clone();
         tokio::task::spawn_blocking(move || recordings_by_query(&fs, &query, &active_recordings))
@@ -69,10 +65,11 @@ impl Crawler {
 fn recordings_by_query(
     fs: &DynFs,
     query: &RecDbQuery,
-    active_recordings: &HashSet<RecordingId>,
+    active_recordings: &HashMap<RecordingId, StartAndEnd>,
 ) -> Result<Vec<RecordingResponse>, CrawlerError> {
     let mut recordings = Vec::new();
     let mut year_iter = DirIterYear::new(fs, query.clone())?;
+
     while recordings.len() < query.limit.get() {
         let mut rec = match year_iter.next() {
             Some(rec) => rec?,
@@ -87,9 +84,13 @@ fn recordings_by_query(
             }
         }
 
-        let is_active = active_recordings.contains(&id);
-        if is_active {
-            recordings.push(RecordingResponse::Active(RecordingActive { id }));
+        if let Some(active_rec) = active_recordings.get(&id) {
+            let data = query.include_data.then(|| RecordingData {
+                start: active_rec.start_time.into(),
+                end: active_rec.end_time.into(),
+                events: Vec::new(),
+            });
+            recordings.push(RecordingResponse::Active(RecordingActive { id, data }));
             continue;
         }
 
@@ -573,7 +574,7 @@ mod tests {
             include_data: false,
         };
         let rec = match Crawler::new(crawler_test_fs())
-            .recordings_by_query(query, HashSet::new())
+            .recordings_by_query(query, HashMap::new())
             .await
         {
             Ok(v) => v,
@@ -586,10 +587,7 @@ mod tests {
         if want.is_empty() {
             assert!(rec.is_empty());
         } else {
-            let RecordingResponse::Finalized(rec) = &rec[0] else {
-                panic!("expected active")
-            };
-            let got = rec.id.as_str();
+            let got = rec[0].assert_finalized().id.as_str();
             assert_eq!(want, got);
         }
     }
@@ -613,7 +611,7 @@ mod tests {
             include_data: false,
         };
         let rec = match Crawler::new(crawler_test_fs())
-            .recordings_by_query(query, HashSet::new())
+            .recordings_by_query(query, HashMap::new())
             .await
         {
             Ok(v) => v,
@@ -622,11 +620,7 @@ mod tests {
                 panic!("{e}");
             }
         };
-        let RecordingResponse::Finalized(rec) = &rec[0] else {
-            panic!("expected active")
-        };
-
-        let got = rec.id.as_str();
+        let got = rec[0].assert_finalized().id.as_str();
         assert_eq!(want, got);
     }
 
@@ -641,14 +635,11 @@ mod tests {
             monitors: Vec::new(),
             include_data: false,
         };
-        let recordings = c.recordings_by_query(query, HashSet::new()).await.unwrap();
+        let recordings = c.recordings_by_query(query, HashMap::new()).await.unwrap();
 
         let mut ids = Vec::new();
         for rec in recordings {
-            let RecordingResponse::Finalized(rec) = rec else {
-                panic!("expected active")
-            };
-            ids.push(rec.id.as_str().to_owned());
+            ids.push(rec.assert_finalized().id.as_str().to_owned());
         }
 
         let want = vec![
@@ -672,12 +663,10 @@ mod tests {
             monitors: vec!["m1".to_owned()],
             include_data: false,
         };
-        let rec = c.recordings_by_query(query, HashSet::new()).await.unwrap();
+        let rec = c.recordings_by_query(query, HashMap::new()).await.unwrap();
         assert_eq!(1, rec.len());
-        let RecordingResponse::Finalized(rec) = &rec[0] else {
-            panic!("expected active")
-        };
-        assert_eq!("2003-01-01_01-01-11_m1", rec.id.as_str());
+        let got = rec[0].assert_finalized().id.as_str();
+        assert_eq!("2003-01-01_01-01-11_m1", got);
     }
 
     #[tokio::test]
@@ -691,13 +680,10 @@ mod tests {
             monitors: Vec::new(),
             include_data: true,
         };
-        let rec = c.recordings_by_query(query, HashSet::new()).await.unwrap();
-        let RecordingResponse::Finalized(rec) = &rec[0] else {
-            panic!("expected active")
-        };
+        let rec = c.recordings_by_query(query, HashMap::new()).await.unwrap();
 
         let want: RecordingData = serde_json::from_str(CRAWLER_TEST_DATA).unwrap();
-        let got = rec.data.as_ref().unwrap();
+        let got = rec[0].assert_finalized().data.as_ref().unwrap();
         assert_eq!(&want, got);
     }
 
@@ -712,11 +698,8 @@ mod tests {
             monitors: Vec::new(),
             include_data: true,
         };
-        let rec = c.recordings_by_query(query, HashSet::new()).await.unwrap();
-        let RecordingResponse::Finalized(rec) = &rec[0] else {
-            panic!("expected active")
-        };
-        assert!(rec.data.is_none());
+        let rec = c.recordings_by_query(query, HashMap::new()).await.unwrap();
+        assert!(rec[0].assert_finalized().data.is_none());
     }
 
     #[tokio::test]
@@ -737,7 +720,7 @@ mod tests {
             include_data: false,
         };
         let rec = match Crawler::new(dirs)
-            .recordings_by_query(query, HashSet::new())
+            .recordings_by_query(query, HashMap::new())
             .await
         {
             Ok(v) => v,
@@ -746,10 +729,7 @@ mod tests {
                 panic!("{e}");
             }
         };
-        let RecordingResponse::Finalized(rec) = &rec[0] else {
-            panic!("expected active")
-        };
-        assert_eq!(r_id("2024-05-30_01-01-11_m1"), rec.id);
+        assert_eq!(r_id("2024-05-30_01-01-11_m1"), rec[0].assert_finalized().id);
     }
 
     #[tokio::test]
@@ -763,14 +743,11 @@ mod tests {
             monitors: Vec::new(),
             include_data: false,
         };
-        let recordings = c.recordings_by_query(query, HashSet::new()).await.unwrap();
+        let recordings = c.recordings_by_query(query, HashMap::new()).await.unwrap();
 
         let mut ids = Vec::new();
         for rec in recordings {
-            let RecordingResponse::Finalized(rec) = rec else {
-                panic!("expected active")
-            };
-            ids.push(rec.id.as_str().to_owned());
+            ids.push(rec.assert_finalized().id.as_str().to_owned());
         }
 
         let want = vec![
@@ -793,14 +770,11 @@ mod tests {
             monitors: Vec::new(),
             include_data: false,
         };
-        let recordings = c.recordings_by_query(query, HashSet::new()).await.unwrap();
+        let recordings = c.recordings_by_query(query, HashMap::new()).await.unwrap();
 
         let mut ids = Vec::new();
         for rec in recordings {
-            let RecordingResponse::Finalized(rec) = rec else {
-                panic!("expected active")
-            };
-            ids.push(rec.id.as_str().to_owned());
+            ids.push(rec.assert_finalized().id.as_str().to_owned());
         }
 
         let want = vec![
@@ -843,7 +817,7 @@ mod tests {
             include_data: false,
         };
         let rec = match Crawler::new(dirs)
-            .recordings_by_query(query, HashSet::new())
+            .recordings_by_query(query, HashMap::new())
             .await
         {
             Ok(v) => v,
@@ -852,10 +826,7 @@ mod tests {
                 panic!("{e}");
             }
         };
-        let RecordingResponse::Finalized(rec) = &rec[0] else {
-            panic!("expected active")
-        };
-        assert_eq!(r_id(want), rec.id);
+        assert_eq!(r_id(want), rec[0].assert_finalized().id);
     }
 
     #[test_case("2000-01-01_01-15-00_m1", "2000-01-01_01-10-00_m1", false)]
@@ -886,7 +857,7 @@ mod tests {
             include_data: false,
         };
         let rec = match Crawler::new(dirs)
-            .recordings_by_query(query, HashSet::new())
+            .recordings_by_query(query, HashMap::new())
             .await
         {
             Ok(v) => v,
@@ -895,9 +866,6 @@ mod tests {
                 panic!("{e}");
             }
         };
-        let RecordingResponse::Finalized(rec) = &rec[0] else {
-            panic!("expected active")
-        };
-        assert_eq!(r_id(want), rec.id);
+        assert_eq!(r_id(want), rec[0].assert_finalized().id);
     }
 }

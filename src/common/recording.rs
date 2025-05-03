@@ -17,13 +17,8 @@ use thiserror::Error;
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RecordingData {
-    #[serde(rename = "start")]
     pub start: UnixNano,
-
-    #[serde(rename = "end")]
     pub end: UnixNano,
-
-    #[serde(rename = "events")]
     pub events: Vec<Event>,
 }
 

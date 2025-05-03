@@ -19,6 +19,7 @@ use csv::deserialize_csv_option;
 use disk::UsageError;
 use fs::dir_fs;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::{
     collections::HashSet,
     num::NonZeroUsize,
@@ -80,11 +81,21 @@ impl RecordingResponse {
             RecordingResponse::Incomplete(v) => &v.id,
         }
     }
+
+    #[cfg(test)]
+    #[track_caller]
+    pub(crate) fn assert_finalized(&self) -> &RecordingFinalized {
+        match self {
+            RecordingResponse::Finalized(v) => v,
+            _ => panic!("expected finalized"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
 pub struct RecordingActive {
     id: RecordingId,
+    data: Option<RecordingData>,
 }
 
 #[derive(Debug, Serialize)]
@@ -105,7 +116,13 @@ pub struct RecDb {
     disk: Disk,
 
     // There should only be one active recording per monitor.
-    active_recordings: Arc<std::sync::Mutex<HashSet<RecordingId>>>,
+    active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, StartAndEnd>>>,
+}
+
+#[derive(Clone, Debug)]
+struct StartAndEnd {
+    start_time: UnixH264,
+    end_time: UnixH264,
 }
 
 #[derive(Debug, Error)]
@@ -120,7 +137,7 @@ pub enum NewRecordingError {
     CreateDir(std::io::Error),
 
     #[error("parse recording id: {0}")]
-    RecordingId(#[from] RecordingIdError),
+    RecId(#[from] RecordingIdError),
 }
 
 #[derive(Debug, Error)]
@@ -155,7 +172,7 @@ impl RecDb {
             recordings_dir: recording_dir.clone(),
             crawler: Crawler::new(dir_fs(recording_dir)),
             disk,
-            active_recordings: Arc::new(std::sync::Mutex::new(HashSet::new())),
+            active_recordings: Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
     }
 
@@ -197,21 +214,19 @@ impl RecDb {
         start_time: UnixH264,
     ) -> Result<RecordingHandle, NewRecordingError> {
         use NewRecordingError::*;
-        let start_time: DateTime<Utc> = start_time.into();
-        let ymd = start_time.format("%Y/%m/%d").to_string();
-
+        let start_time2: DateTime<Utc> = start_time.into();
+        let ymd = start_time2.format("%Y/%m/%d").to_string();
         let file_dir = self.recordings_dir.join(ymd).join(&*monitor_id);
 
-        let ymd_hms_id = start_time
+        let ymd_hms_id = start_time2
             .format(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
             .to_string();
+        let recording_id: RecordingId = ymd_hms_id.try_into()?;
+        let path = file_dir.join(recording_id.as_str());
 
-        let path = file_dir.join(&ymd_hms_id);
-        let recording_id = ymd_hms_id.try_into()?;
-
-        let mut path2 = path.clone();
-        path2.set_extension("meta");
-        if path2.exists() {
+        let mut meta_path = path.clone();
+        meta_path.set_extension("meta");
+        if meta_path.exists() {
             return Err(AlreadyExist);
         }
 
@@ -221,11 +236,17 @@ impl RecDb {
 
         {
             let mut active_recordings = self.active_recordings.lock().expect("not poisoned");
-            if active_recordings.contains(&recording_id) {
+            if active_recordings.contains_key(&recording_id) {
                 return Err(AlreadyActive);
             }
             // Function must be infallible after id has been added.
-            active_recordings.insert(recording_id.clone());
+            active_recordings.insert(
+                recording_id.clone(),
+                StartAndEnd {
+                    start_time,
+                    end_time: start_time,
+                },
+            );
         }
 
         Ok(RecordingHandle {
@@ -245,7 +266,7 @@ impl RecDb {
             .active_recordings
             .lock()
             .expect("not poisoned")
-            .contains(&rec_id)
+            .contains_key(&rec_id)
         {
             return (ByteSize(0), Some(DeleteRecordingError::Active));
         }
@@ -423,7 +444,7 @@ pub enum PruneError {
 }
 
 pub struct RecordingHandle {
-    active_recordings: Arc<std::sync::Mutex<HashSet<RecordingId>>>,
+    active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, StartAndEnd>>>,
     id: RecordingId,
 
     path: PathBuf,
@@ -488,6 +509,15 @@ impl RecordingHandle {
             file,
         })
     }
+
+    pub fn set_end_time(&self, end_time: UnixH264) {
+        self.active_recordings
+            .lock()
+            .expect("not poisoned")
+            .get_mut(&self.id)
+            .expect("should exist")
+            .end_time = end_time;
+    }
 }
 
 impl Drop for RecordingHandle {
@@ -496,8 +526,9 @@ impl Drop for RecordingHandle {
             self.active_recordings
                 .lock()
                 .expect("not poisoned")
-                .remove(&self.id),
-            "recording should be in hashset"
+                .remove(&self.id)
+                .is_some(),
+            "recording id should have been in hashmap"
         );
     }
 }

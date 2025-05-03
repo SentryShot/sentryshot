@@ -429,6 +429,7 @@ async fn generate_video(
             .start_time()
             .checked_add(seg.duration().into())
             .ok_or(Add)?;
+        recording.set_end_time(end_time);
 
         if seg.start_time().after(stop_time) {
             return Ok((seg, end_time));
