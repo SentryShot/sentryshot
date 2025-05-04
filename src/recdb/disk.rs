@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 
 #[async_trait]
 pub(crate) trait DiskBytesUsed {
-    async fn bytes(&self, path: PathBuf) -> Result<u64, UsageBytesError>;
+    async fn bytes(&self, path: PathBuf) -> (u64, Option<UsageBytesError>);
 }
 
 // Only used to calculate and cache disk usage.
@@ -33,9 +33,6 @@ struct DiskCache {
 pub enum UsageError {
     #[error("sub")]
     Sub,
-
-    #[error("calculate disk usage: {0}")]
-    CalculateDiskUsage(#[from] UsageBytesError),
 }
 
 impl Disk {
@@ -70,13 +67,18 @@ impl Disk {
         self.max_disk_usage
     }
 
-    pub(crate) async fn usage(&self, max_age: Duration) -> Result<DiskUsage, UsageError> {
+    pub(crate) async fn usage(
+        &self,
+        max_age: Duration,
+    ) -> (Result<DiskUsage, UsageError>, Option<UsageBytesError>) {
         use UsageError::*;
-        let max_time = UnixNano::now().checked_sub(max_age.into()).ok_or(Sub)?;
+        let Some(max_time) = UnixNano::now().checked_sub(max_age.into()) else {
+            return (Err(Sub), None);
+        };
 
         if let Some(cache) = &*self.cache.lock().await {
             if cache.last_update.after(max_time) {
-                return Ok(cache.usage);
+                return (Ok(cache.usage), None);
             }
         }
 
@@ -86,19 +88,19 @@ impl Disk {
         // Check if it was updated while we were waiting for the update lock.
         if let Some(cache) = &*self.cache.lock().await {
             if cache.last_update.after(max_time) {
-                return Ok(cache.usage);
+                return (Ok(cache.usage), None);
             }
         }
         // Still outdated.
 
-        let updated_usage = self.calculate_disk_usage().await?;
+        let (updated_usage, err) = self.calculate_disk_usage().await;
 
         *self.cache.lock().await = Some(DiskCache {
             usage: updated_usage,
             last_update: UnixNano::now(),
         });
 
-        Ok(updated_usage)
+        (Ok(updated_usage), err)
     }
 
     // Returns cached value and age if available.
@@ -114,15 +116,16 @@ impl Disk {
         clippy::cast_possible_truncation,
         clippy::as_conversions
     )]
-    async fn calculate_disk_usage(&self) -> Result<DiskUsage, UsageBytesError> {
-        let used = self.disk_usage.bytes(self.storage_dir.clone()).await?;
+    async fn calculate_disk_usage(&self) -> (DiskUsage, Option<UsageBytesError>) {
+        let (used, err) = self.disk_usage.bytes(self.storage_dir.clone()).await;
         let percent = (((used * 100) as f64) / (self.max_disk_usage.as_u64() as f64)) as f32;
-        Ok(DiskUsage {
+        let usage = DiskUsage {
             used,
             percent,
             //max,
             //formatted: format_disk_usage(used),
-        })
+        };
+        (usage, err)
     }
 }
 
@@ -180,22 +183,42 @@ pub enum UsageBytesError {
     #[error("dir entry: {0}")]
     DirEntry(std::io::Error),
 
-    #[error("metadata: {0}")]
-    Metadata(std::io::Error),
+    #[error("read file metadata: {0} {1}")]
+    Metadata(std::io::Error, PathBuf),
 }
 
 #[async_trait]
 impl DiskBytesUsed for DiskUsageBytes {
-    async fn bytes(&self, path: PathBuf) -> Result<u64, UsageBytesError> {
-        tokio::task::spawn_blocking(move || -> Result<u64, UsageBytesError> {
+    async fn bytes(&self, path: PathBuf) -> (u64, Option<UsageBytesError>) {
+        tokio::task::spawn_blocking(move || -> (u64, Option<UsageBytesError>) {
             use UsageBytesError::*;
             let mut total = 0;
+            let mut err = None;
 
             let mut dirs = vec![path];
             while let Some(dir) = dirs.pop() {
-                for entry in std::fs::read_dir(&dir).map_err(|e| ReadDir(e, dir.clone()))? {
-                    let entry = entry.map_err(DirEntry)?;
-                    let metadata = entry.metadata().map_err(Metadata)?;
+                let entires = match std::fs::read_dir(&dir).map_err(|e| ReadDir(e, dir.clone())) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        err = Some(e);
+                        continue;
+                    }
+                };
+                for entry in entires {
+                    let entry = match entry {
+                        Ok(v) => v,
+                        Err(e) => {
+                            err = Some(DirEntry(e));
+                            continue;
+                        }
+                    };
+                    let metadata = match entry.metadata() {
+                        Ok(v) => v,
+                        Err(e) => {
+                            err = Some(Metadata(e, entry.path()));
+                            continue;
+                        }
+                    };
 
                     total += metadata.len();
 
@@ -204,7 +227,7 @@ impl DiskBytesUsed for DiskUsageBytes {
                     }
                 }
             }
-            Ok(total)
+            (total, err)
         })
         .await
         .expect("join")
@@ -224,8 +247,8 @@ pub(crate) struct StubDiskUsageBytes(pub u64);
 
 #[async_trait]
 impl DiskBytesUsed for StubDiskUsageBytes {
-    async fn bytes(&self, _: PathBuf) -> Result<u64, UsageBytesError> {
-        Ok(self.0)
+    async fn bytes(&self, _: PathBuf) -> (u64, Option<UsageBytesError>) {
+        (self.0, None)
     }
 }
 
@@ -258,8 +281,9 @@ mod tests {
             ByteSize(space),
             Box::new(StubDiskUsageBytes(used)),
         );
-        let got = d.usage(Duration::new(0)).await.unwrap();
-        assert_eq!(want, got);
+        let (got, err) = d.usage(Duration::new(0)).await;
+        assert!(err.is_none());
+        assert_eq!(want, got.unwrap());
     }
 
     #[tokio::test]
@@ -295,8 +319,9 @@ mod tests {
         let (result_tx, result_rx) = oneshot::channel();
         let d2 = d.clone();
         tokio::spawn(async move {
-            let usage = d2.usage(Duration::from_hours(1)).await.unwrap();
-            result_tx.send(usage).unwrap();
+            let (usage, err) = d2.usage(Duration::from_hours(1)).await;
+            assert!(err.is_none());
+            result_tx.send(usage.unwrap()).unwrap();
         });
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
@@ -322,12 +347,13 @@ mod tests {
             Box::new(StubDiskUsageBytes(1000)),
         );
 
-        let got = d.usage(Duration::new(0)).await.unwrap();
+        let (got, err) = d.usage(Duration::new(0)).await;
+        assert!(err.is_none());
         let want = DiskUsage {
             used: 1000,
             percent: f32::INFINITY,
         };
-        assert_eq!(want, got);
+        assert_eq!(want, got.unwrap());
     }
 
     /*t.Run("CensorLog", func(t *testing.T) {

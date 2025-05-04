@@ -368,7 +368,12 @@ impl RecDb {
     // Checks if disk usage is above 99% and deletes recordings until disk usage is below 98%.
     // Returns timestamp of oldest recording.
     pub async fn prune(&self) -> (Option<UnixNano>, Option<PruneError>) {
-        let usage = match self.disk.usage(Duration::from_minutes(9)).await {
+        let (usage, err) = self.disk.usage(Duration::from_minutes(9)).await;
+        if let Some(e) = err {
+            self.logger
+                .log(LogLevel::Error, None, format!("calculate disk usage: {e}"));
+        }
+        let usage = match usage {
             Ok(v) => v,
             Err(e) => return (None, Some(PruneError::Usage(e))),
         };
