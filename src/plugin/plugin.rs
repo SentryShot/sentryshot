@@ -172,7 +172,7 @@ impl PreLoadedPlugins {
     #[must_use]
     pub fn new_auth_fn(&self) -> NewAuthFn {
         let Some(new_auth_fn) = self.new_auth_fn else {
-            eprint!("\n\nERROR: No authentication plugin enabled.\n\n");
+            eprint!("\n\nPlease enable one of the authentication plugins in the generated sentryshot.toml file. See docs for more info\n\n");
             process::exit(1);
         };
         new_auth_fn
