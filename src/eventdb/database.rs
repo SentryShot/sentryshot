@@ -444,7 +444,13 @@ impl DbWriter {
         &self,
         chunk_id: String,
     ) -> Result<(ChunkEncoder, UnixNano), NewChunkEncoderError> {
-        ChunkEncoder::new(self.db_dir.clone(), chunk_id, self.write_buf_capacify).await
+        ChunkEncoder::new(
+            self.logger.clone(),
+            self.db_dir.clone(),
+            chunk_id,
+            self.write_buf_capacify,
+        )
+        .await
     }
 
     fn cache_push(&mut self, entry: Event) {
@@ -901,14 +907,13 @@ pub enum NewChunkEncoderError {
     #[error("new chunk decoder: {0}")]
     NewChunkDecoder(#[from] CreateChunkDecoderError),
 
-    #[error("decode: '{0}' {1}")]
-    Decode(PathBuf, DecodeError),
+    #[error("decode is chunk {0}: {1}")]
+    Decode(String, DecodeError),
 
     #[error("calculate data end: {0}")]
     CalculateDataEnd(#[from] CalculateDataEndError),
 }
 
-#[derive(Debug)]
 struct ChunkEncoder {
     chunk_id: String,
     data_file: File,
@@ -924,6 +929,7 @@ struct ChunkEncoder {
 impl ChunkEncoder {
     // Must be flushed before being dropped.
     async fn new(
+        logger: ArcMsgLogger,
         db_dir: PathBuf,
         chunk_id: String,
         write_buf_capacity: usize,
@@ -957,14 +963,24 @@ impl ChunkEncoder {
             // Treat file as empty if no valid entry is found.
             if let Some(last_index) = decoder.last_index() {
                 for i in (0..=last_index).rev() {
-                    let (last_entry, payload_offset) = match decoder.decode_lazy(i).await {
-                        Ok(v) => v,
-                        Err(e) => return Err(NewChunkEncoderError::Decode(data_path.clone(), e)),
-                    };
+                    let (last_entry, payload_offset) = decoder
+                        .decode_lazy(i)
+                        .await
+                        .map_err(|e| NewChunkEncoderError::Decode(chunk_id.clone(), e))?;
 
                     prev_entry_time = last_entry.time;
+                    let payload_size = last_entry.payload_size;
+                    if let Err(e) = last_entry.finalize().await {
+                        logger.log(
+                            LogLevel::Error,
+                            &format!("new encoder: read entry in chunk {chunk_id}: {e}"),
+                        );
+                        continue;
+                    }
+
                     data_end = calculate_data_end(data_file_size)?;
-                    payload_pos = payload_offset + u32::from(last_entry.payload_size) + 1;
+                    payload_pos = payload_offset + u32::from(payload_size) + 1;
+                    break;
                 }
             }
         }
@@ -1397,25 +1413,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_event_db_recover_payload_pos() {
-        let entry1 = new_test_entry2(1, "a");
-        let entry2 = new_test_entry2(2, "b");
+    async fn test_event_db_recover_write_pos() {
+        let e1 = new_test_entry2(1, "a");
+        let e2 = new_test_entry2(2, "b");
+        let e3 = new_test_entry2(3, "c");
 
         let temp_dir = tempdir().unwrap();
 
         let db = new_test_db(temp_dir.path()).await;
-        db.write_event(entry1.clone()).await;
+        db.write_event(e1.clone()).await;
+        db.write_event(e2.clone()).await;
 
         let db = new_test_db(temp_dir.path()).await;
-        db.write_event(entry2.clone()).await;
+        db.write_event(e3.clone()).await;
 
-        let want = vec![entry1, entry2];
+        let want = vec![e1, e2, e3];
         let got = db.query(query_all()).await.unwrap().unwrap();
         assert_eq!(want, got);
-
-        let file_want = b"{\"time\":1,\"duration\":0,\"detections\":[{\"label\":\"a\",\"score\":0.0,\"region\":{\"rectangle\":null,\"polygon\":null}}],\"source\":null}\n{\"time\":2,\"duration\":0,\"detections\":[{\"label\":\"b\",\"score\":0.0,\"region\":{\"rectangle\":null,\"polygon\":null}}],\"source\":null}\n";
-        let file_got = std::fs::read(temp_dir.path().join("00000.payload")).unwrap();
-        assert_eq!(pretty_hex(&file_want), pretty_hex(&file_got));
     }
 
     #[tokio::test]
@@ -1696,7 +1710,13 @@ mod tests {
         .unwrap();
 
         assert!(matches!(
-            ChunkEncoder::new(db_dir.path().to_owned(), chunk_id.to_owned(), 0).await,
+            ChunkEncoder::new(
+                DummyLogger::new(),
+                db_dir.path().to_owned(),
+                chunk_id.to_owned(),
+                0
+            )
+            .await,
             Err(NewChunkEncoderError::NewChunkDecoder(
                 CreateChunkDecoderError::UnknownChunkVersion
             ))

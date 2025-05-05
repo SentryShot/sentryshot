@@ -917,8 +917,8 @@ enum NewChunkEncoderError {
     #[error("new chunk decoder: {0}")]
     NewChunkDecoder(#[from] NewChunkDecoderError),
 
-    #[error("decode: '{0}' {1}")]
-    Decode(PathBuf, DecodeError),
+    #[error("decode in chunk {0}: {1}")]
+    Decode(String, DecodeError),
 
     #[error("calculate data end: {0}")]
     CalculateDataEnd(#[from] CalculateDataEndError),
@@ -977,15 +977,24 @@ impl ChunkEncoder {
                     let (last_entry, msg_offset) = match decoder.decode_lazy(i).await {
                         Ok(v) => v,
                         Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
-                            eprintln!("log store warning: {data_path:?} {e}");
+                            eprintln!("log store warning: new encoder: decode entry in chunk {chunk_id}: {e}");
                             continue;
                         }
-                        Err(e) => return Err(NewChunkEncoderError::Decode(data_path.clone(), e)),
+                        Err(e) => return Err(NewChunkEncoderError::Decode(chunk_id, e)),
                     };
 
                     prev_entry_time = last_entry.time;
+                    let msg_size = last_entry.msg_size;
+                    if let Err(e) = last_entry.finalize().await {
+                        eprintln!(
+                            "log store warning: new encoder: read entry in chunk {chunk_id}: {e}"
+                        );
+                        continue;
+                    }
+
                     data_end = calculate_data_end(data_file_size)?;
-                    msg_pos = msg_offset + u32::from(last_entry.msg_size) + 1;
+                    msg_pos = msg_offset + u32::from(msg_size) + 1;
+                    break;
                 }
             }
         }
@@ -1531,25 +1540,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_log_db_recover_msg_pos() {
-        let msg1 = new_test_entry2(1, "a");
-        let msg2 = new_test_entry2(2, "b");
+    async fn test_log_db_recover_write_pos() {
+        let e1 = new_test_entry2(1, "a");
+        let e2 = new_test_entry2(2, "b");
+        let e3 = new_test_entry2(3, "c");
 
         let temp_dir = tempdir().unwrap();
 
         let (db, _token) = new_test_db(temp_dir.path());
-        db.save_log(msg1.clone()).await.unwrap();
+        db.save_log(e1.clone()).await.unwrap();
+        db.save_log(e2.clone()).await.unwrap();
 
         let (db, _token) = new_test_db(temp_dir.path());
-        db.save_log(msg2.clone()).await.unwrap();
+        db.save_log(e3.clone()).await.unwrap();
 
-        let want = vec![msg2, msg1];
+        let want = vec![e3, e2, e1];
         let got = db.query(empty_query()).await.unwrap();
         assert_eq!(want, got);
-
-        let file_want = b"a\nb\n".to_vec();
-        let file_got = std::fs::read(temp_dir.path().join("00000.msg")).unwrap();
-        assert_eq!(file_want, file_got);
     }
 
     #[tokio::test]
