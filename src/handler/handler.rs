@@ -18,6 +18,7 @@ use common::{
     AccountId, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger, AuthAccountDeleteError,
     AuthenticatedUser, ILogger, LogEntry, LogLevel, MonitorId,
 };
+use eventdb::{EventDb, EventQuery};
 use hls::{HlsQuery, HlsServer};
 use http::HeaderValue;
 use log::{
@@ -30,7 +31,7 @@ use recdb::{DeleteRecordingError, RecDb, RecDbQuery, RecordingResponse};
 use recording::{new_video_reader, VideoCache};
 use rust_embed::EmbeddedFiles;
 use serde::Deserialize;
-use std::{path::PathBuf, sync::Arc};
+use std::{num::NonZeroUsize, path::PathBuf, sync::Arc};
 use streamer::{PlayReponse, StartSessionReponse, Streamer};
 use thiserror::Error;
 use tokio::sync::{broadcast::error::RecvError, Mutex};
@@ -306,25 +307,61 @@ pub async fn account_my_token_handler(Extension(user): Extension<AuthenticatedUs
 #[derive(Clone)]
 pub struct RecordingQueryHandlerState {
     pub logger: Arc<Logger>,
-    pub rec_db: Arc<RecDb>,
+    pub recdb: Arc<RecDb>,
+    pub eventdb: EventDb,
 }
 
 pub async fn recording_query_handler(
     State(s): State<RecordingQueryHandlerState>,
     query: Query<RecDbQuery>,
 ) -> Result<Json<Vec<RecordingResponse>>, StatusCode> {
-    match s.rec_db.recordings_by_query(&query.0).await {
-        Ok(v) => Ok(Json(v)),
+    let mut recordings = match s.recdb.recordings_by_query(&query.0).await {
+        Ok(v) => v,
         Err(e) => {
             s.logger.log(LogEntry::new(
                 LogLevel::Error,
-                "app",
+                "recdb",
                 None,
-                format!("crawler: could not process recording query: {e}"),
+                format!("query recordings: {e}"),
             ));
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
+    };
+    for rec in &mut recordings {
+        let monitor_id = rec.id().monitor_id().clone();
+        let data = match rec {
+            RecordingResponse::Active(v) => &mut v.data,
+            RecordingResponse::Finalized(v) => &mut v.data,
+            RecordingResponse::Incomplete(_) => continue,
+        };
+        let Some(data) = data else { continue };
+        if !data.events.is_empty() {
+            // Old events populated from recdb.
+            continue;
+        }
+        if data.start == data.end {
+            // Newly started recording.
+            continue;
+        }
+        let query = EventQuery {
+            start: data.start,
+            end: data.end,
+            limit: NonZeroUsize::new(100_000).expect("not zero"),
+        };
+        match s.eventdb.query(monitor_id.clone(), query).await {
+            Ok(Some(v)) => data.events = v,
+            Ok(None) => {}
+            Err(e) => {
+                s.logger.log(LogEntry::new(
+                    LogLevel::Error,
+                    "eventdb",
+                    Some(monitor_id),
+                    format!("query events: {e}"),
+                ));
+            }
+        };
     }
+    Ok(Json(recordings))
 }
 
 #[derive(Clone)]

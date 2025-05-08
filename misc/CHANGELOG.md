@@ -1,5 +1,6 @@
 ## unreleased
 
+-	show detections for active recordings
 -	add dedicated event database
 -	rework recording pruning
 

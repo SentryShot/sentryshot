@@ -95,13 +95,13 @@ impl RecordingResponse {
 #[derive(Debug, Serialize)]
 pub struct RecordingActive {
     id: RecordingId,
-    data: Option<RecordingData>,
+    pub data: Option<RecordingData>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct RecordingFinalized {
     pub id: RecordingId,
-    data: Option<RecordingData>,
+    pub data: Option<RecordingData>,
 }
 
 #[derive(Debug, Serialize)]

@@ -15,7 +15,7 @@ doctest = false
 
 [dependencies]
 common.path = "../common"
-log.path = "../log"
+eventdb.path = "../eventdb"
 recdb.path = "../recdb"
 recording.path = "../recording"
 

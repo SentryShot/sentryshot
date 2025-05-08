@@ -41,13 +41,12 @@ pub fn new_recorder(
 ) -> mpsc::Sender<(Duration, Event)> {
     let (send_event_tx, mut send_event_rx) = mpsc::channel::<(Duration, Event)>(1);
     let c = RecordingContext {
-        hooks: hooks.clone(),
+        hooks,
         logger: Arc::new(RecorderMsgLogger::new(logger, monitor_id)),
         source_main,
         prev_seg: Arc::new(Mutex::new(None)),
-        config: config.clone(),
+        config,
         rec_db,
-        event_cache: Arc::new(EventCache::new()),
     };
 
     // Recorder actor.
@@ -81,7 +80,6 @@ pub fn new_recorder(
                         let Some((trigger_duration, event)) = event else {
                             continue
                         };
-                        hooks.on_event(event.clone(), config.clone()).await;
 
 
                         let Some(end) = event.time.checked_add(trigger_duration.into()) else {
@@ -95,7 +93,6 @@ pub fn new_recorder(
                                 session.timer_end = Some(end);
                             }
                         }
-                        c.event_cache.push(event).await;
                     }
 
                     // This should never complete if monitor is set to always record.
@@ -123,8 +120,6 @@ pub fn new_recorder(
                         let Some((trigger_duration, event)) = event else {
                             return
                         };
-                        //r.hooks.Event(r, &event)
-
                         let Some(end) = event.time.checked_add(trigger_duration.into()) else {
                             continue
                         };
@@ -132,7 +127,6 @@ pub fn new_recorder(
                             continue
                         }
 
-                        c.event_cache.push(event).await;
                         recording_session = Some(RecordingSession::new(
                             &token,
                             Some(end),
@@ -267,7 +261,6 @@ struct RecordingContext {
     prev_seg: Arc<Mutex<Option<Segment>>>,
     config: MonitorConfig,
     rec_db: Arc<RecDb>,
-    event_cache: Arc<EventCache>,
 }
 
 impl RecordingContext {
@@ -343,7 +336,6 @@ async fn run_recording(
         c.logger.clone(),
         recording.id(),
         &recording,
-        c.event_cache,
         UnixNano::from(start_time),
         UnixNano::from(end_time),
     )
@@ -589,19 +581,16 @@ async fn save_recording(
     logger: ArcMsgLogger,
     rec_id: &RecordingId,
     recording: &RecordingHandle,
-    event_cache: Arc<EventCache>,
     start_time: UnixNano,
     end_time: UnixNano,
 ) -> Result<(), SaveRecordingError> {
     use SaveRecordingError::*;
     logger.log(LogLevel::Debug, &format!("saving recording: {rec_id:?}"));
 
-    let events = event_cache.query_and_prune(start_time, end_time).await;
-
     let data = RecordingData {
         start: start_time,
         end: end_time,
-        events,
+        events: Vec::new(),
     };
 
     let json = serde_json::to_vec_pretty(&data)?;
@@ -615,39 +604,6 @@ async fn save_recording(
     logger.log(LogLevel::Info, &format!("recording saved: {rec_id:?}"));
 
     Ok(())
-}
-
-struct EventCache(Mutex<Vec<Event>>);
-
-impl EventCache {
-    fn new() -> Self {
-        Self(Mutex::new(Vec::new()))
-    }
-
-    async fn push(&self, event: Event) {
-        self.0.lock().await.push(event);
-    }
-
-    async fn query_and_prune(&self, start: UnixNano, end: UnixNano) -> Vec<Event> {
-        let mut new_events: Vec<Event> = Vec::new();
-        let mut return_events: Vec<Event> = Vec::new();
-        let mut events = self.0.lock().await;
-        for event in events.drain(..) {
-            if event.time.before(start) {
-                // Discard events before start time.
-                continue;
-            }
-
-            if event.time.before(end) {
-                return_events.push(event.clone());
-            }
-
-            new_events.push(event);
-        }
-        *events = new_events;
-
-        return_events
-    }
 }
 
 struct RecorderMsgLogger {
@@ -675,16 +631,12 @@ impl MsgLogger for RecorderMsgLogger {
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
-    use std::{num::NonZeroU32, path::Path};
-
     use super::*;
     use bytesize::ByteSize;
-    use common::{
-        time::{Duration, MINUTE},
-        Detection, DummyLogger, PointNormalized, RectangleNormalized, Region,
-    };
+    use common::{time::MINUTE, DummyLogger};
     use pretty_assertions::assert_eq;
     use recdb::Disk;
+    use std::path::Path;
     use tempfile::tempdir;
     use tokio::io::AsyncReadExt;
     /*
@@ -988,42 +940,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_save_recording() {
-        let event_cache = Arc::new(EventCache(Mutex::new(vec![
-            Event {
-                time: UnixNano::new(0),
-                duration: Duration::new(0),
-                detections: Vec::new(),
-                source: Some("test".to_owned().try_into().unwrap()),
-            },
-            Event {
-                time: UnixNano::new(2 * MINUTE),
-                duration: Duration::new(11),
-                detections: vec![Detection {
-                    label: "10".to_owned().try_into().unwrap(),
-                    score: 9.0,
-                    region: Region {
-                        rectangle: Some(RectangleNormalized {
-                            x: 1,
-                            y: 2,
-                            width: NonZeroU32::new(3).unwrap(),
-                            height: NonZeroU32::new(4).unwrap(),
-                        }),
-                        polygon: Some(vec![
-                            PointNormalized { x: 5, y: 6 },
-                            PointNormalized { x: 7, y: 8 },
-                        ]),
-                    },
-                }],
-                source: Some("test".to_owned().try_into().unwrap()),
-            },
-            Event {
-                time: UnixNano::new(11 * MINUTE),
-                duration: Duration::new(0),
-                detections: Vec::new(),
-                source: Some("monitor".to_owned().try_into().expect("valid")),
-            },
-        ])));
-
         let start = UnixNano::new(MINUTE);
         let end = UnixNano::new(11 * MINUTE);
         let tempdir = tempdir().unwrap();
@@ -1035,7 +951,6 @@ mod tests {
             DummyLogger::new(),
             &"2000-01-01_01-01-01_x".to_owned().try_into().unwrap(),
             &recording,
-            event_cache,
             start,
             end,
         )
@@ -1049,37 +964,7 @@ mod tests {
         let want = "{
   \"start\": 60000000000,
   \"end\": 660000000000,
-  \"events\": [
-    {
-      \"time\": 120000000000,
-      \"duration\": 11,
-      \"detections\": [
-        {
-          \"label\": \"10\",
-          \"score\": 9.0,
-          \"region\": {
-            \"rectangle\": {
-              \"x\": 1,
-              \"y\": 2,
-              \"width\": 3,
-              \"height\": 4
-            },
-            \"polygon\": [
-              {
-                \"x\": 5,
-                \"y\": 6
-              },
-              {
-                \"x\": 7,
-                \"y\": 8
-              }
-            ]
-          }
-        }
-      ],
-      \"source\": \"test\"
-    }
-  ]
+  \"events\": []
 }";
         assert_eq!(want, got);
     }

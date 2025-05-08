@@ -987,6 +987,7 @@ version = "0.2.24"
 dependencies = [
  "axum 0.8.1",
  "common",
+ "eventdb",
  "hls",
  "http 1.1.0",
  "hyper 1.6.0",
@@ -1537,9 +1538,9 @@ dependencies = [
  "async-trait",
  "bytesize",
  "common",
+ "eventdb",
  "futures-lite",
  "jpeg-encoder",
- "log 0.2.24",
  "pretty-hex",
  "pretty_assertions",
  "recdb",

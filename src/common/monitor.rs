@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use sentryshot_ffmpeg_h264::{H264BuilderError, ReceiveFrameError, SendPacketError};
 use sentryshot_util::Frame;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
+use std::{collections::HashMap, ops::Deref, path::PathBuf, str::FromStr, sync::Arc};
 use thiserror::Error;
 use tokio::{
     runtime::Handle,
@@ -332,7 +332,11 @@ pub trait MonitorImpl {
     // Returns None if cancelled and Some(None) if sub stream doesn't exist.
     async fn source_sub(&self) -> Option<Option<ArcSource>>;
 
-    async fn trigger(&self, trigger_duration: Duration, event: Event);
+    async fn trigger(
+        &self,
+        trigger_duration: Duration,
+        event: Event,
+    ) -> Result<(), CreateEventDbError>;
 }
 
 pub type ArcMonitorHooks = Arc<dyn MonitorHooks + Send + Sync>;
@@ -382,6 +386,12 @@ pub enum MonitorDeleteError {
 
     #[error("remove file: {0}")]
     RemoveFile(#[from] std::io::Error),
+}
+
+#[derive(Debug, Error)]
+pub enum CreateEventDbError {
+    #[error("create eventdb directory: {0} {1}")]
+    CreateDir(PathBuf, std::io::Error),
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]

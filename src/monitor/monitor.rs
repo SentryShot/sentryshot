@@ -3,15 +3,16 @@
 mod recorder;
 mod source;
 
+use eventdb::EventDb;
 pub use source::MonitorSource;
 
 use crate::{recorder::new_recorder, source::SourceRtsp};
 use async_trait::async_trait;
 use common::{
     monitor::{
-        ArcMonitorHooks, ArcSource, ArcStreamer, IMonitorManager, MonitorConfig, MonitorConfigs,
-        MonitorDeleteError, MonitorImpl, MonitorInfo, MonitorRestartError,
-        MonitorSetAndRestartError, MonitorSetError, SourceConfig,
+        ArcMonitorHooks, ArcSource, ArcStreamer, CreateEventDbError, IMonitorManager,
+        MonitorConfig, MonitorConfigs, MonitorDeleteError, MonitorImpl, MonitorInfo,
+        MonitorRestartError, MonitorSetAndRestartError, MonitorSetError, SourceConfig,
     },
     time::Duration,
     ArcLogger, Event, LogEntry, LogLevel, MonitorId, StreamType,
@@ -33,6 +34,9 @@ use tokio_util::sync::CancellationToken;
 type Monitors = HashMap<MonitorId, Arc<Monitor>>;
 pub struct Monitor {
     token: CancellationToken,
+    id: MonitorId,
+    eventdb: EventDb,
+    hooks: ArcMonitorHooks,
     config: MonitorConfig,
     shutdown_complete: Mutex<mpsc::Receiver<()>>,
     source_main_tx: mpsc::Sender<oneshot::Sender<ArcSource>>,
@@ -45,12 +49,6 @@ impl MonitorImpl for Monitor {
     fn config(&self) -> &MonitorConfig {
         &self.config
     }
-
-    // SendEvent sends event to recorder.
-    /*fn SendEvent(&self, event: Event) {
-        _ = self.send_event_tx.send(event)
-        //m.recorder.sendEvent(m.ctx, event)
-    }*/
 
     async fn stop(&self) {
         self.token.cancel();
@@ -100,11 +98,24 @@ impl MonitorImpl for Monitor {
         }
     }
 
-    async fn trigger(&self, trigger_duration: Duration, event: Event) {
+    async fn trigger(
+        &self,
+        trigger_duration: Duration,
+        event: Event,
+    ) -> Result<(), CreateEventDbError> {
+        self.eventdb
+            .write_event_deduplicate_time(&self.id, event.clone())
+            .await?;
+
+        self.hooks
+            .on_event(event.clone(), self.config.clone())
+            .await;
+
         tokio::select! {
             () = self.token.cancelled() => {},
             _ = self.send_event_tx.send((trigger_duration, event)) => {},
         }
+        Ok(())
     }
 }
 
@@ -162,6 +173,7 @@ impl MonitorManager {
     pub fn new(
         config_path: PathBuf,
         rec_db: Arc<RecDb>,
+        eventdb: EventDb,
         logger: ArcLogger,
         streamer: ArcStreamer,
         //hooks *Hooks,
@@ -201,6 +213,7 @@ impl MonitorManager {
                 configs,
                 started_monitors: HashMap::new(),
                 rec_db,
+                eventdb,
                 logger,
                 streamer,
                 path: config_path,
@@ -327,6 +340,7 @@ struct MonitorManagerState {
     started_monitors: Monitors,
 
     rec_db: Arc<RecDb>,
+    eventdb: EventDb,
     logger: ArcLogger,
     streamer: ArcStreamer,
     path: PathBuf,
@@ -521,11 +535,12 @@ impl MonitorManagerState {
     async fn start_monitor(&self, config: MonitorConfig) -> Option<Arc<Monitor>> {
         let hooks = self.hooks.clone().expect("hooks to be set");
 
+        let id = config.id().to_owned();
         if !config.enabled() {
-            log_monitor(&self.logger, LogLevel::Info, config.id(), "disabled");
+            log_monitor(&self.logger, LogLevel::Info, &id, "disabled");
             return None;
         }
-        log_monitor(&self.logger, LogLevel::Info, config.id(), "starting");
+        log_monitor(&self.logger, LogLevel::Info, &id, "starting");
 
         let monitor_token = self.token.child_token();
         let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel(1);
@@ -537,7 +552,7 @@ impl MonitorManagerState {
                     shutdown_complete_tx.clone(),
                     self.logger.clone(),
                     self.streamer.clone(),
-                    config.id().to_owned(),
+                    id.clone(),
                     conf.to_owned(),
                     StreamType::Main,
                 )
@@ -548,7 +563,7 @@ impl MonitorManagerState {
                     shutdown_complete_tx.clone(),
                     self.logger.clone(),
                     self.streamer.clone(),
-                    config.id().to_owned(),
+                    id.clone(),
                     conf.to_owned(),
                     StreamType::Sub,
                 );
@@ -568,7 +583,7 @@ impl MonitorManagerState {
             shutdown_complete_tx.clone(),
             hooks.clone(),
             self.logger.clone(),
-            config.id().to_owned(),
+            id.clone(),
             source_main.clone(),
             config.clone(),
             self.rec_db.clone(),
@@ -579,6 +594,9 @@ impl MonitorManagerState {
 
         let monitor = Arc::new(Monitor {
             token: monitor_token.clone(),
+            id: id.clone(),
+            eventdb: self.eventdb.clone(),
+            hooks: hooks.clone(),
             config: config.clone(),
             shutdown_complete: Mutex::new(shutdown_complete_rx),
             source_main_tx,
@@ -707,12 +725,23 @@ mod tests {
         RecDb::new(DummyLogger::new(), recordings_dir.to_path_buf(), disk)
     }
 
+    fn new_test_eventdb(events_dir: &Path) -> EventDb {
+        let (shutdown_complete_tx, _) = mpsc::channel(1);
+        EventDb::new(
+            CancellationToken::new(),
+            shutdown_complete_tx,
+            DummyLogger::new(),
+            events_dir.to_path_buf(),
+        )
+    }
+
     fn new_test_manager() -> (TempDir, PathBuf, MonitorManager) {
         let (temp_dir, config_dir) = prepare_dir();
 
         let manager = MonitorManager::new(
             config_dir.clone(),
             Arc::new(new_test_recdb(temp_dir.path())),
+            new_test_eventdb(temp_dir.path()),
             DummyLogger::new(),
             Arc::new(DummyStreamer {}),
         )
@@ -740,6 +769,7 @@ mod tests {
         let manager = MonitorManager::new(
             config_dir.clone(),
             Arc::new(new_test_recdb(temp_dir.path())),
+            new_test_eventdb(temp_dir.path()),
             DummyLogger::new(),
             Arc::new(DummyStreamer {}),
         )
@@ -760,6 +790,7 @@ mod tests {
             MonitorManager::new(
                 config_dir,
                 Arc::new(new_test_recdb(temp_dir.path())),
+                new_test_eventdb(temp_dir.path()),
                 DummyLogger::new(),
                 //&video.Server{},
                 //&Hooks{Migrate: func(RawConfig) error { return nil }},

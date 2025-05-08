@@ -15,6 +15,7 @@ doctest = false
 
 [dependencies]
 common.path = "../common"
+eventdb.path = "../eventdb"
 hls.path = "../hls"
 log.path = "../log"
 monitor_groups.path = "../monitor_groups"

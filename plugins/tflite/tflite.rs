@@ -14,7 +14,10 @@ use axum::{
     routing::patch,
 };
 use common::{
-    monitor::{ArcMonitor, ArcMonitorManager, ArcSource, DecoderError, SubscribeDecodedError},
+    monitor::{
+        ArcMonitor, ArcMonitorManager, ArcSource, CreateEventDbError, DecoderError,
+        SubscribeDecodedError,
+    },
     recording::{vertex_inside_poly2, FrameRateLimiter},
     time::{DurationH264, UnixH264, UnixNano},
     ArcLogger, ArcMsgLogger, Detection, Detections, DynEnvConfig, Event, LogEntry, LogLevel,
@@ -211,6 +214,9 @@ enum RunError {
 
     #[error("parse detections: {0}")]
     ParseDetections(#[from] ParseDetectionsError),
+
+    #[error("send event: {0}")]
+    SendEvent(#[from] CreateEventDbError),
 }
 
 impl TflitePlugin {
@@ -366,7 +372,7 @@ impl TflitePlugin {
                         source: Some("tflite".to_owned().try_into().expect("valid")),
                     },
                 )
-                .await;
+                .await?;
         }
     }
 }

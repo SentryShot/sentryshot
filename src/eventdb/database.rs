@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use common::{
+    monitor::CreateEventDbError,
     time::{UnixNano, MINUTE, SECOND},
     ArcMsgLogger, Event, LogLevel,
 };
@@ -132,12 +133,6 @@ enum DatabaseRequest {
     },
 }
 
-#[derive(Debug, Error)]
-pub enum CreateEventDBError {
-    #[error("create eventdb directory: {0} {1}")]
-    CreateDir(PathBuf, std::io::Error),
-}
-
 impl Database {
     pub async fn new(
         shutdown_complete: mpsc::Sender<()>,
@@ -146,14 +141,14 @@ impl Database {
         cache_capacity: usize,
         write_buf_capacify: usize,
         disable_reordering: bool,
-    ) -> Result<Self, CreateEventDBError> {
+    ) -> Result<Self, CreateEventDbError> {
         assert!(cache_capacity >= write_buf_capacify);
         tokio::fs::DirBuilder::new()
             .mode(0o750)
             .recursive(true)
             .create(&db_dir)
             .await
-            .map_err(|e| CreateEventDBError::CreateDir(db_dir.clone(), e))?;
+            .map_err(|e| CreateEventDbError::CreateDir(db_dir.clone(), e))?;
 
         let (tx, mut rx) = mpsc::channel(1);
         let logger2 = logger.clone();
@@ -519,10 +514,11 @@ impl EventDbReader {
         entries: &mut Vec<Event>,
         chunk_id: &String,
     ) -> Result<(), QueryChunkError> {
+        use QueryChunkError::*;
         let mut decoder = ChunkDecoder::new(&self.db_dir, chunk_id).await?;
 
         let entry_index = if first_chunk && decoder.n_entries != 0 {
-            decoder.search(q.start).await?
+            decoder.search(q.start).await.map_err(Search)?
         } else {
             0
         };
@@ -536,7 +532,7 @@ impl EventDbReader {
             let (data_path, _) = chunk_id_to_paths(&self.db_dir, chunk_id);
             let entry = match decoder.decode_lazy(i).await {
                 Ok((v, _)) => v,
-                Err(e) => return Err(QueryChunkError::Decode(e)),
+                Err(e) => return Err(Decode(e)),
             };
             if q.end <= entry.time {
                 break;
@@ -604,10 +600,10 @@ enum QueryChunkError {
     NewChunkDecoder(#[from] CreateChunkDecoderError),
 
     #[error("search: {0}")]
-    Search(#[from] DecoderSearchError),
+    Search(DecodeError),
 
     #[error("decode: {0}")]
-    Decode(#[from] DecodeError),
+    Decode(DecodeError),
 }
 
 #[derive(Debug, Error)]
@@ -724,15 +720,13 @@ impl ChunkDecoder {
     }
 
     // Binary search.
-    async fn search(&mut self, time: UnixNano) -> Result<usize, DecoderSearchError> {
+    async fn search(&mut self, time: UnixNano) -> Result<usize, DecodeError> {
         assert!(self.n_entries != 0);
+
         let (mut l, mut r) = (0, self.n_entries - 1);
         while l <= r {
             let i = (l + r) / 2;
-            let entry = match self.decode_lazy(i).await {
-                Ok((v, _)) => v,
-                Err(e) => return Err(DecoderSearchError::Decode(e)),
-            };
+            let (entry, _) = self.decode_lazy(i).await?;
             // Special case for zeroed entries.
             if *entry.time == 0 {
                 if r == 0 {
@@ -805,7 +799,8 @@ impl<T: AsyncRead + AsyncSeek + Unpin> LazyDbEntry<'_, T> {
             .await
             .map_err(Read)?;
 
-        let detections: Event = serde_json::from_slice(&payload_buf)?;
+        let detections: Event = serde_json::from_slice(&payload_buf)
+            .map_err(|e| Desrialize(e, self.payload_offset, self.payload_size))?;
         Ok(detections)
     }
 }
@@ -850,12 +845,6 @@ pub enum DecodeError {
 
     #[error("read: {0}")]
     Read(std::io::Error),
-}
-
-#[derive(Debug, Error)]
-enum DecoderSearchError {
-    #[error("decode: {0}")]
-    Decode(#[from] DecodeError),
 }
 
 #[derive(Debug, Error)]
@@ -966,7 +955,7 @@ impl ChunkEncoder {
                     let (last_entry, payload_offset) = decoder
                         .decode_lazy(i)
                         .await
-                        .map_err(|e| NewChunkEncoderError::Decode(chunk_id.clone(), e))?;
+                        .map_err(|e| Decode(chunk_id.clone(), e))?;
 
                     prev_entry_time = last_entry.time;
                     let payload_size = last_entry.payload_size;
@@ -1148,8 +1137,8 @@ async fn encode_entry<W: AsyncWrite + Unpin, W2: AsyncWrite + Unpin>(
 
 #[derive(Debug, Error)]
 pub enum RecoverableDecodeError {
-    #[error("deserialize payload: {0}")]
-    Desrialize(#[from] serde_json::Error),
+    #[error("deserialize payload: {0} pos={1} size={2}")]
+    Desrialize(serde_json::Error, u32, u16),
 
     #[error("seek: {0}")]
     Seek(std::io::Error),
@@ -1591,7 +1580,7 @@ mod tests {
                 db.write_event(e.clone()).await;
             }
 
-            for (start, end, want) in cases {
+            for (i, (start, end, want)) in cases.iter().enumerate() {
                 let want: Vec<Event> = want.iter().copied().cloned().collect();
                 let got = db
                     .query(EventQuery {
@@ -1602,7 +1591,7 @@ mod tests {
                     .await
                     .unwrap()
                     .unwrap();
-                assert_eq!(want, got);
+                assert_eq!(want, got, "CASE={i}");
             }
         }
     }

@@ -6,11 +6,14 @@ pub mod slow_poller;
 
 pub use database::{Database, EventQuery};
 
-use common::{time::UnixNano, ArcLogger, Event, LogEntry, LogLevel, MonitorId, MsgLogger};
+use common::{
+    monitor::CreateEventDbError, time::UnixNano, ArcLogger, Event, LogEntry, LogLevel, MonitorId,
+    MsgLogger,
+};
 use database::list_chunks;
 use database::time_to_id;
+use database::QueryEventsError;
 use database::TimeToIdError;
-use database::{CreateEventDBError, QueryEventsError};
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use thiserror::Error;
 use tokio::sync::{mpsc, Mutex};
@@ -66,7 +69,7 @@ impl EventDb {
         &self,
         monitor_id: &MonitorId,
         event: Event,
-    ) -> Result<(), CreateEventDBError> {
+    ) -> Result<(), CreateEventDbError> {
         let Some(db) = self.get_or_create_db(monitor_id).await? else {
             // Cancelled.
             return Ok(());
@@ -90,7 +93,7 @@ impl EventDb {
     async fn get_or_create_db(
         &self,
         monitor_id: &MonitorId,
-    ) -> Result<Option<Database>, CreateEventDBError> {
+    ) -> Result<Option<Database>, CreateEventDbError> {
         let mut databases = self.databases.lock().await;
         let Some(databases) = databases.as_mut() else {
             // Cancelled.
@@ -154,7 +157,7 @@ impl EventDb {
 #[derive(Debug, Error)]
 pub enum QueryError {
     #[error("create database: {0}")]
-    CreateDb(#[from] CreateEventDBError),
+    CreateDb(#[from] CreateEventDbError),
 
     #[error(transparent)]
     Query(#[from] QueryEventsError),

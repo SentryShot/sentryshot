@@ -198,6 +198,7 @@ impl App {
         let monitor_manager = Arc::new(MonitorManager::new(
             monitors_dir,
             recdb.clone(),
+            eventdb.clone(),
             logger.clone(),
             streamer.clone().into(),
         )?);
@@ -322,7 +323,8 @@ impl App {
                 "/api/recording/query",
                 get(recording_query_handler).with_state(RecordingQueryHandlerState {
                     logger: self.logger.clone(),
-                    rec_db: self.recdb.clone(),
+                    recdb: self.recdb.clone(),
+                    eventdb: self.eventdb.clone(),
                 }),
             )
             // Log WebSocket feed.

@@ -15,7 +15,10 @@ use axum::{
     routing::patch,
 };
 use common::{
-    monitor::{ArcMonitor, ArcMonitorManager, ArcSource, DecoderError, SubscribeDecodedError},
+    monitor::{
+        ArcMonitor, ArcMonitorManager, ArcSource, CreateEventDbError, DecoderError,
+        SubscribeDecodedError,
+    },
     recording::FrameRateLimiter,
     time::{DurationH264, UnixH264, UnixNano},
     ArcLogger, ArcMsgLogger, Event, Label, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
@@ -150,6 +153,9 @@ enum RunError {
 
     #[error("convert frame: {0}")]
     ConvertFrame(#[from] ConvertFrameError),
+
+    #[error("send event: {0}")]
+    SendEvent(#[from] CreateEventDbError),
 }
 
 impl MotionPlugin {
@@ -303,7 +309,7 @@ impl MotionPlugin {
                         source: Some("motion".to_owned().try_into().expect("valid")),
                     },
                 )
-                .await;
+                .await?;
         }
     }
 }
