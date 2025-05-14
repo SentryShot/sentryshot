@@ -1,0 +1,29 @@
+diff --git a/tensorflow/lite/tools/cmake/modules/ruy.cmake b/tensorflow/lite/tools/cmake/modules/ruy.cmake
+index 1c5965f9..c1b0bfc7 100644
+--- a/tensorflow/lite/tools/cmake/modules/ruy.cmake
++++ b/tensorflow/lite/tools/cmake/modules/ruy.cmake
+@@ -17,19 +17,13 @@ if(TARGET ruy OR ruy_POPULATED)
+   return()
+ endif()
+ 
+-include(OverridableFetchContent)
++include(FetchContent)
+ 
+-OverridableFetchContent_Declare(
+-  ruy
+-  GIT_REPOSITORY https://github.com/google/ruy
+-  # Sync with tensorflow/third_party/ruy/workspace.bzl
+-  GIT_TAG 3286a34cc8de6149ac6844107dfdffac91531e72
+-  GIT_PROGRESS TRUE
+-  SOURCE_DIR "${CMAKE_BINARY_DIR}/ruy"
+-)
+-OverridableFetchContent_GetProperties(ruy)
++FetchContent_Declare(ruy SOURCE_DIR "${ruy_SOURCE_DIR2}")
++
++FetchContent_GetProperties(ruy)
+ if(NOT ruy_POPULATED)
+-  OverridableFetchContent_Populate(ruy)
++  FetchContent_Populate(ruy)
+ endif()
+ 
+ set(RUY_SOURCE_DIR "${ruy_SOURCE_DIR}" CACHE PATH "RUY source directory")

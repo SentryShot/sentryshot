@@ -25,9 +25,6 @@ usage="Utilities
     $0 clean          # Clean build directories.
   Use 'npm run cover x' to run javascript tests
 "
-#    $0 build        # Build app and plugins in release mode.
-#    $0 build-debug  # Build app plugins in debug mode.
-
 
 # Go to project root.
 script_path=$(readlink -f "$0")
@@ -88,18 +85,8 @@ parse_command() {
 			printf "missing target: 'x86_64', 'aarch64'\n"
 			exit 1
 		fi
-		build_target_nix "$@"
-		exit 0
-		;;
-	build-target-aarch64)
-		shift
-		TFLITELIB="$(pwd)/misc/nix/aarch64-tflite/out"
-		export TFLITELIB
-		# shellcheck disable=SC2016
-		tmp='\$ORIGIN/libs:\$ORIGIN/../libs'
-		CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-L $(pwd)/misc/nix/aarch64-tflite/out -C link-args=-Wl,-rpath,$tmp"
-		export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS
-		build_target "aarch64"
+		target=$*
+		nix-shell --pure ./misc/nix/shell-"$target".nix --run "./misc/utils.sh build-target $target"
 		exit 0
 		;;
 	test-backend | test-back | test-be | test-b | testb)
@@ -258,8 +245,6 @@ build_target() {
 		# Remove the nix runpath.
 		patchelf --remove-rpath "$lib"
 	done
-
-	exit 0
 }
 
 # Removes the nix interpreter prefix.
@@ -280,22 +265,6 @@ patch_interpreter() {
 patch_rpath() {
 	# shellcheck disable=SC2016
 	patchelf --set-rpath '$ORIGIN/libs:$ORIGIN/../libs' "$1"
-}
-
-build_target_nix() {
-	target=$1
-	if [ "$target" = "aarch64" ]; then
-		# aarch64 uses a pre-compiled tflite library because I couldn't get it to cross-compile.
-		export NIXPKGS_ALLOW_UNSUPPORTED_SYSTEM=1
-		# shellcheck disable=SC2016
-		tmp='\$ORIGIN/libs:\$ORIGIN/../libs'
-		nix-shell --pure ./misc/nix/shell-aarch64.nix --run \
-			"TFLITELIB=$(pwd)/misc/nix/aarch64-tflite/out \
-			 CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS=\"-L $(pwd)/misc/nix/aarch64-tflite/out -C link-args=-Wl,-rpath,$tmp\" \
-			 ./misc/utils.sh build-target $*"
-	else
-		nix-shell --pure ./misc/nix/shell-"$target".nix --run "./misc/utils.sh build-target $*"
-	fi
 }
 
 format_frontend() {

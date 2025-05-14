@@ -1,0 +1,29 @@
+diff --git a/tensorflow/lite/tools/cmake/modules/cpuinfo.cmake b/tensorflow/lite/tools/cmake/modules/cpuinfo.cmake
+index 0be87d21..b6f11f84 100644
+--- a/tensorflow/lite/tools/cmake/modules/cpuinfo.cmake
++++ b/tensorflow/lite/tools/cmake/modules/cpuinfo.cmake
+@@ -17,19 +17,13 @@ if(TARGET cpuinfo OR cpuinfo_POPULATED)
+   return()
+ endif()
+ 
+-include(OverridableFetchContent)
++include(FetchContent)
+ 
+-OverridableFetchContent_Declare(
+-  cpuinfo
+-  GIT_REPOSITORY https://github.com/pytorch/cpuinfo
+-  # Sync with tensorflow/third_party/cpuinfo/workspace.bzl
+-  GIT_TAG 3dc310302210c1891ffcfb12ae67b11a3ad3a150
+-  GIT_PROGRESS TRUE
+-  SOURCE_DIR "${CMAKE_BINARY_DIR}/cpuinfo"
+-)
+-OverridableFetchContent_GetProperties(cpuinfo)
++FetchContent_Declare(cpuinfo SOURCE_DIR "${cpuinfo_SOURCE_DIR2}")
++
++FetchContent_GetProperties(cpuinfo)
+ if(NOT cpuinfo_POPULATED)
+-  OverridableFetchContent_Populate(cpuinfo)
++  FetchContent_Populate(cpuinfo)
+ endif()
+ 
+ set(CPUINFO_SOURCE_DIR "${cpuinfo_SOURCE_DIR}" CACHE PATH "CPUINFO source directory")
