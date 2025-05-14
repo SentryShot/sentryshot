@@ -1,0 +1,30 @@
+diff --git a/tensorflow/lite/tools/cmake/modules/abseil-cpp.cmake b/tensorflow/lite/tools/cmake/modules/abseil-cpp.cmake
+index fe91b029..272a7048 100644
+--- a/tensorflow/lite/tools/cmake/modules/abseil-cpp.cmake
++++ b/tensorflow/lite/tools/cmake/modules/abseil-cpp.cmake
+@@ -18,21 +18,12 @@ if(TARGET absl_base OR abseil-cpp_POPULATED)
+   return()
+ endif()
+ 
+-include(OverridableFetchContent)
++include(FetchContent)
+ 
+-OverridableFetchContent_Declare(
+-  abseil-cpp
+-  GIT_REPOSITORY https://github.com/abseil/abseil-cpp
+-  # Sync with tensorflow/third_party/absl/workspace.bzl
+-  GIT_TAG 273292d1cfc0a94a65082ee350509af1d113344d
+-  GIT_SHALLOW TRUE
+-  GIT_PROGRESS TRUE
+-  PREFIX "${CMAKE_BINARY_DIR}"
+-  SOURCE_DIR "${CMAKE_BINARY_DIR}/abseil-cpp"
+-)
+-OverridableFetchContent_GetProperties(abseil-cpp)
++FetchContent_Declare(abseil-cpp SOURCE_DIR "${abseil_SOURCE_DIR2}")
++FetchContent_GetProperties(abseil-cpp)
+ if(NOT abseil-cpp_POPULATED)
+-  OverridableFetchContent_Populate(abseil-cpp)
++  FetchContent_Populate(abseil-cpp)
+ endif()
+ 
+ set(ABSL_USE_GOOGLETEST_HEAD OFF CACHE BOOL "Disable googletest")

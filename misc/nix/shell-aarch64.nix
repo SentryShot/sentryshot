@@ -5,15 +5,17 @@ let
       crossSystem = "aarch64-unknown-linux-gnu";
       overlays = [ (import (fetchTarball "https://github.com/oxalica/rust-overlay/archive/e6679d2ff9136d00b3a7168d2bf1dff9e84c5758.tar.gz")) ];
     }).__splicedPackages;
-  ffmpeg = ( pkgs.callPackage ./ffmpeg.nix {} );
+  ffmpeg = pkgs.callPackage ./ffmpeg.nix {};
+  tflite = pkgs.callPackage ./tflite.nix {};
   libedgetpu = pkgs.callPackage ./libedgetpu.nix {};
 in pkgs.mkShell {
   nativeBuildInputs = [ pkgs.rust-bin.stable."1.75.0".minimal pkgs.pkg-config pkgs.curl ];
-  buildInputs = [ ffmpeg libedgetpu pkgs.libusb1 pkgs.openh264 ];
+  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 pkgs.openh264 ];
 
-  LD_LIBRARY_PATH = "${ffmpeg}/lib:${libedgetpu}/lib:${pkgs.libusb1}/lib:${pkgs.openh264}/lib";
+  LD_LIBRARY_PATH = "${ffmpeg}/lib:${tflite}/lib:${libedgetpu}/lib:${pkgs.libusb1}/lib:${pkgs.openh264}/lib";
 
   FFLIBS = "${ffmpeg}/lib";
+  TFLITELIB = "${tflite}/lib";
   EDGETPULIB= "${libedgetpu}/lib";
   OPENH264LIB= "${pkgs.openh264}/lib";
   CARGO_BUILD_TARGET = "aarch64-unknown-linux-gnu";

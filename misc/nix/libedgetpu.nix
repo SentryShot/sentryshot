@@ -49,7 +49,7 @@ in stdenv.mkDerivation rec {
     rev = "release-${version}";
     sha256 = "sha256-73hwItimf88Iqnb40lk4ul/PzmCNIfdt6Afi+xjNiBE=";
   };
-  patches = ./patches/libedgetpu_makefile.patch;
+  patches = ./libedgetpu_makefile.patch;
 
   makeFlags = ["-f" "makefile_build/Makefile" "libedgetpu"];
 

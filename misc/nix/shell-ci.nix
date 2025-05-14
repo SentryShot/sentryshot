@@ -3,8 +3,7 @@ let
   pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/380be19fbd2d9079f677978361792cb25e8a3635.tar.gz")
   { overlays = [ (import (fetchTarball "https://github.com/oxalica/rust-overlay/archive/e6679d2ff9136d00b3a7168d2bf1dff9e84c5758.tar.gz")) ];};
   ffmpeg = pkgs.callPackage ./ffmpeg.nix {};
-  bazel_5 = pkgs.callPackage ./bazel_5.nix { buildJdk = pkgs.jdk11_headless; runJdk = pkgs.jdk11_headless; };
-  tflite = pkgs.callPackage ./tflite.nix { bazel_5 = bazel_5; };
+  tflite = pkgs.callPackage ./tflite.nix {};
   libedgetpu = pkgs.callPackage ./libedgetpu.nix {};
  in pkgs.mkShell {
   nativeBuildInputs = [
@@ -28,5 +27,4 @@ let
   OPENH264LIB= "${pkgs.openh264}/lib";
   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "clang";
   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-args=-fuse-ld=mold";
-  #CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-args=-fuse-ld=$mold,-Wl,-rpath,$ORIGIN/libs:$ORIGIN/../libs";
 }

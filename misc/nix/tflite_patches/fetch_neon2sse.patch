@@ -1,0 +1,31 @@
+diff --git a/tensorflow/lite/tools/cmake/modules/neon2sse.cmake b/tensorflow/lite/tools/cmake/modules/neon2sse.cmake
+index 1cc6af80..4b6ee7d2 100644
+--- a/tensorflow/lite/tools/cmake/modules/neon2sse.cmake
++++ b/tensorflow/lite/tools/cmake/modules/neon2sse.cmake
+@@ -14,22 +14,17 @@
+ # limitations under the License.
+ 
+ include(ExternalProject)
++include(FetchContent)
+ 
+ if(TARGET neon2sse OR neon2sse_POPULATED)
+   return()
+ endif()
+ 
+-OverridableFetchContent_Declare(
+-  neon2sse
+-  URL https://storage.googleapis.com/mirror.tensorflow.org/github.com/intel/ARM_NEON_2_x86_SSE/archive/a15b489e1222b2087007546b4912e21293ea86ff.tar.gz
+-  # Sync with tensorflow/workspace2.bzl
+-  URL_HASH SHA256=019fbc7ec25860070a1d90e12686fc160cfb33e22aa063c80f52b363f1361e9d
+-  SOURCE_DIR "${CMAKE_BINARY_DIR}/neon2sse"
+-)
++FetchContent_Declare(neon2sse SOURCE_DIR "${neon2sse_SOURCE_DIR2}")
+ 
+-OverridableFetchContent_GetProperties(neon2sse)
++FetchContent_GetProperties(neon2sse)
+ if(NOT neon2sse_POPULATED)
+-  OverridableFetchContent_Populate(neon2sse)
++  FetchContent_Populate(neon2sse)
+ endif()
+ 
+ add_subdirectory(
