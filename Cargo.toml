@@ -34,7 +34,7 @@ resolver = "2"
 [workspace.package]
 version = "0.2.26"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.85"
 license = "GPL-2.0+"
 
 [workspace.dependencies]
@@ -94,7 +94,7 @@ features = ["fs" ,"macros", "rt-multi-thread", "signal", "sync", "time"]
 
 
 [workspace.lints.clippy]
-pedantic = "warn"
+pedantic = { level = "warn", priority = -1 }
 as_conversions = "warn"
 dbg_macro = "warn"
 empty_structs_with_brackets = "warn"

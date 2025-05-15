@@ -588,8 +588,9 @@ impl RecDbLogger {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use crate::disk::StubDiskUsageBytes;
+
+    use super::*;
     use bytesize::ByteSize;
     use common::DummyLogger;
     use pretty_assertions::assert_eq;

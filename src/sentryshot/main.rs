@@ -10,11 +10,11 @@ use std::{path::PathBuf, process::ExitCode};
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    #[cfg(tokio_unstable)]
+    /*#[cfg(tokio_unstable)]
     {
         println!("tokio tracing enabled");
         console_subscriber::init();
-    }
+    }*/
 
     let rt_handle = tokio::runtime::Handle::current();
 

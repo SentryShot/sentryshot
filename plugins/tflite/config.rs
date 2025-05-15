@@ -50,7 +50,6 @@ pub(crate) struct Mask {
 
 impl TfliteConfig {
     #[allow(clippy::needless_pass_by_value)]
-
     pub(crate) fn parse(
         raw: serde_json::Value,
         logger: ArcMsgLogger,

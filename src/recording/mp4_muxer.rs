@@ -484,7 +484,7 @@ mod tests {
     #[tokio::test]
     #[allow(clippy::too_many_lines)]
     async fn test_generate_mp4() {
-        let samples = vec![
+        let samples = [
             Sample {
                 // VideoSample3. B-Frame.
                 random_access_present: false,

@@ -1,13 +1,13 @@
 let
   # glibc 2.34 nixos-22.05
   pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/380be19fbd2d9079f677978361792cb25e8a3635.tar.gz")
-  { overlays = [ (import (fetchTarball "https://github.com/oxalica/rust-overlay/archive/e6679d2ff9136d00b3a7168d2bf1dff9e84c5758.tar.gz")) ];};
+  { overlays = [ (import (./rust-overlay)) ];};
   ffmpeg = pkgs.callPackage ./ffmpeg.nix {};
   tflite = pkgs.callPackage ./tflite.nix {};
   libedgetpu = pkgs.callPackage ./libedgetpu.nix {};
  in pkgs.mkShell {
   nativeBuildInputs = [
-    pkgs.rust-bin.stable."1.75.0".default
+    pkgs.rust-bin.stable."1.85.0".default
     pkgs.clang
     pkgs.mold
     pkgs.pkg-config

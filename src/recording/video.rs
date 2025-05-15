@@ -383,7 +383,7 @@ mod tests {
             .await
             .unwrap();
 
-        let frames = vec![
+        let frames = [
             VideoSample {
                 pts: UnixH264::new(100_000_000_000_000_000),
                 dts_offset: DtsOffset::new(-1_000_000_000),

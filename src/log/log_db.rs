@@ -456,7 +456,7 @@ async fn list_chunks(log_dir: PathBuf) -> Result<Vec<String>, std::io::Error> {
 
             let is_data_file = Path::new(&name)
                 .extension()
-                .map_or(false, |ext| ext.eq_ignore_ascii_case("data"));
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("data"));
             if name.len() < CHUNK_ID_LENGTH + 5 || !is_data_file {
                 continue;
             }
@@ -1013,7 +1013,7 @@ impl ChunkEncoder {
 
         let mut msg_file = tokio::fs::OpenOptions::new()
             .create(true)
-            .read(true)
+            .truncate(false)
             .write(true)
             .open(msg_path)
             .await
@@ -1143,7 +1143,7 @@ async fn encode_entry<T: AsyncWrite + Unpin, T2: AsyncWrite + Unpin>(
 
     // Write message and newline.
     msg_buf.write_all(entry.message.as_bytes()).await?;
-    msg_buf.write_all(&[b'\n']).await?;
+    msg_buf.write_all(b"\n").await?;
 
     // Time.
     buf.write_all(entry.time.to_be_bytes().as_slice()).await?;
@@ -1631,14 +1631,7 @@ mod tests {
         // Clear data file.
         let file_path = temp_dir.path().join("00000.data");
         tokio::fs::remove_file(&file_path).await.unwrap();
-        let mut file = tokio::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(file_path)
-            .await
-            .unwrap();
-        file.write_all(&[0]).await.unwrap();
-        file.flush().await.unwrap();
+        tokio::fs::write(file_path, &[0]).await.unwrap();
 
         let (db, _token) = new_test_db(temp_dir.path());
 

@@ -326,10 +326,7 @@ fn calculate_reorder_sleep_duration(
     now: UnixNano,
     first_item: Option<UnixNano>,
 ) -> Option<std::time::Duration> {
-    let Some(first_item) = first_item else {
-        return None;
-    };
-    let duration = (first_item + UnixNano::new(11 * SECOND)).sub(now)?;
+    let duration = (first_item? + UnixNano::new(11 * SECOND)).sub(now)?;
     if !duration.is_positive() {
         return Some(std::time::Duration::from_nanos(0));
     }
@@ -580,7 +577,7 @@ pub(crate) async fn list_chunks(db_dir: PathBuf) -> Result<Vec<String>, std::io:
 
             let is_data_file = Path::new(&name)
                 .extension()
-                .map_or(false, |ext| ext.eq_ignore_ascii_case("data"));
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("data"));
             if name.len() < Chunk::ID_LENGTH + 5 || !is_data_file {
                 continue;
             }
@@ -989,7 +986,7 @@ impl ChunkEncoder {
         let mut payload_file = tokio::fs::OpenOptions::new()
             .mode(0o640)
             .create(true)
-            .read(true)
+            .truncate(false)
             .write(true)
             .open(payload_path)
             .await
@@ -1119,7 +1116,7 @@ async fn encode_entry<W: AsyncWrite + Unpin, W2: AsyncWrite + Unpin>(
         return Err(PayloadTooBig(payload.len()));
     };
     payload_buf.write_all(&payload).await?;
-    payload_buf.write_all(&[b'\n']).await?;
+    payload_buf.write_all(b"\n").await?;
 
     // Time.
     buf.write_all(entry.time.to_be_bytes().as_slice()).await?;
@@ -1496,16 +1493,10 @@ mod tests {
         // Clear data file.
         let file_path = temp_dir.path().join("00000.data");
         tokio::fs::remove_file(&file_path).await.unwrap();
-        let mut file = tokio::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(file_path)
-            .await
-            .unwrap();
+
         let magic_bytes: &[u8] = &ChunkHeader::MAGIC_BYTES;
         let header = [magic_bytes, &Chunk::API_VERSION.to_be_bytes()].concat();
-        file.write_all(&header).await.unwrap();
-        file.flush().await.unwrap();
+        tokio::fs::write(file_path, &header).await.unwrap();
 
         let db = new_test_db(temp_dir.path()).await;
 

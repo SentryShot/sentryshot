@@ -8,6 +8,7 @@ use std::{
     os::raw::c_int,
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    ptr::from_ref,
     slice::{self, from_raw_parts},
     str::FromStr,
     time::Duration,
@@ -535,11 +536,11 @@ fn parse_odapi_tensors_output(
         let bottom = t0.get(4 * i + 2).ok_or(RectBounds(i))?;
         let right = t0.get(4 * i + 3).ok_or(RectBounds(i))?;
 
-        let score = score.max(0.0).min(1.0);
-        let top = top.max(0.0).min(1.0);
-        let left = left.max(0.0).min(1.0);
-        let bottom = bottom.max(0.0).min(1.0);
-        let right = right.max(0.0).min(1.0);
+        let score = score.clamp(0.0, 1.0);
+        let top = top.clamp(0.0, 1.0);
+        let left = left.clamp(0.0, 1.0);
+        let bottom = bottom.clamp(0.0, 1.0);
+        let right = right.clamp(0.0, 1.0);
 
         detections.push(Detection {
             score,
@@ -590,12 +591,12 @@ fn parse_nolo_tensor_output(data: &[f32], dims: [u16; 3]) -> Vec<Detection> {
         let bottom = y + h2;
         let right = x + w2;
 
-        let score = score.max(0.0).min(1.0);
+        let score = score.clamp(0.0, 1.0);
         let class = class4 - 4;
-        let top = top.max(0.0).min(1.0);
-        let left = left.max(0.0).min(1.0);
-        let bottom = bottom.max(0.0).min(1.0);
-        let right = right.max(0.0).min(1.0);
+        let top = top.clamp(0.0, 1.0);
+        let left = left.clamp(0.0, 1.0);
+        let bottom = bottom.clamp(0.0, 1.0);
+        let right = right.clamp(0.0, 1.0);
 
         let detection = Detection {
             score,
@@ -626,7 +627,7 @@ fn quantize(buf: &mut [u8], scale: f32, zero_point: i32) -> &[i8] {
         let v = v / scale + (zero_point as f32);
         *b = v as i8 as u8;
     }
-    unsafe { &*(buf as *const [u8] as *const [i8]) }
+    unsafe { &*(from_ref::<[u8]>(buf) as *const [i8]) }
 }
 
 #[allow(clippy::as_conversions, clippy::cast_precision_loss)]

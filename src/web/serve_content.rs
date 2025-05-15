@@ -9,7 +9,7 @@ use http_body::Frame;
 use httpdate::HttpDate;
 use pin_project::pin_project;
 use std::{
-    io::{SeekFrom, Write},
+    io::SeekFrom,
     pin::Pin,
     task::{Context, Poll},
     time::SystemTime,
@@ -51,11 +51,15 @@ where
         set_last_modified(&mut response_headers, last_modified);
     }
 
-    let range_req =
-        match check_preconditions(method, headers, response_headers.clone(), &last_modified) {
-            PreconditionsResult::Done(response) => return response,
-            PreconditionsResult::Range(v) => v,
-        };
+    let range_req = match check_preconditions(
+        method,
+        headers,
+        response_headers.clone(),
+        last_modified.as_ref(),
+    ) {
+        PreconditionsResult::Done(response) => return response,
+        PreconditionsResult::Range(v) => v,
+    };
 
     response_headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("video/mp4"));
 
@@ -236,7 +240,7 @@ fn check_preconditions(
     method: &Method,
     headers: &HeaderMap,
     response_headers: HeaderMap,
-    last_modified: &Option<LastModified>,
+    last_modified: Option<&LastModified>,
 ) -> PreconditionsResult {
     // This function carefully follows RFC 7232 section 6.
     let mut ch = check_if_match(headers);
@@ -293,9 +297,7 @@ fn scan_etag(s: String) -> Option<(String, String)> {
         }
     }
 
-    let Some(s) = s else {
-        return None;
-    };
+    let s = s?;
     if s.as_bytes()[start..].len() < 2 || s.as_bytes()[start] != b'"' {
         return None;
     }
@@ -342,10 +344,7 @@ enum CondResult {
 }
 
 fn get_header(headers: &HeaderMap, name: HeaderName) -> Option<String> {
-    let Some(header) = headers.get(name) else {
-        return None;
-    };
-    let Ok(header) = header.to_str() else {
+    let Ok(header) = headers.get(name)?.to_str() else {
         return None;
     };
     Some(header.to_owned())
@@ -385,7 +384,7 @@ fn check_if_match(headers: &HeaderMap) -> CondResult {
     CondResult::False
 }
 
-fn check_if_unmodified_since(headers: &HeaderMap, modified: &Option<LastModified>) -> CondResult {
+fn check_if_unmodified_since(headers: &HeaderMap, modified: Option<&LastModified>) -> CondResult {
     let if_unmodified_since = headers
         .get(header::IF_UNMODIFIED_SINCE)
         .and_then(IfUnmodifiedSince::from_header_value);
@@ -446,7 +445,7 @@ fn check_if_none_match(headers: &HeaderMap) -> CondResult {
 fn check_if_modified_since(
     method: &Method,
     headers: &HeaderMap,
-    modified: &Option<LastModified>,
+    modified: Option<&LastModified>,
 ) -> CondResult {
     if method != Method::GET && method != Method::HEAD {
         return CondResult::None;
@@ -471,7 +470,7 @@ fn check_if_modified_since(
 fn check_if_range(
     method: &Method,
     headers: &HeaderMap,
-    _modified: &Option<LastModified>,
+    _modified: Option<&LastModified>,
 ) -> CondResult {
     if method != Method::GET && method != Method::HEAD {
         return CondResult::None;
@@ -729,9 +728,9 @@ fn is_ascii_space(b: u8) -> bool {
 }
 
 // Counts how many bytes have been written to it.
-struct CountingWriter(u64);
+//struct CountingWriter(u64);
 
-impl Write for CountingWriter {
+/*impl Write for CountingWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.0 += u64::try_from(buf.len()).expect("len to fit u64");
         Ok(buf.len())
@@ -740,7 +739,7 @@ impl Write for CountingWriter {
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
     }
-}
+}*/
 
 /*func (w *countingWriter) Write(p []byte) (int, error) {
     *w += countingWriter(len(p))

@@ -108,7 +108,6 @@ impl Boxes {
         self
     }
     #[must_use]
-
     pub fn with_children3(mut self, child1: Boxes, child2: Boxes, child3: Boxes) -> Self {
         self.children.extend([child1, child2, child3]);
         self
@@ -230,7 +229,6 @@ impl BoxesAsync {
         self
     }
     #[must_use]
-
     pub fn with_children3(
         mut self,
         child1: BoxesAsync,
@@ -1178,16 +1176,16 @@ impl ImmutableBoxSync for Mdhd {
         }
 
         if self.pad {
-            w.write_all(&[(0b0000_0001 << 7
-                | (self.language[0] & 0b0001_1111) << 2
-                | (self.language[1] & 0b0001_1111) >> 3)])?;
+            w.write_all(&[((0b0000_0001 << 7)
+                | ((self.language[0] & 0b0001_1111) << 2)
+                | ((self.language[1] & 0b0001_1111) >> 3))])?;
         } else {
             w.write_all(&[
-                ((self.language[0] & 0b0001_1111) << 2 | (self.language[1] & 0b0001_1111) >> 3)
+                (((self.language[0] & 0b0001_1111) << 2) | ((self.language[1] & 0b0001_1111) >> 3))
             ])?;
         }
 
-        w.write_all(&[(self.language[1] << 5 | self.language[2] & 0b0001_1111)])?;
+        w.write_all(&[((self.language[1] << 5) | self.language[2] & 0b0001_1111)])?;
         w.write_all(&self.pre_defined.to_be_bytes())?;
         Ok(())
     }
@@ -1219,18 +1217,18 @@ impl ImmutableBoxAsync for Mdhd {
         }
 
         if self.pad {
-            w.write_all(&[(0b0000_0001 << 7
-                | (self.language[0] & 0b0001_1111) << 2
-                | (self.language[1] & 0b0001_1111) >> 3)])
+            w.write_all(&[((0b0000_0001 << 7)
+                | ((self.language[0] & 0b0001_1111) << 2)
+                | ((self.language[1] & 0b0001_1111) >> 3))])
                 .await?;
         } else {
             w.write_all(&[
-                ((self.language[0] & 0b0001_1111) << 2 | (self.language[1] & 0b0001_1111) >> 3)
+                (((self.language[0] & 0b0001_1111) << 2) | ((self.language[1] & 0b0001_1111) >> 3))
             ])
             .await?;
         }
 
-        w.write_all(&[(self.language[1] << 5 | self.language[2] & 0b0001_1111)])
+        w.write_all(&[((self.language[1] << 5) | self.language[2] & 0b0001_1111)])
             .await?;
         w.write_all(&self.pre_defined.to_be_bytes()).await?;
         Ok(())
@@ -1755,8 +1753,8 @@ impl ImmutableBoxSync for AvcC {
         w.write_all(&self.profile.to_be_bytes())?;
         w.write_all(&self.profile_compatibility.to_be_bytes())?;
         w.write_all(&self.level.to_be_bytes())?;
-        w.write_all(&[self.reserved << 2 | self.length_size_minus_one & 0b0000_0011])?;
-        w.write_all(&[self.reserved2 << 5 | self.num_of_sequence_parameter_sets & 0b0001_1111])?;
+        w.write_all(&[(self.reserved << 2) | self.length_size_minus_one & 0b0000_0011])?;
+        w.write_all(&[(self.reserved2 << 5) | self.num_of_sequence_parameter_sets & 0b0001_1111])?;
         for sets in &self.sequence_parameter_sets {
             sets.marshal_field(w)?;
         }
@@ -1773,9 +1771,9 @@ impl ImmutableBoxSync for AvcC {
             panic!("fmp4 each values of profile and high_profile_fields_enabled are inconsistent")
         }
         if self.reserved3 != 0 {
-            w.write_all(&[self.reserved3 << 2 | self.chroma_format & 0b0000_0011])?;
-            w.write_all(&[self.reserved4 << 3 | self.bitdepth_luma_minus_8 & 0b0000_0111])?;
-            w.write_all(&[self.reserved5 << 3 | self.bitdepth_chroma_minus_8 & 0b0000_0111])?;
+            w.write_all(&[(self.reserved3 << 2) | self.chroma_format & 0b0000_0011])?;
+            w.write_all(&[(self.reserved4 << 3) | self.bitdepth_luma_minus_8 & 0b0000_0111])?;
+            w.write_all(&[(self.reserved5 << 3) | self.bitdepth_chroma_minus_8 & 0b0000_0111])?;
             w.write_all(&self.num_of_sequence_parameter_set_ext.to_be_bytes())?;
             for sets in &self.sequence_parameter_sets_ext {
                 sets.marshal_field(w)?;
@@ -1797,9 +1795,9 @@ impl ImmutableBoxAsync for AvcC {
         w.write_all(&self.profile_compatibility.to_be_bytes())
             .await?;
         w.write_all(&self.level.to_be_bytes()).await?;
-        w.write_all(&[self.reserved << 2 | self.length_size_minus_one & 0b0000_0011])
+        w.write_all(&[(self.reserved << 2) | self.length_size_minus_one & 0b0000_0011])
             .await?;
-        w.write_all(&[self.reserved2 << 5 | self.num_of_sequence_parameter_sets & 0b0001_1111])
+        w.write_all(&[(self.reserved2 << 5) | self.num_of_sequence_parameter_sets & 0b0001_1111])
             .await?;
         for sets in &self.sequence_parameter_sets {
             sets.marshal_field2(w).await?;
@@ -1818,11 +1816,11 @@ impl ImmutableBoxAsync for AvcC {
             panic!("fmp4 each values of profile and high_profile_fields_enabled are inconsistent")
         }
         if self.reserved3 != 0 {
-            w.write_all(&[self.reserved3 << 2 | self.chroma_format & 0b0000_0011])
+            w.write_all(&[(self.reserved3 << 2) | self.chroma_format & 0b0000_0011])
                 .await?;
-            w.write_all(&[self.reserved4 << 3 | self.bitdepth_luma_minus_8 & 0b0000_0111])
+            w.write_all(&[(self.reserved4 << 3) | self.bitdepth_luma_minus_8 & 0b0000_0111])
                 .await?;
-            w.write_all(&[self.reserved5 << 3 | self.bitdepth_chroma_minus_8 & 0b0000_0111])
+            w.write_all(&[(self.reserved5 << 3) | self.bitdepth_chroma_minus_8 & 0b0000_0111])
                 .await?;
             w.write_all(&self.num_of_sequence_parameter_set_ext.to_be_bytes())
                 .await?;
