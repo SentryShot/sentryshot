@@ -11,7 +11,7 @@ workspace = true
 [lib]
 name = "mqtt"
 path = "mqtt.rs"
-crate-type = ["dylib"]
+crate-type = ["cdylib"]
 doctest = false
 
 [dependencies]

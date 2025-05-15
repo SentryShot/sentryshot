@@ -11,7 +11,7 @@ workspace = true
 [lib]
 name = "auth_none"
 path = "none.rs"
-crate-type = ["dylib"]
+crate-type = ["cdylib"]
 doctest = false
 
 [dependencies]
