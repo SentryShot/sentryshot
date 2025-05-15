@@ -11,7 +11,7 @@ workspace = true
 [lib]
 name = "motion"
 path = "motion.rs"
-crate-type = ["dylib"]
+crate-type = ["cdylib"]
 doctest = false
 
 [dependencies]

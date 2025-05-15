@@ -63,7 +63,7 @@ TODO:
 
 ## The Plugin System
 
-Each plugin is a `dylib` shared library. Enabled plugins are loaded at runtime with [libloading](https://github.com/nagisa/rust_libloading), unloading or reloading is not supported.
+Each plugin is a `cdylib` shared library. Enabled plugins are loaded at runtime with [libloading](https://github.com/nagisa/rust_libloading), unloading or reloading is not supported.
 
 https://github.com/luojia65/plugin-system-example
 
