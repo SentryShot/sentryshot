@@ -127,18 +127,12 @@ impl BasicAuth {
         &self,
         headers: &HeaderMap<HeaderValue>,
     ) -> Option<ValidateLoginResponse> {
-        let Some(auth_header) = headers.get("Authorization") else {
-            return None;
-        };
-
+        let auth_header = headers.get("Authorization")?;
         let Ok(auth_header_str) = auth_header.to_str() else {
             return None;
         };
 
-        let Some(auth_header) = Basic::decode(auth_header) else {
-            return None;
-        };
-
+        let auth_header = Basic::decode(auth_header)?;
         let Ok(username) = Username::try_from(auth_header.username().to_owned()) else {
             return None;
         };
@@ -149,14 +143,13 @@ impl BasicAuth {
             if let Some(res) = data_guard.response_cache.get(auth_header_str) {
                 return res.clone();
             }
-            let Some(account) = data_guard.account_by_name(&username) else {
-                return None;
-            };
+            let account = data_guard.account_by_name(&username)?;
             if username != account.username {
                 return None;
             }
-            account
             // Release lock.
+            drop(data_guard);
+            account
         };
 
         if self
@@ -207,9 +200,7 @@ pub struct ValidateLoginResponse {
 #[async_trait]
 impl Authenticator for BasicAuth {
     async fn validate_request(&self, headers: &HeaderMap<HeaderValue>) -> ValidateResponse {
-        let Some(valid_login) = self.validate_login(headers).await else {
-            return None;
-        };
+        let valid_login = self.validate_login(headers).await?;
 
         let token_matches = || {
             let Some(csrf_header) = headers.get("X-CSRF-TOKEN") else {

@@ -243,8 +243,10 @@ func (env ConfigEnv) CensorLog(msg string) string {
     return msg
 }*/
 
+#[cfg(test)]
 pub(crate) struct StubDiskUsageBytes(pub u64);
 
+#[cfg(test)]
 #[async_trait]
 impl DiskBytesUsed for StubDiskUsageBytes {
     async fn bytes(&self, _: PathBuf) -> (u64, Option<UsageBytesError>) {

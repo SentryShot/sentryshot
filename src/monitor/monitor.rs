@@ -192,7 +192,7 @@ impl MonitorManager {
             let name = entry.file_name().to_string_lossy().to_string();
             let is_json_file = Path::new(&name)
                 .extension()
-                .map_or(false, |ext| ext.eq_ignore_ascii_case("json"));
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
             if !is_json_file {
                 continue;
             }
@@ -394,7 +394,7 @@ impl MonitorManagerState {
                     res.send(()).expect("caller should receive response");
                 }
                 MonitorManagerRequest::MonitorIsRunning((res, monitor_id)) => {
-                    res.send(self.started_monitors.get(&monitor_id).is_some())
+                    res.send(self.started_monitors.contains_key(&monitor_id))
                         .expect("caller should receive response");
                 }
             }

@@ -5,7 +5,7 @@ pub fn minify(files: &mut HashMap<String, Cow<'static, [u8]>>) {
     for (name, file) in files.iter_mut() {
         if std::path::Path::new(name)
             .extension()
-            .map_or(false, |ext| ext.eq_ignore_ascii_case("js"))
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("js"))
         {
             *file = minify_javascript(file).into();
         }
@@ -139,7 +139,7 @@ impl<'a, T: Copy> WindowIter<'a, T> {
     }
 }
 
-impl<'a, T: Copy> Iterator for WindowIter<'a, T> {
+impl<T: Copy> Iterator for WindowIter<'_, T> {
     type Item = (T, Option<T>);
 
     fn next(&mut self) -> Option<Self::Item> {

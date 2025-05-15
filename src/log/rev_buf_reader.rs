@@ -113,7 +113,7 @@ impl<R: AsyncRead + AsyncSeek> AsyncRead for RevBufReader<R> {
 }
 
 enum ReadState {
-    /// poll_fill_buf has not been called.
+    /// `poll_fill_buf` has not been called.
     Init,
     // start_seek has been called and poll_complete is pending.
     Seek(usize),
@@ -125,7 +125,7 @@ impl<R: AsyncRead + AsyncSeek> AsyncBufRead for RevBufReader<R> {
     fn poll_fill_buf<'a>(
         mut self: Pin<&'a mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<std::io::Result<&[u8]>> {
+    ) -> Poll<std::io::Result<&'a [u8]>> {
         let read = |s: Pin<&'a mut Self>,
                     cx: &mut Context,
                     new_pos: usize|
@@ -206,9 +206,9 @@ impl<R: AsyncRead + AsyncSeek> AsyncBufRead for RevBufReader<R> {
 
 #[derive(Debug, Clone, Copy)]
 enum SeekState {
-    /// start_seek has not been called.
+    /// `start_seek` has not been called.
     Init,
-    /// start_seek has been called, but poll_complete has not yet been called.
+    /// `start_seek` has been called, but `poll_complete` has not yet been called.
     Start(SeekFrom),
 }
 

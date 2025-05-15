@@ -43,7 +43,7 @@ pub async fn rec_to_mp4(path: PathBuf) -> Result<(), RecToMp4Error> {
             let file_name = entry.file_name().to_string_lossy().to_string();
             let is_meta_file = Path::new(&file_name)
                 .extension()
-                .map_or(false, |ext| ext.eq_ignore_ascii_case("meta"));
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("meta"));
             if !is_meta_file {
                 continue;
             }
@@ -123,6 +123,7 @@ async fn convert(recording_path: PathBuf) -> Result<(), ConvertError> {
 
     let mut file = tokio::fs::OpenOptions::new()
         .create(true)
+        .truncate(true)
         .write(true)
         .open(mp4_path)
         .await
