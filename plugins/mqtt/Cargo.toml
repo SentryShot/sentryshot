@@ -21,7 +21,7 @@ plugin.path = "../../src/plugin"
 rumqttc = { version ="0.24.0", default-features = false }
 
 async-trait.workspace = true
-chrono.workspace = true
+jiff.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

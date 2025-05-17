@@ -360,16 +360,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "chrono"
-version = "0.4.39"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e36cc9d416881d2e24f9a963be5fb1cd90966419ac844274161d10488b3e825"
-dependencies = [
- "num-traits",
- "serde",
-]
-
-[[package]]
 name = "ciborium"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -428,8 +418,8 @@ dependencies = [
  "async-trait",
  "bytes",
  "bytesize",
- "chrono",
  "http",
+ "jiff",
  "pretty_assertions",
  "sentryshot_ffmpeg_h264",
  "sentryshot_padded_bytes",
@@ -1557,9 +1547,9 @@ name = "mqtt"
 version = "0.2.26"
 dependencies = [
  "async-trait",
- "chrono",
  "common",
  "flume",
+ "jiff",
  "plugin",
  "pretty_assertions",
  "rumqttc",
@@ -1907,10 +1897,10 @@ version = "0.2.26"
 dependencies = [
  "async-trait",
  "bytesize",
- "chrono",
  "common",
  "csv",
  "fs",
+ "jiff",
  "pretty_assertions",
  "recording",
  "serde",

@@ -3,12 +3,12 @@
 mod config;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use common::{
     monitor::MonitorConfig, ArcLogger, Event, EventSource, Label, LogEntry, LogLevel, LogSource,
     MonitorId, MonitorName,
 };
 use config::Config;
+use jiff::Timestamp;
 use plugin::{Application, Plugin, PreLoadPlugin};
 use rumqttc::{ClientError, MqttOptions, QoS};
 use serde::Serialize;
@@ -210,7 +210,7 @@ struct MqttEvent {
     label: Label,
     score: f32,
 
-    time: DateTime<Utc>,
+    time: Timestamp,
     source: EventSource,
 }
 

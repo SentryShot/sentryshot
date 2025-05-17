@@ -54,7 +54,6 @@ argon2 = "0.5.0"
 axum = { version = "0.8.0", default-features = false, features = ["tokio", "http1", "http2", "json", "query", "ws"] }
 bytes = "1.4.0"
 bytesize = "2"
-chrono = { version= "0.4.35", default-features = false, features = ["std", "serde"] }
 console-subscriber = "0.4"
 criterion = { version="0.5.0", features = ["async_tokio"] }
 futures-lite = "2"
@@ -66,6 +65,7 @@ http-body-util = "0.1"
 hyper = { version = "1.6", default-features = false }
 hyper-rustls = { version = "0.27", default-features = false, features = ["ring", "webpki-roots",  "http1"] }
 hyper-util = { version = "0.1", default-features = false }
+jiff = { version = "0.1", default-features = false, features = ["serde"] }
 jpeg-encoder = "0.6.0"
 libloading = "0.8.2"
 mime_guess = { version = "2.0.4", default-features = false }

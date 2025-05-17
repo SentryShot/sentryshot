@@ -4,10 +4,10 @@ mod crawler;
 mod disk;
 
 use bytesize::ByteSize;
-use chrono::{DateTime, Utc};
 use common::time::UnixNano;
 pub use crawler::CrawlerError;
 pub use disk::Disk;
+use jiff::Timestamp;
 
 use common::recording::{RecordingData, RecordingId, RecordingIdError};
 use common::{
@@ -214,12 +214,12 @@ impl RecDb {
         start_time: UnixH264,
     ) -> Result<RecordingHandle, NewRecordingError> {
         use NewRecordingError::*;
-        let start_time2: DateTime<Utc> = start_time.into();
-        let ymd = start_time2.format("%Y/%m/%d").to_string();
+        let start_time2: Timestamp = start_time.into();
+        let ymd = start_time2.strftime("%Y/%m/%d").to_string();
         let file_dir = self.recordings_dir.join(ymd).join(&*monitor_id);
 
         let ymd_hms_id = start_time2
-            .format(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
+            .strftime(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
             .to_string();
         let recording_id: RecordingId = ymd_hms_id.try_into()?;
         let path = file_dir.join(recording_id.as_str());

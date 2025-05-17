@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
@@ -81,9 +81,9 @@ impl UnixNano {
     }
 }
 
-impl From<UnixNano> for DateTime<Utc> {
+impl From<UnixNano> for Timestamp {
     fn from(val: UnixNano) -> Self {
-        DateTime::from_timestamp_nanos(val.0)
+        Timestamp::from_nanosecond(i128::from(val.0)).expect("within Timestamp range")
     }
 }
 
@@ -245,7 +245,7 @@ impl UnixH264 {
     }
 }
 
-impl From<UnixH264> for DateTime<Utc> {
+impl From<UnixH264> for Timestamp {
     fn from(val: UnixH264) -> Self {
         UnixNano::from(val).into()
     }
