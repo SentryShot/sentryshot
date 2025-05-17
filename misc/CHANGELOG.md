@@ -1,5 +1,9 @@
 ## unreleased
 
+## `v0.3.0`
+
+-	BREAKING: destabilize most of the http api
+
 ## `v0.2.26`
 
 -	prune recordings more evenly across monitors #65
