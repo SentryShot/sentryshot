@@ -52,8 +52,11 @@ pub fn logdb_query(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             let entries =
                 h.db.query(LogQuery {
-                    limit: Some(NonZeroUsize::new(20).unwrap()),
-                    ..Default::default()
+                    levels: Vec::new(),
+                    sources: Vec::new(),
+                    time: UnixMicro::new(1_000_000_000_000),
+                    monitors: Vec::new(),
+                    limit: NonZeroUsize::new(20).unwrap(),
                 })
                 .await
                 .unwrap();
@@ -65,9 +68,11 @@ pub fn logdb_query(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             let entries =
                 h.db.query(LogQuery {
+                    levels: Vec::new(),
+                    sources: Vec::new(),
+                    time: UnixMicro::new(1_000_000_000_000),
                     monitors: vec!["x".to_owned().try_into().unwrap()],
-                    limit: Some(NonZeroUsize::new(1).unwrap()),
-                    ..Default::default()
+                    limit: NonZeroUsize::new(1).unwrap(),
                 })
                 .await
                 .unwrap();

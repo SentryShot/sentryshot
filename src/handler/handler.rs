@@ -22,7 +22,7 @@ use eventdb::{EventDb, EventQuery};
 use hls::{HlsQuery, HlsServer};
 use http::HeaderValue;
 use log::{
-    log_db::{LogDb, LogQuery},
+    log_db::{LogDb, LogQuery, QueryLogsError},
     slow_poller::{self, PollQuery, SlowPoller},
     Logger,
 };
@@ -378,7 +378,12 @@ pub async fn log_slow_poll_handler(
 pub async fn log_query_handler(State(log_db): State<LogDb>, query: Query<LogQuery>) -> Response {
     match log_db.query(query.0).await {
         Ok(v) => Json::from(v).into_response(),
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(QueryLogsError::ListChunks(e)) => {
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
+        }
+        Err(QueryLogsError::TimeToId(e)) => {
+            (StatusCode::BAD_REQUEST, e.to_string()).into_response()
+        }
     }
 }
 

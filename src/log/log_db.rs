@@ -120,7 +120,7 @@ impl LogDb {
     pub async fn query(&self, mut q: LogQuery) -> Result<Vec<LogEntryWithTime>, QueryLogsError> {
         let mut entries = Vec::new();
         self.writer.lock().await.query_cache(&mut q, &mut entries);
-        self.new_reader().query_db(q, &mut entries).await?;
+        self.new_reader().query_db(&mut q, &mut entries).await?;
         Ok(entries)
     }
 
@@ -320,20 +320,16 @@ impl LogDbWriter {
 
     fn query_cache(&self, q: &mut LogQuery, entries: &mut Vec<LogEntryWithTime>) {
         for entry in &self.cache {
-            if let Some(time) = q.time {
-                if entry.time >= time {
-                    continue;
-                }
+            if entry.time >= q.time {
+                continue;
             }
             if !entry_matches_query(entry, &*q) {
                 continue;
             }
             entries.push(entry.clone());
-            q.time = Some(entry.time);
-            if let Some(limit) = q.limit {
-                if entries.len() >= limit.get() {
-                    return;
-                }
+            q.time = entry.time;
+            if entries.len() >= q.limit.get() {
+                return;
             }
         }
     }
@@ -346,40 +342,32 @@ struct LogDBReader {
 impl LogDBReader {
     async fn query_db(
         &self,
-        mut q: LogQuery,
+        q: &mut LogQuery,
         entries: &mut Vec<LogEntryWithTime>,
     ) -> Result<(), QueryLogsError> {
-        if let Some(limit) = q.limit {
-            if entries.len() >= limit.get() {
-                return Ok(());
-            }
+        if entries.len() >= q.limit.get() {
+            return Ok(());
         }
 
-        let chunk_ids = {
-            if let Some(time) = q.time {
-                let before_id = time_to_id(time)?;
-                list_chunks(self.log_dir.clone())
-                    .await?
-                    .into_iter()
-                    .filter(|c| c <= &before_id)
-                    .collect()
-            } else {
-                list_chunks(self.log_dir.clone()).await?
+        let before_id = time_to_id(q.time)?;
+
+        let mut first_chunk = true;
+        for chunk_id in list_chunks(self.log_dir.clone()).await?.into_iter().rev() {
+            if chunk_id > before_id {
+                continue;
             }
-        };
-        for chunk_id in chunk_ids.iter().rev() {
-            if let Err(e) = self.query_chunk(&q, entries, chunk_id).await {
+            if let Err(e) = self.query_chunk(q, first_chunk, entries, &chunk_id).await {
                 eprintln!("log store warning: {e}");
             }
-            // Time is only relevant for the first iteration chunk.
-            q.time = None;
+            first_chunk = false;
         }
         Ok(())
     }
 
     async fn query_chunk(
         &self,
-        q: &LogQuery,
+        q: &mut LogQuery,
+        first_chunk: bool,
         entries: &mut Vec<LogEntryWithTime>,
         chunk_id: &String,
     ) -> Result<(), QueryChunkError> {
@@ -387,8 +375,8 @@ impl LogDBReader {
 
         let entry_index = {
             if let Some(last_index) = decoder.last_index() {
-                if let Some(time) = q.time {
-                    decoder.search(time).await?
+                if first_chunk {
+                    decoder.search(q.time).await?
                 } else {
                     last_index + 1
                 }
@@ -400,10 +388,8 @@ impl LogDBReader {
 
         for i in (0..entry_index).rev() {
             // Limit check.
-            if let Some(limit) = q.limit {
-                if entries.len() >= limit.get() {
-                    break;
-                }
+            if entries.len() >= q.limit.get() {
+                break;
             }
 
             let entry = match decoder.decode_lazy(i).await {
@@ -416,7 +402,7 @@ impl LogDBReader {
                 Err(e) => return Err(QueryChunkError::Decode(e)),
             };
 
-            if !entry_matches_query(&entry, q) {
+            if !entry_matches_query(&entry, &*q) {
                 continue;
             }
             let entry = match entry.finalize().await {
@@ -521,7 +507,7 @@ enum PurgeError {
     RemoveMsgFile(String, std::io::Error),
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Deserialize)]
 pub struct LogQuery {
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_csv_option2")]
@@ -531,14 +517,13 @@ pub struct LogQuery {
     #[serde(deserialize_with = "deserialize_csv_option")]
     pub sources: Vec<LogSource>,
 
-    // BREAKING: this should probably be mandatory.
-    pub time: Option<UnixMicro>,
+    pub time: UnixMicro,
 
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_csv_option")]
     pub monitors: Vec<MonitorId>,
 
-    pub limit: Option<NonZeroUsize>,
+    pub limit: NonZeroUsize,
 }
 
 pub struct Entry<'a> {
@@ -741,7 +726,7 @@ impl ChunkDecoder {
             let entry = match self.decode_lazy(i).await {
                 Ok((v, _)) => v,
                 Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
-                    r -= 1;
+                    l += 1;
                     eprintln!("logdb: search: decode error: {e}");
                     continue;
                 }
@@ -751,7 +736,12 @@ impl ChunkDecoder {
             match entry.time.cmp(&time) {
                 Ordering::Less => l = i + 1,
                 Ordering::Equal => return Ok(i),
-                Ordering::Greater => r = i - 1,
+                Ordering::Greater => {
+                    if i == 0 {
+                        return Ok(0);
+                    }
+                    r = i - 1;
+                }
             }
         }
         Ok(l)
@@ -1333,11 +1323,17 @@ mod tests {
         time:  1000,
     }*/
 
+    fn max_time() -> UnixMicro {
+        UnixMicro::new(1_000_000_000_000)
+    }
+
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Warning],
             sources: vec![src("s1")],
-            ..Default::default()
+            time: max_time(),
+            monitors: Vec::new(),
+            limit: NonZeroUsize::new(10).unwrap(),
         },
         &[entry2()];
         "single level"
@@ -1346,7 +1342,9 @@ mod tests {
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning],
             sources: vec![src("s1")],
-            ..Default::default()
+            time: max_time(),
+            monitors: Vec::new(),
+            limit: NonZeroUsize::new(10).unwrap(),
         },
         &[entry1(), entry2()];
         "multiple levels"
@@ -1355,7 +1353,9 @@ mod tests {
         LogQuery{
             levels:  vec![LogLevel::Error, LogLevel::Info],
             sources: vec![src("s1")],
-            ..Default::default()
+            time: max_time(),
+            monitors: Vec::new(),
+            limit: NonZeroUsize::new(10).unwrap(),
         },
         &[entry1()];
         "single source"
@@ -1364,7 +1364,9 @@ mod tests {
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Info],
             sources: vec![src("s1"), src("s2")],
-            ..Default::default()
+            time: max_time(),
+            monitors: Vec::new(),
+            limit: NonZeroUsize::new(10).unwrap(),
         },
         &[entry1(), entry3()];
         "multiple sources"
@@ -1373,8 +1375,9 @@ mod tests {
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Info],
             sources: vec![src("s1"), src("s2")],
+            time: max_time(),
             monitors: vec![m_id("m1")],
-            ..Default::default()
+            limit: NonZeroUsize::new(10).unwrap(),
         },
         &[entry1()];
         "single monitor"
@@ -1383,8 +1386,9 @@ mod tests {
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Info],
             sources: vec![src("s1"), src("s2")],
+            time: max_time(),
             monitors: vec![m_id("m1"), m_id("m2")],
-            ..Default::default()
+            limit: NonZeroUsize::new(10).unwrap(),
         },
         &[entry1(), entry3()];
         "multiple monitors"
@@ -1393,13 +1397,15 @@ mod tests {
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
             sources: vec![src("s1"), src("s2")],
-            ..Default::default()
+            time: max_time(),
+            monitors: Vec::new(),
+            limit: NonZeroUsize::new(10).unwrap(),
         },
         &[entry1(), entry2(), entry3()];
         "all"
     )]
     #[test_case(
-        LogQuery{..Default::default()},
+        empty_query(),
         &[entry1(), entry2(), entry3()];
         "none"
     )]
@@ -1407,8 +1413,9 @@ mod tests {
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
             sources: vec![src("s1"), src("s2")],
-            limit: Some(NonZeroUsize::new(2).unwrap()),
-            ..Default::default()
+            time: max_time(),
+            monitors: Vec::new(),
+            limit: NonZeroUsize::new(2).unwrap(),
         },
         &[entry1(), entry2()];
         "limit"
@@ -1416,8 +1423,10 @@ mod tests {
     #[test_case(
         LogQuery{
             levels: vec![LogLevel::Info],
-            limit: Some(NonZeroUsize::new(1).unwrap()),
-            ..Default::default()
+            sources: Vec::new(),
+            time: max_time(),
+            monitors: Vec::new(),
+            limit: NonZeroUsize::new(1).unwrap(),
         },
         &[entry3()];
         "limit2"
@@ -1426,8 +1435,9 @@ mod tests {
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
             sources: vec![src("s1"), src("s2")],
-            time: Some(UnixMicro::new(4000)),
-            ..Default::default()
+            time: UnixMicro::new(4000),
+            monitors: Vec::new(),
+            limit: NonZeroUsize::new(10).unwrap(),
         },
         &[entry2(), entry3()];
         "exactTime"
@@ -1436,16 +1446,20 @@ mod tests {
         LogQuery{
             levels: vec![LogLevel::Error, LogLevel::Warning, LogLevel::Info, LogLevel::Debug],
             sources: vec![src("s1"), src("s2")],
-            time: Some(UnixMicro::new(3500)),
-            ..Default::default()
+            time: UnixMicro::new(3500),
+            monitors: Vec::new(),
+            limit: NonZeroUsize::new(10).unwrap(),
         },
         &[entry2(), entry3()];
         "time"
     )]
     #[test_case(
         LogQuery{
+            levels: Vec::new(),
+            sources: Vec::new(),
+            time: max_time(),
             monitors: vec![m_id("m2")],
-            ..Default::default()
+            limit: NonZeroUsize::new(10).unwrap(),
         },
         &[entry3()];
         "entry without monitor id"
@@ -1485,7 +1499,11 @@ mod tests {
 
     fn empty_query() -> LogQuery {
         LogQuery {
-            ..Default::default()
+            levels: Vec::new(),
+            sources: Vec::new(),
+            time: max_time(),
+            monitors: Vec::new(),
+            limit: NonZeroUsize::new(10).unwrap(),
         }
     }
 
@@ -1679,7 +1697,6 @@ mod tests {
 
         #[rustfmt::skip]
         let cases = vec![
-            (0,          vec![&e9, &e8, &e7, &e6, &e5, &e4, &e3, &e2, &e1]),
             (*e9.time+1, vec![&e9, &e8, &e7, &e6, &e5, &e4, &e3, &e2, &e1]),
             (*e9.time,   vec![&e8, &e7, &e6, &e5, &e4, &e3, &e2, &e1]),
             (*e8.time,   vec![&e7, &e6, &e5, &e4, &e3, &e2, &e1]),
@@ -1704,16 +1721,12 @@ mod tests {
             }
 
             for (input_time, want) in &cases {
-                let time = {
-                    if *input_time == 0 {
-                        None
-                    } else {
-                        Some(UnixMicro::new(*input_time))
-                    }
-                };
                 let query = LogQuery {
-                    time,
-                    ..Default::default()
+                    levels: Vec::new(),
+                    sources: Vec::new(),
+                    time: UnixMicro::new(*input_time),
+                    monitors: Vec::new(),
+                    limit: NonZeroUsize::new(10).unwrap(),
                 };
                 let got = db.query(query).await.unwrap();
                 let want: Vec<_> = want.iter().copied().cloned().collect();
