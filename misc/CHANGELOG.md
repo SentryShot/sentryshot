@@ -2,6 +2,7 @@
 
 ## `v0.3.0`
 
+-	BREAKING: detector http api now validates csrf token
 -	BREAKING: destabilize most of the http api
 
 ## `v0.2.26`
