@@ -107,11 +107,11 @@ impl Plugin for MotionPlugin {
             monitor_manager: self.monitor_manager.clone(),
         };
         router
-            .route_admin_no_csrf(
+            .route_admin(
                 "/api/monitor/{id}/motion/enable",
                 patch(enable_handler).with_state(state.clone()),
             )
-            .route_admin_no_csrf(
+            .route_admin(
                 "/api/monitor/{id}/motion/disable",
                 patch(disable_handler).with_state(state),
             )

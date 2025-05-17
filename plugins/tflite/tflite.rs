@@ -166,11 +166,11 @@ impl Plugin for TflitePlugin {
             monitor_manager: self.monitor_manager.clone(),
         };
         router
-            .route_admin_no_csrf(
+            .route_admin(
                 "/api/monitor/{id}/tflite/enable",
                 patch(enable_handler).with_state(state.clone()),
             )
-            .route_admin_no_csrf(
+            .route_admin(
                 "/api/monitor/{id}/tflite/disable",
                 patch(disable_handler).with_state(state),
             )
