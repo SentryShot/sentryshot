@@ -4,7 +4,10 @@ use crate::{
     time::{Duration, UnixNano, SECOND},
     Event, MonitorId, ParseMonitorIdError, Point, PointNormalized, Polygon, PolygonNormalized,
 };
-use chrono::{offset::LocalResult, DateTime, TimeZone, Utc};
+use jiff::{
+    civil::{Date, DateTime, Time},
+    tz, Timestamp,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     num::ParseIntError,
@@ -54,8 +57,8 @@ impl RecordingId {
         if value.is_negative() {
             return Err(RecordingIdError::NegativeTime(value));
         }
-        let time: DateTime<Utc> = value.into();
-        time.format(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
+        Timestamp::from(value)
+            .strftime(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
             .to_string()
             .try_into()
             .map(|mut id: Self| {
@@ -177,6 +180,8 @@ pub enum RecordingIdError {
     #[error("invalid monitor id: {0}")]
     InvalidMonitorId(#[from] ParseMonitorIdError),
 
+    #[error("bad year: {0}")]
+    BadYear(u16),
     #[error("bad month: {0}")]
     BadMonth(u8),
     #[error("bad day: {0}")]
@@ -188,17 +193,20 @@ pub enum RecordingIdError {
     #[error("bad second: {0}")]
     BadSecond(u8),
 
-    #[error("time is negative: {0:?}")]
-    NegativeTime(UnixNano),
+    #[error("parse date: {0}")]
+    ParseDate(jiff::Error),
 
-    #[error("time is ambiguous: {0}")]
-    Ambiguous(String),
+    #[error("parse time: {0}")]
+    ParseTime(jiff::Error),
 
-    #[error("time does not exist: {0}")]
-    None(String),
+    #[error("zoned: {0}")]
+    Zoned(jiff::Error),
 
     #[error("can't convert to nanos: {0}")]
-    ConvertToNanos(DateTime<Utc>),
+    ConvertToNanos(Timestamp),
+
+    #[error("time is negative: {0:?}")]
+    NegativeTime(UnixNano),
 }
 
 impl TryFrom<String> for RecordingId {
@@ -230,35 +238,51 @@ impl TryFrom<String> for RecordingId {
         let second: u8 = s[17..19].parse().map_err(InvalidSecond)?;
         let monitor_id = MonitorId::try_from(s[20..].to_owned())?;
 
+        let Ok(year2) = i16::try_from(year) else {
+            return Err(BadYear(year));
+        };
         if month > 12 {
             return Err(BadMonth(month));
         }
+        let Ok(month2) = i8::try_from(month) else {
+            return Err(BadMonth(month));
+        };
         if day > 31 {
             return Err(BadDay(day));
         }
+        let Ok(day2) = i8::try_from(day) else {
+            return Err(BadDay(day));
+        };
         if hour > 24 {
             return Err(BadHour(hour));
         }
+        let Ok(hour2) = i8::try_from(hour) else {
+            return Err(BadHour(hour));
+        };
         if minute > 60 {
             return Err(BadMinute(minute));
         }
+        let Ok(minute2) = i8::try_from(minute) else {
+            return Err(BadMinute(minute));
+        };
         if second > 60 {
             return Err(BadSecond(second));
         }
-
-        let time = match Utc.with_ymd_and_hms(
-            year.into(),
-            month.into(),
-            day.into(),
-            hour.into(),
-            minute.into(),
-            second.into(),
-        ) {
-            LocalResult::Single(v) => v,
-            LocalResult::Ambiguous(_, _) => return Err(Ambiguous(s)),
-            LocalResult::None => return Err(None(s)),
+        let Ok(second2) = i8::try_from(second) else {
+            return Err(BadSecond(second));
         };
-        let nanos = UnixNano::new(time.timestamp_nanos_opt().ok_or(ConvertToNanos(time))?);
+
+        let date = DateTime::from_parts(
+            Date::new(year2, month2, day2).map_err(ParseDate)?,
+            Time::new(hour2, minute2, second2, 0).map_err(ParseTime)?,
+        );
+        let zoned = date.to_zoned(tz::TimeZone::UTC).map_err(Zoned)?;
+        let time = zoned.timestamp();
+        let nanos = UnixNano::new(
+            time.as_nanosecond()
+                .try_into()
+                .map_err(|_| ConvertToNanos(time))?,
+        );
 
         Ok(Self {
             raw: s,
