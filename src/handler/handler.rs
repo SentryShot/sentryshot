@@ -7,7 +7,7 @@ mod test;
 
 use axum::{
     body::Body,
-    extract::{Path, Query, State, WebSocketUpgrade},
+    extract::{Path, Query, State},
     http::{header, HeaderMap, Method, StatusCode, Uri},
     response::{IntoResponse, Response},
     Extension, Json,
@@ -22,7 +22,7 @@ use eventdb::{EventDb, EventQuery};
 use hls::{HlsQuery, HlsServer};
 use http::HeaderValue;
 use log::{
-    log_db::{entry_matches_query, LogDb, LogQuery},
+    log_db::{LogDb, LogQuery},
     slow_poller::{self, PollQuery, SlowPoller},
     Logger,
 };
@@ -34,7 +34,7 @@ use serde::Deserialize;
 use std::{num::NonZeroUsize, path::PathBuf, sync::Arc};
 use streamer::{PlayReponse, StartSessionReponse, Streamer};
 use thiserror::Error;
-use tokio::sync::{broadcast::error::RecvError, Mutex};
+use tokio::sync::Mutex;
 use tokio_util::io::ReaderStream;
 use vod::{CreateVodReaderError, VodCache, VodQuery, VodReader};
 use web::{serve_mp4_content, Templater};
@@ -362,63 +362,6 @@ pub async fn recording_query_handler(
         };
     }
     Ok(Json(recordings))
-}
-
-#[derive(Clone)]
-pub struct LogFeedHandlerState {
-    pub logger: Arc<log::Logger>,
-    pub auth: ArcAuth,
-}
-
-pub async fn log_feed_handler(
-    State(s): State<LogFeedHandlerState>,
-    headers: HeaderMap,
-    query: Query<LogQuery>,
-    ws: WebSocketUpgrade,
-) -> Response {
-    use axum::extract::ws::Message;
-
-    let q = query.0;
-    ws.on_upgrade(move |mut socket| async move {
-        let mut feed = s.logger.subscribe();
-
-        loop {
-            let entry = match feed.recv().await {
-                Ok(entry) => entry,
-                Err(RecvError::Closed) => return,
-                Err(RecvError::Lagged(_)) => continue,
-            };
-
-            if !entry_matches_query(&entry, &q) {
-                continue;
-            }
-
-            // Validate auth before each message.
-            if let Some(valid_login) = s.auth.validate_request(&headers).await {
-                if !valid_login.is_admin {
-                    return;
-                }
-            } else {
-                return;
-            };
-
-            let entry_json =
-                serde_json::to_string(&entry).expect("serializing `log::Entry` to never fail");
-
-            if let Err(e) = socket.send(Message::Text(entry_json.into())).await {
-                if e.to_string() == "IO error: Broken pipe (os error 32)" {
-                    return;
-                }
-                s.logger.log(LogEntry::new(
-                    LogLevel::Error,
-                    "app",
-                    None,
-                    format!("log feed: {e}"),
-                ));
-                return;
-            }
-        }
-    })
 }
 
 pub async fn log_slow_poll_handler(
