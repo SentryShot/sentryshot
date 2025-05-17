@@ -327,14 +327,6 @@ impl App {
                     eventdb: self.eventdb.clone(),
                 }),
             )
-            // Log WebSocket feed.
-            .route_admin_no_csrf(
-                "/api/log/feed",
-                get(log_feed_handler).with_state(LogFeedHandlerState {
-                    logger: self.logger.clone(),
-                    auth: self.auth.clone(),
-                }),
-            )
             // Log slow poll.
             .route_admin_no_csrf(
                 "/api/log/slow-poll",
