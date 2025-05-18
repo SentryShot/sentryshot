@@ -38,6 +38,7 @@ use sentryshot_scale::{CreateScalerError, Scaler, ScalerError};
 use sentryshot_util::ImageCopyToBufferError;
 use std::{
     borrow::Cow,
+    ffi::c_char,
     future::Future,
     num::{NonZeroU16, NonZeroU32, TryFromIntError},
     sync::Arc,
@@ -49,7 +50,7 @@ use tokio_util::sync::CancellationToken;
 use url::Url;
 
 #[no_mangle]
-pub extern "Rust" fn version() -> String {
+pub extern "C" fn version() -> *const c_char {
     plugin::get_version()
 }
 

@@ -20,6 +20,7 @@ use plugin::{
 use rand::{distr::Alphanumeric, Rng};
 use std::{
     collections::HashMap,
+    ffi::c_char,
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf},
@@ -28,7 +29,7 @@ use std::{
 use tokio::{runtime::Handle, sync::Mutex};
 
 #[no_mangle]
-pub extern "Rust" fn version() -> String {
+pub extern "C" fn version() -> *const c_char {
     plugin::get_version()
 }
 
