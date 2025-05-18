@@ -2,11 +2,11 @@
 
 use crate::ArcMonitorHooks;
 use common::{
+    ArcLogger, ArcMsgLogger, ArcStreamerMuxer, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
+    Segment, TrackParameters,
     monitor::{ArcSource, MonitorConfig},
     recording::{RecordingData, RecordingId},
     time::{Duration, DurationH264, UnixH264, UnixNano},
-    ArcLogger, ArcMsgLogger, ArcStreamerMuxer, Event, LogEntry, LogLevel, MonitorId, MsgLogger,
-    Segment, TrackParameters,
 };
 use futures_lite::Future;
 use recdb::{NewRecordingError, OpenFileError, RecDb, RecordingHandle};
@@ -23,7 +23,7 @@ use std::{pin::Pin, sync::Arc, task::Poll};
 use thiserror::Error;
 use tokio::{
     io::{AsyncWriteExt, BufWriter},
-    sync::{mpsc, Mutex},
+    sync::{Mutex, mpsc},
     time::sleep,
 };
 use tokio_util::sync::CancellationToken;
@@ -633,7 +633,7 @@ impl MsgLogger for RecorderMsgLogger {
 mod tests {
     use super::*;
     use bytesize::ByteSize;
-    use common::{time::MINUTE, DummyLogger};
+    use common::{DummyLogger, time::MINUTE};
     use pretty_assertions::assert_eq;
     use recdb::Disk;
     use std::path::Path;

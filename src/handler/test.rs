@@ -8,7 +8,7 @@ use axum::{
     extract::{Path, State},
     response::IntoResponse,
 };
-use http::{header, HeaderMap, StatusCode};
+use http::{HeaderMap, StatusCode, header};
 use pretty_assertions::assert_eq;
 use std::{borrow::Cow, collections::HashMap};
 

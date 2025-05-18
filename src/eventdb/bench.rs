@@ -1,16 +1,16 @@
 #![allow(clippy::unwrap_used)]
 
 use common::{
-    time::{Duration, UnixNano},
     DummyLogger, Event,
+    time::{Duration, UnixNano},
 };
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use eventdb::{Database, EventQuery};
 use std::{num::NonZeroUsize, path::Path};
 use tempfile::tempdir;
 use tokio::{
     runtime::{Handle, Runtime},
-    sync::{mpsc, RwLock},
+    sync::{RwLock, mpsc},
 };
 use tokio_util::sync::CancellationToken;
 

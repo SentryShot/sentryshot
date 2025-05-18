@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use common::{
-    monitor::CreateEventDbError,
-    time::{UnixNano, MINUTE, SECOND},
     ArcMsgLogger, Event, LogLevel,
+    monitor::CreateEventDbError,
+    time::{MINUTE, SECOND, UnixNano},
 };
 use pin_project::pin_project;
 use serde::Deserialize;
 use std::{
     cmp::Ordering,
     collections::{
-        btree_map::Entry::{Occupied, Vacant},
         BTreeMap, VecDeque,
+        btree_map::Entry::{Occupied, Vacant},
     },
     future::Future,
     io::SeekFrom,

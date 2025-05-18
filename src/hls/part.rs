@@ -4,8 +4,8 @@ use crate::{
 };
 use bytes::Bytes;
 use common::{
-    time::{DurationH264, UnixH264, UnixNano},
     VideoSample,
+    time::{DurationH264, UnixH264, UnixNano},
 };
 use mp4::{ImmutableBox, ImmutableBoxSync, TfdtBaseMediaDecodeTime, TrunEntries};
 use std::{io::Cursor, sync::Arc, task::Poll};
@@ -313,7 +313,7 @@ impl AsyncRead for PartsReader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::time::{DtsOffset, UnixH264, SECOND};
+    use common::time::{DtsOffset, SECOND, UnixH264};
     use pretty_assertions::assert_eq;
     use pretty_hex::pretty_hex;
     use sentryshot_padded_bytes::PaddedBytes;

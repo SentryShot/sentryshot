@@ -6,8 +6,8 @@ use crate::{
 };
 use async_trait::async_trait;
 use common::{
-    time::{DurationH264, UnixH264, UnixNano},
     SegmentImpl, VideoSample,
+    time::{DurationH264, UnixH264, UnixNano},
 };
 use std::{mem, sync::Arc};
 use tokio::io::AsyncRead;

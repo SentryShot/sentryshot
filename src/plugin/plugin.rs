@@ -4,13 +4,13 @@ pub mod types;
 
 use async_trait::async_trait;
 use common::{
-    monitor::{ArcMonitor, ArcMonitorManager, MonitorConfig, MonitorHooks},
     ArcAuth, ArcLogger, DynEnvConfig, EnvPlugin, Event, LogEntry, LogLevel, LogSource,
+    monitor::{ArcMonitor, ArcMonitorManager, MonitorConfig, MonitorHooks},
 };
 use libloading::{Library, Symbol};
 use sentryshot_util::Frame;
 use std::{
-    ffi::{c_char, CStr},
+    ffi::{CStr, c_char},
     path::{Path, PathBuf},
     process,
     sync::Arc,
@@ -177,7 +177,9 @@ impl PreLoadedPlugins {
     #[must_use]
     pub fn new_auth_fn(&self) -> NewAuthFn {
         let Some(new_auth_fn) = self.new_auth_fn else {
-            eprint!("\n\nPlease enable one of the authentication plugins in the generated sentryshot.toml file. See docs for more info\n\n");
+            eprint!(
+                "\n\nPlease enable one of the authentication plugins in the generated sentryshot.toml file. See docs for more info\n\n"
+            );
             process::exit(1);
         };
         new_auth_fn

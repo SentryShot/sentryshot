@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::{log_db::entry_matches_query, LogEntryWithTime, UnixMicro};
+use crate::{LogEntryWithTime, UnixMicro, log_db::entry_matches_query};
 use common::{LogLevel, LogSource, MonitorId};
 use csv::{deserialize_csv_option, deserialize_csv_option2};
 use serde::Deserialize;

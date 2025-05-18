@@ -99,7 +99,7 @@ fn parse_mask_image(img: &Vec<Vec<bool>>) -> (Vec<bool>, u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{recording::normalize, PointNormalized};
+    use common::{PointNormalized, recording::normalize};
     use pretty_assertions::assert_eq;
     use test_case::test_case;
 

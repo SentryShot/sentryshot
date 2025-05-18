@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use argon2::{
-    password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
+    password_hash::{SaltString, rand_core::OsRng},
 };
 use async_trait::async_trait;
 use axum::{extract::State, response::IntoResponse, routing::get};
@@ -12,12 +12,12 @@ use common::{
     Authenticator, LogEntry, LogLevel, LogSource, Username, ValidateResponse,
 };
 use headers::authorization::{Basic, Credentials};
-use http::{header, HeaderMap, HeaderValue, StatusCode};
+use http::{HeaderMap, HeaderValue, StatusCode, header};
 use plugin::{
-    types::{NewAuthError, NewAuthFn, Router, Templates},
     Application, Plugin, PreLoadPlugin,
+    types::{NewAuthError, NewAuthFn, Router, Templates},
 };
-use rand::{distr::Alphanumeric, Rng};
+use rand::{Rng, distr::Alphanumeric};
 use std::{
     collections::HashMap,
     ffi::c_char,
@@ -28,12 +28,12 @@ use std::{
 };
 use tokio::{runtime::Handle, sync::Mutex};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn version() -> *const c_char {
     plugin::get_version()
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
     Box::new(PreLoadAuthBasic)
 }
@@ -51,7 +51,7 @@ impl PreLoadPlugin for PreLoadAuthBasic {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(AuthBasicPlugin { auth: app.auth() })
 }
@@ -442,7 +442,7 @@ mod tests {
     use common::{AccountId, DummyLogger};
     use pretty_assertions::assert_eq;
     use std::fs::File;
-    use tempfile::{tempdir, TempDir};
+    use tempfile::{TempDir, tempdir};
     use test_case::test_case;
 
     fn id(v: &str) -> AccountId {

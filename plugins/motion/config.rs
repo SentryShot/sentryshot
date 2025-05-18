@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use common::{
+    PolygonNormalized,
     monitor::MonitorConfig,
     recording::{DurationSec, FeedRateSec},
-    PolygonNormalized,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -100,7 +100,7 @@ pub(crate) fn set_enable(config: &MonitorConfig, value: bool) -> Option<MonitorC
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{time::Duration, PointNormalized};
+    use common::{PointNormalized, time::Duration};
     use pretty_assertions::assert_eq;
     use serde_json::json;
 

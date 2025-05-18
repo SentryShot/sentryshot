@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use recording::{new_video_reader, CreateVideoReaderError};
+use recording::{CreateVideoReaderError, new_video_reader};
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},

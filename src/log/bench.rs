@@ -2,21 +2,21 @@
 
 use bytesize::ByteSize;
 use common::{LogLevel, LogSource, MonitorId};
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use log::{
-    log_db::{LogDb, LogQuery},
     LogEntryWithTime, UnixMicro,
+    log_db::{LogDb, LogQuery},
 };
 use rand::{
-    distr::{Alphanumeric, SampleString},
     Rng, SeedableRng,
+    distr::{Alphanumeric, SampleString},
 };
 use rand_chacha::ChaCha8Rng;
 use std::{num::NonZeroUsize, path::Path};
 use tempfile::tempdir;
 use tokio::{
     runtime::{Handle, Runtime},
-    sync::{mpsc, RwLock},
+    sync::{RwLock, mpsc},
 };
 use tokio_util::sync::CancellationToken;
 

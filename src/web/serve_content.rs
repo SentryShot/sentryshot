@@ -4,7 +4,7 @@ use axum::{
     body::{Body, Bytes},
     response::{IntoResponse, Response},
 };
-use http::{header, HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
+use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, header};
 use http_body::Frame;
 use httpdate::HttpDate;
 use pin_project::pin_project;

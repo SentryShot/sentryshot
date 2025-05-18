@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{
+    Dir, Entry, Fs, Open,
     error::TestFileSystemError,
     map_fs::{index, last_index},
-    Dir, Entry, Fs, Open,
 };
 use std::{
     collections::{HashMap, HashSet},

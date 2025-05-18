@@ -29,7 +29,7 @@ pub trait ImmutableBoxSync: ImmutableBox {
 pub trait ImmutableBoxAsync: ImmutableBox + Send + Sync {
     // Marshal box to writer.
     async fn marshal(&self, w: &mut (dyn AsyncWrite + Unpin + Send + Sync))
-        -> Result<(), Mp4Error>;
+    -> Result<(), Mp4Error>;
 }
 
 #[cfg(test)]

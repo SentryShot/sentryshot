@@ -6,29 +6,29 @@
 mod test;
 
 use axum::{
+    Extension, Json,
     body::Body,
     extract::{Path, Query, State},
-    http::{header, HeaderMap, Method, StatusCode, Uri},
+    http::{HeaderMap, Method, StatusCode, Uri, header},
     response::{IntoResponse, Response},
-    Extension, Json,
 };
 use common::{
-    monitor::{ArcMonitorManager, MonitorConfig, MonitorConfigs, MonitorDeleteError},
-    recording::RecordingId,
     AccountId, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger, AuthAccountDeleteError,
     AuthenticatedUser, ILogger, LogEntry, LogLevel, MonitorId,
+    monitor::{ArcMonitorManager, MonitorConfig, MonitorConfigs, MonitorDeleteError},
+    recording::RecordingId,
 };
 use eventdb::{EventDb, EventQuery};
 use hls::{HlsQuery, HlsServer};
 use http::HeaderValue;
 use log::{
+    Logger,
     log_db::{LogDb, LogQuery, QueryLogsError},
     slow_poller::{self, PollQuery, SlowPoller},
-    Logger,
 };
 use monitor_groups::ArcMonitorGroups;
 use recdb::{DeleteRecordingError, RecDb, RecDbQuery, RecordingResponse};
-use recording::{new_video_reader, VideoCache};
+use recording::{VideoCache, new_video_reader};
 use rust_embed::EmbeddedFiles;
 use serde::Deserialize;
 use std::{num::NonZeroUsize, path::PathBuf, sync::Arc};
@@ -37,7 +37,7 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio_util::io::ReaderStream;
 use vod::{CreateVodReaderError, VodCache, VodQuery, VodReader};
-use web::{serve_mp4_content, Templater};
+use web::{Templater, serve_mp4_content};
 
 pub async fn template_handler(
     Extension(user): Extension<AuthenticatedUser>,
@@ -155,7 +155,7 @@ pub async fn hls_handler(
                     .body(format!("parse path: {e}"))
                     .unwrap(),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -546,7 +546,7 @@ pub async fn recording_thumbnail_handler(
     let file = match tokio::fs::OpenOptions::new().read(true).open(path).await {
         Ok(v) => v,
         Err(e) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("open file: {e}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("open file: {e}")).into_response();
         }
     };
 

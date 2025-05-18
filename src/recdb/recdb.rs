@@ -11,8 +11,8 @@ use jiff::Timestamp;
 
 use common::recording::{RecordingData, RecordingId, RecordingIdError};
 use common::{
-    time::{Duration, UnixH264},
     ArcLogger, LogEntry, LogLevel, MonitorId,
+    time::{Duration, UnixH264},
 };
 use crawler::Crawler;
 use csv::deserialize_csv_option;
@@ -629,17 +629,21 @@ mod tests {
 
         recording.new_file("meta").await.unwrap();
 
-        assert!(rec_db
-            .new_recording(m_id.clone(), UnixH264::new(1))
-            .await
-            .is_err());
+        assert!(
+            rec_db
+                .new_recording(m_id.clone(), UnixH264::new(1))
+                .await
+                .is_err()
+        );
 
         drop(recording);
 
-        assert!(rec_db
-            .new_recording(m_id.clone(), UnixH264::new(1))
-            .await
-            .is_err());
+        assert!(
+            rec_db
+                .new_recording(m_id.clone(), UnixH264::new(1))
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]

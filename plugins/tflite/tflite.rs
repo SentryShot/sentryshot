@@ -9,31 +9,31 @@ use crate::{config::TfliteConfig, detector::DetectorManager};
 use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
-    http::{uri::InvalidUri, StatusCode},
+    http::{StatusCode, uri::InvalidUri},
     response::{IntoResponse, Response},
     routing::patch,
 };
 use common::{
+    ArcLogger, ArcMsgLogger, Detection, Detections, DynEnvConfig, Event, LogEntry, LogLevel,
+    LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
     monitor::{
         ArcMonitor, ArcMonitorManager, ArcSource, CreateEventDbError, DecoderError,
         SubscribeDecodedError,
     },
-    recording::{vertex_inside_poly2, FrameRateLimiter},
+    recording::{FrameRateLimiter, vertex_inside_poly2},
     time::{DurationH264, UnixH264, UnixNano},
-    ArcLogger, ArcMsgLogger, Detection, Detections, DynEnvConfig, Event, LogEntry, LogLevel,
-    LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
 };
-use config::{set_enable, Crop, Mask};
+use config::{Crop, Mask, set_enable};
 use detector::{DetectError, Detector, DetectorName, Thresholds};
 use http_body_util::BodyExt;
 use plugin::{
-    types::{Assets, Router},
     Application, Plugin, PreLoadPlugin,
+    types::{Assets, Router},
 };
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
 };
-use sentryshot_filter::{crop, pad, CropError, PadError};
+use sentryshot_filter::{CropError, PadError, crop, pad};
 use sentryshot_scale::{CreateScalerError, Scaler, ScalerError};
 use sentryshot_util::ImageCopyToBufferError;
 use std::{
@@ -49,12 +49,12 @@ use tokio::{runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn version() -> *const c_char {
     plugin::get_version()
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
     Box::new(PreLoadTflite)
 }
@@ -66,7 +66,7 @@ impl PreLoadPlugin for PreLoadTflite {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     app.rt_handle().block_on(async {
         Arc::new(
@@ -517,11 +517,7 @@ fn calculate_outputs(crop: Crop, i: &Inputs) -> Result<(Outputs, Uncrop), Calcul
 
     // Add 1 to odd inputs.
     fn even(input: u16) -> u16 {
-        if input & 1 != 0 {
-            input + 1
-        } else {
-            input
-        }
+        if input & 1 != 0 { input + 1 } else { input }
     }
 
     Ok((
@@ -767,10 +763,10 @@ where
 
 #[allow(clippy::similar_names)]
 async fn fetch(url: &Url, rt_handle: Handle) -> Result<Vec<u8>, FetchError> {
+    use FetchError::*;
     use http_body_util::Full;
     use hyper::body::Bytes;
     use hyper_util::client::legacy::Client;
-    use FetchError::*;
 
     let uri = url.as_str().parse()?;
     let https = hyper_rustls::HttpsConnectorBuilder::new()
@@ -885,8 +881,8 @@ mod tests {
     use super::*;
     use crate::config::{Crop, CropSize, CropValue};
     use common::{
-        recording::{denormalize, normalize},
         Label, PointNormalized,
+        recording::{denormalize, normalize},
     };
     use pretty_assertions::assert_eq;
     use test_case::test_case;
@@ -1051,9 +1047,11 @@ mod tests {
             enable: false,
             area: Vec::new(),
         };
-        assert!(parse_detections(&thresholds, &mask, &reverse, detections)
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_detections(&thresholds, &mask, &reverse, detections)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

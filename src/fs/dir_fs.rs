@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::{error::FsError, valid_path, Dir, DynFs, Entry, File, Fs, Open};
+use crate::{Dir, DynFs, Entry, File, Fs, Open, error::FsError, valid_path};
 use std::{
     io::Read,
     path::{Path, PathBuf},

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use common::{
-    time::{DtsOffset, DurationH264, UnixH264},
     VideoSample,
+    time::{DtsOffset, DurationH264, UnixH264},
 };
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncWrite, AsyncWriteExt};

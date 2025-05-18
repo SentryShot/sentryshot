@@ -1,6 +1,6 @@
 use crate::{error::GenerateInitError, types::VIDEO_TRACK_ID};
 use bytes::Bytes;
-use common::{time::H264_TIMESCALE, TrackParameters};
+use common::{TrackParameters, time::H264_TIMESCALE};
 use mp4::{ImmutableBox, ImmutableBoxSync};
 
 #[allow(clippy::module_name_repetitions)]

@@ -2,8 +2,8 @@
 
 use bytes::Bytes;
 use common::{
-    time::{DtsOffset, UnixH264, H264_TIMESCALE},
     TrackParameters, VideoSample,
+    time::{DtsOffset, H264_TIMESCALE, UnixH264},
 };
 use mp4::{ImmutableBox, ImmutableBoxSync, TfdtBaseMediaDecodeTime, TrunEntries};
 use thiserror::Error;

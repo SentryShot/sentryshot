@@ -4,8 +4,8 @@ mod config;
 
 use async_trait::async_trait;
 use common::{
-    monitor::MonitorConfig, ArcLogger, Event, EventSource, Label, LogEntry, LogLevel, LogSource,
-    MonitorId, MonitorName,
+    ArcLogger, Event, EventSource, Label, LogEntry, LogLevel, LogSource, MonitorId, MonitorName,
+    monitor::MonitorConfig,
 };
 use config::Config;
 use jiff::Timestamp;
@@ -17,12 +17,12 @@ use thiserror::Error;
 use tokio::{runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn version() -> *const c_char {
     plugin::get_version()
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
     Box::new(PreLoadMqtt)
 }
@@ -33,7 +33,7 @@ impl PreLoadPlugin for PreLoadMqtt {
         Some("mqtt".try_into().unwrap())
     }
 }
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(MqttPlugin::new(
         app.rt_handle(),
@@ -242,8 +242,8 @@ fn parse_event(
 mod tests {
     use super::*;
     use common::{
-        time::{Duration, UnixNano},
         Detection, Region,
+        time::{Duration, UnixNano},
     };
     use pretty_assertions::assert_eq;
     use rumqttc::Publish;

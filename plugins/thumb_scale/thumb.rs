@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use async_trait::async_trait;
-use common::{monitor::MonitorConfig, ArcLogger, LogEntry, LogLevel};
-use plugin::{types::Assets, Application, Plugin};
+use common::{ArcLogger, LogEntry, LogLevel, monitor::MonitorConfig};
+use plugin::{Application, Plugin, types::Assets};
 use sentryshot_scale::{Frame, Scaler};
 use serde::Deserialize;
 use std::{borrow::Cow, ffi::c_char, num::NonZeroU16, sync::Arc};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn version() -> *const c_char {
     plugin::get_version()
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(ThumbScalePlugin {
         logger: app.logger(),

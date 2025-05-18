@@ -3,10 +3,10 @@
 #![allow(clippy::module_name_repetitions)]
 
 use crate::{
-    recording::{FrameRateLimiter, FrameRateLimiterError},
-    time::{Duration, UnixH264, MINUTE},
     ArcMsgLogger, ArcStreamerMuxer, DynError, Event, H264Data, MonitorId, MonitorName, StreamType,
     TrackParameters,
+    recording::{FrameRateLimiter, FrameRateLimiterError},
+    time::{Duration, MINUTE, UnixH264},
 };
 use async_trait::async_trait;
 use sentryshot_ffmpeg_h264::{H264BuilderError, ReceiveFrameError, SendPacketError};

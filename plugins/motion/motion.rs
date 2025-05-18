@@ -4,7 +4,7 @@ mod config;
 mod zone;
 
 use crate::{
-    config::{set_enable, MotionConfig},
+    config::{MotionConfig, set_enable},
     zone::Zone,
 };
 use async_trait::async_trait;
@@ -15,18 +15,18 @@ use axum::{
     routing::patch,
 };
 use common::{
+    ArcLogger, ArcMsgLogger, Event, Label, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
+    Region,
     monitor::{
         ArcMonitor, ArcMonitorManager, ArcSource, CreateEventDbError, DecoderError,
         SubscribeDecodedError,
     },
     recording::FrameRateLimiter,
     time::{DurationH264, UnixH264, UnixNano},
-    ArcLogger, ArcMsgLogger, Event, Label, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
-    Region,
 };
 use plugin::{
-    types::{Assets, Router},
     Application, Plugin, PreLoadPlugin,
+    types::{Assets, Router},
 };
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
@@ -38,12 +38,12 @@ use tokio::{runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use zone::Zones;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn version() -> *const c_char {
     plugin::get_version()
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
     Box::new(PreLoadMotion)
 }
@@ -55,7 +55,7 @@ impl PreLoadPlugin for PreLoadMotion {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(MotionPlugin {
         rt_handle: app.rt_handle(),

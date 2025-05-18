@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{
-    time::{Duration, UnixNano, SECOND},
     Event, MonitorId, ParseMonitorIdError, Point, PointNormalized, Polygon, PolygonNormalized,
+    time::{Duration, SECOND, UnixNano},
 };
 use jiff::{
+    Timestamp,
     civil::{Date, DateTime, Time},
-    tz, Timestamp,
+    tz,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -367,11 +368,7 @@ pub fn denormalize(input: u32, max: u16) -> u16 {
 fn div_ceil(a: u64, b: u64) -> u64 {
     let d = a / b;
     let r = a % b;
-    if r > 0 && b > 0 {
-        d + 1
-    } else {
-        d
-    }
+    if r > 0 && b > 0 { d + 1 } else { d }
 }
 
 // CreateMask creates an image mask from a polygon.
