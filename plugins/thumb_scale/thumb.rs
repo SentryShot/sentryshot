@@ -5,10 +5,10 @@ use common::{monitor::MonitorConfig, ArcLogger, LogEntry, LogLevel};
 use plugin::{types::Assets, Application, Plugin};
 use sentryshot_scale::{Frame, Scaler};
 use serde::Deserialize;
-use std::{borrow::Cow, num::NonZeroU16, sync::Arc};
+use std::{borrow::Cow, ffi::c_char, num::NonZeroU16, sync::Arc};
 
 #[no_mangle]
-pub extern "Rust" fn version() -> String {
+pub extern "C" fn version() -> *const c_char {
     plugin::get_version()
 }
 

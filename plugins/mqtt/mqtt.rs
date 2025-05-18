@@ -12,15 +12,16 @@ use jiff::Timestamp;
 use plugin::{Application, Plugin, PreLoadPlugin};
 use rumqttc::{ClientError, MqttOptions, QoS};
 use serde::Serialize;
-use std::{sync::Arc, time::Duration};
+use std::{ffi::c_char, sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::{runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 
 #[no_mangle]
-pub extern "Rust" fn version() -> String {
+pub extern "C" fn version() -> *const c_char {
     plugin::get_version()
 }
+
 #[no_mangle]
 pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
     Box::new(PreLoadMqtt)

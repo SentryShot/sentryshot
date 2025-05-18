@@ -10,6 +10,7 @@ use common::{
 use libloading::{Library, Symbol};
 use sentryshot_util::Frame;
 use std::{
+    ffi::{c_char, CStr},
     path::{Path, PathBuf},
     process,
     sync::Arc,
@@ -97,7 +98,9 @@ pub fn pre_load_plugins(
         return Ok(pre_loaded_plugins);
     };
 
-    let core_version = get_version();
+    let core_version = unsafe { CStr::from_ptr(get_version()) }
+        .to_string_lossy()
+        .to_string();
 
     for plugin in plugins {
         if !plugin.enable() {
@@ -123,12 +126,14 @@ pub fn pre_load_plugins(
                 Library::new(plugin_path).map_err(|e| LoadLibrary(plugin_name.to_owned(), e))?;
 
             // Check version first.
-            let version: Symbol<fn() -> String> = dylib.get(b"version").map_err(LoadSymbol)?;
-            if version() != core_version {
+            let version_fn: Symbol<fn() -> *const c_char> =
+                dylib.get(b"version").map_err(LoadSymbol)?;
+            let version = CStr::from_ptr(version_fn()).to_string_lossy().to_string();
+            if version != core_version {
                 return Err(VersionMismatch(
                     plugin_name.to_owned(),
                     core_version,
-                    version(),
+                    version,
                 ));
             }
 
@@ -254,16 +259,25 @@ impl MonitorHooks for PluginManager {
     }
 }
 
+#[inline]
 #[must_use]
-pub fn get_version() -> String {
-    let version = format!(
-        "v{}_r{}",
-        env!("CARGO_PKG_VERSION").to_owned(),
+pub fn get_version() -> *const c_char {
+    #[cfg(not(debug_assertions))]
+    static VERSION: &str = concat![
+        "v",
+        env!("CARGO_PKG_VERSION"),
+        "_r",
         env!("CARGO_PKG_RUST_VERSION"),
-    );
-
+        "\0"
+    ];
     #[cfg(debug_assertions)]
-    let version = version + "_debug";
+    static VERSION: &str = concat![
+        "v",
+        env!("CARGO_PKG_VERSION"),
+        "_r",
+        env!("CARGO_PKG_RUST_VERSION"),
+        "_debug\0"
+    ];
 
-    version
+    VERSION.as_ptr().cast::<c_char>()
 }

@@ -32,14 +32,14 @@ use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
 };
 use sentryshot_util::ImageCopyToBufferError;
-use std::{borrow::Cow, sync::Arc, time::Duration};
+use std::{borrow::Cow, ffi::c_char, sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::{runtime::Handle, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use zone::Zones;
 
 #[no_mangle]
-pub extern "Rust" fn version() -> String {
+pub extern "C" fn version() -> *const c_char {
     plugin::get_version()
 }
 
