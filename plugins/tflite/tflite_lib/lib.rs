@@ -2,7 +2,7 @@ mod nms;
 
 use ::std::os::raw::c_void;
 use std::{
-    ffi::{c_uint, CStr, CString, NulError},
+    ffi::{CStr, CString, NulError, c_uint},
     fmt::{Debug, Display, Formatter},
     num::NonZeroU16,
     os::raw::c_int,
@@ -14,12 +14,12 @@ use std::{
     time::Duration,
 };
 use tflite_sys::{
-    c_detector_allocate, c_detector_free, c_detector_input_tensor, c_detector_input_tensor_count,
-    c_detector_invoke_interpreter, c_detector_load_model, c_detector_output_tensor,
-    c_detector_output_tensor_count, c_free_devices, c_list_devices, c_poke_devices, c_probe_device,
     CDetector, TfLiteQuantizationParams, TfLiteTensor, TfLiteTensorByteSize,
     TfLiteTensorCopyFromBuffer, TfLiteTensorData, TfLiteTensorDim, TfLiteTensorNumDims,
-    TfLiteTensorQuantizationParams, TfLiteTensorType,
+    TfLiteTensorQuantizationParams, TfLiteTensorType, c_detector_allocate, c_detector_free,
+    c_detector_input_tensor, c_detector_input_tensor_count, c_detector_invoke_interpreter,
+    c_detector_load_model, c_detector_output_tensor, c_detector_output_tensor_count,
+    c_free_devices, c_list_devices, c_poke_devices, c_probe_device,
 };
 use thiserror::Error;
 

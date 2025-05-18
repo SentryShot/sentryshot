@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{
-    mp4_muxer::{generate_mp4, GenerateMp4Error},
-    video::{read_meta, ReadMetaError},
     VideoCache,
+    mp4_muxer::{GenerateMp4Error, generate_mp4},
+    video::{ReadMetaError, read_meta},
 };
 use pin_project::pin_project;
 use std::{

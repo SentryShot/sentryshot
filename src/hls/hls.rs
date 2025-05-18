@@ -11,9 +11,9 @@ use crate::error::PartHlsQueryError;
 pub use crate::error::{CreateSegmenterError, SegmenterWriteH264Error};
 use async_trait::async_trait;
 use common::{
-    monitor::{DynH264Writer, StreamerImpl},
-    time::{DurationH264, UnixH264, UnixNano, H264_MILLISECOND},
     ArcLogger, ArcStreamerMuxer, DynError, H264Data, MonitorId, TrackParameters,
+    monitor::{DynH264Writer, StreamerImpl},
+    time::{DurationH264, H264_MILLISECOND, UnixH264, UnixNano},
 };
 pub use error::ParseParamsError;
 pub use muxer::HlsMuxer;
@@ -23,7 +23,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 use types::MuxerIdCounter;
-pub use types::{track_params_from_video_params, VIDEO_TRACK_ID};
+pub use types::{VIDEO_TRACK_ID, track_params_from_video_params};
 
 #[derive(Clone)]
 pub struct HlsServer {

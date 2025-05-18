@@ -7,16 +7,16 @@ pub mod slow_poller;
 pub use database::{Database, EventQuery};
 
 use common::{
-    monitor::CreateEventDbError, time::UnixNano, ArcLogger, Event, LogEntry, LogLevel, MonitorId,
-    MsgLogger,
+    ArcLogger, Event, LogEntry, LogLevel, MonitorId, MsgLogger, monitor::CreateEventDbError,
+    time::UnixNano,
 };
-use database::list_chunks;
-use database::time_to_id;
 use database::QueryEventsError;
 use database::TimeToIdError;
+use database::list_chunks;
+use database::time_to_id;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use thiserror::Error;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 use tokio_util::sync::CancellationToken;
 
 #[derive(Clone)]
@@ -207,7 +207,7 @@ impl MsgLogger for EventDbLogger {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use common::{time::DAY, DummyLogger};
+    use common::{DummyLogger, time::DAY};
     use pretty_assertions::assert_eq;
     use std::path::Path;
     use tempfile::tempdir;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::{error::FsError, valid_path, DynFs, Fs, Open};
+use crate::{DynFs, Fs, Open, error::FsError, valid_path};
 use std::path::{Path, PathBuf};
 
 pub struct SubFs {

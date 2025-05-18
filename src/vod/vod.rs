@@ -4,20 +4,20 @@ mod cache;
 
 pub use cache::VodCache;
 use common::{
-    recording::{RecordingId, RecordingIdError},
-    time::{Duration, UnixH264, UnixNano, HOUR},
     MonitorId,
+    recording::{RecordingId, RecordingIdError},
+    time::{Duration, HOUR, UnixH264, UnixNano},
 };
 use pin_project::pin_project;
 use recdb::{CrawlerError, RecDb, RecDbQuery, RecordingResponse};
-use recording::{generate_mp4, read_meta, GenerateMp4Error, ReadMetaError, Sample};
+use recording::{GenerateMp4Error, ReadMetaError, Sample, generate_mp4, read_meta};
 use serde::Deserialize;
 use std::{
     future::Future,
     io::SeekFrom,
     num::NonZeroUsize,
     path::PathBuf,
-    pin::{pin, Pin},
+    pin::{Pin, pin},
     sync::Arc,
     task::{Context, Poll},
 };
@@ -600,9 +600,9 @@ mod tests {
     use super::*;
     use bytesize::ByteSize;
     use common::{
-        recording::RecordingData,
-        time::{DtsOffset, DurationH264, UnixH264, UnixNano, HOUR, MINUTE, SECOND},
         DummyLogger, PaddedBytes, VideoSample,
+        recording::RecordingData,
+        time::{DtsOffset, DurationH264, HOUR, MINUTE, SECOND, UnixH264, UnixNano},
     };
     use pretty_assertions::assert_eq;
     use pretty_hex::pretty_hex;
@@ -829,10 +829,12 @@ mod tests {
             end: (start_time + UnixH264::new(1_000_000)).into(),
             cache_id: 0,
         };
-        assert!(VodReader::new(&rec_db, &VodCache::new(), query)
-            .await
-            .unwrap()
-            .is_none());
+        assert!(
+            VodReader::new(&rec_db, &VodCache::new(), query)
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[tokio::test]

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use axum::{
+    Extension,
     body::Body,
     extract::State,
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::MethodRouter,
-    Extension,
 };
 use common::{ArcAuth, ArcLogger, AuthenticatedUser};
-use http::{header, Request, StatusCode};
+use http::{Request, StatusCode, header};
 use std::{borrow::Cow, collections::HashMap, path::Path};
 use thiserror::Error;
 use tokio::runtime::Handle;

@@ -69,11 +69,7 @@ pub enum Streamer {
 impl NonZeroGb {
     #[must_use]
     pub fn new(size: ByteSize) -> Option<Self> {
-        if size.0 == 0 {
-            None
-        } else {
-            Some(Self(size))
-        }
+        if size.0 == 0 { None } else { Some(Self(size)) }
     }
 }
 
@@ -667,11 +663,7 @@ impl StreamType {
 
     #[must_use]
     pub fn name(&self) -> &str {
-        if self.is_main() {
-            "main"
-        } else {
-            "sub"
-        }
+        if self.is_main() { "main" } else { "sub" }
     }
 }
 

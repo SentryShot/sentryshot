@@ -4,8 +4,8 @@ use super::{LogEntryWithTime, UnixMicro};
 use crate::{rev_buf_reader::RevBufReader, slow_poller::PollQuery};
 use bytesize::ByteSize;
 use common::{
-    ArcLogger, LogEntry, LogLevel, LogSource, MonitorId, ParseLogLevelError, ParseLogMessageError,
-    ParseLogSourceError, ParseMonitorIdError, LOG_SOURCE_MAX_LENGTH, MONITOR_ID_MAX_LENGTH,
+    ArcLogger, LOG_SOURCE_MAX_LENGTH, LogEntry, LogLevel, LogSource, MONITOR_ID_MAX_LENGTH,
+    MonitorId, ParseLogLevelError, ParseLogMessageError, ParseLogSourceError, ParseMonitorIdError,
 };
 use csv::{deserialize_csv_option, deserialize_csv_option2};
 use serde::Deserialize;
@@ -22,7 +22,7 @@ use thiserror::Error;
 use tokio::{
     fs::File,
     io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt},
-    sync::{broadcast, mpsc, Mutex},
+    sync::{Mutex, broadcast, mpsc},
     time::Instant,
 };
 use tokio_util::sync::CancellationToken;
@@ -967,7 +967,9 @@ impl ChunkEncoder {
                     let (last_entry, msg_offset) = match decoder.decode_lazy(i).await {
                         Ok(v) => v,
                         Err(e @ DecodeError::RecoverableDecodeEntry(..)) => {
-                            eprintln!("log store warning: new encoder: decode entry in chunk {chunk_id}: {e}");
+                            eprintln!(
+                                "log store warning: new encoder: decode entry in chunk {chunk_id}: {e}"
+                            );
                             continue;
                         }
                         Err(e) => return Err(NewChunkEncoderError::Decode(chunk_id, e)),

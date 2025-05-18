@@ -2,7 +2,7 @@
 
 use crate::video::{Sample, TrackParameters};
 use async_trait::async_trait;
-use common::time::{DurationH264, UnixH264, H264_TIMESCALE};
+use common::time::{DurationH264, H264_TIMESCALE, UnixH264};
 use hls::VIDEO_TRACK_ID;
 use mp4::{FullBox, ImmutableBox, ImmutableBoxAsync, Mp4Error};
 use std::{num::TryFromIntError, sync::Arc};

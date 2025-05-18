@@ -6,27 +6,26 @@ use axum::{
 };
 use bytesize::ByteSize;
 use common::{
+    ArcAuth, ArcLogger, DynEnvConfig, EnvConfig, ILogger, LogEntry, LogLevel,
     monitor::{ArcMonitorManager, ArcStreamer},
     time::Duration,
-    ArcAuth, ArcLogger, DynEnvConfig, EnvConfig, ILogger, LogEntry, LogLevel,
 };
 use env::{EnvConf, EnvConfigNewError};
 use eventdb::EventDb;
 use hls::HlsServer;
 
 use log::{
+    Logger,
     log_db::{CreateLogDBError, LogDb},
     slow_poller::SlowPoller,
-    Logger,
 };
 use monitor::{MonitorManager, NewMonitorManagerError};
 use monitor_groups::{ArcMonitorGroups, CreateMonitorGroupsError, MonitorGroups};
 use plugin::{
-    pre_load_plugins,
+    Application, PluginManager, PreLoadPluginsError, PreLoadedPlugins, pre_load_plugins,
     types::{NewAuthError, Router},
-    Application, PluginManager, PreLoadPluginsError, PreLoadedPlugins,
 };
-use rand::{distr::Alphanumeric, Rng};
+use rand::{Rng, distr::Alphanumeric};
 use recdb::{Disk, RecDb};
 use recording::VideoCache;
 use rust_embed::RustEmbed;
@@ -42,11 +41,11 @@ use tokio::{
     net::TcpListener,
     runtime::Handle,
     signal,
-    sync::{mpsc, oneshot, Mutex},
+    sync::{Mutex, mpsc, oneshot},
 };
 use tokio_util::sync::CancellationToken;
 use vod::VodCache;
-use web::{minify, Templater};
+use web::{Templater, minify};
 
 #[allow(clippy::wildcard_imports)]
 use handler::*;

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{
+    Fetcher,
     config::Percent,
     label::{CreateLabelCacheError, LabelCache, LabelCacheError, LabelMap},
     model::{CreateModelCacheError, ModelCache, ModelCacheError, ModelChecksum},
-    Fetcher,
 };
 use common::{
     ArcMsgLogger, Detection, Detections, Label, Labels, LogLevel, RectangleNormalized, Region,
@@ -13,15 +13,15 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fmt::Debug,
-    num::{NonZeroU16, NonZeroU32, NonZeroU8},
+    num::{NonZeroU8, NonZeroU16, NonZeroU32},
     ops::Deref,
     path::Path,
     sync::Arc,
     time::Duration,
 };
 use tflite_lib::{
-    debug_device, edgetpu_verbosity, list_edgetpu_devices, EdgetpuDevice, ModelFormat,
-    NewDetectorError,
+    EdgetpuDevice, ModelFormat, NewDetectorError, debug_device, edgetpu_verbosity,
+    list_edgetpu_devices,
 };
 use thiserror::Error;
 use tokio::{

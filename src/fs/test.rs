@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::{dir_fs, error::FsError, test_fs::test_file_system, Fs, MapEntry, MapFs};
+use crate::{Fs, MapEntry, MapFs, dir_fs, error::FsError, test_fs::test_file_system};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},

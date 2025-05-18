@@ -3,22 +3,22 @@
 use async_trait::async_trait;
 use bytes::Bytes;
 use common::{
+    ArcLogger, DynError, H264Data, Segment, SegmentImpl, TrackParameters, VideoSample,
     monitor::H264WriterImpl,
     time::{DurationH264, UnixH264, UnixNano},
-    ArcLogger, DynError, H264Data, Segment, SegmentImpl, TrackParameters, VideoSample,
 };
-use futures_lite::{stream, Stream};
+use futures_lite::{Stream, stream};
 use sentryshot_padded_bytes::PaddedBytes;
 use serde::Serialize;
 use std::{collections::VecDeque, fmt::Formatter, iter, ops::Deref, sync::Arc};
 use thiserror::Error;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{Mutex, oneshot};
 use tokio_util::{
     io::{ReaderStream, StreamReader},
     sync::{CancellationToken, DropGuard},
 };
 
-use crate::boxes::{generate_init, generate_moof_and_empty_mdat, GenerateMoofError};
+use crate::boxes::{GenerateMoofError, generate_init, generate_moof_and_empty_mdat};
 
 #[allow(clippy::module_name_repetitions)]
 pub struct Muxer {
@@ -130,7 +130,7 @@ impl Muxer {
             .sessions
             .iter_mut()
             .find(|(id, _)| *id == req.session_id);
-        let Some((_, ref mut session)) = session else {
+        let Some((_, session)) = session else {
             _ = req.res_tx.send(SessionNotExist);
             return;
         };
@@ -526,7 +526,7 @@ impl Frame {
         u64::try_from(self.mp4_boxes.len() + self.sample.avcc.len()).expect("fit u64")
     }*/
 
-    fn muxed(&self, start_time: UnixH264) -> impl Iterator<Item = std::io::Result<Bytes>> {
+    fn muxed(&self, start_time: UnixH264) -> impl Iterator<Item = std::io::Result<Bytes>> + use<> {
         let mp4_boxes = generate_moof_and_empty_mdat(start_time, &[self.sample.clone()])
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e));
         if let Ok(boxes) = &mp4_boxes {

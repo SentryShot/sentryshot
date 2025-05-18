@@ -9,13 +9,13 @@ pub use source::MonitorSource;
 use crate::{recorder::new_recorder, source::SourceRtsp};
 use async_trait::async_trait;
 use common::{
+    ArcLogger, Event, LogEntry, LogLevel, MonitorId, StreamType,
     monitor::{
         ArcMonitorHooks, ArcSource, ArcStreamer, CreateEventDbError, IMonitorManager,
         MonitorConfig, MonitorConfigs, MonitorDeleteError, MonitorImpl, MonitorInfo,
         MonitorRestartError, MonitorSetAndRestartError, MonitorSetError, SourceConfig,
     },
     time::Duration,
-    ArcLogger, Event, LogEntry, LogLevel, MonitorId, StreamType,
 };
 use recdb::RecDb;
 use std::{
@@ -27,7 +27,7 @@ use thiserror::Error;
 use tokio::{
     self,
     io::AsyncWriteExt,
-    sync::{mpsc, oneshot, Mutex},
+    sync::{Mutex, mpsc, oneshot},
 };
 use tokio_util::sync::CancellationToken;
 
@@ -652,13 +652,13 @@ mod tests {
     use super::*;
     use bytesize::ByteSize;
     use common::{
+        ArcStreamerMuxer, DummyLogger, DynError, H264Data, MonitorName, ParseMonitorIdError,
+        TrackParameters,
         monitor::{
             Config, DynH264Writer, Protocol, SelectedSource, SourceConfig, SourceRtspConfig,
             StreamerImpl,
         },
         time::UnixH264,
-        ArcStreamerMuxer, DummyLogger, DynError, H264Data, MonitorName, ParseMonitorIdError,
-        TrackParameters,
     };
     use pretty_assertions::assert_eq;
     use recdb::Disk;

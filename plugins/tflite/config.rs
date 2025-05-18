@@ -2,9 +2,9 @@
 
 use crate::detector::{DetectorName, Thresholds};
 use common::{
-    monitor::MonitorConfig,
-    recording::{denormalize, DurationSec, FeedRateSec},
     ArcMsgLogger, LogLevel, PolygonNormalized,
+    monitor::MonitorConfig,
+    recording::{DurationSec, FeedRateSec, denormalize},
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -255,7 +255,7 @@ pub(crate) fn set_enable(config: &MonitorConfig, value: bool) -> Option<MonitorC
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{time::Duration, DummyLogger, PointNormalized};
+    use common::{DummyLogger, PointNormalized, time::Duration};
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::collections::HashMap;

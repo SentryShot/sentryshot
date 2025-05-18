@@ -1,21 +1,21 @@
 use crate::{
+    DurationH264, HlsQuery,
     error::FullPlaylistError,
     muxer::{
-        MuxerFileResponse, MUXER_FILE_RESPONSE_BAD_REQUEST, MUXER_FILE_RESPONSE_CANCELLED,
-        MUXER_FILE_RESPONSE_ERROR, MUXER_FILE_RESPONSE_NOT_FOUND,
+        MUXER_FILE_RESPONSE_BAD_REQUEST, MUXER_FILE_RESPONSE_CANCELLED, MUXER_FILE_RESPONSE_ERROR,
+        MUXER_FILE_RESPONSE_NOT_FOUND, MuxerFileResponse,
     },
-    part::{part_name, PartFinalized},
+    part::{PartFinalized, part_name},
     segment::SegmentFinalized,
-    DurationH264, HlsQuery,
 };
-use common::{time::SECOND, ArcLogger, LogEntry, LogLevel, Segment, SegmentImpl};
+use common::{ArcLogger, LogEntry, LogLevel, Segment, SegmentImpl, time::SECOND};
 use http::{HeaderName, HeaderValue, StatusCode};
 use std::{
     collections::{HashMap, VecDeque},
     io::Cursor,
     sync::Arc,
 };
-use tokio::sync::{oneshot, Mutex, MutexGuard};
+use tokio::sync::{Mutex, MutexGuard, oneshot};
 use tokio_util::sync::CancellationToken;
 
 struct Gap(DurationH264);

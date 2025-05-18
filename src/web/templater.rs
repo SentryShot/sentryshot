@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use common::{monitor::ArcMonitorManager, Flags};
+use common::{Flags, monitor::ArcMonitorManager};
 use log::Logger;
 use monitor_groups::ArcMonitorGroups;
 use std::{collections::HashMap, sync::Arc};

@@ -1,15 +1,15 @@
 use crate::{
+    HlsQuery,
     error::CreateSegmenterError,
     init::generate_init,
-    playlist::{primary_playlist, Playlist},
+    playlist::{Playlist, primary_playlist},
     segmenter::{H264Writer, Segmenter},
-    HlsQuery,
 };
 use async_trait::async_trait;
 use bytes::Bytes;
 use common::{
-    time::{DurationH264, UnixNano},
     ArcLogger, H264Data, Segment, TrackParameters,
+    time::{DurationH264, UnixNano},
 };
 use http::{HeaderName, HeaderValue, StatusCode};
 use std::{collections::HashMap, fmt::Formatter, io::Cursor, sync::Arc};
