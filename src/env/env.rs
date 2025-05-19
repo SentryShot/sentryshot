@@ -20,6 +20,8 @@ pub struct EnvConf {
     config_dir: PathBuf,
     plugin_dir: PathBuf,
     max_disk_usage: NonZeroGb,
+    debug_log_stdout: bool,
+
     flags: Flags,
     plugin: Option<Vec<EnvPlugin>>,
     raw: String,
@@ -32,6 +34,7 @@ pub struct RawEnvConf {
     config_dir: PathBuf,
     plugin_dir: PathBuf,
     max_disk_usage: NonZeroGb,
+    debug_log_stdout: Option<bool>,
     plugin: Option<Vec<EnvPlugin>>,
 }
 
@@ -76,12 +79,16 @@ impl EnvConfig for EnvConf {
     fn max_disk_usage(&self) -> ByteSize {
         *self.max_disk_usage
     }
+    fn debug_log_stdout(&self) -> bool {
+        self.debug_log_stdout
+    }
     fn flags(&self) -> Flags {
         self.flags
     }
     fn plugins(&self) -> &Option<Vec<EnvPlugin>> {
         &self.plugin
     }
+
     fn raw(&self) -> &str {
         &self.raw
     }
@@ -223,6 +230,7 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
         config_dir,
         plugin_dir,
         max_disk_usage: raw.max_disk_usage,
+        debug_log_stdout: raw.debug_log_stdout.unwrap_or(false),
         flags: Flags { streamer },
         plugin: raw.plugin,
         raw: env_toml,
@@ -267,6 +275,7 @@ mod tests {
             config_dir = \"{config_dir}\"
             plugin_dir = \"/{plugin_dir}\"
             max_disk_usage = 1
+            debug_log_stdout = true
         ",
         );
 
@@ -278,6 +287,7 @@ mod tests {
             config_dir: config_dir.parse().unwrap(),
             plugin_dir: plugin_dir.parse().unwrap(),
             max_disk_usage: NonZeroGb::new(ByteSize(GB)).unwrap(),
+            debug_log_stdout: true,
             flags: Flags {
                 streamer: Streamer::Sp,
             },

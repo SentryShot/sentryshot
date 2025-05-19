@@ -48,6 +48,7 @@ pub trait EnvConfig {
     fn config_dir(&self) -> &Path;
     fn plugin_dir(&self) -> &Path;
     fn max_disk_usage(&self) -> ByteSize;
+    fn debug_log_stdout(&self) -> bool;
     fn flags(&self) -> Flags;
     fn plugins(&self) -> &Option<Vec<EnvPlugin>>;
     fn raw(&self) -> &str;

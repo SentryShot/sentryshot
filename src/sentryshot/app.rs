@@ -142,7 +142,10 @@ impl App {
         let pre_loaded_plugins = pre_load_plugins(env.plugin_dir(), env.plugins())?;
         let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel::<()>(1);
 
-        let logger = Arc::new(Logger::new(pre_loaded_plugins.log_sources().to_owned()));
+        let logger = Arc::new(Logger::new(
+            pre_loaded_plugins.log_sources().to_owned(),
+            env.debug_log_stdout(),
+        ));
 
         let log_dir = env.storage_dir().join("logs");
         let log_db = LogDb::new(

@@ -20,13 +20,14 @@ pub struct Logger {
     feed: broadcast::Sender<LogEntryWithTime>,
 
     sources: Vec<LogSource>,
+    debug_log_stdout: bool,
 }
 
 impl Logger {
     /// Creates a new logger.
     #[must_use]
     #[allow(clippy::unwrap_used)]
-    pub fn new(sources: Vec<LogSource>) -> Self {
+    pub fn new(sources: Vec<LogSource>, debug_log_stdout: bool) -> Self {
         let (feed, _) = broadcast::channel(512);
 
         let mut sources = sources;
@@ -36,7 +37,11 @@ impl Logger {
         sources.push("recdb".try_into().unwrap());
         sources.sort();
 
-        Self { feed, sources }
+        Self {
+            feed,
+            sources,
+            debug_log_stdout,
+        }
     }
 
     /// Subscribes to the log feed and returns a channel that receives all log entries.
@@ -48,12 +53,6 @@ impl Logger {
     #[must_use]
     pub fn sources(&self) -> &Vec<LogSource> {
         &self.sources
-    }
-}
-
-impl Default for Logger {
-    fn default() -> Self {
-        Self::new(Vec::new())
     }
 }
 
@@ -69,7 +68,13 @@ impl ILogger for Logger {
         };
 
         // Print to stdout.
-        println!("{log}");
+        if matches!(log.level, LogLevel::Debug) {
+            if self.debug_log_stdout {
+                println!("{log}");
+            }
+        } else {
+            println!("{log}");
+        }
 
         // Only returns an error if there are no subscribers.
         self.feed.send(log).ok();
@@ -192,7 +197,7 @@ mod tests {
 
     #[tokio::test]
     async fn logger_messages() {
-        let logger = Logger::new(Vec::new());
+        let logger = Logger::new(Vec::new(), true);
         let mut feed = logger.subscribe();
 
         logger.log(LogEntry {
