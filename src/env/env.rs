@@ -208,11 +208,11 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
         .map_err(|e| Canonicalize(raw.plugin_dir, e))?;
 
     let streamer = {
-        if std::env::var("STREAMER").unwrap_or_default().to_lowercase() == "sp" {
-            println!("USING NEW STREAMER");
-            Streamer::Sp
-        } else {
+        if std::env::var("STREAMER").unwrap_or_default().to_lowercase() == "hls" {
+            println!("USING HLS STREAMER");
             Streamer::Hls
+        } else {
+            Streamer::Sp
         }
     };
 
@@ -279,7 +279,7 @@ mod tests {
             plugin_dir: plugin_dir.parse().unwrap(),
             max_disk_usage: NonZeroGb::new(ByteSize(GB)).unwrap(),
             flags: Flags {
-                streamer: Streamer::Hls,
+                streamer: Streamer::Sp,
             },
             plugin: None,
             raw: config.clone(),

@@ -3,6 +3,7 @@
 ## `v0.3.0`
 
 -	use rust 2024 edition
+-	BREAKING: use mp4 streamer by default
 -	BREAKING: detector http api now validates csrf token
 -	BREAKING: destabilize most of the http api
 
