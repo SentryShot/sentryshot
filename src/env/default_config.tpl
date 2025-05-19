@@ -15,6 +15,8 @@ plugin_dir = "{{ cwd }}/plugins"
 # Recordings are delete automatically before this limit is exceeded.
 max_disk_usage = 100
 
+# Write debug logs to stdout. Still available from the logs page.
+debug_log_stdout = false
 
 
 # PLUGINS
