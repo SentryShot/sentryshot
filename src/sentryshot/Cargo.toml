@@ -35,6 +35,7 @@ axum.workspace = true
 bytesize.workspace = true
 console-subscriber.workspace = true
 hyper.workspace = true
+jiff.workspace = true
 pico-args.workspace = true
 rand.workspace = true
 thiserror.workspace = true
