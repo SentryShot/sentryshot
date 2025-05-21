@@ -14,6 +14,7 @@ use env::{EnvConf, EnvConfigNewError};
 use eventdb::EventDb;
 use hls::HlsServer;
 
+use jiff::tz::TimeZone;
 use log::{
     Logger,
     log_db::{CreateLogDBError, LogDb},
@@ -31,9 +32,8 @@ use recording::VideoCache;
 use rust_embed::RustEmbed;
 use std::{
     collections::HashMap,
-    ffi::OsStr,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::Arc,
 };
 use thiserror::Error;
@@ -262,12 +262,23 @@ impl App {
         };
         plugin_manager.edit_templates_hooks(&mut templates);
 
+        let time_zone = TimeZone::system()
+            .iana_name()
+            .ok_or(RunError::TimeZone)?
+            .to_owned();
+        self.logger.log(LogEntry::new(
+            LogLevel::Debug,
+            "app",
+            None,
+            format!("TZ={time_zone}"),
+        ));
+
         let templater = Arc::new(Templater::new(
             self.logger.clone(),
             self.monitor_manager.clone(),
             self.monitor_groups.clone(),
             templates,
-            time_zone().ok_or(RunError::TimeZone)?,
+            time_zone,
             self.env.flags(),
         ));
 
@@ -541,67 +552,6 @@ async fn start_server(
     let graceful = axum::serve(listener, router.inner())
         .with_graceful_shutdown(async move { token.cancelled().await });
     let _ = on_exit.send(graceful.await.map_err(ServerError::Server));
-}
-
-// TimeZone returns system time zone location.
-fn time_zone() -> Option<String> {
-    // Try 'TZ'.
-    if let Ok(tz) = std::env::var("TZ") {
-        if tz.is_empty() {
-            return Some("UTC".to_owned());
-        }
-        if !tz.starts_with(':') && !tz.starts_with('/') {
-            return Some(tz);
-        }
-    }
-
-    // Try reading '/etc/timezone'.
-    if let Ok(zone) = std::fs::read_to_string("/etc/timezone") {
-        if !zone.is_empty() {
-            return Some(zone.trim().to_owned());
-        }
-    }
-
-    // Try matching '/etc/localtime' to a location.
-    let localtime = std::fs::read("/etc/localtime").unwrap_or_default();
-    let mut zone = None;
-    let mut dirs = vec![PathBuf::from("/usr/share/zoneinfo")];
-    while let Some(dir) = dirs.pop() {
-        let Ok(entries) = std::fs::read_dir(dir) else {
-            continue;
-        };
-        for entry in entries {
-            let Ok(entry) = entry else {
-                continue;
-            };
-            let Ok(metadata) = entry.metadata() else {
-                continue;
-            };
-            if metadata.is_dir() {
-                dirs.push(entry.path());
-                continue;
-            }
-
-            let file_path = entry.path();
-            let Ok(file) = std::fs::read(&file_path) else {
-                continue;
-            };
-            if file == localtime {
-                let dir = file_path.parent().unwrap_or_else(|| Path::new(""));
-                let city = file_path.file_name().unwrap_or_else(|| OsStr::new(""));
-                let region = dir.file_name().unwrap_or_else(|| OsStr::new(""));
-                zone = Some(PathBuf::from(city));
-
-                if let Some("zoneinfo" | "posix") = region.to_str() {
-                } else {
-                    let mut region = PathBuf::from(region);
-                    region.push(city);
-                    zone = Some(region);
-                }
-            }
-        }
-    }
-    zone.map(|v| v.to_string_lossy().to_string().trim().to_owned())
 }
 
 pub async fn prune_loop(

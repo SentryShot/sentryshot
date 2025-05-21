@@ -65,7 +65,7 @@ http-body-util = "0.1"
 hyper = { version = "1.6", default-features = false }
 hyper-rustls = { version = "0.27", default-features = false, features = ["ring", "webpki-roots",  "http1"] }
 hyper-util = { version = "0.1", default-features = false }
-jiff = { version = "0.1", default-features = false, features = ["serde"] }
+jiff = { version = "0.1", default-features = false, features = ["serde", "tz-system"] }
 jpeg-encoder = "0.6.0"
 libloading = "0.8.2"
 mime_guess = { version = "2.0.4", default-features = false }

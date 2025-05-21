@@ -2314,6 +2314,7 @@ dependencies = [
  "handler",
  "hls",
  "hyper",
+ "jiff",
  "log 0.2.25",
  "monitor",
  "monitor_groups",
