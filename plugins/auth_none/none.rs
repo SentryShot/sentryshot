@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use common::{
     Account, AccountId, AccountObfuscated, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger,
     AuthAccountDeleteError, AuthAccountSetError, AuthSaveToFileError, AuthenticatedUser,
-    Authenticator, LogSource, ValidateResponse,
+    Authenticator, LogSource, ValidateResponse, write_file_atomic2,
 };
 use http::{HeaderMap, HeaderValue};
 use plugin::{
@@ -19,8 +19,7 @@ use rand::{Rng, distr::Alphanumeric};
 use std::{
     collections::HashMap,
     ffi::c_char,
-    fs::{self, File},
-    io::Write,
+    fs::{self},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -72,17 +71,15 @@ impl NoneAuth {
     ) -> Result<ArcAuth, NewAuthError> {
         use NewAuthError::*;
         let path = configs_dir.join("accounts.json");
-        let path_string = path.to_string_lossy().to_string();
 
         let mut accounts = HashMap::<AccountId, Account>::new();
 
         let file_exist = Path::new(&path).exists();
         if file_exist {
-            let accounts_json = fs::read_to_string(&path).map_err(|e| ReadFile(path_string, e))?;
+            let accounts_json = fs::read_to_string(&path).map_err(|e| ReadFile(path.clone(), e))?;
             accounts = serde_json::from_str(&accounts_json).map_err(ParseFile)?;
         } else {
-            let mut file = File::create(&path).map_err(|e| CreateFile(path_string.clone(), e))?;
-            write!(file, "{{}}").map_err(|e| WriteInitialFile(path_string.clone(), e))?;
+            common::write_file(&path, b"{{}}").map_err(|e| WriteInitialFile(path.clone(), e))?;
         }
 
         let data = BasicAuthData {
@@ -202,24 +199,9 @@ impl BasicAuthData {
         let mut temp_path = self.path.clone();
         temp_path.set_file_name("accounts.json.tmp");
 
-        self.rt_handle
-            .spawn_blocking(move || -> Result<(), AuthSaveToFileError> {
-                use AuthSaveToFileError::*;
-                let mut file = fs::OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(&temp_path)
-                    .map_err(OpenFile)?;
-
-                file.write_all(&accounts_json).map_err(WriteFile)?;
-                file.sync_all().map_err(SyncFile)?;
-                fs::rename(temp_path, &path).map_err(RenameFile)?;
-
-                Ok(())
-            })
+        write_file_atomic2(self.rt_handle.clone(), path, temp_path, accounts_json)
             .await
-            .expect("join")
+            .map_err(AuthSaveToFileError::WriteFile)
     }
 
     #[cfg(test)]

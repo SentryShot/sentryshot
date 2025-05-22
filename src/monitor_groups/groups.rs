@@ -1,4 +1,4 @@
-use common::MonitorId;
+use common::{MonitorId, write_file_atomic2};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
-use tokio::{io::AsyncWriteExt, sync::Mutex};
+use tokio::{runtime::Handle, sync::Mutex};
 
 pub type ArcMonitorGroups = Arc<MonitorGroups>;
 
@@ -33,14 +33,8 @@ pub enum CreateMonitorGroupsError {
 
 #[derive(Debug, Error)]
 pub enum SetMonitorGroupsError {
-    #[error("create temp file: {0}")]
-    CreateTempFile(std::io::Error),
-
     #[error("write file: {0}")]
     WriteFile(std::io::Error),
-
-    #[error("flush file: {0}")]
-    FlushFile(std::io::Error),
 
     #[error("rename file: {0}")]
     RenameFile(std::io::Error),
@@ -74,8 +68,6 @@ impl MonitorGroups {
     }
 
     pub async fn set(&self, groups: Groups) -> Result<(), SetMonitorGroupsError> {
-        use SetMonitorGroupsError::*;
-
         let (json, groups) = tokio::task::spawn_blocking(move || {
             let json = serde_json::to_vec_pretty(&groups).expect("should be infallible");
             (json, groups)
@@ -86,18 +78,11 @@ impl MonitorGroups {
         // Hold lock until file is written.
         let mut g = self.groups.lock().await;
 
-        let mut file = tokio::fs::OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(&self.temp_file_path)
+        let file_path = self.file_path.clone();
+        let temp_file_path = self.temp_file_path.clone();
+        write_file_atomic2(Handle::current(), file_path, temp_file_path, json)
             .await
-            .map_err(CreateTempFile)?;
-        file.write_all(&json).await.map_err(WriteFile)?;
-        file.flush().await.map_err(FlushFile)?;
-        drop(file);
-        tokio::fs::rename(&self.temp_file_path, &self.file_path)
-            .await
-            .map_err(RenameFile)?;
+            .map_err(SetMonitorGroupsError::WriteFile)?;
 
         *g = groups;
         Ok(())

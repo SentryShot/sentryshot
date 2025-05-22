@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use common::{
-    ArcMsgLogger, Event, LogLevel,
+    ArcMsgLogger, Event, FILE_MODE, LogLevel,
     monitor::CreateEventDbError,
     time::{MINUTE, SECOND, UnixNano},
 };
@@ -23,6 +23,7 @@ use thiserror::Error;
 use tokio::{
     fs::File,
     io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt},
+    runtime::Handle,
     sync::{mpsc, oneshot},
 };
 
@@ -143,10 +144,7 @@ impl Database {
         disable_reordering: bool,
     ) -> Result<Self, CreateEventDbError> {
         assert!(cache_capacity >= write_buf_capacify);
-        tokio::fs::DirBuilder::new()
-            .mode(0o750)
-            .recursive(true)
-            .create(&db_dir)
+        common::create_dir_all2(Handle::current(), db_dir.clone())
             .await
             .map_err(|e| CreateEventDbError::CreateDir(db_dir.clone(), e))?;
 
@@ -928,20 +926,20 @@ impl ChunkEncoder {
         let mut prev_entry_time = UnixNano::new(0);
         let mut payload_pos = 0;
         if data_file_size == 0 {
-            let mut file = tokio::fs::OpenOptions::new()
+            let mut data_file = tokio::fs::OpenOptions::new()
                 .create(true)
-                .mode(0o640)
+                .mode(FILE_MODE)
                 .truncate(true)
                 .write(true)
                 .open(&data_path)
                 .await
                 .map_err(OpenFile)?;
 
-            ChunkHeader::write_header(&mut file)
+            ChunkHeader::write_header(&mut data_file)
                 .await
                 .map_err(WriteFile)?;
 
-            file.flush().await.map_err(Flush)?;
+            data_file.flush().await.map_err(Flush)?;
         } else {
             let mut decoder = ChunkDecoder::new(&db_dir, &chunk_id).await?;
 
@@ -984,7 +982,7 @@ impl ChunkEncoder {
             .map_err(SeekToDataEnd)?;
 
         let mut payload_file = tokio::fs::OpenOptions::new()
-            .mode(0o640)
+            .mode(FILE_MODE)
             .create(true)
             .truncate(false)
             .write(true)

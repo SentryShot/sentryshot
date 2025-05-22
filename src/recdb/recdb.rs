@@ -3,32 +3,34 @@
 mod crawler;
 mod disk;
 
-use bytesize::ByteSize;
-use common::time::UnixNano;
 pub use crawler::CrawlerError;
 pub use disk::Disk;
-use jiff::Timestamp;
 
-use common::recording::{RecordingData, RecordingId, RecordingIdError};
+use bytesize::ByteSize;
 use common::{
     ArcLogger, LogEntry, LogLevel, MonitorId,
+    recording::{RecordingData, RecordingId, RecordingIdError},
     time::{Duration, UnixH264},
 };
+use common::{FILE_MODE, time::UnixNano};
 use crawler::Crawler;
 use csv::deserialize_csv_option;
 use disk::UsageError;
 use fs::dir_fs;
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     num::NonZeroUsize,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
 };
 use thiserror::Error;
-use tokio::fs::{File, OpenOptions};
+use tokio::{
+    fs::{File, OpenOptions},
+    runtime::Handle,
+};
 
 // Query of recordings for crawler to find.
 #[derive(Clone, Debug, Deserialize)]
@@ -230,7 +232,7 @@ impl RecDb {
             return Err(AlreadyExist);
         }
 
-        tokio::fs::create_dir_all(&file_dir)
+        common::create_dir_all2(Handle::current(), file_dir.clone())
             .await
             .map_err(CreateDir)?;
 
@@ -473,7 +475,7 @@ impl RecordingHandle {
 
     pub async fn new_file(&self, ext: &str) -> Result<FileHandle, OpenFileError> {
         let mut options = OpenOptions::new();
-        let options = options.create_new(true).write(true);
+        let options = options.create_new(true).mode(FILE_MODE).write(true);
         self.open_file_with_opts(ext, options).await
     }
 

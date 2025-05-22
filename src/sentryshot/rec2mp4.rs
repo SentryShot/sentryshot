@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+use common::FILE_MODE;
 use recording::{CreateVideoReaderError, new_video_reader};
 use std::{
     collections::VecDeque,
@@ -123,6 +124,7 @@ async fn convert(recording_path: PathBuf) -> Result<(), ConvertError> {
 
     let mut file = tokio::fs::OpenOptions::new()
         .create(true)
+        .mode(FILE_MODE)
         .truncate(true)
         .write(true)
         .open(mp4_path)

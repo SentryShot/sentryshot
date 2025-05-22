@@ -10,16 +10,24 @@ pub use event::*;
 pub use sentryshot_padded_bytes::PaddedBytes;
 
 use async_trait::async_trait;
-
 use bytesize::{ByteSize, MB};
 use http::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Cow, collections::HashMap, convert::TryFrom, fmt, ops::Deref, path::Path, str::FromStr,
+    borrow::Cow,
+    collections::HashMap,
+    convert::TryFrom,
+    fmt,
+    io::Write,
+    ops::Deref,
+    os::unix::fs::{DirBuilderExt, OpenOptionsExt},
+    path::{Path, PathBuf},
+    str::FromStr,
     sync::Arc,
 };
 use thiserror::Error;
 use time::{DtsOffset, DurationH264, UnixH264};
+use tokio::runtime::Handle;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct EnvPlugin {
@@ -610,17 +618,8 @@ pub enum AuthSaveToFileError {
     #[error("serialize accounts: {0}")]
     Serialize(#[from] serde_json::Error),
 
-    #[error("open file: {0}")]
-    OpenFile(std::io::Error),
-
     #[error("write file: {0}")]
     WriteFile(std::io::Error),
-
-    #[error("sync file: {0}")]
-    SyncFile(std::io::Error),
-
-    #[error("rename file: {0}")]
-    RenameFile(std::io::Error),
 }
 
 /// Main account definition.
@@ -764,6 +763,72 @@ pub trait MsgLogger {
 }
 
 pub type DynError = Box<dyn std::error::Error>;
+
+pub const FILE_MODE: u32 = 0o640;
+pub const DIR_MODE: u32 = 0o750;
+
+pub fn write_file(path: &Path, buf: &[u8]) -> std::io::Result<()> {
+    let mut file = std::fs::OpenOptions::new()
+        .create_new(true)
+        .mode(FILE_MODE)
+        .truncate(true)
+        .write(true)
+        .open(path)?;
+    file.write_all(buf)?;
+    file.sync_all()
+}
+
+pub async fn write_file2<T>(rt_handle: Handle, path: PathBuf, buf: T) -> std::io::Result<()>
+where
+    T: AsRef<[u8]> + Send + Sync + 'static,
+{
+    rt_handle
+        .spawn_blocking(move || write_file(&path, buf.as_ref()))
+        .await
+        .expect("join")
+}
+
+// It may be important that the temp path is on the same drive partition.
+pub fn write_file_atomic(path: &Path, temp_path: &Path, buf: &[u8]) -> std::io::Result<()> {
+    let mut file = std::fs::OpenOptions::new()
+        .create_new(true)
+        .mode(FILE_MODE)
+        .truncate(true)
+        .write(true)
+        .open(temp_path)?;
+    file.write_all(buf)?;
+    file.sync_all()?;
+    std::fs::rename(temp_path, path)
+}
+
+pub async fn write_file_atomic2<T>(
+    rt_handle: Handle,
+    path: PathBuf,
+    temp_path: PathBuf,
+    buf: T,
+) -> std::io::Result<()>
+where
+    T: AsRef<[u8]> + Send + Sync + 'static,
+{
+    rt_handle
+        .spawn_blocking(move || write_file_atomic(&path, &temp_path, buf.as_ref()))
+        .await
+        .expect("join")
+}
+
+pub fn create_dir_all(path: &Path) -> std::io::Result<()> {
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .mode(DIR_MODE)
+        .create(path)
+}
+
+pub async fn create_dir_all2(rt_handle: Handle, path: PathBuf) -> std::io::Result<()> {
+    rt_handle
+        .spawn_blocking(move || create_dir_all(&path))
+        .await
+        .expect("join")
+}
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]

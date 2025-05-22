@@ -357,17 +357,11 @@ pub enum MonitorRestartError {
 
 #[derive(Debug, Error)]
 pub enum MonitorSetError {
-    #[error("open file: {0}")]
-    OpenFile(std::io::Error),
-
     #[error("serialize config: {0}")]
     Serialize(#[from] serde_json::Error),
 
     #[error("write config to file: {0}")]
-    WriteToFile(std::io::Error),
-
-    #[error("rename tempoary file: {0}")]
-    RenameTempFile(std::io::Error),
+    WriteFile(std::io::Error),
 }
 
 #[derive(Debug, Error)]
