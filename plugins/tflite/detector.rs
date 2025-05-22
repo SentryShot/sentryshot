@@ -337,7 +337,7 @@ fn get_log_level() -> u8 {
 const DEFAULT_CONFIG: &str = include_str!("./default_config.toml");
 
 pub(crate) fn write_detector_config(path: &Path) -> Result<(), std::io::Error> {
-    std::fs::write(path, DEFAULT_CONFIG)
+    common::write_file(path, DEFAULT_CONFIG.as_bytes())
 }
 
 async fn parse_detector_configs(
@@ -360,7 +360,7 @@ async fn parse_detector_configs(
             );
             continue;
         }
-        let model_path = model_cache.get(&cpu.model, &cpu.sha256sum).await?;
+        let model_path = model_cache.fetch(&cpu.model, &cpu.sha256sum).await?;
         let label_map = label_cache.get(&cpu.label_map).await?;
         if detector_configs.contains_key(&cpu.name) {
             return Err(Duplicate(cpu.name));
@@ -395,7 +395,9 @@ async fn parse_detector_configs(
             );
             continue;
         }
-        let model_path = model_cache.get(&edgetpu.model, &edgetpu.sha256sum).await?;
+        let model_path = model_cache
+            .fetch(&edgetpu.model, &edgetpu.sha256sum)
+            .await?;
         let label_map = label_cache.get(&edgetpu.label_map).await?;
         if detector_configs.contains_key(&edgetpu.name) {
             return Err(Duplicate(edgetpu.name));

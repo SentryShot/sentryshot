@@ -10,7 +10,11 @@ use axum::{
 };
 use common::{ArcAuth, ArcLogger, AuthenticatedUser};
 use http::{Request, StatusCode, header};
-use std::{borrow::Cow, collections::HashMap, path::Path};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
 use tokio::runtime::Handle;
 use tower::ServiceBuilder;
@@ -18,13 +22,13 @@ use tower::ServiceBuilder;
 #[derive(Debug, Error)]
 pub enum NewAuthError {
     #[error("create file: '{0}' {1}")]
-    CreateFile(String, std::io::Error),
+    CreateFile(PathBuf, std::io::Error),
 
     #[error("write initial file: '{0}' {1}")]
-    WriteInitialFile(String, std::io::Error),
+    WriteInitialFile(PathBuf, std::io::Error),
 
     #[error("read file: '{0}' {1}")]
-    ReadFile(String, std::io::Error),
+    ReadFile(PathBuf, std::io::Error),
 
     #[error("parse file: {0}")]
     ParseFile(serde_json::Error),

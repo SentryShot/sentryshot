@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{FetchError, Fetcher};
-use common::{ArcMsgLogger, LogLevel};
+use common::{ArcMsgLogger, LogLevel, write_file_atomic};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
     ffi::OsString,
-    fmt::{Debug, Display, Write},
+    fmt::{Debug, Display},
     num::ParseIntError,
     ops::Deref,
     path::PathBuf,
@@ -47,7 +47,7 @@ pub(crate) enum ModelCacheError {
     BadChecksum(ModelChecksum, ModelChecksum),
 
     #[error("write file: {0}")]
-    WriteFile(#[from] std::io::Error),
+    WriteFile(std::io::Error),
 }
 
 impl ModelCache {
@@ -76,11 +76,12 @@ impl ModelCache {
         })
     }
 
-    pub(crate) async fn get(
+    pub(crate) async fn fetch(
         &self,
         url: &Url,
         checksum: &ModelChecksum,
     ) -> Result<PathBuf, ModelCacheError> {
+        use ModelCacheError::*;
         if let Some(model_path) = self.models.get(checksum) {
             return Ok(model_path.to_owned());
         }
@@ -95,7 +96,11 @@ impl ModelCache {
 
         let file_name = checksum.as_string();
         let file_path = self.path.join(file_name);
-        std::fs::write(&file_path, raw_model)?;
+
+        let mut temp_path = file_path.clone();
+        temp_path.set_extension("tmp");
+
+        write_file_atomic(&self.path, &temp_path, &raw_model).map_err(WriteFile)?;
         Ok(file_path)
     }
 }
@@ -109,6 +114,7 @@ impl ModelChecksum {
     }
 
     pub(crate) fn as_string(&self) -> String {
+        use std::fmt::Write;
         let mut s = String::with_capacity(self.0.len() * 2);
         for &b in &self.0 {
             write!(&mut s, "{b:02x}").unwrap();

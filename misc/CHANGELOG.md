@@ -3,6 +3,7 @@
 ## `v0.3.0`
 
 -	use rust 2024 edition
+-	BREAKING: use mode `640` instead of `666` for all new files
 -	BREAKING: mute stdout debug logs by default
 -	BREAKING: use mp4 streamer by default
 -	BREAKING: detector http api now validates csrf token

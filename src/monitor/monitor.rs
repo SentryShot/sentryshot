@@ -3,7 +3,6 @@
 mod recorder;
 mod source;
 
-use eventdb::EventDb;
 pub use source::MonitorSource;
 
 use crate::{recorder::new_recorder, source::SourceRtsp};
@@ -16,7 +15,9 @@ use common::{
         MonitorRestartError, MonitorSetAndRestartError, MonitorSetError, SourceConfig,
     },
     time::Duration,
+    write_file_atomic2,
 };
+use eventdb::EventDb;
 use recdb::RecDb;
 use std::{
     collections::HashMap,
@@ -26,7 +27,7 @@ use std::{
 use thiserror::Error;
 use tokio::{
     self,
-    io::AsyncWriteExt,
+    runtime::Handle,
     sync::{Mutex, mpsc, oneshot},
 };
 use tokio_util::sync::CancellationToken;
@@ -179,7 +180,7 @@ impl MonitorManager {
         //hooks *Hooks,
     ) -> Result<Self, NewMonitorManagerError> {
         use NewMonitorManagerError::*;
-        std::fs::create_dir_all(&config_path).map_err(CreateDir)?;
+        common::create_dir_all(&config_path).map_err(CreateDir)?;
 
         let mut configs = HashMap::new();
         for entry in std::fs::read_dir(&config_path).map_err(ReadDir)? {
@@ -436,31 +437,16 @@ impl MonitorManagerState {
     // Changes are not applied until the montior restarts.
     // Returns `true` if monitor was created.
     pub async fn monitor_set(&mut self, config: MonitorConfig) -> Result<bool, MonitorSetError> {
-        use MonitorSetError::*;
-
         let id = config.id();
 
         // Write config to file.
         let path = self.config_path(id);
-
         let mut temp_path = path.clone();
         temp_path.set_file_name(id.to_string() + ".json.tmp");
-
         let json = serde_json::to_vec_pretty(&config)?;
-
-        let mut file = tokio::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&temp_path)
+        write_file_atomic2(Handle::current(), path, temp_path, json)
             .await
-            .map_err(OpenFile)?;
-
-        file.write_all(&json).await.map_err(WriteToFile)?;
-
-        tokio::fs::rename(temp_path, path)
-            .await
-            .map_err(RenameTempFile)?;
+            .map_err(MonitorSetError::WriteFile)?;
 
         let created = !self.configs.contains_key(id);
         if created {

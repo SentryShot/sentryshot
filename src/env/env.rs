@@ -5,8 +5,7 @@ use common::{EnvConfig, EnvPlugin, Flags, NonZeroGb, Streamer};
 use serde::Deserialize;
 use std::{
     collections::HashMap,
-    fs::{self, File},
-    io::Write,
+    fs::{self},
     path::{Path, PathBuf},
 };
 use thiserror::Error;
@@ -111,9 +110,6 @@ pub enum EnvConfigNewError {
 
 #[derive(Debug, Error)]
 pub enum GenerateEnvConfigError {
-    #[error("create file: {0}")]
-    CreateFile(std::io::Error),
-
     #[error("templater error: {0}")]
     AddTemplate(upon::Error),
 
@@ -130,7 +126,7 @@ pub enum GenerateEnvConfigError {
     WriteFile(std::io::Error),
 }
 
-fn generate_config(path: &Path, cwd: &Path) -> Result<(), GenerateEnvConfigError> {
+fn generate_config(config_path: &Path, cwd: &Path) -> Result<(), GenerateEnvConfigError> {
     use GenerateEnvConfigError::*;
 
     let data = HashMap::from([("cwd", cwd)]);
@@ -142,17 +138,15 @@ fn generate_config(path: &Path, cwd: &Path) -> Result<(), GenerateEnvConfigError
 
     let config = engine
         .get_template("config")
-        .expect("template should just have been added")
+        .expect("template should exist")
         .render(data)
         .to_string()
         .map_err(RenderTemplate)?;
 
-    let config_dir = path.parent().ok_or(GetParentDir())?;
-    fs::create_dir_all(config_dir).map_err(CreateDir)?;
+    let config_dir = config_path.parent().ok_or(GetParentDir())?;
+    common::create_dir_all(config_dir).map_err(CreateDir)?;
 
-    let mut file = File::create(path).map_err(CreateFile)?;
-    write!(file, "{config}").map_err(WriteFile)?;
-
+    common::write_file(config_path, config.as_bytes()).map_err(WriteFile)?;
     Ok(())
 }
 
@@ -190,7 +184,7 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
         return Err(PathNotAbsolute("plugin_dir".to_owned(), raw.plugin_dir));
     }
 
-    std::fs::create_dir_all(&raw.storage_dir)
+    common::create_dir_all(&raw.storage_dir)
         .map_err(|e| CreateStorageDir(raw.storage_dir.clone(), e))?;
     let storage_dir = raw
         .storage_dir
@@ -198,8 +192,7 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
         .map_err(|e| Canonicalize(raw.storage_dir, e))?;
 
     let recordings_dir = storage_dir.join("recordings");
-    std::fs::create_dir_all(&recordings_dir)
-        .map_err(|e| CreateRecDir(recordings_dir.clone(), e))?;
+    common::create_dir_all(&recordings_dir).map_err(|e| CreateRecDir(recordings_dir.clone(), e))?;
     let recordings_dir = recordings_dir
         .canonicalize()
         .map_err(|e| Canonicalize(recordings_dir, e))?;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{FetchError, Fetcher};
-use common::{ArcMsgLogger, Label, LogLevel, ParseLabelError};
+use common::{ArcMsgLogger, Label, LogLevel, ParseLabelError, write_file_atomic};
 use std::{collections::HashMap, num::ParseIntError, path::PathBuf, string::FromUtf8Error};
 use thiserror::Error;
 use url::Url;
@@ -35,9 +35,6 @@ pub(crate) enum LabelCacheError {
 
     #[error("write file: {0}")]
     WriteFile(std::io::Error),
-
-    #[error("rename file: {0}")]
-    RenameFile(std::io::Error),
 
     #[error("fetch: {0}")]
     Fetch(#[from] FetchError),
@@ -87,10 +84,7 @@ impl LabelCache {
 
         let mut temp_path = self.path.clone();
         temp_path.set_extension("tmp");
-
-        std::fs::write(&temp_path, raw).map_err(WriteFile)?;
-        std::fs::rename(&temp_path, &self.path).map_err(RenameFile)?;
-        Ok(())
+        write_file_atomic(&self.path, &temp_path, &raw).map_err(WriteFile)
     }
 }
 

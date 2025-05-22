@@ -4,8 +4,9 @@ use super::{LogEntryWithTime, UnixMicro};
 use crate::{rev_buf_reader::RevBufReader, slow_poller::PollQuery};
 use bytesize::ByteSize;
 use common::{
-    ArcLogger, LOG_SOURCE_MAX_LENGTH, LogEntry, LogLevel, LogSource, MONITOR_ID_MAX_LENGTH,
-    MonitorId, ParseLogLevelError, ParseLogMessageError, ParseLogSourceError, ParseMonitorIdError,
+    ArcLogger, FILE_MODE, LOG_SOURCE_MAX_LENGTH, LogEntry, LogLevel, LogSource,
+    MONITOR_ID_MAX_LENGTH, MonitorId, ParseLogLevelError, ParseLogMessageError,
+    ParseLogSourceError, ParseMonitorIdError,
 };
 use csv::{deserialize_csv_option, deserialize_csv_option2};
 use serde::Deserialize;
@@ -68,8 +69,8 @@ pub struct LogDb {
 
 #[derive(Debug, Error)]
 pub enum CreateLogDBError {
-    #[error("make log directory: {0} {1}")]
-    MakeLogDir(String, std::io::Error),
+    #[error("create log directory: {0} {1}")]
+    CreateLogDir(PathBuf, std::io::Error),
 }
 
 impl LogDb {
@@ -84,8 +85,8 @@ impl LogDb {
         write_buf_capacify: usize,
     ) -> Result<Self, CreateLogDBError> {
         assert!(cache_capacity >= write_buf_capacify);
-        std::fs::create_dir_all(&log_dir)
-            .map_err(|e| CreateLogDBError::MakeLogDir(log_dir.to_string_lossy().to_string(), e))?;
+        common::create_dir_all(&log_dir)
+            .map_err(|e| CreateLogDBError::CreateLogDir(log_dir.clone(), e))?;
 
         let handle = Self {
             log_dir: log_dir.clone(),
@@ -944,19 +945,21 @@ impl ChunkEncoder {
         let mut prev_entry_time = UnixMicro::new(0);
         let mut msg_pos = 0;
         if data_file_size == 0 {
-            let mut file = tokio::fs::OpenOptions::new()
+            let mut data_file = tokio::fs::OpenOptions::new()
                 .create(true)
+                .mode(FILE_MODE)
                 .truncate(true)
                 .write(true)
                 .open(&data_path)
                 .await
                 .map_err(OpenFile)?;
 
-            file.write_all(&CHUNK_API_VERSION.to_be_bytes())
+            data_file
+                .write_all(&CHUNK_API_VERSION.to_be_bytes())
                 .await
                 .map_err(WriteFile)?;
 
-            file.flush().await.map_err(Flush)?;
+            data_file.flush().await.map_err(Flush)?;
         } else {
             let mut decoder = ChunkDecoder::new(&log_dir, &chunk_id).await?;
 
@@ -1005,6 +1008,7 @@ impl ChunkEncoder {
 
         let mut msg_file = tokio::fs::OpenOptions::new()
             .create(true)
+            .mode(FILE_MODE)
             .truncate(false)
             .write(true)
             .open(msg_path)
