@@ -125,12 +125,8 @@ struct MotionLogger {
 
 impl MsgLogger for MotionLogger {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry::new(
-            level,
-            "motion",
-            Some(self.monitor_id.clone()),
-            msg.to_owned(),
-        ));
+        self.logger
+            .log(LogEntry::new(level, "motion", &self.monitor_id, msg));
     }
 }
 
@@ -397,8 +393,8 @@ async fn enable_handler(
     s.logger.log(LogEntry::new(
         LogLevel::Info,
         "motion",
-        Some(monitor_id),
-        "detector enabled".to_owned(),
+        &monitor_id,
+        "detector enabled",
     ));
 
     StatusCode::OK.into_response()
@@ -429,8 +425,8 @@ async fn disable_handler(
     s.logger.log(LogEntry::new(
         LogLevel::Info,
         "motion",
-        Some(monitor_id),
-        "detector disabled".to_owned(),
+        &monitor_id,
+        "detector disabled",
     ));
 
     StatusCode::OK.into_response()

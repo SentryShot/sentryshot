@@ -709,12 +709,8 @@ struct TfliteMonitorLogger {
 
 impl MsgLogger for TfliteMonitorLogger {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry::new(
-            level,
-            "tflite",
-            Some(self.monitor_id.clone()),
-            msg.to_owned(),
-        ));
+        self.logger
+            .log(LogEntry::new(level, "tflite", &self.monitor_id, msg));
     }
 }
 
@@ -743,8 +739,7 @@ struct TfliteLogger {
 
 impl MsgLogger for TfliteLogger {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger
-            .log(LogEntry::new(level, "tflite", None, msg.to_owned()));
+        self.logger.log(LogEntry::new2(level, "tflite", msg));
     }
 }
 
@@ -834,8 +829,8 @@ async fn enable_handler(
     s.logger.log(LogEntry::new(
         LogLevel::Info,
         "tflite",
-        Some(monitor_id),
-        "detector enabled".to_owned(),
+        &monitor_id,
+        "detector enabled",
     ));
 
     StatusCode::OK.into_response()
@@ -866,8 +861,8 @@ async fn disable_handler(
     s.logger.log(LogEntry::new(
         LogLevel::Info,
         "tflite",
-        Some(monitor_id),
-        "detector disabled".to_owned(),
+        &monitor_id,
+        "detector disabled",
     ));
 
     StatusCode::OK.into_response()

@@ -266,12 +266,7 @@ impl App {
             .iana_name()
             .ok_or(RunError::TimeZone)?
             .to_owned();
-        self.logger.log(LogEntry::new(
-            LogLevel::Debug,
-            "app",
-            None,
-            format!("TZ={time_zone}"),
-        ));
+        self.log(LogLevel::Debug, &format!("TZ={time_zone}"));
 
         let templater = Arc::new(Templater::new(
             self.logger.clone(),
@@ -445,14 +440,8 @@ impl App {
             .await;
         });
 
-        self.logger.log(LogEntry {
-            level: LogLevel::Info,
-            source: "app".try_into().expect("valid"),
-            monitor_id: None,
-            message: format!("Serving app on port {}", self.env.port())
-                .try_into()
-                .expect("not empty"),
-        });
+        let port = self.env.port();
+        self.log(LogLevel::Info, &format!("Serving app on port {port}"));
 
         self.monitor_manager
             .start_monitors(Arc::new(plugin_manager))
@@ -499,6 +488,10 @@ impl App {
         });
 
         Ok(self.shutdown_complete_rx)
+    }
+
+    fn log(&self, level: LogLevel, msg: &str) {
+        self.logger.log(LogEntry::new2(level, "app", msg));
     }
 }
 
@@ -568,20 +561,18 @@ pub async fn prune_loop(
             () = tokio::time::sleep(interval) => {
                 let (oldest_recording, err) = recdb.prune().await;
                 if let Some(e) = err {
-                    logger.log(LogEntry::new(
+                    logger.log(LogEntry::new2(
                         LogLevel::Error,
                         "recdb",
-                        None,
-                        format!("prune recordings: {e}"),
+                        &format!("prune recordings: {e}"),
                     ));
                 }
                 if let Some(oldest_recording) = oldest_recording {
                     if let Err(e) = eventdb.prune(oldest_recording).await {
-                        logger.log(LogEntry::new(
+                        logger.log(LogEntry::new2(
                             LogLevel::Error,
                             "eventdb",
-                            None,
-                            format!("prune events: {e}"),
+                            &format!("prune events: {e}"),
                         ));
                     }
                 }

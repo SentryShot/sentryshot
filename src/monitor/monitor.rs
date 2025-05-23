@@ -120,13 +120,8 @@ impl MonitorImpl for Monitor {
     }
 }
 
-pub fn log_monitor(logger: &ArcLogger, level: LogLevel, id: &MonitorId, msg: &str) {
-    logger.log(LogEntry::new(
-        level,
-        "monitor",
-        Some(id.to_owned()),
-        msg.to_owned(),
-    ));
+pub(crate) fn log_monitor(logger: &ArcLogger, level: LogLevel, id: &MonitorId, msg: &str) {
+    logger.log(LogEntry::new(level, "monitor", id, msg));
 }
 
 #[derive(Debug, Error)]
@@ -420,9 +415,9 @@ impl MonitorManagerState {
 
         // Stop monitor if running.
         if let Some(monitor) = self.started_monitors.remove(id) {
-            log_monitor(&self.logger, LogLevel::Info, id, "stopping");
+            self.log(LogLevel::Info, id, "stopping");
             monitor.stop().await;
-            log_monitor(&self.logger, LogLevel::Debug, id, "stopped");
+            self.log(LogLevel::Debug, id, "stopped");
         }
 
         // Restart monitor.
@@ -450,9 +445,9 @@ impl MonitorManagerState {
 
         let created = !self.configs.contains_key(id);
         if created {
-            log_monitor(&self.logger, LogLevel::Info, id, "created");
+            self.log(LogLevel::Info, id, "created");
         } else {
-            log_monitor(&self.logger, LogLevel::Info, id, "saved");
+            self.log(LogLevel::Info, id, "saved");
         }
 
         self.configs.insert(id.to_owned(), config);
@@ -475,9 +470,9 @@ impl MonitorManagerState {
         use MonitorDeleteError::*;
 
         if let Some(monitor) = self.started_monitors.remove(id) {
-            log_monitor(&self.logger, LogLevel::Info, id, "stopping");
+            self.log(LogLevel::Info, id, "stopping");
             monitor.stop().await;
-            log_monitor(&self.logger, LogLevel::Debug, id, "stopped");
+            self.log(LogLevel::Debug, id, "stopped");
             self.started_monitors.remove(id);
         };
 
@@ -486,7 +481,7 @@ impl MonitorManagerState {
         }
 
         tokio::fs::remove_file(self.config_path(id)).await?;
-        log_monitor(&self.logger, LogLevel::Info, id, "deleted");
+        self.log(LogLevel::Info, id, "deleted");
         Ok(())
     }
 
@@ -523,10 +518,10 @@ impl MonitorManagerState {
 
         let id = config.id().to_owned();
         if !config.enabled() {
-            log_monitor(&self.logger, LogLevel::Info, &id, "disabled");
+            self.log(LogLevel::Info, &id, "disabled");
             return None;
         }
-        log_monitor(&self.logger, LogLevel::Info, &id, "starting");
+        self.log(LogLevel::Info, &id, "starting");
 
         let monitor_token = self.token.child_token();
         let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel(1);
@@ -629,6 +624,10 @@ impl MonitorManagerState {
 
         // Break circular reference.
         self.hooks = None;
+    }
+
+    fn log(&self, level: LogLevel, id: &MonitorId, msg: &str) {
+        log_monitor(&self.logger, level, id, msg);
     }
 }
 

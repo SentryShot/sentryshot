@@ -409,11 +409,10 @@ func (a *Authenticator) MyToken() http.Handler {
 
 // LogFailedLogin finds and logs the ip.
 pub fn log_failed_login(logger: &ArcLogger, username: &Username) {
-    logger.log(LogEntry::new(
+    logger.log(LogEntry::new2(
         LogLevel::Warning,
         "auth",
-        None,
-        format!("failed login: username: '{username}' "),
+        &format!("failed login: username: '{username}' "),
     ));
 }
 

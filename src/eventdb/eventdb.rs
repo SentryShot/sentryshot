@@ -194,12 +194,8 @@ impl EventDbLogger {
 
 impl MsgLogger for EventDbLogger {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry::new(
-            level,
-            "eventdb",
-            Some(self.monitor_id.clone()),
-            msg.to_owned(),
-        ));
+        self.logger
+            .log(LogEntry::new(level, "eventdb", &self.monitor_id, msg));
     }
 }
 
