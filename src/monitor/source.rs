@@ -142,8 +142,8 @@ impl MsgLogger for SourceLogger {
         self.logger.log(LogEntry::new(
             level,
             "monitor",
-            Some(self.monitor_id.clone()),
-            format!(
+            &self.monitor_id,
+            &format!(
                 "({}) {} source: {}",
                 self.stream_type.name(),
                 self.source_name,

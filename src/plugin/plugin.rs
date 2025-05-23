@@ -194,12 +194,12 @@ pub struct PluginManager {
 impl PluginManager {
     pub fn new(prepared_plugins: PreLoadedPlugins, app: &dyn Application) -> Self {
         let logger = app.logger();
-        let log = |msg: String| {
-            logger.log(LogEntry::new(LogLevel::Info, "app", None, msg));
+        let log = |msg: &str| {
+            logger.log(LogEntry::new2(LogLevel::Info, "app", msg));
         };
         let mut plugins = Vec::new();
         for (name, load_fn) in prepared_plugins.load_fns {
-            log(format!("loading plugin {name}"));
+            log(&format!("loading plugin {name}"));
             let plugin = load_fn(app);
             plugins.push(plugin);
         }

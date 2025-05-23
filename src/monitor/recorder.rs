@@ -622,8 +622,8 @@ impl MsgLogger for RecorderMsgLogger {
         self.logger.log(LogEntry::new(
             level,
             "monitor",
-            Some(self.monitor_id.clone()),
-            format!("recorder: {msg}"),
+            &self.monitor_id,
+            &format!("recorder: {msg}"),
         ));
     }
 }

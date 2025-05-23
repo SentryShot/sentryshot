@@ -373,16 +373,15 @@ impl RecDb {
         let (usage, err) = self.disk.usage(Duration::from_minutes(9)).await;
         if let Some(e) = err {
             self.logger
-                .log(LogLevel::Error, None, format!("calculate disk usage: {e}"));
+                .log2(LogLevel::Error, &format!("calculate disk usage: {e}"));
         }
         let usage = match usage {
             Ok(v) => v,
             Err(e) => return (None, Some(PruneError::Usage(e))),
         };
-        self.logger.log(
+        self.logger.log2(
             LogLevel::Debug,
-            None,
-            format!("{:.1}% disk usage", usage.percent),
+            &format!("{:.1}% disk usage", usage.percent),
         );
         if usage.percent < 99.0 {
             return (None, None);
@@ -395,10 +394,9 @@ impl RecDb {
                 .checked_sub(target_disk_usage)
                 .expect("disk usage must be greater than target usage"),
         );
-        self.logger.log(
+        self.logger.log2(
             LogLevel::Info,
-            None,
-            format!("deleting {bytes_to_delete} of recordings"),
+            &format!("deleting {bytes_to_delete} of recordings"),
         );
 
         let query = RecDbQuery {
@@ -425,8 +423,8 @@ impl RecDb {
             oldest_recording = Some(rec.id().nanos_inexact());
             self.logger.log(
                 LogLevel::Info,
-                Some(rec.id().monitor_id().to_owned()),
-                format!("deleting recording {}", rec.id()),
+                rec.id().monitor_id(),
+                &format!("deleting recording {}", rec.id()),
             );
             let (deleted, e) = self.delete_recording(rec.id().clone()).await;
             num_deleted_bytes += deleted;
@@ -582,8 +580,11 @@ impl DerefMut for FileHandle {
 struct RecDbLogger(ArcLogger);
 
 impl RecDbLogger {
-    fn log(&self, level: LogLevel, monitor_id: Option<MonitorId>, msg: String) {
+    fn log(&self, level: LogLevel, monitor_id: &MonitorId, msg: &str) {
         self.0.log(LogEntry::new(level, "recdb", monitor_id, msg));
+    }
+    fn log2(&self, level: LogLevel, msg: &str) {
+        self.0.log(LogEntry::new2(level, "recdb", msg));
     }
 }
 

@@ -56,11 +56,10 @@ impl Plugin for MqttPlugin {
             .publish(event, config.id(), config.name())
             .await
         {
-            self.logger.log(LogEntry::new(
+            self.logger.log(LogEntry::new2(
                 LogLevel::Error,
                 "mqtt",
-                None,
-                format!("publish: {e}"),
+                &format!("publish: {e}"),
             ));
         };
     }
@@ -133,17 +132,15 @@ impl MqttPlugin {
                             return
                         };
                         match res {
-                            Ok(v) => logger2.log(LogEntry::new(
+                            Ok(v) => logger2.log(LogEntry::new2(
                                          LogLevel::Debug,
                                          "mqtt",
-                                         None,
-                                         format!("{v:?}"),
+                                         &format!("{v:?}"),
                                      )),
-                            Err(e) => logger2.log(LogEntry::new(
+                            Err(e) => logger2.log(LogEntry::new2(
                                           LogLevel::Error,
                                           "mqtt",
-                                          None,
-                                          e.to_string(),
+                                          &e.to_string(),
                                       )),
                         };
                     }

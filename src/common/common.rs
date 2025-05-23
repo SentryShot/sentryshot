@@ -131,19 +131,33 @@ pub struct LogEntry {
 }
 
 impl LogEntry {
-    #[allow(clippy::unwrap_used, clippy::needless_pass_by_value)]
     #[must_use]
     pub fn new(
         level: LogLevel,
         source: &'static str,
-        monitor_id: Option<MonitorId>,
-        message: String,
+        monitor_id: &MonitorId,
+        message: &str,
+    ) -> Self {
+        Self::new3(level, source, Some(monitor_id), message)
+    }
+
+    #[must_use]
+    pub fn new2(level: LogLevel, source: &'static str, message: &str) -> Self {
+        Self::new3(level, source, None, message)
+    }
+
+    #[must_use]
+    fn new3(
+        level: LogLevel,
+        source: &'static str,
+        monitor_id: Option<&MonitorId>,
+        message: &str,
     ) -> Self {
         let source: LogSource = source
             .to_owned()
             .try_into()
             .expect("source should be valid");
-        let message = match LogMessage::try_from(message) {
+        let message = match LogMessage::try_from(message.to_owned()) {
             Ok(v) => v,
             Err(e) => LogMessage::try_from(format!("bad message: {e}"))
                 .expect("error message should be a valid log message"),
@@ -151,7 +165,7 @@ impl LogEntry {
         Self {
             level,
             source,
-            monitor_id,
+            monitor_id: monitor_id.cloned(),
             message,
         }
     }

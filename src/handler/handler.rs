@@ -47,14 +47,14 @@ pub async fn template_handler(
     let path = uri.to_string();
     let path = path.strip_prefix('/').unwrap_or(&path);
 
-    let log = |msg: String| {
+    let log = |msg: &str| {
         templater
             .logger()
-            .log(LogEntry::new(LogLevel::Info, "app", None, msg));
+            .log(LogEntry::new2(LogLevel::Info, "app", msg));
     };
 
     let Some(template) = templater.get_template(path) else {
-        log(format!("handle_templates: get template for path: {path}"));
+        log(&format!("handle_templates: get template for path: {path}"));
         return (StatusCode::INTERNAL_SERVER_ERROR, "template does not exist").into_response();
     };
 
@@ -72,7 +72,7 @@ pub async fn template_handler(
         )
             .into_response(),
         Err(e) => {
-            log(format!("handle_templates: render template '{path}': {e}"));
+            log(&format!("handle_templates: render template '{path}': {e}"));
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "failed to render template",
@@ -244,8 +244,8 @@ pub async fn vod_handler(
             state.logger.log(LogEntry::new(
                 LogLevel::Error,
                 "app",
-                Some(monitor_id),
-                format!("vod handler: {e}"),
+                &monitor_id,
+                &format!("vod handler: {e}"),
             ));
             return (StatusCode::INTERNAL_SERVER_ERROR, "error printed to logs").into_response();
         }
@@ -318,11 +318,10 @@ pub async fn recording_query_handler(
     let mut recordings = match s.recdb.recordings_by_query(&query.0).await {
         Ok(v) => v,
         Err(e) => {
-            s.logger.log(LogEntry::new(
+            s.logger.log(LogEntry::new2(
                 LogLevel::Error,
                 "recdb",
-                None,
-                format!("query recordings: {e}"),
+                &format!("query recordings: {e}"),
             ));
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
@@ -355,8 +354,8 @@ pub async fn recording_query_handler(
                 s.logger.log(LogEntry::new(
                     LogLevel::Error,
                     "eventdb",
-                    Some(monitor_id),
-                    format!("query events: {e}"),
+                    &monitor_id,
+                    &format!("query events: {e}"),
                 ));
             }
         };
@@ -589,11 +588,10 @@ pub async fn recording_video_handler(
     let video = match new_video_reader(path, query.cache_id, &Some(state.video_cache)).await {
         Ok(v) => v,
         Err(e) => {
-            state.logger.log(LogEntry::new(
+            state.logger.log(LogEntry::new2(
                 LogLevel::Error,
                 "app",
-                None,
-                format!("video request: {e}"),
+                &format!("video request: {e}"),
             ));
             return (StatusCode::INTERNAL_SERVER_ERROR, "see logs for details").into_response();
         }

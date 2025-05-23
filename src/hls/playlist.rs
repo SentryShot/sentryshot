@@ -463,11 +463,10 @@ struct PlaylistState {
 
 impl PlaylistState {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry::new(
+        self.logger.log(LogEntry::new2(
             level,
             "app",
-            None,
-            format!("hls playlist: {msg}"),
+            &format!("hls playlist: {msg}"),
         ));
     }
 

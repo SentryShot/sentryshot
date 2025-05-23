@@ -168,11 +168,10 @@ impl LogDb {
                 () = token.cancelled() => return,
                 () = tokio::time::sleep(Duration::from_secs(HOUR)) => {
                     if let Err(e) = self.prune().await {
-                        logger.log(LogEntry::new(
+                        logger.log(LogEntry::new2(
                             LogLevel::Error,
                             "app",
-                            None,
-                            format!("could not purge logs: {e}"),
+                            &format!("could not purge logs: {e}"),
                         ));
                     }
                 }
