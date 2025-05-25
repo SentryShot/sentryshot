@@ -12,6 +12,7 @@ use tokio::{runtime::Handle, sync::Mutex};
 
 pub type ArcMonitorGroups = Arc<MonitorGroups>;
 
+#[derive(Debug)]
 pub struct MonitorGroups {
     file_path: PathBuf,
     temp_file_path: PathBuf,
@@ -21,6 +22,12 @@ pub struct MonitorGroups {
 
 #[derive(Debug, Error)]
 pub enum CreateMonitorGroupsError {
+    #[error("migrate file to configs dir: {0}")]
+    MigrateFile(std::io::Error),
+
+    #[error("monitorGroups.json exists in both storage and config dir")]
+    AlreadyMigrated,
+
     #[error("read file: {0}")]
     ReadFile(std::io::Error),
 
@@ -41,10 +48,22 @@ pub enum SetMonitorGroupsError {
 }
 
 impl MonitorGroups {
-    pub async fn new(storage_dir: &Path) -> Result<Self, CreateMonitorGroupsError> {
+    pub async fn new(
+        storage_dir: &Path,
+        configs_dir: &Path,
+    ) -> Result<Self, CreateMonitorGroupsError> {
         use CreateMonitorGroupsError::*;
-        let file_path = storage_dir.join("monitorGroups.json");
-        let temp_file_path = storage_dir.join("monitorGroups.json.tmp");
+        let old_file_path = storage_dir.join("monitorGroups.json");
+        let file_path = configs_dir.join("monitorGroups.json");
+        let temp_file_path = configs_dir.join("monitorGroups.json.tmp");
+        if old_file_path.exists() {
+            // v0.2.0 -> v0.3.0 migration.
+            if file_path.exists() {
+                return Err(AlreadyMigrated);
+            }
+            std::fs::rename(old_file_path, &file_path).map_err(MigrateFile)?;
+        }
+
         let groups = {
             if file_path.exists() {
                 let json = tokio::fs::read(&file_path).await.map_err(ReadFile)?;
@@ -226,11 +245,19 @@ impl Deref for GroupName {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[tokio::test]
     async fn test_monitor_groups() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let monitor_groups = MonitorGroups::new(temp_dir.path()).await.unwrap();
+        let temp_path = temp_dir.path();
+        let storage_dir = temp_path.join("storage");
+        let configs_dir = temp_path.join("configs");
+        std::fs::create_dir_all(&storage_dir).unwrap();
+        std::fs::create_dir_all(&configs_dir).unwrap();
+        let monitor_groups = MonitorGroups::new(&storage_dir, &configs_dir)
+            .await
+            .unwrap();
 
         assert!(monitor_groups.get().await.is_empty());
 
@@ -246,7 +273,9 @@ mod tests {
         assert_eq!(map1, monitor_groups.get().await);
 
         drop(monitor_groups);
-        let monitor_groups = MonitorGroups::new(temp_dir.path()).await.unwrap();
+        let monitor_groups = MonitorGroups::new(&storage_dir, &configs_dir)
+            .await
+            .unwrap();
         assert_eq!(map1, monitor_groups.get().await);
     }
 
@@ -261,5 +290,61 @@ mod tests {
         GroupName::try_from("{".to_owned()).unwrap_err();
         GroupName::try_from("(".to_owned()).unwrap_err();
         GroupName::try_from("<".to_owned()).unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn test_migrate_v020_to_v030() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path();
+        let storage_dir = temp_path.join("storage");
+        let configs_dir = temp_path.join("configs");
+        std::fs::create_dir_all(&storage_dir).unwrap();
+        std::fs::create_dir_all(&configs_dir).unwrap();
+
+        let data = "{
+  \"id1\": {
+    \"id\": \"id1\",
+    \"name\": \"name1\",
+    \"monitors\": [ \"monitor1\" ]
+  }
+}";
+
+        let old_path = storage_dir.join("monitorGroups.json");
+        std::fs::write(&old_path, data).unwrap();
+
+        let monitor_groups = MonitorGroups::new(&storage_dir, &configs_dir)
+            .await
+            .unwrap();
+
+        let id1: GroupId = "id1".to_owned().try_into().unwrap();
+        let want = HashMap::from([(
+            id1.clone(),
+            Group {
+                id: id1.clone(),
+                name: "name1".to_owned().try_into().unwrap(),
+                monitors: vec!["monitor1".to_owned().try_into().unwrap()],
+            },
+        )]);
+
+        assert_eq!(want, monitor_groups.get().await);
+
+        drop(monitor_groups);
+        let monitor_groups = MonitorGroups::new(&storage_dir, &configs_dir)
+            .await
+            .unwrap();
+        assert_eq!(want, monitor_groups.get().await);
+
+        assert!(!old_path.exists());
+        assert_eq!(
+            data.as_bytes(),
+            std::fs::read(configs_dir.join("monitorGroups.json")).unwrap()
+        );
+
+        // Check for error if file exists in both places.
+        drop(monitor_groups);
+        std::fs::write(&old_path, data).unwrap();
+        MonitorGroups::new(&storage_dir, &configs_dir)
+            .await
+            .unwrap_err();
     }
 }

@@ -205,7 +205,8 @@ impl App {
             streamer.clone().into(),
         )?);
 
-        let monitor_groups = Arc::new(MonitorGroups::new(env.storage_dir()).await?);
+        let monitor_groups =
+            Arc::new(MonitorGroups::new(env.storage_dir(), env.config_dir()).await?);
 
         let router = Router::new(axum::Router::new(), auth.clone());
 
