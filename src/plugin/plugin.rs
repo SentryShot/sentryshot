@@ -109,15 +109,15 @@ pub fn pre_load_plugins(
 
         let plugin_name = plugin.name();
         let plugin_path = {
-            // The long name is use in development builds.
-            let short = plugin_dir.join(plugin_name);
-            let long = plugin_dir.join(format!("lib{plugin_name}.so"));
-            if short.exists() {
-                short
-            } else if long.exists() {
+            // The short name is used during development.
+            let long = plugin_dir.join(format!("libsentryshot_{plugin_name}.so"));
+            let short = plugin_dir.join(format!("lib{plugin_name}.so"));
+            if long.exists() {
                 long
+            } else if short.exists() {
+                short
             } else {
-                return Err(NotFound(short));
+                return Err(NotFound(long));
             }
         };
 

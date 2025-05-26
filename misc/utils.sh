@@ -220,9 +220,9 @@ build_target() {
 
 	# Copy plugins.
 	for plugin in $plugins; do
-		printf "./build/%s/plugins/%s\n" "$target" "$plugin"
+		printf "./build/%s/plugins/libsentryshot_%s.so\n" "$target" "$plugin"
 		# Cargo doesn't let you specify the output file: https://github.com/rust-lang/cargo/issues/9778
-		output="$output_dir"/plugins/"$plugin"
+		output="$output_dir/plugins/libsentryshot_$plugin.so"
 		cp "$target_dir"/"$target"-unknown-linux-gnu/release/lib"$plugin".so "$output"
 		patch_rpath "$output"
 	done
