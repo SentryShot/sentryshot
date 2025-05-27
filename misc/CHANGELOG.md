@@ -1,5 +1,9 @@
 ## unreleased
 
+## `v0.2.26`
+
+-	prune recordings more evenly across monitors #65
+
 ## `v0.2.25`
 
 -	show detections for active recordings

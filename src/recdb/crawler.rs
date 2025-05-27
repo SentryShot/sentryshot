@@ -446,6 +446,8 @@ impl DirIterRec {
                 });
             }
         }
+
+        all_files.sort_by_key(|v| v.id.clone());
         if query.reverse {
             all_files.reverse();
         }
@@ -829,18 +831,18 @@ mod tests {
         assert_eq!(r_id(want), rec[0].assert_finalized().id);
     }
 
-    #[test_case("2000-01-01_01-15-00_m1", "2000-01-01_01-10-00_m1", false)]
-    #[test_case("2000-01-01_01-20-00_m1", "2000-01-01_01-10-00_m1", false)]
+    #[test_case("2000-01-01_01-15-00_m1", "2000-01-01_01-10-00_m2", false)]
+    #[test_case("2000-01-01_01-20-00_m1", "2000-01-01_01-10-00_m2", false)]
     #[test_case("2000-01-01_01-15-00_m1", "2000-01-01_01-20-00_m1", true)]
-    #[test_case("2000-01-01_01-10-00_m1", "2000-01-01_01-20-00_m1", true)]
+    #[test_case("2000-01-01_01-10-00_m2", "2000-01-01_01-20-00_m1", true)]
     #[tokio::test]
     async fn test_day_direction(input: &str, want: &str, reverse: bool) {
         let dirs = Box::new(MapFs(
             [
                 map_fs_item("2000/01/01/m1/2000-01-01_01-00-00_m1"),
-                map_fs_item("2000/01/01/m1/2000-01-01_01-10-00_m1"),
+                map_fs_item("2000/01/01/m2/2000-01-01_01-10-00_m2"),
                 map_fs_item("2000/01/01/m1/2000-01-01_01-20-00_m1"),
-                map_fs_item("2000/01/01/m1/2000-01-01_01-30-00_m1"),
+                map_fs_item("2000/01/01/m2/2000-01-01_01-30-00_m2"),
                 map_fs_item("2000/01/01/m1/2000-01-01_01-40-00_m1"),
             ]
             .into_iter()
