@@ -55,7 +55,7 @@ impl<'a> Templater<'a> {
         mut current_page: String,
         is_admin: bool,
         csrf_token: String,
-    ) -> HashMap<&'static str, upon::Value> {
+    ) -> Option<HashMap<&'static str, upon::Value>> {
         use upon::Value;
 
         make_ascii_titlecase(&mut current_page);
@@ -68,15 +68,16 @@ impl<'a> Templater<'a> {
         } else {
             String::new()
         };
-        let monitors_info_json = serde_json::to_string(&self.monitor_manager.monitors_info().await)
-            .expect("serialization to never fail");
+        let monitors_info_json =
+            serde_json::to_string(&self.monitor_manager.monitors_info().await?)
+                .expect("serialization to never fail");
 
         let monitor_groups_json = serde_json::to_string(&self.monitor_groups.get().await)
             .expect("serialization to never fail");
 
         let flags_json = serde_json::to_string(&self.flags).expect("serialization to never fail");
 
-        HashMap::from([
+        Some(HashMap::from([
             ("current_page", Value::String(current_page)),
             ("csrf_token", Value::String(csrf_token)),
             ("flags", Value::String(flags_json)),
@@ -86,7 +87,7 @@ impl<'a> Templater<'a> {
             ("monitors_json", Value::String(monitors_json)),
             ("monitors_info_json", Value::String(monitors_info_json)),
             ("tz", Value::String(self.time_zone.clone())),
-        ])
+        ]))
     }
 }
 

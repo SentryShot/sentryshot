@@ -349,10 +349,29 @@ pub trait MonitorHooks {
     async fn on_event(&self, event: Event, config: MonitorConfig);
 }
 
+pub struct DummyMonitorHooks;
+
+impl DummyMonitorHooks {
+    #[must_use]
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new() -> ArcMonitorHooks {
+        Arc::new(Self {})
+    }
+}
+
+#[async_trait]
+impl MonitorHooks for DummyMonitorHooks {
+    async fn on_monitor_start(&self, _: CancellationToken, _: ArcMonitor) {}
+    fn on_thumb_save(&self, _: &MonitorConfig, frame: Frame) -> Frame {
+        frame
+    }
+    async fn on_event(&self, _: Event, _: MonitorConfig) {}
+}
+
 #[derive(Debug, Error)]
 pub enum MonitorRestartError {
     #[error("monitor does not exist '{0}'")]
-    NotExist(String),
+    NotExist(MonitorId),
 }
 
 #[derive(Debug, Error)]
@@ -390,12 +409,12 @@ pub enum CreateEventDbError {
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct MonitorInfo {
-    id: MonitorId,
-    name: MonitorName,
-    enable: bool,
+    pub id: MonitorId,
+    pub name: MonitorName,
+    pub enable: bool,
 
     #[serde(rename = "hasSubStream")]
-    has_sub_stream: bool,
+    pub has_sub_stream: bool,
 }
 
 impl MonitorInfo {
@@ -414,19 +433,21 @@ pub type ArcMonitorManager = Arc<dyn IMonitorManager + Send + Sync>;
 
 #[async_trait]
 pub trait IMonitorManager {
-    async fn start_monitors(&self, hooks: ArcMonitorHooks);
-    async fn monitor_restart(&self, monitor_id: MonitorId) -> Result<(), MonitorRestartError>;
-    async fn monitor_set(&self, config: MonitorConfig) -> Result<bool, MonitorSetError>;
+    async fn monitor_restart(
+        &self,
+        monitor_id: MonitorId,
+    ) -> Option<Result<(), MonitorRestartError>>;
+
+    async fn monitor_set(&self, config: MonitorConfig) -> Option<Result<bool, MonitorSetError>>;
     async fn monitor_set_and_restart(
         &self,
         config: MonitorConfig,
-    ) -> Result<bool, MonitorSetAndRestartError>;
-    async fn monitor_delete(&self, id: MonitorId) -> Result<(), MonitorDeleteError>;
-    async fn monitors_info(&self) -> HashMap<MonitorId, MonitorInfo>;
-    async fn monitor_config(&self, monitor_id: MonitorId) -> Option<MonitorConfig>;
-    async fn monitor_configs(&self) -> MonitorConfigs;
-    async fn stop(&self);
-    async fn monitor_is_running(&self, monitor_id: MonitorId) -> bool;
+    ) -> Option<Result<bool, MonitorSetAndRestartError>>;
+
+    async fn monitor_delete(&self, id: MonitorId) -> Option<Result<(), MonitorDeleteError>>;
+    async fn monitors_info(&self) -> Option<HashMap<MonitorId, MonitorInfo>>;
+    async fn monitor_config(&self, monitor_id: MonitorId) -> Option<Option<MonitorConfig>>;
+    async fn monitor_configs(&self) -> Option<MonitorConfigs>;
 }
 
 #[async_trait]

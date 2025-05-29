@@ -20,7 +20,7 @@ use log::{
     log_db::{CreateLogDBError, LogDb},
     slow_poller::SlowPoller,
 };
-use monitor::{MonitorManager, NewMonitorManagerError};
+use monitor::{InitializeMonitorManagerError, MonitorManager};
 use monitor_groups::{ArcMonitorGroups, CreateMonitorGroupsError, MonitorGroups};
 use plugin::{
     Application, PluginManager, PreLoadPluginsError, PreLoadedPlugins, pre_load_plugins,
@@ -73,7 +73,7 @@ pub enum RunError {
     NewAuth(#[from] NewAuthError),
 
     #[error("create monitor manager: {0}")]
-    NewMonitorManager(#[from] NewMonitorManagerError),
+    NewMonitorManager(#[from] InitializeMonitorManagerError),
 
     #[error("create monitor groups: {0}")]
     CreateMonitorGroups(#[from] CreateMonitorGroupsError),
@@ -109,7 +109,7 @@ pub struct App {
     log_db: LogDb,
     auth: ArcAuth,
     streamer: Streamer,
-    monitor_manager: ArcMonitorManager,
+    monitor_manager: Arc<MonitorManager>,
     monitor_groups: ArcMonitorGroups,
     recdb: Arc<RecDb>,
     eventdb: EventDb,
@@ -196,14 +196,7 @@ impl App {
             }
         };
 
-        let monitors_dir = env.config_dir().join("monitors");
-        let monitor_manager = Arc::new(MonitorManager::new(
-            monitors_dir,
-            recdb.clone(),
-            eventdb.clone(),
-            logger.clone(),
-            streamer.clone().into(),
-        )?);
+        let monitor_manager = Arc::new(MonitorManager::new());
 
         let monitor_groups =
             Arc::new(MonitorGroups::new(env.storage_dir(), env.config_dir()).await?);
@@ -427,15 +420,15 @@ impl App {
         let token2 = self.token.clone();
         let shutdown_complete = self.shutdown_complete_tx.clone();
         let logger = self.logger.clone();
-        let rec_db = self.recdb.clone();
-        let event_db = self.eventdb.clone();
+        let recdb = self.recdb.clone();
+        let eventdb = self.eventdb.clone();
         tokio::spawn(async move {
             prune_loop(
                 token2,
                 shutdown_complete,
                 logger,
-                rec_db,
-                event_db,
+                recdb,
+                eventdb,
                 Duration::from_minutes(10).as_std().expect(""),
             )
             .await;
@@ -444,15 +437,23 @@ impl App {
         let port = self.env.port();
         self.log(LogLevel::Info, &format!("Serving app on port {port}"));
 
+        let monitors_dir = self.env.config_dir().join("monitors");
         self.monitor_manager
-            .start_monitors(Arc::new(plugin_manager))
-            .await;
+            .initialize(
+                monitors_dir,
+                self.recdb.clone(),
+                self.eventdb.clone(),
+                self.logger.clone(),
+                self.streamer.clone().into(),
+                Arc::new(plugin_manager),
+            )
+            .await?;
 
         let token = self.token.clone();
         let shutdown_complete_tx = self.shutdown_complete_tx.clone();
         tokio::spawn(async move {
             token.cancelled().await;
-            self.monitor_manager.stop().await;
+            self.monitor_manager.cancel().await;
             drop(shutdown_complete_tx);
         });
 

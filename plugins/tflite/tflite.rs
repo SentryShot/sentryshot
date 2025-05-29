@@ -806,12 +806,8 @@ async fn enable_handler(
     State(s): State<HandlerState>,
     Path(monitor_id): Path<MonitorId>,
 ) -> Response {
-    let Some(old_config) = s.monitor_manager.monitor_config(monitor_id.clone()).await else {
-        return (
-            StatusCode::NOT_FOUND,
-            format!("monitor '{monitor_id}' does not exist"),
-        )
-            .into_response();
+    let Some(Some(old_config)) = s.monitor_manager.monitor_config(monitor_id.clone()).await else {
+        return StatusCode::NOT_FOUND.into_response();
     };
 
     let Some(new_config) = set_enable(&old_config, true) else {
@@ -822,30 +818,28 @@ async fn enable_handler(
             .into_response();
     };
 
-    if let Err(e) = s.monitor_manager.monitor_set_and_restart(new_config).await {
-        return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+    match s.monitor_manager.monitor_set_and_restart(new_config).await {
+        Some(Ok(_)) => {
+            s.logger.log(LogEntry::new(
+                LogLevel::Info,
+                "tflite",
+                &monitor_id,
+                "detector enabled",
+            ));
+            StatusCode::OK.into_response()
+        }
+        Some(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        // Cancelled.
+        None => StatusCode::NOT_FOUND.into_response(),
     }
-
-    s.logger.log(LogEntry::new(
-        LogLevel::Info,
-        "tflite",
-        &monitor_id,
-        "detector enabled",
-    ));
-
-    StatusCode::OK.into_response()
 }
 
 async fn disable_handler(
     State(s): State<HandlerState>,
     Path(monitor_id): Path<MonitorId>,
 ) -> Response {
-    let Some(old_config) = s.monitor_manager.monitor_config(monitor_id.clone()).await else {
-        return (
-            StatusCode::NOT_FOUND,
-            format!("monitor '{monitor_id}' does not exist"),
-        )
-            .into_response();
+    let Some(Some(old_config)) = s.monitor_manager.monitor_config(monitor_id.clone()).await else {
+        return StatusCode::NOT_FOUND.into_response();
     };
 
     let new_config = match set_enable(&old_config, false) {
@@ -854,18 +848,20 @@ async fn disable_handler(
         None => old_config.clone(),
     };
 
-    if let Err(e) = s.monitor_manager.monitor_set_and_restart(new_config).await {
-        return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+    match s.monitor_manager.monitor_set_and_restart(new_config).await {
+        Some(Ok(_)) => {
+            s.logger.log(LogEntry::new(
+                LogLevel::Info,
+                "tflite",
+                &monitor_id,
+                "detector disabled",
+            ));
+            StatusCode::OK.into_response()
+        }
+        Some(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        // Cancelled.
+        None => StatusCode::NOT_FOUND.into_response(),
     }
-
-    s.logger.log(LogEntry::new(
-        LogLevel::Info,
-        "tflite",
-        &monitor_id,
-        "detector disabled",
-    ));
-
-    StatusCode::OK.into_response()
 }
 
 #[allow(clippy::too_many_arguments, clippy::unwrap_used)]

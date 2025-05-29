@@ -15,7 +15,7 @@ use axum::{
 use common::{
     AccountId, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger, AuthAccountDeleteError,
     AuthenticatedUser, ILogger, LogEntry, LogLevel, MonitorId,
-    monitor::{ArcMonitorManager, MonitorConfig, MonitorConfigs, MonitorDeleteError},
+    monitor::{ArcMonitorManager, MonitorConfig, MonitorDeleteError, MonitorRestartError},
     recording::RecordingId,
 };
 use eventdb::{EventDb, EventQuery};
@@ -58,9 +58,13 @@ pub async fn template_handler(
         return (StatusCode::INTERNAL_SERVER_ERROR, "template does not exist").into_response();
     };
 
-    let data = templater
+    let Some(data) = templater
         .get_data(path.to_owned(), user.is_admin, user.stored_token)
-        .await;
+        .await
+    else {
+        // Cancelled.
+        return StatusCode::NOT_FOUND.into_response();
+    };
 
     match template.render(data).to_string() {
         Ok(content) => (
@@ -394,11 +398,14 @@ pub struct MonitorIdQuery {
 pub async fn monitor_delete_handler(
     State(monitor_manager): State<ArcMonitorManager>,
     query: Query<MonitorIdQuery>,
-) -> (StatusCode, String) {
+) -> Response {
     match monitor_manager.monitor_delete(query.id.clone()).await {
-        Ok(()) => (StatusCode::OK, String::new()),
-        Err(e @ MonitorDeleteError::NotExist(_)) => (StatusCode::NOT_FOUND, e.to_string()),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        Some(Ok(())) => (StatusCode::OK, String::new()).into_response(),
+        Some(Err(e @ MonitorDeleteError::NotExist(_))) => {
+            (StatusCode::NOT_FOUND, e.to_string()).into_response()
+        }
+        Some(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
     }
 }
 
@@ -408,14 +415,15 @@ pub async fn monitor_put_handler(
 ) -> Response {
     tokio::spawn(async move {
         match monitor_manager.monitor_set(payload).await {
-            Ok(created) => {
+            Some(Ok(created)) => {
                 if created {
                     StatusCode::CREATED.into_response()
                 } else {
                     StatusCode::OK.into_response()
                 }
             }
-            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+            Some(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+            None => StatusCode::NOT_FOUND.into_response(),
         }
     })
     .await
@@ -426,17 +434,18 @@ pub async fn monitor_restart_handler(
     State(monitor_manager): State<ArcMonitorManager>,
     query: Query<MonitorIdQuery>,
 ) -> Response {
-    if let Err(e) = monitor_manager.monitor_restart(query.id.clone()).await {
-        return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
-    };
-
-    StatusCode::OK.into_response()
+    match monitor_manager.monitor_restart(query.id.clone()).await {
+        Some(Ok(())) => StatusCode::OK.into_response(),
+        Some(Err(MonitorRestartError::NotExist(_))) | None => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
-pub async fn monitors_handler(
-    State(monitor_manager): State<ArcMonitorManager>,
-) -> Json<MonitorConfigs> {
-    Json(monitor_manager.monitor_configs().await.clone())
+pub async fn monitors_handler(State(monitor_manager): State<ArcMonitorManager>) -> Response {
+    match monitor_manager.monitor_configs().await.clone() {
+        Some(v) => Json(v).into_response(),
+        // Cancelled.
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 pub async fn monitor_groups_get_handler(
