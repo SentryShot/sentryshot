@@ -125,7 +125,7 @@ pub(crate) fn log_monitor(logger: &ArcLogger, level: LogLevel, id: &MonitorId, m
 }
 
 #[derive(Debug, Error)]
-pub enum NewMonitorManagerError {
+pub enum InitializeMonitorManagerError {
     #[error("create directory: {0}")]
     CreateDir(std::io::Error),
 
@@ -143,14 +143,11 @@ pub enum NewMonitorManagerError {
 
     #[error("deserialize config '{0}': {1}")]
     Deserialize(String, serde_json::Error),
-
-    #[error("config missing Id: {0}")]
-    MissingId(String),
 }
 
 #[rustfmt::skip]
 enum MonitorManagerRequest {
-    StartMonitors((oneshot::Sender<()>, ArcMonitorHooks)),
+    Initialize((oneshot::Sender<Result<(), InitializeMonitorManagerError>>, InitializeRequest)),
     MonitorRestart((oneshot::Sender<Result<(), MonitorRestartError>>, MonitorId)),
     MonitorSet((oneshot::Sender<Result<bool, MonitorSetError>>, MonitorConfig)),
     MonitorSetAndRestart((oneshot::Sender<Result<bool, MonitorSetAndRestartError>>, MonitorConfig)),
@@ -158,27 +155,239 @@ enum MonitorManagerRequest {
     MonitorsInfo(oneshot::Sender<HashMap<MonitorId, MonitorInfo>>),
     MonitorConfig((oneshot::Sender<Option<MonitorConfig>>, MonitorId)),
     MonitorConfigs(oneshot::Sender<MonitorConfigs>),
-    Stop(oneshot::Sender<()>),
-    MonitorIsRunning((oneshot::Sender<bool>, MonitorId)),
+    Cancel(oneshot::Sender<()>),
+}
+
+struct InitializeRequest {
+    config_path: PathBuf,
+    recdb: Arc<RecDb>,
+    eventdb: EventDb,
+    logger: ArcLogger,
+    streamer: ArcStreamer,
+    hooks: ArcMonitorHooks,
 }
 
 #[derive(Clone)]
 pub struct MonitorManager(mpsc::Sender<MonitorManagerRequest>);
 
+impl Default for MonitorManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MonitorManager {
-    pub fn new(
+    #[must_use]
+    pub fn new() -> Self {
+        let (tx, rx) = mpsc::channel(1);
+        tokio::spawn(async move {
+            run_monitor_manager(rx).await;
+        });
+        Self(tx)
+    }
+
+    // Monitor manager can't be initialized during creation because
+    // there's a circular dependency between it and the plugin manager.
+    pub async fn initialize(
+        &self,
         config_path: PathBuf,
         rec_db: Arc<RecDb>,
         eventdb: EventDb,
         logger: ArcLogger,
         streamer: ArcStreamer,
-        //hooks *Hooks,
-    ) -> Result<Self, NewMonitorManagerError> {
-        use NewMonitorManagerError::*;
-        common::create_dir_all(&config_path).map_err(CreateDir)?;
+        hooks: ArcMonitorHooks,
+    ) -> Result<(), InitializeMonitorManagerError> {
+        let (tx, rx) = oneshot::channel();
+        let req = InitializeRequest {
+            config_path,
+            recdb: rec_db,
+            eventdb,
+            logger,
+            streamer,
+            hooks,
+        };
+        self.0
+            .send(MonitorManagerRequest::Initialize((tx, req)))
+            .await
+            .expect("actor should still be active");
+        rx.await.expect("actor should respond")
+    }
+
+    pub async fn cancel(&self) {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(MonitorManagerRequest::Cancel(tx))
+            .await
+            .expect("actor should still be active");
+
+        rx.await.expect("actor should respond");
+    }
+}
+
+#[async_trait]
+impl IMonitorManager for MonitorManager {
+    async fn monitor_restart(
+        &self,
+        monitor_id: MonitorId,
+    ) -> Option<Result<(), MonitorRestartError>> {
+        let (tx, rx) = oneshot::channel();
+        let req = MonitorManagerRequest::MonitorRestart((tx, monitor_id));
+        if self.0.send(req).await.is_err() {
+            // Cancelled.
+            return None;
+        }
+        Some(rx.await.expect("actor should respond"))
+    }
+
+    async fn monitor_set(&self, config: MonitorConfig) -> Option<Result<bool, MonitorSetError>> {
+        let (tx, rx) = oneshot::channel();
+        let req = MonitorManagerRequest::MonitorSet((tx, config));
+        if self.0.send(req).await.is_err() {
+            // Cancelled.
+            return None;
+        }
+        Some(rx.await.expect("actor should respond"))
+    }
+
+    async fn monitor_set_and_restart(
+        &self,
+        config: MonitorConfig,
+    ) -> Option<Result<bool, MonitorSetAndRestartError>> {
+        let (tx, rx) = oneshot::channel();
+        let req = MonitorManagerRequest::MonitorSetAndRestart((tx, config));
+        if self.0.send(req).await.is_err() {
+            // Cancelled.
+            return None;
+        }
+        Some(rx.await.expect("actor should respond"))
+    }
+
+    async fn monitor_delete(&self, id: MonitorId) -> Option<Result<(), MonitorDeleteError>> {
+        let (tx, rx) = oneshot::channel();
+        let req = MonitorManagerRequest::MonitorDelete((tx, id));
+        if self.0.send(req).await.is_err() {
+            // Cancelled.
+            return None;
+        }
+        Some(rx.await.expect("actor should respond"))
+    }
+
+    async fn monitors_info(&self) -> Option<HashMap<MonitorId, MonitorInfo>> {
+        let (tx, rx) = oneshot::channel();
+        let req = MonitorManagerRequest::MonitorsInfo(tx);
+        if self.0.send(req).await.is_err() {
+            // Cancelled.
+            return None;
+        }
+        Some(rx.await.expect("actor should respond"))
+    }
+
+    async fn monitor_config(&self, monitor_id: MonitorId) -> Option<Option<MonitorConfig>> {
+        let (tx, rx) = oneshot::channel();
+        let req = MonitorManagerRequest::MonitorConfig((tx, monitor_id));
+        if self.0.send(req).await.is_err() {
+            // Cancelled.
+            return None;
+        }
+        Some(rx.await.expect("actor should respond"))
+    }
+
+    async fn monitor_configs(&self) -> Option<MonitorConfigs> {
+        let (tx, rx) = oneshot::channel();
+        let req = MonitorManagerRequest::MonitorConfigs(tx);
+        if self.0.send(req).await.is_err() {
+            // Cancelled.
+            return None;
+        }
+        Some(rx.await.expect("actor should respond"))
+    }
+}
+
+struct MonitorManagerState {
+    token: CancellationToken,
+
+    configs: MonitorConfigs,
+    started_monitors: Monitors,
+
+    recdb: Arc<RecDb>,
+    eventdb: EventDb,
+    logger: ArcLogger,
+    streamer: ArcStreamer,
+    path: PathBuf,
+
+    hooks: ArcMonitorHooks,
+}
+
+async fn run_monitor_manager(mut rx: mpsc::Receiver<MonitorManagerRequest>) {
+    struct StateOption(Option<MonitorManagerState>);
+    impl StateOption {
+        fn get(&mut self) -> &mut MonitorManagerState {
+            self.0.as_mut().expect("initialized")
+        }
+    }
+
+    let mut state = StateOption(None);
+    loop {
+        let request = rx
+            .recv()
+            .await
+            .expect("stop should be called before dropping manager");
+        match request {
+            MonitorManagerRequest::Initialize((res, req)) => {
+                assert!(state.0.is_none(), "already initialized");
+                let response = match MonitorManagerState::new(req).await {
+                    Ok(v) => {
+                        state.0 = Some(v);
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
+                };
+                res.send(response).expect("caller should receive response");
+            }
+            MonitorManagerRequest::MonitorRestart((res, monitor_id)) => {
+                res.send(state.get().monitor_restart(&monitor_id).await)
+                    .expect("caller should receive response");
+            }
+            MonitorManagerRequest::MonitorSet((res, config)) => {
+                res.send(state.get().monitor_set(config).await)
+                    .expect("caller should receive response");
+            }
+            MonitorManagerRequest::MonitorSetAndRestart((res, config)) => {
+                res.send(state.get().monitor_set_and_restart(config).await)
+                    .expect("caller should receive response");
+            }
+            MonitorManagerRequest::MonitorDelete((res, monitor_id)) => {
+                res.send(state.get().monitor_delete(&monitor_id).await)
+                    .expect("caller should receive response");
+            }
+            MonitorManagerRequest::MonitorsInfo(res) => {
+                res.send(state.get().monitors_info())
+                    .expect("caller should receive response");
+            }
+            MonitorManagerRequest::MonitorConfig((res, monitor_id)) => {
+                res.send(state.get().configs.get(&monitor_id).cloned())
+                    .expect("caller should receive response");
+            }
+            MonitorManagerRequest::MonitorConfigs(res) => {
+                res.send(state.get().configs.clone())
+                    .expect("caller should receive response");
+            }
+            MonitorManagerRequest::Cancel(res) => {
+                state.0.expect("initialized").cancel().await;
+                res.send(()).expect("caller should receive response");
+                return;
+            }
+        }
+    }
+}
+
+impl MonitorManagerState {
+    async fn new(req: InitializeRequest) -> Result<Self, InitializeMonitorManagerError> {
+        use InitializeMonitorManagerError::*;
+        common::create_dir_all(&req.config_path).map_err(CreateDir)?;
 
         let mut configs = HashMap::new();
-        for entry in std::fs::read_dir(&config_path).map_err(ReadDir)? {
+        for entry in std::fs::read_dir(&req.config_path).map_err(ReadDir)? {
             let entry = entry.map_err(StatFile)?;
 
             if entry.metadata().map_err(GetFileMetadata)?.is_dir() {
@@ -200,205 +409,22 @@ impl MonitorManager {
             configs.insert(config.id().to_owned(), config);
         }
 
-        let (tx, rx) = mpsc::channel(1);
-
-        // This must be an actor in order to be callable from plugins.
-        tokio::spawn(async move {
-            MonitorManagerState {
-                token: CancellationToken::new(),
-                configs,
-                started_monitors: HashMap::new(),
-                rec_db,
-                eventdb,
-                logger,
-                streamer,
-                path: config_path,
-                hooks: None,
-            }
-            .run(rx)
-            .await;
-        });
-
-        Ok(Self(tx))
-    }
-}
-
-#[async_trait]
-impl IMonitorManager for MonitorManager {
-    async fn start_monitors(&self, hooks: ArcMonitorHooks) {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::StartMonitors((tx, hooks)))
-            .await
-            .expect("actor should still be active");
-
-        _ = rx.await;
+        let mut state = Self {
+            token: CancellationToken::new(),
+            configs,
+            started_monitors: HashMap::new(),
+            recdb: req.recdb,
+            eventdb: req.eventdb,
+            logger: req.logger,
+            streamer: req.streamer,
+            path: req.config_path,
+            hooks: req.hooks,
+        };
+        state.start_monitors().await;
+        Ok(state)
     }
 
-    async fn monitor_restart(&self, monitor_id: MonitorId) -> Result<(), MonitorRestartError> {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::MonitorRestart((tx, monitor_id)))
-            .await
-            .expect("actor should still be active");
-
-        rx.await.expect("actor should respond")
-    }
-
-    async fn monitor_set(&self, config: MonitorConfig) -> Result<bool, MonitorSetError> {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::MonitorSet((tx, config)))
-            .await
-            .expect("actor should still be active");
-
-        rx.await.expect("actor should respond")
-    }
-
-    async fn monitor_set_and_restart(
-        &self,
-        config: MonitorConfig,
-    ) -> Result<bool, MonitorSetAndRestartError> {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::MonitorSetAndRestart((tx, config)))
-            .await
-            .expect("actor should still be active");
-
-        rx.await.expect("actor should respond")
-    }
-
-    async fn monitor_delete(&self, id: MonitorId) -> Result<(), MonitorDeleteError> {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::MonitorDelete((tx, id)))
-            .await
-            .expect("actor should still be active");
-
-        rx.await.expect("actor should respond")
-    }
-
-    async fn monitors_info(&self) -> HashMap<MonitorId, MonitorInfo> {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::MonitorsInfo(tx))
-            .await
-            .expect("actor should still be active");
-
-        rx.await.expect("actor should respond")
-    }
-
-    async fn monitor_config(&self, monitor_id: MonitorId) -> Option<MonitorConfig> {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::MonitorConfig((tx, monitor_id)))
-            .await
-            .expect("actor should still be active");
-
-        rx.await.expect("actor should respond")
-    }
-
-    async fn monitor_configs(&self) -> MonitorConfigs {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::MonitorConfigs(tx))
-            .await
-            .expect("actor should still be active");
-
-        rx.await.expect("actor should respond")
-    }
-
-    async fn stop(&self) {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::Stop(tx))
-            .await
-            .expect("actor should still be active");
-
-        rx.await.expect("actor should respond");
-    }
-
-    async fn monitor_is_running(&self, monitor_id: MonitorId) -> bool {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::MonitorIsRunning((tx, monitor_id)))
-            .await
-            .expect("actor should still be active");
-
-        rx.await.expect("actor should respond")
-    }
-}
-
-struct MonitorManagerState {
-    token: CancellationToken,
-
-    configs: MonitorConfigs,
-    started_monitors: Monitors,
-
-    rec_db: Arc<RecDb>,
-    eventdb: EventDb,
-    logger: ArcLogger,
-    streamer: ArcStreamer,
-    path: PathBuf,
-
-    hooks: Option<ArcMonitorHooks>,
-}
-
-impl MonitorManagerState {
-    async fn run(mut self, mut rx: mpsc::Receiver<MonitorManagerRequest>) {
-        loop {
-            let Some(request) = rx.recv().await else {
-                // Manager was dropped.
-                return;
-            };
-            match request {
-                MonitorManagerRequest::StartMonitors((res, hooks)) => {
-                    self.start_monitors(hooks).await;
-                    drop(res);
-                }
-                MonitorManagerRequest::MonitorRestart((res, monitor_id)) => {
-                    res.send(self.monitor_restart(&monitor_id).await)
-                        .expect("caller should receive response");
-                }
-                MonitorManagerRequest::MonitorSet((res, config)) => {
-                    res.send(self.monitor_set(config).await)
-                        .expect("caller should receive response");
-                }
-
-                MonitorManagerRequest::MonitorSetAndRestart((res, config)) => {
-                    res.send(self.monitor_set_and_restart(config).await)
-                        .expect("caller should receive response");
-                }
-                MonitorManagerRequest::MonitorDelete((res, monitor_id)) => {
-                    res.send(self.monitor_delete(&monitor_id).await)
-                        .expect("caller should receive response");
-                }
-                MonitorManagerRequest::MonitorsInfo(res) => {
-                    res.send(self.monitors_info())
-                        .expect("caller should receive response");
-                }
-                MonitorManagerRequest::MonitorConfig((res, monitor_id)) => {
-                    res.send(self.configs.get(&monitor_id).cloned())
-                        .expect("caller should receive response");
-                }
-                MonitorManagerRequest::MonitorConfigs(res) => {
-                    res.send(self.configs.clone())
-                        .expect("caller should receive response");
-                }
-                MonitorManagerRequest::Stop(res) => {
-                    self.stop().await;
-                    res.send(()).expect("caller should receive response");
-                }
-                MonitorManagerRequest::MonitorIsRunning((res, monitor_id)) => {
-                    res.send(self.started_monitors.contains_key(&monitor_id))
-                        .expect("caller should receive response");
-                }
-            }
-        }
-    }
-
-    pub async fn start_monitors(&mut self, hooks: ArcMonitorHooks) {
-        self.hooks = Some(hooks);
+    pub async fn start_monitors(&mut self) {
         for (id, config) in &self.configs {
             if let Some(monitor) = self.start_monitor(config.to_owned()).await {
                 self.started_monitors.insert(id.to_owned(), monitor);
@@ -410,7 +436,7 @@ impl MonitorManagerState {
     pub async fn monitor_restart(&mut self, id: &MonitorId) -> Result<(), MonitorRestartError> {
         use MonitorRestartError::*;
         let Some(raw_config) = self.configs.get(id) else {
-            return Err(NotExist(id.to_string()));
+            return Err(NotExist(id.clone()));
         };
 
         // Stop monitor if running.
@@ -514,8 +540,6 @@ impl MonitorManagerState {
     }
 
     async fn start_monitor(&self, config: MonitorConfig) -> Option<Arc<Monitor>> {
-        let hooks = self.hooks.clone().expect("hooks to be set");
-
         let id = config.id().to_owned();
         if !config.enabled() {
             self.log(LogLevel::Info, &id, "disabled");
@@ -562,12 +586,12 @@ impl MonitorManagerState {
         let send_event_tx = new_recorder(
             monitor_token.clone(),
             shutdown_complete_tx.clone(),
-            hooks.clone(),
+            self.hooks.clone(),
             self.logger.clone(),
             id.clone(),
             source_main.clone(),
             config.clone(),
-            self.rec_db.clone(),
+            self.recdb.clone(),
         );
 
         let (source_main_tx, mut source_main_rx) = mpsc::channel(1);
@@ -577,7 +601,7 @@ impl MonitorManagerState {
             token: monitor_token.clone(),
             id: id.clone(),
             eventdb: self.eventdb.clone(),
-            hooks: hooks.clone(),
+            hooks: self.hooks.clone(),
             config: config.clone(),
             shutdown_complete: Mutex::new(shutdown_complete_rx),
             source_main_tx,
@@ -608,12 +632,14 @@ impl MonitorManagerState {
             }
         });
 
-        hooks.on_monitor_start(monitor_token, monitor.clone()).await;
+        self.hooks
+            .on_monitor_start(monitor_token, monitor.clone())
+            .await;
 
         Some(monitor)
     }
 
-    pub async fn stop(&mut self) {
+    pub async fn cancel(mut self) {
         // Cancel token.
         self.token.cancel();
 
@@ -623,7 +649,7 @@ impl MonitorManagerState {
         }
 
         // Break circular reference.
-        self.hooks = None;
+        drop(self.hooks);
     }
 
     fn log(&self, level: LogLevel, id: &MonitorId, msg: &str) {
@@ -640,8 +666,8 @@ mod tests {
         ArcStreamerMuxer, DummyLogger, DynError, H264Data, MonitorName, ParseMonitorIdError,
         TrackParameters,
         monitor::{
-            Config, DynH264Writer, Protocol, SelectedSource, SourceConfig, SourceRtspConfig,
-            StreamerImpl,
+            Config, DummyMonitorHooks, DynH264Writer, Protocol, SelectedSource, SourceConfig,
+            SourceRtspConfig, StreamerImpl,
         },
         time::UnixH264,
     };
@@ -720,17 +746,21 @@ mod tests {
         )
     }
 
-    fn new_test_manager() -> (TempDir, PathBuf, MonitorManager) {
+    async fn new_test_manager() -> (TempDir, PathBuf, MonitorManager) {
         let (temp_dir, config_dir) = prepare_dir();
 
-        let manager = MonitorManager::new(
-            config_dir.clone(),
-            Arc::new(new_test_recdb(temp_dir.path())),
-            new_test_eventdb(temp_dir.path()),
-            DummyLogger::new(),
-            Arc::new(DummyStreamer {}),
-        )
-        .unwrap();
+        let manager = MonitorManager::new();
+        manager
+            .initialize(
+                config_dir.clone(),
+                Arc::new(new_test_recdb(temp_dir.path())),
+                new_test_eventdb(temp_dir.path()),
+                DummyLogger::new(),
+                DummyStreamer::new(),
+                DummyMonitorHooks::new(),
+            )
+            .await
+            .unwrap();
 
         (temp_dir, config_dir, manager)
     }
@@ -749,20 +779,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_manager_ok() {
-        let (temp_dir, config_dir, _) = new_test_manager();
+        let (_temp_dir, config_dir, manager) = new_test_manager().await;
 
-        let manager = MonitorManager::new(
-            config_dir.clone(),
-            Arc::new(new_test_recdb(temp_dir.path())),
-            new_test_eventdb(temp_dir.path()),
-            DummyLogger::new(),
-            Arc::new(DummyStreamer {}),
-        )
-        .unwrap();
-
-        let want = manager.monitor_configs().await[&m_id("1")].clone();
+        let want = manager.monitor_configs().await.unwrap()[&m_id("1")].clone();
         let got = read_config(config_dir.join("1.json"));
         assert_eq!(want, got);
+        manager.cancel().await;
     }
 
     #[tokio::test]
@@ -772,22 +794,23 @@ mod tests {
         std::fs::write(config_dir.join("1.json"), "{").unwrap();
 
         assert!(matches!(
-            MonitorManager::new(
-                config_dir,
-                Arc::new(new_test_recdb(temp_dir.path())),
-                new_test_eventdb(temp_dir.path()),
-                DummyLogger::new(),
-                //&video.Server{},
-                //&Hooks{Migrate: func(RawConfig) error { return nil }},
-                Arc::new(DummyStreamer {}),
-            ),
-            Err(NewMonitorManagerError::Deserialize(..))
+            MonitorManager::new()
+                .initialize(
+                    config_dir,
+                    Arc::new(new_test_recdb(temp_dir.path())),
+                    new_test_eventdb(temp_dir.path()),
+                    DummyLogger::new(),
+                    DummyStreamer::new(),
+                    DummyMonitorHooks::new(),
+                )
+                .await,
+            Err(InitializeMonitorManagerError::Deserialize(..))
         ));
     }
 
     #[tokio::test]
     async fn test_monitor_set_create_new() {
-        let (_temp_dir, config_dir, manager) = new_test_manager();
+        let (_temp_dir, config_dir, manager) = new_test_manager().await;
 
         let config = MonitorConfig::new(
             Config {
@@ -818,25 +841,26 @@ mod tests {
             }),
         );
 
-        let created = manager.monitor_set(config).await.unwrap();
+        let created = manager.monitor_set(config).await.unwrap().unwrap();
         assert!(created);
 
         let new = &m_id("new");
-        let config = manager.monitor_config(new.clone()).await.unwrap();
+        let config = manager.monitor_config(new.clone()).await.unwrap().unwrap();
         let new_name = config.name();
         assert_eq!(&name("new"), new_name);
 
         // Check if changes were saved to file.
         let saved_config = read_config(config_dir.join("new.json"));
-        assert_eq!(manager.monitor_configs().await[new], saved_config);
+        assert_eq!(manager.monitor_configs().await.unwrap()[new], saved_config);
+        manager.cancel().await;
     }
 
     #[tokio::test]
     async fn test_monitor_set_update() {
-        let (_temp_dir, config_dir, manager) = new_test_manager();
+        let (_temp_dir, config_dir, manager) = new_test_manager().await;
 
         let one = m_id("1");
-        let old_monitor = &manager.monitor_configs().await[&one];
+        let old_monitor = &manager.monitor_configs().await.unwrap()[&one];
 
         let old_name = old_monitor.name();
         assert_eq!(&name("one"), old_name);
@@ -870,105 +894,61 @@ mod tests {
             }),
         );
 
-        let created = manager.monitor_set(config).await.unwrap();
+        let created = manager.monitor_set(config).await.unwrap().unwrap();
         assert!(!created);
 
-        let config = manager.monitor_config(one.clone()).await.unwrap();
+        let config = manager.monitor_config(one.clone()).await.unwrap().unwrap();
         let new_name = config.name();
         assert_eq!(&name("two"), new_name);
 
         // Check if changes were saved to file.
         let saved_config = read_config(config_dir.join("1.json"));
-        assert_eq!(manager.monitor_configs().await[&one], saved_config);
+        assert_eq!(manager.monitor_configs().await.unwrap()[&one], saved_config);
+        manager.cancel().await;
     }
 
     #[tokio::test]
     async fn test_monitor_delete_exist_error() {
-        let (_, _, manager) = new_test_manager();
+        let (_temp_dir, _, manager) = new_test_manager().await;
         assert!(matches!(
-            manager.monitor_delete(m_id("nil")).await,
+            manager.monitor_delete(m_id("nil")).await.unwrap(),
             Err(MonitorDeleteError::NotExist(_))
         ));
     }
 
-    /*
     #[tokio::test]
     async fn test_monitors_info() {
-        let token = CancellationToken::new();
-        let manager = MonitorManager {
-            token: token.clone(),
-            configs: MonitorConfigs::from([
-                (
-                    "1".parse().unwrap(),
-                    MonitorConfig {
-                        config: Config {
-                            id: "1".parse().unwrap(),
-                            name: "2".parse().unwrap(),
-                            enable: false,
-                            source: SelectedSource::Rtsp,
-                        },
-                        source: Source::Rtsp(SourceRtspConfig {
-                            protocol: Protocol::Tcp,
-                            main_stream: "rtsp://x".parse().unwrap(),
-                            sub_stream: None,
-                        }),
-                        raw: serde_json::Value::Null,
-                    },
-                ),
-                (
-                    "2".parse().unwrap(),
-                    MonitorConfig {
-                        config: Config {
-                            id: "3".parse().unwrap(),
-                            name: "4".parse().unwrap(),
-                            enable: true,
-                            source: SelectedSource::Rtsp,
-                        },
-                        source: Source::Rtsp(SourceRtspConfig {
-                            protocol: Protocol::Udp,
-                            main_stream: "rtsp://x".parse().unwrap(),
-                            sub_stream: None,
-                        }),
-                        raw: serde_json::Value::Null,
-                    },
-                ),
-            ]),
-            started_monitors: HashMap::new(),
-            //env: env::Config::empty(),
-            logger: new_dummy_logger(),
-            path: PathBuf::new(),
-            hls_server: Arc::new(HlsServer::new(token, new_dummy_logger(), 0)),
-        };
-
+        let (_temp_dir, _, manager) = new_test_manager().await;
         let want: HashMap<MonitorId, MonitorInfo> = HashMap::from([
             (
-                "1".parse().unwrap(),
+                m_id("1"),
                 MonitorInfo {
-                    id: "1".parse().unwrap(),
-                    name: "2".parse().unwrap(),
+                    id: m_id("1"),
+                    name: name("one"),
                     enable: false,
-                    sub_input_enabled: false,
+                    has_sub_stream: false,
                 },
             ),
             (
-                "3".parse().unwrap(),
+                m_id("2"),
                 MonitorInfo {
-                    id: "3".parse().unwrap(),
-                    name: "4".parse().unwrap(),
-                    enable: true,
-                    sub_input_enabled: false,
+                    id: m_id("2"),
+                    name: name("two"),
+                    enable: false,
+                    has_sub_stream: true,
                 },
             ),
         ]);
-        let got = manager.monitors_info();
+        let got = manager.monitors_info().await.unwrap();
         assert_eq!(want, got);
-    }*/
+        manager.cancel().await;
+    }
 
     #[tokio::test]
     async fn test_monitor_configs() {
-        let (_, _, manager) = new_test_manager();
+        let (_temp_dir, _, manager) = new_test_manager().await;
 
-        let got = manager.monitor_configs().await;
+        let got = manager.monitor_configs().await.unwrap();
         let want: HashMap<MonitorId, MonitorConfig> = HashMap::from([
             (
                 m_id("1"),
@@ -1034,18 +1014,26 @@ mod tests {
         ]);
 
         assert_eq!(want, got);
+        manager.cancel().await;
     }
 
     #[tokio::test]
     async fn test_restart_monitor_not_exist_error() {
-        let (_, _, manager) = new_test_manager();
+        let (_temp_dir, _, manager) = new_test_manager().await;
         assert!(matches!(
-            manager.monitor_restart(m_id("x")).await,
+            manager.monitor_restart(m_id("x")).await.unwrap(),
             Err(MonitorRestartError::NotExist(_))
         ));
     }
 
     struct DummyStreamer;
+
+    impl DummyStreamer {
+        #[allow(clippy::new_ret_no_self)]
+        fn new() -> ArcStreamer {
+            Arc::new(Self {})
+        }
+    }
 
     #[async_trait]
     impl StreamerImpl for DummyStreamer {
