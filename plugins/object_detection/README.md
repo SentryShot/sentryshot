@@ -1,5 +1,5 @@
 ## Description
-Plugin for [TFlite](https://www.tensorflow.org/lite) object detection. 
+Plugin for [TFlite](https://www.tensorflow.org/lite) object detection.
 
 ## Configuration
 

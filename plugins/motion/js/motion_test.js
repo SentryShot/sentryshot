@@ -24,7 +24,7 @@ const defaultConfig = {
 	],
 };
 
-describe("tflite", () => {
+describe("motion", () => {
 	test("default", () => {
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");

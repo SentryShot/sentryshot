@@ -1715,6 +1715,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "object_detection"
+version = "0.2.25"
+dependencies = [
+ "async-channel",
+ "async-trait",
+ "axum 0.8.4",
+ "common",
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "plugin",
+ "pretty_assertions",
+ "sentryshot_convert",
+ "sentryshot_filter",
+ "sentryshot_scale",
+ "sentryshot_util",
+ "serde",
+ "serde_json",
+ "sha2",
+ "test-case",
+ "tflite_lib",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-util",
+ "toml",
+ "url",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2666,36 +2696,6 @@ dependencies = [
  "quote",
  "syn 2.0.101",
  "test-case-core",
-]
-
-[[package]]
-name = "tflite"
-version = "0.2.25"
-dependencies = [
- "async-channel",
- "async-trait",
- "axum 0.8.4",
- "common",
- "http-body-util",
- "hyper",
- "hyper-rustls",
- "hyper-util",
- "plugin",
- "pretty_assertions",
- "sentryshot_convert",
- "sentryshot_filter",
- "sentryshot_scale",
- "sentryshot_util",
- "serde",
- "serde_json",
- "sha2",
- "test-case",
- "tflite_lib",
- "thiserror 2.0.12",
- "tokio",
- "tokio-util",
- "toml",
- "url",
 ]
 
 [[package]]

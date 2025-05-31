@@ -1,4 +1,4 @@
-[[detector_cpu]]
+[[detector_tflite]]
 enable = true
 name = "cpu_detector1"
 width = 340
@@ -8,7 +8,7 @@ sha256sum = "4337107b4ca60a6aebca8137536c7a605d5e0cbfa5b611efba78f106f03c29c2"
 label_map = "https://codeberg.org/Curid/TF-CCTV/raw/branch/master/labels/person-map.txt"
 threads = 1
 
-[[detector_cpu]]
+[[detector_tflite]]
 enable = false
 name = "cpu_detector2"
 width = 320
@@ -30,7 +30,7 @@ label_map = "https://codeberg.org/Curid/TF-CCTV/raw/branch/master/labels/person-
 device = "/sys/bus/usb/devices/x"
 
 
-# WebUI documentation: ./plugins/tflite/README.md
+# WebUI documentation: ./plugins/object_detection/README.md
 #
 #
 # The sha256sum is for the tflite file.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import { tflite2 } from "./tflite.js";
+import { objectDetection2 } from "./objectDetection.js";
 
 const defaultConfig = {
 	crop: {
@@ -26,37 +26,37 @@ const defaultConfig = {
 	useSubStream: true,
 };
 
-describe("tflite", () => {
+describe("object detection", () => {
 	test("default", () => {
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
 
-		const tf = newTflite();
-		element.innerHTML = tf.html;
-		tf.init();
-		tf.set();
-		expect(tf.validate()).toBeUndefined();
-		expect(tf.validate()).toBeUndefined();
+		const od = newObjectDetection();
+		element.innerHTML = od.html;
+		od.init();
+		od.set();
+		expect(od.validate()).toBeUndefined();
+		expect(od.validate()).toBeUndefined();
 		// Pretend the plugin is disabled.
-		expect(tf.value()).toBeUndefined();
+		expect(od.value()).toBeUndefined();
 	});
 	test("default2", () => {
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
 
-		const tf = newTflite();
-		element.innerHTML = tf.html;
-		tf.init();
-		tf.set();
+		const od = newObjectDetection();
+		element.innerHTML = od.html;
+		od.init();
+		od.set();
 		// @ts-ignore
-		tf.openTesting();
-		expect(tf.validate()).toBeUndefined();
-		expect(tf.validate()).toBeUndefined();
-		expect(tf.value()).toEqual(defaultConfig);
+		od.openTesting();
+		expect(od.validate()).toBeUndefined();
+		expect(od.validate()).toBeUndefined();
+		expect(od.value()).toEqual(defaultConfig);
 	});
 });
 
-function newTflite() {
+function newObjectDetection() {
 	/** @type {any} */
 	const detectors = {};
 	const hasSubStream = () => {
@@ -65,5 +65,5 @@ function newTflite() {
 	const getMonitorId = () => {
 		return "";
 	};
-	return tflite2(detectors, hasSubStream, getMonitorId);
+	return objectDetection2(detectors, hasSubStream, getMonitorId);
 }

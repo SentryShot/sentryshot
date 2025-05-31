@@ -4,11 +4,12 @@ pub mod types;
 
 use async_trait::async_trait;
 use common::{
-    ArcAuth, ArcLogger, DynEnvConfig, EnvPlugin, Event, LogEntry, LogLevel, LogSource,
+    ArcAuth, ArcLogger, DynEnvConfig, DynError, EnvPlugin, Event, LogEntry, LogLevel, LogSource,
     monitor::{ArcMonitor, ArcMonitorManager, MonitorConfig, MonitorHooks},
 };
 use libloading::{Library, Symbol};
 use sentryshot_util::Frame;
+use serde_json::Value;
 use std::{
     ffi::{CStr, c_char},
     path::{Path, PathBuf},
@@ -50,6 +51,10 @@ pub trait Plugin {
         frame
     }
     async fn on_event(&self, _event: Event, _config: MonitorConfig) {}
+
+    fn migrate_monitor(&self, _config: &mut Value) -> Result<(), DynError> {
+        Ok(())
+    }
 }
 
 pub trait Application {
@@ -258,6 +263,12 @@ impl MonitorHooks for PluginManager {
                 plugin.on_event(event, config).await;
             });
         }
+    }
+    fn migrate_monitor(&self, config: &mut Value) -> Result<(), DynError> {
+        for plugin in &self.plugins {
+            plugin.migrate_monitor(config)?;
+        }
+        Ok(())
     }
 }
 

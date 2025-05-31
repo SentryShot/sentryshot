@@ -776,7 +776,7 @@ pub trait MsgLogger {
     fn log(&self, level: LogLevel, msg: &str);
 }
 
-pub type DynError = Box<dyn std::error::Error>;
+pub type DynError = Box<dyn std::error::Error + Send + Sync>;
 
 pub const FILE_MODE: u32 = 0o640;
 pub const DIR_MODE: u32 = 0o750;

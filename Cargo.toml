@@ -4,30 +4,10 @@ members = [
 	"plugins/auth_none",
 	"plugins/motion",
 	"plugins/mqtt",
-	"plugins/tflite",
+	"plugins/object_detection",
 	"plugins/thumb_scale",
 
-	"src/common",
-	"src/csv",
-	"src/env",
-	"src/fs",
-	"src/handler",
-	"src/hls",
-	"src/log",
-	"src/monitor",
-	"src/monitor_groups",
-	"src/mp4",
-	"src/plugin",
-	"src/recdb",
-	"src/recording",
 	"src/sentryshot",
-	"src/streamer",
-	"src/vod",
-	"src/web",
-
-	"src/rust-embed",
-	"src/rust-embed/impl",
-	"src/rust-embed/utils",
 ]
 resolver = "2"
 
@@ -128,7 +108,9 @@ strip = true
 strip = true
 [profile.release.package.motion]
 strip = true
-[profile.release.package.tflite]
+[profile.release.package.mqtt]
+strip = true
+[profile.release.package.object_detection]
 strip = true
 [profile.release.package.thumb_scale]
 strip = true

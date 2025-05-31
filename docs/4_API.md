@@ -73,8 +73,8 @@ Returns the temporary CSRF-token for your account.
 
 ### PATCH /api/monitor/<MONITOR_ID>/motion/enable
 ### PATCH /api/monitor/<MONITOR_ID>/motion/disable
-### PATCH /api/monitor/<MONITOR_ID>/tflite/enable
-### PATCH /api/monitor/<MONITOR_ID>/tflite/disable
+### PATCH /api/monitor/<MONITOR_ID>/object-detection/enable
+### PATCH /api/monitor/<MONITOR_ID>/object-detection/disable
 
 
 ##### Auth: admin

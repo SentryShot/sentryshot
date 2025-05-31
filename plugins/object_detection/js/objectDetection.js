@@ -17,7 +17,7 @@ import { newPolygonEditor } from "./components/polygonEditor.js";
 /** @typedef {import("./components/form.js").Form} Form */
 
 /** @param {() => string} getMonitorId */
-export function tflite(getMonitorId) {
+export function objectDetection(getMonitorId) {
 	const Detectors = JSON.parse(`$detectorsJSON`);
 
 	const { monitorsInfo } = globals();
@@ -30,7 +30,7 @@ export function tflite(getMonitorId) {
 		return false;
 	};
 
-	return tflite2(Detectors, hasSubStream, getMonitorId);
+	return objectDetection2(Detectors, hasSubStream, getMonitorId);
 }
 
 /**
@@ -48,7 +48,7 @@ export function tflite(getMonitorId) {
  * @param {() => string} getMonitorId
  * @returns {Field<any>}
  */
-export function tflite2(detectors, hasSubStream, getMonitorId) {
+export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 	const detectorNames = Object.keys(detectors);
 
 	const fields = {};
@@ -83,9 +83,9 @@ export function tflite2(detectors, hasSubStream, getMonitorId) {
 	//fields.preview = preview()
 
 	const form = newForm(fields);
-	const modal = newModal("TFlite", form.html());
+	const modal = newModal("Object detection", form.html());
 
-	let value = {};
+	let value;
 
 	/** @type {Element} */
 	let element;
@@ -118,7 +118,7 @@ export function tflite2(detectors, hasSubStream, getMonitorId) {
 	return {
 		html: `
 				<li id="${id}" class="form-field" style="display:flex;">
-					<label class="form-field-label">TFlite</label>
+					<label class="form-field-label">Object detection</label>
 					<button class="js-edit-btn form-field-edit-btn">
 						<img
 							class="form-field-edit-btn-img"
@@ -128,6 +128,7 @@ export function tflite2(detectors, hasSubStream, getMonitorId) {
 				</li> `,
 		value() {
 			if (isRendered) {
+				value = {};
 				form.get(value);
 			}
 			return value;
@@ -144,7 +145,7 @@ export function tflite2(detectors, hasSubStream, getMonitorId) {
 			}
 			const err = form.validate();
 			if (err !== undefined) {
-				return `TFlite: ${err}`;
+				return `Object detection: ${err}`;
 			}
 		},
 		init() {
@@ -174,11 +175,11 @@ function thresholds(detectors, getDetectorName) {
 		const id = uniqueID();
 		return {
 			html: `
-				<li class="tflite-label-wrapper">
-					<label for="${id}" class="tflite-label">${label}</label>
+				<li class="object-detection-label-wrapper">
+					<label for="${id}" class="object-detection-label">${label}</label>
 					<input
 						id="${id}"
-						class="tflite-threshold"
+						class="object-detection-threshold"
 						type="number"
 						value="${val}"
 						min=0
@@ -345,15 +346,15 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 	/** @param {string} feedHTML */
 	const renderModal = (feedHTML) => {
 		const html = `
-			<li id="tfliteCrop-preview" class="form-field">
-				<label class="form-field-label" for="tfliteCrop-preview" style="width: auto;">Preview</label>
+			<li id="object-detection-crop-preview" class="form-field">
+				<label class="form-field-label" for="object-detection-crop-preview" style="width: auto;">Preview</label>
 				<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
-					<div class="js-feed tfliteCrop-preview-feed">
+					<div class="js-feed object-detection-crop-preview-feed">
 						${feedHTML}
 					</div>
 					<div class="js-preview-padding" style="background: white;"></div>
 					<svg
-						class="js-tflite-overlay tfliteCrop-preview-overlay"
+						class="js-object-detection-overlay object-detection-crop-preview-overlay"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
 						style="opacity: 0.7;"
@@ -361,32 +362,32 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				</div>
 			</li>
 			<li
-				class="js-options form-field tfliteCrop-option-wrapper"
+				class="js-options form-field object-detection-crop-option-wrapper"
 			>
-				<div class="js-tfliteCrop-option tfliteCrop-option">
-					<span class="tfliteCrop-option-label">X</span>
+				<div class="js-object-detection-crop-option object-detection-crop-option">
+					<span class="object-detection-crop-option-label">X</span>
 					<input
-						class="js-x tfliteCrop-option-input"
+						class="js-x object-detection-crop-option-input"
 						type="number"
 						min="0"
 						max="100"
 						value="0"
 					/>
 				</div>
-				<div class="js-tfliteCrop-option tfliteCrop-option">
-					<span class="tfliteCrop-option-label">Y</span>
+				<div class="js-object-detection-crop-option object-detection-crop-option">
+					<span class="object-detection-crop-option-label">Y</span>
 					<input
-						class="js-y tfliteCrop-option-input"
+						class="js-y object-detection-crop-option-input"
 						type="number"
 						min="0"
 						max="100"
 						value="0"
 					/>
 				</div>
-				<div class="js-tfliteCrop-option tfliteCrop-option">
-					<span class="tfliteCrop-option-label">size</span>
+				<div class="js-object-detection-crop-option object-detection-crop-option">
+					<span class="object-detection-crop-option-label">size</span>
 					<input
-						class="js-size tfliteCrop-option-input"
+						class="js-size object-detection-crop-option-input"
 						type="number"
 						min="0"
 						max="100"
@@ -411,7 +412,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 		// eslint-disable-next-line compat/compat
 		new ResizeObserver(updatePadding).observe($feed);
 
-		$overlay = $modalContent.querySelector(".js-tflite-overlay");
+		$overlay = $modalContent.querySelector(".js-object-detection-overlay");
 		$modalContent.querySelector(".js-options").addEventListener("change", () => {
 			$overlay.innerHTML = renderPreviewOverlay();
 		});
@@ -620,8 +621,8 @@ function mask(hasSubStream, getMonitorId) {
 	/** @param {string} feedHTML */
 	const renderModal = (feedHTML) => {
 		const html = `
-			<li class="js-enable tfliteMask-enabled form-field">
-				<label class="form-field-label" for="tfliteMask-enable">Enable mask</label>
+			<li class="js-enable object_detection_mask-enabled form-field">
+				<label class="form-field-label" for="object_detection_mask-enable">Enable mask</label>
 				<div class="form-field-select-container">
 					<select id="modal-enable" class="form-field-select js-input">
 						<option>true</option>
@@ -629,21 +630,21 @@ function mask(hasSubStream, getMonitorId) {
 					</select>
 				</div>
 			</li>
-			<li id="tfliteMask-preview" class="form-field">
-				<label class="form-field-label" for="tfliteMask-preview">Preview</label>
+			<li id="object_detection_mask-preview" class="form-field">
+				<label class="form-field-label" for="object_detection_mask-preview">Preview</label>
 				<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
-					<div class="js-feed tfliteCrop-preview-feed">${feedHTML}</div>
+					<div class="js-feed object-detection-crop-preview-feed">${feedHTML}</div>
 					<svg
-						class="js-tflite-overlay tfliteMask-preview-overlay"
+						class="js-object-detection-overlay object_detection_mask-preview-overlay"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
 					></svg>
 				</div>
 			</li>
 			<li class="form-field" style="display: flex; flex-wrap: wrap; justify-content: space-between">
-				<div class="tfliteMask-step-sizes">
+				<div class="object_detection_mask-step-sizes">
 					<button
-						class="js-1x tfliteMask-step-size"
+						class="js-1x object_detection_mask-step-size"
 						style="
 							border-top-left-radius: 0.25rem;
 							border-bottom-left-radius: 0.25rem;
@@ -651,15 +652,15 @@ function mask(hasSubStream, getMonitorId) {
 						"
 					>1x</button>
 					<button
-						class="js-4x tfliteMask-step-size tfliteMask-step-size-selected"
+						class="js-4x object_detection_mask-step-size object_detection_mask-step-size-selected"
 						style="border-style: hidden solid;"
 					>4x</button>
 					<button
-						class="js-10x tfliteMask-step-size"
+						class="js-10x object_detection_mask-step-size"
 						style="border-style: hidden solid;"
 					>10x</button>
 					<button
-						class="js-20x tfliteMask-step-size"
+						class="js-20x object_detection_mask-step-size"
 						style="
 							border-top-right-radius: 0.25rem;
 							border-bottom-right-radius: 0.25rem;
@@ -667,7 +668,7 @@ function mask(hasSubStream, getMonitorId) {
 						"
 					>20x</button>
 				</div>
-				<div class="tfliteMask-xy-wrapper">
+				<div class="object_detection_mask-xy-wrapper">
 					<input type="number" min="0" max="100" class="js-x"/>
 					<input type="number" min="0" max="100" class="js-y"/>
 				</div>
@@ -683,7 +684,7 @@ function mask(hasSubStream, getMonitorId) {
 			value.enable = $enable.value === "true";
 		});
 
-		$overlay = $modalContent.querySelector(".js-tflite-overlay");
+		$overlay = $modalContent.querySelector(".js-object-detection-overlay");
 
 		/** @type {HTMLElement} */
 		const $x1 = $modalContent.querySelector(".js-1x");
@@ -711,7 +712,7 @@ function mask(hasSubStream, getMonitorId) {
 
 		/** @param {number} v */
 		const setStepSize = (v) => {
-			const selectedClass = "tfliteMask-step-size-selected";
+			const selectedClass = "object_detection_mask-step-size-selected";
 			$x1.classList.remove(selectedClass);
 			$x4.classList.remove(selectedClass);
 			$x10.classList.remove(selectedClass);
@@ -938,7 +939,7 @@ function normalizeMask(mask) {
 // CSS.
 const $style = document.createElement("style");
 $style.innerHTML = `
-	.tflite-label-wrapper {
+	.object-detection-label-wrapper {
 		display: flex;
 		padding: 0.1rem;
 		border-top-style: solid;
@@ -946,14 +947,14 @@ $style.innerHTML = `
 		border-width: 0.03rem;
 		align-items: center;
 	}
-	.tflite-label-wrapper:first-child {
+	.object-detection-label-wrapper:first-child {
 		border-top-style: none;
 	}
-	.tflite-label {
+	.object-detection-label {
 		font-size: 0.7rem;
 		color: var(--color-text);
 	}
-	.tflite-threshold {
+	.object-detection-threshold {
 		margin-left: auto;
 		font-size: 0.6rem;
 		text-align: center;
@@ -962,23 +963,23 @@ $style.innerHTML = `
 	}
 
 	/* Crop. */
-	.tfliteCrop-preview-feed {
+	.object-detection-crop-preview-feed {
 		width: 100%;
 		min-width: 0;
 		display: flex;
 		background: white;
 	}
-	.tfliteCrop-preview-overlay {
+	.object-detection-crop-preview-overlay {
 		position: absolute;
 		height: 100%;
 		width: 100%;
 		top: 0;
 	}
-	.tfliteCrop-option-wrapper {
+	.object-detection-crop-option-wrapper {
 		display: flex;
 		flex-wrap: wrap;
 	}
-	.tfliteCrop-option {
+	.object-detection-crop-option {
 		display: flex;
 		background: var(--color2);
 		padding: 0.15rem;
@@ -986,13 +987,13 @@ $style.innerHTML = `
 		margin-right: 0.2rem;
 		margin-bottom: 0.2rem;
 	}
-	.tfliteCrop-option-label {
+	.object-detection-crop-option-label {
 		font-size: 0.7rem;
 		color: var(--color-text);
 		margin-left: 0.1rem;
 		margin-right: 0.2rem;
 	}
-	.tfliteCrop-option-input {
+	.object-detection-crop-option-input {
 		text-align: center;
 		font-size: 0.5rem;
 		border-style: none;
@@ -1001,7 +1002,7 @@ $style.innerHTML = `
 	}
 
 	/* Mask. */
-	.tfliteMask-preview-overlay {
+	.object_detection_mask-preview-overlay {
 		position: absolute;
 		height: 100%;
 		width: 100%;
@@ -1012,11 +1013,11 @@ $style.innerHTML = `
 	}
 
 
-	.tfliteMask-step-sizes {
+	.object_detection_mask-step-sizes {
 		display: flex;
 	}
 
-	.tfliteMask-step-size {
+	.object_detection_mask-step-size {
 		background: var(--color2);
 		color: var(--color-text);
 		font-size: 0.6rem;
@@ -1025,19 +1026,19 @@ $style.innerHTML = `
 		border-color: var(--color3);
 	}
 
-	.tfliteMask-step-size:hover {
+	.object_detection_mask-step-size:hover {
 		background: var(--color1);
 	}
 
-	.tfliteMask-step-size-selected {
+	.object_detection_mask-step-size-selected {
 		background: var(--color1);
 	}
 
 
-	.tfliteMask-xy-wrapper {
+	.object_detection_mask-xy-wrapper {
 		display: flex;
 	}
-	.tfliteMask-xy-wrapper > input {
+	.object_detection_mask-xy-wrapper > input {
 		width: 1.3rem;
 		font-size: 0.6rem;
 		text-align: center;
