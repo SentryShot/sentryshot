@@ -5,7 +5,7 @@ mod detector;
 mod label;
 mod model;
 
-use crate::{config::TfliteConfig, detector::DetectorManager};
+use crate::detector::DetectorManager;
 use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
@@ -14,8 +14,8 @@ use axum::{
     routing::patch,
 };
 use common::{
-    ArcLogger, ArcMsgLogger, Detection, Detections, DynEnvConfig, Event, LogEntry, LogLevel,
-    LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
+    ArcLogger, ArcMsgLogger, Detection, Detections, DynEnvConfig, DynError, Event, LogEntry,
+    LogLevel, LogSource, MonitorId, MsgLogger, RectangleNormalized, Region,
     monitor::{
         ArcMonitor, ArcMonitorManager, ArcSource, CreateEventDbError, DecoderError,
         SubscribeDecodedError,
@@ -23,7 +23,7 @@ use common::{
     recording::{FrameRateLimiter, vertex_inside_poly2},
     time::{DurationH264, UnixH264, UnixNano},
 };
-use config::{Crop, Mask, set_enable};
+use config::{Crop, Mask, ObjectDetectionConfig, set_enable};
 use detector::{DetectError, Detector, DetectorName, Thresholds};
 use http_body_util::BodyExt;
 use plugin::{
@@ -36,6 +36,7 @@ use sentryshot_convert::{
 use sentryshot_filter::{CropError, PadError, crop, pad};
 use sentryshot_scale::{CreateScalerError, Scaler, ScalerError};
 use sentryshot_util::ImageCopyToBufferError;
+use serde_json::Value;
 use std::{
     borrow::Cow,
     ffi::c_char,
@@ -56,13 +57,13 @@ pub extern "C" fn version() -> *const c_char {
 
 #[unsafe(no_mangle)]
 pub extern "Rust" fn pre_load() -> Box<dyn PreLoadPlugin> {
-    Box::new(PreLoadTflite)
+    Box::new(PreLoadObjectDetection)
 }
-struct PreLoadTflite;
-impl PreLoadPlugin for PreLoadTflite {
+struct PreLoadObjectDetection;
+impl PreLoadPlugin for PreLoadObjectDetection {
     fn add_log_source(&self) -> Option<LogSource> {
         #[allow(clippy::unwrap_used)]
-        Some("tflite".try_into().unwrap())
+        Some("object".try_into().unwrap())
     }
 }
 
@@ -70,7 +71,7 @@ impl PreLoadPlugin for PreLoadTflite {
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     app.rt_handle().block_on(async {
         Arc::new(
-            TflitePlugin::new(
+            ObjectDetectionPlugin::new(
                 app.rt_handle(),
                 app.shutdown_complete_tx(),
                 app.logger(),
@@ -82,7 +83,7 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     })
 }
 
-pub struct TflitePlugin {
+pub struct ObjectDetectionPlugin {
     rt_handle: Handle,
     _shutdown_complete_tx: mpsc::Sender<()>,
     logger: ArcLogger,
@@ -90,7 +91,7 @@ pub struct TflitePlugin {
     detector_manager: DetectorManager,
 }
 
-impl TflitePlugin {
+impl ObjectDetectionPlugin {
     async fn new(
         rt_handle: Handle,
         shutdown_complete_tx: mpsc::Sender<()>,
@@ -98,13 +99,13 @@ impl TflitePlugin {
         env: DynEnvConfig,
         monitor_manager: ArcMonitorManager,
     ) -> Self {
-        let tflite_logger = Arc::new(TfliteLogger {
+        let object_detection_logger = Arc::new(ObjectDetectionLogger {
             logger: logger.clone(),
         });
         let detector_manager = match DetectorManager::new(
             rt_handle.clone(),
             shutdown_complete_tx.clone(),
-            tflite_logger,
+            object_detection_logger,
             Box::new(Fetch::new(rt_handle.clone())),
             env.config_dir(),
         )
@@ -112,7 +113,7 @@ impl TflitePlugin {
         {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("Failed to create tflite detector manager: {e}");
+                eprintln!("Failed to create object detector manager: {e}");
                 std::process::exit(1);
             }
         };
@@ -127,10 +128,10 @@ impl TflitePlugin {
     }
 }
 
-const TFLITE_MJS_FILE: &[u8] = include_bytes!("./js/tflite.js");
+const TFLITE_MJS_FILE: &[u8] = include_bytes!("./js/objectDetection.js");
 
 #[async_trait]
-impl Plugin for TflitePlugin {
+impl Plugin for ObjectDetectionPlugin {
     fn edit_assets(&self, assets: &mut Assets) {
         let detectors = self.detector_manager.detectors();
         let detectors_json = serde_json::to_string_pretty(detectors).expect("infallible");
@@ -139,7 +140,7 @@ impl Plugin for TflitePlugin {
         *assets.get_mut("scripts/settings.js").expect("exist") = Cow::Owned(modify_settings_js(js));
 
         assets.insert(
-            "scripts/tflite.js".to_owned(),
+            "scripts/objectDetection.js".to_owned(),
             Cow::Owned(
                 String::from_utf8(TFLITE_MJS_FILE.to_owned())
                     .expect("js file should be valid utf8")
@@ -151,7 +152,7 @@ impl Plugin for TflitePlugin {
     }
 
     async fn on_monitor_start(&self, token: CancellationToken, monitor: ArcMonitor) {
-        let msg_logger = Arc::new(TfliteMonitorLogger {
+        let msg_logger = Arc::new(ObjectDetectionMsgLogger {
             logger: self.logger.clone(),
             monitor_id: monitor.config().id().to_owned(),
         });
@@ -168,13 +169,17 @@ impl Plugin for TflitePlugin {
         };
         router
             .route_admin(
-                "/api/monitor/{id}/tflite/enable",
+                "/api/monitor/{id}/object-detection/enable",
                 patch(enable_handler).with_state(state.clone()),
             )
             .route_admin(
-                "/api/monitor/{id}/tflite/disable",
+                "/api/monitor/{id}/object-detection/disable",
                 patch(disable_handler).with_state(state),
             )
+    }
+
+    fn migrate_monitor(&self, config: &mut Value) -> Result<(), DynError> {
+        migrate_monitor(config)
     }
 }
 
@@ -220,7 +225,7 @@ enum RunError {
     SendEvent(#[from] CreateEventDbError),
 }
 
-impl TflitePlugin {
+impl ObjectDetectionPlugin {
     async fn start(
         &self,
         token: &CancellationToken,
@@ -230,7 +235,8 @@ impl TflitePlugin {
         use StartError::*;
         let config = monitor.config();
 
-        let Some(config) = TfliteConfig::parse(config.raw().clone(), msg_logger.clone())? else {
+        let Some(config) = ObjectDetectionConfig::parse(config.raw().clone(), msg_logger.clone())?
+        else {
             // Object detection is disabled.
             return Ok(());
         };
@@ -289,7 +295,7 @@ impl TflitePlugin {
         &self,
         msg_logger: &ArcMsgLogger,
         monitor: &ArcMonitor,
-        config: &TfliteConfig,
+        config: &ObjectDetectionConfig,
         source: &ArcSource,
         detector: &Detector,
     ) -> Result<(), RunError> {
@@ -370,7 +376,7 @@ impl TflitePlugin {
                         time,
                         duration: *config.feed_rate,
                         detections,
-                        source: Some("tflite".to_owned().try_into().expect("valid")),
+                        source: Some("object".to_owned().try_into().expect("valid")),
                     },
                 )
                 .await?;
@@ -690,27 +696,27 @@ fn parse_detections(
 }
 
 fn modify_settings_js(tpl: Vec<u8>) -> Vec<u8> {
-    const IMPORT_STATEMENT: &str = "import { tflite } from \"./tflite.js\";";
+    const IMPORT_STATEMENT: &str = "import { objectDetection } from \"./objectDetection.js\";";
     const TARGET: &str = "/* SETTINGS_LAST_MONITOR_FIELD */";
 
     let tpl = String::from_utf8(tpl).expect("template should be valid utf8");
     let tpl = tpl.replace(
         TARGET,
-        &("monitorFields.tflite = tflite(getMonitorId);\n".to_owned() + TARGET),
+        &("monitorFields.objectDetection = objectDetection(getMonitorId);\n".to_owned() + TARGET),
     );
     let tpl = IMPORT_STATEMENT.to_owned() + &tpl;
     tpl.as_bytes().to_owned()
 }
 
-struct TfliteMonitorLogger {
+struct ObjectDetectionMsgLogger {
     logger: ArcLogger,
     monitor_id: MonitorId,
 }
 
-impl MsgLogger for TfliteMonitorLogger {
+impl MsgLogger for ObjectDetectionMsgLogger {
     fn log(&self, level: LogLevel, msg: &str) {
         self.logger
-            .log(LogEntry::new(level, "tflite", &self.monitor_id, msg));
+            .log(LogEntry::new(level, "object", &self.monitor_id, msg));
     }
 }
 
@@ -733,13 +739,13 @@ pub enum FetchError {
     Collect(hyper::Error),
 }
 
-struct TfliteLogger {
+struct ObjectDetectionLogger {
     logger: ArcLogger,
 }
 
-impl MsgLogger for TfliteLogger {
+impl MsgLogger for ObjectDetectionLogger {
     fn log(&self, level: LogLevel, msg: &str) {
-        self.logger.log(LogEntry::new2(level, "tflite", msg));
+        self.logger.log(LogEntry::new2(level, "object", msg));
     }
 }
 
@@ -864,6 +870,25 @@ async fn disable_handler(
     }
 }
 
+fn migrate_monitor(config: &mut Value) -> Result<(), DynError> {
+    use serde_json::map::Entry;
+    let Value::Object(map) = config else {
+        return Ok(());
+    };
+    let Some(tflite) = map.remove("tflite") else {
+        return Ok(());
+    };
+    match map.entry("objectDetection") {
+        Entry::Vacant(object_detection) => {
+            object_detection.insert(tflite);
+            Ok(())
+        }
+        Entry::Occupied(_) => {
+            Err("cannot have both 'tflite' and 'objectDetection' root objects".into())
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments, clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
@@ -876,6 +901,7 @@ mod tests {
         recording::{denormalize, normalize},
     };
     use pretty_assertions::assert_eq;
+    use serde_json::json;
     use test_case::test_case;
 
     #[test_case(600, 400, 0, 0, 100, 300, 300, "300x200 300x300 0:0 50:75")]
@@ -1084,5 +1110,18 @@ mod tests {
             Ok(_) => panic!("expected error"),
             Err(e) => assert_eq!("cropSize=50% is less than 54%", e.to_string()),
         };
+    }
+
+    #[test]
+    fn test_migrate_monitor() {
+        let mut config = json!({
+            "tflite": true,
+        });
+        migrate_monitor(&mut config).unwrap();
+
+        let want = json!({
+            "objectDetection": true,
+        });
+        assert_eq!(want, config);
     }
 }

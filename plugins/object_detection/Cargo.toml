@@ -1,5 +1,5 @@
 [package]
-name = "tflite"
+name = "object_detection"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,8 +9,8 @@ license.workspace = true
 workspace = true
 
 [lib]
-name = "tflite"
-path = "tflite.rs"
+name = "object_detection"
+path = "object_detection.rs"
 crate-type = ["cdylib"]
 doctest = false
 

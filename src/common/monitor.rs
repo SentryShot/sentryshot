@@ -12,6 +12,7 @@ use async_trait::async_trait;
 use sentryshot_ffmpeg_h264::{H264BuilderError, ReceiveFrameError, SendPacketError};
 use sentryshot_util::Frame;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::Value;
 use std::{collections::HashMap, ops::Deref, path::PathBuf, str::FromStr, sync::Arc};
 use thiserror::Error;
 use tokio::{
@@ -55,6 +56,10 @@ impl MonitorConfig {
     #[must_use]
     pub fn raw(&self) -> &serde_json::Value {
         &self.raw
+    }
+    #[must_use]
+    pub fn raw_mut(&mut self) -> &mut serde_json::Value {
+        &mut self.raw
     }
 
     /*
@@ -347,6 +352,7 @@ pub trait MonitorHooks {
     // Blocking.
     fn on_thumb_save(&self, config: &MonitorConfig, frame: Frame) -> Frame;
     async fn on_event(&self, event: Event, config: MonitorConfig);
+    fn migrate_monitor(&self, _config: &mut Value) -> Result<(), DynError>;
 }
 
 pub struct DummyMonitorHooks;
@@ -366,6 +372,9 @@ impl MonitorHooks for DummyMonitorHooks {
         frame
     }
     async fn on_event(&self, _: Event, _: MonitorConfig) {}
+    fn migrate_monitor(&self, _config: &mut Value) -> Result<(), DynError> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Error)]

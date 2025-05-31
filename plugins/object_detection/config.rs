@@ -12,7 +12,7 @@ use std::{num::NonZeroU16, ops::Deref};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct TfliteConfig {
+pub(crate) struct ObjectDetectionConfig {
     //timestampOffset: time.Duration,
     pub thresholds: Thresholds,
     pub crop: Crop,
@@ -48,24 +48,25 @@ pub(crate) struct Mask {
     pub area: PolygonNormalized,
 }
 
-impl TfliteConfig {
+impl ObjectDetectionConfig {
     #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn parse(
         raw: serde_json::Value,
         logger: ArcMsgLogger,
-    ) -> Result<Option<TfliteConfig>, serde_json::Error> {
+    ) -> Result<Option<ObjectDetectionConfig>, serde_json::Error> {
         #[derive(Deserialize)]
         struct Temp {
-            tflite: serde_json::Value,
+            #[serde(rename = "objectDetection")]
+            object_detection: serde_json::Value,
         }
         let Ok(temp) = serde_json::from_value::<Temp>(raw) else {
             return Ok(None);
         };
-        if temp.tflite == serde_json::Value::Object(serde_json::Map::new()) {
+        if temp.object_detection == serde_json::Value::Object(serde_json::Map::new()) {
             return Ok(None);
         }
 
-        let c: RawConfigV1 = serde_json::from_value(temp.tflite)?;
+        let c: RawConfigV1 = serde_json::from_value(temp.object_detection)?;
 
         let enable = c.enable;
         if !enable {
@@ -78,7 +79,7 @@ impl TfliteConfig {
 
         //timestampOffset, err := ffmpeg.ParseTimestampOffset(c.Get("timestampOffset"))
 
-        Ok(Some(TfliteConfig {
+        Ok(Some(ObjectDetectionConfig {
             //timestampOffset: timestampOffset,
             thresholds: c.thresholds,
             crop: c.crop,
@@ -240,10 +241,10 @@ pub(crate) fn set_enable(config: &MonitorConfig, value: bool) -> Option<MonitorC
     let Value::Object(root) = &mut raw else {
         return None;
     };
-    let Value::Object(tflite) = root.get_mut("tflite")? else {
+    let Value::Object(object_detection) = root.get_mut("objectDetection")? else {
         return None;
     };
-    let Value::Bool(enable) = tflite.get_mut("enable")? else {
+    let Value::Bool(enable) = object_detection.get_mut("enable")? else {
         return None;
     };
     *enable = value;
@@ -260,14 +261,14 @@ mod tests {
     use serde_json::json;
     use std::collections::HashMap;
 
-    fn parse(raw: &serde_json::Value) -> Option<TfliteConfig> {
-        TfliteConfig::parse(raw.clone(), DummyLogger::new()).unwrap()
+    fn parse(raw: &serde_json::Value) -> Option<ObjectDetectionConfig> {
+        ObjectDetectionConfig::parse(raw.clone(), DummyLogger::new()).unwrap()
     }
 
     #[test]
     fn test_parse_config_ok() {
         let raw = json!({
-            "tflite": {
+            "objectDetection": {
                 "enable":       true,
                 "thresholds":   {"5": 6},
                 "crop":         [7, 8, 9],
@@ -281,7 +282,7 @@ mod tests {
 
         let got = parse(&raw).unwrap();
 
-        let want = TfliteConfig {
+        let want = ObjectDetectionConfig {
             thresholds: HashMap::from([(
                 "5".to_owned().try_into().unwrap(),
                 6.try_into().unwrap(),
@@ -314,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_parse_config_empty2() {
-        let raw = json!({"tflite": {}});
+        let raw = json!({"objectDetection": {}});
         assert!(parse(&raw).is_none());
     }
 
@@ -331,7 +332,7 @@ mod tests {
                 "protocol": "tcp",
                 "mainStream": "rtsp://x"
             },
-            "tflite": {
+            "objectDetection": {
                 "enable": true,
                 "thresholds": {},
                 "crop": { "size": 100, "x": 0, "y": 0 },

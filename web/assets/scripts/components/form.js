@@ -127,7 +127,11 @@ function newForm(fields) {
 		},
 		set(values) {
 			for (const [key, field] of Object.entries(fields)) {
-				field.set(values[key]);
+				if (values === undefined) {
+					field.set(undefined);
+				} else {
+					field.set(values[key]);
+				}
 			}
 		},
 		get(values) {

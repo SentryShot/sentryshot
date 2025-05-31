@@ -19,40 +19,59 @@ import {
 
 describe("newForm", () => {
 	test("logic", () => {
-		let init, reset, validate;
+		let initCalled = false;
+		let validateCalled = false;
+		let setValue;
 
 		const mockField = {
 			field: {
 				html: "html",
 				init() {
-					init = true;
+					initCalled = true;
 				},
-				/** @param {boolean} input */
+				/** @param {any} input */
 				set(input) {
-					if (input === undefined) {
-						reset = true;
-					}
+					setValue = input;
 				},
 				validate() {
-					validate = true;
+					validateCalled = true;
 				},
 				value() {
-					return true;
+					return setValue;
 				},
 			},
+		};
+		const fieldValue = () => {
+			const tmp = {};
+			form.get(tmp);
+			return tmp["field"];
 		};
 
 		const form = newForm(mockField);
 		document.body.innerHTML = form.html();
+
+		expect(initCalled).toBe(false);
 		form.init();
-		expect(init).toBe(true);
+		expect(initCalled).toBe(true);
+
+		expect(setValue).toBeUndefined();
+		form.set({ field: true });
+		expect(setValue).toBe(true);
+		expect(fieldValue()).toBe(true);
 
 		form.reset();
-		expect(reset).toBe(true);
+		expect(setValue).toBeUndefined();
+		expect(fieldValue()).toBeUndefined();
 
+		expect(validateCalled).toBe(false);
 		form.validate();
-		expect(validate).toBe(true);
+		expect(validateCalled).toBe(true);
+
+		form.set(undefined);
+		expect(setValue).toBeUndefined();
+		expect(fieldValue()).toBeUndefined();
 	});
+
 	const newTestForm = () => {
 		return newForm({
 			field: {

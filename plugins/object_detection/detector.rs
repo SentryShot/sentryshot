@@ -33,12 +33,12 @@ use url::Url;
 #[derive(Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 struct RawDetectorConfigs {
-    detector_cpu: Vec<RawDetectorConfigCpu>,
+    detector_tflite: Vec<RawDetectorConfigTflite>,
     detector_edgetpu: Vec<RawDetectorConfigEdgeTpu>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
-struct RawDetectorConfigCpu {
+struct RawDetectorConfigTflite {
     enable: bool,
     name: DetectorName,
     width: NonZeroU16,
@@ -269,7 +269,7 @@ impl DetectorManager {
         config_dir: &Path,
     ) -> Result<Self, DetectorManagerError> {
         use DetectorManagerError::*;
-        let config_path = config_dir.join("tflite.toml");
+        let config_path = config_dir.join("object_detection.toml");
         if !config_path.exists() {
             logger.log(
                 LogLevel::Info,
@@ -352,7 +352,7 @@ async fn parse_detector_configs(
     let mut detectors = HashMap::new();
     let mut detector_configs = HashMap::new();
 
-    for cpu in configs.detector_cpu {
+    for cpu in configs.detector_tflite {
         if !cpu.enable {
             logger.log(
                 LogLevel::Debug,
@@ -605,7 +605,7 @@ mod tests {
     #[test]
     fn test_parse_detector_config() {
         let raw = "
-            [[detector_cpu]]
+            [[detector_tflite]]
             enable = false
             name = \"1\"
             width = 2
@@ -628,7 +628,7 @@ mod tests {
         ";
         let got = parse_raw_detector_configs(raw).unwrap();
         let want = RawDetectorConfigs {
-            detector_cpu: vec![RawDetectorConfigCpu {
+            detector_tflite: vec![RawDetectorConfigTflite {
                 enable: false,
                 name: "1".to_owned().try_into().unwrap(),
                 width: NonZeroU16::new(2).unwrap(),

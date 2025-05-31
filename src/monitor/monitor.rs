@@ -8,7 +8,7 @@ pub use source::MonitorSource;
 use crate::{recorder::new_recorder, source::SourceRtsp};
 use async_trait::async_trait;
 use common::{
-    ArcLogger, Event, LogEntry, LogLevel, MonitorId, StreamType,
+    ArcLogger, DynError, Event, LogEntry, LogLevel, MonitorId, StreamType,
     monitor::{
         ArcMonitorHooks, ArcSource, ArcStreamer, CreateEventDbError, IMonitorManager,
         MonitorConfig, MonitorConfigs, MonitorDeleteError, MonitorImpl, MonitorInfo,
@@ -143,6 +143,9 @@ pub enum InitializeMonitorManagerError {
 
     #[error("deserialize config '{0}': {1}")]
     Deserialize(String, serde_json::Error),
+
+    #[error("migrate config for monitor {0}: {1}")]
+    Migrate(MonitorId, DynError),
 }
 
 #[rustfmt::skip]
@@ -345,33 +348,22 @@ async fn run_monitor_manager(mut rx: mpsc::Receiver<MonitorManagerRequest>) {
                 res.send(response).expect("caller should receive response");
             }
             MonitorManagerRequest::MonitorRestart((res, monitor_id)) => {
-                res.send(state.get().monitor_restart(&monitor_id).await)
-                    .expect("caller should receive response");
+                _ = res.send(state.get().monitor_restart(&monitor_id).await);
             }
             MonitorManagerRequest::MonitorSet((res, config)) => {
-                res.send(state.get().monitor_set(config).await)
-                    .expect("caller should receive response");
+                _ = res.send(state.get().monitor_set(config).await);
             }
             MonitorManagerRequest::MonitorSetAndRestart((res, config)) => {
-                res.send(state.get().monitor_set_and_restart(config).await)
-                    .expect("caller should receive response");
+                _ = res.send(state.get().monitor_set_and_restart(config).await);
             }
             MonitorManagerRequest::MonitorDelete((res, monitor_id)) => {
-                res.send(state.get().monitor_delete(&monitor_id).await)
-                    .expect("caller should receive response");
+                _ = res.send(state.get().monitor_delete(&monitor_id).await);
             }
-            MonitorManagerRequest::MonitorsInfo(res) => {
-                res.send(state.get().monitors_info())
-                    .expect("caller should receive response");
-            }
+            MonitorManagerRequest::MonitorsInfo(res) => _ = res.send(state.get().monitors_info()),
             MonitorManagerRequest::MonitorConfig((res, monitor_id)) => {
-                res.send(state.get().configs.get(&monitor_id).cloned())
-                    .expect("caller should receive response");
+                _ = res.send(state.get().configs.get(&monitor_id).cloned());
             }
-            MonitorManagerRequest::MonitorConfigs(res) => {
-                res.send(state.get().configs.clone())
-                    .expect("caller should receive response");
-            }
+            MonitorManagerRequest::MonitorConfigs(res) => _ = res.send(state.get().configs.clone()),
             MonitorManagerRequest::Cancel(res) => {
                 state.0.expect("initialized").cancel().await;
                 res.send(()).expect("caller should receive response");
@@ -403,8 +395,12 @@ impl MonitorManagerState {
             }
 
             let json = std::fs::read(entry.path()).map_err(ReadFile)?;
-            let config: MonitorConfig =
+            let mut config: MonitorConfig =
                 serde_json::from_slice(&json).map_err(|e| Deserialize(name, e))?;
+
+            req.hooks
+                .migrate_monitor(config.raw_mut())
+                .map_err(|e| Migrate(config.id().to_owned(), e))?;
 
             configs.insert(config.id().to_owned(), config);
         }

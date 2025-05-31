@@ -41,10 +41,10 @@ enable = false
 name = "motion"
 enable = false
 
-# TFlite object detection.
-# Enabling will generate a `tflite.toml` file.
+# Object detection.
+# Enabling will generate a `object_detction.toml` file.
 [[plugin]]
-name = "tflite"
+name = "object_detection"
 enable = false
 
 
