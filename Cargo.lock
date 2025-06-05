@@ -1718,7 +1718,6 @@ dependencies = [
 name = "object_detection"
 version = "0.2.25"
 dependencies = [
- "async-channel",
  "async-trait",
  "axum 0.8.4",
  "common",
@@ -1726,6 +1725,8 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "hyper-util",
+ "libloading",
+ "object_detection_tflite",
  "plugin",
  "pretty_assertions",
  "sentryshot_convert",
@@ -1736,12 +1737,26 @@ dependencies = [
  "serde_json",
  "sha2",
  "test-case",
- "tflite_lib",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
  "toml",
  "url",
+]
+
+[[package]]
+name = "object_detection_tflite"
+version = "0.2.25"
+dependencies = [
+ "async-channel",
+ "async-trait",
+ "common",
+ "plugin",
+ "pretty_assertions",
+ "test-case",
+ "tflite_lib",
+ "thiserror 2.0.12",
+ "tokio",
 ]
 
 [[package]]

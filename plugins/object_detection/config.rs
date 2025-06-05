@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::detector::{DetectorName, Thresholds};
+use crate::detector::Thresholds;
 use common::{
     ArcMsgLogger, LogLevel, PolygonNormalized,
     monitor::MonitorConfig,
     recording::{DurationSec, FeedRateSec, denormalize},
 };
+use plugin::object_detection::DetectorName;
 use serde::Deserialize;
 use serde_json::Value;
 use std::{num::NonZeroU16, ops::Deref};

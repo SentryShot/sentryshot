@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+mod backend;
 mod config;
 mod detector;
 mod label;
@@ -24,10 +25,11 @@ use common::{
     time::{DurationH264, UnixH264, UnixNano},
 };
 use config::{Crop, Mask, ObjectDetectionConfig, set_enable};
-use detector::{DetectError, Detector, DetectorName, Thresholds};
+use detector::Thresholds;
 use http_body_util::BodyExt;
 use plugin::{
     Application, Plugin, PreLoadPlugin,
+    object_detection::{ArcTfliteDetector, DetectorName},
     types::{Assets, Router},
 };
 use sentryshot_convert::{
@@ -108,6 +110,7 @@ impl ObjectDetectionPlugin {
             object_detection_logger,
             Box::new(Fetch::new(rt_handle.clone())),
             env.config_dir(),
+            env.plugin_dir().to_path_buf(),
         )
         .await
         {
@@ -216,7 +219,7 @@ enum RunError {
     ProcessFrame(#[from] ProcessFrameError),
 
     #[error("detect: {0}")]
-    Detect(#[from] DetectError),
+    Detect(DynError),
 
     #[error("parse detections: {0}")]
     ParseDetections(#[from] ParseDetectionsError),
@@ -297,7 +300,7 @@ impl ObjectDetectionPlugin {
         monitor: &ArcMonitor,
         config: &ObjectDetectionConfig,
         source: &ArcSource,
-        detector: &Detector,
+        detector: &ArcTfliteDetector,
     ) -> Result<(), RunError> {
         use RunError::*;
         let Some(muxer) = source.muxer().await else {
@@ -352,7 +355,11 @@ impl ObjectDetectionPlugin {
                 .await
                 .expect("join")?;
 
-            let Some(detections) = detector.detect(state.frame_processed.clone()).await? else {
+            let Some(detections) = detector
+                .detect(state.frame_processed.clone())
+                .await
+                .map_err(Detect)?
+            else {
                 // Canceled.
                 return Ok(());
             };
@@ -719,6 +726,8 @@ impl MsgLogger for ObjectDetectionMsgLogger {
             .log(LogEntry::new(level, "object", &self.monitor_id, msg));
     }
 }
+
+type DynFetcher = Box<dyn Fetcher>;
 
 #[async_trait]
 trait Fetcher {

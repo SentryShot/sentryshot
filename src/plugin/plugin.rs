@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+pub mod object_detection;
 pub mod types;
 
 use async_trait::async_trait;
@@ -78,17 +79,8 @@ type LoadFn = fn(app: &dyn Application) -> Arc<dyn Plugin + Send + Sync>;
 
 #[derive(Debug, Error)]
 pub enum PreLoadPluginsError {
-    #[error("plugin not found: {0}")]
-    NotFound(PathBuf),
-
-    #[error("load library: '{0}' {1}")]
-    LoadLibrary(String, libloading::Error),
-
-    #[error("load symbol: {0}")]
-    LoadSymbol(libloading::Error),
-
-    #[error("version missmatch: {0} expected='{1}' got='{2}'")]
-    VersionMismatch(String, String, String),
+    #[error("pre load {0}: {1}")]
+    PreLoadPlugin(String, PreLoadPluginError),
 }
 
 pub fn pre_load_plugins(
@@ -103,74 +95,118 @@ pub fn pre_load_plugins(
         return Ok(pre_loaded_plugins);
     };
 
-    let core_version = unsafe { CStr::from_ptr(get_version()) }
-        .to_string_lossy()
-        .to_string();
+    let core_version = get_version2();
 
     for plugin in plugins {
         if !plugin.enable() {
             continue;
         }
-
-        let plugin_name = plugin.name();
-        let plugin_path = {
-            // The short name is used during development.
-            let long = plugin_dir.join(format!("libsentryshot_{plugin_name}.so"));
-            let short = plugin_dir.join(format!("lib{plugin_name}.so"));
-            if long.exists() {
-                long
-            } else if short.exists() {
-                short
-            } else {
-                return Err(NotFound(long));
-            }
-        };
-
-        unsafe {
-            let dylib =
-                Library::new(plugin_path).map_err(|e| LoadLibrary(plugin_name.to_owned(), e))?;
-
-            // Check version first.
-            let version_fn: Symbol<fn() -> *const c_char> =
-                dylib.get(b"version").map_err(LoadSymbol)?;
-            let version = CStr::from_ptr(version_fn()).to_string_lossy().to_string();
-            if version != core_version {
-                return Err(VersionMismatch(
-                    plugin_name.to_owned(),
-                    core_version,
-                    version,
-                ));
-            }
-
-            // If pre_load is defined.
-            if let Ok(pre_load) = dylib.get::<Symbol<fn() -> Box<dyn PreLoadPlugin>>>(b"pre_load") {
-                let plugin = pre_load();
-
-                if let Some(new_auth_fn) = plugin.set_new_auth() {
-                    if pre_loaded_plugins.new_auth_fn.is_some() {
-                        eprint!("\n\nERROR: Only a single autentication plugin is allowed.\n\n");
-                        process::exit(1);
-                    }
-                    pre_loaded_plugins.new_auth_fn = Some(new_auth_fn);
-                }
-
-                if let Some(source) = plugin.add_log_source() {
-                    pre_loaded_plugins.log_sources.push(source);
-                }
-            }
-
-            let load_fn: Symbol<LoadFn> = dylib.get(b"load").map_err(LoadSymbol)?;
-
-            pre_loaded_plugins
-                .load_fns
-                .push((plugin_name.to_owned(), *load_fn));
-
-            // Keep the shared library loaded until the program exits.
-            Box::leak(Box::new(dylib));
-        };
+        pre_load_plugin(plugin_dir, &mut pre_loaded_plugins, plugin, &core_version)
+            .map_err(|e| PreLoadPlugin(plugin.name().to_owned(), e))?;
     }
 
     Ok(pre_loaded_plugins)
+}
+
+#[derive(Debug, Error)]
+pub enum PreLoadPluginError {
+    #[error(transparent)]
+    FindPluginPath(#[from] FindPluginPathError),
+
+    #[error("load library: {0}")]
+    LoadLibrary(libloading::Error),
+
+    #[error("check plugin version: {0}")]
+    CheckPluginVersion(#[from] CheckPluginVersionError),
+
+    #[error("load symbol: {0}")]
+    LoadSymbol(libloading::Error),
+}
+
+pub fn pre_load_plugin(
+    plugin_dir: &Path,
+    pre_loaded_plugins: &mut PreLoadedPlugins,
+    plugin: &EnvPlugin,
+    core_version: &str,
+) -> Result<(), PreLoadPluginError> {
+    use PreLoadPluginError::*;
+    let plugin_path = find_plugin_path(plugin_dir, plugin.name())?;
+    let dylib = unsafe { Library::new(plugin_path).map_err(LoadLibrary)? };
+    check_plugin_version(&dylib, core_version).map_err(CheckPluginVersion)?;
+
+    // If pre_load is defined.
+    let pre_load = unsafe { dylib.get::<Symbol<fn() -> Box<dyn PreLoadPlugin>>>(b"pre_load") };
+    if let Ok(pre_load) = pre_load {
+        let plugin = pre_load();
+
+        if let Some(new_auth_fn) = plugin.set_new_auth() {
+            if pre_loaded_plugins.new_auth_fn.is_some() {
+                eprint!("\n\nERROR: Only a single autentication plugin is allowed.\n\n");
+                process::exit(1);
+            }
+            pre_loaded_plugins.new_auth_fn = Some(new_auth_fn);
+        }
+
+        if let Some(source) = plugin.add_log_source() {
+            pre_loaded_plugins.log_sources.push(source);
+        }
+    }
+
+    let load_fn: Symbol<LoadFn> = unsafe { dylib.get(b"load").map_err(LoadSymbol)? };
+    pre_loaded_plugins
+        .load_fns
+        .push((plugin.name().to_owned(), *load_fn));
+
+    // Keep the shared library loaded until the program exits.
+    Box::leak(Box::new(dylib));
+    Ok(())
+}
+
+#[derive(Debug, Error)]
+pub enum FindPluginPathError {
+    #[error("plugin not found: {0}")]
+    NotFound(PathBuf),
+}
+
+pub fn find_plugin_path(
+    plugin_dir: &Path,
+    plugin_name: &str,
+) -> Result<PathBuf, FindPluginPathError> {
+    // The short name is used during development.
+    let long = plugin_dir.join(format!("libsentryshot_{plugin_name}.so"));
+    let short = plugin_dir.join(format!("lib{plugin_name}.so"));
+    if long.exists() {
+        Ok(long)
+    } else if short.exists() {
+        Ok(short)
+    } else {
+        Err(FindPluginPathError::NotFound(long))
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum CheckPluginVersionError {
+    #[error("load 'version' symbol: {0}")]
+    LoadVersionSymbol(libloading::Error),
+
+    #[error("version missmatch expected='{0}' got='{1}'")]
+    VersionMismatch(String, String),
+}
+
+pub fn check_plugin_version(
+    dylib: &Library,
+    expected_version: &str,
+) -> Result<(), CheckPluginVersionError> {
+    use CheckPluginVersionError::*;
+    unsafe {
+        let version_fn: Symbol<fn() -> *const c_char> =
+            dylib.get(b"version").map_err(LoadVersionSymbol)?;
+        let version = CStr::from_ptr(version_fn()).to_string_lossy().to_string();
+        if version != expected_version {
+            return Err(VersionMismatch(expected_version.to_owned(), version));
+        }
+    }
+    Ok(())
 }
 
 impl PreLoadedPlugins {
@@ -293,4 +329,11 @@ pub fn get_version() -> *const c_char {
     ];
 
     VERSION.as_ptr().cast::<c_char>()
+}
+
+#[must_use]
+pub fn get_version2() -> String {
+    unsafe { CStr::from_ptr(get_version()) }
+        .to_string_lossy()
+        .to_string()
 }
