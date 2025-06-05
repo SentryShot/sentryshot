@@ -23,10 +23,7 @@ pub struct MonitorGroups {
 #[derive(Debug, Error)]
 pub enum CreateMonitorGroupsError {
     #[error("migrate file to configs dir: {0}")]
-    MigrateFile(std::io::Error),
-
-    #[error("monitorGroups.json exists in both storage and config dir")]
-    AlreadyMigrated,
+    Migrate(#[from] MigrateError),
 
     #[error("read file: {0}")]
     ReadFile(std::io::Error),
@@ -56,13 +53,7 @@ impl MonitorGroups {
         let old_file_path = storage_dir.join("monitorGroups.json");
         let file_path = configs_dir.join("monitorGroups.json");
         let temp_file_path = configs_dir.join("monitorGroups.json.tmp");
-        if old_file_path.exists() {
-            // v0.2.0 -> v0.3.0 migration.
-            if file_path.exists() {
-                return Err(AlreadyMigrated);
-            }
-            std::fs::rename(old_file_path, &file_path).map_err(MigrateFile)?;
-        }
+        migrate(&file_path, &old_file_path)?;
 
         let groups = {
             if file_path.exists() {
@@ -106,6 +97,36 @@ impl MonitorGroups {
         *g = groups;
         Ok(())
     }
+}
+
+#[derive(Debug, Error)]
+pub enum MigrateError {
+    #[error("monitorGroups.json exists in both storage and config dir")]
+    AlreadyMigrated,
+
+    #[error("read old config: {0}")]
+    ReadOldConfig(std::io::Error),
+
+    #[error("write new config: {0}")]
+    WriteNewConfig(std::io::Error),
+
+    #[error("delete old config: {0}")]
+    DeleteOldConfig(std::io::Error),
+}
+
+// v0.2.0 -> v0.3.0 migration.
+fn migrate(file_path: &Path, old_file_path: &Path) -> Result<(), MigrateError> {
+    use MigrateError::*;
+    if old_file_path.exists() {
+        // v0.2.0 -> v0.3.0 migration.
+        if file_path.exists() {
+            return Err(AlreadyMigrated);
+        }
+        let data = std::fs::read(old_file_path).map_err(ReadOldConfig)?;
+        std::fs::write(file_path, data).map_err(WriteNewConfig)?;
+        std::fs::remove_file(old_file_path).map_err(DeleteOldConfig)?;
+    }
+    Ok(())
 }
 
 pub type Groups = HashMap<GroupId, Group>;
