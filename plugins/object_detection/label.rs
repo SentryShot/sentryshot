@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{FetchError, Fetcher};
-use common::{ArcMsgLogger, Label, LogLevel, ParseLabelError, write_file_atomic};
+use common::{ArcMsgLogger, LogLevel, ParseLabelError, write_file_atomic};
+use plugin::object_detection::LabelMap;
 use std::{collections::HashMap, num::ParseIntError, path::PathBuf, string::FromUtf8Error};
 use thiserror::Error;
 use url::Url;
 
-pub(crate) type LabelMap = HashMap<u16, Label>;
 type LabelMaps = HashMap<Url, LabelMap>;
 
 pub(crate) struct LabelCache {
@@ -128,6 +128,7 @@ pub(crate) fn parse_labels(raw: &str) -> Result<LabelMap, ParseLabelsError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common::Label;
     use pretty_assertions::assert_eq;
 
     #[test]

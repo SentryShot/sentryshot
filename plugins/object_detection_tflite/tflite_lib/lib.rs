@@ -81,20 +81,20 @@ const ERROR_EDGETPU_DELEGATE_CREATE: c_int = 10002;
 #[error("invoke interpreter: {0}")]
 pub struct InvokeInterpreterError(i32);
 
-pub struct Detector {
+pub struct TfliteDetector {
     inner: *mut CDetector,
     format: Format,
 }
 
-impl Drop for Detector {
+impl Drop for TfliteDetector {
     fn drop(&mut self) {
         unsafe { c_detector_free(self.inner) }
     }
 }
 
-unsafe impl Send for Detector {}
+unsafe impl Send for TfliteDetector {}
 
-impl Detector {
+impl TfliteDetector {
     pub fn new(
         model_path: &Path,
         model_format: ModelFormat,

@@ -1,33 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{
-    Fetcher,
+    DynFetcher,
+    backend::{BackendLoader, LoadTfliteBackendError},
     config::Percent,
-    label::{CreateLabelCacheError, LabelCache, LabelCacheError, LabelMap},
+    label::{CreateLabelCacheError, LabelCache, LabelCacheError},
     model::{CreateModelCacheError, ModelCache, ModelCacheError, ModelChecksum},
 };
-use common::{
-    ArcMsgLogger, Detection, Detections, Label, Labels, LogLevel, RectangleNormalized, Region,
-};
+use common::{ArcMsgLogger, DynError, Label, Labels, LogLevel};
+use plugin::object_detection::{ArcTfliteDetector, DetectorName, TfliteFormat};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fmt::Debug,
-    num::{NonZeroU8, NonZeroU16, NonZeroU32},
-    ops::Deref,
-    path::Path,
-    sync::Arc,
-    time::Duration,
-};
-use tflite_lib::{
-    EdgetpuDevice, ModelFormat, NewDetectorError, debug_device, edgetpu_verbosity,
-    list_edgetpu_devices,
+    num::{NonZeroU8, NonZeroU16},
+    path::{Path, PathBuf},
 };
 use thiserror::Error;
-use tokio::{
-    runtime::Handle,
-    sync::{mpsc, oneshot},
-};
+use tokio::{runtime::Handle, sync::mpsc};
 use url::Url;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Eq)]
@@ -48,7 +38,7 @@ struct RawDetectorConfigTflite {
     label_map: Url,
 
     #[serde(default)]
-    format: Format,
+    format: TfliteFormat,
     threads: NonZeroU8,
 }
 
@@ -63,168 +53,28 @@ struct RawDetectorConfigEdgeTpu {
     label_map: Url,
 
     #[serde(default)]
-    format: Format,
+    format: TfliteFormat,
     device: String,
 }
 
-type DetectorConfigs = HashMap<DetectorName, DetectorConfig>;
+type TfliteDetectorConfigs = HashMap<DetectorName, TfliteDetectorConfig>;
 
 #[derive(Debug, Serialize)]
-pub(crate) struct DetectorConfig {
+pub(crate) struct TfliteDetectorConfig {
     width: NonZeroU16,
     height: NonZeroU16,
     labels: Labels,
-}
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize)]
-pub(crate) struct DetectorName(String);
-
-impl<'de> Deserialize<'de> for DetectorName {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)?
-            .try_into()
-            .map_err(serde::de::Error::custom)
-    }
-}
-
-impl std::fmt::Display for DetectorName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum ParseDetectorNameError {
-    #[error("empty string")]
-    Empty,
-
-    #[error("bad char: {0}")]
-    BadChar(char),
-
-    #[error("white space not allowed")]
-    WhiteSpace,
-}
-
-impl TryFrom<String> for DetectorName {
-    type Error = ParseDetectorNameError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        if s.is_empty() {
-            return Err(Self::Error::Empty);
-        }
-        for c in s.chars() {
-            if c.is_whitespace() {
-                return Err(Self::Error::WhiteSpace);
-            }
-            if !c.is_alphanumeric() && c != '-' && c != '_' {
-                return Err(Self::Error::BadChar(c));
-            }
-        }
-        Ok(Self(s))
-    }
-}
-
-impl Deref for DetectorName {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-#[derive(Copy, Clone, Debug, Default, Deserialize, PartialEq, Eq)]
-enum Format {
-    #[default]
-    #[serde(rename = "odapi")]
-    OdAPi,
-
-    #[serde(rename = "nolo")]
-    Nolo,
-}
-
-impl From<Format> for ModelFormat {
-    fn from(val: Format) -> Self {
-        match val {
-            Format::OdAPi => ModelFormat::OdAPi,
-            Format::Nolo => ModelFormat::Nolo,
-        }
-    }
 }
 
 fn parse_raw_detector_configs(raw: &str) -> Result<RawDetectorConfigs, toml::de::Error> {
     toml::from_str::<RawDetectorConfigs>(raw)
 }
 
-type Detectors = HashMap<DetectorName, Arc<Detector>>;
-
-pub(crate) struct Detector {
-    rt_handle: Handle,
-    detect_tx: async_channel::Sender<DetectRequest>,
-    width: NonZeroU16,
-    height: NonZeroU16,
-}
-
-#[derive(Debug, Error)]
-pub(crate) enum DetectError {
-    #[error["{0}"]]
-    Detect(#[from] tflite_lib::DetectError),
-
-    #[error("detector did not repond in 1 second")]
-    DetectorTimeout,
-
-    #[error("detection took longer than 3 second")]
-    DetectionTimeout,
-}
-
-impl Detector {
-    #[allow(clippy::similar_names)]
-    pub(crate) async fn detect(&self, data: Vec<u8>) -> Result<Option<Detections>, DetectError> {
-        use DetectError::*;
-        let (res_tx, res_rx) = oneshot::channel();
-        let req = DetectRequest { data, res: res_tx };
-
-        let sleep = |secs: u64| {
-            let _enter = self.rt_handle.enter();
-            tokio::time::sleep(Duration::from_secs(secs))
-        };
-        tokio::select!(
-            _ = self.detect_tx.send(req) => {},
-            () = sleep(1) => return Err(DetectorTimeout),
-        );
-
-        let res = tokio::select!(
-            v = res_rx => v,
-            () = sleep(3) => return Err(DetectionTimeout),
-        );
-        if let Ok(res) = res {
-            Ok(Some(res?))
-        } else {
-            // Detector was dropped.
-            Ok(None)
-        }
-    }
-    pub(crate) fn width(&self) -> NonZeroU16 {
-        self.width
-    }
-    pub(crate) fn height(&self) -> NonZeroU16 {
-        self.height
-    }
-}
-
-#[derive(Debug)]
-struct DetectRequest {
-    data: Vec<u8>,
-    res: oneshot::Sender<Result<Detections, tflite_lib::DetectError>>,
-}
-
 pub(crate) type Thresholds = HashMap<Label, Percent>;
 
 pub(crate) struct DetectorManager {
-    detectors: Detectors,
-    configs: DetectorConfigs,
+    detectors: HashMap<DetectorName, ArcTfliteDetector>,
+    configs: TfliteDetectorConfigs,
 }
 
 #[derive(Debug, Error)]
@@ -251,13 +101,16 @@ pub(crate) enum DetectorManagerError {
     Duplicate(DetectorName),
 
     #[error("get model: {0}")]
-    GetModell(#[from] ModelCacheError),
+    GetModel(#[from] ModelCacheError),
 
     #[error("get label: {0}")]
     GetLabel(#[from] LabelCacheError),
 
     #[error("create detector: {0}")]
-    CreateDetector(#[from] NewDetectorError),
+    CreateDetector(DynError),
+
+    #[error("load tflite backend: {0}")]
+    LoadTfliteBackend(#[from] LoadTfliteBackendError),
 }
 
 impl DetectorManager {
@@ -265,8 +118,9 @@ impl DetectorManager {
         rt_handle: Handle,
         shutdown_complete_tx: mpsc::Sender<()>,
         logger: ArcMsgLogger,
-        fetcher: Box<dyn Fetcher>,
+        fetcher: DynFetcher,
         config_dir: &Path,
+        plugin_dir: PathBuf,
     ) -> Result<Self, DetectorManagerError> {
         use DetectorManagerError::*;
         let config_path = config_dir.join("object_detection.toml");
@@ -296,10 +150,10 @@ impl DetectorManager {
         let raw_config = std::fs::read_to_string(config_path).map_err(ReadConfig)?;
         let detector_configs = parse_raw_detector_configs(&raw_config)?;
 
-        edgetpu_verbosity(get_log_level());
+        let mut backend_loader = BackendLoader::new(rt_handle, plugin_dir);
 
         parse_detector_configs(
-            &rt_handle,
+            &mut backend_loader,
             shutdown_complete_tx,
             logger,
             &mut model_cache,
@@ -309,28 +163,13 @@ impl DetectorManager {
         .await
     }
 
-    pub(crate) fn detectors(&self) -> &DetectorConfigs {
+    pub(crate) fn detectors(&self) -> &TfliteDetectorConfigs {
         &self.configs
     }
 
     #[allow(unused)]
-    pub(crate) fn get_detector(&self, name: &DetectorName) -> Option<Arc<Detector>> {
+    pub(crate) fn get_detector(&self, name: &DetectorName) -> Option<ArcTfliteDetector> {
         self.detectors.get(name).cloned()
-    }
-}
-
-fn get_log_level() -> u8 {
-    if let Ok(log_level) = std::env::var("EDGETPU_LOG_LEVEL") {
-        let log_level: u8 = log_level
-            .parse()
-            .expect("EDGETPU_LOG_LEVEL is not a valid number");
-        assert!(
-            log_level <= 10,
-            "EDGETPU_LOG_LEVEL is not a number between 0 and 10"
-        );
-        log_level
-    } else {
-        0
     }
 }
 
@@ -341,7 +180,7 @@ pub(crate) fn write_detector_config(path: &Path) -> Result<(), std::io::Error> {
 }
 
 async fn parse_detector_configs(
-    rt_handle: &Handle,
+    backend_loader: &mut BackendLoader,
     shutdown_complete_tx: mpsc::Sender<()>,
     logger: ArcMsgLogger,
     model_cache: &mut ModelCache,
@@ -365,28 +204,29 @@ async fn parse_detector_configs(
         if detector_configs.contains_key(&cpu.name) {
             return Err(Duplicate(cpu.name));
         };
-        let config = DetectorConfig {
+        let config = TfliteDetectorConfig {
             width: cpu.width,
             height: cpu.height,
             labels: label_map.values().cloned().collect(),
         };
         detector_configs.insert(cpu.name.clone(), config);
-        let detector = new_cpu_detector(
-            rt_handle.clone(),
-            &shutdown_complete_tx,
-            &logger,
-            &cpu.name,
-            cpu.width,
-            cpu.height,
-            &model_path,
-            cpu.threads,
-            cpu.format,
-            &label_map,
-        )?;
-        detectors.insert(cpu.name, Arc::new(detector));
+        let detector = backend_loader
+            .tflite_backend()?
+            .new_tflite_detector(
+                &shutdown_complete_tx,
+                &logger,
+                &cpu.name,
+                cpu.width,
+                cpu.height,
+                &model_path,
+                cpu.format,
+                &label_map,
+                cpu.threads,
+            )
+            .map_err(CreateDetector)?;
+        detectors.insert(cpu.name, detector);
     }
 
-    let mut device_cache = DeviceCache::new();
     for edgetpu in configs.detector_edgetpu {
         if !edgetpu.enable {
             logger.log(
@@ -402,198 +242,33 @@ async fn parse_detector_configs(
         if detector_configs.contains_key(&edgetpu.name) {
             return Err(Duplicate(edgetpu.name));
         };
-        let config = DetectorConfig {
+        let config = TfliteDetectorConfig {
             width: edgetpu.width,
             height: edgetpu.height,
             labels: label_map.values().cloned().collect(),
         };
         detector_configs.insert(edgetpu.name.clone(), config);
-        let detector = new_edgetpu_detector(
-            rt_handle.clone(),
-            shutdown_complete_tx.clone(),
-            &logger,
-            &edgetpu.name,
-            edgetpu.width,
-            edgetpu.height,
-            &model_path,
-            edgetpu.format,
-            label_map,
-            edgetpu.device,
-            &mut device_cache,
-        )?;
-        detectors.insert(edgetpu.name, Arc::new(detector));
+        let detector = backend_loader
+            .tflite_backend()?
+            .new_edgetpu_detector(
+                shutdown_complete_tx.clone(),
+                &logger,
+                &edgetpu.name,
+                edgetpu.width,
+                edgetpu.height,
+                &model_path,
+                edgetpu.format,
+                label_map,
+                edgetpu.device,
+            )
+            .map_err(CreateDetector)?;
+        detectors.insert(edgetpu.name, detector);
     }
 
     Ok(DetectorManager {
         detectors,
         configs: detector_configs,
     })
-}
-
-#[allow(clippy::too_many_arguments)]
-fn new_cpu_detector(
-    rt_handle: Handle,
-    shutdown_complete_tx: &mpsc::Sender<()>,
-    logger: &ArcMsgLogger,
-    name: &DetectorName,
-    width: NonZeroU16,
-    height: NonZeroU16,
-    model_path: &Path,
-    threads: NonZeroU8,
-    format: Format,
-    label_map: &LabelMap,
-) -> Result<Detector, NewDetectorError> {
-    let (detect_tx, detect_rx) = async_channel::bounded::<DetectRequest>(1);
-    for i in 0..threads.get() {
-        logger.log(LogLevel::Info, &format!("starting detector '{name}' T{i}"));
-        let shutdown_complete_tx = shutdown_complete_tx.clone();
-        let rt_handle2 = rt_handle.clone();
-        let detect_rx = detect_rx.clone();
-        let mut detector =
-            tflite_lib::Detector::new(model_path, format.into(), None, width, height)?;
-        let label_map = label_map.clone();
-
-        rt_handle.spawn(async move {
-            let _shutdown_complete_tx = shutdown_complete_tx;
-            while let Ok(mut req) = detect_rx.recv().await {
-                let result;
-                (detector, result) = rt_handle2
-                    .spawn_blocking(move || {
-                        let result = detector.detect(&mut req.data);
-                        (detector, result)
-                    })
-                    .await
-                    .expect("join");
-                let result = result.map(|v| parse_detections(&label_map, v));
-                _ = req.res.send(result);
-            }
-        });
-    }
-    Ok(Detector {
-        rt_handle,
-        detect_tx,
-        width,
-        height,
-    })
-}
-
-#[allow(clippy::too_many_arguments)]
-fn new_edgetpu_detector(
-    rt_handle: Handle,
-    shutdown_complete_tx: mpsc::Sender<()>,
-    logger: &ArcMsgLogger,
-    name: &DetectorName,
-    width: NonZeroU16,
-    height: NonZeroU16,
-    model_path: &Path,
-    format: Format,
-    label_map: LabelMap,
-    device_path: String,
-    device_cache: &mut DeviceCache,
-) -> Result<Detector, NewDetectorError> {
-    logger.log(LogLevel::Info, &format!("starting detector '{name}'"));
-
-    let Some(device) = device_cache.device(&device_path) else {
-        let err = debug_device(device_path, device_cache.devices());
-        return Err(NewDetectorError::DebugDevice(err));
-    };
-    let mut detector =
-        match tflite_lib::Detector::new(model_path, format.into(), Some(device), width, height) {
-            Ok(v) => v,
-            Err(e) => {
-                if matches!(e, NewDetectorError::EdgetpuDelegateCreate) {
-                    let _ = debug_device(device_path, device_cache.devices());
-                }
-                return Err(e);
-            }
-        };
-
-    let (detect_tx, detect_rx) = async_channel::bounded::<DetectRequest>(1);
-    let rt_handle2 = rt_handle.clone();
-    rt_handle.spawn(async move {
-        let _shutdown_complete_tx = shutdown_complete_tx;
-        while let Ok(mut req) = detect_rx.recv().await {
-            let result;
-            (detector, result) = rt_handle2
-                .spawn_blocking(move || {
-                    let result = detector.detect(&mut req.data);
-                    (detector, result)
-                })
-                .await
-                .expect("join");
-            let result = result.map(|v| parse_detections(&label_map, v));
-            _ = req.res.send(result);
-        }
-    });
-    Ok(Detector {
-        rt_handle,
-        detect_tx,
-        width,
-        height,
-    })
-}
-
-fn parse_detections(label_map: &LabelMap, input: Vec<tflite_lib::Detection>) -> Detections {
-    let get_label = |class| {
-        if let Some(label) = label_map.get(&class) {
-            label.to_owned()
-        } else {
-            #[allow(clippy::unwrap_used)]
-            format!("unknown{class}").try_into().unwrap()
-        }
-    };
-    input
-        .into_iter()
-        .filter_map(|d| {
-            let rect = parse_rect(d.top, d.left, d.bottom, d.right)?;
-            Some(Detection {
-                label: get_label(d.class),
-                score: d.score * 100.0,
-                region: Region {
-                    rectangle: Some(rect),
-                    polygon: None,
-                },
-            })
-        })
-        .collect()
-}
-
-fn parse_rect(top: f32, left: f32, bottom: f32, right: f32) -> Option<RectangleNormalized> {
-    #[allow(
-        clippy::cast_sign_loss,
-        clippy::cast_possible_truncation,
-        clippy::as_conversions
-    )]
-    fn scale(v: f32) -> u32 {
-        (v * 1_000_000.0) as u32
-    }
-    let top = scale(top);
-    let left = scale(left);
-    let bottom = scale(bottom);
-    let right = scale(right);
-    if top > bottom || left > right {
-        return None;
-    }
-    Some(RectangleNormalized {
-        x: left,
-        y: top,
-        width: NonZeroU32::new(right - left)?,
-        height: NonZeroU32::new(bottom - top)?,
-    })
-}
-
-struct DeviceCache(Option<Vec<EdgetpuDevice>>);
-
-impl DeviceCache {
-    fn new() -> Self {
-        Self(None)
-    }
-    fn devices(&mut self) -> &[EdgetpuDevice] {
-        self.0.get_or_insert_with(list_edgetpu_devices)
-    }
-    fn device(&mut self, path: &str) -> Option<&EdgetpuDevice> {
-        self.devices().iter().find(|device| device.path == path)
-    }
 }
 
 #[allow(clippy::unwrap_used)]
@@ -638,7 +313,7 @@ mod tests {
                     .parse()
                     .unwrap(),
                 label_map: "file:///6".parse().unwrap(),
-                format: Format::OdAPi,
+                format: TfliteFormat::OdAPi,
                 threads: NonZeroU8::new(7).unwrap(),
             }],
             detector_edgetpu: vec![RawDetectorConfigEdgeTpu {
@@ -651,7 +326,7 @@ mod tests {
                     .parse()
                     .unwrap(),
                 label_map: "file:///13".parse().unwrap(),
-                format: Format::Nolo,
+                format: TfliteFormat::Nolo,
                 device: "14".parse().unwrap(),
             }],
         };

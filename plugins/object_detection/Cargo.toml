@@ -15,7 +15,7 @@ crate-type = ["cdylib"]
 doctest = false
 
 [dependencies]
-tflite_lib.path = "./tflite_lib" 
+object_detection_tflite.path = "../object_detection_tflite"
 common.path = "../../src/common"
 plugin.path = "../../src/plugin"
 
@@ -30,6 +30,7 @@ http-body-util.workspace = true
 hyper.workspace = true
 hyper-rustls.workspace = true
 hyper-util.workspace = true
+libloading.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
@@ -38,7 +39,6 @@ tokio.workspace = true
 tokio-util.workspace = true
 toml.workspace = true
 url.workspace = true
-async-channel.workspace = true
 
 
 [dev-dependencies]
