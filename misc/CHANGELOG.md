@@ -5,6 +5,7 @@
 The tflite plugin requires manual migration: [docs/5_Migration.md](docs/5_Migration.md#v0-2-0-v0-3-0)
 
 -	use rust 2024 edition
+-	reduce binary size by 37 MiB
 -	BREAKING: rename `tflite` plugin to `object_detection`
 -	BREAKING: move `monitorGroups.json` from storage to config dir
 -	BREAKING: use mode `640` instead of `666` for all new files
