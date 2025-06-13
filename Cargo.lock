@@ -2014,7 +2014,7 @@ checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
 [[package]]
 name = "retina"
 version = "0.4.11"
-source = "git+https://github.com/Curid/retina?branch=dts#9f1126e11cb4b77afc3d915b64ce6f69343e8657"
+source = "git+https://github.com/Curid/retina?branch=dts#8afed7a73757d9aa7f07d83e21375447604453ed"
 dependencies = [
  "base64 0.22.1",
  "bitstream-io",
@@ -2026,7 +2026,6 @@ dependencies = [
  "jiff",
  "log 0.4.21",
  "memchr",
- "once_cell",
  "pin-project",
  "pretty-hex",
  "rand 0.8.5",

@@ -1,5 +1,7 @@
 ## unreleased
 
+-	update the rtsp library
+
 ## `v0.3.0`
 
 The tflite plugin requires manual migration: [docs/5_Migration.md](docs/5_Migration.md#v0-2-0-v0-3-0)
