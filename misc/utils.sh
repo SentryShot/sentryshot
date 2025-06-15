@@ -173,7 +173,7 @@ parse_command() {
 			-v sentryshot-dev:/root \
 			--workdir /app \
 			--entrypoint nix-shell \
-			codeberg.org/sentryshot/sentryshot-ci:v0.0.1 \
+			codeberg.org/sentryshot/sentryshot-ci:v0.3.0 \
 			/shell.nix
 		exit 0
 		;;

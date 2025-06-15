@@ -53,7 +53,9 @@ impl MonitorGroups {
         let old_file_path = storage_dir.join("monitorGroups.json");
         let file_path = configs_dir.join("monitorGroups.json");
         let temp_file_path = configs_dir.join("monitorGroups.json.tmp");
-        migrate(&file_path, &old_file_path)?;
+        if storage_dir != configs_dir {
+            migrate(&file_path, &old_file_path)?;
+        }
 
         let groups = {
             if file_path.exists() {
@@ -367,5 +369,30 @@ mod tests {
         MonitorGroups::new(&storage_dir, &configs_dir)
             .await
             .unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn test_storage_equal_config_dir() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path();
+        std::fs::create_dir_all(temp_path).unwrap();
+        let monitor_groups = MonitorGroups::new(temp_path, temp_path).await.unwrap();
+
+        assert!(monitor_groups.get().await.is_empty());
+
+        let id1: GroupId = "id1".to_owned().try_into().unwrap();
+        let group1 = Group {
+            id: id1.clone(),
+            name: "name1".to_owned().try_into().unwrap(),
+            monitors: vec!["monitor1".to_owned().try_into().unwrap()],
+        };
+        let map1 = HashMap::from([(id1.clone(), group1)]);
+
+        monitor_groups.set(map1.clone()).await.unwrap();
+        assert_eq!(map1, monitor_groups.get().await);
+
+        drop(monitor_groups);
+        let monitor_groups = MonitorGroups::new(temp_path, temp_path).await.unwrap();
+        assert_eq!(map1, monitor_groups.get().await);
     }
 }
