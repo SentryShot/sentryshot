@@ -86,7 +86,7 @@ describe("newForm", () => {
 			form.addButton("save", () => {});
 
 			const expected = `
-				<ul class="form">
+				<ul class="form" style="padding: 0 0.1rem;">
 					html
 					<div class="form-button-wrapper">
 						<button id="uid1" class="form-button save-btn">
@@ -121,7 +121,7 @@ describe("newForm", () => {
 			form.addButton("delete", () => {});
 
 			const expected = `
-				<ul class="form">
+				<ul class="form" style="padding: 0 0.1rem;">
 					html
 					<div class="form-button-wrapper">
 						<button id="uid1" class="form-button delete-btn">
@@ -157,7 +157,7 @@ describe("newForm", () => {
 		form.addButton("delete", () => {});
 
 		const expected = `
-			<ul class="form">
+			<ul class="form" style="padding: 0 0.1rem;">
 				html
 				<div class="form-button-wrapper">
 					<button id="uid1" class="form-button save-btn">

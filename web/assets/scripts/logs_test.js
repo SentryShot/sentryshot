@@ -267,7 +267,7 @@ describe("logSelector", () => {
 		const actual = element.innerHTML.replaceAll(/\s/g, "");
 		const expected = `
 			<div class="js-sidebar">
-				<ul class="form">
+				<ul class="form" style="padding: 0 0.1rem;">
 					levelHTML
 					sourcesHTML
 					monitorHTML

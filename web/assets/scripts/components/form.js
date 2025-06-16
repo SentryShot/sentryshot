@@ -110,7 +110,7 @@ function newForm(fields) {
 				}
 			}
 			return `
-				<ul class="form">
+				<ul class="form" style="padding: 0 0.1rem;">
 					${htmlFields}
 					<div class="form-button-wrapper">${htmlButtons}</div>
 				</ul>`;

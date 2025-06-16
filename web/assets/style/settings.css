@@ -23,7 +23,7 @@
 .settings-nav-item {
 	display: flex;
 	align-items: center;
-	padding: 0.2rem 1rem 0.2rem 0.4rem;
+	padding: 0.1rem 1rem 0.1rem 0.4rem;
 	border-width: 0.01rem;
 	border-color: var(--color2-hover);
 	border-bottom-style: solid;
@@ -112,21 +112,22 @@
 }
 
 .settings-menu-back-btn {
+	margin-left: 0.2rem;
 	display: flex;
 	width: 1.4rem;
+	flex-shrink: 0;
 }
 
 .settings-menu-back-btn img {
-	aspect-ratio: 1;
 	width: 1.1rem;
-	padding: var(--icon-padding);
 	filter: var(--color-icons);
 }
 
 .settings-add-btn {
 	flex-shrink: 0;
 	margin: 0.2rem auto 0.2rem 0.3rem;
-	padding: 0.1rem;
+	padding-left: 0.1rem;
+	padding-right: 0.1rem;
 	background: var(--color-green);
 	border-radius: 0.1rem;
 }
@@ -143,7 +144,7 @@
 .settings-category-title {
 	width: 100%;
 	margin: auto;
-	margin-right: 1.4rem;
+	margin-right: 1.6rem;
 	color: var(--color-text);
 	font-size: 0.8rem;
 	text-align: center;
@@ -154,9 +155,7 @@
 	height: 1rem;
 	overflow: auto;
 	font-size: 0.5rem;
-	text-indent: 12px;
-	border-style: none;
-	border-radius: 5px;
+	text-indent: 0.2rem;
 }
 
 .settings-error {
