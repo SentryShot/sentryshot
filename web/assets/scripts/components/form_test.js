@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+
 // @ts-check
 
 import { uidReset } from "../libs/common.js";
@@ -11,6 +12,7 @@ import {
 	newPasswordField,
 	$getInputAndError,
 } from "./form.js";
+import * as prettier from "prettier";
 
 /**
  * @template T
@@ -85,18 +87,9 @@ describe("newForm", () => {
 			const form = newTestForm();
 			form.addButton("save", () => {});
 
-			const expected = `
-				<ul class="form" style="padding: 0 0.1rem;">
-					html
-					<div class="form-button-wrapper">
-						<button id="uid1" class="form-button save-btn">
-							<span>Save</span>
-						</button>
-					</div>
-				</ul>`.replaceAll(/\s/g, "");
-
-			const actual = form.html().replaceAll(/\s/g, "");
-			expect(actual).toEqual(expected);
+			expect(
+				prettier.format(form.html(), { parser: "html" })
+			).toMatchInlineSnapshot(`Promise {}`);
 		});
 		test("onClick", () => {
 			const form = newTestForm();
@@ -120,18 +113,22 @@ describe("newForm", () => {
 			const form = newTestForm();
 			form.addButton("delete", () => {});
 
-			const expected = `
-				<ul class="form" style="padding: 0 0.1rem;">
-					html
-					<div class="form-button-wrapper">
-						<button id="uid1" class="form-button delete-btn">
-							<span>Delete</span>
-						</button>
-					</div>
-				</ul>`.replaceAll(/\s/g, "");
-
-			const actual = form.html().replaceAll(/\s/g, "");
-			expect(actual).toEqual(expected);
+			expect(form.html()).toMatchInlineSnapshot(`
+				<ul class="form"
+				    style="padding: 0 0.1rem;"
+				>
+				  html
+				  <div class="form-button-wrapper">
+				    <button id="uid1"
+				            class="form-button delete-btn"
+				    >
+				      <span>
+				        Delete
+				      </span>
+				    </button>
+				  </div>
+				</ul>
+			`);
 		});
 		test("onClick", () => {
 			const form = newTestForm();
@@ -156,21 +153,29 @@ describe("newForm", () => {
 		form.addButton("save", () => {});
 		form.addButton("delete", () => {});
 
-		const expected = `
-			<ul class="form" style="padding: 0 0.1rem;">
-				html
-				<div class="form-button-wrapper">
-					<button id="uid1" class="form-button save-btn">
-						<span>Save</span>
-					</button>
-					<button id="uid2" class="form-button delete-btn">
-						<span>Delete</span>
-					</button>
-			</div>
-		</ul>`.replaceAll(/\s/g, "");
-
-		const actual = form.html().replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		expect(form.html()).toMatchInlineSnapshot(`
+			<ul class="form"
+			    style="padding: 0 0.1rem;"
+			>
+			  html
+			  <div class="form-button-wrapper">
+			    <button id="uid1"
+			            class="form-button save-btn"
+			    >
+			      <span>
+			        Save
+			      </span>
+			    </button>
+			    <button id="uid2"
+			            class="form-button delete-btn"
+			    >
+			      <span>
+			        Delete
+			      </span>
+			    </button>
+			  </div>
+			</ul>
+		`);
 	});
 });
 
@@ -192,24 +197,29 @@ describe("newField", () => {
 		);
 	};
 	test("rendering", () => {
-		const expected = `
-		<li id="js-uid1" class="form-field-error">
-			<label for="uid1" class="form-field-label">a</label>
-			<input
-				id="uid1"
-				class="js-input settings-input-text"
-				type="number"
-				placeholder="b"
-				min="2"
-				max="4"
-				step="0.5"
-			/>
-			<span class="settings-error js-error"></span>
-		</li>`.replaceAll(/\s/g, "");
-
 		uidReset();
-		const actual = newTestField().html.replaceAll(/\s/g, "");
-		expect(actual).toBe(expected);
+
+		expect(newTestField().html).toMatchInlineSnapshot(`
+			<li id="js-uid1"
+			    class="form-field-error"
+			>
+			  <label for="uid1"
+			         class="form-field-label"
+			  >
+			    a
+			  </label>
+			  <input id="uid1"
+			         class="js-input settings-input-text"
+			         type="number"
+			         placeholder="b"
+			         min="2"
+			         max="4"
+			         step="0.5"
+			  >
+			  <span class="settings-error js-error">
+			  </span>
+			</li>
+		`);
 	});
 	test("validate", () => {
 		const field = newTestField();
@@ -304,23 +314,24 @@ describe("fieldTemplate", () => {
 		uidReset();
 		const field = fieldTemplate.text("1", "2");
 
-		const expected = `
-		<li
-			id="js-uid1"
-			class="form-field-error"
-		>
-			<label for="uid1" class="form-field-label">1</label>
-			<input
-				id="uid1"
-				class="js-input settings-input-text"
-				type="text"
-				placeholder="2"
-			/>
-			<span class="settings-error js-error"></span>
-		</li>`.replaceAll(/\s/g, "");
-
-		const actual = field.html.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		expect(field.html).toMatchInlineSnapshot(`
+			<li id="js-uid1"
+			    class="form-field-error"
+			>
+			  <label for="uid1"
+			         class="form-field-label"
+			  >
+			    1
+			  </label>
+			  <input id="uid1"
+			         class="js-input settings-input-text"
+			         type="text"
+			         placeholder="2"
+			  >
+			  <span class="settings-error js-error">
+			  </span>
+			</li>
+		`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -337,25 +348,26 @@ describe("fieldTemplate", () => {
 		uidReset();
 		const field = fieldTemplate.integer("1", "2");
 
-		const expected = `
-		<li
-			id="js-uid1"
-			class="form-field-error"
-		>
-			<label for="uid1" class="form-field-label">1</label>
-			<input
-				id="uid1"
-				class="js-input settings-input-text"
-				type="number"
-				placeholder="2"
-				min="0"
-				step="1"
-			/>
-			<span class="settings-error js-error"></span>
-		</li>`.replaceAll(/\s/g, "");
-
-		const actual = field.html.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		expect(field.html).toMatchInlineSnapshot(`
+			<li id="js-uid1"
+			    class="form-field-error"
+			>
+			  <label for="uid1"
+			         class="form-field-label"
+			  >
+			    1
+			  </label>
+			  <input id="uid1"
+			         class="js-input settings-input-text"
+			         type="number"
+			         placeholder="2"
+			         min="0"
+			         step="1"
+			  >
+			  <span class="settings-error js-error">
+			  </span>
+			</li>
+		`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -374,19 +386,29 @@ describe("fieldTemplate", () => {
 		uidReset();
 		const field = fieldTemplate.toggle("1", true);
 
-		const expected = `
-		<li id="js-uid1" class="form-field">
-			<label for="uid1" class="form-field-label">1</label>
-			<div class="form-field-select-container">
-				<select id="uid1" class="js-input form-field-select">
-					<option>true</option>
-					<option>false</option>
-				</select>
-			</div>
-		</li>`.replaceAll(/\s/g, "");
-
-		const actual = field.html.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		expect(field.html).toMatchInlineSnapshot(`
+			<li id="js-uid1"
+			    class="form-field"
+			>
+			  <label for="uid1"
+			         class="form-field-label"
+			  >
+			    1
+			  </label>
+			  <div class="form-field-select-container">
+			    <select id="uid1"
+			            class="js-input form-field-select"
+			    >
+			      <option>
+			        true
+			      </option>
+			      <option>
+			        false
+			      </option>
+			    </select>
+			  </div>
+			</li>
+		`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -402,20 +424,32 @@ describe("fieldTemplate", () => {
 		uidReset();
 		const field = fieldTemplate.select("1", ["a", "b", "c"], "a");
 
-		const expected = `
-		<li id="js-uid1" class="form-field">
-			<label for="uid1" class="form-field-label">1</label>
-			<div class="form-field-select-container">
-				<select id="uid1" class="js-input form-field-select">
-					<option>a</option>
-					<option>b</option>
-					<option>c</option>
-				</select>
-			</div>
-		</li>`.replaceAll(/\s/g, "");
-
-		const actual = field.html.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		expect(field.html).toMatchInlineSnapshot(`
+			<li id="js-uid1"
+			    class="form-field"
+			>
+			  <label for="uid1"
+			         class="form-field-label"
+			  >
+			    1
+			  </label>
+			  <div class="form-field-select-container">
+			    <select id="uid1"
+			            class="js-input form-field-select"
+			    >
+			      <option>
+			        a
+			      </option>
+			      <option>
+			        b
+			      </option>
+			      <option>
+			        c
+			      </option>
+			    </select>
+			  </div>
+			</li>
+		`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -431,27 +465,39 @@ describe("fieldTemplate", () => {
 		uidReset();
 		const field = fieldTemplate.selectCustom("y", ["a", "b", "c"], "a");
 
-		const expected = `
-		<li id="js-uid1" class="form-field-error">
-			<label for="uid1" class="form-field-label">y</label>
-			<div class="form-field-select-container">
-				<select id="uid1" class="js-input form-field-select">
-					<option>a</option>
-					<option>b</option>
-					<option>c</option>
-				</select>
-				<button class="js-edit-btn form-field-edit-btn">
-					<img
-						class="form-field-edit-btn-img"
-						src="assets/icons/feather/edit-3.svg"
-					/>
-				</button>
-				</div>
-			<span class="settings-error js-error"></span>
-		</li>`.replaceAll(/\s/g, "");
-
-		const actual = field.html.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		expect(field.html).toMatchInlineSnapshot(`
+			<li id="js-uid1"
+			    class="form-field-error"
+			>
+			  <label for="uid1"
+			         class="form-field-label"
+			  >
+			    y
+			  </label>
+			  <div class="form-field-select-container">
+			    <select id="uid1"
+			            class="js-input form-field-select"
+			    >
+			      <option>
+			        a
+			      </option>
+			      <option>
+			        b
+			      </option>
+			      <option>
+			        c
+			      </option>
+			    </select>
+			    <button class="js-edit-btn form-field-edit-btn">
+			      <img class="form-field-edit-btn-img"
+			           src="assets/icons/feather/edit-3.svg"
+			      >
+			    </button>
+			  </div>
+			  <span class="settings-error js-error">
+			  </span>
+			</li>
+		`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -490,26 +536,37 @@ describe("selectCustomField", () => {
 			initial: "e",
 		});
 
-		const expected = `
-		<li id="js-uid1" class="form-field">
-			<label for="uid1" class="form-field-label">d</label>
-			<div class="form-field-select-container">
-				<select id="uid1" class="js-input form-field-select">
-					<option>a</option>
-					<option>b</option>
-					<option>c</option>
-				</select>
-				<button class="js-edit-btn form-field-edit-btn">
-					<img
-						class="form-field-edit-btn-img"
-						src="assets/icons/feather/edit-3.svg"
-					/>
-				</button>
-				</div>
-		</li>`.replaceAll(/\s/g, "");
-
-		const actual = field.html.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		expect(field.html).toMatchInlineSnapshot(`
+			<li id="js-uid1"
+			    class="form-field"
+			>
+			  <label for="uid1"
+			         class="form-field-label"
+			  >
+			    d
+			  </label>
+			  <div class="form-field-select-container">
+			    <select id="uid1"
+			            class="js-input form-field-select"
+			    >
+			      <option>
+			        a
+			      </option>
+			      <option>
+			        b
+			      </option>
+			      <option>
+			        c
+			      </option>
+			    </select>
+			    <button class="js-edit-btn form-field-edit-btn">
+			      <img class="form-field-edit-btn-img"
+			           src="assets/icons/feather/edit-3.svg"
+			      >
+			    </button>
+			  </div>
+			</li>
+		`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -534,31 +591,38 @@ describe("selectCustomField", () => {
 describe("passwordField", () => {
 	test("rendering", () => {
 		uidReset();
-		const expected = `
-			<li id="js-uid1" class="form-field-error">
-				<label for="uid1" class="form-field-label">New password</label>
-				<input
-					id="uid1"
-					class="js-input settings-input-text"
-					type="password"
-				/>
-				<span class="settings-error js-error"></span>
+		expect(newPasswordField().html).toMatchInlineSnapshot(`
+			<li id="js-uid1"
+			    class="form-field-error"
+			>
+			  <label for="uid1"
+			         class="form-field-label"
+			  >
+			    New password
+			  </label>
+			  <input id="uid1"
+			         class="js-input settings-input-text"
+			         type="password"
+			  >
+			  <span class="settings-error js-error">
+			  </span>
 			</li>
-			<li id="js-uid2" class="form-field-error">
-				<label for="uid2" class="form-field-label">Repeat password</label>
-				<input
-					id="uid2"
-					class="js-input settings-input-text"
-					type="password"
-				/>
-				<span class="settings-error js-error"></span>
+			<li id="js-uid2"
+			    class="form-field-error"
+			>
+			  <label for="uid2"
+			         class="form-field-label"
+			  >
+			    Repeat password
+			  </label>
+			  <input id="uid2"
+			         class="js-input settings-input-text"
+			         type="password"
+			  >
+			  <span class="settings-error js-error">
+			  </span>
 			</li>
-
-		`.replaceAll(/\s/g, "");
-
-		const actual = newPasswordField().html.replaceAll(/\s/g, "");
-
-		expect(actual).toEqual(expected);
+		`);
 	});
 	describe("logic", () => {
 		let field, $newInput, $newError, $repeatInput, $repeatError;
@@ -569,7 +633,7 @@ describe("passwordField", () => {
 			field = newPasswordField();
 			const $div = document.querySelector("div");
 			$div.innerHTML = field.html;
-			field.init($div);
+			field.init();
 
 			[$newInput, $newError] = $getInputAndError(
 				document.querySelector("#js-uid1")

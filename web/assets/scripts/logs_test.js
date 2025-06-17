@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-check
+
 /* eslint-disable require-await */
 
 import { uidReset } from "./libs/common.js";
@@ -12,6 +14,7 @@ import {
 } from "./logs.js";
 
 describe("logger", () => {
+	/** @param {string} input */
 	const monitorIDtoName = (input) => {
 		return `m${input}`;
 	};
@@ -92,7 +95,13 @@ describe("createSpanXSS", () => {
 });
 /* eslint-enable no-useless-escape, no-script-url */
 
+/**
+ * @template T
+ * @typedef {import("./components/form.js").Field<T>} Field
+ */
+
 describe("MultiSelect", () => {
+	/** @return {[HTMLDivElement, Field<string[]>]} */
 	const setup = () => {
 		uidReset();
 		document.body.innerHTML = `<div></div>`;
@@ -104,49 +113,62 @@ describe("MultiSelect", () => {
 	};
 	test("rendering", () => {
 		const [element] = setup();
-		// @ts-ignore
-		const actual = element.innerHTML.replaceAll(/\s/g, "");
-		const expected = `
-			<li id="uid4" class="form-field">
-				<label class="form-field-label">test</label>
-				<div class="source-fields">
-					<div class="log-selector-item item-uid1">
-						<div class="checkbox">
-							<input class="checkbox-checkbox" type="checkbox">
-							<div class="checkbox-box"></div>
-							<img
-								class="checkbox-check"
-								src="assets/icons/feather/check.svg"
-							>
-						</div>
-						<span class="log-selector-label">a</span>
-					</div>
-					<div class="log-selector-item item-uid2">
-						<div class="checkbox">
-							<input class="checkbox-checkbox" type="checkbox">
-							<div class="checkbox-box"></div>
-							<img
-								class="checkbox-check"
-								src="assets/icons/feather/check.svg"
-							>
-						</div>
-						<span class="log-selector-label">b</span>
-					</div>
-					<div class="log-selector-item item-uid3">
-						<div class="checkbox">
-							<input class="checkbox-checkbox" type="checkbox">
-							<div class="checkbox-box"></div>
-							<img
-								class="checkbox-check"
-								src="assets/icons/feather/check.svg"
-							>
-						</div>
-						<span class="log-selector-label">c</span>
-					</div>
-				</div>
-			</li>`.replaceAll(/\s/g, "");
-
-		expect(actual).toEqual(expected);
+		expect(element.innerHTML).toMatchInlineSnapshot(`
+			<li id="uid4"
+			    class="form-field"
+			>
+			  <label class="form-field-label">
+			    test
+			  </label>
+			  <div class="source-fields">
+			    <div class="log-selector-item item-uid1">
+			      <div class="checkbox">
+			        <input class="checkbox-checkbox"
+			               type="checkbox"
+			        >
+			        <div class="checkbox-box">
+			        </div>
+			        <img class="checkbox-check"
+			             src="assets/icons/feather/check.svg"
+			        >
+			      </div>
+			      <span class="log-selector-label">
+			        a
+			      </span>
+			    </div>
+			    <div class="log-selector-item item-uid2">
+			      <div class="checkbox">
+			        <input class="checkbox-checkbox"
+			               type="checkbox"
+			        >
+			        <div class="checkbox-box">
+			        </div>
+			        <img class="checkbox-check"
+			             src="assets/icons/feather/check.svg"
+			        >
+			      </div>
+			      <span class="log-selector-label">
+			        b
+			      </span>
+			    </div>
+			    <div class="log-selector-item item-uid3">
+			      <div class="checkbox">
+			        <input class="checkbox-checkbox"
+			               type="checkbox"
+			        >
+			        <div class="checkbox-box">
+			        </div>
+			        <img class="checkbox-check"
+			             src="assets/icons/feather/check.svg"
+			        >
+			      </div>
+			      <span class="log-selector-label">
+			        c
+			      </span>
+			    </div>
+			  </div>
+			</li>
+		`);
 	});
 	test("set", () => {
 		const [element, field] = setup();
@@ -264,27 +286,31 @@ describe("logSelector", () => {
 
 		logSelector.init(element);
 
-		const actual = element.innerHTML.replaceAll(/\s/g, "");
-		const expected = `
+		expect(element.innerHTML).toMatchInlineSnapshot(`
 			<div class="js-sidebar">
-				<ul class="form" style="padding: 0 0.1rem;">
-					levelHTML
-					sourcesHTML
-					monitorHTML
-					<div class="form-button-wrapper"></div>
-				</ul>
-				<div>
-					<button class="form-button log-reset-btn js-reset">
-						<span>Reset</span>
-					</button>
-					<button class="form-button log-apply-btn js-apply">
-						<span>Apply</span>
-					</button>
-				</div>
+			  <ul class="form"
+			      style="padding: 0 0.1rem;"
+			  >
+			    levelHTMLsourcesHTMLmonitorHTML
+			    <div class="form-button-wrapper">
+			    </div>
+			  </ul>
+			  <div>
+			    <button class="form-button log-reset-btn js-reset">
+			      <span>
+			        Reset
+			      </span>
+			    </button>
+			    <button class="form-button log-apply-btn js-apply">
+			      <span>
+			        Apply
+			      </span>
+			    </button>
+			  </div>
 			</div>
-			<div class="js-back"></div>`.replaceAll(/\s/g, "");
-
-		expect(actual).toEqual(expected);
+			<div class="js-back">
+			</div>
+		`);
 	});
 
 	describe("logic", () => {

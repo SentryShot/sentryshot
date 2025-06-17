@@ -15,18 +15,22 @@ test("newModal", () => {
 	});
 
 	modal.open();
-	const want = `
-		<header class="modal-header">
-			<span class="modal-title">test</span>
-			<button class="modal-close-btn">
-				<img class="modal-close-icon" src="assets/icons/feather/x.svg">
-			</button>
-		</header>
-		<div class="modal-content">a</div>
-		`.replaceAll(/\s/g, "");
 
-	const got = document.querySelector(".modal").innerHTML.replaceAll(/\s/g, "");
-	expect(got).toEqual(want);
+	expect(document.querySelector(".modal").innerHTML).toMatchInlineSnapshot(`
+		<header class="modal-header">
+		  <span class="modal-title">
+		    test
+		  </span>
+		  <button class="modal-close-btn">
+		    <img class="modal-close-icon"
+		         src="assets/icons/feather/x.svg"
+		    >
+		  </button>
+		</header>
+		<div class="modal-content">
+		  a
+		</div>
+	`);
 
 	expect(modal.isOpen()).toBe(true);
 	expect(onCloseCalled).toBe(false);
@@ -51,26 +55,38 @@ test("modalSelect", () => {
 	modal.open();
 	expect(modal.isOpen()).toBe(true);
 
-	const want = `
-		<div id="uid1" class="modal-wrapper modal-open">
-			<div class="modal js-modal">
-				<header class="modal-header">
-					<span class="modal-title">x</span>
-					<button class="modal-close-btn">
-						<img class="modal-close-icon" src="assets/icons/feather/x.svg">
-					</button>
-				</header>
-				<div class="modal-content">
-					<div class="js-selector modal-select">
-						<span data="m1" class="js-option modal-select-option">m1</span>
-						<span data="m2" class="js-option modal-select-option">m2</span>
-					</div>
-				</div>
-			</div>
-		</div>`.replaceAll(/\s/g, "");
-
-	const got = element.innerHTML.replaceAll(/\s/g, "");
-	expect(got).toEqual(want);
+	expect(element.innerHTML).toMatchInlineSnapshot(`
+		<div id="uid1"
+		     class="modal-wrapper modal-open"
+		>
+		  <div class="modal js-modal">
+		    <header class="modal-header">
+		      <span class="modal-title">
+		        x
+		      </span>
+		      <button class="modal-close-btn">
+		        <img class="modal-close-icon"
+		             src="assets/icons/feather/x.svg"
+		        >
+		      </button>
+		    </header>
+		    <div class="modal-content">
+		      <div class="js-selector modal-select">
+		        <span data="m1"
+		              class="js-option modal-select-option"
+		        >
+		          m1
+		        </span>
+		        <span data="m2"
+		              class="js-option modal-select-option"
+		        >
+		          m2
+		        </span>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+	`);
 
 	const item1 = document.querySelector(".js-option[data='m1']");
 	const item2 = document.querySelector(".js-option[data='m2']");

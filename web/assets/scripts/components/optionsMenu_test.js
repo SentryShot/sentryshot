@@ -26,18 +26,24 @@ describe("optionsGridSize", () => {
 		};
 		setup(newOptionsBtn.gridSize(content));
 
-		const want = `
+		expect(document.body.innerHTML).toMatchInlineSnapshot(`
 			<div id="options-menu">
-				<button id="uid1" class="options-menu-btn">
-					<img class="icon" src="assets/icons/feather/plus.svg">
-				</button>
-				<button id="uid2" class="options-menu-btn">
-					<img class="icon" src="assets/icons/feather/minus.svg">
-				</button>
-			</div>`.replaceAll(/\s/g, "");
-
-		const got = document.body.innerHTML.replaceAll(/\s/g, "");
-		expect(got).toEqual(want);
+			  <button id="uid1"
+			          class="options-menu-btn"
+			  >
+			    <img class="icon"
+			         src="assets/icons/feather/plus.svg"
+			    >
+			  </button>
+			  <button id="uid2"
+			          class="options-menu-btn"
+			  >
+			    <img class="icon"
+			         src="assets/icons/feather/minus.svg"
+			    >
+			  </button>
+			</div>
+		`);
 	});
 	test("logic", () => {
 		uidReset();

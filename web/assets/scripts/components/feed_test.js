@@ -12,37 +12,35 @@ describe("feed", () => {
 		const buttons = [newFeedBtn.fullscreen()];
 		const feed = newFeed(undefined, monitor, true, buttons);
 
-		const actual = feed.html.replaceAll(/\s/g, "");
-		const expected = `
+		expect(feed.html).toMatchInlineSnapshot(`
 			<div style="display: flex; justify-content: center;">
-				<div id="uid1" class="grid-item-container">
-					<input
-						class="js-checkbox player-overlay-checkbox"
-						id="uid2"
-						type="checkbox"
-					>
-					<label
-						class="player-overlay-selector"
-						for="uid2">
-					</label>
-					<div class="js-overlay player-overlay feed-menu">
-						<button class="js-fullscreen-btn feed-btn">
-							<img
-								class="feed-btn-img icon"
-								src="assets/icons/feather/maximize.svg"
-							>
-						</button>
-					</div>
-					<video
-						class="grid-item"
-						muted
-						disablepictureinpicture
-						playsinline
-					></video>
-				</div>
-			</div>`.replaceAll(/\s/g, "");
-
-		expect(actual).toBe(expected);
+			  <div id="uid1"
+			       class="grid-item-container"
+			  >
+			    <input class="js-checkbox player-overlay-checkbox"
+			           id="uid2"
+			           type="checkbox"
+			    >
+			    <label class="player-overlay-selector"
+			           for="uid2"
+			    >
+			    </label>
+			    <div class="js-overlay player-overlay feed-menu">
+			      <button class="js-fullscreen-btn feed-btn">
+			        <img class="feed-btn-img icon"
+			             src="assets/icons/feather/maximize.svg"
+			        >
+			      </button>
+			    </div>
+			    <video class="grid-item"
+			           muted
+			           disablepictureinpicture
+			           playsinline
+			    >
+			    </video>
+			  </div>
+			</div>
+		`);
 	});
 });
 
@@ -88,23 +86,24 @@ describe("muteBtn", () => {
 */
 
 test("recordingsBtn", async () => {
-	const actual = newFeedBtn.recordings("b").html.replaceAll(/\s/g, "");
-	const expected = `
-		<a href="http://test.com/recordings#monitors=b" class="feed-btn">
-			<img
-				class="feed-btn-img icon"
-				style="height: 0.65rem;"
-				src="assets/icons/feather/film.svg"
-			>
-		</a>`.replaceAll(/\s/g, "");
-	expect(actual).toBe(expected);
+	expect(newFeedBtn.recordings("b").html).toMatchInlineSnapshot(`
+		<a href="http://test.com/recordings#monitors=b"
+		   class="feed-btn"
+		>
+		  <img class="feed-btn-img icon"
+		       style="height: 0.65rem;"
+		       src="assets/icons/feather/film.svg"
+		  >
+		</a>
+	`);
 });
 
 test("fullscreenBtn", () => {
-	const actual = newFeedBtn.fullscreen().html.replaceAll(/\s/g, "");
-	const expected = `
-	   <button class="js-fullscreen-btn feed-btn">
-		   <img class="feed-btn-img icon" src="assets/icons/feather/maximize.svg">
-	   </button>`.replaceAll(/\s/g, "");
-	expect(actual).toBe(expected);
+	expect(newFeedBtn.fullscreen().html).toMatchInlineSnapshot(`
+		<button class="js-fullscreen-btn feed-btn">
+		  <img class="feed-btn-img icon"
+		       src="assets/icons/feather/maximize.svg"
+		  >
+		</button>
+	`);
 });
