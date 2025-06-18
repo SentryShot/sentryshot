@@ -39,6 +39,7 @@ App will be served on `http://ip:2020/live`
 services:
   sentryshot:
     shm_size: 500m
+    restart: unless-stopped
     image: codeberg.org/sentryshot/sentryshot:v0.3.0
     ports:
       - 2020:2020
