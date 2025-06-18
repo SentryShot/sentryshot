@@ -92,19 +92,19 @@ function newPlayer(data, isAdmin, token) {
 	const [dateString, timeString] = parseDate(start);
 	const fileName = `${dateString}_${timeString}_${d.name}.mp4`;
 
-	const topOverlayHTML = `
-			<span class="player-menu-text js-date">${dateString}</span>
-			<span class="player-menu-text js-time">${timeString}</span>
-			<span class="player-menu-text">${d.name}</span>`;
+	const topOverlayHTML = /* HTML */ `
+		<span class="player-menu-text js-date">${dateString}</span>
+		<span class="player-menu-text js-time">${timeString}</span>
+		<span class="player-menu-text">${d.name}</span>
+	`;
 
-	const thumbHTML = `
+	const thumbHTML = /* HTML */ `
 		<img class="grid-item" src="${d.thumbPath}" />
-		<div class="player-overlay-top player-top-bar">
-			${topOverlayHTML}
-		</div>
-			${renderTimeline(d)}`;
+		<div class="player-overlay-top player-top-bar">${topOverlayHTML}</div>
+		${renderTimeline(d)}
+	`;
 
-	const videoHTML = `
+	const videoHTML = /* HTML */ `
 		<video
 			class="grid-item"
 			disablePictureInPicture
@@ -153,7 +153,8 @@ function newPlayer(data, isAdmin, token) {
 			<div class="player-top-bar">
 				${topOverlayHTML}
 			</div>
-		</div>`;
+		</div>
+		`;
 
 	let $fullscreenImg;
 
@@ -201,7 +202,7 @@ function newPlayer(data, isAdmin, token) {
 			$progress.value = newTime;
 			/** @type {HTMLElement} */
 			const $progressBar = $progress.querySelector(".player-progress-bar");
-			$progressBar.style.width = `${Math.floor(newTime / videoDuration * 100)}%`;
+			$progressBar.style.width = `${Math.floor((newTime / videoDuration) * 100)}%`;
 
 			const newDate = new Date(start.getTime());
 			newDate.setMilliseconds($video.currentTime * 1000);
@@ -266,10 +267,11 @@ function newPlayer(data, isAdmin, token) {
 	};
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<div style="display: flex; justify-content: center;">
 				<div id="${elementID}" class="grid-item-container">${thumbHTML}</div>
-			</div>`,
+			</div>
+		`,
 		init(onLoad) {
 			element = document.querySelector(`#${elementID}`);
 			$wrapper = element.parentElement;
@@ -321,8 +323,8 @@ function renderTimeline(data) {
 		const startTime = eventTimeMs - startMs;
 		const endTime = eventTimeMs + eventDurationMs - startMs;
 
-		const start2 = Math.round(startTime / offset * resolution);
-		const end2 = Math.round(endTime / offset * resolution);
+		const start2 = Math.round((startTime / offset) * resolution);
+		const end2 = Math.round((endTime / offset) * resolution);
 
 		for (let i = start2; i < end2; i++) {
 			if (i >= resolution) {
@@ -351,14 +353,11 @@ function renderTimeline(data) {
 		start = end;
 	}
 
-	return `
-		<svg
-			class="player-timeline"
-			viewBox="0 0 100 100"
-			preserveAspectRatio="none"
-		>
-		${svg}
-		</svg>`;
+	return /* HTML */ `
+		<svg class="player-timeline" viewBox="0 0 100 100" preserveAspectRatio="none">
+			${svg}
+		</svg>
+	`;
 }
 
 /**
@@ -378,14 +377,12 @@ function newDetectionRenderer(startTimeMs, events) {
 		const height = denormalize(rect.height, 100);
 
 		const textY = y > 10 ? y - 2 : y + height + 5;
-		return `
-			<text
-				x="${x}" y="${textY}" font-size="5"
-				class="player-detection-text"
-			>
+		return /* HTML */ `
+			<text x="${x}" y="${textY}" font-size="5" class="player-detection-text">
 				${label} ${Math.round(score)}%
 			</text>
-			<rect x="${x}" width="${width}" y="${y}" height="${height}" />`;
+			<rect x="${x}" width="${width}" y="${y}" height="${height}" />
+		`;
 	};
 
 	/** @param {Detection[]} detections */
@@ -406,13 +403,13 @@ function newDetectionRenderer(startTimeMs, events) {
 	let element;
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<svg
 				class="js-detections player-detections"
 				viewBox="0 0 100 100"
 				preserveAspectRatio="none"
-			>
-			</svg>`,
+			></svg>
+		`,
 		/** @param {Element} e */
 		init(e) {
 			element = e;

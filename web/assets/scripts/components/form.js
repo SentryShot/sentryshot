@@ -109,11 +109,12 @@ function newForm(fields) {
 					htmlButtons += btn.html;
 				}
 			}
-			return `
+			return /* HTML */ `
 				<ul class="form" style="padding: 0 0.1rem;">
 					${htmlFields}
 					<div class="form-button-wrapper">${htmlButtons}</div>
-				</ul>`;
+				</ul>
+			`;
 		},
 		init() {
 			for (const item of Object.values(fields)) {
@@ -160,10 +161,11 @@ function newSaveBtn(onClick) {
 	/** @type {HTMLButtonElement} */
 	let element;
 	return {
-		html: `
+		html: /* HTML */ `
 			<button id="${id}" class="form-button save-btn">
 				<span>Save</span>
-			</button>`,
+			</button>
+		`,
 		init() {
 			// @ts-ignore
 			element = document.getElementById(id);
@@ -186,10 +188,11 @@ function newDeleteBtn(onClick) {
 	/** @type {HTMLButtonElement} */
 	let element;
 	return {
-		html: `
+		html: /* HTML */ `
 			<button id="${id}" class="form-button delete-btn">
 				<span>Delete</span>
-			</button>`,
+			</button>
+		`,
 		init() {
 			// @ts-ignore
 			element = document.getElementById(id);
@@ -439,7 +442,7 @@ function newNumberField(options, values) {
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
 				// Only contains one or more digits.
-				if ((/^\d+$/).test($input.value)) {
+				if (/^\d+$/.test($input.value)) {
 					const input = Number($input.value);
 					if (min !== undefined && input < min) {
 						$input.value = String(min);
@@ -483,18 +486,18 @@ function newHTMLfield(options, id, label, placeholder = "") {
 	let { min, max, step } = options;
 
 	/* eslint-disable no-unused-expressions */
-	placeholder ? "" : placeholder = "";
+	placeholder ? "" : (placeholder = "");
 	// @ts-ignore
-	min === undefined ? min = "" : min = `min="${min}"`;
+	min === undefined ? (min = "") : (min = `min="${min}"`);
 	// @ts-ignore
-	max === undefined ? max = "" : max = `max="${max}"`;
+	max === undefined ? (max = "") : (max = `max="${max}"`);
 	// @ts-ignore
-	step === undefined ? step = "" : step = `step="${step}"`;
+	step === undefined ? (step = "") : (step = `step="${step}"`);
 	/* eslint-enable no-unused-expressions */
 
 	let body = "";
 	if (input) {
-		body = `
+		body = /* HTML */ `
 			<input
 				id="${id}"
 				class="js-input settings-input-text"
@@ -503,35 +506,30 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				${min}
 				${max}
 				${step}
-			/>`;
+			/>
+		`;
 	} else if (select) {
 		let options = "";
 		for (const option of select) {
 			options += `\n<option>${option}</option>`;
 		}
-		body = `
+		body = /* HTML */ `
 			<div class="form-field-select-container">
-				<select id="${id}" class="js-input form-field-select">${options}
+				<select id="${id}" class="js-input form-field-select">
+					${options}
 				</select>
-				${
-					custom
-						? `<button class="js-edit-btn form-field-edit-btn">
+				${custom
+					? `<button class="js-edit-btn form-field-edit-btn">
 					<img class="form-field-edit-btn-img" src="assets/icons/feather/edit-3.svg"/>
 				</button>`
-						: ""
-				}
-
-			</div>`;
+					: ""}
+			</div>
+		`;
 	}
 
-	return `
-		<li
-			id="js-${id}"
-			class="${errorField ? "form-field-error" : "form-field"}"
-		>
-			<label for="${id}" class="form-field-label"
-				>${label}</label
-			>${body}
+	return /* HTML */ `
+		<li id="js-${id}" class="${errorField ? "form-field-error" : "form-field"}">
+			<label for="${id}" class="form-field-label">${label}</label>${body}
 			${errorField ? '<span class="settings-error js-error"></span>' : ""}
 		</li>
 	`;
@@ -674,16 +672,13 @@ function newPasswordField() {
 	 * @param {string} label
 	 */
 	const passwordHTML = (id, label) => {
-		return `
-		<li id="js-${id}" class="form-field-error">
-			<label for="${id}" class="form-field-label">${label}</label>
-			<input
-				id="${id}"
-				class="js-input settings-input-text"
-				type="password"
-			/>
-			<span class="settings-error js-error"></span>
-		</li>`;
+		return /* HTML */ `
+			<li id="js-${id}" class="form-field-error">
+				<label for="${id}" class="form-field-label">${label}</label>
+				<input id="${id}" class="js-input settings-input-text" type="password" />
+				<span class="settings-error js-error"></span>
+			</li>
+		`;
 	};
 
 	/** @type {() => string} */

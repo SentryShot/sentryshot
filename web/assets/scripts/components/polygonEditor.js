@@ -71,7 +71,7 @@ function newPolygonEditor(element, props) {
 			const AC = Math.hypot(x3 - x1, y3 - y1);
 
 			const angle = Math.acos((BC * BC + AB * AB - AC * AC) / (2 * BC * AB));
-			const degreesFrom180 = Math.abs(angle * 180 / Math.PI - 180);
+			const degreesFrom180 = Math.abs((angle * 180) / Math.PI - 180);
 
 			const minSegmentDegrees = 10;
 			if (degreesFrom180 < minSegmentDegrees) {

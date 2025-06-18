@@ -79,7 +79,7 @@ export function motion2(hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<li id="${id}" class="form-field" style="display:flex;">
 				<label class="form-field-label">Motion detection</label>
 				<div>
@@ -90,7 +90,8 @@ export function motion2(hasSubStream, getMonitorId) {
 						/>
 					</button>
 				</div>
-			</li> `,
+			</li>
+		`,
 		value() {
 			if (isRendered) {
 				form.get(value);
@@ -142,21 +143,27 @@ export function motion2(hasSubStream, getMonitorId) {
 
 /** @param {string} feedHTML */
 function zonesModalHTML(feedHTML) {
-	return `
+	return /* HTML */ `
 		<li class="form-field">
 			<div class="form-field-select-container">
-				<select	class="js-zone-select form-field-select"></select>
+				<select class="js-zone-select form-field-select"></select>
 				<div
 					class="js-add-zone form-field-edit-btn"
 					style="background: var(--color2)"
 				>
-					<img class="form-field-edit-btn-img" src="assets/icons/feather/plus.svg"/>
+					<img
+						class="form-field-edit-btn-img"
+						src="assets/icons/feather/plus.svg"
+					/>
 				</div>
 				<div
 					class="js-remove-zone form-field-edit-btn"
 					style="margin-left: 0.2rem; background: var(--color2)"
 				>
-					<img class="form-field-edit-btn-img" src="assets/icons/feather/minus.svg"/>
+					<img
+						class="form-field-edit-btn-img"
+						src="assets/icons/feather/minus.svg"
+					/>
 				</div>
 			</div>
 		</li>
@@ -170,7 +177,9 @@ function zonesModalHTML(feedHTML) {
 			</div>
 		</li>
 		<li class="form-field">
-			<label for="motion-modal-sensitivity" class="form-field-label">Sensitivity</label>
+			<label for="motion-modal-sensitivity" class="form-field-label"
+				>Sensitivity</label
+			>
 			<input
 				id="motion-modal-sensitivity"
 				class="js-sensitivity settings-input-text"
@@ -216,7 +225,10 @@ function zonesModalHTML(feedHTML) {
 				></div>
 			</div>
 		</li>
-		<li class="form-field" style="display: flex; flex-wrap: wrap; justify-content: space-between">
+		<li
+			class="form-field"
+			style="display: flex; flex-wrap: wrap; justify-content: space-between"
+		>
 			<div class="motion-step-sizes">
 				<button
 					class="js-1x motion-step-size"
@@ -225,15 +237,21 @@ function zonesModalHTML(feedHTML) {
 						border-bottom-left-radius: 0.25rem;
 						border-right-style: solid;
 					"
-				>1x</button>
+				>
+					1x
+				</button>
 				<button
 					class="js-4x motion-step-size motion-step-size-selected"
 					style="border-style: hidden solid;"
-				>4x</button>
+				>
+					4x
+				</button>
 				<button
 					class="js-10x motion-step-size"
 					style="border-style: hidden solid;"
-				>10x</button>
+				>
+					10x
+				</button>
 				<button
 					class="js-20x motion-step-size"
 					style="
@@ -241,13 +259,16 @@ function zonesModalHTML(feedHTML) {
 						border-bottom-right-radius: 0.25rem;
 						border-left-style: solid;
 					"
-				>20x</button>
+				>
+					20x
+				</button>
 			</div>
 			<div class="motion-xy-wrapper">
-				<input type="number" min="0" max="100" class="js-x"/>
-				<input type="number" min="0" max="100" class="js-y"/>
+				<input type="number" min="0" max="100" class="js-x" />
+				<input type="number" min="0" max="100" class="js-y" />
 			</div>
-		</li>`;
+		</li>
+	`;
 }
 
 /**
@@ -564,7 +585,7 @@ function zones(hasSubStream, getMonitorId) {
 
 	const id = uniqueID();
 	return {
-		html: `
+		html: /* HTML */ `
 			<li
 				id="${id}"
 				class="form-field"
@@ -573,10 +594,14 @@ function zones(hasSubStream, getMonitorId) {
 				<label class="form-field-label" style="width:100%">Zones</label>
 				<div style="width:auto">
 					<button class="form-field-edit-btn color2">
-						<img class="form-field-edit-btn-img" src="assets/icons/feather/edit-3.svg"/>
+						<img
+							class="form-field-edit-btn-img"
+							src="assets/icons/feather/edit-3.svg"
+						/>
 					</button>
 				</div>
-			</li> `,
+			</li>
+		`,
 		init() {
 			const element = document.querySelector(`#${id}`);
 			element
@@ -664,7 +689,7 @@ function zones(hasSubStream, getMonitorId) {
  */
 function newZone($parent, value, stepSize, onChange) {
 	const html = () => {
-		return `
+		return /* HTML */ `
 		<svg
 			viewBox="0 0 100 100"
 			preserveAspectRatio="none"

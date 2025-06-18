@@ -190,7 +190,7 @@ function removeEmptyValues(obj) {
  * @param {number} max
  */
 function normalize(input, max) {
-	return Math.floor(1000000 * input / max);
+	return Math.floor((1000000 * input) / max);
 }
 
 /**
@@ -198,7 +198,7 @@ function normalize(input, max) {
  * @param {number} max
  */
 function denormalize(input, max) {
-	return Math.round(input * max / 1000000);
+	return Math.round((input * max) / 1000000);
 }
 
 /**

@@ -56,21 +56,16 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 	const checkboxID = uniqueID();
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<div style="display: flex; justify-content: center;">
 				<div id="${elementID}" class="grid-item-container">
 					<input
 						class="js-checkbox player-overlay-checkbox"
 						id="${checkboxID}"
 						type="checkbox"
-					>
-					<label
-						class="player-overlay-selector"
-						for="${checkboxID}"
-					></label>
-					<div class="js-overlay player-overlay feed-menu">
-						${html}
-					</div>
+					/>
+					<label class="player-overlay-selector" for="${checkboxID}"></label>
+					<div class="js-overlay player-overlay feed-menu">${html}</div>
 					<video
 						class="grid-item"
 						muted
@@ -78,7 +73,8 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 						playsinline
 					></video>
 				</div>
-			</div>`,
+			</div>
+		`,
 		init() {
 			const element = document.querySelector(`#${elementID}`);
 			const $overlay = element.querySelector(`.js-overlay`);
@@ -182,10 +178,11 @@ const iconMinimizePath = "assets/icons/feather/minimize.svg";
 function newFullscreenBtn() {
 	let $img, $wrapper;
 	return {
-		html: `
+		html: /* HTML */ `
 			<button class="js-fullscreen-btn feed-btn">
-				<img class="feed-btn-img icon" src="${iconMaximizePath}">
-			</button>`,
+				<img class="feed-btn-img icon" src="${iconMaximizePath}" />
+			</button>
+		`,
 		init($parent) {
 			const element = $parent.parentElement;
 			$wrapper = element.parentElement;
@@ -220,14 +217,15 @@ const iconRecordingsPath = "assets/icons/feather/film.svg";
 function newRecordingsBtn(monitorIds) {
 	const recordingsPath = `${relativePathname("recordings")}#monitors=${monitorIds}`;
 	return {
-		html: `
+		html: /* HTML */ `
 			<a href="${recordingsPath}" class="feed-btn">
 				<img
 					class="feed-btn-img icon"
 					style="height: 0.65rem;"
 					src="${iconRecordingsPath}"
-				>
-			</a>`,
+				/>
+			</a>
+		`,
 		init() {},
 	};
 }

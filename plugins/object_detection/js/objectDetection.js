@@ -116,16 +116,17 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: `
-				<li id="${id}" class="form-field" style="display:flex;">
-					<label class="form-field-label">Object detection</label>
-					<button class="js-edit-btn form-field-edit-btn">
-						<img
-							class="form-field-edit-btn-img"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</li> `,
+		html: /* HTML */ `
+			<li id="${id}" class="form-field" style="display:flex;">
+				<label class="form-field-label">Object detection</label>
+				<button class="js-edit-btn form-field-edit-btn">
+					<img
+						class="form-field-edit-btn-img"
+						src="assets/icons/feather/edit-3.svg"
+					/>
+				</button>
+			</li>
+		`,
 		value() {
 			if (isRendered) {
 				value = {};
@@ -174,7 +175,7 @@ function thresholds(detectors, getDetectorName) {
 	const newField = (label, val) => {
 		const id = uniqueID();
 		return {
-			html: `
+			html: /* HTML */ `
 				<li class="object-detection-label-wrapper">
 					<label for="${id}" class="object-detection-label">${label}</label>
 					<input
@@ -182,10 +183,11 @@ function thresholds(detectors, getDetectorName) {
 						class="object-detection-threshold"
 						type="number"
 						value="${val}"
-						min=0
-						max=100
+						min="0"
+						max="100"
 					/>
-				</li>`,
+				</li>
+			`,
 			value() {
 				// @ts-ignore
 				return document.getElementById(id).value;
@@ -277,7 +279,7 @@ function thresholds(detectors, getDetectorName) {
 	const id = uniqueID();
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<li
 				id="${id}"
 				class="form-field"
@@ -292,7 +294,8 @@ function thresholds(detectors, getDetectorName) {
 						/>
 					</button>
 				</div>
-			</li> `,
+			</li>
+		`,
 		value() {
 			return value;
 		},
@@ -345,10 +348,18 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 
 	/** @param {string} feedHTML */
 	const renderModal = (feedHTML) => {
-		const html = `
+		const html = /* HTML */ `
 			<li id="object-detection-crop-preview" class="form-field">
-				<label class="form-field-label" for="object-detection-crop-preview" style="width: auto;">Preview</label>
-				<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
+				<label
+					class="form-field-label"
+					for="object-detection-crop-preview"
+					style="width: auto;"
+					>Preview</label
+				>
+				<div
+					class="js-preview-wrapper"
+					style="position: relative; margin-top: 0.69rem"
+				>
 					<div class="js-feed object-detection-crop-preview-feed">
 						${feedHTML}
 					</div>
@@ -361,9 +372,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					></svg>
 				</div>
 			</li>
-			<li
-				class="js-options form-field object-detection-crop-option-wrapper"
-			>
+			<li class="js-options form-field object-detection-crop-option-wrapper">
 				<div class="js-object-detection-crop-option object-detection-crop-option">
 					<span class="object-detection-crop-option-label">X</span>
 					<input
@@ -394,7 +403,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						value="0"
 					/>
 				</div>
-			</li>`;
+			</li>
+		`;
 
 		$modalContent = modal.init();
 		$modalContent.innerHTML = html;
@@ -507,7 +517,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 	};
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<li
 				id="${id}"
 				class="form-field"
@@ -523,7 +533,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					</button>
 				</div>
 				${modal.html}
-			</li>`,
+			</li>
+		`,
 
 		value() {
 			if (!rendered) {
@@ -620,9 +631,11 @@ function mask(hasSubStream, getMonitorId) {
 
 	/** @param {string} feedHTML */
 	const renderModal = (feedHTML) => {
-		const html = `
+		const html = /* HTML */ `
 			<li class="js-enable object_detection_mask-enabled form-field">
-				<label class="form-field-label" for="object_detection_mask-enable">Enable mask</label>
+				<label class="form-field-label" for="object_detection_mask-enable"
+					>Enable mask</label
+				>
 				<div class="form-field-select-container">
 					<select id="modal-enable" class="form-field-select js-input">
 						<option>true</option>
@@ -631,9 +644,16 @@ function mask(hasSubStream, getMonitorId) {
 				</div>
 			</li>
 			<li id="object_detection_mask-preview" class="form-field">
-				<label class="form-field-label" for="object_detection_mask-preview">Preview</label>
-				<div class="js-preview-wrapper" style="position: relative; margin-top: 0.69rem">
-					<div class="js-feed object-detection-crop-preview-feed">${feedHTML}</div>
+				<label class="form-field-label" for="object_detection_mask-preview"
+					>Preview</label
+				>
+				<div
+					class="js-preview-wrapper"
+					style="position: relative; margin-top: 0.69rem"
+				>
+					<div class="js-feed object-detection-crop-preview-feed">
+						${feedHTML}
+					</div>
 					<svg
 						class="js-object-detection-overlay object_detection_mask-preview-overlay"
 						viewBox="0 0 100 100"
@@ -641,7 +661,10 @@ function mask(hasSubStream, getMonitorId) {
 					></svg>
 				</div>
 			</li>
-			<li class="form-field" style="display: flex; flex-wrap: wrap; justify-content: space-between">
+			<li
+				class="form-field"
+				style="display: flex; flex-wrap: wrap; justify-content: space-between"
+			>
 				<div class="object_detection_mask-step-sizes">
 					<button
 						class="js-1x object_detection_mask-step-size"
@@ -650,15 +673,21 @@ function mask(hasSubStream, getMonitorId) {
 							border-bottom-left-radius: 0.25rem;
 							border-right-style: solid;
 						"
-					>1x</button>
+					>
+						1x
+					</button>
 					<button
 						class="js-4x object_detection_mask-step-size object_detection_mask-step-size-selected"
 						style="border-style: hidden solid;"
-					>4x</button>
+					>
+						4x
+					</button>
 					<button
 						class="js-10x object_detection_mask-step-size"
 						style="border-style: hidden solid;"
-					>10x</button>
+					>
+						10x
+					</button>
 					<button
 						class="js-20x object_detection_mask-step-size"
 						style="
@@ -666,13 +695,16 @@ function mask(hasSubStream, getMonitorId) {
 							border-bottom-right-radius: 0.25rem;
 							border-left-style: solid;
 						"
-					>20x</button>
+					>
+						20x
+					</button>
 				</div>
 				<div class="object_detection_mask-xy-wrapper">
-					<input type="number" min="0" max="100" class="js-x"/>
-					<input type="number" min="0" max="100" class="js-y"/>
+					<input type="number" min="0" max="100" class="js-x" />
+					<input type="number" min="0" max="100" class="js-y" />
 				</div>
-			</li>`;
+			</li>
+		`;
 
 		$modalContent = modal.init();
 		$modalContent.innerHTML = html;
@@ -828,7 +860,7 @@ function mask(hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<li
 				id="${id}"
 				class="form-field"
@@ -844,7 +876,8 @@ function mask(hasSubStream, getMonitorId) {
 					</button>
 				</div>
 				${modal.html}
-			</li> `,
+			</li>
+		`,
 
 		value() {
 			if (rendered) {

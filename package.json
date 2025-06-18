@@ -85,7 +85,6 @@
 			"default-case": "error",
 			"eqeqeq": "error",
 			"new-cap": "error",
-			"no-extra-parens": "error",
 			"no-promise-executor-return": "error",
 			"no-script-url": "error",
 			"no-throw-literal": "error",
@@ -100,7 +99,7 @@
 			"prefer-regex-literals": "error",
 			"prefer-template": "error",
 			"require-await": "error",
-			"wrap-regex": "error",
+			"jest/no-commented-out-tests": "off",
 			"unicorn/consistent-function-scoping": "off",
 			"unicorn/prevent-abbreviations": "off",
 			"unicorn/filename-case": [
@@ -109,7 +108,8 @@
 			"unicorn/prefer-add-event-listener": "off",
 			"unicorn/numeric-separators-style": "off",
 			"unicorn/prefer-logical-operator-over-ternary": "off",
-			"unicorn/prefer-query-selector": "off"
+			"unicorn/prefer-query-selector": "off",
+			"unicorn/template-indent": "off"
 		}
 	},
 	"stylelint": {

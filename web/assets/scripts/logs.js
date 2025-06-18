@@ -55,7 +55,7 @@ function newLogger(formatLog, element) {
 			if (savedlogsLoader) {
 				savedlogsLoader.cancel();
 			}
-			element.innerHTML = `
+			element.innerHTML = /* HTML */ `
 				<div class="js-new-logs log-list"></div>
 				<div class="js-old-logs log-list"></div>
 				<span class="js-loading-indicator"></div>
@@ -269,7 +269,7 @@ function newLoadingIndicator(element) {
 		element.textContent = "loading";
 
 		state = LOADING;
-		while (!await sleep(abortSignal, LOAD_INTERVAL_MS)) {
+		while (!(await sleep(abortSignal, LOAD_INTERVAL_MS))) {
 			element.textContent += ".";
 		}
 	};
@@ -483,15 +483,19 @@ function newMultiSelect(label, values, initial) {
 	const newField = (id, name) => {
 		let $checkbox;
 		return {
-			html: `
+			html: /* HTML */ `
 				<div class="log-selector-item item-${id}">
 					<div class="checkbox">
-						<input class="checkbox-checkbox" type="checkbox">
+						<input class="checkbox-checkbox" type="checkbox" />
 						<div class="checkbox-box"></div>
-						<img class="checkbox-check" src="assets/icons/feather/check.svg">
+						<img
+							class="checkbox-check"
+							src="assets/icons/feather/check.svg"
+						/>
 					</div>
 					<span class="log-selector-label">${name}</span>
-				</div>`,
+				</div>
+			`,
 			init() {
 				$checkbox = document.querySelector(`.item-${id} .checkbox-checkbox`);
 			},
@@ -531,11 +535,12 @@ function newMultiSelect(label, values, initial) {
 	const id = uniqueID();
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<li id="${id}" class="form-field">
 				<label class="form-field-label">${label}</label>
 				<div class="source-fields">${htmlFields}</div>
-			</li>`,
+			</li>
+		`,
 		init() {
 			for (const field of Object.values(fields)) {
 				field.init();
@@ -600,11 +605,13 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 	const inputID = uniqueID();
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<li id="${elementID}" class="form-field">
 				<label for="${inputID}" class="form-field-label">Monitor</label>
 				<div class="form-field-select-container">
-					<select id="${inputID}" class="form-field-select">${options}</select>
+					<select id="${inputID}" class="form-field-select">
+						${options}
+					</select>
 					<button class="js-edit-btn form-field-edit-btn color3">
 						<img
 							class="form-field-edit-btn-img"
@@ -612,7 +619,8 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 						/>
 					</button>
 				</div>
-			</li>`,
+			</li>
+		`,
 		init() {
 			const element = document.querySelector(`#${elementID}`);
 			$input = element.querySelector(`#${inputID}`);
@@ -695,7 +703,7 @@ function newLogSelector(logger, formFields) {
 		logger.set(levels, sources, monitors);
 	};
 
-	const html = `
+	const html = /* HTML */ `
 		${form.html()}
 		<div>
 			<button class="form-button log-reset-btn js-reset">
@@ -704,7 +712,8 @@ function newLogSelector(logger, formFields) {
 			<button class="form-button log-apply-btn js-apply">
 				<span>Apply</span>
 			</button>
-		</div>`;
+		</div>
+	`;
 
 	return {
 		/** @param {Element} $parent */

@@ -83,13 +83,14 @@ const newOptionsBtn = {
 		const idPlus = uniqueID();
 		const idMinus = uniqueID();
 		return {
-			html: `
-			<button id="${idPlus}" class="options-menu-btn">
-				<img class="icon" src="assets/icons/feather/plus.svg">
-			</button>
-			<button id="${idMinus}" class="options-menu-btn">
-				<img class="icon" src="assets/icons/feather/minus.svg">
-			</button>`,
+			html: /* HTML */ `
+				<button id="${idPlus}" class="options-menu-btn">
+					<img class="icon" src="assets/icons/feather/plus.svg" />
+				</button>
+				<button id="${idMinus}" class="options-menu-btn">
+					<img class="icon" src="assets/icons/feather/minus.svg" />
+				</button>
+			`,
 			init() {
 				document.querySelector(`#${idPlus}`).addEventListener("click", () => {
 					if (getGridSize() !== 1) {
@@ -189,15 +190,14 @@ function newOptionsPopup(label, icon, htmlContent) {
 	const buttonId = uniqueID();
 	const popupId = uniqueID();
 	return {
-		html: `
+		html: /* HTML */ `
 			<button id="${buttonId}" class="options-menu-btn js-${label}">
-				<img class="icon" src="${icon}">
+				<img class="icon" src="${icon}" />
 			</button>
 			<div id="${popupId}" class="options-popup">
-				<div class="options-popup-content">
-				${htmlContent}
-				</div>
-			</div>`,
+				<div class="options-popup-content">${htmlContent}</div>
+			</div>
+		`,
 		toggle,
 		init() {
 			element = document.querySelector(`#${popupId}`);
@@ -231,7 +231,7 @@ function toMonthString(time) {
 	return months[time.getMonth()];
 }
 
-const datePickerHTML = `
+const datePickerHTML = /* HTML */ `
 	<div class="date-picker">
 		<div class="date-picker-month">
 			<button class="date-picker-month-btn js-prev-month">
@@ -534,10 +534,11 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 	const btnID = uniqueID();
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<button id="${btnID}" class="options-menu-btn">
-				<img class="icon" src="assets/icons/feather/video.svg">
-			</button>`,
+				<img class="icon" src="assets/icons/feather/video.svg" />
+			</button>
+		`,
 		init() {
 			/** @param {string} selected */
 			const onSelect = (selected) => {
@@ -597,21 +598,20 @@ function sortByLabel(input) {
 function newSelectOne(options, onSelect, alias) {
 	let optionsHTML = "";
 	for (const option of sortByLabel(options)) {
-		optionsHTML += `
-			<span 
-				class="select-one-item"
-				data="${option.id}"
-			>${option.label}</span>`;
+		optionsHTML += /* HTML */ `
+			<span class="select-one-item" data="${option.id}">${option.label}</span>
+		`;
 	}
 
 	const id = uniqueID();
 
 	return {
-		html: `
+		html: /* HTML */ `
 			<div id=${id} class="select-one">
 				<span class="select-one-label">Groups</span>
 				${optionsHTML}
-			</div>`,
+			</div>
+		`,
 		init() {
 			const element = document.getElementById(id);
 

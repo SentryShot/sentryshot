@@ -24,7 +24,7 @@ function newModal(label, content = "") {
 
 	const wrapperId = uniqueID();
 	return {
-		html: `
+		html: /* HTML */ `
 			<div id="${wrapperId}" class="modal-wrapper">
 				<div class="modal js-modal">
 					<header class="modal-header">
@@ -87,11 +87,11 @@ function newModalSelect(name, options, onSelect) {
 	const renderOptions = () => {
 		let html = "";
 		for (const option of options) {
-			html += `
-				<span
-					data="${option}"
-					class="js-option modal-select-option"
-				>${option}</span>`;
+			html += /* HTML */ `
+				<span data="${option}" class="js-option modal-select-option"
+					>${option}</span
+				>
+			`;
 		}
 		return `<div class="js-selector modal-select">${html}</div>`;
 	};

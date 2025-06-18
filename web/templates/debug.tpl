@@ -44,7 +44,7 @@
 </style>
 <script>
 	// Data.
-	const tls = "{{ .tls }}"
+	const tls = "{{ .tls }}";
 
 	// Helper functions.
 	let log = "";
@@ -56,29 +56,29 @@
 		log += msg + "\n";
 	}
 	function printOk(msg) {
-		printLog("[OK] "+msg)
+		printLog("[OK] " + msg);
 	}
 	function printInfo(msg) {
-		printLog("[INFO] "+msg)
+		printLog("[INFO] " + msg);
 	}
 	function printError(msg) {
-		printLog("[ERROR] "+msg)
+		printLog("[ERROR] " + msg);
 	}
 
 	// TLS test.
 	switch (tls) {
-	case "http":
-		printError("TLS Disabled")
-		break
-	case "https":
-		printOk("TLS Enabled")
-		break
-	default :
-		printLog("[WARNING] Could not determine TLS status")
+		case "http":
+			printError("TLS Disabled");
+			break;
+		case "https":
+			printOk("TLS Enabled");
+			break;
+		default:
+			printLog("[WARNING] Could not determine TLS status");
 	}
 
 	// Websocket test.
-	function waitForSocket(socket, callback){
+	function waitForSocket(socket, callback) {
 		setTimeout(() => {
 			if (socket.readyState !== 0) {
 				callback();
@@ -90,20 +90,17 @@
 	const path = window.location.pathname.replace("debug", "api/log/feed");
 	const ws = new WebSocket("wss://" + window.location.host + path);
 
-    waitForSocket(ws, () => {
-		if (ws.readyState === 1){
-			printOk("Websocket working")
+	waitForSocket(ws, () => {
+		if (ws.readyState === 1) {
+			printOk("Websocket working");
 		} else {
-			printError("Websocket failed")
+			printError("Websocket failed");
 		}
 		// Websocket test done.
 
-		printInfo(`UserAgent: ${navigator.userAgent}`)
-		printInfo(`Window Size: ${window.innerWidth}x${window.innerHeight}`)
-    });
-
-
-
+		printInfo(`UserAgent: ${navigator.userAgent}`);
+		printInfo(`Window Size: ${window.innerWidth}x${window.innerHeight}`);
+	});
 
 	// Copy to clipboard.
 	function formatLog() {
@@ -115,10 +112,12 @@
 ${log}
 \`\`\`
 </details>
-`
+`;
 	}
 	document.querySelector("#copy-btn").addEventListener("click", () => {
-		if (!navigator.clipboard) { alert("Clipboard API unavailable") }
-		navigator.clipboard.writeText(formatLog())
-	})
+		if (!navigator.clipboard) {
+			alert("Clipboard API unavailable");
+		}
+		navigator.clipboard.writeText(formatLog());
+	});
 </script>

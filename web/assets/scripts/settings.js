@@ -50,34 +50,34 @@ function newRenderer($parent) {
 			let htmlNav = "";
 			let htmlCategories = "";
 			for (const category of Object.values(categories)) {
-				htmlNav += `
-				<li
-					id="js-set-category-${category.name()}"
-					class="settings-nav-item js-set-settings-category"
-				>
-					<img src="${category.icon()}" />
-					<span>${category.title()}</span>
-				</li>`;
+				htmlNav += /* HTML */ `
+					<li
+						id="js-set-category-${category.name()}"
+						class="settings-nav-item js-set-settings-category"
+					>
+						<img src="${category.icon()}" />
+						<span>${category.title()}</span>
+					</li>
+				`;
 
-				htmlCategories += `
-				<div
-					id="js-settings-wrapper-${category.name()}"
-					class="settings-category-wrapper"
-				>
-					${category.html()}
-				</div>`;
+				htmlCategories += /* HTML */ `
+					<div
+						id="js-settings-wrapper-${category.name()}"
+						class="settings-category-wrapper"
+					>
+						${category.html()}
+					</div>
+				`;
 			}
 
-			$parent.innerHTML = ` 
-				<nav
-					id="js-settings-navbar"
-					class="settings-navbar"
-				>
+			$parent.innerHTML = /* HTML */ `
+				<nav id="js-settings-navbar" class="settings-navbar">
 					<ul id="settings-navbar-nav">
 						${htmlNav}
 					</ul>
 				</nav>
-				${htmlCategories}`;
+				${htmlCategories}
+			`;
 		},
 		init() {
 			for (const category of Object.values(categories)) {
@@ -219,33 +219,28 @@ function newCategory(categoryName, title) {
 			onNav = func;
 		},
 		html() {
-			return `
+			return /* HTML */ `
 				<div class="settings-category">
 					<div class="settings-menubar js-settings-menubar">
-						<nav
-							class="settings-menu-back-btn js-settings-category-back"
-						>
-							<img src="${backIconPath}"/>
+						<nav class="settings-menu-back-btn js-settings-category-back">
+							<img src="${backIconPath}" />
 						</nav>
-						<span class="settings-category-title" >${title}</span>
+						<span class="settings-category-title">${title}</span>
 					</div>
-					<ul
-						class="settings-category-nav"
-					></ul>
+					<ul class="settings-category-nav"></ul>
 				</div>
 				<div class="settings-sub-category">
 					<div
 						class="js-settings-menubar settings-menubar settings-subcategory-menubar"
 					>
-						<nav
-							class="settings-menu-back-btn js-settings-subcategory-back"
-						>
-							<img src="${backIconPath}"/>
+						<nav class="settings-menu-back-btn js-settings-subcategory-back">
+							<img src="${backIconPath}" />
 						</nav>
 						<span class="settings-category-title"></span>
 					</div>
 					${form.html()}
-				</div>`;
+				</div>
+			`;
 		},
 		init() {
 			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
@@ -351,33 +346,28 @@ function newCategory2(categoryName, title, form) {
 			onNav = func;
 		},
 		html() {
-			return `
+			return /* HTML */ `
 				<div class="settings-category">
 					<div class="settings-menubar js-settings-menubar">
-						<nav
-							class="settings-menu-back-btn js-settings-category-back"
-						>
-							<img src="${backIconPath}"/>
+						<nav class="settings-menu-back-btn js-settings-category-back">
+							<img src="${backIconPath}" />
 						</nav>
-						<span class="settings-category-title" >${title}</span>
+						<span class="settings-category-title">${title}</span>
 					</div>
-					<ul
-						class="settings-category-nav"
-					></ul>
+					<ul class="settings-category-nav"></ul>
 				</div>
 				<div class="settings-sub-category">
 					<div
 						class="js-settings-menubar settings-menubar settings-subcategory-menubar"
 					>
-						<nav
-							class="settings-menu-back-btn js-settings-subcategory-back"
-						>
-							<img src="${backIconPath}"/>
+						<nav class="settings-menu-back-btn js-settings-subcategory-back">
+							<img src="${backIconPath}" />
 						</nav>
 						<span class="settings-category-title"></span>
 					</div>
 					${form.html()}
-				</div>`;
+				</div>
+			`;
 		},
 		init() {
 			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
@@ -511,19 +501,18 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		let html = "";
 		const sortedMonitors = sortByName(monitors);
 		for (const m of sortedMonitors) {
-			html += ` 
-				<li
-					class="settings-nav-item js-nav"
-					data="${m.id}"
-				>
+			html += /* HTML */ `
+				<li class="settings-nav-item js-nav" data="${m.id}">
 					<span>${m.name}</span>
-				</li>`;
+				</li>
+			`;
 		}
 
-		html += `
+		html += /* HTML */ `
 			<button class="settings-add-btn js-nav" data="">
 				<span>Add</span>
-			</button>`;
+			</button>
+		`;
 
 		category.setNav(html);
 		category.onNav((element) => {
@@ -731,19 +720,18 @@ function newMonitorGroups(token, fields, groups) {
 		let html = "";
 		const sortedGroups = sortByName(groups);
 		for (const g of sortedGroups) {
-			html += ` 
-				<li
-					class="settings-nav-item js-nav"
-					data="${g.id}"
-				>
+			html += /* HTML */ `
+				<li class="settings-nav-item js-nav" data="${g.id}">
 					<span>${g.name}</span>
-				</li>`;
+				</li>
+			`;
 		}
 
-		html += `
+		html += /* HTML */ `
 			<button class="settings-add-btn js-nav" data="">
 				<span>Add</span>
-			</button>`;
+			</button>
+		`;
 
 		category.setNav(html);
 		category.onNav((element) => {
@@ -865,19 +853,20 @@ function newAccount(token, fields) {
 		let html = "";
 
 		for (const u of sortByUsername(accounts)) {
-			html += `
+			html += /* HTML */ `
 				<li class="settings-nav-item js-nav" data="${u.id}">
-					<span
-						${u.isAdmin ? 'style="color: var(--color-red);"' : ""}
-					>${u.username}
+					<span ${u.isAdmin ? 'style="color: var(--color-red);"' : ""}
+						>${u.username}
 					</span>
-				</li>`;
+				</li>
+			`;
 		}
 
-		html += ` 
+		html += /* HTML */ `
 			<button class="settings-add-btn js-nav" data="">
 				<span>Add</span>
-			</button>`;
+			</button>
+		`;
 
 		category.setNav(html);
 		category.onNav((element) => {
@@ -1096,15 +1085,19 @@ function newSelectMonitorField(monitors) {
 		let $input;
 		const id = uniqueID();
 		return {
-			html: `
+			html: /* HTML */ `
 				<div id="${id}" class="monitor-selector-item">
 					<span class="monitor-selector-label">${name}</span>
 					<div class="checkbox">
-						  <input class="checkbox-checkbox" type="checkbox"/>
+						<input class="checkbox-checkbox" type="checkbox" />
 						<div class="checkbox-box"></div>
-						<img class="checkbox-check" src="assets/icons/feather/check.svg"/>
+						<img
+							class="checkbox-check"
+							src="assets/icons/feather/check.svg"
+						/>
 					</div>
-				</div>`,
+				</div>
+			`,
 			init() {
 				const element = document.getElementById(id);
 				$input = element.querySelector("input");

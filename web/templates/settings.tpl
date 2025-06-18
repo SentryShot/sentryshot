@@ -7,11 +7,36 @@
 	<link rel="stylesheet" type="text/css" href="assets/style/settings.css" />
 	<link rel="preload" href="assets/scripts/settings.js" as="script" crossorigin />
 	<link rel="preload" href="assets/scripts/libs/common.js" as="script" crossorigin />
-	<link rel="preload" href="assets/scripts/components/form.js" as="script" crossorigin />
-	<link rel="preload" href="assets/scripts/components/modal.js" as="script" crossorigin />
-	<link rel="preload" href="assets/scripts/components/feed.js" as="script" crossorigin />
-	<link rel="preload" href="assets/scripts/components/polygonEditor.js" as="script" crossorigin />
-	<link rel="preload" href="assets/scripts/components/streamer.js" as="script" crossorigin />
+	<link
+		rel="preload"
+		href="assets/scripts/components/form.js"
+		as="script"
+		crossorigin
+	/>
+	<link
+		rel="preload"
+		href="assets/scripts/components/modal.js"
+		as="script"
+		crossorigin
+	/>
+	<link
+		rel="preload"
+		href="assets/scripts/components/feed.js"
+		as="script"
+		crossorigin
+	/>
+	<link
+		rel="preload"
+		href="assets/scripts/components/polygonEditor.js"
+		as="script"
+		crossorigin
+	/>
+	<link
+		rel="preload"
+		href="assets/scripts/components/streamer.js"
+		as="script"
+		crossorigin
+	/>
 	<link rel="preload" href="assets/scripts/vendor/hls.js" as="script" crossorigin />
 	<script type="module" defer>
 		import { init } from "./assets/scripts/settings.js";
