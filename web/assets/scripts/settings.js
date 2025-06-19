@@ -55,8 +55,19 @@ function newRenderer($parent) {
 						id="js-set-category-${category.name()}"
 						class="settings-nav-item js-set-settings-category"
 					>
-						<img src="${category.icon()}" />
-						<span>${category.title()}</span>
+						<img
+							style="
+								aspect-ratio: 1;
+								height: 0.7rem;
+								margin-right: 0.3rem;
+								font-size: 0.8rem;
+								filter: var(--color-icons);
+							"
+							src="${category.icon()}"
+						/>
+						<span style="color: var(--color-text); font-size: 0.7rem;"
+							>${category.title()}</span
+						>
 					</li>
 				`;
 
@@ -72,7 +83,7 @@ function newRenderer($parent) {
 
 			$parent.innerHTML = /* HTML */ `
 				<nav id="js-settings-navbar" class="settings-navbar">
-					<ul id="settings-navbar-nav">
+					<ul style="height: 100%; overflow-y: auto;">
 						${htmlNav}
 					</ul>
 				</nav>
@@ -114,14 +125,23 @@ function newSimpleCategory(category, title) {
 		},
 		html() {
 			return `
-				<div class="settings-category settings-simple-category">
+				<div class="settings-category" style="width: 100vw;">
 					<div class="settings-menubar js-settings-menubar">
 						<nav
 							class="settings-menu-back-btn js-settings-category-back"
 						>
 							<img src="${backIconPath}"/>
 						</nav>
-						<span class="settings-category-title" >${title}</span>
+						<span
+							style="
+								width: 100%;
+								margin: auto;
+								margin-right: 1.6rem;
+								color: var(--color-text);
+								font-size: 0.8rem;
+								text-align: center;
+							"
+						>${title}</span>
 					</div>
 					${form.html()}
 				</div>`;
@@ -225,7 +245,18 @@ function newCategory(categoryName, title) {
 						<nav class="settings-menu-back-btn js-settings-category-back">
 							<img src="${backIconPath}" />
 						</nav>
-						<span class="settings-category-title">${title}</span>
+						<span
+							class="js-category-title"
+							style="
+								width: 100%;
+								margin: auto;
+								margin-right: 1.6rem;
+								color: var(--color-text);
+								font-size: 0.8rem;
+								text-align: center;
+							"
+							>${title}</span
+						>
 					</div>
 					<ul class="settings-category-nav"></ul>
 				</div>
@@ -236,7 +267,17 @@ function newCategory(categoryName, title) {
 						<nav class="settings-menu-back-btn js-settings-subcategory-back">
 							<img src="${backIconPath}" />
 						</nav>
-						<span class="settings-category-title"></span>
+						<span
+							class="js-category-title"
+							style="
+								width: 100%;
+								margin: auto;
+								margin-right: 1.6rem;
+								color: var(--color-text);
+								font-size: 0.8rem;
+								text-align: center;
+							"
+						></span>
 					</div>
 					${form.html()}
 				</div>
@@ -279,7 +320,7 @@ function newCategory(categoryName, title) {
 					closeSubcategory();
 				});
 
-			$title = $subcategory.querySelector(".settings-category-title");
+			$title = $subcategory.querySelector(".js-category-title");
 		},
 		open() {
 			open();
@@ -352,7 +393,18 @@ function newCategory2(categoryName, title, form) {
 						<nav class="settings-menu-back-btn js-settings-category-back">
 							<img src="${backIconPath}" />
 						</nav>
-						<span class="settings-category-title">${title}</span>
+						<span
+							class="js-category-title"
+							style="
+								width: 100%;
+								margin: auto;
+								margin-right: 1.6rem;
+								color: var(--color-text);
+								font-size: 0.8rem;
+								text-align: center;
+							"
+							>${title}</span
+						>
 					</div>
 					<ul class="settings-category-nav"></ul>
 				</div>
@@ -363,7 +415,17 @@ function newCategory2(categoryName, title, form) {
 						<nav class="settings-menu-back-btn js-settings-subcategory-back">
 							<img src="${backIconPath}" />
 						</nav>
-						<span class="settings-category-title"></span>
+						<span
+							class="js-category-title"
+							style="
+								width: 100%;
+								margin: auto;
+								margin-right: 1.6rem;
+								color: var(--color-text);
+								font-size: 0.8rem;
+								text-align: center;
+							"
+						></span>
 					</div>
 					${form.html()}
 				</div>
@@ -406,7 +468,7 @@ function newCategory2(categoryName, title, form) {
 					closeSubcategory();
 				});
 
-			$title = $subcategory.querySelector(".settings-category-title");
+			$title = $subcategory.querySelector(".js-category-title");
 		},
 		open() {
 			open();
@@ -503,7 +565,9 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		for (const m of sortedMonitors) {
 			html += /* HTML */ `
 				<li class="settings-nav-item js-nav" data="${m.id}">
-					<span>${m.name}</span>
+					<span style="color: var(--color-text); font-size: 0.7rem;"
+						>${m.name}</span
+					>
 				</li>
 			`;
 		}
@@ -722,7 +786,9 @@ function newMonitorGroups(token, fields, groups) {
 		for (const g of sortedGroups) {
 			html += /* HTML */ `
 				<li class="settings-nav-item js-nav" data="${g.id}">
-					<span>${g.name}</span>
+					<span style="color: var(--color-text); font-size: 0.7rem;"
+						>${g.name}</span
+					>
 				</li>
 			`;
 		}
@@ -853,11 +919,13 @@ function newAccount(token, fields) {
 		let html = "";
 
 		for (const u of sortByUsername(accounts)) {
+			let style = "color: var(--color-text); font-size: 0.7rem;";
+			if (u.isAdmin) {
+				style = "color: var(--color-red); font-size: 0.7rem;";
+			}
 			html += /* HTML */ `
 				<li class="settings-nav-item js-nav" data="${u.id}">
-					<span ${u.isAdmin ? 'style="color: var(--color-red);"' : ""}
-						>${u.username}
-					</span>
+					<span style="${style}">${u.username} </span>
 				</li>
 			`;
 		}
@@ -1087,7 +1155,15 @@ function newSelectMonitorField(monitors) {
 		return {
 			html: /* HTML */ `
 				<div id="${id}" class="monitor-selector-item">
-					<span class="monitor-selector-label">${name}</span>
+					<span
+						style="
+							margin-right: auto;
+							color: var(--color-text);
+							padding-right: 0.2rem;
+							user-select: none;
+						"
+						>${name}</span
+					>
 					<div class="checkbox">
 						<input class="checkbox-checkbox" type="checkbox" />
 						<div class="checkbox-box"></div>

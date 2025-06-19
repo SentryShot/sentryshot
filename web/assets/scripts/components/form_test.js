@@ -114,21 +114,28 @@ describe("newForm", () => {
 			form.addButton("delete", () => {});
 
 			expect(form.html()).toMatchInlineSnapshot(`
-				<ul class="form"
-				    style="padding: 0 0.1rem;"
-				>
-				  html
-				  <div class="form-button-wrapper">
-				    <button id="uid1"
-				            class="form-button delete-btn"
-				    >
-				      <span>
-				        Delete
-				      </span>
-				    </button>
-				  </div>
-				</ul>
-			`);
+<ul class="form"
+    style="padding: 0 0.1rem;"
+>
+  html
+  <div style="display: flex;">
+    <button id="uid1"
+            class="delete-btn"
+            style="
+					margin: 0.2rem;
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					border-radius: 0.2rem;
+					margin-left: auto;
+				"
+    >
+      <span style="color: var(--color-text); font-size: 0.7rem;">
+        Delete
+      </span>
+    </button>
+  </div>
+</ul>
+`);
 		});
 		test("onClick", () => {
 			const form = newTestForm();
@@ -154,28 +161,41 @@ describe("newForm", () => {
 		form.addButton("delete", () => {});
 
 		expect(form.html()).toMatchInlineSnapshot(`
-			<ul class="form"
-			    style="padding: 0 0.1rem;"
-			>
-			  html
-			  <div class="form-button-wrapper">
-			    <button id="uid1"
-			            class="form-button save-btn"
-			    >
-			      <span>
-			        Save
-			      </span>
-			    </button>
-			    <button id="uid2"
-			            class="form-button delete-btn"
-			    >
-			      <span>
-			        Delete
-			      </span>
-			    </button>
-			  </div>
-			</ul>
-		`);
+<ul class="form"
+    style="padding: 0 0.1rem;"
+>
+  html
+  <div style="display: flex;">
+    <button id="uid1"
+            class="save-btn"
+            style="
+					margin: 0.2rem;
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					border-radius: 0.2rem;
+				"
+    >
+      <span style="color: var(--color-text); font-size: 0.7rem;">
+        Save
+      </span>
+    </button>
+    <button id="uid2"
+            class="delete-btn"
+            style="
+					margin: 0.2rem;
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					border-radius: 0.2rem;
+					margin-left: auto;
+				"
+    >
+      <span style="color: var(--color-text); font-size: 0.7rem;">
+        Delete
+      </span>
+    </button>
+  </div>
+</ul>
+`);
 	});
 });
 
@@ -200,26 +220,42 @@ describe("newField", () => {
 		uidReset();
 
 		expect(newTestField().html).toMatchInlineSnapshot(`
-			<li id="js-uid1"
-			    class="form-field-error"
-			>
-			  <label for="uid1"
-			         class="form-field-label"
-			  >
-			    a
-			  </label>
-			  <input id="uid1"
-			         class="js-input settings-input-text"
-			         type="number"
-			         placeholder="b"
-			         min="2"
-			         max="4"
-			         step="0.5"
-			  >
-			  <span class="settings-error js-error">
-			  </span>
-			</li>
-		`);
+<li id="js-uid1"
+    class="form-field-error"
+>
+  <label for="uid1"
+         style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+  >
+    a
+  </label>
+  <input id="uid1"
+         class="js-input"
+         style="
+					width: 100%;
+					height: 1rem;
+					overflow: auto;
+					font-size: 0.5rem;
+					text-indent: 0.2rem;
+				"
+         type="number"
+         placeholder="b"
+         min="2"
+         max="4"
+         step="0.5"
+  >
+  <span class="js-error"
+        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+  >
+  </span>
+</li>
+`);
 	});
 	test("validate", () => {
 		const field = newTestField();
@@ -315,23 +351,39 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.text("1", "2");
 
 		expect(field.html).toMatchInlineSnapshot(`
-			<li id="js-uid1"
-			    class="form-field-error"
-			>
-			  <label for="uid1"
-			         class="form-field-label"
-			  >
-			    1
-			  </label>
-			  <input id="uid1"
-			         class="js-input settings-input-text"
-			         type="text"
-			         placeholder="2"
-			  >
-			  <span class="settings-error js-error">
-			  </span>
-			</li>
-		`);
+<li id="js-uid1"
+    class="form-field-error"
+>
+  <label for="uid1"
+         style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+  >
+    1
+  </label>
+  <input id="uid1"
+         class="js-input"
+         style="
+					width: 100%;
+					height: 1rem;
+					overflow: auto;
+					font-size: 0.5rem;
+					text-indent: 0.2rem;
+				"
+         type="text"
+         placeholder="2"
+  >
+  <span class="js-error"
+        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+  >
+  </span>
+</li>
+`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -349,25 +401,41 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.integer("1", "2");
 
 		expect(field.html).toMatchInlineSnapshot(`
-			<li id="js-uid1"
-			    class="form-field-error"
-			>
-			  <label for="uid1"
-			         class="form-field-label"
-			  >
-			    1
-			  </label>
-			  <input id="uid1"
-			         class="js-input settings-input-text"
-			         type="number"
-			         placeholder="2"
-			         min="0"
-			         step="1"
-			  >
-			  <span class="settings-error js-error">
-			  </span>
-			</li>
-		`);
+<li id="js-uid1"
+    class="form-field-error"
+>
+  <label for="uid1"
+         style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+  >
+    1
+  </label>
+  <input id="uid1"
+         class="js-input"
+         style="
+					width: 100%;
+					height: 1rem;
+					overflow: auto;
+					font-size: 0.5rem;
+					text-indent: 0.2rem;
+				"
+         type="number"
+         placeholder="2"
+         min="0"
+         step="1"
+  >
+  <span class="js-error"
+        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+  >
+  </span>
+</li>
+`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -387,28 +455,41 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.toggle("1", true);
 
 		expect(field.html).toMatchInlineSnapshot(`
-			<li id="js-uid1"
-			    class="form-field"
-			>
-			  <label for="uid1"
-			         class="form-field-label"
-			  >
-			    1
-			  </label>
-			  <div class="form-field-select-container">
-			    <select id="uid1"
-			            class="js-input form-field-select"
-			    >
-			      <option>
-			        true
-			      </option>
-			      <option>
-			        false
-			      </option>
-			    </select>
-			  </div>
-			</li>
-		`);
+<li id="js-uid1"
+    class="form-field"
+>
+  <label for="uid1"
+         style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+  >
+    1
+  </label>
+  <div style="display: flex; width: 100%;">
+    <select id="uid1"
+            class="js-input"
+            style="
+						padding-left: 0.2rem;
+						width: 100%;
+						height: 1rem;
+						font-size: 0.5rem;
+					"
+    >
+      <option>
+        true
+      </option>
+      <option>
+        false
+      </option>
+    </select>
+  </div>
+</li>
+`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -425,31 +506,44 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.select("1", ["a", "b", "c"], "a");
 
 		expect(field.html).toMatchInlineSnapshot(`
-			<li id="js-uid1"
-			    class="form-field"
-			>
-			  <label for="uid1"
-			         class="form-field-label"
-			  >
-			    1
-			  </label>
-			  <div class="form-field-select-container">
-			    <select id="uid1"
-			            class="js-input form-field-select"
-			    >
-			      <option>
-			        a
-			      </option>
-			      <option>
-			        b
-			      </option>
-			      <option>
-			        c
-			      </option>
-			    </select>
-			  </div>
-			</li>
-		`);
+<li id="js-uid1"
+    class="form-field"
+>
+  <label for="uid1"
+         style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+  >
+    1
+  </label>
+  <div style="display: flex; width: 100%;">
+    <select id="uid1"
+            class="js-input"
+            style="
+						padding-left: 0.2rem;
+						width: 100%;
+						height: 1rem;
+						font-size: 0.5rem;
+					"
+    >
+      <option>
+        a
+      </option>
+      <option>
+        b
+      </option>
+      <option>
+        c
+      </option>
+    </select>
+  </div>
+</li>
+`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -466,38 +560,53 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.selectCustom("y", ["a", "b", "c"], "a");
 
 		expect(field.html).toMatchInlineSnapshot(`
-			<li id="js-uid1"
-			    class="form-field-error"
-			>
-			  <label for="uid1"
-			         class="form-field-label"
-			  >
-			    y
-			  </label>
-			  <div class="form-field-select-container">
-			    <select id="uid1"
-			            class="js-input form-field-select"
-			    >
-			      <option>
-			        a
-			      </option>
-			      <option>
-			        b
-			      </option>
-			      <option>
-			        c
-			      </option>
-			    </select>
-			    <button class="js-edit-btn form-field-edit-btn">
-			      <img class="form-field-edit-btn-img"
-			           src="assets/icons/feather/edit-3.svg"
-			      >
-			    </button>
-			  </div>
-			  <span class="settings-error js-error">
-			  </span>
-			</li>
-		`);
+<li id="js-uid1"
+    class="form-field-error"
+>
+  <label for="uid1"
+         style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+  >
+    y
+  </label>
+  <div style="display: flex; width: 100%;">
+    <select id="uid1"
+            class="js-input"
+            style="
+						padding-left: 0.2rem;
+						width: 100%;
+						height: 1rem;
+						font-size: 0.5rem;
+					"
+    >
+      <option>
+        a
+      </option>
+      <option>
+        b
+      </option>
+      <option>
+        c
+      </option>
+    </select>
+    <button class="js-edit-btn form-field-edit-btn">
+      <img style="padding: 0.1rem; filter: var(--color-icons);"
+           src="assets/icons/feather/edit-3.svg"
+      >
+    </button>
+  </div>
+  <span class="js-error"
+        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+  >
+  </span>
+</li>
+`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -537,36 +646,49 @@ describe("selectCustomField", () => {
 		});
 
 		expect(field.html).toMatchInlineSnapshot(`
-			<li id="js-uid1"
-			    class="form-field"
-			>
-			  <label for="uid1"
-			         class="form-field-label"
-			  >
-			    d
-			  </label>
-			  <div class="form-field-select-container">
-			    <select id="uid1"
-			            class="js-input form-field-select"
-			    >
-			      <option>
-			        a
-			      </option>
-			      <option>
-			        b
-			      </option>
-			      <option>
-			        c
-			      </option>
-			    </select>
-			    <button class="js-edit-btn form-field-edit-btn">
-			      <img class="form-field-edit-btn-img"
-			           src="assets/icons/feather/edit-3.svg"
-			      >
-			    </button>
-			  </div>
-			</li>
-		`);
+<li id="js-uid1"
+    class="form-field"
+>
+  <label for="uid1"
+         style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+  >
+    d
+  </label>
+  <div style="display: flex; width: 100%;">
+    <select id="uid1"
+            class="js-input"
+            style="
+						padding-left: 0.2rem;
+						width: 100%;
+						height: 1rem;
+						font-size: 0.5rem;
+					"
+    >
+      <option>
+        a
+      </option>
+      <option>
+        b
+      </option>
+      <option>
+        c
+      </option>
+    </select>
+    <button class="js-edit-btn form-field-edit-btn">
+      <img style="padding: 0.1rem; filter: var(--color-icons);"
+           src="assets/icons/feather/edit-3.svg"
+      >
+    </button>
+  </div>
+</li>
+`);
 
 		document.body.innerHTML = field.html;
 		field.init();
@@ -592,37 +714,69 @@ describe("passwordField", () => {
 	test("rendering", () => {
 		uidReset();
 		expect(newPasswordField().html).toMatchInlineSnapshot(`
-			<li id="js-uid1"
-			    class="form-field-error"
-			>
-			  <label for="uid1"
-			         class="form-field-label"
-			  >
-			    New password
-			  </label>
-			  <input id="uid1"
-			         class="js-input settings-input-text"
-			         type="password"
-			  >
-			  <span class="settings-error js-error">
-			  </span>
-			</li>
-			<li id="js-uid2"
-			    class="form-field-error"
-			>
-			  <label for="uid2"
-			         class="form-field-label"
-			  >
-			    Repeat password
-			  </label>
-			  <input id="uid2"
-			         class="js-input settings-input-text"
-			         type="password"
-			  >
-			  <span class="settings-error js-error">
-			  </span>
-			</li>
-		`);
+<li id="js-uid1"
+    class="form-field-error"
+>
+  <label for="uid1"
+         style="
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
+  >
+    New password
+  </label>
+  <input id="uid1"
+         class="js-input"
+         style="
+						width: 100%;
+						height: 1rem;
+						overflow: auto;
+						font-size: 0.5rem;
+						text-indent: 0.2rem;
+					"
+         type="password"
+  >
+  <span class="js-error"
+        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+  >
+  </span>
+</li>
+<li id="js-uid2"
+    class="form-field-error"
+>
+  <label for="uid2"
+         style="
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
+  >
+    Repeat password
+  </label>
+  <input id="uid2"
+         class="js-input"
+         style="
+						width: 100%;
+						height: 1rem;
+						overflow: auto;
+						font-size: 0.5rem;
+						text-indent: 0.2rem;
+					"
+         type="password"
+  >
+  <span class="js-error"
+        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+  >
+  </span>
+</li>
+`);
 	});
 	describe("logic", () => {
 		let field, $newInput, $newError, $repeatInput, $repeatError;

@@ -15,36 +15,64 @@ describe("feed", () => {
 		const feed = newSlowPollStream(monitor, true, buttons);
 
 		expect(feed.html).toMatchInlineSnapshot(`
-			<div style="display: flex; justify-content: center;">
-			  <div id="uid1"
-			       class="grid-item-container"
-			  >
-			    <input class="js-checkbox player-overlay-checkbox"
-			           id="uid2"
-			           type="checkbox"
-			    >
-			    <label class="player-overlay-selector"
-			           for="uid2"
-			    >
-			    </label>
-			    <div class="js-overlay player-overlay feed-menu">
-			      <button class="js-fullscreen-btn feed-btn">
-			        <img class="feed-btn-img icon"
-			             src="assets/icons/feather/maximize.svg"
-			        >
-			      </button>
-			    </div>
-			    <video class="grid-item"
-			           autoplay
-			           muted
-			           disablepictureinpicture
-			           playsinline
-			           type="video/mp4"
-			    >
-			    </video>
-			  </div>
-			</div>
-		`);
+<div style="display: flex; justify-content: center;">
+  <div id="uid1"
+       style="
+						position: relative;
+						display: flex;
+						justify-content: center;
+						align-items: center;
+						width: 100%;
+						max-height: 100vh;
+						align-self: center;
+						--player-timeline-width: 90%;
+					"
+  >
+    <input class="js-checkbox player-overlay-checkbox"
+           id="uid2"
+           type="checkbox"
+    >
+    <label style="
+							position: absolute;
+							z-index: 1;
+							width: 100%;
+							height: 100%;
+							opacity: 0.5;
+						"
+           for="uid2"
+    >
+    </label>
+    <div class="js-overlay player-overlay"
+         style="
+							bottom: 0;
+							margin-bottom: 5%;
+							background: var(--color1);
+							border: none;
+							border-radius: 0.2rem;
+						"
+    >
+      <button class="js-fullscreen-btn feed-btn">
+        <img style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
+             src="assets/icons/feather/maximize.svg"
+        >
+      </button>
+    </div>
+    <video style="
+							width: 100%;
+							height: 100%;
+							max-height: 100vh;
+							object-fit: contain;
+						"
+           autoplay
+           muted
+           disablepictureinpicture
+           playsinline
+           type="video/mp4"
+    >
+    </video>
+  </div>
+</div>
+`);
 	});
 });
 
@@ -91,23 +119,22 @@ describe("muteBtn", () => {
 
 test("recordingsBtn", async () => {
 	expect(newStreamerBtn.recordings("b").html).toMatchInlineSnapshot(`
-		<a href="http://test.com/recordings#monitors=b"
-		   class="feed-btn"
-		>
-		  <img class="feed-btn-img icon"
-		       style="height: 0.65rem;"
-		       src="assets/icons/feather/film.svg"
-		  >
-		</a>
-	`);
+<a href="http://test.com/recordings#monitors=b"
+   class="feed-btn"
+>
+  <img style="height: 0.65rem; aspect-ratio: 1; filter: var(--color-icons);"
+       src="assets/icons/feather/film.svg"
+  >
+</a>
+`);
 });
 
 test("fullscreenBtn", () => {
 	expect(newStreamerBtn.fullscreen().html).toMatchInlineSnapshot(`
-		<button class="js-fullscreen-btn feed-btn">
-		  <img class="feed-btn-img icon"
-		       src="assets/icons/feather/maximize.svg"
-		  >
-		</button>
-	`);
+<button class="js-fullscreen-btn feed-btn">
+  <img style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
+       src="assets/icons/feather/maximize.svg"
+  >
+</button>
+`);
 });

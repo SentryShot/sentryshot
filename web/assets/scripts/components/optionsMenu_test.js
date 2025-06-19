@@ -27,23 +27,36 @@ describe("optionsGridSize", () => {
 		setup(newOptionsBtn.gridSize(content));
 
 		expect(document.body.innerHTML).toMatchInlineSnapshot(`
-			<div id="options-menu">
-			  <button id="uid1"
-			          class="options-menu-btn"
-			  >
-			    <img class="icon"
-			         src="assets/icons/feather/plus.svg"
-			    >
-			  </button>
-			  <button id="uid2"
-			          class="options-menu-btn"
-			  >
-			    <img class="icon"
-			         src="assets/icons/feather/minus.svg"
-			    >
-			  </button>
-			</div>
-		`);
+<div id="options-menu">
+  <button id="uid1"
+          class="options-menu-btn"
+  >
+    <img style="
+							aspect-ratio: 1;
+							height: 0.8rem;
+							margin: 0.2rem;
+							font-size: 0;
+							filter: var(--color-icons);
+						"
+         src="assets/icons/feather/plus.svg"
+    >
+  </button>
+  <button id="uid2"
+          class="options-menu-btn"
+  >
+    <img class="icon"
+         style="
+							aspect-ratio: 1;
+							height: 0.8rem;
+							margin: 0.2rem;
+							font-size: 0;
+							filter: var(--color-icons);
+						"
+         src="assets/icons/feather/minus.svg"
+    >
+  </button>
+</div>
+`);
 	});
 	test("logic", () => {
 		uidReset();
@@ -126,7 +139,7 @@ describe("optionsDate", () => {
 		};
 
 		$calendar.children[0].click();
-		document.querySelector(".date-picker-calendar").click();
+		document.querySelector(".js-calendar").click();
 
 		// prettier-ignore
 		expect(domState()).toEqual([
@@ -304,18 +317,40 @@ describe("optionsMonitorGroups", () => {
 	};
 	test("rendering", () => {
 		setup();
-		const expected = `
-			<span class="select-one-label">Groups</span>
-			<span class="select-one-item" data="a">group1</span>
-			<span class="select-one-item" data="b">group2</span>`.replaceAll(/\s/g, "");
-		const $picker = document.querySelector(".select-one");
 
-		let actual = $picker.innerHTML.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		const $picker = document.querySelector(".js-select-one");
+		expect($picker.innerHTML).toMatchInlineSnapshot(`
+<span style="padding: 0.1rem; font-size: 0.6rem;">
+  Groups
+</span>
+<span class="select-one-item"
+      data="a"
+>
+  group1
+</span>
+<span class="select-one-item"
+      data="b"
+>
+  group2
+</span>
+`);
 
-		document.querySelector(".select-one-label").click();
-		actual = $picker.innerHTML.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		document.querySelector(".js-select-one span").click();
+		expect($picker.innerHTML).toMatchInlineSnapshot(`
+<span style="padding: 0.1rem; font-size: 0.6rem;">
+  Groups
+</span>
+<span class="select-one-item"
+      data="a"
+>
+  group1
+</span>
+<span class="select-one-item"
+      data="b"
+>
+  group2
+</span>
+`);
 
 		const $group1 = document.querySelector(".select-one-item[data='a']");
 		expect($group1.classList.contains("select-one-item-selected")).toBe(false);

@@ -58,16 +58,53 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 	return {
 		html: /* HTML */ `
 			<div style="display: flex; justify-content: center;">
-				<div id="${elementID}" class="grid-item-container">
+				<div
+					id="${elementID}"
+					style="
+						position: relative;
+						display: flex;
+						justify-content: center;
+						align-items: center;
+						width: 100%;
+						max-height: 100vh;
+						align-self: center;
+						--player-timeline-width: 90%;
+					"
+				>
 					<input
 						class="js-checkbox player-overlay-checkbox"
 						id="${checkboxID}"
 						type="checkbox"
 					/>
-					<label class="player-overlay-selector" for="${checkboxID}"></label>
-					<div class="js-overlay player-overlay feed-menu">${html}</div>
+					<label
+						style="
+							position: absolute;
+							z-index: 1;
+							width: 100%;
+							height: 100%;
+							opacity: 0.5;
+						"
+						for="${checkboxID}"
+					></label>
+					<div
+						class="js-overlay player-overlay"
+						style="
+							bottom: 0;
+							margin-bottom: 5%;
+							background: var(--color1);
+							border: none;
+							border-radius: 0.2rem;
+						"
+					>
+						${html}
+					</div>
 					<video
-						class="grid-item"
+						style="
+							width: 100%;
+							height: 100%;
+							max-height: 100vh;
+							object-fit: contain;
+						"
 						muted
 						disablepictureinpicture
 						playsinline
@@ -180,7 +217,10 @@ function newFullscreenBtn() {
 	return {
 		html: /* HTML */ `
 			<button class="js-fullscreen-btn feed-btn">
-				<img class="feed-btn-img icon" src="${iconMaximizePath}" />
+				<img
+					style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
+					src="${iconMaximizePath}"
+				/>
 			</button>
 		`,
 		init($parent) {
@@ -220,8 +260,7 @@ function newRecordingsBtn(monitorIds) {
 		html: /* HTML */ `
 			<a href="${recordingsPath}" class="feed-btn">
 				<img
-					class="feed-btn-img icon"
-					style="height: 0.65rem;"
+					style="height: 0.65rem; aspect-ratio: 1; filter: var(--color-icons);"
 					src="${iconRecordingsPath}"
 				/>
 			</a>

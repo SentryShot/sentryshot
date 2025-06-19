@@ -4,20 +4,10 @@
 	background: var(--color1-hover);
 }
 
-#content {
-	display: flex;
-	overflow-x: hidden;
-}
-
 .settings-navbar {
 	flex-shrink: 0;
 	width: 100%;
 	background: var(--color2);
-}
-
-#settings-navbar-nav {
-	height: 100%;
-	overflow-y: auto;
 }
 
 .settings-nav-item {
@@ -27,19 +17,6 @@
 	border-width: 0.01rem;
 	border-color: var(--color2-hover);
 	border-bottom-style: solid;
-}
-
-.settings-nav-item img {
-	aspect-ratio: 1;
-	height: 0.7rem;
-	margin-right: 0.3rem;
-	font-size: 0.8rem;
-	filter: var(--color-icons);
-}
-
-.settings-nav-item span {
-	color: var(--color-text);
-	font-size: 0.7rem;
 }
 
 .settings-nav-item:hover {
@@ -57,10 +34,6 @@
 	height: var(--size-minus-topbar);
 	transform: translateX(100%);
 	transition: transform 400ms;
-}
-
-.settings-simple-category {
-	width: 100vw;
 }
 
 .settings-category {
@@ -141,35 +114,6 @@
 	font-size: 0.7rem;
 }
 
-.settings-category-title {
-	width: 100%;
-	margin: auto;
-	margin-right: 1.6rem;
-	color: var(--color-text);
-	font-size: 0.8rem;
-	text-align: center;
-}
-
-.settings-input-text {
-	width: 100%;
-	height: 1rem;
-	overflow: auto;
-	font-size: 0.5rem;
-	text-indent: 0.2rem;
-}
-
-.settings-error {
-	height: 0.5rem;
-	color: var(--color-red);
-	font-size: 0.4rem;
-	white-space: nowrap;
-	overflow: auto;
-}
-
-.password-strength {
-	color: var(--color-orange);
-}
-
 .monitor-selector {
 	display: flex;
 	flex-wrap: wrap;
@@ -189,13 +133,6 @@
 
 .monitor-selector-item:hover .checkbox-box {
 	visibility: hidden;
-}
-
-.monitor-selector-label {
-	margin-right: auto;
-	color: var(--color-text);
-	padding-right: 0.2rem;
-	user-select: none;
 }
 
 /* Mobile Landscape mode. */

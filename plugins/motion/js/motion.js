@@ -81,11 +81,21 @@ export function motion2(hasSubStream, getMonitorId) {
 	return {
 		html: /* HTML */ `
 			<li id="${id}" class="form-field" style="display:flex;">
-				<label class="form-field-label">Motion detection</label>
+				<label
+					style="
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
+					>Motion detection</label
+				>
 				<div>
 					<button class="form-field-edit-btn">
 						<img
-							class="form-field-edit-btn-img"
+							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -145,14 +155,17 @@ export function motion2(hasSubStream, getMonitorId) {
 function zonesModalHTML(feedHTML) {
 	return /* HTML */ `
 		<li class="form-field">
-			<div class="form-field-select-container">
-				<select class="js-zone-select form-field-select"></select>
+			<div style="display: flex; width: 100%;">
+				<select
+					class="js-zone-select"
+					style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
+				></select>
 				<div
 					class="js-add-zone form-field-edit-btn"
 					style="background: var(--color2)"
 				>
 					<img
-						class="form-field-edit-btn-img"
+						style="padding: 0.1rem; filter: var(--color-icons);"
 						src="assets/icons/feather/plus.svg"
 					/>
 				</div>
@@ -161,28 +174,58 @@ function zonesModalHTML(feedHTML) {
 					style="margin-left: 0.2rem; background: var(--color2)"
 				>
 					<img
-						class="form-field-edit-btn-img"
+						style="padding: 0.1rem; filter: var(--color-icons);"
 						src="assets/icons/feather/minus.svg"
 					/>
 				</div>
 			</div>
 		</li>
 		<li class="form-field">
-			<label class="form-field-label" for="modal-enable">Enable</label>
-			<div class="form-field-select-container">
-				<select class="js-enable form-field-select">
+			<label
+				for="modal-enable"
+				style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+				>Enable</label
+			>
+			<div style="display: flex; width: 100%;">
+				<select
+					class="js-enable"
+					style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
+				>
 					<option>true</option>
 					<option>false</option>
 				</select>
 			</div>
 		</li>
 		<li class="form-field">
-			<label for="motion-modal-sensitivity" class="form-field-label"
+			<label
+				for="motion-modal-sensitivity"
+				style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
 				>Sensitivity</label
 			>
 			<input
 				id="motion-modal-sensitivity"
-				class="js-sensitivity settings-input-text"
+				class="js-sensitivity"
+				style="
+					width: 100%;
+					height: 1rem;
+					overflow: auto;
+					font-size: 0.5rem;
+					text-indent: 0.2rem;
+				"
 				type="number"
 				min="0"
 				max="100"
@@ -190,18 +233,43 @@ function zonesModalHTML(feedHTML) {
 			/>
 		</li>
 		<li class="form-field">
-			<label class="form-field-label">Threshold Min-Max</label>
+			<label
+				style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+				>Threshold Min-Max</label
+			>
 			<div style="display: flex; width: 100%;">
 				<input
-					class="js-threshold-min settings-input-text"
-					style="margin-right: 1rem;"
+					class="js-threshold-min"
+					style="
+						width: 100%;
+						height: 1rem;
+						overflow: auto;
+						font-size: 0.5rem;
+						text-indent: 0.2rem;
+						margin-right: 1rem;
+					"
 					type="number"
 					min="0"
 					max="100"
 					step="any"
 				/>
 				<input
-					class="js-threshold-max settings-input-text"
+					class="js-threshold-max"
+					style="
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
 					type="number"
 					min="0"
 					max="100"
@@ -210,9 +278,23 @@ function zonesModalHTML(feedHTML) {
 			</div>
 		</li>
 		<li class="form-field">
-			<label class="form-field-label" for="modal-preview">Preview</label>
-			<div class="form-field-select-container">
-				<select class="js-preview form-field-select">
+			<label
+				for="modal-preview"
+				style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+				>Preview</label
+			>
+			<div style="display: flex; width: 100%;">
+				<select
+					class="js-preview"
+					style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
+				>
 					<option>true</option>
 					<option>false</option>
 				</select>
@@ -229,7 +311,7 @@ function zonesModalHTML(feedHTML) {
 			class="form-field"
 			style="display: flex; flex-wrap: wrap; justify-content: space-between"
 		>
-			<div class="motion-step-sizes">
+			<div style="display: flex;">
 				<button
 					class="js-1x motion-step-size"
 					style="
@@ -263,9 +345,21 @@ function zonesModalHTML(feedHTML) {
 					20x
 				</button>
 			</div>
-			<div class="motion-xy-wrapper">
-				<input type="number" min="0" max="100" class="js-x" />
-				<input type="number" min="0" max="100" class="js-y" />
+			<div style="display: flex;">
+				<input
+					class="js-x"
+					style="width: 1.3rem; font-size: 0.6rem; text-align: center;"
+					type="number"
+					min="0"
+					max="100"
+				/>
+				<input
+					class="js-y"
+					style="width: 1.3rem; font-size: 0.6rem; text-align: center;"
+					type="number"
+					min="0"
+					max="100"
+				/>
 			</div>
 		</li>
 	`;
@@ -591,11 +685,21 @@ function zones(hasSubStream, getMonitorId) {
 				class="form-field"
 				style="display:flex; padding-bottom:0.25rem;"
 			>
-				<label class="form-field-label" style="width:100%">Zones</label>
+				<label
+					style="
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
+					>Zones</label
+				>
 				<div style="width:auto">
 					<button class="form-field-edit-btn color2">
 						<img
-							class="form-field-edit-btn-img"
+							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -828,35 +932,6 @@ function denormalizeZones(zones) {
 // CSS.
 const $style = document.createElement("style");
 $style.innerHTML = `
-	.motion-modal-point {
-		display: flex;
-		background: var(--color2);
-		padding: 0.15rem;
-		border-radius: 0.15rem;
-	}
-	.motion-modal-points-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(3.6rem, 3.7rem));
-		column-gap: 0.1rem;
-		row-gap: 0.1rem;
-	}
-	.motion-modal-points-label {
-		font-size: 0.7rem;
-		color: var(--color-text);
-		margin-left: 0.1rem;
-		margin-right: 0.1rem;
-	}
-	.motion-modal-input-point {
-		text-align: center;
-		font-size: 0.5rem;
-		border-style: none;
-		border-radius: 5px;
-		min-width: 0;
-	}
-	.motion-step-sizes {
-		display: flex;
-	}
-
 	.motion-step-size {
 		background: var(--color2);
 		color: var(--color-text);
@@ -873,14 +948,5 @@ $style.innerHTML = `
 	.motion-step-size-selected {
 		background: var(--color1);
 	}
-
-
-	.motion-xy-wrapper {
-		display: flex;
-	}
-	.motion-xy-wrapper > input {
-		width: 1.3rem;
-		font-size: 0.6rem;
-		text-align: center;
-	}`;
+`;
 document.querySelector("head").append($style);

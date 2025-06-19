@@ -85,10 +85,29 @@ const newOptionsBtn = {
 		return {
 			html: /* HTML */ `
 				<button id="${idPlus}" class="options-menu-btn">
-					<img class="icon" src="assets/icons/feather/plus.svg" />
+					<img
+						style="
+							aspect-ratio: 1;
+							height: 0.8rem;
+							margin: 0.2rem;
+							font-size: 0;
+							filter: var(--color-icons);
+						"
+						src="assets/icons/feather/plus.svg"
+					/>
 				</button>
 				<button id="${idMinus}" class="options-menu-btn">
-					<img class="icon" src="assets/icons/feather/minus.svg" />
+					<img
+						class="icon"
+						style="
+							aspect-ratio: 1;
+							height: 0.8rem;
+							margin: 0.2rem;
+							font-size: 0;
+							filter: var(--color-icons);
+						"
+						src="assets/icons/feather/minus.svg"
+					/>
 				</button>
 			`,
 			init() {
@@ -190,14 +209,21 @@ function newOptionsPopup(label, icon, htmlContent) {
 	const buttonId = uniqueID();
 	const popupId = uniqueID();
 	return {
-		html: /* HTML */ `
-			<button id="${buttonId}" class="options-menu-btn js-${label}">
-				<img class="icon" src="${icon}" />
+		html: /* HTML */ ` <button id="${buttonId}" class="options-menu-btn js-${label}">
+				<img
+					class="icon"
+					style="
+						aspect-ratio: 1;
+						height: 0.8rem;
+						margin: 0.2rem;
+						font-size: 0;
+					"
+					src="${icon}"
+				/>
 			</button>
 			<div id="${popupId}" class="options-popup">
-				<div class="options-popup-content">${htmlContent}</div>
-			</div>
-		`,
+				<div style="overflow-y: auto;">${htmlContent}</div>
+			</div>`,
 		toggle,
 		init() {
 			element = document.querySelector(`#${popupId}`);
@@ -232,17 +258,54 @@ function toMonthString(time) {
 }
 
 const datePickerHTML = /* HTML */ `
-	<div class="date-picker">
-		<div class="date-picker-month">
-			<button class="date-picker-month-btn js-prev-month">
-				<img class="icon" src="assets/icons/feather/chevron-left.svg">
+	<div style="padding: 0.2rem;">
+		<div
+			style="
+				display: flex;
+				align-items: center;
+				font-size: 0;
+				border-color: var(--color3-hover);
+				border-bottom-style: solid;
+			"
+		>
+			<button class="js-prev-month" style="background: var(--color2);">
+				<img
+					style="
+						height: 1.1rem;
+						aspect-ratio: 1;
+						filter: var(--color-icons);
+					"
+					src="assets/icons/feather/chevron-left.svg"
+				>
 			</button>
-			<span class="date-picker-month-label js-month"></span>
-			<button class="date-picker-month-btn js-next-month">
-				<img class="icon" src="assets/icons/feather/chevron-right.svg">
+			<span
+				class="js-month"
+				style="
+					width: 100%;
+					color: var(--color-text);
+					font-size: 0.52rem;
+					text-align: center;
+				"
+			></span>
+			<button class="js-next-month" style="background: var(--color2);">
+				<img
+					style="
+						height: 1.1rem;
+						aspect-ratio: 1;
+						filter: var(--color-icons);
+					"
+					src="assets/icons/feather/chevron-right.svg"
+				>
 			</button>
 		</div>
-		<div class="date-picker-calendar js-calendar">
+		<div
+			class="js-calendar"
+			style="
+				display: grid;
+				grid-template-columns: repeat(7, auto);
+				font-size: 0.6rem;
+			"
+		>
 			<button class="date-picker-day-btn">00</button>
 			<button class="date-picker-day-btn">00</button>
 			<button class="date-picker-day-btn">00</button>
@@ -287,15 +350,45 @@ const datePickerHTML = /* HTML */ `
 			<button class="date-picker-day-btn">00</button>
 		</div>
 		<div class="date-picker-hour">
-			<div class="date-picker-hour-buttons">
+			<div
+				style="
+					display: flex;
+					flex-direction: column;
+					justify-content: center;
+					margin-right: 0.1rem;
+					margin-left: 0.1rem;
+				"
+			>
 				<button class="date-picker-hour-btn js-next-hour">
-					<img class="icon" src="assets/icons/feather/chevron-up.svg">
+					<img
+						style="
+							width: 0.6rem;
+							height: 0.5rem;
+							font-size: 0;
+							aspect-ratio: 1;
+							filter: var(--color-icons);
+						"
+						src="assets/icons/feather/chevron-up.svg"
+					>
 				</button>
 				<button class="date-picker-hour-btn js-prev-hour">
-					<img class="icon" src="assets/icons/feather/chevron-down.svg">
+					<img
+						style="
+							width: 0.6rem;
+							height: 0.5rem;
+							font-size: 0;
+							aspect-ratio: 1;
+							filter: var(--color-icons);
+						"
+						src="assets/icons/feather/chevron-down.svg">
 				</button>
 			</div>
-			<div class="date-picker-hour-middle">
+			<div
+				style="
+					display: flex;
+					align-items: center;
+				"
+			>
 				<input
 					class="date-picker-hour-input js-hour"
 					type="number"
@@ -303,7 +396,12 @@ const datePickerHTML = /* HTML */ `
 					max="23"
 					style="text-align: end;"
 				></input>
-				<span class="date-picker-hour-label">:</span>
+				<span
+					style="
+						color: var(--color-text);
+						font-size: 1rem;
+					"
+				>:</span>
 				<input
 					class="date-picker-hour-input js-minute"
 					type="number"
@@ -311,16 +409,47 @@ const datePickerHTML = /* HTML */ `
 					max="59"
 				></input>
 			</div>
-			<div class="date-picker-hour-buttons">
+			<div
+				style="
+					display: flex;
+					flex-direction: column;
+					justify-content: center;
+					margin-right: 0.1rem;
+					margin-left: 0.1rem;
+				"
+			>
 				<button class="date-picker-hour-btn js-next-minute">
-					<img class="icon" src="assets/icons/feather/chevron-up.svg">
+					<img
+						style="
+							width: 0.6rem;
+							height: 0.5rem;
+							font-size: 0;
+							aspect-ratio: 1;
+							filter: var(--color-icons);
+						"
+						src="assets/icons/feather/chevron-up.svg"
+					>
 				</button>
 				<button class="date-picker-hour-btn js-prev-minute">
-					<img class="icon" src="assets/icons/feather/chevron-down.svg">
+					<img
+						style="
+							width: 0.6rem;
+							height: 0.5rem;
+							font-size: 0;
+							aspect-ratio: 1;
+							filter: var(--color-icons);
+						"
+						src="assets/icons/feather/chevron-down.svg"
+					>
 				</button>
 			</div>
 		</div>
-		<div class="date-picker-bottom">
+		<div
+			style="
+				display: flex;
+				justify-content: space-around;
+			"
+		>
 			<button class="date-picker-bottom-btn js-reset">Reset</button>
 			<button class="date-picker-bottom-btn date-picker-apply js-apply">Apply</button>
 		</div>
@@ -534,11 +663,18 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 	const btnID = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<button id="${btnID}" class="options-menu-btn">
-				<img class="icon" src="assets/icons/feather/video.svg" />
-			</button>
-		`,
+		html: /* HTML */ ` <button id="${btnID}" class="options-menu-btn">
+			<img
+				style="
+						aspect-ratio: 1;
+						height: 0.8rem;
+						margin: 0.2rem;
+						font-size: 0;
+						filter: var(--color-icons);
+					"
+				src="assets/icons/feather/video.svg"
+			/>
+		</button>`,
 		init() {
 			/** @param {string} selected */
 			const onSelect = (selected) => {
@@ -607,8 +743,17 @@ function newSelectOne(options, onSelect, alias) {
 
 	return {
 		html: /* HTML */ `
-			<div id=${id} class="select-one">
-				<span class="select-one-label">Groups</span>
+			<div
+				id=${id}
+				class="js-select-one"
+				style="
+					display: flex;
+					flex-direction: column;
+					color: var(--color-text);
+					text-align: center;
+				"
+			>
+				<span style="padding: 0.1rem; font-size: 0.6rem;">Groups</span>
 				${optionsHTML}
 			</div>
 		`,

@@ -25,15 +25,54 @@ function newModal(label, content = "") {
 	const wrapperId = uniqueID();
 	return {
 		html: /* HTML */ `
-			<div id="${wrapperId}" class="modal-wrapper">
+			<div
+				id="${wrapperId}"
+				style="
+					position: fixed;
+					top: 0;
+					left: 0;
+					z-index: 20;
+					display: none;
+					width: 100%;
+					height: 100%;
+					overflow-y: auto;
+					background-color: rgb(0 0 0 / 40%);
+				"
+			>
 				<div class="modal js-modal">
 					<header class="modal-header">
-						<span class="modal-title">${label}</span>
-						<button class="modal-close-btn">
-							<img class="modal-close-icon" src="assets/icons/feather/x.svg"></img>
+						<span
+							style="
+								width: 100%;
+								padding-left: 0.7rem;
+								color: var(--color-text);
+								font-size: 0.8rem;
+								text-align: center;
+							"
+						>${label}</span>
+						<button
+							class="js-modal-close-btn"
+							style="
+								display: flex;
+								margin: auto;
+								background: var(--color3);
+								border-radius: 0.1rem;
+							"
+						>
+							<img
+								style="height: 0.9rem; filter: var(--color-icons);"
+								src="assets/icons/feather/x.svg"
+							></img>
 						</button>
 					</header>
-					<div class="modal-content">${content}</div>
+					<div
+						class="js-modal-content"
+						style="
+							height: 100%;
+							overflow-y: visible;
+							background: var(--color3);
+						"
+					>${content}</div>
 				</div>
 			</div>`,
 		open() {
@@ -50,13 +89,15 @@ function newModal(label, content = "") {
 		},
 		init() {
 			$wrapper = document.querySelector(`#${wrapperId}`);
-			$wrapper.querySelector(".modal-close-btn").addEventListener("click", () => {
-				$wrapper.classList.remove("modal-open");
-				if (onClose) {
-					onClose();
-				}
-			});
-			return $wrapper.querySelector(".modal-content");
+			$wrapper
+				.querySelector(".js-modal-close-btn")
+				.addEventListener("click", () => {
+					$wrapper.classList.remove("modal-open");
+					if (onClose) {
+						onClose();
+					}
+				});
+			return $wrapper.querySelector(".js-modal-content");
 		},
 	};
 }
@@ -88,7 +129,17 @@ function newModalSelect(name, options, onSelect) {
 		let html = "";
 		for (const option of options) {
 			html += /* HTML */ `
-				<span data="${option}" class="js-option modal-select-option"
+				<span
+					data="${option}"
+					class="js-option"
+					style="
+						padding: 0 0.2rem;
+						color: var(--color-text);
+						font-size: 0.8rem;
+						border-width: 0.01rem;
+						border-style: solid;
+						border-color: var(--color1);
+					"
 					>${option}</span
 				>
 			`;
@@ -137,7 +188,7 @@ function newModalSelect(name, options, onSelect) {
 	};
 
 	const clearSelection = () => {
-		const options = $selector.querySelectorAll(".modal-select-option");
+		const options = $selector.querySelectorAll(".js-option");
 		for (const option of options) {
 			option.classList.remove("modal-select-option-selected");
 		}

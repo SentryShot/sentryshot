@@ -118,10 +118,20 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 	return {
 		html: /* HTML */ `
 			<li id="${id}" class="form-field" style="display:flex;">
-				<label class="form-field-label">Object detection</label>
+				<label
+					style="
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
+					>Object detection</label
+				>
 				<button class="js-edit-btn form-field-edit-btn">
 					<img
-						class="form-field-edit-btn-img"
+						style="padding: 0.1rem; filter: var(--color-icons);"
 						src="assets/icons/feather/edit-3.svg"
 					/>
 				</button>
@@ -177,10 +187,20 @@ function thresholds(detectors, getDetectorName) {
 		return {
 			html: /* HTML */ `
 				<li class="object-detection-label-wrapper">
-					<label for="${id}" class="object-detection-label">${label}</label>
+					<label
+						for="${id}"
+						style="font-size: 0.7rem; color: var(--color-text);"
+						>${label}</label
+					>
 					<input
 						id="${id}"
-						class="object-detection-threshold"
+						style="
+							margin-left: auto;
+							font-size: 0.6rem;
+							text-align: center;
+							width: 1.4rem;
+							height: 100%;
+						"
 						type="number"
 						value="${val}"
 						min="0"
@@ -285,11 +305,21 @@ function thresholds(detectors, getDetectorName) {
 				class="form-field"
 				style="display:flex; padding-bottom:0.25rem;"
 			>
-				<label class="form-field-label">Thresholds</label>
+				<label
+					style="
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
+					>Thresholds</label
+				>
 				<div style="width:auto">
 					<button class="js-edit-btn form-field-edit-btn">
 						<img
-							class="form-field-edit-btn-img"
+							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -351,52 +381,142 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 		const html = /* HTML */ `
 			<li id="object-detection-crop-preview" class="form-field">
 				<label
-					class="form-field-label"
 					for="object-detection-crop-preview"
-					style="width: auto;"
+					style="
+						flex-grow: 1;
+						float: left;
+						width: auto;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
 					>Preview</label
 				>
 				<div
 					class="js-preview-wrapper"
 					style="position: relative; margin-top: 0.69rem"
 				>
-					<div class="js-feed object-detection-crop-preview-feed">
+					<div
+						class="js-feed"
+						style="
+							width: 100%;
+							min-width: 0;
+							display: flex;
+							background: white;
+						"
+					>
 						${feedHTML}
 					</div>
 					<div class="js-preview-padding" style="background: white;"></div>
 					<svg
-						class="js-object-detection-overlay object-detection-crop-preview-overlay"
+						class="js-object-detection-overlay"
+						style="position: absolute; height: 100%; width: 100%; top: 0;"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
 						style="opacity: 0.7;"
 					></svg>
 				</div>
 			</li>
-			<li class="js-options form-field object-detection-crop-option-wrapper">
-				<div class="js-object-detection-crop-option object-detection-crop-option">
-					<span class="object-detection-crop-option-label">X</span>
+			<li class="js-options form-field" style="display: flex; flex-wrap: wrap;">
+				<div
+					class="js-object-detection-crop-option"
+					style="
+						display: flex;
+						background: var(--color2);
+						padding: 0.15rem;
+						border-radius: 0.15rem;
+						margin-right: 0.2rem;
+						margin-bottom: 0.2rem;
+					"
+				>
+					<span
+						style="
+							font-size: 0.7rem;
+							color: var(--color-text);
+							margin-left: 0.1rem;
+							margin-right: 0.2rem;
+						"
+						>X</span
+					>
 					<input
-						class="js-x object-detection-crop-option-input"
+						class="js-x"
+						style="
+							text-align: center;
+							font-size: 0.5rem;
+							border-style: none;
+							border-radius: 5px;
+							width: 1.4rem;
+						"
 						type="number"
 						min="0"
 						max="100"
 						value="0"
 					/>
 				</div>
-				<div class="js-object-detection-crop-option object-detection-crop-option">
-					<span class="object-detection-crop-option-label">Y</span>
+				<div
+					class="js-object-detection-crop-option"
+					style="
+						display: flex;
+						background: var(--color2);
+						padding: 0.15rem;
+						border-radius: 0.15rem;
+						margin-right: 0.2rem;
+						margin-bottom: 0.2rem;
+					"
+				>
+					<span
+						style="
+							font-size: 0.7rem;
+							color: var(--color-text);
+							margin-left: 0.1rem;
+							margin-right: 0.2rem;
+						"
+						>Y</span
+					>
 					<input
-						class="js-y object-detection-crop-option-input"
+						class="js-y"
+						style="
+							text-align: center;
+							font-size: 0.5rem;
+							border-style: none;
+							border-radius: 5px;
+							width: 1.4rem;
+						"
 						type="number"
 						min="0"
 						max="100"
 						value="0"
 					/>
 				</div>
-				<div class="js-object-detection-crop-option object-detection-crop-option">
-					<span class="object-detection-crop-option-label">size</span>
+				<div
+					class="js-object-detection-crop-option"
+					style="
+						display: flex;
+						background: var(--color2);
+						padding: 0.15rem;
+						border-radius: 0.15rem;
+						margin-right: 0.2rem;
+						margin-bottom: 0.2rem;
+					"
+				>
+					<span
+						style="
+							font-size: 0.7rem;
+							color: var(--color-text);
+							margin-left: 0.1rem;
+							margin-right: 0.2rem;
+						"
+						>size</span
+					>
 					<input
-						class="js-size object-detection-crop-option-input"
+						class="js-size"
+						style="
+							text-align: center;
+							font-size: 0.5rem;
+							border-style: none;
+							border-radius: 5px;
+							width: 1.4rem;
+						"
 						type="number"
 						min="0"
 						max="100"
@@ -523,11 +643,21 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				class="form-field"
 				style="display:flex; padding-bottom:0.25rem;"
 			>
-				<label class="form-field-label">Crop</label>
+				<label
+					style="
+						flex-grow: 1;
+						float: left;
+						width: auto;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
+					>Crop</label
+				>
 				<div style="width:auto">
 					<button class="js-edit-btn form-field-edit-btn">
 						<img
-							class="form-field-edit-btn-img"
+							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -633,29 +763,67 @@ function mask(hasSubStream, getMonitorId) {
 	const renderModal = (feedHTML) => {
 		const html = /* HTML */ `
 			<li class="js-enable object_detection_mask-enabled form-field">
-				<label class="form-field-label" for="object_detection_mask-enable"
+				<label
+					for="object_detection_mask-enable"
+					style="
+						flex-grow: 1;
+						float: left;
+						width: auto;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
 					>Enable mask</label
 				>
-				<div class="form-field-select-container">
-					<select id="modal-enable" class="form-field-select js-input">
+				<div style="display: flex; width: 100%;">
+					<select
+						class="js-input"
+						style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
+					>
 						<option>true</option>
 						<option>false</option>
 					</select>
 				</div>
 			</li>
 			<li id="object_detection_mask-preview" class="form-field">
-				<label class="form-field-label" for="object_detection_mask-preview"
+				<label
+					for="object_detection_mask-preview"
+					style="
+						flex-grow: 1;
+						float: left;
+						width: auto;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
 					>Preview</label
 				>
 				<div
 					class="js-preview-wrapper"
 					style="position: relative; margin-top: 0.69rem"
 				>
-					<div class="js-feed object-detection-crop-preview-feed">
+					<div
+						class="js-feed"
+						style="
+							width: 100%;
+							min-width: 0;
+							display: flex;
+							background: white;
+						"
+					>
 						${feedHTML}
 					</div>
 					<svg
-						class="js-object-detection-overlay object_detection_mask-preview-overlay"
+						class="js-object-detection-overlay"
+						style="
+							position: absolute;
+							height: 100%;
+							width: 100%;
+							top: 0;
+							z-index: 1;
+							user-select: none;
+							overflow: visible;
+						"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
 					></svg>
@@ -665,7 +833,7 @@ function mask(hasSubStream, getMonitorId) {
 				class="form-field"
 				style="display: flex; flex-wrap: wrap; justify-content: space-between"
 			>
-				<div class="object_detection_mask-step-sizes">
+				<div style="display: flex;">
 					<button
 						class="js-1x object_detection_mask-step-size"
 						style="
@@ -699,9 +867,21 @@ function mask(hasSubStream, getMonitorId) {
 						20x
 					</button>
 				</div>
-				<div class="object_detection_mask-xy-wrapper">
-					<input type="number" min="0" max="100" class="js-x" />
-					<input type="number" min="0" max="100" class="js-y" />
+				<div style="display: flex;">
+					<input
+						class="js-x"
+						style="width: 1.3rem; font-size: 0.6rem; text-align: center;"
+						type="number"
+						min="0"
+						max="100"
+					/>
+					<input
+						class="js-y"
+						style="width: 1.3rem; font-size: 0.6rem; text-align: center;"
+						type="number"
+						min="0"
+						max="100"
+					/>
 				</div>
 			</li>
 		`;
@@ -866,11 +1046,21 @@ function mask(hasSubStream, getMonitorId) {
 				class="form-field"
 				style="display:flex; padding-bottom:0.25rem;"
 			>
-				<label class="form-field-label">Mask</label>
+				<label
+					style="
+						flex-grow: 1;
+						float: left;
+						width: auto;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
+					>Mask</label
+				>
 				<div style="width:auto">
 					<button class="js-edit-btn form-field-edit-btn color2">
 						<img
-							class="form-field-edit-btn-img"
+							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -983,72 +1173,9 @@ $style.innerHTML = `
 	.object-detection-label-wrapper:first-child {
 		border-top-style: none;
 	}
-	.object-detection-label {
-		font-size: 0.7rem;
-		color: var(--color-text);
-	}
-	.object-detection-threshold {
-		margin-left: auto;
-		font-size: 0.6rem;
-		text-align: center;
-		width: 1.4rem;
-		height: 100%;
-	}
-
-	/* Crop. */
-	.object-detection-crop-preview-feed {
-		width: 100%;
-		min-width: 0;
-		display: flex;
-		background: white;
-	}
-	.object-detection-crop-preview-overlay {
-		position: absolute;
-		height: 100%;
-		width: 100%;
-		top: 0;
-	}
-	.object-detection-crop-option-wrapper {
-		display: flex;
-		flex-wrap: wrap;
-	}
-	.object-detection-crop-option {
-		display: flex;
-		background: var(--color2);
-		padding: 0.15rem;
-		border-radius: 0.15rem;
-		margin-right: 0.2rem;
-		margin-bottom: 0.2rem;
-	}
-	.object-detection-crop-option-label {
-		font-size: 0.7rem;
-		color: var(--color-text);
-		margin-left: 0.1rem;
-		margin-right: 0.2rem;
-	}
-	.object-detection-crop-option-input {
-		text-align: center;
-		font-size: 0.5rem;
-		border-style: none;
-		border-radius: 5px;
-		width: 1.4rem;
-	}
 
 	/* Mask. */
-	.object_detection_mask-preview-overlay {
-		position: absolute;
-		height: 100%;
-		width: 100%;
-		top: 0;
-		z-index: 1;
-		user-select: none;
-		overflow: visible;
-	}
 
-
-	.object_detection_mask-step-sizes {
-		display: flex;
-	}
 
 	.object_detection_mask-step-size {
 		background: var(--color2);
@@ -1065,16 +1192,6 @@ $style.innerHTML = `
 
 	.object_detection_mask-step-size-selected {
 		background: var(--color1);
-	}
-
-
-	.object_detection_mask-xy-wrapper {
-		display: flex;
-	}
-	.object_detection_mask-xy-wrapper > input {
-		width: 1.3rem;
-		font-size: 0.6rem;
-		text-align: center;
 	}
 `;
 

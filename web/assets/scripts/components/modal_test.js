@@ -17,25 +17,44 @@ test("newModal", () => {
 	modal.open();
 
 	expect(document.querySelector(".modal").innerHTML).toMatchInlineSnapshot(`
-		<header class="modal-header">
-		  <span class="modal-title">
-		    test
-		  </span>
-		  <button class="modal-close-btn">
-		    <img class="modal-close-icon"
-		         src="assets/icons/feather/x.svg"
-		    >
-		  </button>
-		</header>
-		<div class="modal-content">
-		  a
-		</div>
-	`);
+<header class="modal-header">
+  <span style="
+								width: 100%;
+								padding-left: 0.7rem;
+								color: var(--color-text);
+								font-size: 0.8rem;
+								text-align: center;
+							">
+    test
+  </span>
+  <button class="js-modal-close-btn"
+          style="
+								display: flex;
+								margin: auto;
+								background: var(--color3);
+								border-radius: 0.1rem;
+							"
+  >
+    <img style="height: 0.9rem; filter: var(--color-icons);"
+         src="assets/icons/feather/x.svg"
+    >
+  </button>
+</header>
+<div class="js-modal-content"
+     style="
+							height: 100%;
+							overflow-y: visible;
+							background: var(--color3);
+						"
+>
+  a
+</div>
+`);
 
 	expect(modal.isOpen()).toBe(true);
 	expect(onCloseCalled).toBe(false);
 
-	document.querySelector(".modal-close-btn").click();
+	document.querySelector(".js-modal-close-btn").click();
 	expect(modal.isOpen()).toBe(false);
 	expect(onCloseCalled).toBe(true);
 });
@@ -56,37 +75,83 @@ test("modalSelect", () => {
 	expect(modal.isOpen()).toBe(true);
 
 	expect(element.innerHTML).toMatchInlineSnapshot(`
-		<div id="uid1"
-		     class="modal-wrapper modal-open"
-		>
-		  <div class="modal js-modal">
-		    <header class="modal-header">
-		      <span class="modal-title">
-		        x
-		      </span>
-		      <button class="modal-close-btn">
-		        <img class="modal-close-icon"
-		             src="assets/icons/feather/x.svg"
-		        >
-		      </button>
-		    </header>
-		    <div class="modal-content">
-		      <div class="js-selector modal-select">
-		        <span data="m1"
-		              class="js-option modal-select-option"
-		        >
-		          m1
-		        </span>
-		        <span data="m2"
-		              class="js-option modal-select-option"
-		        >
-		          m2
-		        </span>
-		      </div>
-		    </div>
-		  </div>
-		</div>
-	`);
+<div id="uid1"
+     style="
+					position: fixed;
+					top: 0;
+					left: 0;
+					z-index: 20;
+					display: none;
+					width: 100%;
+					height: 100%;
+					overflow-y: auto;
+					background-color: rgb(0 0 0 / 40%);
+				"
+     class="modal-open"
+>
+  <div class="modal js-modal">
+    <header class="modal-header">
+      <span style="
+								width: 100%;
+								padding-left: 0.7rem;
+								color: var(--color-text);
+								font-size: 0.8rem;
+								text-align: center;
+							">
+        x
+      </span>
+      <button class="js-modal-close-btn"
+              style="
+								display: flex;
+								margin: auto;
+								background: var(--color3);
+								border-radius: 0.1rem;
+							"
+      >
+        <img style="height: 0.9rem; filter: var(--color-icons);"
+             src="assets/icons/feather/x.svg"
+        >
+      </button>
+    </header>
+    <div class="js-modal-content"
+         style="
+							height: 100%;
+							overflow-y: visible;
+							background: var(--color3);
+						"
+    >
+      <div class="js-selector modal-select">
+        <span data="m1"
+              class="js-option"
+              style="
+						padding: 0 0.2rem;
+						color: var(--color-text);
+						font-size: 0.8rem;
+						border-width: 0.01rem;
+						border-style: solid;
+						border-color: var(--color1);
+					"
+        >
+          m1
+        </span>
+        <span data="m2"
+              class="js-option"
+              style="
+						padding: 0 0.2rem;
+						color: var(--color-text);
+						font-size: 0.8rem;
+						border-width: 0.01rem;
+						border-style: solid;
+						border-color: var(--color1);
+					"
+        >
+          m2
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+`);
 
 	const item1 = document.querySelector(".js-option[data='m1']");
 	const item2 = document.querySelector(".js-option[data='m2']");

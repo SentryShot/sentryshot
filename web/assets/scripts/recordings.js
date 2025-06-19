@@ -268,7 +268,7 @@ function init() {
 	const { tz, monitorsInfo, monitorGroups, isAdmin, csrfToken } = globals();
 
 	const monitorNameByID = newMonitorNameByID(monitorsInfo);
-	const $grid = document.querySelector("#content-grid");
+	const $grid = document.querySelector("#js-content-grid");
 	const viewer = newViewer(monitorNameByID, $grid, tz, isAdmin, csrfToken);
 
 	const hashMonitors = getHashParam("monitors").split(",");
@@ -293,7 +293,7 @@ function init() {
 	window.addEventListener("resize", viewer.lazyLoadRecordings);
 	window.addEventListener("orientation", viewer.lazyLoadRecordings);
 	document
-		.querySelector("#content-grid-wrapper")
+		.querySelector("#js-content-grid-wrapper")
 		.addEventListener("scroll", viewer.lazyLoadRecordings);
 
 	window.addEventListener("keydown", (e) => {

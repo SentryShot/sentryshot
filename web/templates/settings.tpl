@@ -45,9 +45,9 @@
 </head>
 <body>
 	{% include "sidebar" %}
-	<div class="js-content" id="content">
+	<div id="content" class="js-content" style="display: flex; overflow-x: hidden;">
 		<nav id="js-settings-navbar" class="settings-navbar">
-			<ul id="settings-navbar-nav"></ul>
+			<ul style="height: 100%; overflow-y: auto;"></ul>
 		</nav>
 	</div>
 </body>

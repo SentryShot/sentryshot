@@ -93,64 +93,210 @@ function newPlayer(data, isAdmin, token) {
 	const fileName = `${dateString}_${timeString}_${d.name}.mp4`;
 
 	const topOverlayHTML = /* HTML */ `
-		<span class="player-menu-text js-date">${dateString}</span>
-		<span class="player-menu-text js-time">${timeString}</span>
-		<span class="player-menu-text">${d.name}</span>
+		<span
+			class="js-date"
+			style="
+				padding: 0.05em 0.4em 0.05em 0.2em;
+				color: var(--color-text);
+				font-size: 40%;
+				background: var(--colorbg);
+			"
+			>${dateString}</span
+		>
+		<span
+			class="js-time"
+			style="
+				padding: 0.05em 0.4em 0.05em 0.2em;
+				color: var(--color-text);
+				font-size: 40%;
+				background: var(--colorbg);
+			"
+			>${timeString}</span
+		>
+		<span
+			style="
+				padding: 0.05em 0.4em 0.05em 0.2em;
+				color: var(--color-text);
+				font-size: 40%;
+				background: var(--colorbg);
+			"
+			>${d.name}</span
+		>
 	`;
 
 	const thumbHTML = /* HTML */ `
-		<img class="grid-item" src="${d.thumbPath}" />
-		<div class="player-overlay-top player-top-bar">${topOverlayHTML}</div>
+		<img
+			style="
+				width: 100%;
+				height: 100%;
+				max-height: 100vh;
+				object-fit: contain;
+			"
+			src="${d.thumbPath}"
+		/>
+		<div
+			class="js-top-overlay"
+			style="
+				display: flex;
+				flex-wrap: wrap;
+				opacity: 0.8;
+				position: absolute;
+				top: 0;
+				left: 0;
+				margin-right: auto;
+			"
+		>
+			${topOverlayHTML}
+		</div>
 		${renderTimeline(d)}
 	`;
 
 	const videoHTML = /* HTML */ `
 		<video
-			class="grid-item"
+			style="
+				width: 100%;
+				height: 100%;
+				max-height: 100vh;
+				object-fit: contain;
+			"
 			disablePictureInPicture
 		>
 			<source src="${d.videoPath}" type="video/mp4" />
 		</video>
 		${detectionRenderer.html}
 		<input class="player-overlay-checkbox" id="${elementID}-overlay-checkbox" type="checkbox">
-		<label class="player-overlay-selector" for="${elementID}-overlay-checkbox"></label>
+		<label
+			for="${elementID}-overlay-checkbox"
+			style="
+				position: absolute;
+				z-index: 1;
+				width: 100%;
+				height: 100%;
+				opacity: 0.5;
+			"
+		></label>
 		<div class="player-overlay">
-			<button class="player-play-btn">
-				<img src="${iconPlayPath}"/>
+			<button
+				class="js-play-btn"
+				style="
+					padding: 0.2rem;
+					font-size: 0;
+					background: var(--colorbg);
+					border-radius: 50%;
+					opacity: 0.8;
+				"
+			>
+				<img
+					style="aspect-ratio: 1; height: 0.8rem; filter: invert(90%);"
+					src="${iconPlayPath}"
+				/>
 			</button>
 		</div>
-		<div class="player-overlay player-overlay-bottom">
+		<div
+			class="player-overlay"
+			style="
+				position: absolute;
+				bottom: 4%;
+				width: 100%;
+				height: 0.6rem;
+				min-height: 3.5%;
+			"
+		>
 			${renderTimeline(d)}
-			<progress class="player-progress" value="0" min="0">
-				<span class="player-progress-bar">
+			<progress
+				class="js-progress"
+				style="
+					box-sizing: border-box;
+					width: 100%;
+					width: var(--player-timeline-width);
+					padding-top: 0.1rem;
+					padding-bottom: 0.1rem;
+					background: rgb(0 0 0 / 0%);
+					opacity: 0.8;
+					user-select: none;
+				"
+				value="0"
+				min="0"
+			>
+				<span class="js-progress-bar">
 			</progress>
 			<button class="player-options-open-btn">
-				<div class="player-options-open-btn-icon">
+				<div
+					style="
+						width: 0.4rem;
+						margin: auto;
+						background: var(--colorbg);
+						border-radius: 0.1rem;
+					"
+				>
 					<img
-						class="player-options-open-btn-img"
+						style="width: 0.4rem; height: 0.8rem; filter: invert(90%);"
 						src="assets/icons/feather/more-vertical-slim.svg"
 					>
 				</div>
 			</button>
-			<div class="js-popup player-options-popup">
+			<div
+				class="js-popup"
+				style="
+					position: absolute;
+					right: 0.2rem;
+					bottom: 1.75rem;
+					display: none;
+					grid-gap: 0.2rem;
+					padding: 0.1rem;
+					font-size: 0;
+					background: var(--colorbg);
+					border-radius: 0.15rem;
+					opacity: 0.8;
+				"
+			>
 				${
 					isAdmin
 						? `
-				<button class="js-delete player-options-btn">
-					<img src="assets/icons/feather/trash-2.svg">
+				<button class="js-delete" style="background-color: rgb(0 0 0 / 0%);">
+					<img
+						style="aspect-ratio: 1; width: 0.8rem; filter: var(--color-icons);"
+						src="assets/icons/feather/trash-2.svg"
+					>
 				</button>`
 						: ""
 				}
-				<a download="${fileName}" href="${d.videoPath}" class="player-options-btn">
-					<img src="assets/icons/feather/download.svg">
+				<a
+					download="${fileName}"]
+					href="${d.videoPath}"
+					style="background-color: rgb(0 0 0 / 0%);"
+				>
+					<img
+						style="aspect-ratio: 1; width: 0.8rem; filter: var(--color-icons);"
+						src="assets/icons/feather/download.svg"
+					>
 				</a>
-				<button class="js-fullscreen player-options-btn">
-					<img src="${iconMaximizePath}">
+				<button class="js-fullscreen" style="background-color: rgb(0 0 0 / 0%);">
+					<img
+						style="aspect-ratio: 1; width: 0.8rem; filter: var(--color-icons);"
+						src="${iconMaximizePath}"
+					>
 				</button>
 			</div>
 		</div>
-		<div class="player-overlay player-overlay-top">
-			<div class="player-top-bar">
+		<div
+			class="player-overlay"
+			style="
+				position: absolute;
+				top: 0;
+				left: 0;
+				display: flex;
+				margin-right: auto;
+			"
+		>
+			<div
+				class="js-top-overlay"
+				style="
+					display: flex;
+					flex-wrap: wrap;
+					opacity: 0.8;
+				"
+			>
 				${topOverlayHTML}
 			</div>
 		</div>
@@ -169,7 +315,7 @@ function newPlayer(data, isAdmin, token) {
 		const $video = element.querySelector("video");
 
 		// Play/Pause.
-		const $playpause = element.querySelector(".player-play-btn");
+		const $playpause = element.querySelector(".js-play-btn");
 		const $playpauseImg = $playpause.querySelector("img");
 		/** @type {HTMLInputElement} */
 		const $checkbox = element.querySelector(".player-overlay-checkbox");
@@ -191,8 +337,8 @@ function newPlayer(data, isAdmin, token) {
 		let videoDuration;
 
 		/** @type {HTMLProgressElement} */
-		const $progress = element.querySelector(".player-progress");
-		const $topOverlay = element.querySelector(".player-top-bar");
+		const $progress = element.querySelector(".js-progress");
+		const $topOverlay = element.querySelector(".js-top-overlay");
 
 		$video.addEventListener("loadedmetadata", () => {
 			videoDuration = $video.duration;
@@ -201,7 +347,7 @@ function newPlayer(data, isAdmin, token) {
 		const updateProgress = (newTime) => {
 			$progress.value = newTime;
 			/** @type {HTMLElement} */
-			const $progressBar = $progress.querySelector(".player-progress-bar");
+			const $progressBar = $progress.querySelector(".js-progress-bar");
 			$progressBar.style.width = `${Math.floor((newTime / videoDuration) * 100)}%`;
 
 			const newDate = new Date(start.getTime());
@@ -224,7 +370,7 @@ function newPlayer(data, isAdmin, token) {
 		});
 
 		// Popup
-		const $popup = element.querySelector(".player-options-popup");
+		const $popup = element.querySelector(".js-popup");
 		const $popupOpen = element.querySelector(".player-options-open-btn");
 		const $fullscreen = $popup.querySelector(".js-fullscreen");
 		$fullscreenImg = $fullscreen.querySelector("img");
@@ -269,7 +415,22 @@ function newPlayer(data, isAdmin, token) {
 	return {
 		html: /* HTML */ `
 			<div style="display: flex; justify-content: center;">
-				<div id="${elementID}" class="grid-item-container">${thumbHTML}</div>
+				<div
+					id="${elementID}"
+					class=""
+					style="
+						position: relative;
+						display: flex;
+						justify-content: center;
+						align-items: center;
+						width: 100%;
+						max-height: 100vh;
+						align-self: center;
+						--player-timeline-width: 90%;
+					"
+				>
+					${thumbHTML}
+				</div>
 			</div>
 		`,
 		init(onLoad) {
@@ -354,7 +515,17 @@ function renderTimeline(data) {
 	}
 
 	return /* HTML */ `
-		<svg class="player-timeline" viewBox="0 0 100 100" preserveAspectRatio="none">
+		<svg
+			style="
+				position: absolute;
+				bottom: 0;
+				width: var(--player-timeline-width);
+				height: 0.6rem;
+				fill: var(--color-red);
+			"
+			viewBox="0 0 100 100"
+			preserveAspectRatio="none"
+		>
 			${svg}
 		</svg>
 	`;
@@ -378,7 +549,12 @@ function newDetectionRenderer(startTimeMs, events) {
 
 		const textY = y > 10 ? y - 2 : y + height + 5;
 		return /* HTML */ `
-			<text x="${x}" y="${textY}" font-size="5" class="player-detection-text">
+			<text
+				x="${x}"
+				y="${textY}"
+				font-size="5"
+				style="fill-opacity: 1; fill: var(--color-red); stroke-opacity: 0;"
+			>
 				${label} ${Math.round(score)}%
 			</text>
 			<rect x="${x}" width="${width}" y="${y}" height="${height}" />
@@ -405,7 +581,15 @@ function newDetectionRenderer(startTimeMs, events) {
 	return {
 		html: /* HTML */ `
 			<svg
-				class="js-detections player-detections"
+				class="js-detections"
+				style="
+					position: absolute;
+					width: 100%;
+					height: 100%;
+					stroke: var(--color-red);
+					fill-opacity: 0;
+					stroke-width: 0.015rem;
+				"
 				viewBox="0 0 100 100"
 				preserveAspectRatio="none"
 			></svg>

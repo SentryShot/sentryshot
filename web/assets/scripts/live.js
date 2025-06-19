@@ -147,7 +147,7 @@ function resBtn(content) {
 function init() {
 	const { monitorGroups, monitorsInfo } = globals();
 
-	const $contentGrid = document.querySelector("#content-grid");
+	const $contentGrid = document.querySelector("#js-content-grid");
 	const viewer = newViewer($contentGrid, monitorsInfo);
 
 	const buttons = [newOptionsBtn.gridSize(viewer), resBtn(viewer)];

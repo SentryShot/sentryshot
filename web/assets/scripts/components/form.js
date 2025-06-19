@@ -112,7 +112,7 @@ function newForm(fields) {
 			return /* HTML */ `
 				<ul class="form" style="padding: 0 0.1rem;">
 					${htmlFields}
-					<div class="form-button-wrapper">${htmlButtons}</div>
+					<div style="display: flex;">${htmlButtons}</div>
 				</ul>
 			`;
 		},
@@ -162,8 +162,17 @@ function newSaveBtn(onClick) {
 	let element;
 	return {
 		html: /* HTML */ `
-			<button id="${id}" class="form-button save-btn">
-				<span>Save</span>
+			<button
+				id="${id}"
+				class="save-btn"
+				style="
+					margin: 0.2rem;
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					border-radius: 0.2rem;
+				"
+			>
+				<span style="color: var(--color-text); font-size: 0.7rem;">Save</span>
 			</button>
 		`,
 		init() {
@@ -189,8 +198,18 @@ function newDeleteBtn(onClick) {
 	let element;
 	return {
 		html: /* HTML */ `
-			<button id="${id}" class="form-button delete-btn">
-				<span>Delete</span>
+			<button
+				id="${id}"
+				class="delete-btn"
+				style="
+					margin: 0.2rem;
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					border-radius: 0.2rem;
+					margin-left: auto;
+				"
+			>
+				<span style="color: var(--color-text); font-size: 0.7rem;">Delete</span>
 			</button>
 		`,
 		init() {
@@ -500,7 +519,14 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		body = /* HTML */ `
 			<input
 				id="${id}"
-				class="js-input settings-input-text"
+				class="js-input"
+				style="
+					width: 100%;
+					height: 1rem;
+					overflow: auto;
+					font-size: 0.5rem;
+					text-indent: 0.2rem;
+				"
 				type="${input}"
 				placeholder="${placeholder}"
 				${min}
@@ -514,13 +540,25 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			options += `\n<option>${option}</option>`;
 		}
 		body = /* HTML */ `
-			<div class="form-field-select-container">
-				<select id="${id}" class="js-input form-field-select">
+			<div style="display: flex; width: 100%;">
+				<select
+					id="${id}"
+					class="js-input"
+					style="
+						padding-left: 0.2rem;
+						width: 100%;
+						height: 1rem;
+						font-size: 0.5rem;
+					"
+				>
 					${options}
 				</select>
 				${custom
 					? `<button class="js-edit-btn form-field-edit-btn">
-					<img class="form-field-edit-btn-img" src="assets/icons/feather/edit-3.svg"/>
+					<img
+						style="padding: 0.1rem; filter: var(--color-icons);"
+						src="assets/icons/feather/edit-3.svg"
+					/>
 				</button>`
 					: ""}
 			</div>
@@ -529,8 +567,21 @@ function newHTMLfield(options, id, label, placeholder = "") {
 
 	return /* HTML */ `
 		<li id="js-${id}" class="${errorField ? "form-field-error" : "form-field"}">
-			<label for="${id}" class="form-field-label">${label}</label>${body}
-			${errorField ? '<span class="settings-error js-error"></span>' : ""}
+			<label
+				for="${id}"
+				style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+				>${label}</label
+			>${body}
+			${errorField
+				? '<span class="js-error" style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"></span>'
+				: ""}
 		</li>
 	`;
 }
@@ -674,9 +725,34 @@ function newPasswordField() {
 	const passwordHTML = (id, label) => {
 		return /* HTML */ `
 			<li id="js-${id}" class="form-field-error">
-				<label for="${id}" class="form-field-label">${label}</label>
-				<input id="${id}" class="js-input settings-input-text" type="password" />
-				<span class="settings-error js-error"></span>
+				<label
+					for="${id}"
+					style="
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						color: var(--color-text);
+						font-size: 0.6rem;
+					"
+					>${label}</label
+				>
+				<input
+					id="${id}"
+					class="js-input"
+					style="
+						width: 100%;
+						height: 1rem;
+						overflow: auto;
+						font-size: 0.5rem;
+						text-indent: 0.2rem;
+					"
+					type="password"
+				/>
+				<span
+					class="js-error"
+					style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+				></span>
 			</li>
 		`;
 	};

@@ -26,15 +26,36 @@
 </head>
 <body>
 	{% include "sidebar" %}
-	<div class="js-content" id="content">
+	<div
+		id="content"
+		class="js-content"
+		style="display: flex; overflow-x: hidden; background: var(--color2);"
+	>
 		<div class="log-sidebar js-sidebar"></div>
 		<div class="log-list-wrapper js-list">
 			<div id="log-menubar">
-				<nav id="log-back-btn" class="js-back">
-					<img src="assets/icons/feather/arrow-left.svg" />
+				<nav class="js-back" style="width: 1.4rem">
+					<img
+						style="
+							width: 1.1rem;
+							height: 1.1rem;
+							padding: var(--icon-padding);
+							filter: var(--color-icons);
+						"
+						src="assets/icons/feather/arrow-left.svg"
+					/>
 				</nav>
 			</div>
-			<div id="js-log-lists" class="log-lists"></div>
+			<div
+				id="js-log-lists"
+				style="
+					color: var(--color-text);
+					font-size: 0.5rem;
+					word-wrap: break-word;
+					background: var(--color3);
+					overflow-y: auto;
+				"
+			></div>
 		</div>
 	</div>
 </body>
@@ -42,30 +63,14 @@
 	#nav-link-logs {
 		background: var(--color1-hover);
 	}
-	#content {
-		display: flex;
-		overflow-x: hidden;
-		background: var(--color2);
-	}
+
 	.log-sidebar {
 		flex-shrink: 0;
 		width: 100%;
 		height: 100%;
 		overflow-y: auto;
 	}
-	.source-fields {
-		position: relative;
-	}
-	.log-selector-item {
-		display: flex;
-		align-items: center;
-		min-width: 1px;
-	}
-	.log-selector-label {
-		margin-left: 0.2rem;
-		color: var(--color-text);
-		font-size: 0.5rem;
-	}
+
 	.checkbox-checkbox:checked ~ .checkbox-box {
 		background: var(--color3);
 	}
@@ -86,15 +91,7 @@
 		height: var(--barsize);
 		background: var(--color2);
 	}
-	#log-back-btn {
-		width: 1.4rem;
-	}
-	#log-back-btn img {
-		width: 1.1rem;
-		height: 1.1rem;
-		padding: var(--icon-padding);
-		filter: var(--color-icons);
-	}
+
 	.log-list-wrapper {
 		position: absolute;
 		z-index: 1;
@@ -110,13 +107,7 @@
 	.log-list-open {
 		transform: none;
 	}
-	.log-lists {
-		color: var(--color-text);
-		font-size: 0.5rem;
-		word-wrap: break-word;
-		background: var(--color3);
-		overflow-y: auto;
-	}
+
 	.log-list > span {
 		border-color: var(--color4);
 		border-bottom: solid;

@@ -114,61 +114,74 @@ describe("MultiSelect", () => {
 	test("rendering", () => {
 		const [element] = setup();
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-			<li id="uid4"
-			    class="form-field"
-			>
-			  <label class="form-field-label">
-			    test
-			  </label>
-			  <div class="source-fields">
-			    <div class="log-selector-item item-uid1">
-			      <div class="checkbox">
-			        <input class="checkbox-checkbox"
-			               type="checkbox"
-			        >
-			        <div class="checkbox-box">
-			        </div>
-			        <img class="checkbox-check"
-			             src="assets/icons/feather/check.svg"
-			        >
-			      </div>
-			      <span class="log-selector-label">
-			        a
-			      </span>
-			    </div>
-			    <div class="log-selector-item item-uid2">
-			      <div class="checkbox">
-			        <input class="checkbox-checkbox"
-			               type="checkbox"
-			        >
-			        <div class="checkbox-box">
-			        </div>
-			        <img class="checkbox-check"
-			             src="assets/icons/feather/check.svg"
-			        >
-			      </div>
-			      <span class="log-selector-label">
-			        b
-			      </span>
-			    </div>
-			    <div class="log-selector-item item-uid3">
-			      <div class="checkbox">
-			        <input class="checkbox-checkbox"
-			               type="checkbox"
-			        >
-			        <div class="checkbox-box">
-			        </div>
-			        <img class="checkbox-check"
-			             src="assets/icons/feather/check.svg"
-			        >
-			      </div>
-			      <span class="log-selector-label">
-			        c
-			      </span>
-			    </div>
-			  </div>
-			</li>
-		`);
+<li id="uid4"
+    class="form-field"
+>
+  <label style="
+					   flex-grow: 1;
+					   float: left;
+					   width: 100%;
+					   min-width: 4rem;
+					   color: var(--color-text);
+					   font-size: 0.6rem;
+					">
+    test
+  </label>
+  <div style="position: relative;">
+    <div class="item-uid1"
+         style="display: flex; align-items: center; min-width: 1px;"
+    >
+      <div class="checkbox">
+        <input class="checkbox-checkbox"
+               type="checkbox"
+        >
+        <div class="checkbox-box">
+        </div>
+        <img class="checkbox-check"
+             src="assets/icons/feather/check.svg"
+        >
+      </div>
+      <span style="margin-left: 0.2rem; color: var(--color-text); font-size: 0.5rem;">
+        a
+      </span>
+    </div>
+    <div class="item-uid2"
+         style="display: flex; align-items: center; min-width: 1px;"
+    >
+      <div class="checkbox">
+        <input class="checkbox-checkbox"
+               type="checkbox"
+        >
+        <div class="checkbox-box">
+        </div>
+        <img class="checkbox-check"
+             src="assets/icons/feather/check.svg"
+        >
+      </div>
+      <span style="margin-left: 0.2rem; color: var(--color-text); font-size: 0.5rem;">
+        b
+      </span>
+    </div>
+    <div class="item-uid3"
+         style="display: flex; align-items: center; min-width: 1px;"
+    >
+      <div class="checkbox">
+        <input class="checkbox-checkbox"
+               type="checkbox"
+        >
+        <div class="checkbox-box">
+        </div>
+        <img class="checkbox-check"
+             src="assets/icons/feather/check.svg"
+        >
+      </div>
+      <span style="margin-left: 0.2rem; color: var(--color-text); font-size: 0.5rem;">
+        c
+      </span>
+    </div>
+  </div>
+</li>
+`);
 	});
 	test("set", () => {
 		const [element, field] = setup();
@@ -287,30 +300,44 @@ describe("logSelector", () => {
 		logSelector.init(element);
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-			<div class="js-sidebar">
-			  <ul class="form"
-			      style="padding: 0 0.1rem;"
-			  >
-			    levelHTMLsourcesHTMLmonitorHTML
-			    <div class="form-button-wrapper">
-			    </div>
-			  </ul>
-			  <div>
-			    <button class="form-button log-reset-btn js-reset">
-			      <span>
-			        Reset
-			      </span>
-			    </button>
-			    <button class="form-button log-apply-btn js-apply">
-			      <span>
-			        Apply
-			      </span>
-			    </button>
-			  </div>
-			</div>
-			<div class="js-back">
-			</div>
-		`);
+<div class="js-sidebar">
+  <ul class="form"
+      style="padding: 0 0.1rem;"
+  >
+    levelHTMLsourcesHTMLmonitorHTML
+    <div style="display: flex;">
+    </div>
+  </ul>
+  <div>
+    <button class="log-reset-btn js-reset"
+            style="
+				   margin: 0.2rem;
+				   padding-left: 0.1rem;
+				   padding-right: 0.1rem;
+				   border-radius: 0.2rem;
+				"
+    >
+      <span style="color: var(--color-text); font-size: 0.7rem;">
+        Reset
+      </span>
+    </button>
+    <button class="log-apply-btn js-apply"
+            style="
+				   margin: 0.2rem;
+				   padding-left: 0.1rem;
+				   padding-right: 0.1rem;
+				   border-radius: 0.2rem;
+				"
+    >
+      <span style="color: var(--color-text); font-size: 0.7rem;">
+        Apply
+      </span>
+    </button>
+  </div>
+</div>
+<div class="js-back">
+</div>
+`);
 	});
 
 	describe("logic", () => {

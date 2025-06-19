@@ -484,7 +484,10 @@ function newMultiSelect(label, values, initial) {
 		let $checkbox;
 		return {
 			html: /* HTML */ `
-				<div class="log-selector-item item-${id}">
+				<div
+					class="item-${id}"
+					style="display: flex; align-items: center; min-width: 1px;"
+				>
 					<div class="checkbox">
 						<input class="checkbox-checkbox" type="checkbox" />
 						<div class="checkbox-box"></div>
@@ -493,11 +496,14 @@ function newMultiSelect(label, values, initial) {
 							src="assets/icons/feather/check.svg"
 						/>
 					</div>
-					<span class="log-selector-label">${name}</span>
+					<span
+						style="margin-left: 0.2rem; color: var(--color-text); font-size: 0.5rem;"
+						>${name}</span
+					>
 				</div>
 			`,
 			init() {
-				$checkbox = document.querySelector(`.item-${id} .checkbox-checkbox`);
+				$checkbox = document.querySelector(`.item-${id} input`);
 			},
 			set(input) {
 				$checkbox.checked = input;
@@ -537,8 +543,18 @@ function newMultiSelect(label, values, initial) {
 	return {
 		html: /* HTML */ `
 			<li id="${id}" class="form-field">
-				<label class="form-field-label">${label}</label>
-				<div class="source-fields">${htmlFields}</div>
+				<label
+					style="
+					   flex-grow: 1;
+					   float: left;
+					   width: 100%;
+					   min-width: 4rem;
+					   color: var(--color-text);
+					   font-size: 0.6rem;
+					"
+					>${label}</label
+				>
+				<div style="position: relative;">${htmlFields}</div>
 			</li>
 		`,
 		init() {
@@ -607,14 +623,28 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 	return {
 		html: /* HTML */ `
 			<li id="${elementID}" class="form-field">
-				<label for="${inputID}" class="form-field-label">Monitor</label>
-				<div class="form-field-select-container">
-					<select id="${inputID}" class="form-field-select">
+				<label
+					for="${inputID}"
+					style="
+					   flex-grow: 1;
+					   float: left;
+					   width: 100%;
+					   min-width: 4rem;
+					   color: var(--color-text);
+					   font-size: 0.6rem;
+					"
+					>Monitor</label
+				>
+				<div style="display: flex; width: 100%;">
+					<select
+						id="${inputID}"
+						style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
+					>
 						${options}
 					</select>
-					<button class="js-edit-btn form-field-edit-btn color3">
+					<button class="js-edit-btn form-field-edit-btn">
 						<img
-							class="form-field-edit-btn-img"
+							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/video.svg"
 						/>
 					</button>
@@ -706,11 +736,27 @@ function newLogSelector(logger, formFields) {
 	const html = /* HTML */ `
 		${form.html()}
 		<div>
-			<button class="form-button log-reset-btn js-reset">
-				<span>Reset</span>
+			<button
+				class="log-reset-btn js-reset"
+				style="
+				   margin: 0.2rem;
+				   padding-left: 0.1rem;
+				   padding-right: 0.1rem;
+				   border-radius: 0.2rem;
+				"
+			>
+				<span style="color: var(--color-text); font-size: 0.7rem;">Reset</span>
 			</button>
-			<button class="form-button log-apply-btn js-apply">
-				<span>Apply</span>
+			<button
+				class="log-apply-btn js-apply"
+				style="
+				   margin: 0.2rem;
+				   padding-left: 0.1rem;
+				   padding-right: 0.1rem;
+				   border-radius: 0.2rem;
+				"
+			>
+				<span style="color: var(--color-text); font-size: 0.7rem;">Apply</span>
 			</button>
 		</div>
 	`;

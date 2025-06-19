@@ -40,8 +40,11 @@
 <body>
 	{% include "sidebar" %}
 	<div id="content">
-		<div id="content-grid-wrapper">
-			<div id="content-grid"></div>
+		<div style="height: 100%; overflow-y: auto;">
+			<div
+				id="js-content-grid"
+				style="display: grid; grid-template-columns: repeat(var(--gridsize), 1fr);"
+			></div>
 		</div>
 	</div>
 </body>

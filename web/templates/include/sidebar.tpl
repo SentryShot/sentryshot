@@ -1,11 +1,40 @@
 <input type="checkbox" id="sidebar-checkbox" />
 <header id="topbar">
-	<div class="topbar-btn">
-		<img class="icon" src="assets/icons/feather/menu.svg" />
+	<div
+		class="topbar-btn"
+		style="
+			display: flex;
+			flex-shrink: 0;
+			justify-content: center;
+			align-items: center;
+			width: var(--topbar-height);
+			height: var(--topbar-height);
+		"
+	>
+		<img
+			class="icon"
+			style="aspect-ratio: 1; height: 0.9rem"
+			src="assets/icons/feather/menu.svg"
+		/>
 	</div>
 	<h1 id="current-page">{{ current_page }}</h1>
-	<div id="topbar-options-btn" class="topbar-btn">
-		<img class="icon" src="assets/icons/feather/sliders.svg" />
+	<div
+		id="topbar-options-btn"
+		class="topbar-btn"
+		style="
+			display: flex;
+			flex-shrink: 0;
+			justify-content: center;
+			align-items: center;
+			width: var(--topbar-height);
+			height: var(--topbar-height);
+		"
+	>
+		<img
+			class="icon"
+			style="aspect-ratio: 1; height: 0.9rem"
+			src="assets/icons/feather/sliders.svg"
+		/>
 	</div>
 </header>
 
@@ -20,7 +49,7 @@
 	<div class="nav-link" id="nav-btn">
 		<img class="icon" src="assets/icons/feather/x.svg" />
 	</div>
-	<nav id="navbar">
+	<nav style="display: flex; flex-direction: column; height: 100%; overflow-x: hidden">
 		<a href="live" id="nav-link-live" class="nav-link">
 			<img class="icon" src="assets/icons/feather/video.svg" />
 			<span class="nav-text">Live</span>
@@ -30,22 +59,15 @@
 			<span class="nav-text">Recordings</span>
 		</a>
 		{% if is_admin %}
-			<a href="settings" id="nav-link-settings" class="nav-link">
-				<img class="icon" src="assets/icons/feather/settings.svg" />
-				<span class="nav-text">Settings</span>
-			</a>
-			<a href="logs" id="nav-link-logs" class="nav-link">
-				<img class="icon" src="assets/icons/feather/book-open.svg" />
-				<span class="nav-text">Logs</span>
-			</a>
+		<a href="settings" id="nav-link-settings" class="nav-link">
+			<img class="icon" src="assets/icons/feather/settings.svg" />
+			<span class="nav-text">Settings</span>
+		</a>
+		<a href="logs" id="nav-link-logs" class="nav-link">
+			<img class="icon" src="assets/icons/feather/book-open.svg" />
+			<span class="nav-text">Logs</span>
+		</a>
 		{% endif %}
-		<!-- <div id="logout">
-			<button
-				onclick='if (confirm("logout?")) { window.location.href = "logout"; }'
-			>
-				Logout
-			</button>
-		</div> -->
 		<!-- NAVBAR_BOTTOM -->
 	</nav>
 </aside>

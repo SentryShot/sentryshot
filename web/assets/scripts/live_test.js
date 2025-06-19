@@ -86,77 +86,131 @@ test("fullscreen", () => {
 	viewer.reset();
 
 	expect(element.innerHTML).toMatchInlineSnapshot(`
-		<div style="display: flex; justify-content: center;">
-		  <div id="uid1"
-		       class="grid-item-container"
-		  >
-		    <input class="js-checkbox player-overlay-checkbox"
-		           id="uid2"
-		           type="checkbox"
-		    >
-		    <label class="player-overlay-selector"
-		           for="uid2"
-		    >
-		    </label>
-		    <div class="js-overlay player-overlay feed-menu">
-		      <a href="http://test.com/recordings#monitors=undefined"
-		         class="feed-btn"
-		      >
-		        <img class="feed-btn-img icon"
-		             style="height: 0.65rem;"
-		             src="assets/icons/feather/film.svg"
-		        >
-		      </a>
-		      <button class="js-fullscreen-btn feed-btn">
-		        <img class="feed-btn-img icon"
-		             src="assets/icons/feather/maximize.svg"
-		        >
-		      </button>
-		    </div>
-		    <video class="grid-item"
-		           muted
-		           disablepictureinpicture
-		           playsinline
-		    >
-		    </video>
-		  </div>
-		</div>
-		<div style="display: flex; justify-content: center;">
-		  <div id="uid3"
-		       class="grid-item-container"
-		  >
-		    <input class="js-checkbox player-overlay-checkbox"
-		           id="uid4"
-		           type="checkbox"
-		    >
-		    <label class="player-overlay-selector"
-		           for="uid4"
-		    >
-		    </label>
-		    <div class="js-overlay player-overlay feed-menu">
-		      <a href="http://test.com/recordings#monitors=undefined"
-		         class="feed-btn"
-		      >
-		        <img class="feed-btn-img icon"
-		             style="height: 0.65rem;"
-		             src="assets/icons/feather/film.svg"
-		        >
-		      </a>
-		      <button class="js-fullscreen-btn feed-btn">
-		        <img class="feed-btn-img icon"
-		             src="assets/icons/feather/maximize.svg"
-		        >
-		      </button>
-		    </div>
-		    <video class="grid-item"
-		           muted
-		           disablepictureinpicture
-		           playsinline
-		    >
-		    </video>
-		  </div>
-		</div>
-	`);
+<div style="display: flex; justify-content: center;">
+  <div id="uid1"
+       style="
+						position: relative;
+						display: flex;
+						justify-content: center;
+						align-items: center;
+						width: 100%;
+						max-height: 100vh;
+						align-self: center;
+						--player-timeline-width: 90%;
+					"
+  >
+    <input class="js-checkbox player-overlay-checkbox"
+           id="uid2"
+           type="checkbox"
+    >
+    <label style="
+							position: absolute;
+							z-index: 1;
+							width: 100%;
+							height: 100%;
+							opacity: 0.5;
+						"
+           for="uid2"
+    >
+    </label>
+    <div class="js-overlay player-overlay"
+         style="
+							bottom: 0;
+							margin-bottom: 5%;
+							background: var(--color1);
+							border: none;
+							border-radius: 0.2rem;
+						"
+    >
+      <a href="http://test.com/recordings#monitors=undefined"
+         class="feed-btn"
+      >
+        <img style="height: 0.65rem; aspect-ratio: 1; filter: var(--color-icons);"
+             src="assets/icons/feather/film.svg"
+        >
+      </a>
+      <button class="js-fullscreen-btn feed-btn">
+        <img style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
+             src="assets/icons/feather/maximize.svg"
+        >
+      </button>
+    </div>
+    <video style="
+							width: 100%;
+							height: 100%;
+							max-height: 100vh;
+							object-fit: contain;
+						"
+           muted
+           disablepictureinpicture
+           playsinline
+    >
+    </video>
+  </div>
+</div>
+<div style="display: flex; justify-content: center;">
+  <div id="uid3"
+       style="
+						position: relative;
+						display: flex;
+						justify-content: center;
+						align-items: center;
+						width: 100%;
+						max-height: 100vh;
+						align-self: center;
+						--player-timeline-width: 90%;
+					"
+  >
+    <input class="js-checkbox player-overlay-checkbox"
+           id="uid4"
+           type="checkbox"
+    >
+    <label style="
+							position: absolute;
+							z-index: 1;
+							width: 100%;
+							height: 100%;
+							opacity: 0.5;
+						"
+           for="uid4"
+    >
+    </label>
+    <div class="js-overlay player-overlay"
+         style="
+							bottom: 0;
+							margin-bottom: 5%;
+							background: var(--color1);
+							border: none;
+							border-radius: 0.2rem;
+						"
+    >
+      <a href="http://test.com/recordings#monitors=undefined"
+         class="feed-btn"
+      >
+        <img style="height: 0.65rem; aspect-ratio: 1; filter: var(--color-icons);"
+             src="assets/icons/feather/film.svg"
+        >
+      </a>
+      <button class="js-fullscreen-btn feed-btn">
+        <img style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
+             src="assets/icons/feather/maximize.svg"
+        >
+      </button>
+    </div>
+    <video style="
+							width: 100%;
+							height: 100%;
+							max-height: 100vh;
+							object-fit: contain;
+						"
+           muted
+           disablepictureinpicture
+           playsinline
+    >
+    </video>
+  </div>
+</div>
+`);
 	/** @param {number} i */
 	const isFullscreen = (i) => {
 		return element.children[i].classList.contains("grid-fullscreen");
