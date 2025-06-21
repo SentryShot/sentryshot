@@ -117,7 +117,17 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 
 	return {
 		html: /* HTML */ `
-			<li id="${id}" class="form-field" style="display:flex;">
+			<li
+				id="${id}"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+					display:flex;
+				"
+			>
 				<label
 					style="
 						flex-grow: 1;
@@ -129,7 +139,17 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 					"
 					>Object detection</label
 				>
-				<button class="js-edit-btn form-field-edit-btn">
+				<button
+					class="js-edit-btn form-field-edit-btn"
+					style="
+						aspect-ratio: 1;
+						display: flex;
+						width: 1rem;
+						height: 1rem;
+						margin-left: 0.4rem;
+						border-radius: 0.2rem;
+					"
+				>
 					<img
 						style="padding: 0.1rem; filter: var(--color-icons);"
 						src="assets/icons/feather/edit-3.svg"
@@ -186,7 +206,16 @@ function thresholds(detectors, getDetectorName) {
 		const id = uniqueID();
 		return {
 			html: /* HTML */ `
-				<li class="object-detection-label-wrapper">
+				<li
+					class="object-detection-label-wrapper"
+					style="
+						display: flex;
+						padding: 0.1rem;
+						border-color: var(--color1);
+						border-width: 0.03rem;
+						align-items: center;
+					"
+				>
 					<label
 						for="${id}"
 						style="font-size: 0.7rem; color: var(--color-text);"
@@ -302,8 +331,15 @@ function thresholds(detectors, getDetectorName) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
-				class="form-field"
-				style="display:flex; padding-bottom:0.25rem;"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+					display:flex;
+					padding-bottom:0.25rem;
+				"
 			>
 				<label
 					style="
@@ -317,7 +353,17 @@ function thresholds(detectors, getDetectorName) {
 					>Thresholds</label
 				>
 				<div style="width:auto">
-					<button class="js-edit-btn form-field-edit-btn">
+					<button
+						class="js-edit-btn form-field-edit-btn"
+						style="
+							aspect-ratio: 1;
+							display: flex;
+							width: 1rem;
+							height: 1rem;
+							margin-left: 0.4rem;
+							border-radius: 0.2rem;
+						"
+					>
 						<img
 							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/edit-3.svg"
@@ -379,7 +425,16 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 	/** @param {string} feedHTML */
 	const renderModal = (feedHTML) => {
 		const html = /* HTML */ `
-			<li id="object-detection-crop-preview" class="form-field">
+			<li
+				id="object-detection-crop-preview"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
+			>
 				<label
 					for="object-detection-crop-preview"
 					style="
@@ -417,7 +472,18 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					></svg>
 				</div>
 			</li>
-			<li class="js-options form-field" style="display: flex; flex-wrap: wrap;">
+			<li
+				class="js-options"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+					display: flex;
+					flex-wrap: wrap;
+				"
+			>
 				<div
 					class="js-object-detection-crop-option"
 					style="
@@ -640,8 +706,15 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
-				class="form-field"
-				style="display:flex; padding-bottom:0.25rem;"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+					display:flex;
+					padding-bottom:0.25rem;
+				"
 			>
 				<label
 					style="
@@ -655,7 +728,17 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					>Crop</label
 				>
 				<div style="width:auto">
-					<button class="js-edit-btn form-field-edit-btn">
+					<button
+						class="js-edit-btn form-field-edit-btn"
+						style="
+							aspect-ratio: 1;
+							display: flex;
+							width: 1rem;
+							height: 1rem;
+							margin-left: 0.4rem;
+							border-radius: 0.2rem;
+						"
+					>
 						<img
 							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/edit-3.svg"
@@ -762,7 +845,16 @@ function mask(hasSubStream, getMonitorId) {
 	/** @param {string} feedHTML */
 	const renderModal = (feedHTML) => {
 		const html = /* HTML */ `
-			<li class="js-enable object_detection_mask-enabled form-field">
+			<li
+				class="js-enable object_detection_mask-enabled"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
+			>
 				<label
 					for="object_detection_mask-enable"
 					style="
@@ -785,7 +877,16 @@ function mask(hasSubStream, getMonitorId) {
 					</select>
 				</div>
 			</li>
-			<li id="object_detection_mask-preview" class="form-field">
+			<li
+				id="object_detection_mask-preview"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
+			>
 				<label
 					for="object_detection_mask-preview"
 					style="
@@ -830,13 +931,26 @@ function mask(hasSubStream, getMonitorId) {
 				</div>
 			</li>
 			<li
-				class="form-field"
-				style="display: flex; flex-wrap: wrap; justify-content: space-between"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+					display: flex;
+					flex-wrap: wrap;
+					justify-content: space-between
+				"
 			>
 				<div style="display: flex;">
 					<button
 						class="js-1x object_detection_mask-step-size"
 						style="
+							color: var(--color-text);
+							font-size: 0.6rem;
+							padding: 0.07rem 0.15rem;
+							border-width: 0.02rem;
+							border-color: var(--color3);
 							border-top-left-radius: 0.25rem;
 							border-bottom-left-radius: 0.25rem;
 							border-right-style: solid;
@@ -846,19 +960,38 @@ function mask(hasSubStream, getMonitorId) {
 					</button>
 					<button
 						class="js-4x object_detection_mask-step-size object_detection_mask-step-size-selected"
-						style="border-style: hidden solid;"
+						style="
+							color: var(--color-text);
+							font-size: 0.6rem;
+							padding: 0.07rem 0.15rem;
+							border-width: 0.02rem;
+							border-color: var(--color3);
+							border-style: hidden solid;
+						"
 					>
 						4x
 					</button>
 					<button
 						class="js-10x object_detection_mask-step-size"
-						style="border-style: hidden solid;"
+						style="
+							color: var(--color-text);
+							font-size: 0.6rem;
+							padding: 0.07rem 0.15rem;
+							border-width: 0.02rem;
+							border-color: var(--color3);
+							border-style: hidden solid;
+						"
 					>
 						10x
 					</button>
 					<button
 						class="js-20x object_detection_mask-step-size"
 						style="
+							color: var(--color-text);
+							font-size: 0.6rem;
+							padding: 0.07rem 0.15rem;
+							border-width: 0.02rem;
+							border-color: var(--color3);
 							border-top-right-radius: 0.25rem;
 							border-bottom-right-radius: 0.25rem;
 							border-left-style: solid;
@@ -1043,8 +1176,15 @@ function mask(hasSubStream, getMonitorId) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
-				class="form-field"
-				style="display:flex; padding-bottom:0.25rem;"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+					display:flex;
+					padding-bottom: 0.25rem;
+				"
 			>
 				<label
 					style="
@@ -1058,7 +1198,17 @@ function mask(hasSubStream, getMonitorId) {
 					>Mask</label
 				>
 				<div style="width:auto">
-					<button class="js-edit-btn form-field-edit-btn color2">
+					<button
+						class="js-edit-btn form-field-edit-btn color2"
+						style="
+							aspect-ratio: 1;
+							display: flex;
+							width: 1rem;
+							height: 1rem;
+							margin-left: 0.4rem;
+							border-radius: 0.2rem;
+						"
+					>
 						<img
 							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/edit-3.svg"
@@ -1163,27 +1313,15 @@ function normalizeMask(mask) {
 const $style = document.createElement("style");
 $style.innerHTML = `
 	.object-detection-label-wrapper {
-		display: flex;
-		padding: 0.1rem;
 		border-top-style: solid;
-		border-color: var(--color1);
-		border-width: 0.03rem;
-		align-items: center;
 	}
 	.object-detection-label-wrapper:first-child {
 		border-top-style: none;
 	}
 
 	/* Mask. */
-
-
 	.object_detection_mask-step-size {
 		background: var(--color2);
-		color: var(--color-text);
-		font-size: 0.6rem;
-		padding: 0.07rem 0.15rem;
-		border-width: 0.02rem;
-		border-color: var(--color3);
 	}
 
 	.object_detection_mask-step-size:hover {

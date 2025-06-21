@@ -181,9 +181,10 @@ describe("newPlayer", () => {
          preserveaspectratio="none"
     >
     </svg>
-    <input class="player-overlay-checkbox"
-           id="uid1-overlay-checkbox"
+    <input id="uid1-overlay-checkbox"
            type="checkbox"
+           class="js-checkbox player-overlay-checkbox"
+           style="position: absolute; opacity: 0;"
     >
     <label for="uid1-overlay-checkbox"
            style="
@@ -195,7 +196,14 @@ describe("newPlayer", () => {
 			"
     >
     </label>
-    <div class="player-overlay">
+    <div class="player-overlay"
+         style="
+				position: absolute;
+				z-index: 2;
+				display: flex;
+				justify-content: center;
+			"
+    >
       <button class="js-play-btn"
               style="
 					padding: 0.2rem;
@@ -212,6 +220,9 @@ describe("newPlayer", () => {
     </div>
     <div class="player-overlay"
          style="
+				z-index: 2;
+				display: flex;
+				justify-content: center;
 				position: absolute;
 				bottom: 4%;
 				width: 100%;
@@ -259,7 +270,17 @@ describe("newPlayer", () => {
         <span class="js-progress-bar">
         </span>
       </progress>
-      <button class="player-options-open-btn">
+      <button class="js-options-open-btn player-options-open-btn"
+              style="
+					position: absolute;
+					right: 0.28rem;
+					bottom: 0.8rem;
+					width: 0.8rem;
+					font-size: 0;
+					background-color: rgb(0 0 0 / 0%);
+					transition: opacity 250ms;
+				"
+      >
         <div style="
 						width: 0.4rem;
 						margin: auto;

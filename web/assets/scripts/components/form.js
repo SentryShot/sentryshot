@@ -110,7 +110,7 @@ function newForm(fields) {
 				}
 			}
 			return /* HTML */ `
-				<ul class="form" style="padding: 0 0.1rem;">
+				<ul class="form" style="padding: 0 0.1rem; overflow-y: auto;">
 					${htmlFields}
 					<div style="display: flex;">${htmlButtons}</div>
 				</ul>
@@ -554,7 +554,18 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					${options}
 				</select>
 				${custom
-					? `<button class="js-edit-btn form-field-edit-btn">
+					? `<button
+					class="js-edit-btn form-field-edit-btn"
+					style="
+						aspect-ratio: 1;
+						display: flex;
+						width: 1rem;
+						height: 1rem;
+						margin-left: 0.4rem;
+						background: var(--color2);
+						border-radius: 0.2rem;
+					"
+				>
 					<img
 						style="padding: 0.1rem; filter: var(--color-icons);"
 						src="assets/icons/feather/edit-3.svg"
@@ -565,11 +576,21 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		`;
 	}
 
-	return /* HTML */ `
-		<li id="js-${id}" class="${errorField ? "form-field-error" : "form-field"}">
-			<label
-				for="${id}"
+	if (errorField === true) {
+		return /* HTML */ `
+			<li
+				id="js-${id}"
 				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
+			>
+				<label
+					for="${id}"
+					style="
 					flex-grow: 1;
 					float: left;
 					width: 100%;
@@ -577,13 +598,49 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					color: var(--color-text);
 					font-size: 0.6rem;
 				"
-				>${label}</label
-			>${body}
-			${errorField
-				? '<span class="js-error" style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"></span>'
-				: ""}
-		</li>
-	`;
+					>${label}</label
+				>
+				${body}
+				<span
+					class="js-error"
+					style="
+						height: 0.5rem;
+						color: var(--color-red);
+						font-size: 0.4rem;
+						white-space: nowrap;
+						overflow: auto;
+					"
+				></span>
+			</li>
+		`;
+	} else {
+		return /* HTML */ `
+			<li
+				id="js-${id}"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
+			>
+				<label
+					for="${id}"
+					style="
+					flex-grow: 1;
+					float: left;
+					width: 100%;
+					min-width: 4rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+				"
+					>${label}</label
+				>
+				${body}
+			</li>
+		`;
+	}
 }
 
 /**
@@ -724,7 +781,16 @@ function newPasswordField() {
 	 */
 	const passwordHTML = (id, label) => {
 		return /* HTML */ `
-			<li id="js-${id}" class="form-field-error">
+			<li
+				id="js-${id}"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
+			>
 				<label
 					for="${id}"
 					style="

@@ -62,8 +62,9 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 					"
 				>
 					<input
-						class="js-checkbox player-overlay-checkbox"
 						id="${checkboxID}"
+						class="js-checkbox player-overlay-checkbox"
+						style="position: absolute; opacity: 0;"
 						type="checkbox"
 					/>
 					<label
@@ -79,6 +80,10 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 					<div
 						class="js-overlay player-overlay"
 						style="
+							position: absolute;
+							z-index: 2;
+							display: flex;
+							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;
 							background: var(--color1);
@@ -190,7 +195,15 @@ function newFullscreenBtn() {
 	let $img, $wrapper;
 	return {
 		html: /* HTML */ `
-			<button class="js-fullscreen-btn feed-btn">
+			<button
+				class="js-fullscreen-btn feed-btn"
+				style="
+					padding: 0.15rem;
+					font-size: 0;
+					background: rgb(0 0 0 / 0%);
+					aspect-ratio: 1;
+				"
+			>
 				<img
 					style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
 					src="${iconMaximizePath}"
@@ -232,7 +245,16 @@ function newRecordingsBtn(monitorIds) {
 	const recordingsPath = `${relativePathname("recordings")}#monitors=${monitorIds}`;
 	return {
 		html: /* HTML */ `
-			<a href="${recordingsPath}" class="feed-btn">
+			<a
+				href="${recordingsPath}"
+				class="feed-btn"
+				style="
+					padding: 0.15rem;
+					font-size: 0;
+					background: rgb(0 0 0 / 0%);
+					aspect-ratio: 1;
+				"
+			>
 				<img
 					style="height: 0.65rem; aspect-ratio: 1; filter: var(--color-icons);"
 					src="${iconRecordingsPath}"

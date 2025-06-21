@@ -115,7 +115,7 @@ describe("newForm", () => {
 
 			expect(form.html()).toMatchInlineSnapshot(`
 <ul class="form"
-    style="padding: 0 0.1rem;"
+    style="padding: 0 0.1rem; overflow-y: auto;"
 >
   html
   <div style="display: flex;">
@@ -162,7 +162,7 @@ describe("newForm", () => {
 
 		expect(form.html()).toMatchInlineSnapshot(`
 <ul class="form"
-    style="padding: 0 0.1rem;"
+    style="padding: 0 0.1rem; overflow-y: auto;"
 >
   html
   <div style="display: flex;">
@@ -221,7 +221,13 @@ describe("newField", () => {
 
 		expect(newTestField().html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="form-field-error"
+    style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
 >
   <label for="uid1"
          style="
@@ -251,7 +257,13 @@ describe("newField", () => {
          step="0.5"
   >
   <span class="js-error"
-        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+        style="
+						height: 0.5rem;
+						color: var(--color-red);
+						font-size: 0.4rem;
+						white-space: nowrap;
+						overflow: auto;
+					"
   >
   </span>
 </li>
@@ -352,7 +364,13 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="form-field-error"
+    style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
 >
   <label for="uid1"
          style="
@@ -379,7 +397,13 @@ describe("fieldTemplate", () => {
          placeholder="2"
   >
   <span class="js-error"
-        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+        style="
+						height: 0.5rem;
+						color: var(--color-red);
+						font-size: 0.4rem;
+						white-space: nowrap;
+						overflow: auto;
+					"
   >
   </span>
 </li>
@@ -402,7 +426,13 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="form-field-error"
+    style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
 >
   <label for="uid1"
          style="
@@ -431,7 +461,13 @@ describe("fieldTemplate", () => {
          step="1"
   >
   <span class="js-error"
-        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+        style="
+						height: 0.5rem;
+						color: var(--color-red);
+						font-size: 0.4rem;
+						white-space: nowrap;
+						overflow: auto;
+					"
   >
   </span>
 </li>
@@ -456,7 +492,13 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="form-field"
+    style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
 >
   <label for="uid1"
          style="
@@ -507,7 +549,13 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="form-field"
+    style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
 >
   <label for="uid1"
          style="
@@ -561,7 +609,13 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="form-field-error"
+    style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
 >
   <label for="uid1"
          style="
@@ -595,14 +649,30 @@ describe("fieldTemplate", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn form-field-edit-btn">
+    <button class="js-edit-btn form-field-edit-btn"
+            style="
+						aspect-ratio: 1;
+						display: flex;
+						width: 1rem;
+						height: 1rem;
+						margin-left: 0.4rem;
+						background: var(--color2);
+						border-radius: 0.2rem;
+					"
+    >
       <img style="padding: 0.1rem; filter: var(--color-icons);"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
   </div>
   <span class="js-error"
-        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+        style="
+						height: 0.5rem;
+						color: var(--color-red);
+						font-size: 0.4rem;
+						white-space: nowrap;
+						overflow: auto;
+					"
   >
   </span>
 </li>
@@ -647,7 +717,13 @@ describe("selectCustomField", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="form-field"
+    style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
 >
   <label for="uid1"
          style="
@@ -681,7 +757,17 @@ describe("selectCustomField", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn form-field-edit-btn">
+    <button class="js-edit-btn form-field-edit-btn"
+            style="
+						aspect-ratio: 1;
+						display: flex;
+						width: 1rem;
+						height: 1rem;
+						margin-left: 0.4rem;
+						background: var(--color2);
+						border-radius: 0.2rem;
+					"
+    >
       <img style="padding: 0.1rem; filter: var(--color-icons);"
            src="assets/icons/feather/edit-3.svg"
       >
@@ -715,7 +801,13 @@ describe("passwordField", () => {
 		uidReset();
 		expect(newPasswordField().html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="form-field-error"
+    style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
 >
   <label for="uid1"
          style="
@@ -746,7 +838,13 @@ describe("passwordField", () => {
   </span>
 </li>
 <li id="js-uid2"
-    class="form-field-error"
+    style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
 >
   <label for="uid2"
          style="

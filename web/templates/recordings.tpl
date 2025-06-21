@@ -30,13 +30,16 @@
 		init();
 	</script>
 </head>
-<body>
+<body style="display: flex; height: 100dvh; margin: 0; background-color: var(--colorbg)">
 	{% include "sidebar" %}
-	<div id="content">
-		<div id="js-content-grid-wrapper" style="height: 100%; overflow-y: auto;">
+	<div
+		id="content"
+		style="position: absolute; box-sizing: border-box; width: 100%; height: 100%"
+	>
+		<div id="js-content-grid-wrapper" style="height: 100%; overflow-y: auto">
 			<div
 				id="js-content-grid"
-				style="display: grid; grid-template-columns: repeat(var(--gridsize), 1fr);"
+				style="display: grid; grid-template-columns: repeat(var(--gridsize), 1fr)"
 			></div>
 		</div>
 	</div>

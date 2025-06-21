@@ -26,8 +26,9 @@ describe("feed", () => {
 						--player-timeline-width: 90%;
 					"
   >
-    <input class="js-checkbox player-overlay-checkbox"
-           id="uid2"
+    <input id="uid2"
+           class="js-checkbox player-overlay-checkbox"
+           style="position: absolute; opacity: 0;"
            type="checkbox"
     >
     <label style="
@@ -42,6 +43,10 @@ describe("feed", () => {
     </label>
     <div class="js-overlay player-overlay"
          style="
+							position: absolute;
+							z-index: 2;
+							display: flex;
+							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;
 							background: var(--color1);
@@ -49,7 +54,14 @@ describe("feed", () => {
 							border-radius: 0.2rem;
 						"
     >
-      <button class="js-fullscreen-btn feed-btn">
+      <button class="js-fullscreen-btn feed-btn"
+              style="
+					padding: 0.15rem;
+					font-size: 0;
+					background: rgb(0 0 0 / 0%);
+					aspect-ratio: 1;
+				"
+      >
         <img style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
              src="assets/icons/feather/maximize.svg"
         >
@@ -115,8 +127,14 @@ describe("muteBtn", () => {
 
 test("recordingsBtn", async () => {
 	expect(newFeedBtn.recordings("b").html).toMatchInlineSnapshot(`
-<a href="http://test.com/recordings#monitors=b"
-   class="feed-btn"
+<a class="feed-btn"
+   style="
+					padding: 0.15rem;
+					font-size: 0;
+					background: rgb(0 0 0 / 0%);
+					aspect-ratio: 1;
+				"
+   href="http://test.com/recordings#monitors=b"
 >
   <img style="height: 0.65rem; aspect-ratio: 1; filter: var(--color-icons);"
        src="assets/icons/feather/film.svg"
@@ -127,7 +145,14 @@ test("recordingsBtn", async () => {
 
 test("fullscreenBtn", () => {
 	expect(newFeedBtn.fullscreen().html).toMatchInlineSnapshot(`
-<button class="js-fullscreen-btn feed-btn">
+<button class="js-fullscreen-btn feed-btn"
+        style="
+					padding: 0.15rem;
+					font-size: 0;
+					background: rgb(0 0 0 / 0%);
+					aspect-ratio: 1;
+				"
+>
   <img style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
        src="assets/icons/feather/maximize.svg"
   >

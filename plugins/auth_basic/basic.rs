@@ -356,8 +356,31 @@ fn edit_templates(tmpls: &mut Templates) {
     let target = "<!-- NAVBAR_BOTTOM -->";
 
     let logout_button = "
-<div id=\"logout\">
-	<button onclick='if (confirm(\"logout?\")) { window.location.href = \"logout\"; }'>
+<div
+    style=\"
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: var(--sidebar-width);
+        margin-top: auto;
+        margin-bottom: 0.4rem;
+    \"
+>
+	<button
+        id=\"logout-btn\"
+        style=\"
+            margin-top: 0.1rem;
+            padding-right: 0.1rem;
+            padding-left: 0.1rem;
+            color: var(--color-text);
+            font-size: 0.6rem;
+            border-width: 0.05rem;
+            border-style: solid;
+            border-color: var(--colorbg);
+            border-radius: 0.2rem;
+        \"
+        onclick='if (confirm(\"logout?\")) { window.location.href = \"logout\"; }'
+    >
 		Logout
 	</button>
 </div>";

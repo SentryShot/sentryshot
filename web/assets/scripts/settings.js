@@ -54,6 +54,14 @@ function newRenderer($parent) {
 					<li
 						id="js-set-category-${category.name()}"
 						class="settings-nav-item js-set-settings-category"
+						style="
+							display: flex;
+							align-items: center;
+							padding: 0.1rem 1rem 0.1rem 0.4rem;
+							border-width: 0.01rem;
+							border-color: var(--color2-hover);
+							border-bottom-style: solid;
+						"
 					>
 						<img
 							style="
@@ -82,7 +90,11 @@ function newRenderer($parent) {
 			}
 
 			$parent.innerHTML = /* HTML */ `
-				<nav id="js-settings-navbar" class="settings-navbar">
+				<nav
+					id="js-settings-navbar"
+					class="settings-navbar"
+					style="flex-shrink: 0; background: var(--color2)"
+				>
 					<ul style="height: 100%; overflow-y: auto;">
 						${htmlNav}
 					</ul>
@@ -208,7 +220,7 @@ function newCategory(categoryName, title) {
 	const openSubcategory = ($navBtn) => {
 		closeSubcategory();
 
-		if (!$navBtn.classList.contains("settings-add-btn")) {
+		if (!$navBtn.classList.contains("js-add-btn")) {
 			$navBtn.classList.add("settings-nav-btn-selected");
 		}
 
@@ -240,10 +252,41 @@ function newCategory(categoryName, title) {
 		},
 		html() {
 			return /* HTML */ `
-				<div class="settings-category">
-					<div class="settings-menubar js-settings-menubar">
-						<nav class="settings-menu-back-btn js-settings-category-back">
-							<img src="${backIconPath}" />
+				<div
+					class="settings-category"
+					style="
+						z-index: 0;
+						display: flex;
+						flex-shrink: 0;
+						flex-direction: column;
+						height: 100%;
+						overflow-y: auto;
+						background: var(--color2);
+					"
+				>
+					<div
+						class="settings-menubar js-settings-menubar"
+						style="
+							height: var(--barsize);
+							background: var(--color2);
+							border-width: 0.01rem;
+							border-color: var(--color2-hover);
+							border-bottom-style: solid;
+						"
+					>
+						<nav
+							class="js-settings-category-back"
+							style="
+								margin-left: 0.2rem;
+								display: flex;
+								width: 1.4rem;
+								flex-shrink: 0;
+							"
+						>
+							<img
+								style="width: 1.1rem; filter: var(--color-icons);"
+								src="${backIconPath}"
+							/>
 						</nav>
 						<span
 							class="js-category-title"
@@ -258,14 +301,38 @@ function newCategory(categoryName, title) {
 							>${title}</span
 						>
 					</div>
-					<ul class="settings-category-nav"></ul>
+					<ul
+						class="js-category-nav settings-category-nav"
+						style="display: flex; flex-direction: column; overflow-y: auto;"
+					></ul>
 				</div>
-				<div class="settings-sub-category">
+				<div
+					class="js-sub-category settings-sub-category"
+					style="display: flex; flex-direction: column; background: var(--color3);"
+				>
 					<div
-						class="js-settings-menubar settings-menubar settings-subcategory-menubar"
+						class="js-settings-menubar settings-menubar"
+						style="
+							height: var(--barsize);
+							background: var(--color2);
+							border-width: 0.01rem;
+							border-color: var(--color2-hover);
+							border-bottom-style: solid;
+						"
 					>
-						<nav class="settings-menu-back-btn js-settings-subcategory-back">
-							<img src="${backIconPath}" />
+						<nav
+							class="js-settings-subcategory-back"
+							style="
+								margin-left: 0.2rem;
+								display: flex;
+								width: 1.4rem;
+								flex-shrink: 0;
+							"
+						>
+							<img
+								style="width: 1.1rem; filter: var(--color-icons);"
+								src="${backIconPath}"
+							/>
 						</nav>
 						<span
 							class="js-category-title"
@@ -285,7 +352,7 @@ function newCategory(categoryName, title) {
 		},
 		init() {
 			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
-			$nav = $wrapper.querySelector(".settings-category-nav");
+			$nav = $wrapper.querySelector(".js-category-nav");
 
 			const $navBtn = document.querySelector(`#js-set-category-${categoryName}`);
 
@@ -312,7 +379,7 @@ function newCategory(categoryName, title) {
 			const $backBtn = $wrapper.querySelector(".js-settings-category-back");
 			$backBtn.addEventListener("click", close);
 
-			$subcategory = $wrapper.querySelector(".settings-sub-category");
+			$subcategory = $wrapper.querySelector(".js-sub-category");
 
 			$wrapper
 				.querySelector(".js-settings-subcategory-back")
@@ -361,7 +428,7 @@ function newCategory2(categoryName, title, form) {
 	const openSubcategory = ($navBtn) => {
 		closeSubcategory();
 
-		if (!$navBtn.classList.contains("settings-add-btn")) {
+		if (!$navBtn.classList.contains("js-add-btn")) {
 			$navBtn.classList.add("settings-nav-btn-selected");
 		}
 
@@ -388,10 +455,41 @@ function newCategory2(categoryName, title, form) {
 		},
 		html() {
 			return /* HTML */ `
-				<div class="settings-category">
-					<div class="settings-menubar js-settings-menubar">
-						<nav class="settings-menu-back-btn js-settings-category-back">
-							<img src="${backIconPath}" />
+				<div
+					class="settings-category"
+					style="
+						z-index: 0;
+						display: flex;
+						flex-shrink: 0;
+						flex-direction: column;
+						height: 100%;
+						overflow-y: auto;
+						background: var(--color2);
+					"
+				>
+					<div
+						class="settings-menubar js-settings-menubar"
+						style="
+							height: var(--barsize);
+							background: var(--color2);
+							border-width: 0.01rem;
+							border-color: var(--color2-hover);
+							border-bottom-style: solid;
+						"
+					>
+						<nav
+							class="js-settings-category-back"
+							style="
+								margin-left: 0.2rem;
+								display: flex;
+								width: 1.4rem;
+								flex-shrink: 0;
+							"
+						>
+							<img
+								style="width: 1.1rem; filter: var(--color-icons);"
+								src="${backIconPath}"
+							/>
 						</nav>
 						<span
 							class="js-category-title"
@@ -406,14 +504,38 @@ function newCategory2(categoryName, title, form) {
 							>${title}</span
 						>
 					</div>
-					<ul class="settings-category-nav"></ul>
+					<ul
+						class="js-category-nav settings-category-nav"
+						style="display: flex; flex-direction: column; overflow-y: auto;"
+					></ul>
 				</div>
-				<div class="settings-sub-category">
+				<div
+					class="js-sub-category settings-sub-category"
+					style="display: flex; flex-direction: column; background: var(--color3);"
+				>
 					<div
-						class="js-settings-menubar settings-menubar settings-subcategory-menubar"
+						class="js-settings-menubar settings-menubar"
+						style="
+							height: var(--barsize);
+							background: var(--color2);
+							border-width: 0.01rem;
+							border-color: var(--color2-hover);
+							border-bottom-style: solid;
+						"
 					>
-						<nav class="settings-menu-back-btn js-settings-subcategory-back">
-							<img src="${backIconPath}" />
+						<nav
+							class="js-settings-subcategory-back"
+							style="
+								margin-left: 0.2rem;
+								display: flex;
+								width: 1.4rem;
+								flex-shrink: 0;
+							"
+						>
+							<img
+								style="width: 1.1rem; filter: var(--color-icons);"
+								src="${backIconPath}"
+							/>
 						</nav>
 						<span
 							class="js-category-title"
@@ -433,7 +555,7 @@ function newCategory2(categoryName, title, form) {
 		},
 		init() {
 			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
-			$nav = $wrapper.querySelector(".settings-category-nav");
+			$nav = $wrapper.querySelector(".js-category-nav");
 
 			const $navBtn = document.querySelector(`#js-set-category-${categoryName}`);
 
@@ -460,7 +582,7 @@ function newCategory2(categoryName, title, form) {
 			const $backBtn = $wrapper.querySelector(".js-settings-category-back");
 			$backBtn.addEventListener("click", close);
 
-			$subcategory = $wrapper.querySelector(".settings-sub-category");
+			$subcategory = $wrapper.querySelector(".js-sub-category");
 
 			$wrapper
 				.querySelector(".js-settings-subcategory-back")
@@ -564,7 +686,18 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		const sortedMonitors = sortByName(monitors);
 		for (const m of sortedMonitors) {
 			html += /* HTML */ `
-				<li class="settings-nav-item js-nav" data="${m.id}">
+				<li
+					class="settings-nav-item js-nav"
+					style="
+						display: flex;
+						align-items: center;
+						padding: 0.1rem 1rem 0.1rem 0.4rem;
+						border-width: 0.01rem;
+						border-color: var(--color2-hover);
+						border-bottom-style: solid;
+					"
+					data="${m.id}"
+				>
 					<span style="color: var(--color-text); font-size: 0.7rem;"
 						>${m.name}</span
 					>
@@ -573,8 +706,18 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		}
 
 		html += /* HTML */ `
-			<button class="settings-add-btn js-nav" data="">
-				<span>Add</span>
+			<button
+				class="js-add-btn settings-add-btn js-nav"
+				style="
+					flex-shrink: 0;
+					margin: 0.2rem auto 0.2rem 0.3rem;
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					border-radius: 0.1rem;
+				"
+				data=""
+			>
+				<span style="color: var(--color-text); font-size: 0.7rem;">Add</span>
 			</button>
 		`;
 
@@ -785,7 +928,18 @@ function newMonitorGroups(token, fields, groups) {
 		const sortedGroups = sortByName(groups);
 		for (const g of sortedGroups) {
 			html += /* HTML */ `
-				<li class="settings-nav-item js-nav" data="${g.id}">
+				<li
+					class="settings-nav-item js-nav"
+					data="${g.id}"
+					style="
+						display: flex;
+						align-items: center;
+						padding: 0.1rem 1rem 0.1rem 0.4rem;
+						border-width: 0.01rem;
+						border-color: var(--color2-hover);
+						border-bottom-style: solid;
+					"
+				>
 					<span style="color: var(--color-text); font-size: 0.7rem;"
 						>${g.name}</span
 					>
@@ -794,8 +948,18 @@ function newMonitorGroups(token, fields, groups) {
 		}
 
 		html += /* HTML */ `
-			<button class="settings-add-btn js-nav" data="">
-				<span>Add</span>
+			<button
+				class="js-add-btn settings-add-btn js-nav"
+				style="
+					flex-shrink: 0;
+					margin: 0.2rem auto 0.2rem 0.3rem;
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					border-radius: 0.1rem;
+				"
+				data=""
+			>
+				<span style="color: var(--color-text); font-size: 0.7rem;">Add</span>
 			</button>
 		`;
 
@@ -924,15 +1088,36 @@ function newAccount(token, fields) {
 				style = "color: var(--color-red); font-size: 0.7rem;";
 			}
 			html += /* HTML */ `
-				<li class="settings-nav-item js-nav" data="${u.id}">
+				<li
+					class="settings-nav-item js-nav"
+					style="
+						display: flex;
+						align-items: center;
+						padding: 0.1rem 1rem 0.1rem 0.4rem;
+						border-width: 0.01rem;
+						border-color: var(--color2-hover);
+						border-bottom-style: solid;
+					"
+					data="${u.id}"
+				>
 					<span style="${style}">${u.username} </span>
 				</li>
 			`;
 		}
 
 		html += /* HTML */ `
-			<button class="settings-add-btn js-nav" data="">
-				<span>Add</span>
+			<button
+				class="js-add-btn settings-add-btn js-nav"
+				style="
+					flex-shrink: 0;
+					margin: 0.2rem auto 0.2rem 0.3rem;
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					border-radius: 0.1rem;
+				"
+				data=""
+			>
+				<span style="color: var(--color-text); font-size: 0.7rem;">Add</span>
 			</button>
 		`;
 
@@ -1023,126 +1208,6 @@ function randomString(length) {
 	return output;
 }
 
-/** @returns Field<Any> */
-/*function newSelectMonitorFieldModal() {
-	/** @param {string} name */ /*
-const newField = (name) => {
-let $input;
-const id = uniqueID();
-return {
-html: `
-<div id="${id}" class="monitor-selector-item">
-<span class="monitor-selector-label">${name}</span>
-<div class="checkbox">
-<input class="checkbox-checkbox" type="checkbox"/>
-<div class="checkbox-box"></div>
-<img class="checkbox-check" src="assets/icons/feather/check.svg"/>
-</div>
-</div>`,
-init() {
-const element = document.getElementById(id);
-$input = element.querySelector("input");
-element.addEventListener("click", (e) => {
-if (e.target instanceof HTMLInputElement) {
-return;
-}
-$input.checked = !$input.checked;
-});
-},
-/** @param {boolean} input */ /*
-set(input) {
-$input.checked = input;
-},
-value() {
-return $input.checked;
-},
-};
-};
-
-const modal = newModal("Monitors");
-
-let value;
-let fields = {};
-let isRendered = false;
-const render = async () => {
-if (isRendered) {
-return;
-}
-const monitorsList = await fetchGet("api/monitors", "failed to fetch monitors");
-
-fields = {};
-let html = "";
-const sortedMonitors = sortByName(monitorsList);
-for (const monitor of sortedMonitors) {
-const id = monitor["id"];
-const field = newField(monitor["name"]);
-html += field.html;
-fields[id] = field;
-}
-
-const $modalContent = modal.init();
-$modalContent.innerHTML = `
-<div class="monitor-selector">
-${html}
-</div>`;
-
-for (const field of Object.values(fields)) {
-field.init();
-}
-
-modal.onClose(() => {
-// Get value.
-value = [];
-for (const [id, field] of Object.entries(fields)) {
-if (field.value()) {
-value.push(id);
-}
-}
-});
-
-isRendered = true;
-};
-
-const id = uniqueID();
-
-return {
-html: `
-<li id="${id}" class="form-field" style="display: flex">
-<label class="form-field-label">Monitors</label>
-<button class="js-edit-btn form-field-edit-btn">
-<img class="form-field-edit-btn-img" src="assets/icons/feather/edit-3.svg"/>
-</button>
-${modal.html}
-</li> `,
-init() {
-document
-.getElementById(id)
-.querySelector(".js-edit-btn")
-.addEventListener("click", async () => {
-await render();
-modal.open();
-
-// Set value.
-for (const [id, field] of Object.entries(fields)) {
-const state = value.includes(id);
-field.set(state);
-}
-});
-},
-/** @param {string} input */ /*
-set(input) {
-	if (input === undefined) {
-		value = [];
-		return;
-	}
-	value = input;
-},
-value() {
-	return value;
-},
-};
-}*/
-
 /**
  * @param {{[x: string]: { id: string, name: string} }} monitors
  * @returns Field<Any>
@@ -1154,7 +1219,21 @@ function newSelectMonitorField(monitors) {
 		const id = uniqueID();
 		return {
 			html: /* HTML */ `
-				<div id="${id}" class="monitor-selector-item">
+				<div
+					id="${id}"
+					class="monitor-selector-item"
+					style="
+						position: relative;
+						display: flex;
+						align-items: center;
+						width: auto;
+						padding: 0.1rem 0.2rem;
+						border-width: 0.01rem;
+						border-style: solid;
+						border-color: var(--color1);
+						font-size: 0.7rem;
+					"
+				>
 					<span
 						style="
 							margin-right: auto;
@@ -1164,11 +1243,46 @@ function newSelectMonitorField(monitors) {
 						"
 						>${name}</span
 					>
-					<div class="checkbox">
-						<input class="checkbox-checkbox" type="checkbox" />
-						<div class="checkbox-box"></div>
+					<div
+						style="
+							display: flex;
+							justify-content: center;
+							align-items: center;
+							width: 0.8em;
+							height: 0.8em;
+							background: var(--color2);
+							border-radius: 0.14rem;
+							user-select: none;
+						"
+					>
+						<input
+							class="checkbox-checkbox"
+							style="
+								z-index: 1;
+								width: 100%;
+								height: 100%;
+								outline: none;
+								-moz-appearance: none;
+								-webkit-appearance: none;
+							"
+							type="checkbox"
+						/>
+						<div
+							class="checkbox-box"
+							style="
+								position: absolute;
+								width: 0.62em;
+								height: 0.62em;
+								border-radius: 0.1rem;
+							"
+						></div>
 						<img
 							class="checkbox-check"
+							style="
+								position: absolute;
+								width: 0.8em;
+								filter: invert();
+							"
 							src="assets/icons/feather/check.svg"
 						/>
 					</div>

@@ -31,7 +31,7 @@ describe("resBtn", () => {
 		element.innerHTML = res.html;
 
 		const $btn = document.querySelector("button");
-		expect($btn.textContent).toBe("X");
+		expect($btn.textContent.trim()).toBe("X");
 
 		res.init();
 		expect($btn.textContent).toBe("HD");
@@ -99,8 +99,9 @@ test("fullscreen", () => {
 						--player-timeline-width: 90%;
 					"
   >
-    <input class="js-checkbox player-overlay-checkbox"
-           id="uid2"
+    <input id="uid2"
+           class="js-checkbox player-overlay-checkbox"
+           style="position: absolute; opacity: 0;"
            type="checkbox"
     >
     <label style="
@@ -115,6 +116,10 @@ test("fullscreen", () => {
     </label>
     <div class="js-overlay player-overlay"
          style="
+							position: absolute;
+							z-index: 2;
+							display: flex;
+							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;
 							background: var(--color1);
@@ -124,12 +129,25 @@ test("fullscreen", () => {
     >
       <a href="http://test.com/recordings#monitors=undefined"
          class="feed-btn"
+         style="
+					padding: 0.15rem;
+					font-size: 0;
+					background: rgb(0 0 0 / 0%);
+					aspect-ratio: 1;
+				"
       >
         <img style="height: 0.65rem; aspect-ratio: 1; filter: var(--color-icons);"
              src="assets/icons/feather/film.svg"
         >
       </a>
-      <button class="js-fullscreen-btn feed-btn">
+      <button class="js-fullscreen-btn feed-btn"
+              style="
+					padding: 0.15rem;
+					font-size: 0;
+					background: rgb(0 0 0 / 0%);
+					aspect-ratio: 1;
+				"
+      >
         <img style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
              src="assets/icons/feather/maximize.svg"
         >
@@ -161,8 +179,9 @@ test("fullscreen", () => {
 						--player-timeline-width: 90%;
 					"
   >
-    <input class="js-checkbox player-overlay-checkbox"
-           id="uid4"
+    <input id="uid4"
+           class="js-checkbox player-overlay-checkbox"
+           style="position: absolute; opacity: 0;"
            type="checkbox"
     >
     <label style="
@@ -177,6 +196,10 @@ test("fullscreen", () => {
     </label>
     <div class="js-overlay player-overlay"
          style="
+							position: absolute;
+							z-index: 2;
+							display: flex;
+							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;
 							background: var(--color1);
@@ -186,12 +209,25 @@ test("fullscreen", () => {
     >
       <a href="http://test.com/recordings#monitors=undefined"
          class="feed-btn"
+         style="
+					padding: 0.15rem;
+					font-size: 0;
+					background: rgb(0 0 0 / 0%);
+					aspect-ratio: 1;
+				"
       >
         <img style="height: 0.65rem; aspect-ratio: 1; filter: var(--color-icons);"
              src="assets/icons/feather/film.svg"
         >
       </a>
-      <button class="js-fullscreen-btn feed-btn">
+      <button class="js-fullscreen-btn feed-btn"
+              style="
+					padding: 0.15rem;
+					font-size: 0;
+					background: rgb(0 0 0 / 0%);
+					aspect-ratio: 1;
+				"
+      >
         <img style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
              src="assets/icons/feather/maximize.svg"
         >

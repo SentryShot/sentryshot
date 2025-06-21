@@ -40,7 +40,15 @@ function newModal(label, content = "") {
 				"
 			>
 				<div class="modal js-modal">
-					<header class="modal-header">
+					<header
+						class="modal-header"
+						style="
+							display: flex;
+							padding-left: 0.2rem;
+							padding-right: 0.2rem;
+							background: var(--color2);
+						"
+					>
 						<span
 							style="
 								width: 100%;
@@ -144,7 +152,9 @@ function newModalSelect(name, options, onSelect) {
 				>
 			`;
 		}
-		return `<div class="js-selector modal-select">${html}</div>`;
+		return /* HTML */ `
+			<div class="js-selector" style="display: flex; flex-wrap: wrap;">${html}</div>
+		`;
 	};
 
 	/** @type {Element} */

@@ -132,7 +132,24 @@ function resBtn(content) {
 	const id = uniqueID();
 
 	return {
-		html: `<button id=${id} class="options-menu-btn">X</button>`,
+		html: /* HTML */ `
+			<button
+				id=${id}
+				class="options-menu-btn"
+				style="
+					display: flex;
+					justify-content: center;
+					align-items: center;
+					width: var(--options-menu-btn-width);
+					height: var(--options-menu-btn-width);
+					color: var(--color-text);
+					font-size: 0.5rem;
+					background: var(--color2);
+				"
+			>
+				X
+			</button>
+		`,
 		init() {
 			element = document.querySelector(`#${id}`);
 			element.addEventListener("click", () => {

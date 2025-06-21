@@ -84,7 +84,20 @@ const newOptionsBtn = {
 		const idMinus = uniqueID();
 		return {
 			html: /* HTML */ `
-				<button id="${idPlus}" class="options-menu-btn">
+				<button
+					id="${idPlus}"
+					class="options-menu-btn"
+					style="
+						display: flex;
+						justify-content: center;
+						align-items: center;
+						width: var(--options-menu-btn-width);
+						height: var(--options-menu-btn-width);
+						color: var(--color-text);
+						font-size: 0.5rem;
+						background: var(--color2);
+					"
+				>
 					<img
 						style="
 							aspect-ratio: 1;
@@ -96,9 +109,21 @@ const newOptionsBtn = {
 						src="assets/icons/feather/plus.svg"
 					/>
 				</button>
-				<button id="${idMinus}" class="options-menu-btn">
+				<button
+					id="${idMinus}"
+					class="options-menu-btn"
+					style="
+						display: flex;
+						justify-content: center;
+						align-items: center;
+						width: var(--options-menu-btn-width);
+						height: var(--options-menu-btn-width);
+						color: var(--color-text);
+						font-size: 0.5rem;
+						background: var(--color2);
+					"
+				>
 					<img
-						class="icon"
 						style="
 							aspect-ratio: 1;
 							height: 0.8rem;
@@ -209,10 +234,24 @@ function newOptionsPopup(label, icon, htmlContent) {
 	const buttonId = uniqueID();
 	const popupId = uniqueID();
 	return {
-		html: /* HTML */ ` <button id="${buttonId}" class="options-menu-btn js-${label}">
+		html: /* HTML */ `
+			<button
+				id="${buttonId}"
+				class="options-menu-btn js-${label}"
+				style="
+					display: flex;
+					justify-content: center;
+					align-items: center;
+					width: var(--options-menu-btn-width);
+					height: var(--options-menu-btn-width);
+					color: var(--color-text);
+					font-size: 0.5rem;
+					background: var(--color2);
+				"
+			>
 				<img
-					class="icon"
 					style="
+						filter: var(--color-icons);
 						aspect-ratio: 1;
 						height: 0.8rem;
 						margin: 0.2rem;
@@ -221,9 +260,21 @@ function newOptionsPopup(label, icon, htmlContent) {
 					src="${icon}"
 				/>
 			</button>
-			<div id="${popupId}" class="options-popup">
+			<div
+				id="${popupId}"
+				class="options-popup"
+				style="
+					position: absolute;
+					display: none;
+					flex-direction: column;
+					max-height: 100dvh;
+					margin: auto;
+					background: var(--color2);
+				"
+			>
 				<div style="overflow-y: auto;">${htmlContent}</div>
-			</div>`,
+			</div>
+		`,
 		toggle,
 		init() {
 			element = document.querySelector(`#${popupId}`);
@@ -359,7 +410,10 @@ const datePickerHTML = /* HTML */ `
 					margin-left: 0.1rem;
 				"
 			>
-				<button class="date-picker-hour-btn js-next-hour">
+				<button
+					class="date-picker-hour-btn js-next-hour"
+					style="font-size: 0;"
+				>
 					<img
 						style="
 							width: 0.6rem;
@@ -371,7 +425,10 @@ const datePickerHTML = /* HTML */ `
 						src="assets/icons/feather/chevron-up.svg"
 					>
 				</button>
-				<button class="date-picker-hour-btn js-prev-hour">
+				<button
+					class="date-picker-hour-btn js-prev-hour"
+					style="font-size: 0;"
+				>
 					<img
 						style="
 							width: 0.6rem;
@@ -394,7 +451,13 @@ const datePickerHTML = /* HTML */ `
 					type="number"
 					min="00"
 					max="23"
-					style="text-align: end;"
+					style="
+						width: 0.9rem;
+						height: 0.8rem;
+						font-size: 0.7rem;
+						-moz-appearance: textfield;
+						text-align: end;
+					"
 				></input>
 				<span
 					style="
@@ -407,6 +470,12 @@ const datePickerHTML = /* HTML */ `
 					type="number"
 					min="00"
 					max="59"
+					style="
+						width: 0.9rem;
+						height: 0.8rem;
+						font-size: 0.7rem;
+						-moz-appearance: textfield;
+					"
 				></input>
 			</div>
 			<div
@@ -418,7 +487,10 @@ const datePickerHTML = /* HTML */ `
 					margin-left: 0.1rem;
 				"
 			>
-				<button class="date-picker-hour-btn js-next-minute">
+				<button
+					class="date-picker-hour-btn js-next-minute"
+					style="font-size: 0;"
+				>
 					<img
 						style="
 							width: 0.6rem;
@@ -430,7 +502,10 @@ const datePickerHTML = /* HTML */ `
 						src="assets/icons/feather/chevron-up.svg"
 					>
 				</button>
-				<button class="date-picker-hour-btn js-prev-minute">
+				<button
+					class="date-picker-hour-btn js-prev-minute"
+					style="font-size: 0;"
+				>
 					<img
 						style="
 							width: 0.6rem;
@@ -450,8 +525,26 @@ const datePickerHTML = /* HTML */ `
 				justify-content: space-around;
 			"
 		>
-			<button class="date-picker-bottom-btn js-reset">Reset</button>
-			<button class="date-picker-bottom-btn date-picker-apply js-apply">Apply</button>
+			<button
+				class="date-picker-bottom-btn js-reset"
+				style="
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+					border-radius: 0.15rem;
+				"
+			>Reset</button>
+			<button
+				class="date-picker-bottom-btn date-picker-apply js-apply"
+				style="
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					color: var(--color-text);
+					font-size: 0.6rem;
+					border-radius: 0.15rem;
+				"
+			>Apply</button>
 		</div>
 	</div>
 `;
@@ -663,18 +756,33 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 	const btnID = uniqueID();
 
 	return {
-		html: /* HTML */ ` <button id="${btnID}" class="options-menu-btn">
-			<img
+		html: /* HTML */ `
+			<button
+				id="${btnID}"
+				class="options-menu-btn"
 				style="
+					display: flex;
+					justify-content: center;
+					align-items: center;
+					width: var(--options-menu-btn-width);
+					height: var(--options-menu-btn-width);
+					color: var(--color-text);
+					font-size: 0.5rem;
+					background: var(--color2);
+				"
+			>
+				<img
+					style="
 						aspect-ratio: 1;
 						height: 0.8rem;
 						margin: 0.2rem;
 						font-size: 0;
 						filter: var(--color-icons);
 					"
-				src="assets/icons/feather/video.svg"
-			/>
-		</button>`,
+					src="assets/icons/feather/video.svg"
+				/>
+			</button>
+		`,
 		init() {
 			/** @param {string} selected */
 			const onSelect = (selected) => {
@@ -735,7 +843,19 @@ function newSelectOne(options, onSelect, alias) {
 	let optionsHTML = "";
 	for (const option of sortByLabel(options)) {
 		optionsHTML += /* HTML */ `
-			<span class="select-one-item" data="${option.id}">${option.label}</span>
+			<span
+				class="js-select-one-item select-one-item"
+				style="
+					display: block ruby;
+					padding: 0.1rem 0.2rem;
+					font-size: 0.7rem;
+					border-top: solid;
+					border-top-width: 0.01rem;
+					border-top-color: var(--color2);
+				"
+				data="${option.id}"
+				>${option.label}</span
+			>
 		`;
 	}
 
@@ -763,19 +883,19 @@ function newSelectOne(options, onSelect, alias) {
 			const saved = localStorage.getItem(alias);
 			if (options[saved] !== undefined) {
 				element
-					.querySelector(`.select-one-item[data="${saved}"]`)
+					.querySelector(`.js-select-one-item[data="${saved}"]`)
 					.classList.add("select-one-item-selected");
 			}
 
 			element.addEventListener("click", (e) => {
 				const target = e.target;
 				if (target instanceof HTMLElement) {
-					if (!target.classList.contains("select-one-item")) {
+					if (!target.classList.contains("js-select-one-item")) {
 						return;
 					}
 
 					// Clear selection.
-					const fields = element.querySelectorAll(".select-one-item");
+					const fields = element.querySelectorAll(".js-select-one-item");
 					for (const field of fields) {
 						field.classList.remove("select-one-item-selected");
 					}

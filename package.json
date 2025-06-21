@@ -109,7 +109,8 @@
 			"unicorn/numeric-separators-style": "off",
 			"unicorn/prefer-logical-operator-over-ternary": "off",
 			"unicorn/prefer-query-selector": "off",
-			"unicorn/template-indent": "off"
+			"unicorn/template-indent": "off",
+			"unicorn/prefer-ternary": "off"
 		}
 	},
 	"stylelint": {

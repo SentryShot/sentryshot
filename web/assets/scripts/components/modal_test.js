@@ -17,7 +17,14 @@ test("newModal", () => {
 	modal.open();
 
 	expect(document.querySelector(".modal").innerHTML).toMatchInlineSnapshot(`
-<header class="modal-header">
+<header class="modal-header"
+        style="
+							display: flex;
+							padding-left: 0.2rem;
+							padding-right: 0.2rem;
+							background: var(--color2);
+						"
+>
   <span style="
 								width: 100%;
 								padding-left: 0.7rem;
@@ -90,7 +97,14 @@ test("modalSelect", () => {
      class="modal-open"
 >
   <div class="modal js-modal">
-    <header class="modal-header">
+    <header class="modal-header"
+            style="
+							display: flex;
+							padding-left: 0.2rem;
+							padding-right: 0.2rem;
+							background: var(--color2);
+						"
+    >
       <span style="
 								width: 100%;
 								padding-left: 0.7rem;
@@ -120,7 +134,9 @@ test("modalSelect", () => {
 							background: var(--color3);
 						"
     >
-      <div class="js-selector modal-select">
+      <div class="js-selector"
+           style="display: flex; flex-wrap: wrap;"
+      >
         <span data="m1"
               class="js-option"
               style="

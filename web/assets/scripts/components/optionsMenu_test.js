@@ -30,6 +30,16 @@ describe("optionsGridSize", () => {
 <div id="options-menu">
   <button id="uid1"
           class="options-menu-btn"
+          style="
+						display: flex;
+						justify-content: center;
+						align-items: center;
+						width: var(--options-menu-btn-width);
+						height: var(--options-menu-btn-width);
+						color: var(--color-text);
+						font-size: 0.5rem;
+						background: var(--color2);
+					"
   >
     <img style="
 							aspect-ratio: 1;
@@ -43,9 +53,18 @@ describe("optionsGridSize", () => {
   </button>
   <button id="uid2"
           class="options-menu-btn"
+          style="
+						display: flex;
+						justify-content: center;
+						align-items: center;
+						width: var(--options-menu-btn-width);
+						height: var(--options-menu-btn-width);
+						color: var(--color-text);
+						font-size: 0.5rem;
+						background: var(--color2);
+					"
   >
-    <img class="icon"
-         style="
+    <img style="
 							aspect-ratio: 1;
 							height: 0.8rem;
 							margin: 0.2rem;
@@ -323,12 +342,28 @@ describe("optionsMonitorGroups", () => {
 <span style="padding: 0.1rem; font-size: 0.6rem;">
   Groups
 </span>
-<span class="select-one-item"
+<span class="js-select-one-item select-one-item"
+      style="
+					display: block ruby;
+					padding: 0.1rem 0.2rem;
+					font-size: 0.7rem;
+					border-top: solid;
+					border-top-width: 0.01rem;
+					border-top-color: var(--color2);
+				"
       data="a"
 >
   group1
 </span>
-<span class="select-one-item"
+<span class="js-select-one-item select-one-item"
+      style="
+					display: block ruby;
+					padding: 0.1rem 0.2rem;
+					font-size: 0.7rem;
+					border-top: solid;
+					border-top-width: 0.01rem;
+					border-top-color: var(--color2);
+				"
       data="b"
 >
   group2
@@ -340,12 +375,28 @@ describe("optionsMonitorGroups", () => {
 <span style="padding: 0.1rem; font-size: 0.6rem;">
   Groups
 </span>
-<span class="select-one-item"
+<span class="js-select-one-item select-one-item"
+      style="
+					display: block ruby;
+					padding: 0.1rem 0.2rem;
+					font-size: 0.7rem;
+					border-top: solid;
+					border-top-width: 0.01rem;
+					border-top-color: var(--color2);
+				"
       data="a"
 >
   group1
 </span>
-<span class="select-one-item"
+<span class="js-select-one-item select-one-item"
+      style="
+					display: block ruby;
+					padding: 0.1rem 0.2rem;
+					font-size: 0.7rem;
+					border-top: solid;
+					border-top-width: 0.01rem;
+					border-top-color: var(--color2);
+				"
       data="b"
 >
   group2

@@ -164,7 +164,12 @@ function newPlayer(data, isAdmin, token) {
 			<source src="${d.videoPath}" type="video/mp4" />
 		</video>
 		${detectionRenderer.html}
-		<input class="player-overlay-checkbox" id="${elementID}-overlay-checkbox" type="checkbox">
+		<input
+			id="${elementID}-overlay-checkbox" type="checkbox"
+			class="js-checkbox player-overlay-checkbox"
+			style="position: absolute; opacity: 0;"
+			type="checkbox"
+		>
 		<label
 			for="${elementID}-overlay-checkbox"
 			style="
@@ -175,7 +180,15 @@ function newPlayer(data, isAdmin, token) {
 				opacity: 0.5;
 			"
 		></label>
-		<div class="player-overlay">
+		<div
+			class="player-overlay"
+			style="
+				position: absolute;
+				z-index: 2;
+				display: flex;
+				justify-content: center;
+			"
+		>
 			<button
 				class="js-play-btn"
 				style="
@@ -195,6 +208,9 @@ function newPlayer(data, isAdmin, token) {
 		<div
 			class="player-overlay"
 			style="
+				z-index: 2;
+				display: flex;
+				justify-content: center;
 				position: absolute;
 				bottom: 4%;
 				width: 100%;
@@ -220,7 +236,18 @@ function newPlayer(data, isAdmin, token) {
 			>
 				<span class="js-progress-bar">
 			</progress>
-			<button class="player-options-open-btn">
+			<button
+				class="js-options-open-btn player-options-open-btn"
+				style="
+					position: absolute;
+					right: 0.28rem;
+					bottom: 0.8rem;
+					width: 0.8rem;
+					font-size: 0;
+					background-color: rgb(0 0 0 / 0%);
+					transition: opacity 250ms;
+				"
+			>
 				<div
 					style="
 						width: 0.4rem;
@@ -318,7 +345,7 @@ function newPlayer(data, isAdmin, token) {
 		const $playpause = element.querySelector(".js-play-btn");
 		const $playpauseImg = $playpause.querySelector("img");
 		/** @type {HTMLInputElement} */
-		const $checkbox = element.querySelector(".player-overlay-checkbox");
+		const $checkbox = element.querySelector(".js-checkbox");
 
 		const playpause = () => {
 			if ($video.paused || $video.ended) {
@@ -371,7 +398,7 @@ function newPlayer(data, isAdmin, token) {
 
 		// Popup
 		const $popup = element.querySelector(".js-popup");
-		const $popupOpen = element.querySelector(".player-options-open-btn");
+		const $popupOpen = element.querySelector(".js-options-open-btn");
 		const $fullscreen = $popup.querySelector(".js-fullscreen");
 		$fullscreenImg = $fullscreen.querySelector("img");
 		$popupOpen.addEventListener("click", () => {

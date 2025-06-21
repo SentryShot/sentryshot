@@ -24,16 +24,30 @@
 		init();
 	</script>
 </head>
-<body>
+<body style="display: flex; height: 100dvh; margin: 0; background-color: var(--colorbg)">
 	{% include "sidebar" %}
 	<div
 		id="content"
 		class="js-content"
-		style="display: flex; overflow-x: hidden; background: var(--color2);"
+		style="
+			position: absolute;
+			box-sizing: border-box;
+			width: 100%;
+			height: 100%;
+			display: flex;
+			overflow-x: hidden;
+			background: var(--color2);
+		"
 	>
-		<div class="log-sidebar js-sidebar"></div>
+		<div
+			class="log-sidebar js-sidebar"
+			style="flex-shrink: 0; height: 100%; overflow-y: auto"
+		></div>
 		<div class="log-list-wrapper js-list">
-			<div id="log-menubar">
+			<div
+				id="log-menubar"
+				style="height: var(--barsize); background: var(--color2)"
+			>
 				<nav class="js-back" style="width: 1.4rem">
 					<img
 						style="
@@ -65,10 +79,7 @@
 	}
 
 	.log-sidebar {
-		flex-shrink: 0;
 		width: 100%;
-		height: 100%;
-		overflow-y: auto;
 	}
 
 	.checkbox-checkbox:checked ~ .checkbox-box {
@@ -81,15 +92,10 @@
 		background: var(--color3-hover);
 	}
 	.log-apply-btn {
-		float: right;
 		background: var(--color-green);
 	}
 	.log-apply-btn:hover {
 		background: var(--color-green-hover);
-	}
-	#log-menubar {
-		height: var(--barsize);
-		background: var(--color2);
 	}
 
 	.log-list-wrapper {

@@ -80,7 +80,16 @@ export function motion2(hasSubStream, getMonitorId) {
 
 	return {
 		html: /* HTML */ `
-			<li id="${id}" class="form-field" style="display:flex;">
+			<li
+				id="${id}"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+					display:flex;"
+			>
 				<label
 					style="
 						flex-grow: 1;
@@ -93,7 +102,17 @@ export function motion2(hasSubStream, getMonitorId) {
 					>Motion detection</label
 				>
 				<div>
-					<button class="form-field-edit-btn">
+					<button
+						class="js-edit-btn form-field-edit-btn"
+						style="
+							aspect-ratio: 1;
+							display: flex;
+							width: 1rem;
+							height: 1rem;
+							margin-left: 0.4rem;
+							border-radius: 0.2rem;
+						"
+					>
 						<img
 							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/edit-3.svg"
@@ -126,11 +145,9 @@ export function motion2(hasSubStream, getMonitorId) {
 		},
 		init() {
 			element = document.querySelector(`#${id}`);
-			element
-				.querySelector(".form-field-edit-btn")
-				.addEventListener("click", () => {
-					open();
-				});
+			element.querySelector(".js-edit-btn").addEventListener("click", () => {
+				open();
+			});
 		},
 		// @ts-ignore
 		openTesting() {
@@ -154,7 +171,15 @@ export function motion2(hasSubStream, getMonitorId) {
 /** @param {string} feedHTML */
 function zonesModalHTML(feedHTML) {
 	return /* HTML */ `
-		<li class="form-field">
+		<li
+			style="
+				align-items: center;
+				padding: 0.1rem;
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: 0.05rem;
+			"
+		>
 			<div style="display: flex; width: 100%;">
 				<select
 					class="js-zone-select"
@@ -162,7 +187,14 @@ function zonesModalHTML(feedHTML) {
 				></select>
 				<div
 					class="js-add-zone form-field-edit-btn"
-					style="background: var(--color2)"
+					style="
+						aspect-ratio: 1;
+						display: flex;
+						width: 1rem;
+						height: 1rem;
+						margin-left: 0.4rem;
+						border-radius: 0.2rem;
+					"
 				>
 					<img
 						style="padding: 0.1rem; filter: var(--color-icons);"
@@ -171,7 +203,15 @@ function zonesModalHTML(feedHTML) {
 				</div>
 				<div
 					class="js-remove-zone form-field-edit-btn"
-					style="margin-left: 0.2rem; background: var(--color2)"
+					style="
+						aspect-ratio: 1;
+						display: flex;
+						width: 1rem;
+						height: 1rem;
+						margin-left: 0.4rem;
+						border-radius: 0.2rem;
+						margin-left: 0.2rem;
+					"
 				>
 					<img
 						style="padding: 0.1rem; filter: var(--color-icons);"
@@ -180,7 +220,15 @@ function zonesModalHTML(feedHTML) {
 				</div>
 			</div>
 		</li>
-		<li class="form-field">
+		<li
+			style="
+				align-items: center;
+				padding: 0.1rem;
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: 0.05rem;
+			"
+		>
 			<label
 				for="modal-enable"
 				style="
@@ -203,7 +251,15 @@ function zonesModalHTML(feedHTML) {
 				</select>
 			</div>
 		</li>
-		<li class="form-field">
+		<li
+			style="
+				align-items: center;
+				padding: 0.1rem;
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: 0.05rem;
+			"
+		>
 			<label
 				for="motion-modal-sensitivity"
 				style="
@@ -232,7 +288,15 @@ function zonesModalHTML(feedHTML) {
 				step="any"
 			/>
 		</li>
-		<li class="form-field">
+		<li
+			style="
+				align-items: center;
+				padding: 0.1rem;
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: 0.05rem;
+			"
+		>
 			<label
 				style="
 					flex-grow: 1;
@@ -277,7 +341,15 @@ function zonesModalHTML(feedHTML) {
 				/>
 			</div>
 		</li>
-		<li class="form-field">
+		<li
+			style="
+				align-items: center;
+				padding: 0.1rem;
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: 0.05rem;
+			"
+		>
 			<label
 				for="modal-preview"
 				style="
@@ -308,13 +380,26 @@ function zonesModalHTML(feedHTML) {
 			</div>
 		</li>
 		<li
-			class="form-field"
-			style="display: flex; flex-wrap: wrap; justify-content: space-between"
+			style="
+				align-items: center;
+				padding: 0.1rem;
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: 0.05rem;
+				display: flex;
+				flex-wrap: wrap;
+				justify-content: space-between
+			"
 		>
 			<div style="display: flex;">
 				<button
 					class="js-1x motion-step-size"
 					style="
+						color: var(--color-text);
+						font-size: 0.6rem;
+						padding: 0.07rem 0.15rem;
+						border-width: 0.02rem;
+						border-color: var(--color3);
 						border-top-left-radius: 0.25rem;
 						border-bottom-left-radius: 0.25rem;
 						border-right-style: solid;
@@ -324,19 +409,38 @@ function zonesModalHTML(feedHTML) {
 				</button>
 				<button
 					class="js-4x motion-step-size motion-step-size-selected"
-					style="border-style: hidden solid;"
+					style="
+						color: var(--color-text);
+						font-size: 0.6rem;
+						padding: 0.07rem 0.15rem;
+						border-width: 0.02rem;
+						border-color: var(--color3);
+						border-style: hidden solid;
+					"
 				>
 					4x
 				</button>
 				<button
 					class="js-10x motion-step-size"
-					style="border-style: hidden solid;"
+					style="
+						color: var(--color-text);
+						font-size: 0.6rem;
+						padding: 0.07rem 0.15rem;
+						border-width: 0.02rem;
+						border-color: var(--color3);
+						border-style: hidden solid;
+					"
 				>
 					10x
 				</button>
 				<button
 					class="js-20x motion-step-size"
 					style="
+						color: var(--color-text);
+						font-size: 0.6rem;
+						padding: 0.07rem 0.15rem;
+						border-width: 0.02rem;
+						border-color: var(--color3);
 						border-top-right-radius: 0.25rem;
 						border-bottom-right-radius: 0.25rem;
 						border-left-style: solid;
@@ -682,8 +786,14 @@ function zones(hasSubStream, getMonitorId) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
-				class="form-field"
-				style="display:flex; padding-bottom:0.25rem;"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+					display:flex;
+					padding-bottom:0.25rem;"
 			>
 				<label
 					style="
@@ -697,7 +807,17 @@ function zones(hasSubStream, getMonitorId) {
 					>Zones</label
 				>
 				<div style="width:auto">
-					<button class="form-field-edit-btn color2">
+					<button
+						class="js-edit-btn form-field-edit-btn color2"
+						style="
+							aspect-ratio: 1;
+							display: flex;
+							width: 1rem;
+							height: 1rem;
+							margin-left: 0.4rem;
+							border-radius: 0.2rem;
+						"
+					>
 						<img
 							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/edit-3.svg"
@@ -708,31 +828,29 @@ function zones(hasSubStream, getMonitorId) {
 		`,
 		init() {
 			const element = document.querySelector(`#${id}`);
-			element
-				.querySelector(".form-field-edit-btn")
-				.addEventListener("click", () => {
-					// On open modal.
-					const monitor = {
-						id: getMonitorId(),
-						audioEnabled: "false",
-						hasSubStream: hasSubStream(getMonitorId()),
-					};
-					feed = newStreamer(monitor, true);
+			element.querySelector(".js-edit-btn").addEventListener("click", () => {
+				// On open modal.
+				const monitor = {
+					id: getMonitorId(),
+					audioEnabled: "false",
+					hasSubStream: hasSubStream(getMonitorId()),
+				};
+				feed = newStreamer(monitor, true);
 
-					if (rendered) {
-						// Update feed.
-						$feed.innerHTML = feed.html;
-					} else {
-						renderModal(element, feed.html);
-						modal.onClose(() => {
-							feed.destroy();
-						});
-						rendered = true;
-					}
+				if (rendered) {
+					// Update feed.
+					$feed.innerHTML = feed.html;
+				} else {
+					renderModal(element, feed.html);
+					modal.onClose(() => {
+						feed.destroy();
+					});
+					rendered = true;
+				}
 
-					modal.open();
-					feed.init();
-				});
+				modal.open();
+				feed.init();
+			});
 		},
 		value() {
 			if (rendered) {
@@ -934,11 +1052,6 @@ const $style = document.createElement("style");
 $style.innerHTML = `
 	.motion-step-size {
 		background: var(--color2);
-		color: var(--color-text);
-		font-size: 0.6rem;
-		padding: 0.07rem 0.15rem;
-		border-width: 0.02rem;
-		border-color: var(--color3);
 	}
 
 	.motion-step-size:hover {

@@ -488,11 +488,46 @@ function newMultiSelect(label, values, initial) {
 					class="item-${id}"
 					style="display: flex; align-items: center; min-width: 1px;"
 				>
-					<div class="checkbox">
-						<input class="checkbox-checkbox" type="checkbox" />
-						<div class="checkbox-box"></div>
+					<div
+						style="
+							display: flex;
+							justify-content: center;
+							align-items: center;
+							width: 0.8em;
+							height: 0.8em;
+							background: var(--color2);
+							border-radius: 0.14rem;
+							user-select: none;
+						"
+					>
+						<input
+							class="checkbox-checkbox"
+							style="
+								z-index: 1;
+								width: 100%;
+								height: 100%;
+								outline: none;
+								-moz-appearance: none;
+								-webkit-appearance: none;
+							"
+							type="checkbox"
+						/>
+						<div
+							class="checkbox-box"
+							style="
+								position: absolute;
+								width: 0.62em;
+								height: 0.62em;
+								border-radius: 0.1rem;
+							"
+						></div>
 						<img
 							class="checkbox-check"
+							style="
+								position: absolute;
+								width: 0.8em;
+								filter: invert();
+							"
 							src="assets/icons/feather/check.svg"
 						/>
 					</div>
@@ -642,7 +677,17 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 					>
 						${options}
 					</select>
-					<button class="js-edit-btn form-field-edit-btn">
+					<button
+						class="js-edit-btn form-field-edit-btn"
+						style="
+							aspect-ratio: 1;
+							display: flex;
+							width: 1rem;
+							height: 1rem;
+							margin-left: 0.4rem;
+							border-radius: 0.2rem;
+						"
+					>
 						<img
 							style="padding: 0.1rem; filter: var(--color-icons);"
 							src="assets/icons/feather/video.svg"
@@ -750,10 +795,11 @@ function newLogSelector(logger, formFields) {
 			<button
 				class="log-apply-btn js-apply"
 				style="
-				   margin: 0.2rem;
-				   padding-left: 0.1rem;
-				   padding-right: 0.1rem;
-				   border-radius: 0.2rem;
+					float: right;
+					margin: 0.2rem;
+					padding-left: 0.1rem;
+					padding-right: 0.1rem;
+					border-radius: 0.2rem;
 				"
 			>
 				<span style="color: var(--color-text); font-size: 0.7rem;">Apply</span>
