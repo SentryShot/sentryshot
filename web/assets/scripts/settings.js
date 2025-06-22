@@ -53,27 +53,27 @@ function newRenderer($parent) {
 				htmlNav += /* HTML */ `
 					<li
 						id="js-set-category-${category.name()}"
-						class="settings-nav-item js-set-settings-category"
+						class="js-set-settings-category settings-nav-item"
 						style="
 							display: flex;
 							align-items: center;
 							padding: 0.1rem 1rem 0.1rem 0.4rem;
 							border-width: 0.01rem;
-							border-color: var(--color2-hover);
+							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
 					>
 						<img
+							class="icon-filter"
 							style="
 								aspect-ratio: 1;
 								height: 0.7rem;
 								margin-right: 0.3rem;
 								font-size: 0.8rem;
-								filter: var(--color-icons);
 							"
 							src="${category.icon()}"
 						/>
-						<span style="color: var(--color-text); font-size: 0.7rem;"
+						<span class="text-color" style="font-size: 0.7rem;"
 							>${category.title()}</span
 						>
 					</li>
@@ -92,8 +92,8 @@ function newRenderer($parent) {
 			$parent.innerHTML = /* HTML */ `
 				<nav
 					id="js-settings-navbar"
-					class="settings-navbar"
-					style="flex-shrink: 0; background: var(--color2)"
+					class="settings-navbar bg-color2"
+					style="flex-shrink: 0"
 				>
 					<ul style="height: 100%; overflow-y: auto;">
 						${htmlNav}
@@ -145,11 +145,11 @@ function newSimpleCategory(category, title) {
 							<img src="${backIconPath}"/>
 						</nav>
 						<span
+							class="text-color"
 							style="
 								width: 100%;
 								margin: auto;
 								margin-right: 1.6rem;
-								color: var(--color-text);
 								font-size: 0.8rem;
 								text-align: center;
 							"
@@ -253,7 +253,7 @@ function newCategory(categoryName, title) {
 		html() {
 			return /* HTML */ `
 				<div
-					class="settings-category"
+					class="settings-category bg-color2"
 					style="
 						z-index: 0;
 						display: flex;
@@ -261,16 +261,14 @@ function newCategory(categoryName, title) {
 						flex-direction: column;
 						height: 100%;
 						overflow-y: auto;
-						background: var(--color2);
 					"
 				>
 					<div
-						class="settings-menubar js-settings-menubar"
+						class="settings-menubar js-settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							background: var(--color2);
 							border-width: 0.01rem;
-							border-color: var(--color2-hover);
+							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
 					>
@@ -284,17 +282,17 @@ function newCategory(categoryName, title) {
 							"
 						>
 							<img
-								style="width: 1.1rem; filter: var(--color-icons);"
+								class="icon-filter"
+								style="width: 1.1rem;"
 								src="${backIconPath}"
 							/>
 						</nav>
 						<span
-							class="js-category-title"
+							class="js-category-title text-color"
 							style="
 								width: 100%;
 								margin: auto;
 								margin-right: 1.6rem;
-								color: var(--color-text);
 								font-size: 0.8rem;
 								text-align: center;
 							"
@@ -307,16 +305,15 @@ function newCategory(categoryName, title) {
 					></ul>
 				</div>
 				<div
-					class="js-sub-category settings-sub-category"
-					style="display: flex; flex-direction: column; background: var(--color3);"
+					class="js-sub-category settings-sub-category bg-color3"
+					style="display: flex; flex-direction: column;"
 				>
 					<div
-						class="js-settings-menubar settings-menubar"
+						class="js-settings-menubar settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							background: var(--color2);
 							border-width: 0.01rem;
-							border-color: var(--color2-hover);
+							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
 					>
@@ -330,17 +327,17 @@ function newCategory(categoryName, title) {
 							"
 						>
 							<img
-								style="width: 1.1rem; filter: var(--color-icons);"
+								class="icon-filter"
+								style="width: 1.1rem;"
 								src="${backIconPath}"
 							/>
 						</nav>
 						<span
-							class="js-category-title"
+							class="js-category-title text-color"
 							style="
 								width: 100%;
 								margin: auto;
 								margin-right: 1.6rem;
-								color: var(--color-text);
 								font-size: 0.8rem;
 								text-align: center;
 							"
@@ -456,7 +453,7 @@ function newCategory2(categoryName, title, form) {
 		html() {
 			return /* HTML */ `
 				<div
-					class="settings-category"
+					class="settings-category bg-color2"
 					style="
 						z-index: 0;
 						display: flex;
@@ -464,16 +461,14 @@ function newCategory2(categoryName, title, form) {
 						flex-direction: column;
 						height: 100%;
 						overflow-y: auto;
-						background: var(--color2);
 					"
 				>
 					<div
-						class="settings-menubar js-settings-menubar"
+						class="settings-menubar js-settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							background: var(--color2);
 							border-width: 0.01rem;
-							border-color: var(--color2-hover);
+							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
 					>
@@ -487,17 +482,17 @@ function newCategory2(categoryName, title, form) {
 							"
 						>
 							<img
-								style="width: 1.1rem; filter: var(--color-icons);"
+								class="icon-filter"
+								style="width: 1.1rem;"
 								src="${backIconPath}"
 							/>
 						</nav>
 						<span
-							class="js-category-title"
+							class="js-category-title text-color"
 							style="
 								width: 100%;
 								margin: auto;
 								margin-right: 1.6rem;
-								color: var(--color-text);
 								font-size: 0.8rem;
 								text-align: center;
 							"
@@ -510,16 +505,15 @@ function newCategory2(categoryName, title, form) {
 					></ul>
 				</div>
 				<div
-					class="js-sub-category settings-sub-category"
-					style="display: flex; flex-direction: column; background: var(--color3);"
+					class="js-sub-category settings-sub-category bg-color3"
+					style="display: flex; flex-direction: column;"
 				>
 					<div
-						class="js-settings-menubar settings-menubar"
+						class="js-settings-menubar settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							background: var(--color2);
 							border-width: 0.01rem;
-							border-color: var(--color2-hover);
+							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
 					>
@@ -533,17 +527,17 @@ function newCategory2(categoryName, title, form) {
 							"
 						>
 							<img
-								style="width: 1.1rem; filter: var(--color-icons);"
+								class="icon-filter"
+								style="width: 1.1rem;"
 								src="${backIconPath}"
 							/>
 						</nav>
 						<span
-							class="js-category-title"
+							class="js-category-title text-color"
 							style="
 								width: 100%;
 								margin: auto;
 								margin-right: 1.6rem;
-								color: var(--color-text);
 								font-size: 0.8rem;
 								text-align: center;
 							"
@@ -693,14 +687,12 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 						align-items: center;
 						padding: 0.1rem 1rem 0.1rem 0.4rem;
 						border-width: 0.01rem;
-						border-color: var(--color2-hover);
+						border-color: var(--color3);
 						border-bottom-style: solid;
 					"
 					data="${m.id}"
 				>
-					<span style="color: var(--color-text); font-size: 0.7rem;"
-						>${m.name}</span
-					>
+					<span class="text-color" style="font-size: 0.7rem;">${m.name}</span>
 				</li>
 			`;
 		}
@@ -717,7 +709,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 				"
 				data=""
 			>
-				<span style="color: var(--color-text); font-size: 0.7rem;">Add</span>
+				<span class="text-color" style="font-size: 0.7rem;">Add</span>
 			</button>
 		`;
 
@@ -936,13 +928,11 @@ function newMonitorGroups(token, fields, groups) {
 						align-items: center;
 						padding: 0.1rem 1rem 0.1rem 0.4rem;
 						border-width: 0.01rem;
-						border-color: var(--color2-hover);
+						border-color: var(--color3);
 						border-bottom-style: solid;
 					"
 				>
-					<span style="color: var(--color-text); font-size: 0.7rem;"
-						>${g.name}</span
-					>
+					<span class="text-color" style="font-size: 0.7rem;">${g.name}</span>
 				</li>
 			`;
 		}
@@ -959,7 +949,7 @@ function newMonitorGroups(token, fields, groups) {
 				"
 				data=""
 			>
-				<span style="color: var(--color-text); font-size: 0.7rem;">Add</span>
+				<span class="text-color" style="font-size: 0.7rem;">Add</span>
 			</button>
 		`;
 
@@ -1083,10 +1073,7 @@ function newAccount(token, fields) {
 		let html = "";
 
 		for (const u of sortByUsername(accounts)) {
-			let style = "color: var(--color-text); font-size: 0.7rem;";
-			if (u.isAdmin) {
-				style = "color: var(--color-red); font-size: 0.7rem;";
-			}
+			const c = u.isAdmin === true ? "text-red" : "text-color";
 			html += /* HTML */ `
 				<li
 					class="settings-nav-item js-nav"
@@ -1095,12 +1082,12 @@ function newAccount(token, fields) {
 						align-items: center;
 						padding: 0.1rem 1rem 0.1rem 0.4rem;
 						border-width: 0.01rem;
-						border-color: var(--color2-hover);
+						border-color: var(--color3);
 						border-bottom-style: solid;
 					"
 					data="${u.id}"
 				>
-					<span style="${style}">${u.username} </span>
+					<span class="${c}" style="font-size: 0.7rem;">${u.username} </span>
 				</li>
 			`;
 		}
@@ -1117,7 +1104,7 @@ function newAccount(token, fields) {
 				"
 				data=""
 			>
-				<span style="color: var(--color-text); font-size: 0.7rem;">Add</span>
+				<span class="text-color" style="font-size: 0.7rem;">Add</span>
 			</button>
 		`;
 
@@ -1235,22 +1222,22 @@ function newSelectMonitorField(monitors) {
 					"
 				>
 					<span
+						class="text-color"
 						style="
 							margin-right: auto;
-							color: var(--color-text);
 							padding-right: 0.2rem;
 							user-select: none;
 						"
 						>${name}</span
 					>
 					<div
+						class="bg-color2"
 						style="
 							display: flex;
 							justify-content: center;
 							align-items: center;
 							width: 0.8em;
 							height: 0.8em;
-							background: var(--color2);
 							border-radius: 0.14rem;
 							user-select: none;
 						"

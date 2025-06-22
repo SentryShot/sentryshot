@@ -42,7 +42,7 @@
 		init();
 	</script>
 </head>
-<body style="display: flex; height: 100dvh; margin: 0; background-color: var(--colorbg)">
+<body style="display: flex; height: 100dvh; margin: 0; background-color: var(--color0)">
 	{% include "sidebar" %}
 	<div
 		id="content"
@@ -59,7 +59,7 @@
 </body>
 <style>
 	#nav-link-settings {
-		background: var(--color1-hover);
+		background: var(--color2);
 	}
 
 	.settings-navbar {

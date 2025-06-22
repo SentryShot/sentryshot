@@ -78,7 +78,7 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 						for="${checkboxID}"
 					></label>
 					<div
-						class="js-overlay player-overlay"
+						class="js-overlay player-overlay bg-color1"
 						style="
 							position: absolute;
 							z-index: 2;
@@ -86,7 +86,6 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;
-							background: var(--color1);
 							border: none;
 							border-radius: 0.2rem;
 						"
@@ -205,7 +204,8 @@ function newFullscreenBtn() {
 				"
 			>
 				<img
-					style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
+					class="icon-filter"
+					style="height: 0.7rem; aspect-ratio: 1;"
 					src="${iconMaximizePath}"
 				/>
 			</button>
@@ -256,7 +256,8 @@ function newRecordingsBtn(monitorIds) {
 				"
 			>
 				<img
-					style="height: 0.65rem; aspect-ratio: 1; filter: var(--color-icons);"
+					class="icon-filter"
+					style="height: 0.65rem; aspect-ratio: 1;"
 					src="${iconRecordingsPath}"
 				/>
 			</a>

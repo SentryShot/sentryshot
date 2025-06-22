@@ -367,16 +367,15 @@ fn edit_templates(tmpls: &mut Templates) {
     \"
 >
 	<button
-        id=\"logout-btn\"
+        class=\"text-color bg-color2 hover:bg-color3\"
         style=\"
             margin-top: 0.1rem;
             padding-right: 0.1rem;
             padding-left: 0.1rem;
-            color: var(--color-text);
             font-size: 0.6rem;
             border-width: 0.05rem;
             border-style: solid;
-            border-color: var(--colorbg);
+            border-color: var(--color0);
             border-radius: 0.2rem;
         \"
         onclick='if (confirm(\"logout?\")) { window.location.href = \"logout\"; }'

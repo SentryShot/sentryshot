@@ -117,30 +117,32 @@ describe("MultiSelect", () => {
 <li id="uid4"
     class="form-field"
 >
-  <label style="
+  <label class="text-color"
+         style="
 					   flex-grow: 1;
 					   float: left;
 					   width: 100%;
 					   min-width: 4rem;
-					   color: var(--color-text);
 					   font-size: 0.6rem;
-					">
+					"
+  >
     test
   </label>
   <div style="position: relative;">
     <div class="item-uid1"
          style="display: flex; align-items: center; min-width: 1px;"
     >
-      <div style="
+      <div class="bg-color2"
+           style="
 							display: flex;
 							justify-content: center;
 							align-items: center;
 							width: 0.8em;
 							height: 0.8em;
-							background: var(--color2);
 							border-radius: 0.14rem;
 							user-select: none;
-						">
+						"
+      >
         <input class="checkbox-checkbox"
                style="
 								z-index: 1;
@@ -170,23 +172,26 @@ describe("MultiSelect", () => {
              src="assets/icons/feather/check.svg"
         >
       </div>
-      <span style="margin-left: 0.2rem; color: var(--color-text); font-size: 0.5rem;">
+      <span class="text-color"
+            style="margin-left: 0.2rem; font-size: 0.5rem;"
+      >
         a
       </span>
     </div>
     <div class="item-uid2"
          style="display: flex; align-items: center; min-width: 1px;"
     >
-      <div style="
+      <div class="bg-color2"
+           style="
 							display: flex;
 							justify-content: center;
 							align-items: center;
 							width: 0.8em;
 							height: 0.8em;
-							background: var(--color2);
 							border-radius: 0.14rem;
 							user-select: none;
-						">
+						"
+      >
         <input class="checkbox-checkbox"
                style="
 								z-index: 1;
@@ -216,23 +221,26 @@ describe("MultiSelect", () => {
              src="assets/icons/feather/check.svg"
         >
       </div>
-      <span style="margin-left: 0.2rem; color: var(--color-text); font-size: 0.5rem;">
+      <span class="text-color"
+            style="margin-left: 0.2rem; font-size: 0.5rem;"
+      >
         b
       </span>
     </div>
     <div class="item-uid3"
          style="display: flex; align-items: center; min-width: 1px;"
     >
-      <div style="
+      <div class="bg-color2"
+           style="
 							display: flex;
 							justify-content: center;
 							align-items: center;
 							width: 0.8em;
 							height: 0.8em;
-							background: var(--color2);
 							border-radius: 0.14rem;
 							user-select: none;
-						">
+						"
+      >
         <input class="checkbox-checkbox"
                style="
 								z-index: 1;
@@ -262,7 +270,9 @@ describe("MultiSelect", () => {
              src="assets/icons/feather/check.svg"
         >
       </div>
-      <span style="margin-left: 0.2rem; color: var(--color-text); font-size: 0.5rem;">
+      <span class="text-color"
+            style="margin-left: 0.2rem; font-size: 0.5rem;"
+      >
         c
       </span>
     </div>
@@ -396,7 +406,7 @@ describe("logSelector", () => {
     </div>
   </ul>
   <div>
-    <button class="log-reset-btn js-reset"
+    <button class="js-reset bg-color3 hover:bg-color2"
             style="
 				   margin: 0.2rem;
 				   padding-left: 0.1rem;
@@ -404,11 +414,13 @@ describe("logSelector", () => {
 				   border-radius: 0.2rem;
 				"
     >
-      <span style="color: var(--color-text); font-size: 0.7rem;">
+      <span class="text-color"
+            style="font-size: 0.7rem;"
+      >
         Reset
       </span>
     </button>
-    <button class="log-apply-btn js-apply"
+    <button class="log-apply-btn js-apply bg-green hover:bg-green2"
             style="
 					float: right;
 					margin: 0.2rem;
@@ -417,7 +429,9 @@ describe("logSelector", () => {
 					border-radius: 0.2rem;
 				"
     >
-      <span style="color: var(--color-text); font-size: 0.7rem;">
+      <span class="text-color"
+            style="font-size: 0.7rem;"
+      >
         Apply
       </span>
     </button>

@@ -91,19 +91,19 @@ export function motion2(hasSubStream, getMonitorId) {
 					display:flex;"
 			>
 				<label
+					class="text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					>Motion detection</label
 				>
 				<div>
 					<button
-						class="js-edit-btn form-field-edit-btn"
+						class="js-edit-btn bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
 							display: flex;
@@ -114,7 +114,8 @@ export function motion2(hasSubStream, getMonitorId) {
 						"
 					>
 						<img
-							style="padding: 0.1rem; filter: var(--color-icons);"
+							class="icon-filter"
+							style="padding: 0.1rem;"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -186,7 +187,7 @@ function zonesModalHTML(feedHTML) {
 					style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
 				></select>
 				<div
-					class="js-add-zone form-field-edit-btn"
+					class="js-add-zone bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
 						display: flex;
@@ -197,12 +198,13 @@ function zonesModalHTML(feedHTML) {
 					"
 				>
 					<img
-						style="padding: 0.1rem; filter: var(--color-icons);"
+						class="icon-filter"
+						style="padding: 0.1rem;"
 						src="assets/icons/feather/plus.svg"
 					/>
 				</div>
 				<div
-					class="js-remove-zone form-field-edit-btn"
+					class="js-remove-zone bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
 						display: flex;
@@ -214,7 +216,8 @@ function zonesModalHTML(feedHTML) {
 					"
 				>
 					<img
-						style="padding: 0.1rem; filter: var(--color-icons);"
+						class="icon-filter"
+						style="padding: 0.1rem;"
 						src="assets/icons/feather/minus.svg"
 					/>
 				</div>
@@ -231,12 +234,12 @@ function zonesModalHTML(feedHTML) {
 		>
 			<label
 				for="modal-enable"
+				class="text-color"
 				style="
 					flex-grow: 1;
 					float: left;
 					width: 100%;
 					min-width: 4rem;
-					color: var(--color-text);
 					font-size: 0.6rem;
 				"
 				>Enable</label
@@ -262,12 +265,12 @@ function zonesModalHTML(feedHTML) {
 		>
 			<label
 				for="motion-modal-sensitivity"
+				class="text-color"
 				style="
 					flex-grow: 1;
 					float: left;
 					width: 100%;
 					min-width: 4rem;
-					color: var(--color-text);
 					font-size: 0.6rem;
 				"
 				>Sensitivity</label
@@ -298,12 +301,12 @@ function zonesModalHTML(feedHTML) {
 			"
 		>
 			<label
+				class="text-color"
 				style="
 					flex-grow: 1;
 					float: left;
 					width: 100%;
 					min-width: 4rem;
-					color: var(--color-text);
 					font-size: 0.6rem;
 				"
 				>Threshold Min-Max</label
@@ -325,13 +328,12 @@ function zonesModalHTML(feedHTML) {
 					step="any"
 				/>
 				<input
-					class="js-threshold-max"
+					class="js-threshold-max text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					type="number"
@@ -352,12 +354,12 @@ function zonesModalHTML(feedHTML) {
 		>
 			<label
 				for="modal-preview"
+				class="text-color"
 				style="
 					flex-grow: 1;
 					float: left;
 					width: 100%;
 					min-width: 4rem;
-					color: var(--color-text);
 					font-size: 0.6rem;
 				"
 				>Preview</label
@@ -393,9 +395,8 @@ function zonesModalHTML(feedHTML) {
 		>
 			<div style="display: flex;">
 				<button
-					class="js-1x motion-step-size"
+					class="js-1x text-color bg-color2 hover:bg-color1"
 					style="
-						color: var(--color-text);
 						font-size: 0.6rem;
 						padding: 0.07rem 0.15rem;
 						border-width: 0.02rem;
@@ -408,9 +409,8 @@ function zonesModalHTML(feedHTML) {
 					1x
 				</button>
 				<button
-					class="js-4x motion-step-size motion-step-size-selected"
+					class="js-4x text-color bg-color2 hover:bg-color1 motion-step-size-selected"
 					style="
-						color: var(--color-text);
 						font-size: 0.6rem;
 						padding: 0.07rem 0.15rem;
 						border-width: 0.02rem;
@@ -421,9 +421,8 @@ function zonesModalHTML(feedHTML) {
 					4x
 				</button>
 				<button
-					class="js-10x motion-step-size"
+					class="js-10x text-color bg-color2 hover:bg-color1"
 					style="
-						color: var(--color-text);
 						font-size: 0.6rem;
 						padding: 0.07rem 0.15rem;
 						border-width: 0.02rem;
@@ -434,9 +433,8 @@ function zonesModalHTML(feedHTML) {
 					10x
 				</button>
 				<button
-					class="js-20x motion-step-size"
+					class="js-20x text-color bg-color2 hover:bg-color1"
 					style="
-						color: var(--color-text);
 						font-size: 0.6rem;
 						padding: 0.07rem 0.15rem;
 						border-width: 0.02rem;
@@ -796,19 +794,19 @@ function zones(hasSubStream, getMonitorId) {
 					padding-bottom:0.25rem;"
 			>
 				<label
+					class="text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					>Zones</label
 				>
 				<div style="width:auto">
 					<button
-						class="js-edit-btn form-field-edit-btn color2"
+						class="js-edit-btn bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
 							display: flex;
@@ -819,7 +817,8 @@ function zones(hasSubStream, getMonitorId) {
 						"
 					>
 						<img
-							style="padding: 0.1rem; filter: var(--color-icons);"
+							class="icon-filter"
+							style="padding: 0.1rem;"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -1050,14 +1049,6 @@ function denormalizeZones(zones) {
 // CSS.
 const $style = document.createElement("style");
 $style.innerHTML = `
-	.motion-step-size {
-		background: var(--color2);
-	}
-
-	.motion-step-size:hover {
-		background: var(--color1);
-	}
-
 	.motion-step-size-selected {
 		background: var(--color1);
 	}

@@ -29,47 +29,43 @@ describe("optionsGridSize", () => {
 		expect(document.body.innerHTML).toMatchInlineSnapshot(`
 <div id="options-menu">
   <button id="uid1"
-          class="options-menu-btn"
+          class="text-color bg-color2 hover:bg-color3"
           style="
 						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
-						color: var(--color-text);
 						font-size: 0.5rem;
-						background: var(--color2);
 					"
   >
-    <img style="
+    <img class="icon-filter"
+         style="
 							aspect-ratio: 1;
 							height: 0.8rem;
 							margin: 0.2rem;
 							font-size: 0;
-							filter: var(--color-icons);
 						"
          src="assets/icons/feather/plus.svg"
     >
   </button>
   <button id="uid2"
-          class="options-menu-btn"
+          class="text-color bg-color2 hover:bg-color3"
           style="
 						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
-						color: var(--color-text);
 						font-size: 0.5rem;
-						background: var(--color2);
 					"
   >
-    <img style="
+    <img class="icon-filter"
+         style="
 							aspect-ratio: 1;
 							height: 0.8rem;
 							margin: 0.2rem;
 							font-size: 0;
-							filter: var(--color-icons);
 						"
          src="assets/icons/feather/minus.svg"
     >
@@ -342,27 +338,25 @@ describe("optionsMonitorGroups", () => {
 <span style="padding: 0.1rem; font-size: 0.6rem;">
   Groups
 </span>
-<span class="js-select-one-item select-one-item"
+<span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
 					padding: 0.1rem 0.2rem;
 					font-size: 0.7rem;
 					border-top: solid;
 					border-top-width: 0.01rem;
-					border-top-color: var(--color2);
 				"
       data="a"
 >
   group1
 </span>
-<span class="js-select-one-item select-one-item"
+<span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
 					padding: 0.1rem 0.2rem;
 					font-size: 0.7rem;
 					border-top: solid;
 					border-top-width: 0.01rem;
-					border-top-color: var(--color2);
 				"
       data="b"
 >
@@ -375,27 +369,25 @@ describe("optionsMonitorGroups", () => {
 <span style="padding: 0.1rem; font-size: 0.6rem;">
   Groups
 </span>
-<span class="js-select-one-item select-one-item"
+<span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
 					padding: 0.1rem 0.2rem;
 					font-size: 0.7rem;
 					border-top: solid;
 					border-top-width: 0.01rem;
-					border-top-color: var(--color2);
 				"
       data="a"
 >
   group1
 </span>
-<span class="js-select-one-item select-one-item"
+<span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
 					padding: 0.1rem 0.2rem;
 					font-size: 0.7rem;
 					border-top: solid;
 					border-top-width: 0.01rem;
-					border-top-color: var(--color2);
 				"
       data="b"
 >
@@ -403,7 +395,7 @@ describe("optionsMonitorGroups", () => {
 </span>
 `);
 
-		const $group1 = document.querySelector(".select-one-item[data='a']");
+		const $group1 = document.querySelector(".js-select-one-item[data='a']");
 		expect($group1.classList.contains("select-one-item-selected")).toBe(false);
 		$group1.click();
 		expect($group1.classList.contains("select-one-item-selected")).toBe(true);
@@ -422,7 +414,7 @@ describe("optionsMonitorGroups", () => {
 		const group = setup(content);
 
 		group.init();
-		const $group1 = document.querySelector(".select-one-item[data='a']");
+		const $group1 = document.querySelector(".js-select-one-item[data='a']");
 		$group1.click();
 
 		expect(setMonitorsCalled).toBe(true);

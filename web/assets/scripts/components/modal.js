@@ -41,44 +41,42 @@ function newModal(label, content = "") {
 			>
 				<div class="modal js-modal">
 					<header
-						class="modal-header"
+						class="modal-header bg-color2"
 						style="
 							display: flex;
 							padding-left: 0.2rem;
 							padding-right: 0.2rem;
-							background: var(--color2);
 						"
 					>
 						<span
+							class="text-color"
 							style="
 								width: 100%;
 								padding-left: 0.7rem;
-								color: var(--color-text);
 								font-size: 0.8rem;
 								text-align: center;
 							"
 						>${label}</span>
 						<button
-							class="js-modal-close-btn"
+							class="js-modal-close-btn bg-color3"
 							style="
 								display: flex;
 								margin: auto;
-								background: var(--color3);
 								border-radius: 0.1rem;
 							"
 						>
 							<img
-								style="height: 0.9rem; filter: var(--color-icons);"
+								class="icon-filter"
+								style="height: 0.9rem;"
 								src="assets/icons/feather/x.svg"
 							></img>
 						</button>
 					</header>
 					<div
-						class="js-modal-content"
+						class="js-modal-content bg-color3"
 						style="
 							height: 100%;
 							overflow-y: visible;
-							background: var(--color3);
 						"
 					>${content}</div>
 				</div>
@@ -139,10 +137,9 @@ function newModalSelect(name, options, onSelect) {
 			html += /* HTML */ `
 				<span
 					data="${option}"
-					class="js-option"
+					class="js-option text-color"
 					style="
 						padding: 0 0.2rem;
-						color: var(--color-text);
 						font-size: 0.8rem;
 						border-width: 0.01rem;
 						border-style: solid;

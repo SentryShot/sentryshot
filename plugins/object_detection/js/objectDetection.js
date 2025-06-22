@@ -129,18 +129,18 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 				"
 			>
 				<label
+					class="text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					>Object detection</label
 				>
 				<button
-					class="js-edit-btn form-field-edit-btn"
+					class="js-edit-btn bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
 						display: flex;
@@ -151,7 +151,8 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 					"
 				>
 					<img
-						style="padding: 0.1rem; filter: var(--color-icons);"
+						class="icon-filter"
+						style="padding: 0.1rem;"
 						src="assets/icons/feather/edit-3.svg"
 					/>
 				</button>
@@ -216,9 +217,7 @@ function thresholds(detectors, getDetectorName) {
 						align-items: center;
 					"
 				>
-					<label
-						for="${id}"
-						style="font-size: 0.7rem; color: var(--color-text);"
+					<label for="${id}" class="text-color" style="font-size: 0.7rem;"
 						>${label}</label
 					>
 					<input
@@ -342,19 +341,19 @@ function thresholds(detectors, getDetectorName) {
 				"
 			>
 				<label
+					class="text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					>Thresholds</label
 				>
 				<div style="width:auto">
 					<button
-						class="js-edit-btn form-field-edit-btn"
+						class="js-edit-btn bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
 							display: flex;
@@ -365,7 +364,8 @@ function thresholds(detectors, getDetectorName) {
 						"
 					>
 						<img
-							style="padding: 0.1rem; filter: var(--color-icons);"
+							class="icon-filter"
+							style="padding: 0.1rem;"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -437,12 +437,12 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 			>
 				<label
 					for="object-detection-crop-preview"
+					class="text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: auto;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					>Preview</label
@@ -485,10 +485,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				"
 			>
 				<div
-					class="js-object-detection-crop-option"
+					class="js-object-detection-crop-option bg-color2"
 					style="
 						display: flex;
-						background: var(--color2);
 						padding: 0.15rem;
 						border-radius: 0.15rem;
 						margin-right: 0.2rem;
@@ -496,9 +495,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					"
 				>
 					<span
+						class="text-color"
 						style="
 							font-size: 0.7rem;
-							color: var(--color-text);
 							margin-left: 0.1rem;
 							margin-right: 0.2rem;
 						"
@@ -520,10 +519,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					/>
 				</div>
 				<div
-					class="js-object-detection-crop-option"
+					class="js-object-detection-crop-option bg-color2"
 					style="
 						display: flex;
-						background: var(--color2);
 						padding: 0.15rem;
 						border-radius: 0.15rem;
 						margin-right: 0.2rem;
@@ -531,9 +529,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					"
 				>
 					<span
+						class="text-color"
 						style="
 							font-size: 0.7rem;
-							color: var(--color-text);
 							margin-left: 0.1rem;
 							margin-right: 0.2rem;
 						"
@@ -555,10 +553,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					/>
 				</div>
 				<div
-					class="js-object-detection-crop-option"
+					class="js-object-detection-crop-option bg-color2"
 					style="
 						display: flex;
-						background: var(--color2);
 						padding: 0.15rem;
 						border-radius: 0.15rem;
 						margin-right: 0.2rem;
@@ -566,9 +563,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					"
 				>
 					<span
+						class="text-color"
 						style="
 							font-size: 0.7rem;
-							color: var(--color-text);
 							margin-left: 0.1rem;
 							margin-right: 0.2rem;
 						"
@@ -717,19 +714,19 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				"
 			>
 				<label
+					class="text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: auto;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					>Crop</label
 				>
 				<div style="width:auto">
 					<button
-						class="js-edit-btn form-field-edit-btn"
+						class="js-edit-btn bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
 							display: flex;
@@ -740,7 +737,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						"
 					>
 						<img
-							style="padding: 0.1rem; filter: var(--color-icons);"
+							class="icon-filter"
+							style="padding: 0.1rem;"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -857,12 +855,12 @@ function mask(hasSubStream, getMonitorId) {
 			>
 				<label
 					for="object_detection_mask-enable"
+					class="text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: auto;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					>Enable mask</label
@@ -889,12 +887,12 @@ function mask(hasSubStream, getMonitorId) {
 			>
 				<label
 					for="object_detection_mask-preview"
+					class="text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: auto;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					>Preview</label
@@ -944,9 +942,8 @@ function mask(hasSubStream, getMonitorId) {
 			>
 				<div style="display: flex;">
 					<button
-						class="js-1x object_detection_mask-step-size"
+						class="js-1x text-color bg-color2 hover:bg-color1"
 						style="
-							color: var(--color-text);
 							font-size: 0.6rem;
 							padding: 0.07rem 0.15rem;
 							border-width: 0.02rem;
@@ -959,9 +956,8 @@ function mask(hasSubStream, getMonitorId) {
 						1x
 					</button>
 					<button
-						class="js-4x object_detection_mask-step-size object_detection_mask-step-size-selected"
+						class="js-4x text-color bg-color2 hover:bg-color1 object_detection_mask-step-size-selected"
 						style="
-							color: var(--color-text);
 							font-size: 0.6rem;
 							padding: 0.07rem 0.15rem;
 							border-width: 0.02rem;
@@ -972,9 +968,8 @@ function mask(hasSubStream, getMonitorId) {
 						4x
 					</button>
 					<button
-						class="js-10x object_detection_mask-step-size"
+						class="js-10x text-color bg-color2 hover:bg-color1"
 						style="
-							color: var(--color-text);
 							font-size: 0.6rem;
 							padding: 0.07rem 0.15rem;
 							border-width: 0.02rem;
@@ -985,9 +980,8 @@ function mask(hasSubStream, getMonitorId) {
 						10x
 					</button>
 					<button
-						class="js-20x object_detection_mask-step-size"
+						class="js-20x text-color bg-color2 hover:bg-color1"
 						style="
-							color: var(--color-text);
 							font-size: 0.6rem;
 							padding: 0.07rem 0.15rem;
 							border-width: 0.02rem;
@@ -1187,19 +1181,19 @@ function mask(hasSubStream, getMonitorId) {
 				"
 			>
 				<label
+					class="text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: auto;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					>Mask</label
 				>
 				<div style="width:auto">
 					<button
-						class="js-edit-btn form-field-edit-btn color2"
+						class="js-edit-btn bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
 							display: flex;
@@ -1210,7 +1204,8 @@ function mask(hasSubStream, getMonitorId) {
 						"
 					>
 						<img
-							style="padding: 0.1rem; filter: var(--color-icons);"
+							class="icon-filter"
+							style="padding: 0.1rem;"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -1320,14 +1315,6 @@ $style.innerHTML = `
 	}
 
 	/* Mask. */
-	.object_detection_mask-step-size {
-		background: var(--color2);
-	}
-
-	.object_detection_mask-step-size:hover {
-		background: var(--color1);
-	}
-
 	.object_detection_mask-step-size-selected {
 		background: var(--color1);
 	}

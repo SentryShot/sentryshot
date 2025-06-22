@@ -120,7 +120,7 @@ describe("newForm", () => {
   html
   <div style="display: flex;">
     <button id="uid1"
-            class="delete-btn"
+            class="bg-red hover:bg-red2"
             style="
 					margin: 0.2rem;
 					padding-left: 0.1rem;
@@ -129,7 +129,9 @@ describe("newForm", () => {
 					margin-left: auto;
 				"
     >
-      <span style="color: var(--color-text); font-size: 0.7rem;">
+      <span class="text-color"
+            style="font-size: 0.7rem;"
+      >
         Delete
       </span>
     </button>
@@ -167,7 +169,7 @@ describe("newForm", () => {
   html
   <div style="display: flex;">
     <button id="uid1"
-            class="save-btn"
+            class="bg-green hover:bg-green2"
             style="
 					margin: 0.2rem;
 					padding-left: 0.1rem;
@@ -175,12 +177,14 @@ describe("newForm", () => {
 					border-radius: 0.2rem;
 				"
     >
-      <span style="color: var(--color-text); font-size: 0.7rem;">
+      <span class="text-color"
+            style="font-size: 0.7rem;"
+      >
         Save
       </span>
     </button>
     <button id="uid2"
-            class="delete-btn"
+            class="bg-red hover:bg-red2"
             style="
 					margin: 0.2rem;
 					padding-left: 0.1rem;
@@ -189,7 +193,9 @@ describe("newForm", () => {
 					margin-left: auto;
 				"
     >
-      <span style="color: var(--color-text); font-size: 0.7rem;">
+      <span class="text-color"
+            style="font-size: 0.7rem;"
+      >
         Delete
       </span>
     </button>
@@ -230,14 +236,14 @@ describe("newField", () => {
 				"
 >
   <label for="uid1"
+         class="text-color"
          style="
-					flex-grow: 1;
-					float: left;
-					width: 100%;
-					min-width: 4rem;
-					color: var(--color-text);
-					font-size: 0.6rem;
-				"
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						font-size: 0.6rem;
+					"
   >
     a
   </label>
@@ -256,10 +262,9 @@ describe("newField", () => {
          max="4"
          step="0.5"
   >
-  <span class="js-error"
+  <span class="js-error text-red"
         style="
 						height: 0.5rem;
-						color: var(--color-red);
 						font-size: 0.4rem;
 						white-space: nowrap;
 						overflow: auto;
@@ -373,14 +378,14 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
+         class="text-color"
          style="
-					flex-grow: 1;
-					float: left;
-					width: 100%;
-					min-width: 4rem;
-					color: var(--color-text);
-					font-size: 0.6rem;
-				"
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						font-size: 0.6rem;
+					"
   >
     1
   </label>
@@ -396,10 +401,9 @@ describe("fieldTemplate", () => {
          type="text"
          placeholder="2"
   >
-  <span class="js-error"
+  <span class="js-error text-red"
         style="
 						height: 0.5rem;
-						color: var(--color-red);
 						font-size: 0.4rem;
 						white-space: nowrap;
 						overflow: auto;
@@ -435,14 +439,14 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
+         class="text-color"
          style="
-					flex-grow: 1;
-					float: left;
-					width: 100%;
-					min-width: 4rem;
-					color: var(--color-text);
-					font-size: 0.6rem;
-				"
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						font-size: 0.6rem;
+					"
   >
     1
   </label>
@@ -460,10 +464,9 @@ describe("fieldTemplate", () => {
          min="0"
          step="1"
   >
-  <span class="js-error"
+  <span class="js-error text-red"
         style="
 						height: 0.5rem;
-						color: var(--color-red);
 						font-size: 0.4rem;
 						white-space: nowrap;
 						overflow: auto;
@@ -501,14 +504,14 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
+         class="text-color"
          style="
-					flex-grow: 1;
-					float: left;
-					width: 100%;
-					min-width: 4rem;
-					color: var(--color-text);
-					font-size: 0.6rem;
-				"
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						font-size: 0.6rem;
+					"
   >
     1
   </label>
@@ -558,14 +561,14 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
+         class="text-color"
          style="
-					flex-grow: 1;
-					float: left;
-					width: 100%;
-					min-width: 4rem;
-					color: var(--color-text);
-					font-size: 0.6rem;
-				"
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						font-size: 0.6rem;
+					"
   >
     1
   </label>
@@ -618,14 +621,14 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
+         class="text-color"
          style="
-					flex-grow: 1;
-					float: left;
-					width: 100%;
-					min-width: 4rem;
-					color: var(--color-text);
-					font-size: 0.6rem;
-				"
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						font-size: 0.6rem;
+					"
   >
     y
   </label>
@@ -649,26 +652,25 @@ describe("fieldTemplate", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn form-field-edit-btn"
+    <button class="js-edit-btn bg-color2 hover:bg-color3"
             style="
 						aspect-ratio: 1;
 						display: flex;
 						width: 1rem;
 						height: 1rem;
 						margin-left: 0.4rem;
-						background: var(--color2);
 						border-radius: 0.2rem;
 					"
     >
-      <img style="padding: 0.1rem; filter: var(--color-icons);"
+      <img class="icon-filter"
+           style="padding: 0.1rem;"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
   </div>
-  <span class="js-error"
+  <span class="js-error text-red"
         style="
 						height: 0.5rem;
-						color: var(--color-red);
 						font-size: 0.4rem;
 						white-space: nowrap;
 						overflow: auto;
@@ -726,14 +728,14 @@ describe("selectCustomField", () => {
 				"
 >
   <label for="uid1"
+         class="text-color"
          style="
-					flex-grow: 1;
-					float: left;
-					width: 100%;
-					min-width: 4rem;
-					color: var(--color-text);
-					font-size: 0.6rem;
-				"
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						font-size: 0.6rem;
+					"
   >
     d
   </label>
@@ -757,18 +759,18 @@ describe("selectCustomField", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn form-field-edit-btn"
+    <button class="js-edit-btn bg-color2 hover:bg-color3"
             style="
 						aspect-ratio: 1;
 						display: flex;
 						width: 1rem;
 						height: 1rem;
 						margin-left: 0.4rem;
-						background: var(--color2);
 						border-radius: 0.2rem;
 					"
     >
-      <img style="padding: 0.1rem; filter: var(--color-icons);"
+      <img class="icon-filter"
+           style="padding: 0.1rem;"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
@@ -810,12 +812,12 @@ describe("passwordField", () => {
 				"
 >
   <label for="uid1"
+         class="text-color"
          style="
 						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
   >
@@ -832,8 +834,8 @@ describe("passwordField", () => {
 					"
          type="password"
   >
-  <span class="js-error"
-        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+  <span class="js-error text-red"
+        style="height: 0.5rem; font-size: 0.4rem; white-space: nowrap; overflow: auto;"
   >
   </span>
 </li>
@@ -847,12 +849,12 @@ describe("passwordField", () => {
 				"
 >
   <label for="uid2"
+         class="text-color"
          style="
 						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
   >
@@ -869,8 +871,8 @@ describe("passwordField", () => {
 					"
          type="password"
   >
-  <span class="js-error"
-        style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+  <span class="js-error text-red"
+        style="height: 0.5rem; font-size: 0.4rem; white-space: nowrap; overflow: auto;"
   >
   </span>
 </li>

@@ -41,7 +41,7 @@ describe("feed", () => {
            for="uid2"
     >
     </label>
-    <div class="js-overlay player-overlay"
+    <div class="js-overlay player-overlay bg-color1"
          style="
 							position: absolute;
 							z-index: 2;
@@ -49,7 +49,6 @@ describe("feed", () => {
 							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;
-							background: var(--color1);
 							border: none;
 							border-radius: 0.2rem;
 						"
@@ -62,7 +61,8 @@ describe("feed", () => {
 					aspect-ratio: 1;
 				"
       >
-        <img style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
+        <img class="icon-filter"
+             style="height: 0.7rem; aspect-ratio: 1;"
              src="assets/icons/feather/maximize.svg"
         >
       </button>
@@ -136,7 +136,8 @@ test("recordingsBtn", async () => {
 				"
    href="http://test.com/recordings#monitors=b"
 >
-  <img style="height: 0.65rem; aspect-ratio: 1; filter: var(--color-icons);"
+  <img class="icon-filter"
+       style="height: 0.65rem; aspect-ratio: 1;"
        src="assets/icons/feather/film.svg"
   >
 </a>
@@ -153,7 +154,8 @@ test("fullscreenBtn", () => {
 					aspect-ratio: 1;
 				"
 >
-  <img style="height: 0.7rem; aspect-ratio: 1; filter: var(--color-icons);"
+  <img class="icon-filter"
+       style="height: 0.7rem; aspect-ratio: 1;"
        src="assets/icons/feather/maximize.svg"
   >
 </button>

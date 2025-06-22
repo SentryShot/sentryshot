@@ -24,11 +24,11 @@
 		init();
 	</script>
 </head>
-<body style="display: flex; height: 100dvh; margin: 0; background-color: var(--colorbg)">
+<body style="display: flex; height: 100dvh; margin: 0; background-color: var(--color0)">
 	{% include "sidebar" %}
 	<div
 		id="content"
-		class="js-content"
+		class="js-content bg-color2"
 		style="
 			position: absolute;
 			box-sizing: border-box;
@@ -36,25 +36,21 @@
 			height: 100%;
 			display: flex;
 			overflow-x: hidden;
-			background: var(--color2);
 		"
 	>
 		<div
 			class="log-sidebar js-sidebar"
 			style="flex-shrink: 0; height: 100%; overflow-y: auto"
 		></div>
-		<div class="log-list-wrapper js-list">
-			<div
-				id="log-menubar"
-				style="height: var(--barsize); background: var(--color2)"
-			>
+		<div class="log-list-wrapper js-list bg-color3">
+			<div id="log-menubar" class="bg-color2" style="height: var(--barsize)">
 				<nav class="js-back" style="width: 1.4rem">
 					<img
+						class="icon-filter"
 						style="
 							width: 1.1rem;
 							height: 1.1rem;
 							padding: var(--icon-padding);
-							filter: var(--color-icons);
 						"
 						src="assets/icons/feather/arrow-left.svg"
 					/>
@@ -62,11 +58,10 @@
 			</div>
 			<div
 				id="js-log-lists"
+				class="text-color bg-color3"
 				style="
-					color: var(--color-text);
 					font-size: 0.5rem;
 					word-wrap: break-word;
-					background: var(--color3);
 					overflow-y: auto;
 				"
 			></div>
@@ -75,7 +70,7 @@
 </body>
 <style>
 	#nav-link-logs {
-		background: var(--color1-hover);
+		background: var(--color2);
 	}
 
 	.log-sidebar {
@@ -84,18 +79,6 @@
 
 	.checkbox-checkbox:checked ~ .checkbox-box {
 		background: var(--color3);
-	}
-	.log-reset-btn {
-		background: var(--color3);
-	}
-	.log-reset-btn:hover {
-		background: var(--color3-hover);
-	}
-	.log-apply-btn {
-		background: var(--color-green);
-	}
-	.log-apply-btn:hover {
-		background: var(--color-green-hover);
 	}
 
 	.log-list-wrapper {
@@ -106,7 +89,6 @@
 		width: 100%;
 		height: var(--size-minus-topbar);
 		overflow-x: hidden;
-		background: var(--color3);
 		transform: translateX(100%);
 		transition: transform 400ms;
 	}
@@ -115,7 +97,6 @@
 	}
 
 	.log-list > span {
-		border-color: var(--color4);
 		border-bottom: solid;
 		border-bottom-width: 0.04rem;
 	}

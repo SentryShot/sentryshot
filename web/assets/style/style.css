@@ -282,6 +282,17 @@ progress[value]::-moz-progress-bar {
 	--topbar-height: 1.4rem;
 	--size-minus-topbar: calc(100% - var(--topbar-height));
 	--gridsize: 1;
+	--color-text: hsl(215deg 40% 90%);
+	--color0: hsl(215deg 40% 8%);
+	--color1: hsl(215deg 40% 17%);
+	--color2: hsl(215deg 40% 22%);
+	--color3: hsl(215deg 40% 28%);
+	--color-icon: invert(75%);
+	--color-green: hsl(120deg 55% 26%);
+	--color-green2: hsl(120deg 55% 17%);
+	--color-orange: hsl(40deg 100% 50%);
+	--color-red: hsl(0deg 70% 50%);
+	--color-red2: hsl(0deg 70% 40%);
 }
 
 ul {
@@ -307,6 +318,58 @@ img {
 	pointer-events: none;
 }
 
+.text-color {
+	color: var(--color-text);
+}
+
+.text-red {
+	color: var(--color-red);
+}
+
+.bg-color0 {
+	background: var(--color0);
+}
+
+.bg-color1 {
+	background: var(--color1);
+}
+
+.bg-color2 {
+	background: var(--color2);
+}
+
+.bg-color3 {
+	background: var(--color3);
+}
+
+.hover\:bg-color2:hover {
+	background: var(--color2);
+}
+
+.hover\:bg-color3:hover {
+	background: var(--color3);
+}
+
+.icon-filter {
+	filter: var(--color-icon);
+}
+
+.bg-green {
+	background: var(--color-green);
+}
+
+.hover\:bg-green2:hover {
+	background: var(--color-green2);
+}
+
+.bg-red {
+	background: var(--color-red);
+}
+
+.hover\:bg-red2:hover {
+	background: var(--color-red2);
+}
+
 /* Mobile portrait mode */
 
 /* sidebar */
@@ -323,10 +386,6 @@ img {
 #options-menu {
 	right: 0;
 	visibility: hidden;
-}
-
-.options-menu-btn:hover {
-	background: var(--color3);
 }
 
 #options-checkbox:checked ~ #options-menu {
@@ -354,15 +413,11 @@ img {
 }
 
 .date-picker-day-btn:hover {
-	background: var(--color3-hover);
+	background: var(--color2);
 }
 
 .date-picker-day-selected {
-	background: var(--color-red-hover);
-}
-
-.date-picker-day-selected:hover {
-	background: var(--color-red-hover);
+	background: var(--color-red2);
 }
 
 .date-picker-hour {
@@ -370,46 +425,9 @@ img {
 	justify-content: center;
 }
 
-.date-picker-hour-btn {
-	background: var(--color3);
-}
-
-.date-picker-hour-btn:hover {
-	background: var(--color3-hover);
-}
-
 .date-picker-hour-input::-webkit-inner-spin-button,
 .date-picker-hour-input::-webkit-outer-spin-button {
 	-webkit-appearance: none;
-}
-
-.date-picker-bottom-btn {
-	background: var(--color3);
-}
-
-.date-picker-bottom-btn:hover {
-	background: var(--color3-hover);
-}
-
-.date-picker-apply {
-	background: var(--color-green);
-}
-
-.date-picker-apply:hover {
-	background: var(--color-green-hover);
-}
-
-/* Select one. */
-.select-one-item {
-	background: var(--color3);
-}
-
-.select-one-item:hover {
-	background: var(--color3-hover);
-}
-
-.select-one-item-selected {
-	background: var(--color2);
 }
 
 /* Sidebar. */
@@ -443,19 +461,11 @@ img {
 }
 
 #sidebar-btn:hover ~ * #topbar-btn {
-	background: var(--color1-hover);
+	background: var(--color2);
 }
 
 #sidebar-btn:hover ~ * #nav-btn {
-	background: var(--color1-hover);
-}
-
-.nav-link:focus {
-	background: var(--color1-hover);
-}
-
-.nav-link:hover {
-	background: var(--color1-hover);
+	background: var(--color2);
 }
 
 /* Content */
@@ -471,7 +481,7 @@ img {
 	height: 100dvh;
 	top: 0;
 	left: 0;
-	background: var(--colorbg);
+	background: var(--color0);
 }
 
 /* Modal */
@@ -491,7 +501,7 @@ img {
 
 /* Modal select */
 .modal-select-option-selected {
-	background: var(--color1-hover);
+	background: var(--color2);
 }
 
 /* form */
@@ -512,31 +522,7 @@ img {
 }
 */
 
-.form-field-edit-btn {
-	background: var(--color2);
-}
-
-.form-field-edit-btn:hover {
-	background: var(--color2-hover);
-}
-
 /* buttons */
-.save-btn {
-	background: var(--color-green);
-}
-
-.save-btn:hover {
-	background: var(--color-green-hover);
-}
-
-.delete-btn {
-	background: var(--color-red);
-}
-
-.delete-btn:hover {
-	background: var(--color-red-hover);
-}
-
 .checkbox-box {
 	background: var(--color1);
 }
@@ -551,15 +537,6 @@ img {
 
 .checkbox-checkbox:checked ~ .checkbox-check {
 	visibility: visible;
-}
-
-/* Logout */
-#logout-btn {
-	background: var(--color2);
-}
-
-#logout-btn:hover {
-	background: var(--color3);
 }
 
 /* Player */

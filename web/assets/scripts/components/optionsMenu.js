@@ -86,50 +86,46 @@ const newOptionsBtn = {
 			html: /* HTML */ `
 				<button
 					id="${idPlus}"
-					class="options-menu-btn"
+					class="text-color bg-color2 hover:bg-color3"
 					style="
 						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
-						color: var(--color-text);
 						font-size: 0.5rem;
-						background: var(--color2);
 					"
 				>
 					<img
+						class="icon-filter"
 						style="
 							aspect-ratio: 1;
 							height: 0.8rem;
 							margin: 0.2rem;
 							font-size: 0;
-							filter: var(--color-icons);
 						"
 						src="assets/icons/feather/plus.svg"
 					/>
 				</button>
 				<button
 					id="${idMinus}"
-					class="options-menu-btn"
+					class="text-color bg-color2 hover:bg-color3"
 					style="
 						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
-						color: var(--color-text);
 						font-size: 0.5rem;
-						background: var(--color2);
 					"
 				>
 					<img
+						class="icon-filter"
 						style="
 							aspect-ratio: 1;
 							height: 0.8rem;
 							margin: 0.2rem;
 							font-size: 0;
-							filter: var(--color-icons);
 						"
 						src="assets/icons/feather/minus.svg"
 					/>
@@ -237,21 +233,19 @@ function newOptionsPopup(label, icon, htmlContent) {
 		html: /* HTML */ `
 			<button
 				id="${buttonId}"
-				class="options-menu-btn js-${label}"
+				class="text-color bg-color2 hover:bg-color3 js-${label}"
 				style="
 					display: flex;
 					justify-content: center;
 					align-items: center;
 					width: var(--options-menu-btn-width);
 					height: var(--options-menu-btn-width);
-					color: var(--color-text);
 					font-size: 0.5rem;
-					background: var(--color2);
 				"
 			>
 				<img
+					class="icon-filter"
 					style="
-						filter: var(--color-icons);
 						aspect-ratio: 1;
 						height: 0.8rem;
 						margin: 0.2rem;
@@ -262,14 +256,13 @@ function newOptionsPopup(label, icon, htmlContent) {
 			</button>
 			<div
 				id="${popupId}"
-				class="options-popup"
+				class="bg-color2 options-popup"
 				style="
 					position: absolute;
 					display: none;
 					flex-direction: column;
 					max-height: 100dvh;
 					margin: auto;
-					background: var(--color2);
 				"
 			>
 				<div style="overflow-y: auto;">${htmlContent}</div>
@@ -319,31 +312,30 @@ const datePickerHTML = /* HTML */ `
 				border-bottom-style: solid;
 			"
 		>
-			<button class="js-prev-month" style="background: var(--color2);">
+			<button class="js-prev-month bg-color2">
 				<img
+					class="icon-filter"
 					style="
 						height: 1.1rem;
 						aspect-ratio: 1;
-						filter: var(--color-icons);
 					"
 					src="assets/icons/feather/chevron-left.svg"
 				>
 			</button>
 			<span
-				class="js-month"
+				class="js-month text-color"
 				style="
 					width: 100%;
-					color: var(--color-text);
 					font-size: 0.52rem;
 					text-align: center;
 				"
 			></span>
-			<button class="js-next-month" style="background: var(--color2);">
+			<button class="js-next-month bg-color2">
 				<img
+					class="icon-filter"
 					style="
 						height: 1.1rem;
 						aspect-ratio: 1;
-						filter: var(--color-icons);
 					"
 					src="assets/icons/feather/chevron-right.svg"
 				>
@@ -411,31 +403,31 @@ const datePickerHTML = /* HTML */ `
 				"
 			>
 				<button
-					class="date-picker-hour-btn js-next-hour"
+					class="js-next-hour bg-color3 hover:bg-color2"
 					style="font-size: 0;"
 				>
 					<img
+						class="icon-filter"
 						style="
 							width: 0.6rem;
 							height: 0.5rem;
 							font-size: 0;
 							aspect-ratio: 1;
-							filter: var(--color-icons);
 						"
 						src="assets/icons/feather/chevron-up.svg"
 					>
 				</button>
 				<button
-					class="date-picker-hour-btn js-prev-hour"
+					class="js-prev-hour bg-color3 hover:bg-color2"
 					style="font-size: 0;"
 				>
 					<img
+						class="icon-filter"
 						style="
 							width: 0.6rem;
 							height: 0.5rem;
 							font-size: 0;
 							aspect-ratio: 1;
-							filter: var(--color-icons);
 						"
 						src="assets/icons/feather/chevron-down.svg">
 				</button>
@@ -460,8 +452,8 @@ const datePickerHTML = /* HTML */ `
 					"
 				></input>
 				<span
+					class="text-color"
 					style="
-						color: var(--color-text);
 						font-size: 1rem;
 					"
 				>:</span>
@@ -488,31 +480,31 @@ const datePickerHTML = /* HTML */ `
 				"
 			>
 				<button
-					class="date-picker-hour-btn js-next-minute"
+					class="js-next-minute bg-color3 hover:bg-color2"
 					style="font-size: 0;"
 				>
 					<img
+						class="icon-filter"
 						style="
 							width: 0.6rem;
 							height: 0.5rem;
 							font-size: 0;
 							aspect-ratio: 1;
-							filter: var(--color-icons);
 						"
 						src="assets/icons/feather/chevron-up.svg"
 					>
 				</button>
 				<button
-					class="date-picker-hour-btn js-prev-minute"
+					class="js-prev-minute bg-color3 hover:bg-color2"
 					style="font-size: 0;"
 				>
 					<img
+						class="icon-filter"
 						style="
 							width: 0.6rem;
 							height: 0.5rem;
 							font-size: 0;
 							aspect-ratio: 1;
-							filter: var(--color-icons);
 						"
 						src="assets/icons/feather/chevron-down.svg"
 					>
@@ -526,21 +518,19 @@ const datePickerHTML = /* HTML */ `
 			"
 		>
 			<button
-				class="date-picker-bottom-btn js-reset"
+				class="js-reset text-color bg-color3 hover:bg-color2"
 				style="
 					padding-left: 0.1rem;
 					padding-right: 0.1rem;
-					color: var(--color-text);
 					font-size: 0.6rem;
 					border-radius: 0.15rem;
 				"
 			>Reset</button>
 			<button
-				class="date-picker-bottom-btn date-picker-apply js-apply"
+				class=" js-apply text-color bg-green hover:bg-green2"
 				style="
 					padding-left: 0.1rem;
 					padding-right: 0.1rem;
-					color: var(--color-text);
 					font-size: 0.6rem;
 					border-radius: 0.15rem;
 				"
@@ -759,25 +749,23 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 		html: /* HTML */ `
 			<button
 				id="${btnID}"
-				class="options-menu-btn"
+				class="text-color bg-color2 hover:bg-color3"
 				style="
 					display: flex;
 					justify-content: center;
 					align-items: center;
 					width: var(--options-menu-btn-width);
 					height: var(--options-menu-btn-width);
-					color: var(--color-text);
 					font-size: 0.5rem;
-					background: var(--color2);
 				"
 			>
 				<img
+					class="icon-filter"
 					style="
 						aspect-ratio: 1;
 						height: 0.8rem;
 						margin: 0.2rem;
 						font-size: 0;
-						filter: var(--color-icons);
 					"
 					src="assets/icons/feather/video.svg"
 				/>
@@ -844,14 +832,13 @@ function newSelectOne(options, onSelect, alias) {
 	for (const option of sortByLabel(options)) {
 		optionsHTML += /* HTML */ `
 			<span
-				class="js-select-one-item select-one-item"
+				class="js-select-one-item bg-color2 hover:bg-color3"
 				style="
 					display: block ruby;
 					padding: 0.1rem 0.2rem;
 					font-size: 0.7rem;
 					border-top: solid;
 					border-top-width: 0.01rem;
-					border-top-color: var(--color2);
 				"
 				data="${option.id}"
 				>${option.label}</span
@@ -865,11 +852,10 @@ function newSelectOne(options, onSelect, alias) {
 		html: /* HTML */ `
 			<div
 				id=${id}
-				class="js-select-one"
+				class="js-select-one text-color"
 				style="
 					display: flex;
 					flex-direction: column;
-					color: var(--color-text);
 					text-align: center;
 				"
 			>

@@ -164,7 +164,7 @@ function newSaveBtn(onClick) {
 		html: /* HTML */ `
 			<button
 				id="${id}"
-				class="save-btn"
+				class="bg-green hover:bg-green2"
 				style="
 					margin: 0.2rem;
 					padding-left: 0.1rem;
@@ -172,7 +172,7 @@ function newSaveBtn(onClick) {
 					border-radius: 0.2rem;
 				"
 			>
-				<span style="color: var(--color-text); font-size: 0.7rem;">Save</span>
+				<span class="text-color" style="font-size: 0.7rem;">Save</span>
 			</button>
 		`,
 		init() {
@@ -200,7 +200,7 @@ function newDeleteBtn(onClick) {
 		html: /* HTML */ `
 			<button
 				id="${id}"
-				class="delete-btn"
+				class="bg-red hover:bg-red2"
 				style="
 					margin: 0.2rem;
 					padding-left: 0.1rem;
@@ -209,7 +209,7 @@ function newDeleteBtn(onClick) {
 					margin-left: auto;
 				"
 			>
-				<span style="color: var(--color-text); font-size: 0.7rem;">Delete</span>
+				<span class="text-color" style="font-size: 0.7rem;">Delete</span>
 			</button>
 		`,
 		init() {
@@ -555,19 +555,19 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				</select>
 				${custom
 					? `<button
-					class="js-edit-btn form-field-edit-btn"
+					class="js-edit-btn bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
 						display: flex;
 						width: 1rem;
 						height: 1rem;
 						margin-left: 0.4rem;
-						background: var(--color2);
 						border-radius: 0.2rem;
 					"
 				>
 					<img
-						style="padding: 0.1rem; filter: var(--color-icons);"
+						class="icon-filter"
+						style="padding: 0.1rem;"
 						src="assets/icons/feather/edit-3.svg"
 					/>
 				</button>`
@@ -590,22 +590,21 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			>
 				<label
 					for="${id}"
+					class="text-color"
 					style="
-					flex-grow: 1;
-					float: left;
-					width: 100%;
-					min-width: 4rem;
-					color: var(--color-text);
-					font-size: 0.6rem;
-				"
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						font-size: 0.6rem;
+					"
 					>${label}</label
 				>
 				${body}
 				<span
-					class="js-error"
+					class="js-error text-red"
 					style="
 						height: 0.5rem;
-						color: var(--color-red);
 						font-size: 0.4rem;
 						white-space: nowrap;
 						overflow: auto;
@@ -627,14 +626,14 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			>
 				<label
 					for="${id}"
+					class="text-color"
 					style="
-					flex-grow: 1;
-					float: left;
-					width: 100%;
-					min-width: 4rem;
-					color: var(--color-text);
-					font-size: 0.6rem;
-				"
+						flex-grow: 1;
+						float: left;
+						width: 100%;
+						min-width: 4rem;
+						font-size: 0.6rem;
+					"
 					>${label}</label
 				>
 				${body}
@@ -793,12 +792,12 @@ function newPasswordField() {
 			>
 				<label
 					for="${id}"
+					class="text-color"
 					style="
 						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
-						color: var(--color-text);
 						font-size: 0.6rem;
 					"
 					>${label}</label
@@ -816,8 +815,8 @@ function newPasswordField() {
 					type="password"
 				/>
 				<span
-					class="js-error"
-					style="height: 0.5rem; color: var(--color-red); font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+					class="js-error text-red"
+					style="height: 0.5rem; font-size: 0.4rem; white-space: nowrap; overflow: auto;"
 				></span>
 			</li>
 		`;

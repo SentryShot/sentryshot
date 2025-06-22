@@ -17,41 +17,40 @@ test("newModal", () => {
 	modal.open();
 
 	expect(document.querySelector(".modal").innerHTML).toMatchInlineSnapshot(`
-<header class="modal-header"
+<header class="modal-header bg-color2"
         style="
 							display: flex;
 							padding-left: 0.2rem;
 							padding-right: 0.2rem;
-							background: var(--color2);
 						"
 >
-  <span style="
+  <span class="text-color"
+        style="
 								width: 100%;
 								padding-left: 0.7rem;
-								color: var(--color-text);
 								font-size: 0.8rem;
 								text-align: center;
-							">
+							"
+  >
     test
   </span>
-  <button class="js-modal-close-btn"
+  <button class="js-modal-close-btn bg-color3"
           style="
 								display: flex;
 								margin: auto;
-								background: var(--color3);
 								border-radius: 0.1rem;
 							"
   >
-    <img style="height: 0.9rem; filter: var(--color-icons);"
+    <img class="icon-filter"
+         style="height: 0.9rem;"
          src="assets/icons/feather/x.svg"
     >
   </button>
 </header>
-<div class="js-modal-content"
+<div class="js-modal-content bg-color3"
      style="
 							height: 100%;
 							overflow-y: visible;
-							background: var(--color3);
 						"
 >
   a
@@ -97,51 +96,49 @@ test("modalSelect", () => {
      class="modal-open"
 >
   <div class="modal js-modal">
-    <header class="modal-header"
+    <header class="modal-header bg-color2"
             style="
 							display: flex;
 							padding-left: 0.2rem;
 							padding-right: 0.2rem;
-							background: var(--color2);
 						"
     >
-      <span style="
+      <span class="text-color"
+            style="
 								width: 100%;
 								padding-left: 0.7rem;
-								color: var(--color-text);
 								font-size: 0.8rem;
 								text-align: center;
-							">
+							"
+      >
         x
       </span>
-      <button class="js-modal-close-btn"
+      <button class="js-modal-close-btn bg-color3"
               style="
 								display: flex;
 								margin: auto;
-								background: var(--color3);
 								border-radius: 0.1rem;
 							"
       >
-        <img style="height: 0.9rem; filter: var(--color-icons);"
+        <img class="icon-filter"
+             style="height: 0.9rem;"
              src="assets/icons/feather/x.svg"
         >
       </button>
     </header>
-    <div class="js-modal-content"
+    <div class="js-modal-content bg-color3"
          style="
 							height: 100%;
 							overflow-y: visible;
-							background: var(--color3);
 						"
     >
       <div class="js-selector"
            style="display: flex; flex-wrap: wrap;"
       >
         <span data="m1"
-              class="js-option"
+              class="js-option text-color"
               style="
 						padding: 0 0.2rem;
-						color: var(--color-text);
 						font-size: 0.8rem;
 						border-width: 0.01rem;
 						border-style: solid;
@@ -151,10 +148,9 @@ test("modalSelect", () => {
           m1
         </span>
         <span data="m2"
-              class="js-option"
+              class="js-option text-color"
               style="
 						padding: 0 0.2rem;
-						color: var(--color-text);
 						font-size: 0.8rem;
 						border-width: 0.01rem;
 						border-style: solid;

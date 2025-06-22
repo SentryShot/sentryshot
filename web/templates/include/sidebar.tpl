@@ -12,13 +12,15 @@
 		"
 	>
 		<img
-			style="aspect-ratio: 1; height: 0.9rem; filter: var(--color-icons)"
+			class="icon-filter"
+			style="aspect-ratio: 1; height: 0.9rem;"
 			src="assets/icons/feather/menu.svg"
 		/>
 	</div>
 	<h1
 		id="current-page"
-		style="margin: auto; color: var(--color-text); font-size: 0.7rem"
+		class="text-color"
+		style="margin: auto; font-size: 0.7rem"
 	>
 		{{ current_page }}
 	</h1>
@@ -37,7 +39,8 @@
 		"
 	>
 		<img
-			style="aspect-ratio: 1; height: 0.9rem; filter: var(--color-icons)"
+			class="icon-filter"
+			style="aspect-ratio: 1; height: 0.9rem;"
 			src="assets/icons/feather/sliders.svg"
 		/>
 	</div>
@@ -88,7 +91,7 @@
 	"
 >
 	<div
-		class="nav-link"
+		class="hover:bg-color2"
 		id="nav-btn"
 		style="
 			display: flex;
@@ -100,15 +103,16 @@
 		"
 	>
 		<img
+			class="icon-filter"
 			src="assets/icons/feather/x.svg"
-			style="height: 1.1rem; aspect-ratio: 1; filter: var(--color-icons)"
+			style="height: 1.1rem; aspect-ratio: 1;"
 		/>
 	</div>
 	<nav style="display: flex; flex-direction: column; height: 100%; overflow-x: hidden">
 		<a
 			href="live"
 			id="nav-link-live"
-			class="nav-link"
+			class="hover:bg-color2"
 			style="
 				display: flex;
 				align-items: center;
@@ -116,24 +120,25 @@
 				padding: var(--icon-padding);
 				text-decoration: none;
 				border-width: 0.01rem;
-				border-color: var(--color1-hover);
+				border-color: var(--color2);
 				border-bottom-style: solid;
 				border-top: none;
 				padding-left: 0.2rem;
 			"
 		>
 			<img
+				class="icon-filter"
 				src="assets/icons/feather/video.svg"
-				style="height: 1.1rem; aspect-ratio: 1; filter: var(--color-icons)"
+				style="height: 1.1rem; aspect-ratio: 1;"
 			/>
-			<span style="margin-left: 0.4rem; color: var(--color-text); font-size: 0.6rem"
+			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
 				>Live</span
 			>
 		</a>
 		<a
 			href="recordings"
 			id="nav-link-recordings"
-			class="nav-link"
+			class="hover:bg-color2"
 			style="
 				display: flex;
 				align-items: center;
@@ -141,16 +146,17 @@
 				padding: var(--icon-padding);
 				text-decoration: none;
 				border-width: 0.01rem;
-				border-color: var(--color1-hover);
+				border-color: var(--color2);
 				border-bottom-style: solid;
 				padding-left: 0.2rem;
 			"
 		>
 			<img
+				class="icon-filter"
 				src="assets/icons/feather/film.svg"
-				style="height: 1.1rem; aspect-ratio: 1; filter: var(--color-icons)"
+				style="height: 1.1rem; aspect-ratio: 1;"
 			/>
-			<span style="margin-left: 0.4rem; color: var(--color-text); font-size: 0.6rem"
+			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
 				>Recordings</span
 			>
 		</a>
@@ -158,7 +164,7 @@
 		<a
 			href="settings"
 			id="nav-link-settings"
-			class="nav-link"
+			class="hover:bg-color2"
 			style="
 				display: flex;
 				align-items: center;
@@ -166,23 +172,24 @@
 				padding: var(--icon-padding);
 				text-decoration: none;
 				border-width: 0.01rem;
-				border-color: var(--color1-hover);
+				border-color: var(--color2);
 				border-bottom-style: solid;
 				padding-left: 0.2rem;
 			"
 		>
 			<img
+				class="icon-filter"
 				src="assets/icons/feather/settings.svg"
-				style="height: 1.1rem; aspect-ratio: 1; filter: var(--color-icons)"
+				style="height: 1.1rem; aspect-ratio: 1;"
 			/>
-			<span style="margin-left: 0.4rem; color: var(--color-text); font-size: 0.6rem"
+			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
 				>Settings</span
 			>
 		</a>
 		<a
 			href="logs"
 			id="nav-link-logs"
-			class="nav-link"
+			class="hover:bg-color2"
 			style="
 				display: flex;
 				align-items: center;
@@ -190,16 +197,17 @@
 				padding: var(--icon-padding);
 				text-decoration: none;
 				border-width: 0.01rem;
-				border-color: var(--color1-hover);
+				border-color: var(--color2);
 				border-bottom-style: solid;
 				padding-left: 0.2rem;
 			"
 		>
 			<img
+				class="icon-filter"
 				src="assets/icons/feather/book-open.svg"
-				style="height: 1.1rem; aspect-ratio: 1; filter: var(--color-icons)"
+				style="height: 1.1rem; aspect-ratio: 1;"
 			/>
-			<span style="margin-left: 0.4rem; color: var(--color-text); font-size: 0.6rem"
+			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
 				>Logs</span
 			>
 		</a>

@@ -94,31 +94,26 @@ function newPlayer(data, isAdmin, token) {
 
 	const topOverlayHTML = /* HTML */ `
 		<span
-			class="js-date"
+			class="js-date text-color bg-color0"
 			style="
 				padding: 0.05em 0.4em 0.05em 0.2em;
-				color: var(--color-text);
 				font-size: 40%;
-				background: var(--colorbg);
 			"
 			>${dateString}</span
 		>
 		<span
-			class="js-time"
+			class="js-time text-color bg-color0"
 			style="
 				padding: 0.05em 0.4em 0.05em 0.2em;
-				color: var(--color-text);
 				font-size: 40%;
-				background: var(--colorbg);
 			"
 			>${timeString}</span
 		>
 		<span
+			class="text-color bg-color0"
 			style="
 				padding: 0.05em 0.4em 0.05em 0.2em;
-				color: var(--color-text);
 				font-size: 40%;
-				background: var(--colorbg);
 			"
 			>${d.name}</span
 		>
@@ -190,11 +185,10 @@ function newPlayer(data, isAdmin, token) {
 			"
 		>
 			<button
-				class="js-play-btn"
+				class="js-play-btn bg-color0"
 				style="
 					padding: 0.2rem;
 					font-size: 0;
-					background: var(--colorbg);
 					border-radius: 50%;
 					opacity: 0.8;
 				"
@@ -249,10 +243,10 @@ function newPlayer(data, isAdmin, token) {
 				"
 			>
 				<div
+					class="bg-color0"
 					style="
 						width: 0.4rem;
 						margin: auto;
-						background: var(--colorbg);
 						border-radius: 0.1rem;
 					"
 				>
@@ -263,7 +257,7 @@ function newPlayer(data, isAdmin, token) {
 				</div>
 			</button>
 			<div
-				class="js-popup"
+				class="js-popup bg-color0"
 				style="
 					position: absolute;
 					right: 0.2rem;
@@ -272,7 +266,6 @@ function newPlayer(data, isAdmin, token) {
 					grid-gap: 0.2rem;
 					padding: 0.1rem;
 					font-size: 0;
-					background: var(--colorbg);
 					border-radius: 0.15rem;
 					opacity: 0.8;
 				"
@@ -282,7 +275,8 @@ function newPlayer(data, isAdmin, token) {
 						? `
 				<button class="js-delete" style="background-color: rgb(0 0 0 / 0%);">
 					<img
-						style="aspect-ratio: 1; width: 0.8rem; filter: var(--color-icons);"
+						class="icon-filter"
+						style="aspect-ratio: 1; width: 0.8rem;"
 						src="assets/icons/feather/trash-2.svg"
 					>
 				</button>`
@@ -294,13 +288,15 @@ function newPlayer(data, isAdmin, token) {
 					style="background-color: rgb(0 0 0 / 0%);"
 				>
 					<img
-						style="aspect-ratio: 1; width: 0.8rem; filter: var(--color-icons);"
+						class="icon-filter"
+						style="aspect-ratio: 1; width: 0.8rem;"
 						src="assets/icons/feather/download.svg"
 					>
 				</a>
 				<button class="js-fullscreen" style="background-color: rgb(0 0 0 / 0%);">
 					<img
-						style="aspect-ratio: 1; width: 0.8rem; filter: var(--color-icons);"
+						class="icon-filter"
+						style="aspect-ratio: 1; width: 0.8rem;"
 						src="${iconMaximizePath}"
 					>
 				</button>

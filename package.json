@@ -125,6 +125,7 @@
 			"value-keyword-case": null,
 			"no-descending-specificity": null,
 			"property-no-vendor-prefix": null,
+			"selector-class-pattern": null,
 			"plugin/no-unsupported-browser-features": [
 				true,
 				{

@@ -86,7 +86,7 @@ function newPolygonEditor(element, props) {
 		return false;
 	};
 
-	const arrowStyle = `style="fill: var(--colorbg); opacity: 0.85"`;
+	const arrowStyle = `style="fill: var(--color0); opacity: 0.85"`;
 	const render = () => {
 		let html = "";
 
