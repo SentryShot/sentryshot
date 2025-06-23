@@ -121,20 +121,18 @@ function newPlayer(data, isAdmin, token) {
 
 	const thumbHTML = /* HTML */ `
 		<img
+			class="w-full h-full"
 			style="
-				width: 100%;
-				height: 100%;
 				max-height: 100vh;
 				object-fit: contain;
 			"
 			src="${d.thumbPath}"
 		/>
 		<div
-			class="js-top-overlay flex"
+			class="js-top-overlay absolute flex"
 			style="
 				flex-wrap: wrap;
 				opacity: 0.8;
-				position: absolute;
 				top: 0;
 				left: 0;
 				margin-right: auto;
@@ -147,9 +145,8 @@ function newPlayer(data, isAdmin, token) {
 
 	const videoHTML = /* HTML */ `
 		<video
+			class="w-full h-full"
 			style="
-				width: 100%;
-				height: 100%;
 				max-height: 100vh;
 				object-fit: contain;
 			"
@@ -160,26 +157,22 @@ function newPlayer(data, isAdmin, token) {
 		${detectionRenderer.html}
 		<input
 			id="${elementID}-overlay-checkbox" type="checkbox"
-			class="js-checkbox player-overlay-checkbox"
-			style="position: absolute; opacity: 0;"
+			class="js-checkbox player-overlay-checkbox absolute"
+			style="opacity: 0;"
 			type="checkbox"
 		>
 		<label
-			for="${elementID}-overlay-checkbox"
+			for="${elementID}-overlay-checkbox absolute"
+			class="w-full h-full"
 			style="
-				position: absolute;
 				z-index: 1;
-				width: 100%;
-				height: 100%;
 				opacity: 0.5;
 			"
 		></label>
 		<div
-			class="player-overlay flex"
+			class="player-overlay absolute flex justify-center"
 			style="
-				position: absolute;
 				z-index: 2;
-				justify-content: center;
 			"
 		>
 			<button
@@ -198,23 +191,19 @@ function newPlayer(data, isAdmin, token) {
 			</button>
 		</div>
 		<div
-			class="player-overlay flex"
+			class="player-overlay absolute flex justify-center w-full"
 			style="
 				z-index: 2;
-				justify-content: center;
-				position: absolute;
 				bottom: 4%;
-				width: 100%;
 				height: 0.6rem;
 				min-height: 3.5%;
 			"
 		>
 			${renderTimeline(d)}
 			<progress
-				class="js-progress"
+				class="js-progress w-full"
 				style="
 					box-sizing: border-box;
-					width: 100%;
 					width: var(--player-timeline-width);
 					padding-top: 0.1rem;
 					padding-bottom: 0.1rem;
@@ -228,9 +217,8 @@ function newPlayer(data, isAdmin, token) {
 				<span class="js-progress-bar">
 			</progress>
 			<button
-				class="js-options-open-btn player-options-open-btn"
+				class="js-options-open-btn player-options-open-btn absolute"
 				style="
-					position: absolute;
 					right: 0.28rem;
 					bottom: 0.8rem;
 					width: 0.8rem;
@@ -254,9 +242,8 @@ function newPlayer(data, isAdmin, token) {
 				</div>
 			</button>
 			<div
-				class="js-popup bg-color0"
+				class="js-popup absolute bg-color0"
 				style="
-					position: absolute;
 					right: 0.2rem;
 					bottom: 1.75rem;
 					display: none;
@@ -300,9 +287,8 @@ function newPlayer(data, isAdmin, token) {
 			</div>
 		</div>
 		<div
-			class="player-overlay flex"
+			class="player-overlay absolute flex"
 			style="
-				position: absolute;
 				top: 0;
 				left: 0;
 				margin-right: auto;
@@ -432,15 +418,11 @@ function newPlayer(data, isAdmin, token) {
 
 	return {
 		html: /* HTML */ `
-			<div class="flex" style="justify-content: center;">
+			<div class="flex justify-center">
 				<div
 					id="${elementID}"
-					class="flex"
+					class="relative flex justify-center items-center w-full"
 					style="
-						position: relative;
-						justify-content: center;
-						align-items: center;
-						width: 100%;
 						max-height: 100vh;
 						align-self: center;
 						--player-timeline-width: 90%;
@@ -533,8 +515,8 @@ function renderTimeline(data) {
 
 	return /* HTML */ `
 		<svg
+			class="absolute"
 			style="
-				position: absolute;
 				bottom: 0;
 				width: var(--player-timeline-width);
 				height: 0.6rem;
@@ -598,11 +580,8 @@ function newDetectionRenderer(startTimeMs, events) {
 	return {
 		html: /* HTML */ `
 			<svg
-				class="js-detections"
+				class="js-detections absolute w-full h-full"
 				style="
-					position: absolute;
-					width: 100%;
-					height: 100%;
 					stroke: var(--color-red);
 					fill-opacity: 0;
 					stroke-width: 0.015rem;

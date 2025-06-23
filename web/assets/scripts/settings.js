@@ -53,9 +53,8 @@ function newRenderer($parent) {
 				htmlNav += /* HTML */ `
 					<li
 						id="js-set-category-${category.name()}"
-						class="js-set-settings-category settings-nav-item flex"
+						class="js-set-settings-category settings-nav-item flex items-center"
 						style="
-							align-items: center;
 							padding: 0.1rem 1rem 0.1rem 0.4rem;
 							border-width: 0.01rem;
 							border-color: var(--color3);
@@ -89,8 +88,11 @@ function newRenderer($parent) {
 			}
 
 			$parent.innerHTML = /* HTML */ `
-				<nav id="js-settings-navbar" class="settings-navbar shrink-0 bg-color2">
-					<ul style="height: 100%; overflow-y: auto;">
+				<nav
+					id="js-settings-navbar"
+					class="settings-navbar shrink-0 h-full bg-color2"
+				>
+					<ul class="h-full" style="overflow-y: auto;">
 						${htmlNav}
 					</ul>
 				</nav>
@@ -140,13 +142,11 @@ function newSimpleCategory(category, title) {
 							<img src="${backIconPath}"/>
 						</nav>
 						<span
-							class="text-color"
+							class="w-full text-center text-color"
 							style="
-								width: 100%;
 								margin: auto;
 								margin-right: 1.6rem;
 								font-size: 0.8rem;
-								text-align: center;
 							"
 						>${title}</span>
 					</div>
@@ -248,10 +248,9 @@ function newCategory(categoryName, title) {
 		html() {
 			return /* HTML */ `
 				<div
-					class="settings-category flex flex-col shrink-0 bg-color2"
+					class="settings-category flex flex-col shrink-0 h-full bg-color2"
 					style="
 						z-index: 0;
-						height: 100%;
 						overflow-y: auto;
 					"
 				>
@@ -278,13 +277,11 @@ function newCategory(categoryName, title) {
 							/>
 						</nav>
 						<span
-							class="js-category-title text-color"
+							class="js-category-title w-full text-center text-color"
 							style="
-								width: 100%;
 								margin: auto;
 								margin-right: 1.6rem;
 								font-size: 0.8rem;
-								text-align: center;
 							"
 							>${title}</span
 						>
@@ -320,13 +317,11 @@ function newCategory(categoryName, title) {
 							/>
 						</nav>
 						<span
-							class="js-category-title text-color"
+							class="js-category-title w-full text-center text-color"
 							style="
-								width: 100%;
 								margin: auto;
 								margin-right: 1.6rem;
 								font-size: 0.8rem;
-								text-align: center;
 							"
 						></span>
 					</div>
@@ -440,10 +435,9 @@ function newCategory2(categoryName, title, form) {
 		html() {
 			return /* HTML */ `
 				<div
-					class="settings-category flex flex-col shrink-0 bg-color2"
+					class="settings-category flex flex-col shrink-0 h-full bg-color2"
 					style="
 						z-index: 0;
-						height: 100%;
 						overflow-y: auto;
 					"
 				>
@@ -470,13 +464,11 @@ function newCategory2(categoryName, title, form) {
 							/>
 						</nav>
 						<span
-							class="js-category-title text-color"
+							class="js-category-title w-full text-center text-color"
 							style="
-								width: 100%;
 								margin: auto;
 								margin-right: 1.6rem;
 								font-size: 0.8rem;
-								text-align: center;
 							"
 							>${title}</span
 						>
@@ -512,13 +504,11 @@ function newCategory2(categoryName, title, form) {
 							/>
 						</nav>
 						<span
-							class="js-category-title text-color"
+							class="js-category-title w-full text-center text-color"
 							style="
-								width: 100%;
 								margin: auto;
 								margin-right: 1.6rem;
 								font-size: 0.8rem;
-								text-align: center;
 							"
 						></span>
 					</div>
@@ -660,9 +650,8 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		for (const m of sortedMonitors) {
 			html += /* HTML */ `
 				<li
-					class="settings-nav-item js-nav flex"
+					class="settings-nav-item js-nav flex items-center"
 					style="
-						align-items: center;
 						padding: 0.1rem 1rem 0.1rem 0.4rem;
 						border-width: 0.01rem;
 						border-color: var(--color3);
@@ -898,10 +887,9 @@ function newMonitorGroups(token, fields, groups) {
 		for (const g of sortedGroups) {
 			html += /* HTML */ `
 				<li
-					class="settings-nav-item js-nav flex"
+					class="settings-nav-item js-nav flex items-center"
 					data="${g.id}"
 					style="
-						align-items: center;
 						padding: 0.1rem 1rem 0.1rem 0.4rem;
 						border-width: 0.01rem;
 						border-color: var(--color3);
@@ -1051,9 +1039,8 @@ function newAccount(token, fields) {
 			const c = u.isAdmin === true ? "text-red" : "text-color";
 			html += /* HTML */ `
 				<li
-					class="settings-nav-item js-nav flex"
+					class="settings-nav-item js-nav flex items-center"
 					style="
-						align-items: center;
 						padding: 0.1rem 1rem 0.1rem 0.4rem;
 						border-width: 0.01rem;
 						border-color: var(--color3);
@@ -1181,10 +1168,8 @@ function newSelectMonitorField(monitors) {
 			html: /* HTML */ `
 				<div
 					id="${id}"
-					class="monitor-selector-item flex"
+					class="monitor-selector-item relative flex items-center"
 					style="
-						position: relative;
-						align-items: center;
 						width: auto;
 						padding: 0.1rem 0.2rem;
 						border-width: 0.01rem;
@@ -1203,10 +1188,8 @@ function newSelectMonitorField(monitors) {
 						>${name}</span
 					>
 					<div
-						class="flex bg-color2"
+						class="flex justify-center items-center bg-color2"
 						style="
-							justify-content: center;
-							align-items: center;
 							width: 0.8em;
 							height: 0.8em;
 							border-radius: 0.14rem;
@@ -1214,11 +1197,9 @@ function newSelectMonitorField(monitors) {
 						"
 					>
 						<input
-							class="checkbox-checkbox"
+							class="checkbox-checkbox w-full h-full"
 							style="
 								z-index: 1;
-								width: 100%;
-								height: 100%;
 								outline: none;
 								-moz-appearance: none;
 								-webkit-appearance: none;
@@ -1226,18 +1207,16 @@ function newSelectMonitorField(monitors) {
 							type="checkbox"
 						/>
 						<div
-							class="checkbox-box"
+							class="checkbox-box absolute"
 							style="
-								position: absolute;
 								width: 0.62em;
 								height: 0.62em;
 								border-radius: 0.1rem;
 							"
 						></div>
 						<img
-							class="checkbox-check"
+							class="checkbox-check absolute"
 							style="
-								position: absolute;
 								width: 0.8em;
 								filter: invert();
 							"
@@ -1276,9 +1255,8 @@ function newSelectMonitorField(monitors) {
 		html: /* HTML */ `
 			<li
 				id=${id}
-				class="flex"
+				class="flex items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;

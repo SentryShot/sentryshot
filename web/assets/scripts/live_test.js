@@ -86,41 +86,31 @@ test("fullscreen", () => {
 	viewer.reset();
 
 	expect(element.innerHTML).toMatchInlineSnapshot(`
-<div class="flex"
-     style="justify-content: center;"
->
+<div class="flex justify-center">
   <div id="uid1"
-       class="flex"
+       class="relative flex justify-center items-center w-full"
        style="
-						position: relative;
-						justify-content: center;
-						align-items: center;
-						width: 100%;
 						max-height: 100vh;
 						align-self: center;
 						--player-timeline-width: 90%;
 					"
   >
     <input id="uid2"
-           class="js-checkbox player-overlay-checkbox"
-           style="position: absolute; opacity: 0;"
+           class="js-checkbox player-overlay-checkbox absolute"
+           style="opacity: 0;"
            type="checkbox"
     >
-    <label style="
-							position: absolute;
+    <label class="absolute w-full h-full"
+           style="
 							z-index: 1;
-							width: 100%;
-							height: 100%;
 							opacity: 0.5;
 						"
            for="uid2"
     >
     </label>
-    <div class="js-overlay player-overlay flex bg-color1"
+    <div class="js-overlay player-overlay absolute flex justify-center bg-color1"
          style="
-							position: absolute;
 							z-index: 2;
-							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
@@ -155,9 +145,8 @@ test("fullscreen", () => {
         >
       </button>
     </div>
-    <video style="
-							width: 100%;
-							height: 100%;
+    <video class="w-full h-full"
+           style="
 							max-height: 100vh;
 							object-fit: contain;
 						"
@@ -168,41 +157,31 @@ test("fullscreen", () => {
     </video>
   </div>
 </div>
-<div class="flex"
-     style="justify-content: center;"
->
+<div class="flex justify-center">
   <div id="uid3"
-       class="flex"
+       class="relative flex justify-center items-center w-full"
        style="
-						position: relative;
-						justify-content: center;
-						align-items: center;
-						width: 100%;
 						max-height: 100vh;
 						align-self: center;
 						--player-timeline-width: 90%;
 					"
   >
     <input id="uid4"
-           class="js-checkbox player-overlay-checkbox"
-           style="position: absolute; opacity: 0;"
+           class="js-checkbox player-overlay-checkbox absolute"
+           style="opacity: 0;"
            type="checkbox"
     >
-    <label style="
-							position: absolute;
+    <label class="absolute w-full h-full"
+           style="
 							z-index: 1;
-							width: 100%;
-							height: 100%;
 							opacity: 0.5;
 						"
            for="uid4"
     >
     </label>
-    <div class="js-overlay player-overlay flex bg-color1"
+    <div class="js-overlay player-overlay absolute flex justify-center bg-color1"
          style="
-							position: absolute;
 							z-index: 2;
-							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
@@ -237,9 +216,8 @@ test("fullscreen", () => {
         >
       </button>
     </div>
-    <video style="
-							width: 100%;
-							height: 100%;
+    <video class="w-full h-full"
+           style="
 							max-height: 100vh;
 							object-fit: contain;
 						"

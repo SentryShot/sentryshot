@@ -386,6 +386,34 @@ img {
 	flex-grow: 1;
 }
 
+.absolute {
+	position: absolute;
+}
+
+.relative {
+	position: relative;
+}
+
+.justify-center {
+	justify-content: center;
+}
+
+.items-center {
+	align-items: center;
+}
+
+.text-center {
+	text-align: center;
+}
+
+.w-full {
+	width: 100%;
+}
+
+.h-full {
+	height: 100%;
+}
+
 /* Mobile portrait mode */
 
 /* sidebar */

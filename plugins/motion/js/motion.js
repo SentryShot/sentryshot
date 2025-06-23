@@ -82,19 +82,18 @@ export function motion2(hasSubStream, getMonitorId) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
+				class="flex items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.05rem;
-					display:flex;"
+				"
 			>
 				<label
-					class="grow text-color"
+					class="grow w-full text-color"
 					style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -171,18 +170,18 @@ export function motion2(hasSubStream, getMonitorId) {
 function zonesModalHTML(feedHTML) {
 	return /* HTML */ `
 		<li
+			class="items-center"
 			style="
-				align-items: center;
 				padding: 0.1rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: 0.05rem;
 			"
 		>
-			<div class="flex" style="width: 100%;">
+			<div class="flex w-full">
 				<select
-					class="js-zone-select"
-					style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
+					class="js-zone-select w-full"
+					style="padding-left: 0.2rem; height: 1rem; font-size: 0.5rem;"
 				></select>
 				<div
 					class="js-add-zone flex bg-color2 hover:bg-color3"
@@ -220,8 +219,8 @@ function zonesModalHTML(feedHTML) {
 			</div>
 		</li>
 		<li
+			class="items-center"
 			style="
-				align-items: center;
 				padding: 0.1rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
@@ -230,19 +229,18 @@ function zonesModalHTML(feedHTML) {
 		>
 			<label
 				for="modal-enable"
-				class="grow text-color"
+				class="grow w-full text-color"
 				style="
 					float: left;
-					width: 100%;
 					min-width: 4rem;
 					font-size: 0.6rem;
 				"
 				>Enable</label
 			>
-			<div class="flex" style="width: 100%;">
+			<div class="flex w-full">
 				<select
-					class="js-enable"
-					style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
+					class="js-enable w-full"
+					style="padding-left: 0.2rem; height: 1rem; font-size: 0.5rem;"
 				>
 					<option>true</option>
 					<option>false</option>
@@ -250,8 +248,8 @@ function zonesModalHTML(feedHTML) {
 			</div>
 		</li>
 		<li
+			class="items-center"
 			style="
-				align-items: center;
 				padding: 0.1rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
@@ -260,10 +258,9 @@ function zonesModalHTML(feedHTML) {
 		>
 			<label
 				for="motion-modal-sensitivity"
-				class="grow text-color"
+				class="grow w-full text-color"
 				style="
 					float: left;
-					width: 100%;
 					min-width: 4rem;
 					font-size: 0.6rem;
 				"
@@ -271,9 +268,8 @@ function zonesModalHTML(feedHTML) {
 			>
 			<input
 				id="motion-modal-sensitivity"
-				class="js-sensitivity"
+				class="js-sensitivity w-full"
 				style="
-					width: 100%;
 					height: 1rem;
 					overflow: auto;
 					font-size: 0.5rem;
@@ -286,8 +282,8 @@ function zonesModalHTML(feedHTML) {
 			/>
 		</li>
 		<li
+			class="items-center"
 			style="
-				align-items: center;
 				padding: 0.1rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
@@ -295,20 +291,18 @@ function zonesModalHTML(feedHTML) {
 			"
 		>
 			<label
-				class="grow text-color"
+				class="grow w-full text-color"
 				style="
 					float: left;
-					width: 100%;
 					min-width: 4rem;
 					font-size: 0.6rem;
 				"
 				>Threshold Min-Max</label
 			>
-			<div class="flex" style="width: 100%;">
+			<div class="flex w-full">
 				<input
-					class="js-threshold-min"
+					class="js-threshold-min w-full"
 					style="
-						width: 100%;
 						height: 1rem;
 						overflow: auto;
 						font-size: 0.5rem;
@@ -321,10 +315,9 @@ function zonesModalHTML(feedHTML) {
 					step="any"
 				/>
 				<input
-					class="js-threshold-max grow text-color"
+					class="js-threshold-max grow w-full text-color"
 					style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -336,8 +329,8 @@ function zonesModalHTML(feedHTML) {
 			</div>
 		</li>
 		<li
+			class="items-center"
 			style="
-				align-items: center;
 				padding: 0.1rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
@@ -346,36 +339,31 @@ function zonesModalHTML(feedHTML) {
 		>
 			<label
 				for="modal-preview"
-				class="grow text-color"
+				class="grow w-full text-color"
 				style="
 					float: left;
-					width: 100%;
 					min-width: 4rem;
 					font-size: 0.6rem;
 				"
 				>Preview</label
 			>
-			<div class="flex" style="width: 100%;">
+			<div class="flex w-full">
 				<select
-					class="js-preview"
-					style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
+					class="js-preview w-full"
+					style="padding-left: 0.2rem; height: 1rem; font-size: 0.5rem;"
 				>
 					<option>true</option>
 					<option>false</option>
 				</select>
 			</div>
-			<div style="position: relative; margin-top: 0.2rem;">
+			<div class="relative" style="margin-top: 0.2rem;">
 				<div class="js-feed" style="background: white;">${feedHTML}</div>
-				<div
-					class="js-feed-overlay"
-					style="position: absolute; height: 100%; width: 100%; top: 0;"
-				></div>
+				<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
 			</div>
 		</li>
 		<li
-			class="flex"
+			class="flex items-center"
 			style="
-				align-items: center;
 				padding: 0.1rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
@@ -440,15 +428,15 @@ function zonesModalHTML(feedHTML) {
 			</div>
 			<div class="flex">
 				<input
-					class="js-x"
-					style="width: 1.3rem; font-size: 0.6rem; text-align: center;"
+					class="js-x text-center"
+					style="width: 1.3rem; font-size: 0.6rem;"
 					type="number"
 					min="0"
 					max="100"
 				/>
 				<input
-					class="js-y"
-					style="width: 1.3rem; font-size: 0.6rem; text-align: center;"
+					class="js-y text-center"
+					style="width: 1.3rem; font-size: 0.6rem;"
 					type="number"
 					min="0"
 					max="100"
@@ -775,20 +763,19 @@ function zones(hasSubStream, getMonitorId) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
+				class="flex items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.05rem;
-					display:flex;
-					padding-bottom:0.25rem;"
+					padding-bottom: 0.25rem;
+				"
 			>
 				<label
-					class="grow text-color"
+					class="grow w-full text-color"
 					style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -901,9 +888,10 @@ function newZone($parent, value, stepSize, onChange) {
 	const html = () => {
 		return /* HTML */ `
 		<svg
+			class="absolute w-full h-full"
+			style="overflow: visible"
 			viewBox="0 0 100 100"
 			preserveAspectRatio="none"
-			style="position: absolute; width: 100%; height: 100%; overflow: visible"
 		>
 		</svg>`.trim();
 	};

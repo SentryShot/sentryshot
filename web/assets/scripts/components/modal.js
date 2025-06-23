@@ -27,14 +27,13 @@ function newModal(label, content = "") {
 		html: /* HTML */ `
 			<div
 				id="${wrapperId}"
+				class="w-full h-full"
 				style="
 					position: fixed;
 					top: 0;
 					left: 0;
 					z-index: 20;
 					display: none;
-					width: 100%;
-					height: 100%;
 					overflow-y: auto;
 					background-color: rgb(0 0 0 / 40%);
 				"
@@ -48,12 +47,10 @@ function newModal(label, content = "") {
 						"
 					>
 						<span
-							class="text-color"
+							class="w-full text-center text-color"
 							style="
-								width: 100%;
 								padding-left: 0.7rem;
 								font-size: 0.8rem;
-								text-align: center;
 							"
 						>${label}</span>
 						<button
@@ -71,9 +68,8 @@ function newModal(label, content = "") {
 						</button>
 					</header>
 					<div
-						class="js-modal-content bg-color3"
+						class="js-modal-content h-full bg-color3"
 						style="
-							height: 100%;
 							overflow-y: visible;
 						"
 					>${content}</div>

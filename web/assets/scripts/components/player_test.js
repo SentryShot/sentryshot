@@ -50,34 +50,26 @@ describe("newPlayer", () => {
 		player.init();
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<div class="flex"
-     style="justify-content: center;"
->
+<div class="flex justify-center">
   <div id="uid1"
-       class="flex"
+       class="relative flex justify-center items-center w-full"
        style="
-						position: relative;
-						justify-content: center;
-						align-items: center;
-						width: 100%;
 						max-height: 100vh;
 						align-self: center;
 						--player-timeline-width: 90%;
 					"
   >
-    <img style="
-				width: 100%;
-				height: 100%;
+    <img class="w-full h-full"
+         style="
 				max-height: 100vh;
 				object-fit: contain;
 			"
          src="B"
     >
-    <div class="js-top-overlay flex"
+    <div class="js-top-overlay absolute flex"
          style="
 				flex-wrap: wrap;
 				opacity: 0.8;
-				position: absolute;
 				top: 0;
 				left: 0;
 				margin-right: auto;
@@ -108,8 +100,8 @@ describe("newPlayer", () => {
         D
       </span>
     </div>
-    <svg style="
-				position: absolute;
+    <svg class="absolute"
+         style="
 				bottom: 0;
 				width: var(--player-timeline-width);
 				height: 0.6rem;
@@ -138,24 +130,17 @@ describe("newPlayer", () => {
 		document.querySelector("div img").click();
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<div class="flex"
-     style="justify-content: center;"
->
+<div class="flex justify-center">
   <div id="uid1"
-       class="flex js-loaded"
+       class="relative flex justify-center items-center w-full js-loaded"
        style="
-						position: relative;
-						justify-content: center;
-						align-items: center;
-						width: 100%;
 						max-height: 100vh;
 						align-self: center;
 						--player-timeline-width: 90%;
 					"
   >
-    <video style="
-				width: 100%;
-				height: 100%;
+    <video class="w-full h-full"
+           style="
 				max-height: 100vh;
 				object-fit: contain;
 			"
@@ -165,11 +150,8 @@ describe("newPlayer", () => {
               type="video/mp4"
       >
     </video>
-    <svg class="js-detections"
+    <svg class="js-detections absolute w-full h-full"
          style="
-					position: absolute;
-					width: 100%;
-					height: 100%;
 					stroke: var(--color-red);
 					fill-opacity: 0;
 					stroke-width: 0.015rem;
@@ -180,24 +162,20 @@ describe("newPlayer", () => {
     </svg>
     <input id="uid1-overlay-checkbox"
            type="checkbox"
-           class="js-checkbox player-overlay-checkbox"
-           style="position: absolute; opacity: 0;"
+           class="js-checkbox player-overlay-checkbox absolute"
+           style="opacity: 0;"
     >
-    <label for="uid1-overlay-checkbox"
+    <label for="uid1-overlay-checkbox absolute"
+           class="w-full h-full"
            style="
-				position: absolute;
 				z-index: 1;
-				width: 100%;
-				height: 100%;
 				opacity: 0.5;
 			"
     >
     </label>
-    <div class="player-overlay flex"
+    <div class="player-overlay absolute flex justify-center"
          style="
-				position: absolute;
 				z-index: 2;
-				justify-content: center;
 			"
     >
       <button class="js-play-btn bg-color0"
@@ -213,19 +191,16 @@ describe("newPlayer", () => {
         >
       </button>
     </div>
-    <div class="player-overlay flex"
+    <div class="player-overlay absolute flex justify-center w-full"
          style="
 				z-index: 2;
-				justify-content: center;
-				position: absolute;
 				bottom: 4%;
-				width: 100%;
 				height: 0.6rem;
 				min-height: 3.5%;
 			"
     >
-      <svg style="
-				position: absolute;
+      <svg class="absolute"
+           style="
 				bottom: 0;
 				width: var(--player-timeline-width);
 				height: 0.6rem;
@@ -247,10 +222,9 @@ describe("newPlayer", () => {
         >
         </rect>
       </svg>
-      <progress class="js-progress"
+      <progress class="js-progress w-full"
                 style="
 					box-sizing: border-box;
-					width: 100%;
 					width: var(--player-timeline-width);
 					padding-top: 0.1rem;
 					padding-bottom: 0.1rem;
@@ -264,9 +238,8 @@ describe("newPlayer", () => {
         <span class="js-progress-bar">
         </span>
       </progress>
-      <button class="js-options-open-btn player-options-open-btn"
+      <button class="js-options-open-btn player-options-open-btn absolute"
               style="
-					position: absolute;
 					right: 0.28rem;
 					bottom: 0.8rem;
 					width: 0.8rem;
@@ -287,9 +260,8 @@ describe("newPlayer", () => {
           >
         </div>
       </button>
-      <div class="js-popup bg-color0"
+      <div class="js-popup absolute bg-color0"
            style="
-					position: absolute;
 					right: 0.2rem;
 					bottom: 1.75rem;
 					display: none;
@@ -320,9 +292,8 @@ describe("newPlayer", () => {
         </button>
       </div>
     </div>
-    <div class="player-overlay flex"
+    <div class="player-overlay absolute flex"
          style="
-				position: absolute;
 				top: 0;
 				left: 0;
 				margin-right: auto;
@@ -370,19 +341,14 @@ describe("newPlayer", () => {
   
 			
   <div
-    class="flex"
-    style="justify-content: center;"
+    class="flex justify-center"
   >
     
 				
     <div
-      class="flex"
+      class="relative flex justify-center items-center w-full"
       id="uid1"
       style="
-						position: relative;
-						justify-content: center;
-						align-items: center;
-						width: 100%;
 						max-height: 100vh;
 						align-self: center;
 						--player-timeline-width: 90%;
@@ -391,10 +357,9 @@ describe("newPlayer", () => {
       
 		
       <img
+        class="w-full h-full"
         src="B"
         style="
-				width: 100%;
-				height: 100%;
 				max-height: 100vh;
 				object-fit: contain;
 			"
@@ -402,11 +367,10 @@ describe("newPlayer", () => {
       
 		
       <div
-        class="js-top-overlay flex"
+        class="js-top-overlay absolute flex"
         style="
 				flex-wrap: wrap;
 				opacity: 0.8;
-				position: absolute;
 				top: 0;
 				left: 0;
 				margin-right: auto;
@@ -454,9 +418,9 @@ describe("newPlayer", () => {
 		
 		
       <svg
+        class="absolute"
         preserveAspectRatio="none"
         style="
-				position: absolute;
 				bottom: 0;
 				width: var(--player-timeline-width);
 				height: 0.6rem;
@@ -509,34 +473,26 @@ describe("newPlayer", () => {
 
 		// Original.
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<div class="flex"
-     style="justify-content: center;"
->
+<div class="flex justify-center">
   <div id="uid2"
-       class="flex"
+       class="relative flex justify-center items-center w-full"
        style="
-						position: relative;
-						justify-content: center;
-						align-items: center;
-						width: 100%;
 						max-height: 100vh;
 						align-self: center;
 						--player-timeline-width: 90%;
 					"
   >
-    <img style="
-				width: 100%;
-				height: 100%;
+    <img class="w-full h-full"
+         style="
 				max-height: 100vh;
 				object-fit: contain;
 			"
          src="B"
     >
-    <div class="js-top-overlay flex"
+    <div class="js-top-overlay absolute flex"
          style="
 				flex-wrap: wrap;
 				opacity: 0.8;
-				position: absolute;
 				top: 0;
 				left: 0;
 				margin-right: auto;
@@ -567,8 +523,8 @@ describe("newPlayer", () => {
         D
       </span>
     </div>
-    <svg style="
-				position: absolute;
+    <svg class="absolute"
+         style="
 				bottom: 0;
 				width: var(--player-timeline-width);
 				height: 0.6rem;
@@ -669,11 +625,8 @@ describe("detectionRenderer", () => {
 		const [d, element] = newTestRenderer();
 		d.set(60);
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<svg class="js-detections"
+<svg class="js-detections absolute w-full h-full"
      style="
-					position: absolute;
-					width: 100%;
-					height: 100%;
 					stroke: var(--color-red);
 					fill-opacity: 0;
 					stroke-width: 0.015rem;
@@ -701,11 +654,8 @@ describe("detectionRenderer", () => {
 		const [d, element] = newTestRenderer();
 		d.set(60 * 10); // Second event.
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<svg class="js-detections"
+<svg class="js-detections absolute w-full h-full"
      style="
-					position: absolute;
-					width: 100%;
-					height: 100%;
 					stroke: var(--color-red);
 					fill-opacity: 0;
 					stroke-width: 0.015rem;

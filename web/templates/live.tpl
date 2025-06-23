@@ -41,9 +41,10 @@
 	{% include "sidebar" %}
 	<div
 		id="content"
-		style="position: absolute; box-sizing: border-box; width: 100%; height: 100%"
+		class="absolute w-full h-full"
+		style="box-sizing: border-box;"
 	>
-		<div style="height: 100%; overflow-y: auto">
+		<div class="h-full" style="overflow-y: auto">
 			<div
 				id="js-content-grid"
 				style="display: grid; grid-template-columns: repeat(var(--gridsize), 1fr)"

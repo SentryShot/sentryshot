@@ -115,61 +115,54 @@ describe("MultiSelect", () => {
 		const [element] = setup();
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <li id="uid4"
+    class="items-center w-full"
     style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.05rem;
 				"
 >
-  <label class="grow text-color"
+  <label class="grow w-full text-color"
          style="
 					   float: left;
-					   width: 100%;
 					   min-width: 4rem;
 					   font-size: 0.6rem;
 					"
   >
     test
   </label>
-  <div style="position: relative;">
-    <div class="item-uid1 flex"
-         style="align-items: center; min-width: 1px;"
+  <div class="relative">
+    <div class="item-uid1 flex items-center"
+         style="min-width: 1px;"
     >
-      <div class="flex bg-color2"
+      <div class="flex justify-center items-center bg-color2"
            style="
-							justify-content: center;
-							align-items: center;
 							width: 0.8em;
 							height: 0.8em;
 							border-radius: 0.14rem;
 							user-select: none;
 						"
       >
-        <input class="checkbox-checkbox"
+        <input class="checkbox-checkbox w-full h-full"
                style="
 								z-index: 1;
-								width: 100%;
-								height: 100%;
 								outline: none;
 								-moz-appearance: none;
 								-webkit-appearance: none;
 							"
                type="checkbox"
         >
-        <div class="checkbox-box"
+        <div class="checkbox-box absolute"
              style="
-								position: absolute;
 								width: 0.62em;
 								height: 0.62em;
 								border-radius: 0.1rem;
 							"
         >
         </div>
-        <img class="checkbox-check"
+        <img class="checkbox-check absolute"
              style="
-								position: absolute;
 								width: 0.8em;
 								filter: invert();
 							"
@@ -182,42 +175,36 @@ describe("MultiSelect", () => {
         a
       </span>
     </div>
-    <div class="item-uid2 flex"
-         style="align-items: center; min-width: 1px;"
+    <div class="item-uid2 flex items-center"
+         style="min-width: 1px;"
     >
-      <div class="flex bg-color2"
+      <div class="flex justify-center items-center bg-color2"
            style="
-							justify-content: center;
-							align-items: center;
 							width: 0.8em;
 							height: 0.8em;
 							border-radius: 0.14rem;
 							user-select: none;
 						"
       >
-        <input class="checkbox-checkbox"
+        <input class="checkbox-checkbox w-full h-full"
                style="
 								z-index: 1;
-								width: 100%;
-								height: 100%;
 								outline: none;
 								-moz-appearance: none;
 								-webkit-appearance: none;
 							"
                type="checkbox"
         >
-        <div class="checkbox-box"
+        <div class="checkbox-box absolute"
              style="
-								position: absolute;
 								width: 0.62em;
 								height: 0.62em;
 								border-radius: 0.1rem;
 							"
         >
         </div>
-        <img class="checkbox-check"
+        <img class="checkbox-check absolute"
              style="
-								position: absolute;
 								width: 0.8em;
 								filter: invert();
 							"
@@ -230,42 +217,36 @@ describe("MultiSelect", () => {
         b
       </span>
     </div>
-    <div class="item-uid3 flex"
-         style="align-items: center; min-width: 1px;"
+    <div class="item-uid3 flex items-center"
+         style="min-width: 1px;"
     >
-      <div class="flex bg-color2"
+      <div class="flex justify-center items-center bg-color2"
            style="
-							justify-content: center;
-							align-items: center;
 							width: 0.8em;
 							height: 0.8em;
 							border-radius: 0.14rem;
 							user-select: none;
 						"
       >
-        <input class="checkbox-checkbox"
+        <input class="checkbox-checkbox w-full h-full"
                style="
 								z-index: 1;
-								width: 100%;
-								height: 100%;
 								outline: none;
 								-moz-appearance: none;
 								-webkit-appearance: none;
 							"
                type="checkbox"
         >
-        <div class="checkbox-box"
+        <div class="checkbox-box absolute"
              style="
-								position: absolute;
 								width: 0.62em;
 								height: 0.62em;
 								border-radius: 0.1rem;
 							"
         >
         </div>
-        <img class="checkbox-check"
+        <img class="checkbox-check absolute"
              style="
-								position: absolute;
 								width: 0.8em;
 								filter: invert();
 							"

@@ -1,10 +1,8 @@
-<input type="checkbox" id="sidebar-checkbox" style="position: absolute; display: none" />
-<header id="topbar" class="flex" style="position: absolute; background: var(--color1)">
+<input type="checkbox" id="sidebar-checkbox" class="absolute" style="display: none" />
+<header id="topbar" class="absolute flex" style="background: var(--color1)">
 	<div
-		class="topbar-btn flex shrink-0"
+		class="topbar-btn flex shrink-0 justify-center items-center"
 		style="
-			justify-content: center;
-			align-items: center;
 			width: var(--topbar-height);
 			height: var(--topbar-height);
 		"
@@ -20,10 +18,8 @@
 	</h1>
 	<div
 		id="topbar-options-btn"
-		class="topbar-btn flex shrink-0"
+		class="topbar-btn flex shrink-0 justify-center items-center"
 		style="
-			justify-content: center;
-			align-items: center;
 			width: var(--topbar-height);
 			height: var(--topbar-height);
 			margin-top: auto;
@@ -41,45 +37,43 @@
 <label
 	id="sidebar-btn"
 	for="sidebar-checkbox"
-	style="position: absolute; z-index: 10; height: var(--barsize)"
+	class="absolute"
+	style="z-index: 10; height: var(--barsize)"
 ></label>
 <label
 	id="sidebar-closer"
 	for="sidebar-checkbox"
-	style="position: absolute; z-index: 4; height: 100dvh"
+	class="absolute"
+	style="z-index: 4; height: 100dvh"
 ></label>
 
 <input
 	type="checkbox"
 	id="options-checkbox"
-	style="position: absolute; visibility: hidden"
+	class="absolute"
+	style="visibility: hidden"
 />
 <label
 	id="options-btn"
 	for="options-checkbox"
-	style="position: absolute; width: var(--topbar-height); height: var(--topbar-height)"
+	class="absolute"
+	style="width: var(--topbar-height); height: var(--topbar-height)"
 ></label>
 <div
 	id="options-menu"
-	class="flex flex-col"
-	style="
-		position: absolute;
-		top: var(--topbar-height);
-		z-index: 3;
-		--options-menu-btn-width: 1.2rem;
-	"
+	class="absolute flex flex-col"
+	style="top: var(--topbar-height); z-index: 3; --options-menu-btn-width: 1.2rem"
 ></div>
 
 <aside
 	id="sidebar"
-	class="flex flex-col"
-	style="z-index: 5; height: 100%; overflow-x: hidden; background: var(--color1)"
+	class="flex flex-col h-full"
+	style="z-index: 5; overflow-x: hidden; background: var(--color1)"
 >
 	<div
 		id="nav-btn"
-		class="flex hover:bg-color2"
+		class="flex items-center hover:bg-color2"
 		style="
-			align-items: center;
 			width: var(--sidebar-width);
 			padding: var(--icon-padding);
 			text-decoration: none;
@@ -92,13 +86,12 @@
 			style="height: 1.1rem; aspect-ratio: 1"
 		/>
 	</div>
-	<nav class="flex flex-col" style="height: 100%; overflow-x: hidden">
+	<nav class="flex flex-col h-full" style="overflow-x: hidden">
 		<a
 			href="live"
 			id="nav-link-live"
-			class="flex hover:bg-color2"
+			class="flex items-center hover:bg-color2"
 			style="
-				align-items: center;
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
 				text-decoration: none;
@@ -121,9 +114,8 @@
 		<a
 			href="recordings"
 			id="nav-link-recordings"
-			class="flex hover:bg-color2"
+			class="flex items-center hover:bg-color2"
 			style="
-				align-items: center;
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
 				text-decoration: none;
@@ -146,9 +138,8 @@
 		<a
 			href="settings"
 			id="nav-link-settings"
-			class="flex hover:bg-color2"
+			class="flex items-center hover:bg-color2"
 			style="
-				align-items: center;
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
 				text-decoration: none;
@@ -170,9 +161,8 @@
 		<a
 			href="logs"
 			id="nav-link-logs"
-			class="flex hover:bg-color2"
+			class="flex items-center hover:bg-color2"
 			style="
-				align-items: center;
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
 				text-decoration: none;

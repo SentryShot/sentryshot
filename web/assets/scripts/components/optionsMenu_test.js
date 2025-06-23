@@ -29,10 +29,8 @@ describe("optionsGridSize", () => {
 		expect(document.body.innerHTML).toMatchInlineSnapshot(`
 <div id="options-menu">
   <button id="uid1"
-          class="flex text-color bg-color2 hover:bg-color3"
+          class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
           style="
-						justify-content: center;
-						align-items: center;
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
 						font-size: 0.5rem;
@@ -49,10 +47,8 @@ describe("optionsGridSize", () => {
     >
   </button>
   <button id="uid2"
-          class="flex text-color bg-color2 hover:bg-color3"
+          class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
           style="
-						justify-content: center;
-						align-items: center;
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
 						font-size: 0.5rem;

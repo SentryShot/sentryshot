@@ -119,8 +119,8 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
+				class="items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -129,10 +129,9 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 				"
 			>
 				<label
-					class="grow text-color"
+					class="grow w-full text-color"
 					style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -206,12 +205,11 @@ function thresholds(detectors, getDetectorName) {
 		return {
 			html: /* HTML */ `
 				<li
-					class="object-detection-label-wrapper flex"
+					class="object-detection-label-wrapper flex items-center"
 					style="
 						padding: 0.1rem;
 						border-color: var(--color1);
 						border-width: 0.03rem;
-						align-items: center;
 					"
 				>
 					<label for="${id}" class="text-color" style="font-size: 0.7rem;"
@@ -219,12 +217,11 @@ function thresholds(detectors, getDetectorName) {
 					>
 					<input
 						id="${id}"
+						class="text-center h-full"
 						style="
 							margin-left: auto;
 							font-size: 0.6rem;
-							text-align: center;
 							width: 1.4rem;
-							height: 100%;
 						"
 						type="number"
 						value="${val}"
@@ -327,8 +324,8 @@ function thresholds(detectors, getDetectorName) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
+				class="items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -338,10 +335,9 @@ function thresholds(detectors, getDetectorName) {
 				"
 			>
 				<label
-					class="grow text-color"
+					class="grow w-full text-color"
 					style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -422,8 +418,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 		const html = /* HTML */ `
 			<li
 				id="object-detection-crop-preview"
+				class="items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -441,14 +437,10 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					"
 					>Preview</label
 				>
-				<div
-					class="js-preview-wrapper"
-					style="position: relative; margin-top: 0.69rem"
-				>
+				<div class="js-preview-wrapper relative" style="margin-top: 0.69rem">
 					<div
-						class="js-feed flex"
+						class="js-feed flex w-full"
 						style="
-							width: 100%;
 							min-width: 0;
 							background: white;
 						"
@@ -457,8 +449,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					</div>
 					<div class="js-preview-padding" style="background: white;"></div>
 					<svg
-						class="js-object-detection-overlay"
-						style="position: absolute; height: 100%; width: 100%; top: 0;"
+						class="js-object-detection-overlay absolute w-full h-full"
+						style="top: 0;"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
 						style="opacity: 0.7;"
@@ -466,9 +458,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				</div>
 			</li>
 			<li
-				class="js-options flex"
+				class="js-options flex items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -495,9 +486,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						>X</span
 					>
 					<input
-						class="js-x"
+						class="js-x text-center"
 						style="
-							text-align: center;
 							font-size: 0.5rem;
 							border-style: none;
 							border-radius: 5px;
@@ -528,9 +518,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						>Y</span
 					>
 					<input
-						class="js-y"
+						class="js-y text-center"
 						style="
-							text-align: center;
 							font-size: 0.5rem;
 							border-style: none;
 							border-radius: 5px;
@@ -561,9 +550,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						>size</span
 					>
 					<input
-						class="js-size"
+						class="js-size text-center"
 						style="
-							text-align: center;
 							font-size: 0.5rem;
 							border-style: none;
 							border-radius: 5px;
@@ -692,8 +680,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
+				class="items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -831,9 +819,8 @@ function mask(hasSubStream, getMonitorId) {
 	const renderModal = (feedHTML) => {
 		const html = /* HTML */ `
 			<li
-				class="js-enable object_detection_mask-enabled"
+				class="js-enable object_detection_mask-enabled items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -851,10 +838,10 @@ function mask(hasSubStream, getMonitorId) {
 					"
 					>Enable mask</label
 				>
-				<div class="flex" style="width: 100%;">
+				<div class="flex w-full">
 					<select
-						class="js-input"
-						style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
+						class="js-input w-full"
+						style="padding-left: 0.2rem; height: 1rem; font-size: 0.5rem;"
 					>
 						<option>true</option>
 						<option>false</option>
@@ -863,8 +850,8 @@ function mask(hasSubStream, getMonitorId) {
 			</li>
 			<li
 				id="object_detection_mask-preview"
+				class="items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -882,14 +869,10 @@ function mask(hasSubStream, getMonitorId) {
 					"
 					>Preview</label
 				>
-				<div
-					class="js-preview-wrapper"
-					style="position: relative; margin-top: 0.69rem"
-				>
+				<div class="js-preview-wrapper relative" style="margin-top: 0.69rem">
 					<div
-						class="js-feed flex"
+						class="js-feed flex w-full"
 						style="
-							width: 100%;
 							min-width: 0;
 							background: white;
 						"
@@ -897,11 +880,8 @@ function mask(hasSubStream, getMonitorId) {
 						${feedHTML}
 					</div>
 					<svg
-						class="js-object-detection-overlay"
+						class="js-object-detection-overlay absolute w-full h-full"
 						style="
-							position: absolute;
-							height: 100%;
-							width: 100%;
 							top: 0;
 							z-index: 1;
 							user-select: none;
@@ -913,9 +893,8 @@ function mask(hasSubStream, getMonitorId) {
 				</div>
 			</li>
 			<li
-				class="flex"
+				class="flex items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -980,15 +959,15 @@ function mask(hasSubStream, getMonitorId) {
 				</div>
 				<div class="flex">
 					<input
-						class="js-x"
-						style="width: 1.3rem; font-size: 0.6rem; text-align: center;"
+						class="js-x text-center"
+						style="width: 1.3rem; font-size: 0.6rem;"
 						type="number"
 						min="0"
 						max="100"
 					/>
 					<input
-						class="js-y"
-						style="width: 1.3rem; font-size: 0.6rem; text-align: center;"
+						class="js-y text-center"
+						style="width: 1.3rem; font-size: 0.6rem;"
 						type="number"
 						min="0"
 						max="100"
@@ -1154,8 +1133,8 @@ function mask(hasSubStream, getMonitorId) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
+				class="items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -1274,7 +1253,7 @@ function normalizeMask(mask) {
 	return {
 		html: `
 			<div style="margin: 0.3rem; margin-bottom: 0;">
-				<img id=${id} style="width: 100%; height: 100%">
+				<img id=${id} class="w-full h-full">
 			</div>`,
 		init() {
 			element = document.querySelector(`#${id}`);

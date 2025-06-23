@@ -135,10 +135,8 @@ function resBtn(content) {
 		html: /* HTML */ `
 			<button
 				id=${id}
-				class="flex text-color bg-color2 hover:bg-color3"
+				class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
 				style="
-					justify-content: center;
-					align-items: center;
 					width: var(--options-menu-btn-width);
 					height: var(--options-menu-btn-width);
 					font-size: 0.5rem;

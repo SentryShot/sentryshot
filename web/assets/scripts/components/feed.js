@@ -57,15 +57,11 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 
 	return {
 		html: /* HTML */ `
-			<div class="flex" style="justify-content: center;">
+			<div class="flex justify-center">
 				<div
 					id="${elementID}"
-					class="flex"
+					class="relative flex justify-center items-center w-full"
 					style="
-						position: relative;
-						justify-content: center;
-						align-items: center;
-						width: 100%;
 						max-height: 100vh;
 						align-self: center;
 						--player-timeline-width: 90%;
@@ -73,26 +69,22 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 				>
 					<input
 						id="${checkboxID}"
-						class="js-checkbox player-overlay-checkbox"
-						style="position: absolute; opacity: 0;"
+						class="js-checkbox player-overlay-checkbox absolute"
+						style="opacity: 0;"
 						type="checkbox"
 					/>
 					<label
+						class="absolute w-full h-full"
 						style="
-							position: absolute;
 							z-index: 1;
-							width: 100%;
-							height: 100%;
 							opacity: 0.5;
 						"
 						for="${checkboxID}"
 					></label>
 					<div
-						class="js-overlay player-overlay flex bg-color1"
+						class="js-overlay player-overlay absolute flex justify-center bg-color1"
 						style="
-							position: absolute;
 							z-index: 2;
-							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
@@ -102,9 +94,8 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 						${html}
 					</div>
 					<video
+						class="w-full h-full"
 						style="
-							width: 100%;
-							height: 100%;
 							max-height: 100vh;
 							object-fit: contain;
 						"

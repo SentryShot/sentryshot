@@ -519,9 +519,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		body = /* HTML */ `
 			<input
 				id="${id}"
-				class="js-input"
+				class="js-input w-full"
 				style="
-					width: 100%;
 					height: 1rem;
 					overflow: auto;
 					font-size: 0.5rem;
@@ -540,13 +539,12 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			options += `\n<option>${option}</option>`;
 		}
 		body = /* HTML */ `
-			<div class="flex" style="width: 100%;">
+			<div class="flex w-full">
 				<select
 					id="${id}"
-					class="js-input"
+					class="js-input w-full"
 					style="
 						padding-left: 0.2rem;
-						width: 100%;
 						height: 1rem;
 						font-size: 0.5rem;
 					"
@@ -579,8 +577,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		return /* HTML */ `
 			<li
 				id="js-${id}"
+				class="items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -589,10 +587,9 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			>
 				<label
 					for="${id}"
-					class="grow text-color"
+					class="grow w-full text-color"
 					style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -614,8 +611,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		return /* HTML */ `
 			<li
 				id="js-${id}"
+				class="items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -624,10 +621,9 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			>
 				<label
 					for="${id}"
-					class="grow text-color"
+					class="grow w-full text-color"
 					style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -779,8 +775,8 @@ function newPasswordField() {
 		return /* HTML */ `
 			<li
 				id="js-${id}"
+				class="items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -789,10 +785,9 @@ function newPasswordField() {
 			>
 				<label
 					for="${id}"
-					class="grow text-color"
+					class="grow w-full text-color"
 					style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -800,9 +795,8 @@ function newPasswordField() {
 				>
 				<input
 					id="${id}"
-					class="js-input"
+					class="js-input w-full"
 					style="
-						width: 100%;
 						height: 1rem;
 						overflow: auto;
 						font-size: 0.5rem;

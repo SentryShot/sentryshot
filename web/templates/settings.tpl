@@ -46,14 +46,8 @@
 	{% include "sidebar" %}
 	<div
 		id="content"
-		class="js-content flex"
-		style="
-			position: absolute;
-			box-sizing: border-box;
-			width: 100%;
-			height: 100%;
-			overflow-x: hidden;
-		"
+		class="js-content absolute flex w-full h-full"
+		style="box-sizing: border-box; overflow-x: hidden"
 	></div>
 </body>
 <style>

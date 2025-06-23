@@ -86,10 +86,8 @@ const newOptionsBtn = {
 			html: /* HTML */ `
 				<button
 					id="${idPlus}"
-					class="flex text-color bg-color2 hover:bg-color3"
+					class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
 					style="
-						justify-content: center;
-						align-items: center;
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
 						font-size: 0.5rem;
@@ -108,10 +106,8 @@ const newOptionsBtn = {
 				</button>
 				<button
 					id="${idMinus}"
-					class="flex text-color bg-color2 hover:bg-color3"
+					class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
 					style="
-						justify-content: center;
-						align-items: center;
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
 						font-size: 0.5rem;
@@ -231,10 +227,8 @@ function newOptionsPopup(label, icon, htmlContent) {
 		html: /* HTML */ `
 			<button
 				id="${buttonId}"
-				class="flex text-color bg-color2 hover:bg-color3 js-${label}"
+				class="flex justify-center items-center text-color bg-color2 hover:bg-color3 js-${label}"
 				style="
-					justify-content: center;
-					align-items: center;
 					width: var(--options-menu-btn-width);
 					height: var(--options-menu-btn-width);
 					font-size: 0.5rem;
@@ -253,9 +247,8 @@ function newOptionsPopup(label, icon, htmlContent) {
 			</button>
 			<div
 				id="${popupId}"
-				class="options-popup flex-col bg-color2"
+				class="options-popup absolute flex-col bg-color2"
 				style="
-					position: absolute;
 					display: none;
 					max-height: 100dvh;
 					margin: auto;
@@ -300,9 +293,8 @@ function toMonthString(time) {
 const datePickerHTML = /* HTML */ `
 	<div style="padding: 0.2rem;">
 		<div
-			class="flex"
+			class="flex items-center"
 			style="
-				align-items: center;
 				font-size: 0;
 				border-color: var(--color3-hover);
 				border-bottom-style: solid;
@@ -319,11 +311,9 @@ const datePickerHTML = /* HTML */ `
 				>
 			</button>
 			<span
-				class="js-month text-color"
+				class="js-month w-full text-center text-color"
 				style="
-					width: 100%;
 					font-size: 0.52rem;
-					text-align: center;
 				"
 			></span>
 			<button class="js-next-month bg-color2">
@@ -390,9 +380,8 @@ const datePickerHTML = /* HTML */ `
 		</div>
 		<div class="date-picker-hour">
 			<div
-				class="flex flex-col"
+				class="flex flex-col justify-center"
 				style="
-					justify-content: center;
 					margin-right: 0.1rem;
 					margin-left: 0.1rem;
 				"
@@ -428,10 +417,7 @@ const datePickerHTML = /* HTML */ `
 				</button>
 			</div>
 			<div
-				class="flex"
-				style="
-					align-items: center;
-				"
+				class="flex items-center"
 			>
 				<input
 					class="date-picker-hour-input js-hour"
@@ -466,9 +452,8 @@ const datePickerHTML = /* HTML */ `
 				></input>
 			</div>
 			<div
-				class="flex flex-col"
+				class="flex flex-col justify-center"
 				style="
-					justify-content: center;
 					margin-right: 0.1rem;
 					margin-left: 0.1rem;
 				"
@@ -743,10 +728,8 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 		html: /* HTML */ `
 			<button
 				id="${btnID}"
-				class="flex text-color bg-color2 hover:bg-color3"
+				class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
 				style="
-					justify-content: center;
-					align-items: center;
 					width: var(--options-menu-btn-width);
 					height: var(--options-menu-btn-width);
 					font-size: 0.5rem;
@@ -843,13 +826,7 @@ function newSelectOne(options, onSelect, alias) {
 
 	return {
 		html: /* HTML */ `
-			<div
-				id=${id}
-				class="js-select-one flex flex-col text-color"
-				style="
-					text-align: center;
-				"
-			>
+			<div id=${id} class="js-select-one flex flex-col text-center text-color">
 				<span style="padding: 0.1rem; font-size: 0.6rem;">Groups</span>
 				${optionsHTML}
 			</div>

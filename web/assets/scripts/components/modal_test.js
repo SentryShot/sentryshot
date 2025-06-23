@@ -23,12 +23,10 @@ test("newModal", () => {
 							padding-right: 0.2rem;
 						"
 >
-  <span class="text-color"
+  <span class="w-full text-center text-color"
         style="
-								width: 100%;
 								padding-left: 0.7rem;
 								font-size: 0.8rem;
-								text-align: center;
 							"
   >
     test
@@ -45,9 +43,8 @@ test("newModal", () => {
     >
   </button>
 </header>
-<div class="js-modal-content bg-color3"
+<div class="js-modal-content h-full bg-color3"
      style="
-							height: 100%;
 							overflow-y: visible;
 						"
 >
@@ -80,18 +77,16 @@ test("modalSelect", () => {
 
 	expect(element.innerHTML).toMatchInlineSnapshot(`
 <div id="uid1"
+     class="w-full h-full modal-open"
      style="
 					position: fixed;
 					top: 0;
 					left: 0;
 					z-index: 20;
 					display: none;
-					width: 100%;
-					height: 100%;
 					overflow-y: auto;
 					background-color: rgb(0 0 0 / 40%);
 				"
-     class="modal-open"
 >
   <div class="modal js-modal flex">
     <header class="modal-header flex bg-color2"
@@ -100,12 +95,10 @@ test("modalSelect", () => {
 							padding-right: 0.2rem;
 						"
     >
-      <span class="text-color"
+      <span class="w-full text-center text-color"
             style="
-								width: 100%;
 								padding-left: 0.7rem;
 								font-size: 0.8rem;
-								text-align: center;
 							"
       >
         x
@@ -122,9 +115,8 @@ test("modalSelect", () => {
         >
       </button>
     </header>
-    <div class="js-modal-content bg-color3"
+    <div class="js-modal-content h-full bg-color3"
          style="
-							height: 100%;
 							overflow-y: visible;
 						"
     >

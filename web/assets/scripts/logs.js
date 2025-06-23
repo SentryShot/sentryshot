@@ -484,12 +484,10 @@ function newMultiSelect(label, values, initial) {
 		let $checkbox;
 		return {
 			html: /* HTML */ `
-				<div class="item-${id} flex" style="align-items: center; min-width: 1px;">
+				<div class="item-${id} flex items-center" style="min-width: 1px;">
 					<div
-						class="flex bg-color2"
+						class="flex justify-center items-center bg-color2"
 						style="
-							justify-content: center;
-							align-items: center;
 							width: 0.8em;
 							height: 0.8em;
 							border-radius: 0.14rem;
@@ -497,11 +495,9 @@ function newMultiSelect(label, values, initial) {
 						"
 					>
 						<input
-							class="checkbox-checkbox"
+							class="checkbox-checkbox w-full h-full"
 							style="
 								z-index: 1;
-								width: 100%;
-								height: 100%;
 								outline: none;
 								-moz-appearance: none;
 								-webkit-appearance: none;
@@ -509,18 +505,16 @@ function newMultiSelect(label, values, initial) {
 							type="checkbox"
 						/>
 						<div
-							class="checkbox-box"
+							class="checkbox-box absolute"
 							style="
-								position: absolute;
 								width: 0.62em;
 								height: 0.62em;
 								border-radius: 0.1rem;
 							"
 						></div>
 						<img
-							class="checkbox-check"
+							class="checkbox-check absolute"
 							style="
-								position: absolute;
 								width: 0.8em;
 								filter: invert();
 							"
@@ -576,8 +570,8 @@ function newMultiSelect(label, values, initial) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
+				class="items-center w-full"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -585,16 +579,15 @@ function newMultiSelect(label, values, initial) {
 				"
 			>
 				<label
-					class="grow text-color"
+					class="grow w-full text-color"
 					style="
 					   float: left;
-					   width: 100%;
 					   min-width: 4rem;
 					   font-size: 0.6rem;
 					"
 					>${label}</label
 				>
-				<div style="position: relative;">${htmlFields}</div>
+				<div class="relative">${htmlFields}</div>
 			</li>
 		`,
 		init() {
@@ -664,8 +657,8 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 		html: /* HTML */ `
 			<li
 				id="${elementID}"
+				class="items-center"
 				style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -674,19 +667,19 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 			>
 				<label
 					for="${inputID}"
-					class="grow text-color"
+					class="grow w-full text-color"
 					style="
 					   float: left;
-					   width: 100%;
 					   min-width: 4rem;
 					   font-size: 0.6rem;
 					"
 					>Monitor</label
 				>
-				<div class="flex" style="width: 100%;">
+				<div class="flex w-full">
 					<select
 						id="${inputID}"
-						style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
+						class="w-full"
+						style="padding-left: 0.2rem; height: 1rem; font-size: 0.5rem;"
 					>
 						${options}
 					</select>

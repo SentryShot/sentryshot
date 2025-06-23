@@ -28,18 +28,12 @@
 	{% include "sidebar" %}
 	<div
 		id="content"
-		class="js-content flex bg-color2"
-		style="
-			position: absolute;
-			box-sizing: border-box;
-			width: 100%;
-			height: 100%;
-			overflow-x: hidden;
-		"
+		class="js-content absolute flex w-full h-full bg-color2"
+		style="box-sizing: border-box; overflow-x: hidden"
 	>
 		<div
-			class="log-sidebar js-sidebar shrink-0"
-			style="height: 100%; overflow-y: auto"
+			class="log-sidebar js-sidebar shrink-0 h-full"
+			style="overflow-y: auto"
 		></div>
 		<div class="log-list-wrapper js-list bg-color3">
 			<div id="log-menubar" class="bg-color2" style="height: var(--barsize)">

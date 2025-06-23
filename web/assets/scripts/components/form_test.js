@@ -227,8 +227,8 @@ describe("newField", () => {
 
 		expect(newTestField().html).toMatchInlineSnapshot(`
 <li id="js-uid1"
+    class="items-center"
     style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -236,10 +236,9 @@ describe("newField", () => {
 				"
 >
   <label for="uid1"
-         class="grow text-color"
+         class="grow w-full text-color"
          style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -247,9 +246,8 @@ describe("newField", () => {
     a
   </label>
   <input id="uid1"
-         class="js-input"
+         class="js-input w-full"
          style="
-					width: 100%;
 					height: 1rem;
 					overflow: auto;
 					font-size: 0.5rem;
@@ -368,8 +366,8 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
+    class="items-center"
     style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -377,10 +375,9 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
-         class="grow text-color"
+         class="grow w-full text-color"
          style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -388,9 +385,8 @@ describe("fieldTemplate", () => {
     1
   </label>
   <input id="uid1"
-         class="js-input"
+         class="js-input w-full"
          style="
-					width: 100%;
 					height: 1rem;
 					overflow: auto;
 					font-size: 0.5rem;
@@ -428,8 +424,8 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
+    class="items-center"
     style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -437,10 +433,9 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
-         class="grow text-color"
+         class="grow w-full text-color"
          style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -448,9 +443,8 @@ describe("fieldTemplate", () => {
     1
   </label>
   <input id="uid1"
-         class="js-input"
+         class="js-input w-full"
          style="
-					width: 100%;
 					height: 1rem;
 					overflow: auto;
 					font-size: 0.5rem;
@@ -492,8 +486,8 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
+    class="items-center"
     style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -501,24 +495,20 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
-         class="grow text-color"
+         class="grow w-full text-color"
          style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
   >
     1
   </label>
-  <div class="flex"
-       style="width: 100%;"
-  >
+  <div class="flex w-full">
     <select id="uid1"
-            class="js-input"
+            class="js-input w-full"
             style="
 						padding-left: 0.2rem;
-						width: 100%;
 						height: 1rem;
 						font-size: 0.5rem;
 					"
@@ -550,8 +540,8 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
+    class="items-center"
     style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -559,24 +549,20 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
-         class="grow text-color"
+         class="grow w-full text-color"
          style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
   >
     1
   </label>
-  <div class="flex"
-       style="width: 100%;"
-  >
+  <div class="flex w-full">
     <select id="uid1"
-            class="js-input"
+            class="js-input w-full"
             style="
 						padding-left: 0.2rem;
-						width: 100%;
 						height: 1rem;
 						font-size: 0.5rem;
 					"
@@ -611,8 +597,8 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
+    class="items-center"
     style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -620,24 +606,20 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
-         class="grow text-color"
+         class="grow w-full text-color"
          style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
   >
     y
   </label>
-  <div class="flex"
-       style="width: 100%;"
-  >
+  <div class="flex w-full">
     <select id="uid1"
-            class="js-input"
+            class="js-input w-full"
             style="
 						padding-left: 0.2rem;
-						width: 100%;
 						height: 1rem;
 						font-size: 0.5rem;
 					"
@@ -718,8 +700,8 @@ describe("selectCustomField", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
+    class="items-center"
     style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -727,24 +709,20 @@ describe("selectCustomField", () => {
 				"
 >
   <label for="uid1"
-         class="grow text-color"
+         class="grow w-full text-color"
          style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
   >
     d
   </label>
-  <div class="flex"
-       style="width: 100%;"
-  >
+  <div class="flex w-full">
     <select id="uid1"
-            class="js-input"
+            class="js-input w-full"
             style="
 						padding-left: 0.2rem;
-						width: 100%;
 						height: 1rem;
 						font-size: 0.5rem;
 					"
@@ -802,8 +780,8 @@ describe("passwordField", () => {
 		uidReset();
 		expect(newPasswordField().html).toMatchInlineSnapshot(`
 <li id="js-uid1"
+    class="items-center"
     style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -811,10 +789,9 @@ describe("passwordField", () => {
 				"
 >
   <label for="uid1"
-         class="grow text-color"
+         class="grow w-full text-color"
          style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -822,9 +799,8 @@ describe("passwordField", () => {
     New password
   </label>
   <input id="uid1"
-         class="js-input"
+         class="js-input w-full"
          style="
-						width: 100%;
 						height: 1rem;
 						overflow: auto;
 						font-size: 0.5rem;
@@ -838,8 +814,8 @@ describe("passwordField", () => {
   </span>
 </li>
 <li id="js-uid2"
+    class="items-center"
     style="
-					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -847,10 +823,9 @@ describe("passwordField", () => {
 				"
 >
   <label for="uid2"
-         class="grow text-color"
+         class="grow w-full text-color"
          style="
 						float: left;
-						width: 100%;
 						min-width: 4rem;
 						font-size: 0.6rem;
 					"
@@ -858,9 +833,8 @@ describe("passwordField", () => {
     Repeat password
   </label>
   <input id="uid2"
-         class="js-input"
+         class="js-input w-full"
          style="
-						width: 100%;
 						height: 1rem;
 						overflow: auto;
 						font-size: 0.5rem;
