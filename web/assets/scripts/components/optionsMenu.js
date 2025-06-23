@@ -86,9 +86,8 @@ const newOptionsBtn = {
 			html: /* HTML */ `
 				<button
 					id="${idPlus}"
-					class="text-color bg-color2 hover:bg-color3"
+					class="flex text-color bg-color2 hover:bg-color3"
 					style="
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: var(--options-menu-btn-width);
@@ -109,9 +108,8 @@ const newOptionsBtn = {
 				</button>
 				<button
 					id="${idMinus}"
-					class="text-color bg-color2 hover:bg-color3"
+					class="flex text-color bg-color2 hover:bg-color3"
 					style="
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: var(--options-menu-btn-width);
@@ -233,9 +231,8 @@ function newOptionsPopup(label, icon, htmlContent) {
 		html: /* HTML */ `
 			<button
 				id="${buttonId}"
-				class="text-color bg-color2 hover:bg-color3 js-${label}"
+				class="flex text-color bg-color2 hover:bg-color3 js-${label}"
 				style="
-					display: flex;
 					justify-content: center;
 					align-items: center;
 					width: var(--options-menu-btn-width);
@@ -256,11 +253,10 @@ function newOptionsPopup(label, icon, htmlContent) {
 			</button>
 			<div
 				id="${popupId}"
-				class="bg-color2 options-popup"
+				class="options-popup flex-col bg-color2"
 				style="
 					position: absolute;
 					display: none;
-					flex-direction: column;
 					max-height: 100dvh;
 					margin: auto;
 				"
@@ -304,8 +300,8 @@ function toMonthString(time) {
 const datePickerHTML = /* HTML */ `
 	<div style="padding: 0.2rem;">
 		<div
+			class="flex"
 			style="
-				display: flex;
 				align-items: center;
 				font-size: 0;
 				border-color: var(--color3-hover);
@@ -394,9 +390,8 @@ const datePickerHTML = /* HTML */ `
 		</div>
 		<div class="date-picker-hour">
 			<div
+				class="flex flex-col"
 				style="
-					display: flex;
-					flex-direction: column;
 					justify-content: center;
 					margin-right: 0.1rem;
 					margin-left: 0.1rem;
@@ -433,8 +428,8 @@ const datePickerHTML = /* HTML */ `
 				</button>
 			</div>
 			<div
+				class="flex"
 				style="
-					display: flex;
 					align-items: center;
 				"
 			>
@@ -471,9 +466,8 @@ const datePickerHTML = /* HTML */ `
 				></input>
 			</div>
 			<div
+				class="flex flex-col"
 				style="
-					display: flex;
-					flex-direction: column;
 					justify-content: center;
 					margin-right: 0.1rem;
 					margin-left: 0.1rem;
@@ -512,8 +506,8 @@ const datePickerHTML = /* HTML */ `
 			</div>
 		</div>
 		<div
+			class="flex"
 			style="
-				display: flex;
 				justify-content: space-around;
 			"
 		>
@@ -749,9 +743,8 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 		html: /* HTML */ `
 			<button
 				id="${btnID}"
-				class="text-color bg-color2 hover:bg-color3"
+				class="flex text-color bg-color2 hover:bg-color3"
 				style="
-					display: flex;
 					justify-content: center;
 					align-items: center;
 					width: var(--options-menu-btn-width);
@@ -852,10 +845,8 @@ function newSelectOne(options, onSelect, alias) {
 		html: /* HTML */ `
 			<div
 				id=${id}
-				class="js-select-one text-color"
+				class="js-select-one flex flex-col text-color"
 				style="
-					display: flex;
-					flex-direction: column;
 					text-align: center;
 				"
 			>

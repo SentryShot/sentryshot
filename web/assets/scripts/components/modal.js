@@ -39,11 +39,10 @@ function newModal(label, content = "") {
 					background-color: rgb(0 0 0 / 40%);
 				"
 			>
-				<div class="modal js-modal">
+				<div class="modal js-modal flex">
 					<header
-						class="modal-header bg-color2"
+						class="modal-header flex bg-color2"
 						style="
-							display: flex;
 							padding-left: 0.2rem;
 							padding-right: 0.2rem;
 						"
@@ -58,9 +57,8 @@ function newModal(label, content = "") {
 							"
 						>${label}</span>
 						<button
-							class="js-modal-close-btn bg-color3"
+							class="js-modal-close-btn flex bg-color3"
 							style="
-								display: flex;
 								margin: auto;
 								border-radius: 0.1rem;
 							"
@@ -150,7 +148,7 @@ function newModalSelect(name, options, onSelect) {
 			`;
 		}
 		return /* HTML */ `
-			<div class="js-selector" style="display: flex; flex-wrap: wrap;">${html}</div>
+			<div class="js-selector flex" style="flex-wrap: wrap;">${html}</div>
 		`;
 	};
 

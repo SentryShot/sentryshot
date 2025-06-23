@@ -57,12 +57,12 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 
 	return {
 		html: /* HTML */ `
-			<div style="display: flex; justify-content: center;">
+			<div class="flex" style="justify-content: center;">
 				<div
 					id="${elementID}"
+					class="flex"
 					style="
 						position: relative;
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: 100%;
@@ -88,11 +88,10 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 						for="${checkboxID}"
 					></label>
 					<div
-						class="js-overlay player-overlay bg-color1"
+						class="js-overlay player-overlay flex bg-color1"
 						style="
 							position: absolute;
 							z-index: 2;
-							display: flex;
 							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;

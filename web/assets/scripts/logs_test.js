@@ -115,11 +115,16 @@ describe("MultiSelect", () => {
 		const [element] = setup();
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <li id="uid4"
-    class="form-field"
+    style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
 >
-  <label class="text-color"
+  <label class="grow text-color"
          style="
-					   flex-grow: 1;
 					   float: left;
 					   width: 100%;
 					   min-width: 4rem;
@@ -129,12 +134,11 @@ describe("MultiSelect", () => {
     test
   </label>
   <div style="position: relative;">
-    <div class="item-uid1"
-         style="display: flex; align-items: center; min-width: 1px;"
+    <div class="item-uid1 flex"
+         style="align-items: center; min-width: 1px;"
     >
-      <div class="bg-color2"
+      <div class="flex bg-color2"
            style="
-							display: flex;
 							justify-content: center;
 							align-items: center;
 							width: 0.8em;
@@ -178,12 +182,11 @@ describe("MultiSelect", () => {
         a
       </span>
     </div>
-    <div class="item-uid2"
-         style="display: flex; align-items: center; min-width: 1px;"
+    <div class="item-uid2 flex"
+         style="align-items: center; min-width: 1px;"
     >
-      <div class="bg-color2"
+      <div class="flex bg-color2"
            style="
-							display: flex;
 							justify-content: center;
 							align-items: center;
 							width: 0.8em;
@@ -227,12 +230,11 @@ describe("MultiSelect", () => {
         b
       </span>
     </div>
-    <div class="item-uid3"
-         style="display: flex; align-items: center; min-width: 1px;"
+    <div class="item-uid3 flex"
+         style="align-items: center; min-width: 1px;"
     >
-      <div class="bg-color2"
+      <div class="flex bg-color2"
            style="
-							display: flex;
 							justify-content: center;
 							align-items: center;
 							width: 0.8em;
@@ -402,7 +404,7 @@ describe("logSelector", () => {
       style="padding: 0 0.1rem; overflow-y: auto;"
   >
     levelHTMLsourcesHTMLmonitorHTML
-    <div style="display: flex;">
+    <div class="flex">
     </div>
   </ul>
   <div>

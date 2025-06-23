@@ -50,12 +50,13 @@ describe("newPlayer", () => {
 		player.init();
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<div style="display: flex; justify-content: center;">
+<div class="flex"
+     style="justify-content: center;"
+>
   <div id="uid1"
-       class
+       class="flex"
        style="
 						position: relative;
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: 100%;
@@ -72,9 +73,8 @@ describe("newPlayer", () => {
 			"
          src="B"
     >
-    <div class="js-top-overlay"
+    <div class="js-top-overlay flex"
          style="
-				display: flex;
 				flex-wrap: wrap;
 				opacity: 0.8;
 				position: absolute;
@@ -138,12 +138,13 @@ describe("newPlayer", () => {
 		document.querySelector("div img").click();
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<div style="display: flex; justify-content: center;">
+<div class="flex"
+     style="justify-content: center;"
+>
   <div id="uid1"
-       class="js-loaded"
+       class="flex js-loaded"
        style="
 						position: relative;
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: 100%;
@@ -192,11 +193,10 @@ describe("newPlayer", () => {
 			"
     >
     </label>
-    <div class="player-overlay"
+    <div class="player-overlay flex"
          style="
 				position: absolute;
 				z-index: 2;
-				display: flex;
 				justify-content: center;
 			"
     >
@@ -213,10 +213,9 @@ describe("newPlayer", () => {
         >
       </button>
     </div>
-    <div class="player-overlay"
+    <div class="player-overlay flex"
          style="
 				z-index: 2;
-				display: flex;
 				justify-content: center;
 				position: absolute;
 				bottom: 4%;
@@ -321,18 +320,16 @@ describe("newPlayer", () => {
         </button>
       </div>
     </div>
-    <div class="player-overlay"
+    <div class="player-overlay flex"
          style="
 				position: absolute;
 				top: 0;
 				left: 0;
-				display: flex;
 				margin-right: auto;
 			"
     >
-      <div class="js-top-overlay"
+      <div class="js-top-overlay flex"
            style="
-					display: flex;
 					flex-wrap: wrap;
 					opacity: 0.8;
 				"
@@ -373,16 +370,16 @@ describe("newPlayer", () => {
   
 			
   <div
-    style="display: flex; justify-content: center;"
+    class="flex"
+    style="justify-content: center;"
   >
     
 				
     <div
-      class=""
+      class="flex"
       id="uid1"
       style="
 						position: relative;
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: 100%;
@@ -405,9 +402,8 @@ describe("newPlayer", () => {
       
 		
       <div
-        class="js-top-overlay"
+        class="js-top-overlay flex"
         style="
-				display: flex;
 				flex-wrap: wrap;
 				opacity: 0.8;
 				position: absolute;
@@ -513,12 +509,13 @@ describe("newPlayer", () => {
 
 		// Original.
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<div style="display: flex; justify-content: center;">
+<div class="flex"
+     style="justify-content: center;"
+>
   <div id="uid2"
-       class
+       class="flex"
        style="
 						position: relative;
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: 100%;
@@ -535,9 +532,8 @@ describe("newPlayer", () => {
 			"
          src="B"
     >
-    <div class="js-top-overlay"
+    <div class="js-top-overlay flex"
          style="
-				display: flex;
 				flex-wrap: wrap;
 				opacity: 0.8;
 				position: absolute;

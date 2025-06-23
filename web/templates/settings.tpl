@@ -42,17 +42,16 @@
 		init();
 	</script>
 </head>
-<body style="display: flex; height: 100dvh; margin: 0; background-color: var(--color0)">
+<body class="flex" style="height: 100dvh; margin: 0; background-color: var(--color0)">
 	{% include "sidebar" %}
 	<div
 		id="content"
-		class="js-content"
+		class="js-content flex"
 		style="
 			position: absolute;
 			box-sizing: border-box;
 			width: 100%;
 			height: 100%;
-			display: flex;
 			overflow-x: hidden;
 		"
 	></div>

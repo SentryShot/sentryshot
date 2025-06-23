@@ -112,7 +112,7 @@ function newForm(fields) {
 			return /* HTML */ `
 				<ul class="form" style="padding: 0 0.1rem; overflow-y: auto;">
 					${htmlFields}
-					<div style="display: flex;">${htmlButtons}</div>
+					<div class="flex">${htmlButtons}</div>
 				</ul>
 			`;
 		},
@@ -540,7 +540,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			options += `\n<option>${option}</option>`;
 		}
 		body = /* HTML */ `
-			<div style="display: flex; width: 100%;">
+			<div class="flex" style="width: 100%;">
 				<select
 					id="${id}"
 					class="js-input"
@@ -555,10 +555,9 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				</select>
 				${custom
 					? `<button
-					class="js-edit-btn bg-color2 hover:bg-color3"
+					class="js-edit-btn flex bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
-						display: flex;
 						width: 1rem;
 						height: 1rem;
 						margin-left: 0.4rem;
@@ -590,9 +589,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			>
 				<label
 					for="${id}"
-					class="text-color"
+					class="grow text-color"
 					style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -626,9 +624,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			>
 				<label
 					for="${id}"
-					class="text-color"
+					class="grow text-color"
 					style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -792,9 +789,8 @@ function newPasswordField() {
 			>
 				<label
 					for="${id}"
-					class="text-color"
+					class="grow text-color"
 					style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;

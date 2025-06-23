@@ -484,14 +484,10 @@ function newMultiSelect(label, values, initial) {
 		let $checkbox;
 		return {
 			html: /* HTML */ `
-				<div
-					class="item-${id}"
-					style="display: flex; align-items: center; min-width: 1px;"
-				>
+				<div class="item-${id} flex" style="align-items: center; min-width: 1px;">
 					<div
-						class="bg-color2"
+						class="flex bg-color2"
 						style="
-							display: flex;
 							justify-content: center;
 							align-items: center;
 							width: 0.8em;
@@ -578,11 +574,19 @@ function newMultiSelect(label, values, initial) {
 
 	return {
 		html: /* HTML */ `
-			<li id="${id}" class="form-field">
+			<li
+				id="${id}"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
+			>
 				<label
-					class="text-color"
+					class="grow text-color"
 					style="
-					   flex-grow: 1;
 					   float: left;
 					   width: 100%;
 					   min-width: 4rem;
@@ -658,12 +662,20 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 
 	return {
 		html: /* HTML */ `
-			<li id="${elementID}" class="form-field">
+			<li
+				id="${elementID}"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
+			>
 				<label
 					for="${inputID}"
-					class="text-color"
+					class="grow text-color"
 					style="
-					   flex-grow: 1;
 					   float: left;
 					   width: 100%;
 					   min-width: 4rem;
@@ -671,7 +683,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 					"
 					>Monitor</label
 				>
-				<div style="display: flex; width: 100%;">
+				<div class="flex" style="width: 100%;">
 					<select
 						id="${inputID}"
 						style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
@@ -679,10 +691,9 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 						${options}
 					</select>
 					<button
-						class="js-edit-btn bg-color2 hover:bg-color3"
+						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							display: flex;
 							width: 1rem;
 							height: 1rem;
 							margin-left: 0.4rem;

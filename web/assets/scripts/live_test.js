@@ -86,11 +86,13 @@ test("fullscreen", () => {
 	viewer.reset();
 
 	expect(element.innerHTML).toMatchInlineSnapshot(`
-<div style="display: flex; justify-content: center;">
+<div class="flex"
+     style="justify-content: center;"
+>
   <div id="uid1"
+       class="flex"
        style="
 						position: relative;
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: 100%;
@@ -114,11 +116,10 @@ test("fullscreen", () => {
            for="uid2"
     >
     </label>
-    <div class="js-overlay player-overlay bg-color1"
+    <div class="js-overlay player-overlay flex bg-color1"
          style="
 							position: absolute;
 							z-index: 2;
-							display: flex;
 							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;
@@ -167,11 +168,13 @@ test("fullscreen", () => {
     </video>
   </div>
 </div>
-<div style="display: flex; justify-content: center;">
+<div class="flex"
+     style="justify-content: center;"
+>
   <div id="uid3"
+       class="flex"
        style="
 						position: relative;
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: 100%;
@@ -195,11 +198,10 @@ test("fullscreen", () => {
            for="uid4"
     >
     </label>
-    <div class="js-overlay player-overlay bg-color1"
+    <div class="js-overlay player-overlay flex bg-color1"
          style="
 							position: absolute;
 							z-index: 2;
-							display: flex;
 							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;

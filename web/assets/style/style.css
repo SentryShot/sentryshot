@@ -370,6 +370,22 @@ img {
 	background: var(--color-red2);
 }
 
+.flex {
+	display: flex;
+}
+
+.flex-col {
+	flex-direction: column;
+}
+
+.shrink-0 {
+	flex-shrink: 0;
+}
+
+.grow {
+	flex-grow: 1;
+}
+
 /* Mobile portrait mode */
 
 /* sidebar */

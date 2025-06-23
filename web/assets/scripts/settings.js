@@ -53,9 +53,8 @@ function newRenderer($parent) {
 				htmlNav += /* HTML */ `
 					<li
 						id="js-set-category-${category.name()}"
-						class="js-set-settings-category settings-nav-item"
+						class="js-set-settings-category settings-nav-item flex"
 						style="
-							display: flex;
 							align-items: center;
 							padding: 0.1rem 1rem 0.1rem 0.4rem;
 							border-width: 0.01rem;
@@ -90,11 +89,7 @@ function newRenderer($parent) {
 			}
 
 			$parent.innerHTML = /* HTML */ `
-				<nav
-					id="js-settings-navbar"
-					class="settings-navbar bg-color2"
-					style="flex-shrink: 0"
-				>
+				<nav id="js-settings-navbar" class="settings-navbar shrink-0 bg-color2">
 					<ul style="height: 100%; overflow-y: auto;">
 						${htmlNav}
 					</ul>
@@ -253,12 +248,9 @@ function newCategory(categoryName, title) {
 		html() {
 			return /* HTML */ `
 				<div
-					class="settings-category bg-color2"
+					class="settings-category flex flex-col shrink-0 bg-color2"
 					style="
 						z-index: 0;
-						display: flex;
-						flex-shrink: 0;
-						flex-direction: column;
 						height: 100%;
 						overflow-y: auto;
 					"
@@ -273,12 +265,10 @@ function newCategory(categoryName, title) {
 						"
 					>
 						<nav
-							class="js-settings-category-back"
+							class="js-settings-category-back flex shrink-0"
 							style="
 								margin-left: 0.2rem;
-								display: flex;
 								width: 1.4rem;
-								flex-shrink: 0;
 							"
 						>
 							<img
@@ -300,13 +290,12 @@ function newCategory(categoryName, title) {
 						>
 					</div>
 					<ul
-						class="js-category-nav settings-category-nav"
-						style="display: flex; flex-direction: column; overflow-y: auto;"
+						class="js-category-nav settings-category-nav flex flex-col"
+						style="overflow-y: auto;"
 					></ul>
 				</div>
 				<div
-					class="js-sub-category settings-sub-category bg-color3"
-					style="display: flex; flex-direction: column;"
+					class="js-sub-category settings-sub-category flex flex-col bg-color3"
 				>
 					<div
 						class="js-settings-menubar settings-menubar bg-color2"
@@ -318,12 +307,10 @@ function newCategory(categoryName, title) {
 						"
 					>
 						<nav
-							class="js-settings-subcategory-back"
+							class="js-settings-subcategory-back flex shrink-0"
 							style="
 								margin-left: 0.2rem;
-								display: flex;
 								width: 1.4rem;
-								flex-shrink: 0;
 							"
 						>
 							<img
@@ -453,12 +440,9 @@ function newCategory2(categoryName, title, form) {
 		html() {
 			return /* HTML */ `
 				<div
-					class="settings-category bg-color2"
+					class="settings-category flex flex-col shrink-0 bg-color2"
 					style="
 						z-index: 0;
-						display: flex;
-						flex-shrink: 0;
-						flex-direction: column;
 						height: 100%;
 						overflow-y: auto;
 					"
@@ -473,12 +457,10 @@ function newCategory2(categoryName, title, form) {
 						"
 					>
 						<nav
-							class="js-settings-category-back"
+							class="js-settings-category-back flex shrink-0"
 							style="
 								margin-left: 0.2rem;
-								display: flex;
 								width: 1.4rem;
-								flex-shrink: 0;
 							"
 						>
 							<img
@@ -500,13 +482,12 @@ function newCategory2(categoryName, title, form) {
 						>
 					</div>
 					<ul
-						class="js-category-nav settings-category-nav"
-						style="display: flex; flex-direction: column; overflow-y: auto;"
+						class="js-category-nav settings-category-nav flex flex-col"
+						style="overflow-y: auto;"
 					></ul>
 				</div>
 				<div
-					class="js-sub-category settings-sub-category bg-color3"
-					style="display: flex; flex-direction: column;"
+					class="js-sub-category settings-sub-category flex flex-col bg-color3"
 				>
 					<div
 						class="js-settings-menubar settings-menubar bg-color2"
@@ -518,12 +499,10 @@ function newCategory2(categoryName, title, form) {
 						"
 					>
 						<nav
-							class="js-settings-subcategory-back"
+							class="js-settings-subcategory-back flex shrink-0"
 							style="
 								margin-left: 0.2rem;
-								display: flex;
 								width: 1.4rem;
-								flex-shrink: 0;
 							"
 						>
 							<img
@@ -681,9 +660,8 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		for (const m of sortedMonitors) {
 			html += /* HTML */ `
 				<li
-					class="settings-nav-item js-nav"
+					class="settings-nav-item js-nav flex"
 					style="
-						display: flex;
 						align-items: center;
 						padding: 0.1rem 1rem 0.1rem 0.4rem;
 						border-width: 0.01rem;
@@ -699,9 +677,8 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 
 		html += /* HTML */ `
 			<button
-				class="js-add-btn settings-add-btn js-nav"
+				class="js-add-btn settings-add-btn js-nav shrink-0"
 				style="
-					flex-shrink: 0;
 					margin: 0.2rem auto 0.2rem 0.3rem;
 					padding-left: 0.1rem;
 					padding-right: 0.1rem;
@@ -921,10 +898,9 @@ function newMonitorGroups(token, fields, groups) {
 		for (const g of sortedGroups) {
 			html += /* HTML */ `
 				<li
-					class="settings-nav-item js-nav"
+					class="settings-nav-item js-nav flex"
 					data="${g.id}"
 					style="
-						display: flex;
 						align-items: center;
 						padding: 0.1rem 1rem 0.1rem 0.4rem;
 						border-width: 0.01rem;
@@ -939,9 +915,8 @@ function newMonitorGroups(token, fields, groups) {
 
 		html += /* HTML */ `
 			<button
-				class="js-add-btn settings-add-btn js-nav"
+				class="js-add-btn settings-add-btn js-nav shrink-0"
 				style="
-					flex-shrink: 0;
 					margin: 0.2rem auto 0.2rem 0.3rem;
 					padding-left: 0.1rem;
 					padding-right: 0.1rem;
@@ -1076,9 +1051,8 @@ function newAccount(token, fields) {
 			const c = u.isAdmin === true ? "text-red" : "text-color";
 			html += /* HTML */ `
 				<li
-					class="settings-nav-item js-nav"
+					class="settings-nav-item js-nav flex"
 					style="
-						display: flex;
 						align-items: center;
 						padding: 0.1rem 1rem 0.1rem 0.4rem;
 						border-width: 0.01rem;
@@ -1094,9 +1068,8 @@ function newAccount(token, fields) {
 
 		html += /* HTML */ `
 			<button
-				class="js-add-btn settings-add-btn js-nav"
+				class="js-add-btn settings-add-btn js-nav shrink-0"
 				style="
-					flex-shrink: 0;
 					margin: 0.2rem auto 0.2rem 0.3rem;
 					padding-left: 0.1rem;
 					padding-right: 0.1rem;
@@ -1208,10 +1181,9 @@ function newSelectMonitorField(monitors) {
 			html: /* HTML */ `
 				<div
 					id="${id}"
-					class="monitor-selector-item"
+					class="monitor-selector-item flex"
 					style="
 						position: relative;
-						display: flex;
 						align-items: center;
 						width: auto;
 						padding: 0.1rem 0.2rem;
@@ -1231,9 +1203,8 @@ function newSelectMonitorField(monitors) {
 						>${name}</span
 					>
 					<div
-						class="bg-color2"
+						class="flex bg-color2"
 						style="
-							display: flex;
 							justify-content: center;
 							align-items: center;
 							width: 0.8em;
@@ -1302,7 +1273,19 @@ function newSelectMonitorField(monitors) {
 	const id = uniqueID();
 
 	return {
-		html: `<li id=${id} class="form-field" style="display: flex"></li>`,
+		html: /* HTML */ `
+			<li
+				id=${id}
+				class="flex"
+				style="
+					align-items: center;
+					padding: 0.1rem;
+					border-color: var(--color1);
+					border-bottom-style: solid;
+					border-bottom-width: 0.05rem;
+				"
+			></li>
+		`,
 		init() {
 			element = document.getElementById(id);
 		},

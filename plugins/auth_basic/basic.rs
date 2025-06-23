@@ -357,8 +357,8 @@ fn edit_templates(tmpls: &mut Templates) {
 
     let logout_button = "
 <div
+    class=\"flex\"
     style=\"
-        display: flex;
         justify-content: center;
         align-items: center;
         width: var(--sidebar-width);

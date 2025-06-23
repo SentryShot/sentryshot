@@ -130,9 +130,8 @@ function newPlayer(data, isAdmin, token) {
 			src="${d.thumbPath}"
 		/>
 		<div
-			class="js-top-overlay"
+			class="js-top-overlay flex"
 			style="
-				display: flex;
 				flex-wrap: wrap;
 				opacity: 0.8;
 				position: absolute;
@@ -176,11 +175,10 @@ function newPlayer(data, isAdmin, token) {
 			"
 		></label>
 		<div
-			class="player-overlay"
+			class="player-overlay flex"
 			style="
 				position: absolute;
 				z-index: 2;
-				display: flex;
 				justify-content: center;
 			"
 		>
@@ -200,10 +198,9 @@ function newPlayer(data, isAdmin, token) {
 			</button>
 		</div>
 		<div
-			class="player-overlay"
+			class="player-overlay flex"
 			style="
 				z-index: 2;
-				display: flex;
 				justify-content: center;
 				position: absolute;
 				bottom: 4%;
@@ -303,19 +300,17 @@ function newPlayer(data, isAdmin, token) {
 			</div>
 		</div>
 		<div
-			class="player-overlay"
+			class="player-overlay flex"
 			style="
 				position: absolute;
 				top: 0;
 				left: 0;
-				display: flex;
 				margin-right: auto;
 			"
 		>
 			<div
-				class="js-top-overlay"
+				class="js-top-overlay flex"
 				style="
-					display: flex;
 					flex-wrap: wrap;
 					opacity: 0.8;
 				"
@@ -437,13 +432,12 @@ function newPlayer(data, isAdmin, token) {
 
 	return {
 		html: /* HTML */ `
-			<div style="display: flex; justify-content: center;">
+			<div class="flex" style="justify-content: center;">
 				<div
 					id="${elementID}"
-					class=""
+					class="flex"
 					style="
 						position: relative;
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: 100%;

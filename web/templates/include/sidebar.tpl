@@ -1,10 +1,8 @@
 <input type="checkbox" id="sidebar-checkbox" style="position: absolute; display: none" />
-<header id="topbar" style="position: absolute; display: flex; background: var(--color1)">
+<header id="topbar" class="flex" style="position: absolute; background: var(--color1)">
 	<div
-		class="topbar-btn"
+		class="topbar-btn flex shrink-0"
 		style="
-			display: flex;
-			flex-shrink: 0;
 			justify-content: center;
 			align-items: center;
 			width: var(--topbar-height);
@@ -13,23 +11,17 @@
 	>
 		<img
 			class="icon-filter"
-			style="aspect-ratio: 1; height: 0.9rem;"
+			style="aspect-ratio: 1; height: 0.9rem"
 			src="assets/icons/feather/menu.svg"
 		/>
 	</div>
-	<h1
-		id="current-page"
-		class="text-color"
-		style="margin: auto; font-size: 0.7rem"
-	>
+	<h1 id="current-page" class="text-color" style="margin: auto; font-size: 0.7rem">
 		{{ current_page }}
 	</h1>
 	<div
 		id="topbar-options-btn"
-		class="topbar-btn"
+		class="topbar-btn flex shrink-0"
 		style="
-			display: flex;
-			flex-shrink: 0;
 			justify-content: center;
 			align-items: center;
 			width: var(--topbar-height);
@@ -40,7 +32,7 @@
 	>
 		<img
 			class="icon-filter"
-			style="aspect-ratio: 1; height: 0.9rem;"
+			style="aspect-ratio: 1; height: 0.9rem"
 			src="assets/icons/feather/sliders.svg"
 		/>
 	</div>
@@ -69,32 +61,24 @@
 ></label>
 <div
 	id="options-menu"
+	class="flex flex-col"
 	style="
 		position: absolute;
 		top: var(--topbar-height);
 		z-index: 3;
-		display: flex;
-		flex-direction: column;
 		--options-menu-btn-width: 1.2rem;
 	"
 ></div>
 
 <aside
 	id="sidebar"
-	style="
-		z-index: 5;
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-		overflow-x: hidden;
-		background: var(--color1);
-	"
+	class="flex flex-col"
+	style="z-index: 5; height: 100%; overflow-x: hidden; background: var(--color1)"
 >
 	<div
-		class="hover:bg-color2"
 		id="nav-btn"
+		class="flex hover:bg-color2"
 		style="
-			display: flex;
 			align-items: center;
 			width: var(--sidebar-width);
 			padding: var(--icon-padding);
@@ -105,16 +89,15 @@
 		<img
 			class="icon-filter"
 			src="assets/icons/feather/x.svg"
-			style="height: 1.1rem; aspect-ratio: 1;"
+			style="height: 1.1rem; aspect-ratio: 1"
 		/>
 	</div>
-	<nav style="display: flex; flex-direction: column; height: 100%; overflow-x: hidden">
+	<nav class="flex flex-col" style="height: 100%; overflow-x: hidden">
 		<a
 			href="live"
 			id="nav-link-live"
-			class="hover:bg-color2"
+			class="flex hover:bg-color2"
 			style="
-				display: flex;
 				align-items: center;
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
@@ -129,7 +112,7 @@
 			<img
 				class="icon-filter"
 				src="assets/icons/feather/video.svg"
-				style="height: 1.1rem; aspect-ratio: 1;"
+				style="height: 1.1rem; aspect-ratio: 1"
 			/>
 			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
 				>Live</span
@@ -138,9 +121,8 @@
 		<a
 			href="recordings"
 			id="nav-link-recordings"
-			class="hover:bg-color2"
+			class="flex hover:bg-color2"
 			style="
-				display: flex;
 				align-items: center;
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
@@ -154,7 +136,7 @@
 			<img
 				class="icon-filter"
 				src="assets/icons/feather/film.svg"
-				style="height: 1.1rem; aspect-ratio: 1;"
+				style="height: 1.1rem; aspect-ratio: 1"
 			/>
 			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
 				>Recordings</span
@@ -164,9 +146,8 @@
 		<a
 			href="settings"
 			id="nav-link-settings"
-			class="hover:bg-color2"
+			class="flex hover:bg-color2"
 			style="
-				display: flex;
 				align-items: center;
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
@@ -180,7 +161,7 @@
 			<img
 				class="icon-filter"
 				src="assets/icons/feather/settings.svg"
-				style="height: 1.1rem; aspect-ratio: 1;"
+				style="height: 1.1rem; aspect-ratio: 1"
 			/>
 			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
 				>Settings</span
@@ -189,9 +170,8 @@
 		<a
 			href="logs"
 			id="nav-link-logs"
-			class="hover:bg-color2"
+			class="flex hover:bg-color2"
 			style="
-				display: flex;
 				align-items: center;
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
@@ -205,7 +185,7 @@
 			<img
 				class="icon-filter"
 				src="assets/icons/feather/book-open.svg"
-				style="height: 1.1rem; aspect-ratio: 1;"
+				style="height: 1.1rem; aspect-ratio: 1"
 			/>
 			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
 				>Logs</span

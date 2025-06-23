@@ -13,11 +13,13 @@ describe("feed", () => {
 		const feed = newFeed(undefined, monitor, true, buttons);
 
 		expect(feed.html).toMatchInlineSnapshot(`
-<div style="display: flex; justify-content: center;">
+<div class="flex"
+     style="justify-content: center;"
+>
   <div id="uid1"
+       class="flex"
        style="
 						position: relative;
-						display: flex;
 						justify-content: center;
 						align-items: center;
 						width: 100%;
@@ -41,11 +43,10 @@ describe("feed", () => {
            for="uid2"
     >
     </label>
-    <div class="js-overlay player-overlay bg-color1"
+    <div class="js-overlay player-overlay flex bg-color1"
          style="
 							position: absolute;
 							z-index: 2;
-							display: flex;
 							justify-content: center;
 							bottom: 0;
 							margin-bottom: 5%;

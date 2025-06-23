@@ -17,9 +17,8 @@ test("newModal", () => {
 	modal.open();
 
 	expect(document.querySelector(".modal").innerHTML).toMatchInlineSnapshot(`
-<header class="modal-header bg-color2"
+<header class="modal-header flex bg-color2"
         style="
-							display: flex;
 							padding-left: 0.2rem;
 							padding-right: 0.2rem;
 						"
@@ -34,9 +33,8 @@ test("newModal", () => {
   >
     test
   </span>
-  <button class="js-modal-close-btn bg-color3"
+  <button class="js-modal-close-btn flex bg-color3"
           style="
-								display: flex;
 								margin: auto;
 								border-radius: 0.1rem;
 							"
@@ -95,10 +93,9 @@ test("modalSelect", () => {
 				"
      class="modal-open"
 >
-  <div class="modal js-modal">
-    <header class="modal-header bg-color2"
+  <div class="modal js-modal flex">
+    <header class="modal-header flex bg-color2"
             style="
-							display: flex;
 							padding-left: 0.2rem;
 							padding-right: 0.2rem;
 						"
@@ -113,9 +110,8 @@ test("modalSelect", () => {
       >
         x
       </span>
-      <button class="js-modal-close-btn bg-color3"
+      <button class="js-modal-close-btn flex bg-color3"
               style="
-								display: flex;
 								margin: auto;
 								border-radius: 0.1rem;
 							"
@@ -132,8 +128,8 @@ test("modalSelect", () => {
 							overflow-y: visible;
 						"
     >
-      <div class="js-selector"
-           style="display: flex; flex-wrap: wrap;"
+      <div class="js-selector flex"
+           style="flex-wrap: wrap;"
       >
         <span data="m1"
               class="js-option text-color"

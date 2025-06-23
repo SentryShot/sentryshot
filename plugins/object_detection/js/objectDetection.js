@@ -129,9 +129,8 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 				"
 			>
 				<label
-					class="text-color"
+					class="grow text-color"
 					style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -140,10 +139,9 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 					>Object detection</label
 				>
 				<button
-					class="js-edit-btn bg-color2 hover:bg-color3"
+					class="js-edit-btn flex bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
-						display: flex;
 						width: 1rem;
 						height: 1rem;
 						margin-left: 0.4rem;
@@ -208,9 +206,8 @@ function thresholds(detectors, getDetectorName) {
 		return {
 			html: /* HTML */ `
 				<li
-					class="object-detection-label-wrapper"
+					class="object-detection-label-wrapper flex"
 					style="
-						display: flex;
 						padding: 0.1rem;
 						border-color: var(--color1);
 						border-width: 0.03rem;
@@ -341,9 +338,8 @@ function thresholds(detectors, getDetectorName) {
 				"
 			>
 				<label
-					class="text-color"
+					class="grow text-color"
 					style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -353,10 +349,9 @@ function thresholds(detectors, getDetectorName) {
 				>
 				<div style="width:auto">
 					<button
-						class="js-edit-btn bg-color2 hover:bg-color3"
+						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							display: flex;
 							width: 1rem;
 							height: 1rem;
 							margin-left: 0.4rem;
@@ -437,9 +432,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 			>
 				<label
 					for="object-detection-crop-preview"
-					class="text-color"
+					class="grow text-color"
 					style="
-						flex-grow: 1;
 						float: left;
 						width: auto;
 						min-width: 4rem;
@@ -452,11 +446,10 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					style="position: relative; margin-top: 0.69rem"
 				>
 					<div
-						class="js-feed"
+						class="js-feed flex"
 						style="
 							width: 100%;
 							min-width: 0;
-							display: flex;
 							background: white;
 						"
 					>
@@ -473,21 +466,19 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				</div>
 			</li>
 			<li
-				class="js-options"
+				class="js-options flex"
 				style="
 					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.05rem;
-					display: flex;
 					flex-wrap: wrap;
 				"
 			>
 				<div
-					class="js-object-detection-crop-option bg-color2"
+					class="js-object-detection-crop-option flex bg-color2"
 					style="
-						display: flex;
 						padding: 0.15rem;
 						border-radius: 0.15rem;
 						margin-right: 0.2rem;
@@ -519,9 +510,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					/>
 				</div>
 				<div
-					class="js-object-detection-crop-option bg-color2"
+					class="js-object-detection-crop-option flex bg-color2"
 					style="
-						display: flex;
 						padding: 0.15rem;
 						border-radius: 0.15rem;
 						margin-right: 0.2rem;
@@ -553,9 +543,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					/>
 				</div>
 				<div
-					class="js-object-detection-crop-option bg-color2"
+					class="js-object-detection-crop-option flex bg-color2"
 					style="
-						display: flex;
 						padding: 0.15rem;
 						border-radius: 0.15rem;
 						margin-right: 0.2rem;
@@ -714,9 +703,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				"
 			>
 				<label
-					class="text-color"
+					class="grow text-color"
 					style="
-						flex-grow: 1;
 						float: left;
 						width: auto;
 						min-width: 4rem;
@@ -726,10 +714,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				>
 				<div style="width:auto">
 					<button
-						class="js-edit-btn bg-color2 hover:bg-color3"
+						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							display: flex;
 							width: 1rem;
 							height: 1rem;
 							margin-left: 0.4rem;
@@ -855,9 +842,8 @@ function mask(hasSubStream, getMonitorId) {
 			>
 				<label
 					for="object_detection_mask-enable"
-					class="text-color"
+					class="grow text-color"
 					style="
-						flex-grow: 1;
 						float: left;
 						width: auto;
 						min-width: 4rem;
@@ -865,7 +851,7 @@ function mask(hasSubStream, getMonitorId) {
 					"
 					>Enable mask</label
 				>
-				<div style="display: flex; width: 100%;">
+				<div class="flex" style="width: 100%;">
 					<select
 						class="js-input"
 						style="padding-left: 0.2rem; width: 100%; height: 1rem; font-size: 0.5rem;"
@@ -887,9 +873,8 @@ function mask(hasSubStream, getMonitorId) {
 			>
 				<label
 					for="object_detection_mask-preview"
-					class="text-color"
+					class="grow text-color"
 					style="
-						flex-grow: 1;
 						float: left;
 						width: auto;
 						min-width: 4rem;
@@ -902,11 +887,10 @@ function mask(hasSubStream, getMonitorId) {
 					style="position: relative; margin-top: 0.69rem"
 				>
 					<div
-						class="js-feed"
+						class="js-feed flex"
 						style="
 							width: 100%;
 							min-width: 0;
-							display: flex;
 							background: white;
 						"
 					>
@@ -929,18 +913,18 @@ function mask(hasSubStream, getMonitorId) {
 				</div>
 			</li>
 			<li
+				class="flex"
 				style="
 					align-items: center;
 					padding: 0.1rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.05rem;
-					display: flex;
 					flex-wrap: wrap;
 					justify-content: space-between
 				"
 			>
-				<div style="display: flex;">
+				<div class="flex">
 					<button
 						class="js-1x text-color bg-color2 hover:bg-color1"
 						style="
@@ -994,7 +978,7 @@ function mask(hasSubStream, getMonitorId) {
 						20x
 					</button>
 				</div>
-				<div style="display: flex;">
+				<div class="flex">
 					<input
 						class="js-x"
 						style="width: 1.3rem; font-size: 0.6rem; text-align: center;"
@@ -1181,9 +1165,8 @@ function mask(hasSubStream, getMonitorId) {
 				"
 			>
 				<label
-					class="text-color"
+					class="grow text-color"
 					style="
-						flex-grow: 1;
 						float: left;
 						width: auto;
 						min-width: 4rem;
@@ -1193,10 +1176,9 @@ function mask(hasSubStream, getMonitorId) {
 				>
 				<div style="width:auto">
 					<button
-						class="js-edit-btn bg-color2 hover:bg-color3"
+						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							display: flex;
 							width: 1rem;
 							height: 1rem;
 							margin-left: 0.4rem;
@@ -1306,7 +1288,7 @@ function normalizeMask(mask) {
 
 // CSS.
 const $style = document.createElement("style");
-$style.innerHTML = `
+$style.innerHTML = /* CSS */ `
 	.object-detection-label-wrapper {
 		border-top-style: solid;
 	}

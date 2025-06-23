@@ -24,23 +24,22 @@
 		init();
 	</script>
 </head>
-<body style="display: flex; height: 100dvh; margin: 0; background-color: var(--color0)">
+<body class="flex" style="height: 100dvh; margin: 0; background-color: var(--color0)">
 	{% include "sidebar" %}
 	<div
 		id="content"
-		class="js-content bg-color2"
+		class="js-content flex bg-color2"
 		style="
 			position: absolute;
 			box-sizing: border-box;
 			width: 100%;
 			height: 100%;
-			display: flex;
 			overflow-x: hidden;
 		"
 	>
 		<div
-			class="log-sidebar js-sidebar"
-			style="flex-shrink: 0; height: 100%; overflow-y: auto"
+			class="log-sidebar js-sidebar shrink-0"
+			style="height: 100%; overflow-y: auto"
 		></div>
 		<div class="log-list-wrapper js-list bg-color3">
 			<div id="log-menubar" class="bg-color2" style="height: var(--barsize)">
@@ -59,11 +58,7 @@
 			<div
 				id="js-log-lists"
 				class="text-color bg-color3"
-				style="
-					font-size: 0.5rem;
-					word-wrap: break-word;
-					overflow-y: auto;
-				"
+				style="font-size: 0.5rem; word-wrap: break-word; overflow-y: auto"
 			></div>
 		</div>
 	</div>

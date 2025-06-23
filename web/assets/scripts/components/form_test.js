@@ -118,7 +118,7 @@ describe("newForm", () => {
     style="padding: 0 0.1rem; overflow-y: auto;"
 >
   html
-  <div style="display: flex;">
+  <div class="flex">
     <button id="uid1"
             class="bg-red hover:bg-red2"
             style="
@@ -167,7 +167,7 @@ describe("newForm", () => {
     style="padding: 0 0.1rem; overflow-y: auto;"
 >
   html
-  <div style="display: flex;">
+  <div class="flex">
     <button id="uid1"
             class="bg-green hover:bg-green2"
             style="
@@ -236,9 +236,8 @@ describe("newField", () => {
 				"
 >
   <label for="uid1"
-         class="text-color"
+         class="grow text-color"
          style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -378,9 +377,8 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
-         class="text-color"
+         class="grow text-color"
          style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -439,9 +437,8 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
-         class="text-color"
+         class="grow text-color"
          style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -504,9 +501,8 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
-         class="text-color"
+         class="grow text-color"
          style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -515,7 +511,9 @@ describe("fieldTemplate", () => {
   >
     1
   </label>
-  <div style="display: flex; width: 100%;">
+  <div class="flex"
+       style="width: 100%;"
+  >
     <select id="uid1"
             class="js-input"
             style="
@@ -561,9 +559,8 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
-         class="text-color"
+         class="grow text-color"
          style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -572,7 +569,9 @@ describe("fieldTemplate", () => {
   >
     1
   </label>
-  <div style="display: flex; width: 100%;">
+  <div class="flex"
+       style="width: 100%;"
+  >
     <select id="uid1"
             class="js-input"
             style="
@@ -621,9 +620,8 @@ describe("fieldTemplate", () => {
 				"
 >
   <label for="uid1"
-         class="text-color"
+         class="grow text-color"
          style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -632,7 +630,9 @@ describe("fieldTemplate", () => {
   >
     y
   </label>
-  <div style="display: flex; width: 100%;">
+  <div class="flex"
+       style="width: 100%;"
+  >
     <select id="uid1"
             class="js-input"
             style="
@@ -652,10 +652,9 @@ describe("fieldTemplate", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn bg-color2 hover:bg-color3"
+    <button class="js-edit-btn flex bg-color2 hover:bg-color3"
             style="
 						aspect-ratio: 1;
-						display: flex;
 						width: 1rem;
 						height: 1rem;
 						margin-left: 0.4rem;
@@ -728,9 +727,8 @@ describe("selectCustomField", () => {
 				"
 >
   <label for="uid1"
-         class="text-color"
+         class="grow text-color"
          style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -739,7 +737,9 @@ describe("selectCustomField", () => {
   >
     d
   </label>
-  <div style="display: flex; width: 100%;">
+  <div class="flex"
+       style="width: 100%;"
+  >
     <select id="uid1"
             class="js-input"
             style="
@@ -759,10 +759,9 @@ describe("selectCustomField", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn bg-color2 hover:bg-color3"
+    <button class="js-edit-btn flex bg-color2 hover:bg-color3"
             style="
 						aspect-ratio: 1;
-						display: flex;
 						width: 1rem;
 						height: 1rem;
 						margin-left: 0.4rem;
@@ -812,9 +811,8 @@ describe("passwordField", () => {
 				"
 >
   <label for="uid1"
-         class="text-color"
+         class="grow text-color"
          style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
@@ -849,9 +847,8 @@ describe("passwordField", () => {
 				"
 >
   <label for="uid2"
-         class="text-color"
+         class="grow text-color"
          style="
-						flex-grow: 1;
 						float: left;
 						width: 100%;
 						min-width: 4rem;
