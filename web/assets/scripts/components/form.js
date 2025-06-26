@@ -110,7 +110,7 @@ function newForm(fields) {
 				}
 			}
 			return /* HTML */ `
-				<ul class="form" style="padding: 0 0.1rem; overflow-y: auto;">
+				<ul class="form" style="padding: 0 0.34rem; overflow-y: auto;">
 					${htmlFields}
 					<div class="flex">${htmlButtons}</div>
 				</ul>
@@ -166,13 +166,13 @@ function newSaveBtn(onClick) {
 				id="${id}"
 				class="bg-green hover:bg-green2"
 				style="
-					margin: 0.2rem;
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					border-radius: 0.2rem;
+					margin: 0.68rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					border-radius: 0.68rem;
 				"
 			>
-				<span class="text-color" style="font-size: 0.7rem;">Save</span>
+				<span class="text-color" style="font-size: 2.4rem;">Save</span>
 			</button>
 		`,
 		init() {
@@ -202,14 +202,14 @@ function newDeleteBtn(onClick) {
 				id="${id}"
 				class="bg-red hover:bg-red2"
 				style="
-					margin: 0.2rem;
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					border-radius: 0.2rem;
+					margin: 0.68rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					border-radius: 0.68rem;
 					margin-left: auto;
 				"
 			>
-				<span class="text-color" style="font-size: 0.7rem;">Delete</span>
+				<span class="text-color" style="font-size: 2.4rem;">Delete</span>
 			</button>
 		`,
 		init() {
@@ -257,7 +257,7 @@ const fieldTemplate = {
 				label,
 				placeholder,
 				initial,
-			}
+			},
 		);
 	},
 	/**
@@ -278,7 +278,7 @@ const fieldTemplate = {
 				label,
 				placeholder,
 				initial,
-			}
+			},
 		);
 	},
 	/**
@@ -298,7 +298,7 @@ const fieldTemplate = {
 				label,
 				placeholder,
 				initial,
-			}
+			},
 		);
 	},
 	/**
@@ -324,7 +324,7 @@ const fieldTemplate = {
 			{
 				label,
 				initial,
-			}
+			},
 		);
 	},
 	/**
@@ -521,10 +521,10 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				id="${id}"
 				class="js-input w-full"
 				style="
-					height: 1rem;
+					height: 3.4rem;
 					overflow: auto;
-					font-size: 0.5rem;
-					text-indent: 0.2rem;
+					font-size: 1.7rem;
+					text-indent: 0.68rem;
 				"
 				type="${input}"
 				placeholder="${placeholder}"
@@ -544,9 +544,9 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					id="${id}"
 					class="js-input w-full"
 					style="
-						padding-left: 0.2rem;
-						height: 1rem;
-						font-size: 0.5rem;
+						padding-left: 0.68rem;
+						height: 3.4rem;
+						font-size: 1.7rem;
 					"
 				>
 					${options}
@@ -556,15 +556,15 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					class="js-edit-btn flex bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
-						width: 1rem;
-						height: 1rem;
-						margin-left: 0.4rem;
-						border-radius: 0.2rem;
+						width: 3.4rem;
+						height: 3.4rem;
+						margin-left: 1.35rem;
+						border-radius: 0.68rem;
 					"
 				>
 					<img
 						class="icon-filter"
-						style="padding: 0.1rem;"
+						style="padding: 0.34rem;"
 						src="assets/icons/feather/edit-3.svg"
 					/>
 				</button>`
@@ -579,10 +579,10 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				id="js-${id}"
 				class="items-center"
 				style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 			>
 				<label
@@ -590,8 +590,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					class="grow w-full text-color"
 					style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
 					>${label}</label
 				>
@@ -599,8 +599,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				<span
 					class="js-error text-red"
 					style="
-						height: 0.5rem;
-						font-size: 0.4rem;
+						height: 1.7rem;
+						font-size: 1.35rem;
 						white-space: nowrap;
 						overflow: auto;
 					"
@@ -613,10 +613,10 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				id="js-${id}"
 				class="items-center"
 				style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 			>
 				<label
@@ -624,8 +624,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					class="grow w-full text-color"
 					style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
 					>${label}</label
 				>
@@ -734,7 +734,7 @@ function newSelectCustomField(inputRules, options, values) {
 				},
 				id,
 				values.label,
-				values.placeholder
+				values.placeholder,
 			);
 		})(),
 		init() {
@@ -777,10 +777,10 @@ function newPasswordField() {
 				id="js-${id}"
 				class="items-center"
 				style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 			>
 				<label
@@ -788,8 +788,8 @@ function newPasswordField() {
 					class="grow w-full text-color"
 					style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
 					>${label}</label
 				>
@@ -797,16 +797,16 @@ function newPasswordField() {
 					id="${id}"
 					class="js-input w-full"
 					style="
-						height: 1rem;
+						height: 3.4rem;
 						overflow: auto;
-						font-size: 0.5rem;
-						text-indent: 0.2rem;
+						font-size: 1.7rem;
+						text-indent: 0.68rem;
 					"
 					type="password"
 				/>
 				<span
 					class="js-error text-red"
-					style="height: 0.5rem; font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+					style="height: 1.7rem; font-size: 1.35rem; white-space: nowrap; overflow: auto;"
 				></span>
 			</li>
 		`;
@@ -859,10 +859,10 @@ function newPasswordField() {
 		},
 		init() {
 			[$newInput, $newError] = $getInputAndError(
-				document.querySelector(`#js-${newID}`)
+				document.querySelector(`#js-${newID}`),
 			);
 			[$repeatInput, $repeatError] = $getInputAndError(
-				document.querySelector(`#js-${repeatID}`)
+				document.querySelector(`#js-${repeatID}`),
 			);
 
 			$newInput.addEventListener("change", () => {

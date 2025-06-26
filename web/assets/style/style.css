@@ -273,13 +273,12 @@ progress[value]::-moz-progress-bar {
 /* stylelint-enable  plugin/no-unsupported-browser-features */
 
 :root {
-	font-size: 12vw; /* Window scale */
 	font-family: Arial, Helvetica, sans-serif;
 
-	--barsize: 1.4rem;
-	--icon-padding: 0.15rem;
-	--sidebar-width: 6rem;
-	--topbar-height: 1.4rem;
+	--barsize: 4.7rem;
+	--icon-padding: 0.51rem;
+	--sidebar-width: 20rem;
+	--topbar-height: 4.7rem;
 	--size-minus-topbar: calc(100% - var(--topbar-height));
 	--gridsize: 1;
 	--color-text: hsl(215deg 40% 90%);
@@ -446,13 +445,13 @@ img {
 
 /* Date picker. */
 .date-picker-day-btn {
-	height: 0.85rem;
-	width: 0.85rem;
+	height: 2.9rem;
+	width: 2.9rem;
 	color: var(--color-text);
-	border-width: 0.05rem;
+	border-width: 0.17rem;
 	border-style: solid;
 	border-color: var(--color2);
-	border-radius: 0.15rem;
+	border-radius: 0.51rem;
 	background: var(--color3);
 }
 
@@ -553,12 +552,12 @@ img {
 /*
 .form-field-select-custom-btn {
 	flex-shrink: 0;
-	width: 1rem;
-	height: 1rem;
-	margin-left: 0.5rem;
+	width: 3.4rem;
+	height: 3.4rem;
+	margin-left: 1.7rem;
 	padding: 0;
 	border: 0;
-	border-radius: 0.2rem;
+	border-radius: 0.68rem;
 }
 
 .form-field-select-custom-btn:hover {
@@ -587,7 +586,9 @@ img {
 .player-overlay {
 	visibility: hidden;
 	opacity: 0.1;
-	transition: visibility 0.8s, opacity 0.7s;
+	transition:
+		visibility 0.8s,
+		opacity 0.7s;
 	transition-timing-function: ease-in;
 }
 
@@ -606,7 +607,9 @@ img {
 .player-overlay-checkbox:hover ~ .player-overlay {
 	visibility: visible;
 	opacity: 0.8;
-	transition: visibility 0s, opacity 0.1s;
+	transition:
+		visibility 0s,
+		opacity 0.1s;
 }
 
 .player-overlay:hover ~ .player-overlay {
@@ -634,7 +637,7 @@ img {
 /* Mobile Landscape mode. */
 @media (aspect-ratio >= 3/2) {
 	:root {
-		font-size: 12vh; /* Window scale. */
+		font-size: 3.43vh; /* Window scale. */
 
 		--gridsize: 2;
 	}
@@ -688,7 +691,7 @@ img {
 /* Tablet/Dektop. */
 @media only screen and (width >= 768px) {
 	:root {
-		font-size: 4.5vh; /* Window scale. */
+		font-size: 1.32vh; /* Window scale. */
 
 		--gridsize: 3;
 	}
@@ -734,7 +737,7 @@ img {
 
 	#sidebar {
 		position: relative;
-		width: 6rem;
+		width: var(--sidebar-width);
 		transform: none;
 		transition: width 400ms;
 	}
@@ -780,7 +783,7 @@ img {
 	}
 
 	#nav-btn {
-		margin-bottom: 0.6rem;
+		margin-bottom: 2rem;
 		visibility: hidden;
 	}
 
@@ -795,11 +798,11 @@ img {
 	.modal {
 		width: 30vw;
 		max-height: 90vh;
-		padding-bottom: 0.3rem;
-		border-radius: 0.2rem;
+		padding-bottom: 1rem;
+		border-radius: 0.68rem;
 	}
 
 	.modal-header {
-		border-radius: 0.2rem 0.2rem 0 0;
+		border-radius: 0.68rem 0.68rem 0 0;
 	}
 }

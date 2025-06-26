@@ -129,7 +129,7 @@ function newViewer(monitorNameByID, element, timeZone, isAdmin, token) {
 				abort.signal,
 				current,
 				limit,
-				selectedMonitors
+				selectedMonitors,
 			);
 		} catch (error) {
 			if (error instanceof DOMException && error.name === "AbortError") {
@@ -215,7 +215,7 @@ async function fetchRecordings(abortSignal, recID, limit, monitors) {
 			reverse: false,
 			monitors: monitors.join(","),
 			"include-data": true,
-		})
+		}),
 	);
 
 	const path = relativePathname("api/recording/query");
@@ -241,7 +241,7 @@ function idToISOstring(id) {
 	// Output 0000-00-00T00:00:00
 	return id.replace(
 		/(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})_.*/,
-		"$1-$2-$3T$4:$5:$6+00:00"
+		"$1-$2-$3T$4:$5:$6+00:00",
 	);
 }
 

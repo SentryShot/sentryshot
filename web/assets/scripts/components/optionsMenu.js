@@ -72,7 +72,7 @@ const newOptionsBtn = {
 			return Number(
 				getComputedStyle(document.documentElement)
 					.getPropertyValue("--gridsize")
-					.trim()
+					.trim(),
 			);
 		};
 		/** @param {number} size */
@@ -90,15 +90,15 @@ const newOptionsBtn = {
 					style="
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
-						font-size: 0.5rem;
+						font-size: 1.7rem;
 					"
 				>
 					<img
 						class="icon-filter"
 						style="
 							aspect-ratio: 1;
-							height: 0.8rem;
-							margin: 0.2rem;
+							height: 2.7rem;
+							margin: 0.68rem;
 							font-size: 0;
 						"
 						src="assets/icons/feather/plus.svg"
@@ -110,15 +110,15 @@ const newOptionsBtn = {
 					style="
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
-						font-size: 0.5rem;
+						font-size: 1.7rem;
 					"
 				>
 					<img
 						class="icon-filter"
 						style="
 							aspect-ratio: 1;
-							height: 0.8rem;
-							margin: 0.2rem;
+							height: 2.7rem;
+							margin: 0.68rem;
 							font-size: 0;
 						"
 						src="assets/icons/feather/minus.svg"
@@ -231,15 +231,15 @@ function newOptionsPopup(label, icon, htmlContent) {
 				style="
 					width: var(--options-menu-btn-width);
 					height: var(--options-menu-btn-width);
-					font-size: 0.5rem;
+					font-size: 1.7rem;
 				"
 			>
 				<img
 					class="icon-filter"
 					style="
 						aspect-ratio: 1;
-						height: 0.8rem;
-						margin: 0.2rem;
+						height: 2.7rem;
+						margin: 0.68rem;
 						font-size: 0;
 					"
 					src="${icon}"
@@ -291,7 +291,7 @@ function toMonthString(time) {
 }
 
 const datePickerHTML = /* HTML */ `
-	<div style="padding: 0.2rem;">
+	<div style="padding: 0.68rem;">
 		<div
 			class="flex items-center"
 			style="
@@ -304,7 +304,7 @@ const datePickerHTML = /* HTML */ `
 				<img
 					class="icon-filter"
 					style="
-						height: 1.1rem;
+						height: 3.7rem;
 						aspect-ratio: 1;
 					"
 					src="assets/icons/feather/chevron-left.svg"
@@ -313,14 +313,14 @@ const datePickerHTML = /* HTML */ `
 			<span
 				class="js-month w-full text-center text-color"
 				style="
-					font-size: 0.52rem;
+					font-size: 1.76rem;
 				"
 			></span>
 			<button class="js-next-month bg-color2">
 				<img
 					class="icon-filter"
 					style="
-						height: 1.1rem;
+						height: 3.7rem;
 						aspect-ratio: 1;
 					"
 					src="assets/icons/feather/chevron-right.svg"
@@ -332,7 +332,7 @@ const datePickerHTML = /* HTML */ `
 			style="
 				display: grid;
 				grid-template-columns: repeat(7, auto);
-				font-size: 0.6rem;
+				font-size: 2rem;
 			"
 		>
 			<button class="date-picker-day-btn">00</button>
@@ -382,8 +382,8 @@ const datePickerHTML = /* HTML */ `
 			<div
 				class="flex flex-col justify-center"
 				style="
-					margin-right: 0.1rem;
-					margin-left: 0.1rem;
+					margin-right: 0.34rem;
+					margin-left: 0.34rem;
 				"
 			>
 				<button
@@ -393,8 +393,8 @@ const datePickerHTML = /* HTML */ `
 					<img
 						class="icon-filter"
 						style="
-							width: 0.6rem;
-							height: 0.5rem;
+							width: 2rem;
+							height: 1.7rem;
 							font-size: 0;
 							aspect-ratio: 1;
 						"
@@ -408,8 +408,8 @@ const datePickerHTML = /* HTML */ `
 					<img
 						class="icon-filter"
 						style="
-							width: 0.6rem;
-							height: 0.5rem;
+							width: 2rem;
+							height: 1.7rem;
 							font-size: 0;
 							aspect-ratio: 1;
 						"
@@ -425,9 +425,9 @@ const datePickerHTML = /* HTML */ `
 					min="00"
 					max="23"
 					style="
-						width: 0.9rem;
-						height: 0.8rem;
-						font-size: 0.7rem;
+						width: 3rem;
+						height: 2.7rem;
+						font-size: 2.4rem;
 						-moz-appearance: textfield;
 						text-align: end;
 					"
@@ -435,7 +435,7 @@ const datePickerHTML = /* HTML */ `
 				<span
 					class="text-color"
 					style="
-						font-size: 1rem;
+						font-size: 3.4rem;
 					"
 				>:</span>
 				<input
@@ -444,9 +444,9 @@ const datePickerHTML = /* HTML */ `
 					min="00"
 					max="59"
 					style="
-						width: 0.9rem;
-						height: 0.8rem;
-						font-size: 0.7rem;
+						width: 3rem;
+						height: 2.7rem;
+						font-size: 2.4rem;
 						-moz-appearance: textfield;
 					"
 				></input>
@@ -454,8 +454,8 @@ const datePickerHTML = /* HTML */ `
 			<div
 				class="flex flex-col justify-center"
 				style="
-					margin-right: 0.1rem;
-					margin-left: 0.1rem;
+					margin-right: 0.34rem;
+					margin-left: 0.34rem;
 				"
 			>
 				<button
@@ -465,8 +465,8 @@ const datePickerHTML = /* HTML */ `
 					<img
 						class="icon-filter"
 						style="
-							width: 0.6rem;
-							height: 0.5rem;
+							width: 2rem;
+							height: 1.7rem;
 							font-size: 0;
 							aspect-ratio: 1;
 						"
@@ -480,8 +480,8 @@ const datePickerHTML = /* HTML */ `
 					<img
 						class="icon-filter"
 						style="
-							width: 0.6rem;
-							height: 0.5rem;
+							width: 2rem;
+							height: 1.7rem;
 							font-size: 0;
 							aspect-ratio: 1;
 						"
@@ -499,19 +499,19 @@ const datePickerHTML = /* HTML */ `
 			<button
 				class="js-reset text-color bg-color3 hover:bg-color2"
 				style="
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					font-size: 0.6rem;
-					border-radius: 0.15rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					font-size: 2rem;
+					border-radius: 0.51rem;
 				"
 			>Reset</button>
 			<button
 				class=" js-apply text-color bg-green hover:bg-green2"
 				style="
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					font-size: 0.6rem;
-					border-radius: 0.15rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					font-size: 2rem;
+					border-radius: 0.51rem;
 				"
 			>Apply</button>
 		</div>
@@ -732,15 +732,15 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 				style="
 					width: var(--options-menu-btn-width);
 					height: var(--options-menu-btn-width);
-					font-size: 0.5rem;
+					font-size: 1.7rem;
 				"
 			>
 				<img
 					class="icon-filter"
 					style="
 						aspect-ratio: 1;
-						height: 0.8rem;
-						margin: 0.2rem;
+						height: 2.7rem;
+						margin: 0.68rem;
 						font-size: 0;
 					"
 					src="assets/icons/feather/video.svg"
@@ -811,10 +811,10 @@ function newSelectOne(options, onSelect, alias) {
 				class="js-select-one-item bg-color2 hover:bg-color3"
 				style="
 					display: block ruby;
-					padding: 0.1rem 0.2rem;
-					font-size: 0.7rem;
+					padding: 0.34rem 0.68rem;
+					font-size: 2.4rem;
 					border-top: solid;
-					border-top-width: 0.01rem;
+					border-top-width: 0.034rem;
 				"
 				data="${option.id}"
 				>${option.label}</span
@@ -827,7 +827,7 @@ function newSelectOne(options, onSelect, alias) {
 	return {
 		html: /* HTML */ `
 			<div id=${id} class="js-select-one flex flex-col text-center text-color">
-				<span style="padding: 0.1rem; font-size: 0.6rem;">Groups</span>
+				<span style="padding: 0.34rem; font-size: 2rem;">Groups</span>
 				${optionsHTML}
 			</div>
 		`,

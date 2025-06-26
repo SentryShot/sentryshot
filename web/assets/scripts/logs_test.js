@@ -117,17 +117,17 @@ describe("MultiSelect", () => {
 <li id="uid4"
     class="items-center w-full"
     style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 >
   <label class="grow w-full text-color"
          style="
 					   float: left;
-					   min-width: 4rem;
-					   font-size: 0.6rem;
+					   min-width: 13.5rem;
+					   font-size: 2rem;
 					"
   >
     test
@@ -140,7 +140,7 @@ describe("MultiSelect", () => {
            style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: 0.14rem;
+							border-radius: 0.47rem;
 							user-select: none;
 						"
       >
@@ -157,7 +157,7 @@ describe("MultiSelect", () => {
              style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: 0.1rem;
+								border-radius: 0.34rem;
 							"
         >
         </div>
@@ -170,7 +170,7 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: 0.2rem; font-size: 0.5rem;"
+            style="margin-left: 0.68rem; font-size: 1.7rem;"
       >
         a
       </span>
@@ -182,7 +182,7 @@ describe("MultiSelect", () => {
            style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: 0.14rem;
+							border-radius: 0.47rem;
 							user-select: none;
 						"
       >
@@ -199,7 +199,7 @@ describe("MultiSelect", () => {
              style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: 0.1rem;
+								border-radius: 0.34rem;
 							"
         >
         </div>
@@ -212,7 +212,7 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: 0.2rem; font-size: 0.5rem;"
+            style="margin-left: 0.68rem; font-size: 1.7rem;"
       >
         b
       </span>
@@ -224,7 +224,7 @@ describe("MultiSelect", () => {
            style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: 0.14rem;
+							border-radius: 0.47rem;
 							user-select: none;
 						"
       >
@@ -241,7 +241,7 @@ describe("MultiSelect", () => {
              style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: 0.1rem;
+								border-radius: 0.34rem;
 							"
         >
         </div>
@@ -254,7 +254,7 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: 0.2rem; font-size: 0.5rem;"
+            style="margin-left: 0.68rem; font-size: 1.7rem;"
       >
         c
       </span>
@@ -382,7 +382,7 @@ describe("logSelector", () => {
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <div class="js-sidebar">
   <ul class="form"
-      style="padding: 0 0.1rem; overflow-y: auto;"
+      style="padding: 0 0.34rem; overflow-y: auto;"
   >
     levelHTMLsourcesHTMLmonitorHTML
     <div class="flex">
@@ -391,14 +391,14 @@ describe("logSelector", () => {
   <div>
     <button class="js-reset bg-color3 hover:bg-color2"
             style="
-				   margin: 0.2rem;
-				   padding-left: 0.1rem;
-				   padding-right: 0.1rem;
-				   border-radius: 0.2rem;
+				   margin: 0.68rem;
+				   padding-left: 0.34rem;
+				   padding-right: 0.34rem;
+				   border-radius: 0.68rem;
 				"
     >
       <span class="text-color"
-            style="font-size: 0.7rem;"
+            style="font-size: 2.4rem;"
       >
         Reset
       </span>
@@ -406,14 +406,14 @@ describe("logSelector", () => {
     <button class="log-apply-btn js-apply bg-green hover:bg-green2"
             style="
 					float: right;
-					margin: 0.2rem;
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					border-radius: 0.2rem;
+					margin: 0.68rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					border-radius: 0.68rem;
 				"
     >
       <span class="text-color"
-            style="font-size: 0.7rem;"
+            style="font-size: 2.4rem;"
       >
         Apply
       </span>

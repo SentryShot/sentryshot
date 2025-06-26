@@ -33,14 +33,14 @@ describe("optionsGridSize", () => {
           style="
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
-						font-size: 0.5rem;
+						font-size: 1.7rem;
 					"
   >
     <img class="icon-filter"
          style="
 							aspect-ratio: 1;
-							height: 0.8rem;
-							margin: 0.2rem;
+							height: 2.7rem;
+							margin: 0.68rem;
 							font-size: 0;
 						"
          src="assets/icons/feather/plus.svg"
@@ -51,14 +51,14 @@ describe("optionsGridSize", () => {
           style="
 						width: var(--options-menu-btn-width);
 						height: var(--options-menu-btn-width);
-						font-size: 0.5rem;
+						font-size: 1.7rem;
 					"
   >
     <img class="icon-filter"
          style="
 							aspect-ratio: 1;
-							height: 0.8rem;
-							margin: 0.2rem;
+							height: 2.7rem;
+							margin: 0.68rem;
 							font-size: 0;
 						"
          src="assets/icons/feather/minus.svg"
@@ -76,7 +76,7 @@ describe("optionsGridSize", () => {
 			return Number(
 				getComputedStyle(document.documentElement)
 					.getPropertyValue("--gridsize")
-					.trim()
+					.trim(),
 			);
 		};
 		const element = setup(newOptionsBtn.gridSize(content));
@@ -329,16 +329,16 @@ describe("optionsMonitorGroups", () => {
 
 		const $picker = document.querySelector(".js-select-one");
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
-<span style="padding: 0.1rem; font-size: 0.6rem;">
+<span style="padding: 0.34rem; font-size: 2rem;">
   Groups
 </span>
 <span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					padding: 0.1rem 0.2rem;
-					font-size: 0.7rem;
+					padding: 0.34rem 0.68rem;
+					font-size: 2.4rem;
 					border-top: solid;
-					border-top-width: 0.01rem;
+					border-top-width: 0.034rem;
 				"
       data="a"
 >
@@ -347,10 +347,10 @@ describe("optionsMonitorGroups", () => {
 <span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					padding: 0.1rem 0.2rem;
-					font-size: 0.7rem;
+					padding: 0.34rem 0.68rem;
+					font-size: 2.4rem;
 					border-top: solid;
-					border-top-width: 0.01rem;
+					border-top-width: 0.034rem;
 				"
       data="b"
 >
@@ -360,16 +360,16 @@ describe("optionsMonitorGroups", () => {
 
 		document.querySelector(".js-select-one span").click();
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
-<span style="padding: 0.1rem; font-size: 0.6rem;">
+<span style="padding: 0.34rem; font-size: 2rem;">
   Groups
 </span>
 <span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					padding: 0.1rem 0.2rem;
-					font-size: 0.7rem;
+					padding: 0.34rem 0.68rem;
+					font-size: 2.4rem;
 					border-top: solid;
-					border-top-width: 0.01rem;
+					border-top-width: 0.034rem;
 				"
       data="a"
 >
@@ -378,10 +378,10 @@ describe("optionsMonitorGroups", () => {
 <span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					padding: 0.1rem 0.2rem;
-					font-size: 0.7rem;
+					padding: 0.34rem 0.68rem;
+					font-size: 2.4rem;
 					border-top: solid;
-					border-top-width: 0.01rem;
+					border-top-width: 0.034rem;
 				"
       data="b"
 >

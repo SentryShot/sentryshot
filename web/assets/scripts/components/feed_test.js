@@ -41,19 +41,19 @@ describe("feed", () => {
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: 0.2rem;
+							border-radius: 0.68rem;
 						"
     >
       <button class="js-fullscreen-btn feed-btn"
               style="
-					padding: 0.15rem;
+					padding: 0.51rem;
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
 				"
       >
         <img class="icon-filter"
-             style="height: 0.7rem; aspect-ratio: 1;"
+             style="height: 2.4rem; aspect-ratio: 1;"
              src="assets/icons/feather/maximize.svg"
         >
       </button>
@@ -119,7 +119,7 @@ test("recordingsBtn", async () => {
 	expect(newFeedBtn.recordings("b").html).toMatchInlineSnapshot(`
 <a class="feed-btn"
    style="
-					padding: 0.15rem;
+					padding: 0.51rem;
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -127,7 +127,7 @@ test("recordingsBtn", async () => {
    href="http://test.com/recordings#monitors=b"
 >
   <img class="icon-filter"
-       style="height: 0.65rem; aspect-ratio: 1;"
+       style="height: 2.2rem; aspect-ratio: 1;"
        src="assets/icons/feather/film.svg"
   >
 </a>
@@ -138,14 +138,14 @@ test("fullscreenBtn", () => {
 	expect(newFeedBtn.fullscreen().html).toMatchInlineSnapshot(`
 <button class="js-fullscreen-btn feed-btn"
         style="
-					padding: 0.15rem;
+					padding: 0.51rem;
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
 				"
 >
   <img class="icon-filter"
-       style="height: 0.7rem; aspect-ratio: 1;"
+       style="height: 2.4rem; aspect-ratio: 1;"
        src="assets/icons/feather/maximize.svg"
   >
 </button>

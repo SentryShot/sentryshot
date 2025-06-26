@@ -104,7 +104,7 @@ describe("newPlayer", () => {
          style="
 				bottom: 0;
 				width: var(--player-timeline-width);
-				height: 0.6rem;
+				height: 2rem;
 				fill: var(--color-red);
 			"
          viewbox="0 0 100 100"
@@ -154,7 +154,7 @@ describe("newPlayer", () => {
          style="
 					stroke: var(--color-red);
 					fill-opacity: 0;
-					stroke-width: 0.015rem;
+					stroke-width: 0.05rem;
 				"
          viewbox="0 0 100 100"
          preserveaspectratio="none"
@@ -180,13 +180,13 @@ describe("newPlayer", () => {
     >
       <button class="js-play-btn bg-color0"
               style="
-					padding: 0.2rem;
+					padding: 0.68rem;
 					font-size: 0;
 					border-radius: 50%;
 					opacity: 0.8;
 				"
       >
-        <img style="aspect-ratio: 1; height: 0.8rem; filter: invert(90%);"
+        <img style="aspect-ratio: 1; height: 2.7rem; filter: invert(90%);"
              src="assets/icons/feather/pause.svg"
         >
       </button>
@@ -195,7 +195,7 @@ describe("newPlayer", () => {
          style="
 				z-index: 2;
 				bottom: 4%;
-				height: 0.6rem;
+				height: 2rem;
 				min-height: 3.5%;
 			"
     >
@@ -203,7 +203,7 @@ describe("newPlayer", () => {
            style="
 				bottom: 0;
 				width: var(--player-timeline-width);
-				height: 0.6rem;
+				height: 2rem;
 				fill: var(--color-red);
 			"
            viewbox="0 0 100 100"
@@ -226,8 +226,8 @@ describe("newPlayer", () => {
                 style="
 					box-sizing: border-box;
 					width: var(--player-timeline-width);
-					padding-top: 0.1rem;
-					padding-bottom: 0.1rem;
+					padding-top: 0.34rem;
+					padding-bottom: 0.34rem;
 					background: rgb(0 0 0 / 0%);
 					opacity: 0.8;
 					user-select: none;
@@ -240,9 +240,9 @@ describe("newPlayer", () => {
       </progress>
       <button class="js-options-open-btn player-options-open-btn absolute"
               style="
-					right: 0.28rem;
-					bottom: 0.8rem;
-					width: 0.8rem;
+					right: 0.95rem;
+					bottom: 2.7rem;
+					width: 2.7rem;
 					font-size: 0;
 					background-color: rgb(0 0 0 / 0%);
 					transition: opacity 250ms;
@@ -250,25 +250,25 @@ describe("newPlayer", () => {
       >
         <div class="bg-color0"
              style="
-						width: 0.4rem;
+						width: 1.35rem;
 						margin: auto;
-						border-radius: 0.1rem;
+						border-radius: 0.34rem;
 					"
         >
-          <img style="width: 0.4rem; height: 0.8rem; filter: invert(90%);"
+          <img style="width: 1.35rem; height: 2.7rem; filter: invert(90%);"
                src="assets/icons/feather/more-vertical-slim.svg"
           >
         </div>
       </button>
       <div class="js-popup absolute bg-color0"
            style="
-					right: 0.2rem;
-					bottom: 1.75rem;
+					right: 0.68rem;
+					bottom: 5.9rem;
 					display: none;
-					grid-gap: 0.2rem;
-					padding: 0.1rem;
+					grid-gap: 0.68rem;
+					padding: 0.34rem;
 					font-size: 0;
-					border-radius: 0.15rem;
+					border-radius: 0.51rem;
 					opacity: 0.8;
 				"
       >
@@ -278,7 +278,7 @@ describe("newPlayer", () => {
            style="background-color: rgb(0 0 0 / 0%);"
         >
           <img class="icon-filter"
-               style="aspect-ratio: 1; width: 0.8rem;"
+               style="aspect-ratio: 1; width: 2.7rem;"
                src="assets/icons/feather/download.svg"
           >
         </a>
@@ -286,7 +286,7 @@ describe("newPlayer", () => {
                 style="background-color: rgb(0 0 0 / 0%);"
         >
           <img class="icon-filter"
-               style="aspect-ratio: 1; width: 0.8rem;"
+               style="aspect-ratio: 1; width: 2.7rem;"
                src="assets/icons/feather/maximize.svg"
           >
         </button>
@@ -423,7 +423,7 @@ describe("newPlayer", () => {
         style="
 				bottom: 0;
 				width: var(--player-timeline-width);
-				height: 0.6rem;
+				height: 2rem;
 				fill: var(--color-red);
 			"
         viewBox="0 0 100 100"
@@ -527,7 +527,7 @@ describe("newPlayer", () => {
          style="
 				bottom: 0;
 				width: var(--player-timeline-width);
-				height: 0.6rem;
+				height: 2rem;
 				fill: var(--color-red);
 			"
          viewbox="0 0 100 100"
@@ -558,7 +558,7 @@ describe("newPlayer", () => {
         style="background-color: rgb(0 0 0 / 0%);"
 >
   <img class="icon-filter"
-       style="aspect-ratio: 1; width: 0.8rem;"
+       style="aspect-ratio: 1; width: 2.7rem;"
        src="assets/icons/feather/trash-2.svg"
   >
 </button>
@@ -568,7 +568,7 @@ describe("newPlayer", () => {
    style="background-color: rgb(0 0 0 / 0%);"
 >
   <img class="icon-filter"
-       style="aspect-ratio: 1; width: 0.8rem;"
+       style="aspect-ratio: 1; width: 2.7rem;"
        src="assets/icons/feather/download.svg"
   >
 </a>
@@ -576,7 +576,7 @@ describe("newPlayer", () => {
         style="background-color: rgb(0 0 0 / 0%);"
 >
   <img class="icon-filter"
-       style="aspect-ratio: 1; width: 0.8rem;"
+       style="aspect-ratio: 1; width: 2.7rem;"
        src="assets/icons/feather/maximize.svg"
   >
 </button>
@@ -629,7 +629,7 @@ describe("detectionRenderer", () => {
      style="
 					stroke: var(--color-red);
 					fill-opacity: 0;
-					stroke-width: 0.015rem;
+					stroke-width: 0.05rem;
 				"
      viewbox="0 0 100 100"
      preserveaspectratio="none"
@@ -658,7 +658,7 @@ describe("detectionRenderer", () => {
      style="
 					stroke: var(--color-red);
 					fill-opacity: 0;
-					stroke-width: 0.015rem;
+					stroke-width: 0.05rem;
 				"
      viewbox="0 0 100 100"
      preserveaspectratio="none"

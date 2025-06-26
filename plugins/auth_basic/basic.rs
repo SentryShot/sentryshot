@@ -361,20 +361,20 @@ fn edit_templates(tmpls: &mut Templates) {
     style=\"
         width: var(--sidebar-width);
         margin-top: auto;
-        margin-bottom: 0.4rem;
+        margin-bottom: 1.35rem;
     \"
 >
 	<button
         class=\"text-color bg-color2 hover:bg-color3\"
         style=\"
-            margin-top: 0.1rem;
-            padding-right: 0.1rem;
-            padding-left: 0.1rem;
-            font-size: 0.6rem;
-            border-width: 0.05rem;
+            margin-top: 0.34rem;
+            padding-right: 0.34rem;
+            padding-left: 0.34rem;
+            font-size: 2rem;
+            border-width: 0.17rem;
             border-style: solid;
             border-color: var(--color0);
-            border-radius: 0.2rem;
+            border-radius: 0.68rem;
         \"
         onclick='if (confirm(\"logout?\")) { window.location.href = \"logout\"; }'
     >

@@ -88,7 +88,7 @@ describe("newForm", () => {
 			form.addButton("save", () => {});
 
 			expect(
-				prettier.format(form.html(), { parser: "html" })
+				prettier.format(form.html(), { parser: "html" }),
 			).toMatchInlineSnapshot(`Promise {}`);
 		});
 		test("onClick", () => {
@@ -115,22 +115,22 @@ describe("newForm", () => {
 
 			expect(form.html()).toMatchInlineSnapshot(`
 <ul class="form"
-    style="padding: 0 0.1rem; overflow-y: auto;"
+    style="padding: 0 0.34rem; overflow-y: auto;"
 >
   html
   <div class="flex">
     <button id="uid1"
             class="bg-red hover:bg-red2"
             style="
-					margin: 0.2rem;
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					border-radius: 0.2rem;
+					margin: 0.68rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					border-radius: 0.68rem;
 					margin-left: auto;
 				"
     >
       <span class="text-color"
-            style="font-size: 0.7rem;"
+            style="font-size: 2.4rem;"
       >
         Delete
       </span>
@@ -164,21 +164,21 @@ describe("newForm", () => {
 
 		expect(form.html()).toMatchInlineSnapshot(`
 <ul class="form"
-    style="padding: 0 0.1rem; overflow-y: auto;"
+    style="padding: 0 0.34rem; overflow-y: auto;"
 >
   html
   <div class="flex">
     <button id="uid1"
             class="bg-green hover:bg-green2"
             style="
-					margin: 0.2rem;
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					border-radius: 0.2rem;
+					margin: 0.68rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					border-radius: 0.68rem;
 				"
     >
       <span class="text-color"
-            style="font-size: 0.7rem;"
+            style="font-size: 2.4rem;"
       >
         Save
       </span>
@@ -186,15 +186,15 @@ describe("newForm", () => {
     <button id="uid2"
             class="bg-red hover:bg-red2"
             style="
-					margin: 0.2rem;
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					border-radius: 0.2rem;
+					margin: 0.68rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					border-radius: 0.68rem;
 					margin-left: auto;
 				"
     >
       <span class="text-color"
-            style="font-size: 0.7rem;"
+            style="font-size: 2.4rem;"
       >
         Delete
       </span>
@@ -219,7 +219,7 @@ describe("newField", () => {
 				label: "a",
 				placeholder: "b",
 				initial: 3,
-			}
+			},
 		);
 	};
 	test("rendering", () => {
@@ -229,18 +229,18 @@ describe("newField", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 >
   <label for="uid1"
          class="grow w-full text-color"
          style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
   >
     a
@@ -248,10 +248,10 @@ describe("newField", () => {
   <input id="uid1"
          class="js-input w-full"
          style="
-					height: 1rem;
+					height: 3.4rem;
 					overflow: auto;
-					font-size: 0.5rem;
-					text-indent: 0.2rem;
+					font-size: 1.7rem;
+					text-indent: 0.68rem;
 				"
          type="number"
          placeholder="b"
@@ -261,8 +261,8 @@ describe("newField", () => {
   >
   <span class="js-error text-red"
         style="
-						height: 0.5rem;
-						font-size: 0.4rem;
+						height: 1.7rem;
+						font-size: 1.35rem;
 						white-space: nowrap;
 						overflow: auto;
 					"
@@ -368,18 +368,18 @@ describe("fieldTemplate", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 >
   <label for="uid1"
          class="grow w-full text-color"
          style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
   >
     1
@@ -387,18 +387,18 @@ describe("fieldTemplate", () => {
   <input id="uid1"
          class="js-input w-full"
          style="
-					height: 1rem;
+					height: 3.4rem;
 					overflow: auto;
-					font-size: 0.5rem;
-					text-indent: 0.2rem;
+					font-size: 1.7rem;
+					text-indent: 0.68rem;
 				"
          type="text"
          placeholder="2"
   >
   <span class="js-error text-red"
         style="
-						height: 0.5rem;
-						font-size: 0.4rem;
+						height: 1.7rem;
+						font-size: 1.35rem;
 						white-space: nowrap;
 						overflow: auto;
 					"
@@ -426,18 +426,18 @@ describe("fieldTemplate", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 >
   <label for="uid1"
          class="grow w-full text-color"
          style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
   >
     1
@@ -445,10 +445,10 @@ describe("fieldTemplate", () => {
   <input id="uid1"
          class="js-input w-full"
          style="
-					height: 1rem;
+					height: 3.4rem;
 					overflow: auto;
-					font-size: 0.5rem;
-					text-indent: 0.2rem;
+					font-size: 1.7rem;
+					text-indent: 0.68rem;
 				"
          type="number"
          placeholder="2"
@@ -457,8 +457,8 @@ describe("fieldTemplate", () => {
   >
   <span class="js-error text-red"
         style="
-						height: 0.5rem;
-						font-size: 0.4rem;
+						height: 1.7rem;
+						font-size: 1.35rem;
 						white-space: nowrap;
 						overflow: auto;
 					"
@@ -488,18 +488,18 @@ describe("fieldTemplate", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 >
   <label for="uid1"
          class="grow w-full text-color"
          style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
   >
     1
@@ -508,9 +508,9 @@ describe("fieldTemplate", () => {
     <select id="uid1"
             class="js-input w-full"
             style="
-						padding-left: 0.2rem;
-						height: 1rem;
-						font-size: 0.5rem;
+						padding-left: 0.68rem;
+						height: 3.4rem;
+						font-size: 1.7rem;
 					"
     >
       <option>
@@ -542,18 +542,18 @@ describe("fieldTemplate", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 >
   <label for="uid1"
          class="grow w-full text-color"
          style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
   >
     1
@@ -562,9 +562,9 @@ describe("fieldTemplate", () => {
     <select id="uid1"
             class="js-input w-full"
             style="
-						padding-left: 0.2rem;
-						height: 1rem;
-						font-size: 0.5rem;
+						padding-left: 0.68rem;
+						height: 3.4rem;
+						font-size: 1.7rem;
 					"
     >
       <option>
@@ -599,18 +599,18 @@ describe("fieldTemplate", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 >
   <label for="uid1"
          class="grow w-full text-color"
          style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
   >
     y
@@ -619,9 +619,9 @@ describe("fieldTemplate", () => {
     <select id="uid1"
             class="js-input w-full"
             style="
-						padding-left: 0.2rem;
-						height: 1rem;
-						font-size: 0.5rem;
+						padding-left: 0.68rem;
+						height: 3.4rem;
+						font-size: 1.7rem;
 					"
     >
       <option>
@@ -637,22 +637,22 @@ describe("fieldTemplate", () => {
     <button class="js-edit-btn flex bg-color2 hover:bg-color3"
             style="
 						aspect-ratio: 1;
-						width: 1rem;
-						height: 1rem;
-						margin-left: 0.4rem;
-						border-radius: 0.2rem;
+						width: 3.4rem;
+						height: 3.4rem;
+						margin-left: 1.35rem;
+						border-radius: 0.68rem;
 					"
     >
       <img class="icon-filter"
-           style="padding: 0.1rem;"
+           style="padding: 0.34rem;"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
   </div>
   <span class="js-error text-red"
         style="
-						height: 0.5rem;
-						font-size: 0.4rem;
+						height: 1.7rem;
+						font-size: 1.35rem;
 						white-space: nowrap;
 						overflow: auto;
 					"
@@ -702,18 +702,18 @@ describe("selectCustomField", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 >
   <label for="uid1"
          class="grow w-full text-color"
          style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
   >
     d
@@ -722,9 +722,9 @@ describe("selectCustomField", () => {
     <select id="uid1"
             class="js-input w-full"
             style="
-						padding-left: 0.2rem;
-						height: 1rem;
-						font-size: 0.5rem;
+						padding-left: 0.68rem;
+						height: 3.4rem;
+						font-size: 1.7rem;
 					"
     >
       <option>
@@ -740,14 +740,14 @@ describe("selectCustomField", () => {
     <button class="js-edit-btn flex bg-color2 hover:bg-color3"
             style="
 						aspect-ratio: 1;
-						width: 1rem;
-						height: 1rem;
-						margin-left: 0.4rem;
-						border-radius: 0.2rem;
+						width: 3.4rem;
+						height: 3.4rem;
+						margin-left: 1.35rem;
+						border-radius: 0.68rem;
 					"
     >
       <img class="icon-filter"
-           style="padding: 0.1rem;"
+           style="padding: 0.34rem;"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
@@ -782,18 +782,18 @@ describe("passwordField", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 >
   <label for="uid1"
          class="grow w-full text-color"
          style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
   >
     New password
@@ -801,33 +801,33 @@ describe("passwordField", () => {
   <input id="uid1"
          class="js-input w-full"
          style="
-						height: 1rem;
+						height: 3.4rem;
 						overflow: auto;
-						font-size: 0.5rem;
-						text-indent: 0.2rem;
+						font-size: 1.7rem;
+						text-indent: 0.68rem;
 					"
          type="password"
   >
   <span class="js-error text-red"
-        style="height: 0.5rem; font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+        style="height: 1.7rem; font-size: 1.35rem; white-space: nowrap; overflow: auto;"
   >
   </span>
 </li>
 <li id="js-uid2"
     class="items-center"
     style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 >
   <label for="uid2"
          class="grow w-full text-color"
          style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
   >
     Repeat password
@@ -835,15 +835,15 @@ describe("passwordField", () => {
   <input id="uid2"
          class="js-input w-full"
          style="
-						height: 1rem;
+						height: 3.4rem;
 						overflow: auto;
-						font-size: 0.5rem;
-						text-indent: 0.2rem;
+						font-size: 1.7rem;
+						text-indent: 0.68rem;
 					"
          type="password"
   >
   <span class="js-error text-red"
-        style="height: 0.5rem; font-size: 0.4rem; white-space: nowrap; overflow: auto;"
+        style="height: 1.7rem; font-size: 1.35rem; white-space: nowrap; overflow: auto;"
   >
   </span>
 </li>
@@ -861,10 +861,10 @@ describe("passwordField", () => {
 			field.init();
 
 			[$newInput, $newError] = $getInputAndError(
-				document.querySelector("#js-uid1")
+				document.querySelector("#js-uid1"),
 			);
 			[$repeatInput, $repeatError] = $getInputAndError(
-				document.querySelector("#js-uid2")
+				document.querySelector("#js-uid2"),
 			);
 		});
 		const change = new Event("change");

@@ -61,7 +61,7 @@ export function motion2(hasSubStream, getMonitorId) {
 		element.insertAdjacentHTML("beforeend", modal.html);
 		/** @type {HTMLElement} */
 		const $modal = element.querySelector(".js-modal");
-		$modal.style.maxWidth = "12rem";
+		$modal.style.maxWidth = "40.5rem";
 
 		modal.init();
 		form.init();
@@ -84,18 +84,18 @@ export function motion2(hasSubStream, getMonitorId) {
 				id="${id}"
 				class="flex items-center"
 				style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 			>
 				<label
 					class="grow w-full text-color"
 					style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
 					>Motion detection</label
 				>
@@ -104,15 +104,15 @@ export function motion2(hasSubStream, getMonitorId) {
 						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							width: 1rem;
-							height: 1rem;
-							margin-left: 0.4rem;
-							border-radius: 0.2rem;
+							width: 3.4rem;
+							height: 3.4rem;
+							margin-left: 1.35rem;
+							border-radius: 0.68rem;
 						"
 					>
 						<img
 							class="icon-filter"
-							style="padding: 0.1rem;"
+							style="padding: 0.34rem;"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -172,30 +172,30 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: 0.1rem;
+				padding: 0.34rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
-				border-bottom-width: 0.05rem;
+				border-bottom-width: 0.17rem;
 			"
 		>
 			<div class="flex w-full">
 				<select
 					class="js-zone-select w-full"
-					style="padding-left: 0.2rem; height: 1rem; font-size: 0.5rem;"
+					style="padding-left: 0.68rem; height: 3.4rem; font-size: 1.7rem;"
 				></select>
 				<div
 					class="js-add-zone flex bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
-						width: 1rem;
-						height: 1rem;
-						margin-left: 0.4rem;
-						border-radius: 0.2rem;
+						width: 3.4rem;
+						height: 3.4rem;
+						margin-left: 1.35rem;
+						border-radius: 0.68rem;
 					"
 				>
 					<img
 						class="icon-filter"
-						style="padding: 0.1rem;"
+						style="padding: 0.34rem;"
 						src="assets/icons/feather/plus.svg"
 					/>
 				</div>
@@ -203,16 +203,16 @@ function zonesModalHTML(feedHTML) {
 					class="js-remove-zone flex bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
-						width: 1rem;
-						height: 1rem;
-						margin-left: 0.4rem;
-						border-radius: 0.2rem;
-						margin-left: 0.2rem;
+						width: 3.4rem;
+						height: 3.4rem;
+						margin-left: 1.35rem;
+						border-radius: 0.68rem;
+						margin-left: 0.68rem;
 					"
 				>
 					<img
 						class="icon-filter"
-						style="padding: 0.1rem;"
+						style="padding: 0.34rem;"
 						src="assets/icons/feather/minus.svg"
 					/>
 				</div>
@@ -221,10 +221,10 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: 0.1rem;
+				padding: 0.34rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
-				border-bottom-width: 0.05rem;
+				border-bottom-width: 0.17rem;
 			"
 		>
 			<label
@@ -232,15 +232,15 @@ function zonesModalHTML(feedHTML) {
 				class="grow w-full text-color"
 				style="
 					float: left;
-					min-width: 4rem;
-					font-size: 0.6rem;
+					min-width: 13.5rem;
+					font-size: 2rem;
 				"
 				>Enable</label
 			>
 			<div class="flex w-full">
 				<select
 					class="js-enable w-full"
-					style="padding-left: 0.2rem; height: 1rem; font-size: 0.5rem;"
+					style="padding-left: 0.68rem; height: 3.4rem; font-size: 1.7rem;"
 				>
 					<option>true</option>
 					<option>false</option>
@@ -250,10 +250,10 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: 0.1rem;
+				padding: 0.34rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
-				border-bottom-width: 0.05rem;
+				border-bottom-width: 0.17rem;
 			"
 		>
 			<label
@@ -261,8 +261,8 @@ function zonesModalHTML(feedHTML) {
 				class="grow w-full text-color"
 				style="
 					float: left;
-					min-width: 4rem;
-					font-size: 0.6rem;
+					min-width: 13.5rem;
+					font-size: 2rem;
 				"
 				>Sensitivity</label
 			>
@@ -270,10 +270,10 @@ function zonesModalHTML(feedHTML) {
 				id="motion-modal-sensitivity"
 				class="js-sensitivity w-full"
 				style="
-					height: 1rem;
+					height: 3.4rem;
 					overflow: auto;
-					font-size: 0.5rem;
-					text-indent: 0.2rem;
+					font-size: 1.7rem;
+					text-indent: 0.68rem;
 				"
 				type="number"
 				min="0"
@@ -284,18 +284,18 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: 0.1rem;
+				padding: 0.34rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
-				border-bottom-width: 0.05rem;
+				border-bottom-width: 0.17rem;
 			"
 		>
 			<label
 				class="grow w-full text-color"
 				style="
 					float: left;
-					min-width: 4rem;
-					font-size: 0.6rem;
+					min-width: 13.5rem;
+					font-size: 2rem;
 				"
 				>Threshold Min-Max</label
 			>
@@ -303,11 +303,11 @@ function zonesModalHTML(feedHTML) {
 				<input
 					class="js-threshold-min w-full"
 					style="
-						height: 1rem;
+						height: 3.4rem;
 						overflow: auto;
-						font-size: 0.5rem;
-						text-indent: 0.2rem;
-						margin-right: 1rem;
+						font-size: 1.7rem;
+						text-indent: 0.68rem;
+						margin-right: 3.4rem;
 					"
 					type="number"
 					min="0"
@@ -318,8 +318,8 @@ function zonesModalHTML(feedHTML) {
 					class="js-threshold-max grow w-full text-color"
 					style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
 					type="number"
 					min="0"
@@ -331,10 +331,10 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: 0.1rem;
+				padding: 0.34rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
-				border-bottom-width: 0.05rem;
+				border-bottom-width: 0.17rem;
 			"
 		>
 			<label
@@ -342,21 +342,21 @@ function zonesModalHTML(feedHTML) {
 				class="grow w-full text-color"
 				style="
 					float: left;
-					min-width: 4rem;
-					font-size: 0.6rem;
+					min-width: 13.5rem;
+					font-size: 2rem;
 				"
 				>Preview</label
 			>
 			<div class="flex w-full">
 				<select
 					class="js-preview w-full"
-					style="padding-left: 0.2rem; height: 1rem; font-size: 0.5rem;"
+					style="padding-left: 0.68rem; height: 3.4rem; font-size: 1.7rem;"
 				>
 					<option>true</option>
 					<option>false</option>
 				</select>
 			</div>
-			<div class="relative" style="margin-top: 0.2rem;">
+			<div class="relative" style="margin-top: 0.68rem;">
 				<div class="js-feed" style="background: white;">${feedHTML}</div>
 				<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
 			</div>
@@ -364,10 +364,10 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="flex items-center"
 			style="
-				padding: 0.1rem;
+				padding: 0.34rem;
 				border-color: var(--color1);
 				border-bottom-style: solid;
-				border-bottom-width: 0.05rem;
+				border-bottom-width: 0.17rem;
 				flex-wrap: wrap;
 				justify-content: space-between
 			"
@@ -376,12 +376,12 @@ function zonesModalHTML(feedHTML) {
 				<button
 					class="js-1x text-color bg-color2 hover:bg-color1"
 					style="
-						font-size: 0.6rem;
-						padding: 0.07rem 0.15rem;
-						border-width: 0.02rem;
+						font-size: 2rem;
+						padding: 0.24rem 0.51rem;
+						border-width: 0.07rem;
 						border-color: var(--color3);
-						border-top-left-radius: 0.25rem;
-						border-bottom-left-radius: 0.25rem;
+						border-top-left-radius: 0.84rem;
+						border-bottom-left-radius: 0.84rem;
 						border-right-style: solid;
 					"
 				>
@@ -390,9 +390,9 @@ function zonesModalHTML(feedHTML) {
 				<button
 					class="js-4x text-color bg-color2 hover:bg-color1 motion-step-size-selected"
 					style="
-						font-size: 0.6rem;
-						padding: 0.07rem 0.15rem;
-						border-width: 0.02rem;
+						font-size: 2rem;
+						padding: 0.24rem 0.51rem;
+						border-width: 0.07rem;
 						border-color: var(--color3);
 						border-style: hidden solid;
 					"
@@ -402,9 +402,9 @@ function zonesModalHTML(feedHTML) {
 				<button
 					class="js-10x text-color bg-color2 hover:bg-color1"
 					style="
-						font-size: 0.6rem;
-						padding: 0.07rem 0.15rem;
-						border-width: 0.02rem;
+						font-size: 2rem;
+						padding: 0.24rem 0.51rem;
+						border-width: 0.07rem;
 						border-color: var(--color3);
 						border-style: hidden solid;
 					"
@@ -414,12 +414,12 @@ function zonesModalHTML(feedHTML) {
 				<button
 					class="js-20x text-color bg-color2 hover:bg-color1"
 					style="
-						font-size: 0.6rem;
-						padding: 0.07rem 0.15rem;
-						border-width: 0.02rem;
+						font-size: 2rem;
+						padding: 0.24rem 0.51rem;
+						border-width: 0.07rem;
 						border-color: var(--color3);
-						border-top-right-radius: 0.25rem;
-						border-bottom-right-radius: 0.25rem;
+						border-top-right-radius: 0.84rem;
+						border-bottom-right-radius: 0.84rem;
 						border-left-style: solid;
 					"
 				>
@@ -429,14 +429,14 @@ function zonesModalHTML(feedHTML) {
 			<div class="flex">
 				<input
 					class="js-x text-center"
-					style="width: 1.3rem; font-size: 0.6rem;"
+					style="width: 4.4rem; font-size: 2rem;"
 					type="number"
 					min="0"
 					max="100"
 				/>
 				<input
 					class="js-y text-center"
-					style="width: 1.3rem; font-size: 0.6rem;"
+					style="width: 4.4rem; font-size: 2rem;"
 					type="number"
 					min="0"
 					max="100"
@@ -498,20 +498,20 @@ function zones(hasSubStream, getMonitorId) {
 		$sensitivity = $modalContent.querySelector(".js-sensitivity");
 		$sensitivity.addEventListener("change", () => {
 			getSelectedZone().setSensitivity(
-				Math.min(100, Math.max($sensitivity.value, 0))
+				Math.min(100, Math.max($sensitivity.value, 0)),
 			);
 		});
 
 		$thresholdMin = $modalContent.querySelector(".js-threshold-min");
 		$thresholdMin.addEventListener("change", () => {
 			getSelectedZone().setThresholdMin(
-				Math.min(100, Math.max($thresholdMin.value, 0))
+				Math.min(100, Math.max($thresholdMin.value, 0)),
 			);
 		});
 		$thresholdMax = $modalContent.querySelector(".js-threshold-max");
 		$thresholdMax.addEventListener("change", () => {
 			getSelectedZone().setThresholdMax(
-				Math.min(100, Math.max($thresholdMax.value, 0))
+				Math.min(100, Math.max($thresholdMax.value, 0)),
 			);
 		});
 
@@ -538,7 +538,7 @@ function zones(hasSubStream, getMonitorId) {
 		};
 
 		zones = denormalizeZones(value).map((z) =>
-			newZone($feedOverlay, z, stepSize, onZoneChange)
+			newZone($feedOverlay, z, stepSize, onZoneChange),
 		);
 		value = undefined;
 
@@ -765,19 +765,19 @@ function zones(hasSubStream, getMonitorId) {
 				id="${id}"
 				class="flex items-center"
 				style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
-					padding-bottom: 0.25rem;
+					border-bottom-width: 0.17rem;
+					padding-bottom: 0.84rem;
 				"
 			>
 				<label
 					class="grow w-full text-color"
 					style="
 						float: left;
-						min-width: 4rem;
-						font-size: 0.6rem;
+						min-width: 13.5rem;
+						font-size: 2rem;
 					"
 					>Zones</label
 				>
@@ -786,15 +786,15 @@ function zones(hasSubStream, getMonitorId) {
 						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							width: 1rem;
-							height: 1rem;
-							margin-left: 0.4rem;
-							border-radius: 0.2rem;
+							width: 3.4rem;
+							height: 3.4rem;
+							margin-left: 1.35rem;
+							border-radius: 0.68rem;
 						"
 					>
 						<img
 							class="icon-filter"
-							style="padding: 0.1rem;"
+							style="padding: 0.34rem;"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -841,7 +841,7 @@ function zones(hasSubStream, getMonitorId) {
 					zone.destroy();
 				}
 				zones = denormalizeZones(value).map((z) =>
-					newZone($feedOverlay, z, stepSize, onZoneChange)
+					newZone($feedOverlay, z, stepSize, onZoneChange),
 				);
 				setSelectedZoneIndex(0);
 				$zoneSelect.innerHTML = zoneSelectHTML();

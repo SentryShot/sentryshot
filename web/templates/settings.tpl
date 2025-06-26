@@ -142,7 +142,7 @@
 	@media only screen and (width >= 768px) {
 		.settings-navbar {
 			width: auto;
-			padding-top: 2rem;
+			padding-top: 6.75rem;
 		}
 
 		.settings-navbar-closed {
@@ -151,8 +151,8 @@
 
 		.settings-category {
 			width: auto;
-			min-width: 6rem;
-			max-width: 9rem;
+			min-width: 20rem;
+			max-width: 30.4rem;
 		}
 
 		.settings-category-wrapper {
@@ -170,7 +170,7 @@
 		.settings-sub-category {
 			visibility: hidden;
 			position: relative;
-			max-width: 12rem;
+			max-width: 40.5rem;
 			transition: transform 0ms;
 		}
 

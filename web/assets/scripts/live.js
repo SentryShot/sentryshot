@@ -139,7 +139,7 @@ function resBtn(content) {
 				style="
 					width: var(--options-menu-btn-width);
 					height: var(--options-menu-btn-width);
-					font-size: 0.5rem;
+					font-size: 1.7rem;
 				"
 			>
 				X

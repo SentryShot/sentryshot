@@ -19,14 +19,14 @@ test("newModal", () => {
 	expect(document.querySelector(".modal").innerHTML).toMatchInlineSnapshot(`
 <header class="modal-header flex bg-color2"
         style="
-							padding-left: 0.2rem;
-							padding-right: 0.2rem;
+							padding-left: 0.68rem;
+							padding-right: 0.68rem;
 						"
 >
   <span class="w-full text-center text-color"
         style="
-								padding-left: 0.7rem;
-								font-size: 0.8rem;
+								padding-left: 2.4rem;
+								font-size: 2.7rem;
 							"
   >
     test
@@ -34,11 +34,11 @@ test("newModal", () => {
   <button class="js-modal-close-btn flex bg-color3"
           style="
 								margin: auto;
-								border-radius: 0.1rem;
+								border-radius: 0.34rem;
 							"
   >
     <img class="icon-filter"
-         style="height: 0.9rem;"
+         style="height: 3rem;"
          src="assets/icons/feather/x.svg"
     >
   </button>
@@ -91,14 +91,14 @@ test("modalSelect", () => {
   <div class="modal js-modal flex">
     <header class="modal-header flex bg-color2"
             style="
-							padding-left: 0.2rem;
-							padding-right: 0.2rem;
+							padding-left: 0.68rem;
+							padding-right: 0.68rem;
 						"
     >
       <span class="w-full text-center text-color"
             style="
-								padding-left: 0.7rem;
-								font-size: 0.8rem;
+								padding-left: 2.4rem;
+								font-size: 2.7rem;
 							"
       >
         x
@@ -106,11 +106,11 @@ test("modalSelect", () => {
       <button class="js-modal-close-btn flex bg-color3"
               style="
 								margin: auto;
-								border-radius: 0.1rem;
+								border-radius: 0.34rem;
 							"
       >
         <img class="icon-filter"
-             style="height: 0.9rem;"
+             style="height: 3rem;"
              src="assets/icons/feather/x.svg"
         >
       </button>
@@ -126,9 +126,9 @@ test("modalSelect", () => {
         <span data="m1"
               class="js-option text-color"
               style="
-						padding: 0 0.2rem;
-						font-size: 0.8rem;
-						border-width: 0.01rem;
+						padding: 0 0.68rem;
+						font-size: 2.7rem;
+						border-width: 0.034rem;
 						border-style: solid;
 						border-color: var(--color1);
 					"
@@ -138,9 +138,9 @@ test("modalSelect", () => {
         <span data="m2"
               class="js-option text-color"
               style="
-						padding: 0 0.2rem;
-						font-size: 0.8rem;
-						border-width: 0.01rem;
+						padding: 0 0.68rem;
+						font-size: 2.7rem;
+						border-width: 0.034rem;
 						border-style: solid;
 						border-color: var(--color1);
 					"

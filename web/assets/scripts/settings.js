@@ -55,8 +55,8 @@ function newRenderer($parent) {
 						id="js-set-category-${category.name()}"
 						class="js-set-settings-category settings-nav-item flex items-center"
 						style="
-							padding: 0.1rem 1rem 0.1rem 0.4rem;
-							border-width: 0.01rem;
+							padding: 0.34rem 3.4rem 0.34rem 1.35rem;
+							border-width: 0.034rem;
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
@@ -65,13 +65,13 @@ function newRenderer($parent) {
 							class="icon-filter"
 							style="
 								aspect-ratio: 1;
-								height: 0.7rem;
-								margin-right: 0.3rem;
-								font-size: 0.8rem;
+								height: 2.4rem;
+								margin-right: 1rem;
+								font-size: 2.7rem;
 							"
 							src="${category.icon()}"
 						/>
-						<span class="text-color" style="font-size: 0.7rem;"
+						<span class="text-color" style="font-size: 2.4rem;"
 							>${category.title()}</span
 						>
 					</li>
@@ -145,8 +145,8 @@ function newSimpleCategory(category, title) {
 							class="w-full text-center text-color"
 							style="
 								margin: auto;
-								margin-right: 1.6rem;
-								font-size: 0.8rem;
+								margin-right: 5.4rem;
+								font-size: 2.7rem;
 							"
 						>${title}</span>
 					</div>
@@ -258,7 +258,7 @@ function newCategory(categoryName, title) {
 						class="settings-menubar js-settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							border-width: 0.01rem;
+							border-width: 0.034rem;
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
@@ -266,13 +266,13 @@ function newCategory(categoryName, title) {
 						<nav
 							class="js-settings-category-back flex shrink-0"
 							style="
-								margin-left: 0.2rem;
-								width: 1.4rem;
+								margin-left: 0.68rem;
+								width: 4.7rem;
 							"
 						>
 							<img
 								class="icon-filter"
-								style="width: 1.1rem;"
+								style="width: 3.7rem;"
 								src="${backIconPath}"
 							/>
 						</nav>
@@ -280,8 +280,8 @@ function newCategory(categoryName, title) {
 							class="js-category-title w-full text-center text-color"
 							style="
 								margin: auto;
-								margin-right: 1.6rem;
-								font-size: 0.8rem;
+								margin-right: 5.4rem;
+								font-size: 2.7rem;
 							"
 							>${title}</span
 						>
@@ -298,7 +298,7 @@ function newCategory(categoryName, title) {
 						class="js-settings-menubar settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							border-width: 0.01rem;
+							border-width: 0.034rem;
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
@@ -306,13 +306,13 @@ function newCategory(categoryName, title) {
 						<nav
 							class="js-settings-subcategory-back flex shrink-0"
 							style="
-								margin-left: 0.2rem;
-								width: 1.4rem;
+								margin-left: 0.68rem;
+								width: 4.7rem;
 							"
 						>
 							<img
 								class="icon-filter"
-								style="width: 1.1rem;"
+								style="width: 3.7rem;"
 								src="${backIconPath}"
 							/>
 						</nav>
@@ -320,8 +320,8 @@ function newCategory(categoryName, title) {
 							class="js-category-title w-full text-center text-color"
 							style="
 								margin: auto;
-								margin-right: 1.6rem;
-								font-size: 0.8rem;
+								margin-right: 5.4rem;
+								font-size: 2.7rem;
 							"
 						></span>
 					</div>
@@ -341,7 +341,7 @@ function newCategory(categoryName, title) {
 				$wrapper.classList.remove("settings-category-selected");
 				// @ts-ignore
 				for (const element of document.querySelectorAll(
-					".js-set-settings-category"
+					".js-set-settings-category",
 				)) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
@@ -445,7 +445,7 @@ function newCategory2(categoryName, title, form) {
 						class="settings-menubar js-settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							border-width: 0.01rem;
+							border-width: 0.034rem;
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
@@ -453,13 +453,13 @@ function newCategory2(categoryName, title, form) {
 						<nav
 							class="js-settings-category-back flex shrink-0"
 							style="
-								margin-left: 0.2rem;
-								width: 1.4rem;
+								margin-left: 0.68rem;
+								width: 4.7rem;
 							"
 						>
 							<img
 								class="icon-filter"
-								style="width: 1.1rem;"
+								style="width: 3.7rem;"
 								src="${backIconPath}"
 							/>
 						</nav>
@@ -467,8 +467,8 @@ function newCategory2(categoryName, title, form) {
 							class="js-category-title w-full text-center text-color"
 							style="
 								margin: auto;
-								margin-right: 1.6rem;
-								font-size: 0.8rem;
+								margin-right: 5.4rem;
+								font-size: 2.7rem;
 							"
 							>${title}</span
 						>
@@ -485,7 +485,7 @@ function newCategory2(categoryName, title, form) {
 						class="js-settings-menubar settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							border-width: 0.01rem;
+							border-width: 0.034rem;
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
@@ -493,13 +493,13 @@ function newCategory2(categoryName, title, form) {
 						<nav
 							class="js-settings-subcategory-back flex shrink-0"
 							style="
-								margin-left: 0.2rem;
-								width: 1.4rem;
+								margin-left: 0.68rem;
+								width: 4.7rem;
 							"
 						>
 							<img
 								class="icon-filter"
-								style="width: 1.1rem;"
+								style="width: 3.7rem;"
 								src="${backIconPath}"
 							/>
 						</nav>
@@ -507,8 +507,8 @@ function newCategory2(categoryName, title, form) {
 							class="js-category-title w-full text-center text-color"
 							style="
 								margin: auto;
-								margin-right: 1.6rem;
-								font-size: 0.8rem;
+								margin-right: 5.4rem;
+								font-size: 2.7rem;
 							"
 						></span>
 					</div>
@@ -528,7 +528,7 @@ function newCategory2(categoryName, title, form) {
 				$wrapper.classList.remove("settings-category-selected");
 				// @ts-ignore
 				for (const element of document.querySelectorAll(
-					".js-set-settings-category"
+					".js-set-settings-category",
 				)) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
@@ -652,14 +652,14 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 				<li
 					class="settings-nav-item js-nav flex items-center"
 					style="
-						padding: 0.1rem 1rem 0.1rem 0.4rem;
-						border-width: 0.01rem;
+						padding: 0.34rem 3.4rem 0.34rem 1.35rem;
+						border-width: 0.034rem;
 						border-color: var(--color3);
 						border-bottom-style: solid;
 					"
 					data="${m.id}"
 				>
-					<span class="text-color" style="font-size: 0.7rem;">${m.name}</span>
+					<span class="text-color" style="font-size: 2.4rem;">${m.name}</span>
 				</li>
 			`;
 		}
@@ -668,14 +668,14 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 			<button
 				class="js-add-btn settings-add-btn js-nav shrink-0"
 				style="
-					margin: 0.2rem auto 0.2rem 0.3rem;
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					border-radius: 0.1rem;
+					margin: 0.68rem auto 0.68rem 1rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					border-radius: 0.34rem;
 				"
 				data=""
 			>
-				<span class="text-color" style="font-size: 0.7rem;">Add</span>
+				<span class="text-color" style="font-size: 2.4rem;">Add</span>
 			</button>
 		`;
 
@@ -691,7 +691,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		// Update global `montiors` object so the groups category has updated values.
 		const m = await fetchGet(
 			new URL(relativePathname("api/monitors")),
-			"could not fetch monitors"
+			"could not fetch monitors",
 		);
 		for (const key in monitors) {
 			delete monitors[key];
@@ -721,7 +721,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 			new URL(relativePathname("api/monitor")),
 			monitor,
 			token,
-			"failed to save monitor"
+			"failed to save monitor",
 		);
 		if (!ok) {
 			return;
@@ -733,7 +733,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 			new URL(`${pathname}?${params}`),
 			monitor,
 			token,
-			"failed to restart monitor"
+			"failed to restart monitor",
 		);
 
 		load();
@@ -746,7 +746,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		const ok = await fetchDelete(
 			new URL(`${pathname}?${params}`),
 			token,
-			"failed to delete monitor"
+			"failed to delete monitor",
 		);
 		if (!ok) {
 			return;
@@ -813,7 +813,7 @@ function newMonitorGroups(token, fields, groups) {
 			new URL(relativePathname("api/monitor-groups")),
 			groups,
 			token,
-			"failed to save monitor groups"
+			"failed to save monitor groups",
 		);
 		if (!ok) {
 			return;
@@ -833,7 +833,7 @@ function newMonitorGroups(token, fields, groups) {
 			new URL(relativePathname("api/monitor-groups")),
 			groups,
 			token,
-			"failed to save monitor groups"
+			"failed to save monitor groups",
 		);
 		if (!ok) {
 			return;
@@ -890,13 +890,13 @@ function newMonitorGroups(token, fields, groups) {
 					class="settings-nav-item js-nav flex items-center"
 					data="${g.id}"
 					style="
-						padding: 0.1rem 1rem 0.1rem 0.4rem;
-						border-width: 0.01rem;
+						padding: 0.34rem 3.4rem 0.34rem 1.35rem;
+						border-width: 0.034rem;
 						border-color: var(--color3);
 						border-bottom-style: solid;
 					"
 				>
-					<span class="text-color" style="font-size: 0.7rem;">${g.name}</span>
+					<span class="text-color" style="font-size: 2.4rem;">${g.name}</span>
 				</li>
 			`;
 		}
@@ -905,14 +905,14 @@ function newMonitorGroups(token, fields, groups) {
 			<button
 				class="js-add-btn settings-add-btn js-nav shrink-0"
 				style="
-					margin: 0.2rem auto 0.2rem 0.3rem;
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					border-radius: 0.1rem;
+					margin: 0.68rem auto 0.68rem 1rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					border-radius: 0.34rem;
 				"
 				data=""
 			>
-				<span class="text-color" style="font-size: 0.7rem;">Add</span>
+				<span class="text-color" style="font-size: 2.4rem;">Add</span>
 			</button>
 		`;
 
@@ -1041,14 +1041,14 @@ function newAccount(token, fields) {
 				<li
 					class="settings-nav-item js-nav flex items-center"
 					style="
-						padding: 0.1rem 1rem 0.1rem 0.4rem;
-						border-width: 0.01rem;
+						padding: 0.34rem 3.4rem 0.34rem 1.35rem;
+						border-width: 0.034rem;
 						border-color: var(--color3);
 						border-bottom-style: solid;
 					"
 					data="${u.id}"
 				>
-					<span class="${c}" style="font-size: 0.7rem;">${u.username} </span>
+					<span class="${c}" style="font-size: 2.4rem;">${u.username} </span>
 				</li>
 			`;
 		}
@@ -1057,14 +1057,14 @@ function newAccount(token, fields) {
 			<button
 				class="js-add-btn settings-add-btn js-nav shrink-0"
 				style="
-					margin: 0.2rem auto 0.2rem 0.3rem;
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					border-radius: 0.1rem;
+					margin: 0.68rem auto 0.68rem 1rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					border-radius: 0.34rem;
 				"
 				data=""
 			>
-				<span class="text-color" style="font-size: 0.7rem;">Add</span>
+				<span class="text-color" style="font-size: 2.4rem;">Add</span>
 			</button>
 		`;
 
@@ -1078,7 +1078,7 @@ function newAccount(token, fields) {
 		category.closeSubcategory();
 		const accounts = await fetchGet(
 			new URL(relativePathname("api/accounts")),
-			"failed to get accounts"
+			"failed to get accounts",
 		);
 		renderAccountList(accounts);
 	};
@@ -1101,7 +1101,7 @@ function newAccount(token, fields) {
 			new URL(relativePathname("api/account")),
 			removeEmptyValues(account),
 			token,
-			"failed to save account"
+			"failed to save account",
 		);
 		if (!ok) {
 			return;
@@ -1117,7 +1117,7 @@ function newAccount(token, fields) {
 		const ok = await fetchDelete(
 			new URL(`${pathname}?${params}`),
 			token,
-			"failed to delete account"
+			"failed to delete account",
 		);
 		if (!ok) {
 			return;
@@ -1171,18 +1171,18 @@ function newSelectMonitorField(monitors) {
 					class="monitor-selector-item relative flex items-center"
 					style="
 						width: auto;
-						padding: 0.1rem 0.2rem;
-						border-width: 0.01rem;
+						padding: 0.34rem 0.68rem;
+						border-width: 0.034rem;
 						border-style: solid;
 						border-color: var(--color1);
-						font-size: 0.7rem;
+						font-size: 2.4rem;
 					"
 				>
 					<span
 						class="text-color"
 						style="
 							margin-right: auto;
-							padding-right: 0.2rem;
+							padding-right: 0.68rem;
 							user-select: none;
 						"
 						>${name}</span
@@ -1192,7 +1192,7 @@ function newSelectMonitorField(monitors) {
 						style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: 0.14rem;
+							border-radius: 0.47rem;
 							user-select: none;
 						"
 					>
@@ -1211,7 +1211,7 @@ function newSelectMonitorField(monitors) {
 							style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: 0.1rem;
+								border-radius: 0.34rem;
 							"
 						></div>
 						<img
@@ -1257,10 +1257,10 @@ function newSelectMonitorField(monitors) {
 				id=${id}
 				class="flex items-center"
 				style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 			></li>
 		`,
@@ -1347,7 +1347,7 @@ function newSourceField(options, getField) {
 					custom: true,
 				},
 				id,
-				"Source"
+				"Source",
 			);
 		})(),
 		init() {
@@ -1390,7 +1390,7 @@ function newSourceRTSP() {
 			{
 				label: "Main stream",
 				placeholder: "rtsp://x.x.x.x/main",
-			}
+			},
 		),
 		subStream: newField(
 			[],
@@ -1400,7 +1400,7 @@ function newSourceRTSP() {
 			{
 				label: "Sub stream",
 				placeholder: "rtsp://x.x.x.x/sub (optional)",
-			}
+			},
 		),
 	};
 
@@ -1417,7 +1417,7 @@ function newSourceRTSP() {
 		}
 		element.insertAdjacentHTML("beforeend", modal.html);
 		// @ts-ignore
-		element.querySelector(".js-modal").style.maxWidth = "12rem";
+		element.querySelector(".js-modal").style.maxWidth = "40.5rem";
 
 		modal.init();
 		form.init();
@@ -1491,7 +1491,7 @@ function init() {
 		},
 		{
 			label: "ID",
-		}
+		},
 	);
 	monitorFields.name = fieldTemplate.text("Name", "my_monitor");
 	monitorFields.enable = fieldTemplate.toggle("Enable monitor", true);
@@ -1541,7 +1541,7 @@ function init() {
 				label: "Username",
 				placeholder: "name",
 				initial: "",
-			}
+			},
 		),
 		isAdmin: fieldTemplate.toggle("Admin"),
 		password: newPasswordField(),

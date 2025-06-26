@@ -75,7 +75,7 @@ function newLogger(formatLog, element) {
 				time - 1,
 				levels,
 				sources,
-				monitors
+				monitors,
 			);
 			savedlogsLoader = newSavedLogsLoader(
 				newLoadingIndicator($loadingIndicator),
@@ -85,7 +85,7 @@ function newLogger(formatLog, element) {
 				time,
 				levels,
 				sources,
-				monitors
+				monitors,
 			);
 			savedlogsLoader.lazyLoad();
 		},
@@ -111,7 +111,7 @@ async function fetchLogs(abortSignal, levels, sources, monitors, time) {
 			monitors,
 			time,
 			limit: 20,
-		})
+		}),
 	);
 
 	const url = new URL(`${relativePathname("api/log/query")}?${query}`);
@@ -164,7 +164,7 @@ function newFeedLogger(formatLog, element, time, levels, sources, monitors) {
 				sources,
 				monitors,
 				time,
-			})
+			}),
 		);
 		const url = `${path}?${query}`;
 
@@ -198,7 +198,7 @@ function newFeedLogger(formatLog, element, time, levels, sources, monitors) {
 					alert(
 						`failed to fetch logs: ${
 							response.status
-						}, ${await response.text()}`
+						}, ${await response.text()}`,
 					);
 					return;
 				}
@@ -337,7 +337,7 @@ function newSavedLogsLoader(
 	time,
 	levels,
 	sources,
-	monitors
+	monitors,
 ) {
 	const [IDLE, FETCHING, CANCELLED] = [0, 1, 2];
 	let state = IDLE;
@@ -363,7 +363,7 @@ function newSavedLogsLoader(
 					levels,
 					sources,
 					monitors,
-					time
+					time,
 				);
 				loadingIndicator.setLoading(false);
 				// Check state after await point.
@@ -423,7 +423,7 @@ function newFormater(monitorNameByID, timeZone) {
 	const unixToDateStr = (unixMillisecond) => {
 		const { YY, MM, DD, hh, mm, ss } = fromUTC2(
 			new Date(unixMillisecond / 1000),
-			timeZone
+			timeZone,
 		);
 		return `${YY}-${MM}-${DD}_${hh}:${mm}:${ss}`;
 	};
@@ -490,7 +490,7 @@ function newMultiSelect(label, values, initial) {
 						style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: 0.14rem;
+							border-radius: 0.47rem;
 							user-select: none;
 						"
 					>
@@ -509,7 +509,7 @@ function newMultiSelect(label, values, initial) {
 							style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: 0.1rem;
+								border-radius: 0.34rem;
 							"
 						></div>
 						<img
@@ -523,7 +523,7 @@ function newMultiSelect(label, values, initial) {
 					</div>
 					<span
 						class="text-color"
-						style="margin-left: 0.2rem; font-size: 0.5rem;"
+						style="margin-left: 0.68rem; font-size: 1.7rem;"
 						>${name}</span
 					>
 				</div>
@@ -572,18 +572,18 @@ function newMultiSelect(label, values, initial) {
 				id="${id}"
 				class="items-center w-full"
 				style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 			>
 				<label
 					class="grow w-full text-color"
 					style="
 					   float: left;
-					   min-width: 4rem;
-					   font-size: 0.6rem;
+					   min-width: 13.5rem;
+					   font-size: 2rem;
 					"
 					>${label}</label
 				>
@@ -659,10 +659,10 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 				id="${elementID}"
 				class="items-center"
 				style="
-					padding: 0.1rem;
+					padding: 0.34rem;
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.05rem;
+					border-bottom-width: 0.17rem;
 				"
 			>
 				<label
@@ -670,8 +670,8 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 					class="grow w-full text-color"
 					style="
 					   float: left;
-					   min-width: 4rem;
-					   font-size: 0.6rem;
+					   min-width: 13.5rem;
+					   font-size: 2rem;
 					"
 					>Monitor</label
 				>
@@ -679,7 +679,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 					<select
 						id="${inputID}"
 						class="w-full"
-						style="padding-left: 0.2rem; height: 1rem; font-size: 0.5rem;"
+						style="padding-left: 0.68rem; height: 3.4rem; font-size: 1.7rem;"
 					>
 						${options}
 					</select>
@@ -687,15 +687,15 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							width: 1rem;
-							height: 1rem;
-							margin-left: 0.4rem;
-							border-radius: 0.2rem;
+							width: 3.4rem;
+							height: 3.4rem;
+							margin-left: 1.35rem;
+							border-radius: 0.68rem;
 						"
 					>
 						<img
 							class="icon-filter"
-							style="padding: 0.1rem;"
+							style="padding: 0.34rem;"
 							src="assets/icons/feather/video.svg"
 						/>
 					</button>
@@ -790,25 +790,25 @@ function newLogSelector(logger, formFields) {
 			<button
 				class="js-reset bg-color3 hover:bg-color2"
 				style="
-				   margin: 0.2rem;
-				   padding-left: 0.1rem;
-				   padding-right: 0.1rem;
-				   border-radius: 0.2rem;
+				   margin: 0.68rem;
+				   padding-left: 0.34rem;
+				   padding-right: 0.34rem;
+				   border-radius: 0.68rem;
 				"
 			>
-				<span class="text-color" style="font-size: 0.7rem;">Reset</span>
+				<span class="text-color" style="font-size: 2.4rem;">Reset</span>
 			</button>
 			<button
 				class="log-apply-btn js-apply bg-green hover:bg-green2"
 				style="
 					float: right;
-					margin: 0.2rem;
-					padding-left: 0.1rem;
-					padding-right: 0.1rem;
-					border-radius: 0.2rem;
+					margin: 0.68rem;
+					padding-left: 0.34rem;
+					padding-right: 0.34rem;
+					border-radius: 0.68rem;
 				"
 			>
-				<span class="text-color" style="font-size: 0.7rem;">Apply</span>
+				<span class="text-color" style="font-size: 2.4rem;">Apply</span>
 			</button>
 		</div>
 	`;
@@ -853,7 +853,7 @@ function init() {
 		level: fieldTemplate.select(
 			"Level",
 			["error", "warning", "info", "debug"],
-			"info"
+			"info",
 		),
 		monitor: newMonitorPicker(monitors),
 		sources: newMultiSelect("Sources", logSources, logSources),

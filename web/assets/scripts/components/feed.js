@@ -88,7 +88,7 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: 0.2rem;
+							border-radius: 0.68rem;
 						"
 					>
 						${html}
@@ -213,7 +213,7 @@ function newFullscreenBtn() {
 			<button
 				class="js-fullscreen-btn feed-btn"
 				style="
-					padding: 0.15rem;
+					padding: 0.51rem;
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -221,7 +221,7 @@ function newFullscreenBtn() {
 			>
 				<img
 					class="icon-filter"
-					style="height: 0.7rem; aspect-ratio: 1;"
+					style="height: 2.4rem; aspect-ratio: 1;"
 					src="${iconMaximizePath}"
 				/>
 			</button>
@@ -264,7 +264,7 @@ function newRecordingsBtn(monitorIds) {
 			<a
 				class="feed-btn"
 				style="
-					padding: 0.15rem;
+					padding: 0.51rem;
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -273,7 +273,7 @@ function newRecordingsBtn(monitorIds) {
 			>
 				<img
 					class="icon-filter"
-					style="height: 0.65rem; aspect-ratio: 1;"
+					style="height: 2.2rem; aspect-ratio: 1;"
 					src="${iconRecordingsPath}"
 				/>
 			</a>

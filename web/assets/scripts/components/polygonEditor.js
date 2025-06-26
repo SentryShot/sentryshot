@@ -117,7 +117,7 @@ function newPolygonEditor(element, props) {
 
 			// Arrows.
 			let rem = Number.parseFloat(
-				getComputedStyle(document.documentElement).fontSize
+				getComputedStyle(document.documentElement).fontSize,
 			);
 			if (!rem) {
 				rem = 16;

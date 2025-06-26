@@ -9,11 +9,11 @@
 	>
 		<img
 			class="icon-filter"
-			style="aspect-ratio: 1; height: 0.9rem"
+			style="aspect-ratio: 1; height: 3rem"
 			src="assets/icons/feather/menu.svg"
 		/>
 	</div>
-	<h1 id="current-page" class="text-color" style="margin: auto; font-size: 0.7rem">
+	<h1 id="current-page" class="text-color" style="margin: auto; font-size: 2.4rem">
 		{{ current_page }}
 	</h1>
 	<div
@@ -28,7 +28,7 @@
 	>
 		<img
 			class="icon-filter"
-			style="aspect-ratio: 1; height: 0.9rem"
+			style="aspect-ratio: 1; height: 3rem"
 			src="assets/icons/feather/sliders.svg"
 		/>
 	</div>
@@ -77,13 +77,13 @@
 			width: var(--sidebar-width);
 			padding: var(--icon-padding);
 			text-decoration: none;
-			padding-left: 0.2rem;
+			padding-left: 0.68rem;
 		"
 	>
 		<img
 			class="icon-filter"
 			src="assets/icons/feather/x.svg"
-			style="height: 1.1rem; aspect-ratio: 1"
+			style="height: 3.7rem; aspect-ratio: 1"
 		/>
 	</div>
 	<nav class="flex flex-col h-full" style="overflow-x: hidden">
@@ -95,19 +95,19 @@
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
 				text-decoration: none;
-				border-width: 0.01rem;
+				border-width: 0.034rem;
 				border-color: var(--color2);
 				border-bottom-style: solid;
 				border-top: none;
-				padding-left: 0.2rem;
+				padding-left: 0.68rem;
 			"
 		>
 			<img
 				class="icon-filter"
 				src="assets/icons/feather/video.svg"
-				style="height: 1.1rem; aspect-ratio: 1"
+				style="height: 3.7rem; aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
+			<span class="text-color" style="margin-left: 1.35rem; font-size: 2rem"
 				>Live</span
 			>
 		</a>
@@ -119,18 +119,18 @@
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
 				text-decoration: none;
-				border-width: 0.01rem;
+				border-width: 0.034rem;
 				border-color: var(--color2);
 				border-bottom-style: solid;
-				padding-left: 0.2rem;
+				padding-left: 0.68rem;
 			"
 		>
 			<img
 				class="icon-filter"
 				src="assets/icons/feather/film.svg"
-				style="height: 1.1rem; aspect-ratio: 1"
+				style="height: 3.7rem; aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
+			<span class="text-color" style="margin-left: 1.35rem; font-size: 2rem"
 				>Recordings</span
 			>
 		</a>
@@ -143,18 +143,18 @@
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
 				text-decoration: none;
-				border-width: 0.01rem;
+				border-width: 0.034rem;
 				border-color: var(--color2);
 				border-bottom-style: solid;
-				padding-left: 0.2rem;
+				padding-left: 0.68rem;
 			"
 		>
 			<img
 				class="icon-filter"
 				src="assets/icons/feather/settings.svg"
-				style="height: 1.1rem; aspect-ratio: 1"
+				style="height: 3.7rem; aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
+			<span class="text-color" style="margin-left: 1.35rem; font-size: 2rem"
 				>Settings</span
 			>
 		</a>
@@ -166,18 +166,18 @@
 				width: var(--sidebar-width);
 				padding: var(--icon-padding);
 				text-decoration: none;
-				border-width: 0.01rem;
+				border-width: 0.034rem;
 				border-color: var(--color2);
 				border-bottom-style: solid;
-				padding-left: 0.2rem;
+				padding-left: 0.68rem;
 			"
 		>
 			<img
 				class="icon-filter"
 				src="assets/icons/feather/book-open.svg"
-				style="height: 1.1rem; aspect-ratio: 1"
+				style="height: 3.7rem; aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: 0.4rem; font-size: 0.6rem"
+			<span class="text-color" style="margin-left: 1.35rem; font-size: 2rem"
 				>Logs</span
 			>
 		</a>
