@@ -115,16 +115,16 @@ describe("newForm", () => {
 
 			expect(form.html()).toMatchInlineSnapshot(`
 <ul class="form"
-    style="padding: 0 calc(var(--spacing) * 0.34); overflow-y: auto;"
+    style="padding: 0 calc(var(--spacing) * 1.4); overflow-y: auto;"
 >
   html
   <div class="flex">
     <button id="uid1"
             class="bg-red hover:bg-red2"
             style="
-					margin: calc(var(--spacing) * 0.68);
-					padding-left: calc(var(--spacing) * 0.34);
-					padding-right: calc(var(--spacing) * 0.34);
+					margin: calc(var(--spacing) * 2.7);
+					padding-left: calc(var(--spacing) * 1.4);
+					padding-right: calc(var(--spacing) * 1.4);
 					border-radius: 0.68rem;
 					margin-left: auto;
 				"
@@ -164,16 +164,16 @@ describe("newForm", () => {
 
 		expect(form.html()).toMatchInlineSnapshot(`
 <ul class="form"
-    style="padding: 0 calc(var(--spacing) * 0.34); overflow-y: auto;"
+    style="padding: 0 calc(var(--spacing) * 1.4); overflow-y: auto;"
 >
   html
   <div class="flex">
     <button id="uid1"
             class="bg-green hover:bg-green2"
             style="
-					margin: calc(var(--spacing) * 0.68);
-					padding-left: calc(var(--spacing) * 0.34);
-					padding-right: calc(var(--spacing) * 0.34);
+					margin: calc(var(--spacing) * 2.7);
+					padding-left: calc(var(--spacing) * 1.4);
+					padding-right: calc(var(--spacing) * 1.4);
 					border-radius: 0.68rem;
 				"
     >
@@ -186,9 +186,9 @@ describe("newForm", () => {
     <button id="uid2"
             class="bg-red hover:bg-red2"
             style="
-					margin: calc(var(--spacing) * 0.68);
-					padding-left: calc(var(--spacing) * 0.34);
-					padding-right: calc(var(--spacing) * 0.34);
+					margin: calc(var(--spacing) * 2.7);
+					padding-left: calc(var(--spacing) * 1.4);
+					padding-right: calc(var(--spacing) * 1.4);
 					border-radius: 0.68rem;
 					margin-left: auto;
 				"
@@ -229,7 +229,7 @@ describe("newField", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: calc(var(--spacing) * 0.34);
+					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -368,7 +368,7 @@ describe("fieldTemplate", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: calc(var(--spacing) * 0.34);
+					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -426,7 +426,7 @@ describe("fieldTemplate", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: calc(var(--spacing) * 0.34);
+					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -488,7 +488,7 @@ describe("fieldTemplate", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: calc(var(--spacing) * 0.34);
+					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -508,7 +508,7 @@ describe("fieldTemplate", () => {
     <select id="uid1"
             class="js-input w-full"
             style="
-						padding-left: calc(var(--spacing) * 0.68);
+						padding-left: calc(var(--spacing) * 2.7);
 						height: 3.4rem;
 						font-size: 1.7rem;
 					"
@@ -542,7 +542,7 @@ describe("fieldTemplate", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: calc(var(--spacing) * 0.34);
+					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -562,7 +562,7 @@ describe("fieldTemplate", () => {
     <select id="uid1"
             class="js-input w-full"
             style="
-						padding-left: calc(var(--spacing) * 0.68);
+						padding-left: calc(var(--spacing) * 2.7);
 						height: 3.4rem;
 						font-size: 1.7rem;
 					"
@@ -599,7 +599,7 @@ describe("fieldTemplate", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: calc(var(--spacing) * 0.34);
+					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -619,7 +619,7 @@ describe("fieldTemplate", () => {
     <select id="uid1"
             class="js-input w-full"
             style="
-						padding-left: calc(var(--spacing) * 0.68);
+						padding-left: calc(var(--spacing) * 2.7);
 						height: 3.4rem;
 						font-size: 1.7rem;
 					"
@@ -639,12 +639,12 @@ describe("fieldTemplate", () => {
 						aspect-ratio: 1;
 						width: 3.4rem;
 						height: 3.4rem;
-						margin-left: calc(var(--spacing) * 1.35);
+						margin-left: calc(var(--spacing) * 5.4);
 						border-radius: 0.68rem;
 					"
     >
       <img class="icon-filter"
-           style="padding: calc(var(--spacing) * 0.34);"
+           style="padding: calc(var(--spacing) * 1.4);"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
@@ -702,7 +702,7 @@ describe("selectCustomField", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: calc(var(--spacing) * 0.34);
+					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -722,7 +722,7 @@ describe("selectCustomField", () => {
     <select id="uid1"
             class="js-input w-full"
             style="
-						padding-left: calc(var(--spacing) * 0.68);
+						padding-left: calc(var(--spacing) * 2.7);
 						height: 3.4rem;
 						font-size: 1.7rem;
 					"
@@ -742,12 +742,12 @@ describe("selectCustomField", () => {
 						aspect-ratio: 1;
 						width: 3.4rem;
 						height: 3.4rem;
-						margin-left: calc(var(--spacing) * 1.35);
+						margin-left: calc(var(--spacing) * 5.4);
 						border-radius: 0.68rem;
 					"
     >
       <img class="icon-filter"
-           style="padding: calc(var(--spacing) * 0.34);"
+           style="padding: calc(var(--spacing) * 1.4);"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
@@ -782,7 +782,7 @@ describe("passwordField", () => {
 <li id="js-uid1"
     class="items-center"
     style="
-					padding: calc(var(--spacing) * 0.34);
+					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -816,7 +816,7 @@ describe("passwordField", () => {
 <li id="js-uid2"
     class="items-center"
     style="
-					padding: calc(var(--spacing) * 0.34);
+					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;

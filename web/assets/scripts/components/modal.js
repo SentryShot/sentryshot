@@ -42,14 +42,14 @@ function newModal(label, content = "") {
 					<header
 						class="modal-header flex bg-color2"
 						style="
-							padding-left: calc(var(--spacing) * 0.68);
-							padding-right: calc(var(--spacing) * 0.68);
+							padding-left: calc(var(--spacing) * 2.7);
+							padding-right: calc(var(--spacing) * 2.7);
 						"
 					>
 						<span
 							class="w-full text-center text-color"
 							style="
-								padding-left: calc(var(--spacing) * 2.4);
+								padding-left: calc(var(--spacing) * 10);
 								font-size: 2.7rem;
 							"
 						>${label}</span>
@@ -133,7 +133,7 @@ function newModalSelect(name, options, onSelect) {
 					data="${option}"
 					class="js-option text-color"
 					style="
-						padding: 0 calc(var(--spacing) * 0.68);
+						padding: 0 calc(var(--spacing) * 2.7);
 						font-size: 2.7rem;
 						border-width: 0.034rem;
 						border-style: solid;

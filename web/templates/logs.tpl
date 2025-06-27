@@ -43,7 +43,7 @@
 						style="
 							width: 3.7rem;
 							height: 3.7rem;
-							padding: calc(var(--spacing) * 0.51);
+							padding: calc(var(--spacing) * 2);
 						"
 						src="assets/icons/feather/arrow-left.svg"
 					/>

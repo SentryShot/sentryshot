@@ -117,7 +117,7 @@ describe("MultiSelect", () => {
 <li id="uid4"
     class="items-center w-full"
     style="
-					padding: calc(var(--spacing) * 0.34);
+					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -170,7 +170,7 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 0.68); font-size: 1.7rem;"
+            style="margin-left: calc(var(--spacing) * 2.7); font-size: 1.7rem;"
       >
         a
       </span>
@@ -212,7 +212,7 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 0.68); font-size: 1.7rem;"
+            style="margin-left: calc(var(--spacing) * 2.7); font-size: 1.7rem;"
       >
         b
       </span>
@@ -254,7 +254,7 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 0.68); font-size: 1.7rem;"
+            style="margin-left: calc(var(--spacing) * 2.7); font-size: 1.7rem;"
       >
         c
       </span>
@@ -382,7 +382,7 @@ describe("logSelector", () => {
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <div class="js-sidebar">
   <ul class="form"
-      style="padding: 0 calc(var(--spacing) * 0.34); overflow-y: auto;"
+      style="padding: 0 calc(var(--spacing) * 1.4); overflow-y: auto;"
   >
     levelHTMLsourcesHTMLmonitorHTML
     <div class="flex">
@@ -391,9 +391,9 @@ describe("logSelector", () => {
   <div>
     <button class="js-reset bg-color3 hover:bg-color2"
             style="
-				   margin: calc(var(--spacing) * 0.68);
-				   padding-left: calc(var(--spacing) * 0.34);
-				   padding-right: calc(var(--spacing) * 0.34);
+				   margin: calc(var(--spacing) * 2.7);
+				   padding-left: calc(var(--spacing) * 1.4);
+				   padding-right: calc(var(--spacing) * 1.4);
 				   border-radius: 0.68rem;
 				"
     >
@@ -406,9 +406,9 @@ describe("logSelector", () => {
     <button class="log-apply-btn js-apply bg-green hover:bg-green2"
             style="
 					float: right;
-					margin: calc(var(--spacing) * 0.68);
-					padding-left: calc(var(--spacing) * 0.34);
-					padding-right: calc(var(--spacing) * 0.34);
+					margin: calc(var(--spacing) * 2.7);
+					padding-left: calc(var(--spacing) * 1.4);
+					padding-right: calc(var(--spacing) * 1.4);
 					border-radius: 0.68rem;
 				"
     >

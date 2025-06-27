@@ -76,26 +76,17 @@ describe("newPlayer", () => {
 			"
     >
       <span class="js-date text-color bg-color0"
-            style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+            style="padding: 0.05em 0.4em 0.05em 0.2em;"
       >
         2001-06-02
       </span>
       <span class="js-time text-color bg-color0"
-            style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+            style="padding: 0.05em 0.4em 0.05em 0.2em;"
       >
         00:00:00
       </span>
       <span class="text-color bg-color0"
-            style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+            style="padding: 0.05em 0.4em 0.05em 0.2em;"
       >
         D
       </span>
@@ -139,9 +130,10 @@ describe("newPlayer", () => {
 						--player-timeline-width: 90%;
 					"
   >
-    <video class="w-full h-full"
-           style="
+    <video style="
 				max-height: 100vh;
+				min-width: 100%;
+				min-height: 100%;
 				object-fit: contain;
 			"
            disablepictureinpicture
@@ -165,8 +157,8 @@ describe("newPlayer", () => {
            class="js-checkbox player-overlay-checkbox absolute"
            style="opacity: 0;"
     >
-    <label for="uid1-overlay-checkbox absolute"
-           class="w-full h-full"
+    <label for="uid1-overlay-checkbox"
+           class="w-full h-full absolute"
            style="
 				z-index: 1;
 				opacity: 0.5;
@@ -180,7 +172,7 @@ describe("newPlayer", () => {
     >
       <button class="js-play-btn bg-color0"
               style="
-					padding: calc(var(--spacing) * 0.68);
+					padding: calc(var(--spacing) * 2.7);
 					font-size: 0;
 					border-radius: 50%;
 					opacity: 0.8;
@@ -226,8 +218,8 @@ describe("newPlayer", () => {
                 style="
 					box-sizing: border-box;
 					width: var(--player-timeline-width);
-					padding-top: calc(var(--spacing) * 0.34);
-					padding-bottom: calc(var(--spacing) * 0.34);
+					padding-top: calc(var(--spacing) * 1.4);
+					padding-bottom: calc(var(--spacing) * 1.4);
 					background: rgb(0 0 0 / 0%);
 					opacity: 0.8;
 					user-select: none;
@@ -306,26 +298,17 @@ describe("newPlayer", () => {
 				"
       >
         <span class="js-date text-color bg-color0"
-              style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+              style="padding: 0.05em 0.4em 0.05em 0.2em;"
         >
           2001-06-02
         </span>
         <span class="js-time text-color bg-color0"
-              style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+              style="padding: 0.05em 0.4em 0.05em 0.2em;"
         >
           00:00:00
         </span>
         <span class="text-color bg-color0"
-              style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+              style="padding: 0.05em 0.4em 0.05em 0.2em;"
         >
           D
         </span>
@@ -381,10 +364,7 @@ describe("newPlayer", () => {
 		
         <span
           class="js-date text-color bg-color0"
-          style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+          style="padding: 0.05em 0.4em 0.05em 0.2em;"
         >
           2001-06-02
         </span>
@@ -392,10 +372,7 @@ describe("newPlayer", () => {
 		
         <span
           class="js-time text-color bg-color0"
-          style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+          style="padding: 0.05em 0.4em 0.05em 0.2em;"
         >
           00:00:00
         </span>
@@ -403,10 +380,7 @@ describe("newPlayer", () => {
 		
         <span
           class="text-color bg-color0"
-          style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+          style="padding: 0.05em 0.4em 0.05em 0.2em;"
         >
           D
         </span>
@@ -499,26 +473,17 @@ describe("newPlayer", () => {
 			"
     >
       <span class="js-date text-color bg-color0"
-            style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+            style="padding: 0.05em 0.4em 0.05em 0.2em;"
       >
         2001-06-02
       </span>
       <span class="js-time text-color bg-color0"
-            style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+            style="padding: 0.05em 0.4em 0.05em 0.2em;"
       >
         00:00:00
       </span>
       <span class="text-color bg-color0"
-            style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+            style="padding: 0.05em 0.4em 0.05em 0.2em;"
       >
         D
       </span>

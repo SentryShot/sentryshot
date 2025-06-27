@@ -95,26 +95,15 @@ function newPlayer(data, isAdmin, token) {
 	const topOverlayHTML = /* HTML */ `
 		<span
 			class="js-date text-color bg-color0"
-			style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+			style="padding: 0.05em 0.4em 0.05em 0.2em;"
 			>${dateString}</span
 		>
 		<span
 			class="js-time text-color bg-color0"
-			style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+			style="padding: 0.05em 0.4em 0.05em 0.2em;"
 			>${timeString}</span
 		>
-		<span
-			class="text-color bg-color0"
-			style="
-				padding: 0.05em 0.4em 0.05em 0.2em;
-				font-size: 40%;
-			"
+		<span class="text-color bg-color0" style="padding: 0.05em 0.4em 0.05em 0.2em;"
 			>${d.name}</span
 		>
 	`;
@@ -145,9 +134,10 @@ function newPlayer(data, isAdmin, token) {
 
 	const videoHTML = /* HTML */ `
 		<video
-			class="w-full h-full"
 			style="
 				max-height: 100vh;
+				min-width: 100%;
+				min-height: 100%;
 				object-fit: contain;
 			"
 			disablePictureInPicture
@@ -162,8 +152,8 @@ function newPlayer(data, isAdmin, token) {
 			type="checkbox"
 		>
 		<label
-			for="${elementID}-overlay-checkbox absolute"
-			class="w-full h-full"
+			for="${elementID}-overlay-checkbox"
+			class="w-full h-full absolute"
 			style="
 				z-index: 1;
 				opacity: 0.5;
@@ -178,7 +168,7 @@ function newPlayer(data, isAdmin, token) {
 			<button
 				class="js-play-btn bg-color0"
 				style="
-					padding: calc(var(--spacing) * 0.68);
+					padding: calc(var(--spacing) * 2.7);
 					font-size: 0;
 					border-radius: 50%;
 					opacity: 0.8;
@@ -205,8 +195,8 @@ function newPlayer(data, isAdmin, token) {
 				style="
 					box-sizing: border-box;
 					width: var(--player-timeline-width);
-					padding-top: calc(var(--spacing) * 0.34);
-					padding-bottom: calc(var(--spacing) * 0.34);
+					padding-top: calc(var(--spacing) * 1.4);
+					padding-bottom: calc(var(--spacing) * 1.4);
 					background: rgb(0 0 0 / 0%);
 					opacity: 0.8;
 					user-select: none;

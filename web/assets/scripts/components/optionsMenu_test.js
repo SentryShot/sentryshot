@@ -40,7 +40,7 @@ describe("optionsGridSize", () => {
          style="
 							aspect-ratio: 1;
 							height: 2.7rem;
-							margin: calc(var(--spacing) * 0.68);
+							margin: calc(var(--spacing) * 2.7);
 							font-size: 0;
 						"
          src="assets/icons/feather/plus.svg"
@@ -58,7 +58,7 @@ describe("optionsGridSize", () => {
          style="
 							aspect-ratio: 1;
 							height: 2.7rem;
-							margin: calc(var(--spacing) * 0.68);
+							margin: calc(var(--spacing) * 2.7);
 							font-size: 0;
 						"
          src="assets/icons/feather/minus.svg"
@@ -329,13 +329,13 @@ describe("optionsMonitorGroups", () => {
 
 		const $picker = document.querySelector(".js-select-one");
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
-<span style="padding: calc(var(--spacing) * 0.34); font-size: 2rem;">
+<span style="padding: calc(var(--spacing) * 1.4); font-size: 2rem;">
   Groups
 </span>
 <span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					padding: calc(var(--spacing) * 0.34) calc(var(--spacing) * 0.68);
+					padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 2.7);
 					font-size: 2.4rem;
 					border-top: solid;
 					border-top-width: 0.034rem;
@@ -347,7 +347,7 @@ describe("optionsMonitorGroups", () => {
 <span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					padding: calc(var(--spacing) * 0.34) calc(var(--spacing) * 0.68);
+					padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 2.7);
 					font-size: 2.4rem;
 					border-top: solid;
 					border-top-width: 0.034rem;
@@ -360,13 +360,13 @@ describe("optionsMonitorGroups", () => {
 
 		document.querySelector(".js-select-one span").click();
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
-<span style="padding: calc(var(--spacing) * 0.34); font-size: 2rem;">
+<span style="padding: calc(var(--spacing) * 1.4); font-size: 2rem;">
   Groups
 </span>
 <span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					padding: calc(var(--spacing) * 0.34) calc(var(--spacing) * 0.68);
+					padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 2.7);
 					font-size: 2.4rem;
 					border-top: solid;
 					border-top-width: 0.034rem;
@@ -378,7 +378,7 @@ describe("optionsMonitorGroups", () => {
 <span class="js-select-one-item bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					padding: calc(var(--spacing) * 0.34) calc(var(--spacing) * 0.68);
+					padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 2.7);
 					font-size: 2.4rem;
 					border-top: solid;
 					border-top-width: 0.034rem;
