@@ -213,7 +213,7 @@ function newFullscreenBtn() {
 			<button
 				class="js-fullscreen-btn feed-btn"
 				style="
-					padding: 0.51rem;
+					padding: calc(var(--spacing) * 0.51);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -264,7 +264,7 @@ function newRecordingsBtn(monitorIds) {
 			<a
 				class="feed-btn"
 				style="
-					padding: 0.51rem;
+					padding: calc(var(--spacing) * 0.51);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;

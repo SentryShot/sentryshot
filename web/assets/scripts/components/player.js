@@ -178,7 +178,7 @@ function newPlayer(data, isAdmin, token) {
 			<button
 				class="js-play-btn bg-color0"
 				style="
-					padding: 0.68rem;
+					padding: calc(var(--spacing) * 0.68);
 					font-size: 0;
 					border-radius: 50%;
 					opacity: 0.8;
@@ -205,8 +205,8 @@ function newPlayer(data, isAdmin, token) {
 				style="
 					box-sizing: border-box;
 					width: var(--player-timeline-width);
-					padding-top: 0.34rem;
-					padding-bottom: 0.34rem;
+					padding-top: calc(var(--spacing) * 0.34);
+					padding-bottom: calc(var(--spacing) * 0.34);
 					background: rgb(0 0 0 / 0%);
 					opacity: 0.8;
 					user-select: none;

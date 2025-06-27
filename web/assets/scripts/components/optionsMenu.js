@@ -98,7 +98,7 @@ const newOptionsBtn = {
 						style="
 							aspect-ratio: 1;
 							height: 2.7rem;
-							margin: 0.68rem;
+							margin: calc(var(--spacing) * 0.68);
 							font-size: 0;
 						"
 						src="assets/icons/feather/plus.svg"
@@ -118,7 +118,7 @@ const newOptionsBtn = {
 						style="
 							aspect-ratio: 1;
 							height: 2.7rem;
-							margin: 0.68rem;
+							margin: calc(var(--spacing) * 0.68);
 							font-size: 0;
 						"
 						src="assets/icons/feather/minus.svg"
@@ -239,7 +239,7 @@ function newOptionsPopup(label, icon, htmlContent) {
 					style="
 						aspect-ratio: 1;
 						height: 2.7rem;
-						margin: 0.68rem;
+						margin: calc(var(--spacing) * 0.68);
 						font-size: 0;
 					"
 					src="${icon}"
@@ -291,7 +291,7 @@ function toMonthString(time) {
 }
 
 const datePickerHTML = /* HTML */ `
-	<div style="padding: 0.68rem;">
+	<div style="padding: calc(var(--spacing) * 0.68);">
 		<div
 			class="flex items-center"
 			style="
@@ -382,8 +382,8 @@ const datePickerHTML = /* HTML */ `
 			<div
 				class="flex flex-col justify-center"
 				style="
-					margin-right: 0.34rem;
-					margin-left: 0.34rem;
+					margin-right: calc(var(--spacing) * 0.34);
+					margin-left: calc(var(--spacing) * 0.34);
 				"
 			>
 				<button
@@ -454,8 +454,8 @@ const datePickerHTML = /* HTML */ `
 			<div
 				class="flex flex-col justify-center"
 				style="
-					margin-right: 0.34rem;
-					margin-left: 0.34rem;
+					margin-right: calc(var(--spacing) * 0.34);
+					margin-left: calc(var(--spacing) * 0.34);
 				"
 			>
 				<button
@@ -499,8 +499,8 @@ const datePickerHTML = /* HTML */ `
 			<button
 				class="js-reset text-color bg-color3 hover:bg-color2"
 				style="
-					padding-left: 0.34rem;
-					padding-right: 0.34rem;
+					padding-left: calc(var(--spacing) * 0.34);
+					padding-right: calc(var(--spacing) * 0.34);
 					font-size: 2rem;
 					border-radius: 0.51rem;
 				"
@@ -508,8 +508,8 @@ const datePickerHTML = /* HTML */ `
 			<button
 				class=" js-apply text-color bg-green hover:bg-green2"
 				style="
-					padding-left: 0.34rem;
-					padding-right: 0.34rem;
+					padding-left: calc(var(--spacing) * 0.34);
+					padding-right: calc(var(--spacing) * 0.34);
 					font-size: 2rem;
 					border-radius: 0.51rem;
 				"
@@ -740,7 +740,7 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 					style="
 						aspect-ratio: 1;
 						height: 2.7rem;
-						margin: 0.68rem;
+						margin: calc(var(--spacing) * 0.68);
 						font-size: 0;
 					"
 					src="assets/icons/feather/video.svg"
@@ -811,7 +811,7 @@ function newSelectOne(options, onSelect, alias) {
 				class="js-select-one-item bg-color2 hover:bg-color3"
 				style="
 					display: block ruby;
-					padding: 0.34rem 0.68rem;
+					padding: calc(var(--spacing) * 0.34) calc(var(--spacing) * 0.68);
 					font-size: 2.4rem;
 					border-top: solid;
 					border-top-width: 0.034rem;
@@ -827,7 +827,9 @@ function newSelectOne(options, onSelect, alias) {
 	return {
 		html: /* HTML */ `
 			<div id=${id} class="js-select-one flex flex-col text-center text-color">
-				<span style="padding: 0.34rem; font-size: 2rem;">Groups</span>
+				<span style="padding: calc(var(--spacing) * 0.34); font-size: 2rem;"
+					>Groups</span
+				>
 				${optionsHTML}
 			</div>
 		`,

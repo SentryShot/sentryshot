@@ -361,15 +361,15 @@ fn edit_templates(tmpls: &mut Templates) {
     style=\"
         width: var(--sidebar-width);
         margin-top: auto;
-        margin-bottom: 1.35rem;
+        margin-bottom: calc(var(--spacing) * 1.35);
     \"
 >
 	<button
         class=\"text-color bg-color2 hover:bg-color3\"
         style=\"
-            margin-top: 0.34rem;
-            padding-right: 0.34rem;
-            padding-left: 0.34rem;
+            margin-top: calc(var(--spacing) * 0.34);
+            padding-right: calc(var(--spacing) * 0.34);
+            padding-left: calc(var(--spacing) * 0.34);
             font-size: 2rem;
             border-width: 0.17rem;
             border-style: solid;

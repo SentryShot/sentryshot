@@ -142,7 +142,7 @@
 	@media only screen and (width >= 768px) {
 		.settings-navbar {
 			width: auto;
-			padding-top: 6.75rem;
+			padding-top: calc(var(--spacing) * 6.75);
 		}
 
 		.settings-navbar-closed {

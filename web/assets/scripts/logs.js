@@ -523,7 +523,7 @@ function newMultiSelect(label, values, initial) {
 					</div>
 					<span
 						class="text-color"
-						style="margin-left: 0.68rem; font-size: 1.7rem;"
+						style="margin-left: calc(var(--spacing) * 0.68); font-size: 1.7rem;"
 						>${name}</span
 					>
 				</div>
@@ -572,7 +572,7 @@ function newMultiSelect(label, values, initial) {
 				id="${id}"
 				class="items-center w-full"
 				style="
-					padding: 0.34rem;
+					padding: calc(var(--spacing) * 0.34);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -659,7 +659,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 				id="${elementID}"
 				class="items-center"
 				style="
-					padding: 0.34rem;
+					padding: calc(var(--spacing) * 0.34);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -679,7 +679,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 					<select
 						id="${inputID}"
 						class="w-full"
-						style="padding-left: 0.68rem; height: 3.4rem; font-size: 1.7rem;"
+						style="padding-left: calc(var(--spacing) * 0.68); height: 3.4rem; font-size: 1.7rem;"
 					>
 						${options}
 					</select>
@@ -689,13 +689,13 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 							aspect-ratio: 1;
 							width: 3.4rem;
 							height: 3.4rem;
-							margin-left: 1.35rem;
+							margin-left: calc(var(--spacing) * 1.35);
 							border-radius: 0.68rem;
 						"
 					>
 						<img
 							class="icon-filter"
-							style="padding: 0.34rem;"
+							style="padding: calc(var(--spacing) * 0.34);"
 							src="assets/icons/feather/video.svg"
 						/>
 					</button>
@@ -790,9 +790,9 @@ function newLogSelector(logger, formFields) {
 			<button
 				class="js-reset bg-color3 hover:bg-color2"
 				style="
-				   margin: 0.68rem;
-				   padding-left: 0.34rem;
-				   padding-right: 0.34rem;
+				   margin: calc(var(--spacing) * 0.68);
+				   padding-left: calc(var(--spacing) * 0.34);
+				   padding-right: calc(var(--spacing) * 0.34);
 				   border-radius: 0.68rem;
 				"
 			>
@@ -802,9 +802,9 @@ function newLogSelector(logger, formFields) {
 				class="log-apply-btn js-apply bg-green hover:bg-green2"
 				style="
 					float: right;
-					margin: 0.68rem;
-					padding-left: 0.34rem;
-					padding-right: 0.34rem;
+					margin: calc(var(--spacing) * 0.68);
+					padding-left: calc(var(--spacing) * 0.34);
+					padding-right: calc(var(--spacing) * 0.34);
 					border-radius: 0.68rem;
 				"
 			>

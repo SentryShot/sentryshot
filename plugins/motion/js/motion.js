@@ -84,7 +84,7 @@ export function motion2(hasSubStream, getMonitorId) {
 				id="${id}"
 				class="flex items-center"
 				style="
-					padding: 0.34rem;
+					padding: calc(var(--spacing) * 0.34);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -106,13 +106,13 @@ export function motion2(hasSubStream, getMonitorId) {
 							aspect-ratio: 1;
 							width: 3.4rem;
 							height: 3.4rem;
-							margin-left: 1.35rem;
+							margin-left: calc(var(--spacing) * 1.35);
 							border-radius: 0.68rem;
 						"
 					>
 						<img
 							class="icon-filter"
-							style="padding: 0.34rem;"
+							style="padding: calc(var(--spacing) * 0.34);"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -172,7 +172,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: 0.34rem;
+				padding: calc(var(--spacing) * 0.34);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: 0.17rem;
@@ -181,7 +181,7 @@ function zonesModalHTML(feedHTML) {
 			<div class="flex w-full">
 				<select
 					class="js-zone-select w-full"
-					style="padding-left: 0.68rem; height: 3.4rem; font-size: 1.7rem;"
+					style="padding-left: calc(var(--spacing) * 0.68); height: 3.4rem; font-size: 1.7rem;"
 				></select>
 				<div
 					class="js-add-zone flex bg-color2 hover:bg-color3"
@@ -189,13 +189,13 @@ function zonesModalHTML(feedHTML) {
 						aspect-ratio: 1;
 						width: 3.4rem;
 						height: 3.4rem;
-						margin-left: 1.35rem;
+						margin-left: calc(var(--spacing) * 1.35);
 						border-radius: 0.68rem;
 					"
 				>
 					<img
 						class="icon-filter"
-						style="padding: 0.34rem;"
+						style="padding: calc(var(--spacing) * 0.34);"
 						src="assets/icons/feather/plus.svg"
 					/>
 				</div>
@@ -205,14 +205,13 @@ function zonesModalHTML(feedHTML) {
 						aspect-ratio: 1;
 						width: 3.4rem;
 						height: 3.4rem;
-						margin-left: 1.35rem;
 						border-radius: 0.68rem;
-						margin-left: 0.68rem;
+						margin-left: calc(var(--spacing) * 0.68);
 					"
 				>
 					<img
 						class="icon-filter"
-						style="padding: 0.34rem;"
+						style="padding: calc(var(--spacing) * 0.34);"
 						src="assets/icons/feather/minus.svg"
 					/>
 				</div>
@@ -221,7 +220,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: 0.34rem;
+				padding: calc(var(--spacing) * 0.34);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: 0.17rem;
@@ -240,7 +239,7 @@ function zonesModalHTML(feedHTML) {
 			<div class="flex w-full">
 				<select
 					class="js-enable w-full"
-					style="padding-left: 0.68rem; height: 3.4rem; font-size: 1.7rem;"
+					style="padding-left: calc(var(--spacing) * 0.68); height: 3.4rem; font-size: 1.7rem;"
 				>
 					<option>true</option>
 					<option>false</option>
@@ -250,7 +249,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: 0.34rem;
+				padding: calc(var(--spacing) * 0.34);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: 0.17rem;
@@ -284,7 +283,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: 0.34rem;
+				padding: calc(var(--spacing) * 0.34);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: 0.17rem;
@@ -307,7 +306,7 @@ function zonesModalHTML(feedHTML) {
 						overflow: auto;
 						font-size: 1.7rem;
 						text-indent: 0.68rem;
-						margin-right: 3.4rem;
+						margin-right: calc(var(--spacing) * 3.4);
 					"
 					type="number"
 					min="0"
@@ -331,7 +330,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: 0.34rem;
+				padding: calc(var(--spacing) * 0.34);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: 0.17rem;
@@ -350,13 +349,13 @@ function zonesModalHTML(feedHTML) {
 			<div class="flex w-full">
 				<select
 					class="js-preview w-full"
-					style="padding-left: 0.68rem; height: 3.4rem; font-size: 1.7rem;"
+					style="padding-left: calc(var(--spacing) * 0.68); height: 3.4rem; font-size: 1.7rem;"
 				>
 					<option>true</option>
 					<option>false</option>
 				</select>
 			</div>
-			<div class="relative" style="margin-top: 0.68rem;">
+			<div class="relative" style="margin-top: calc(var(--spacing) * 0.68);">
 				<div class="js-feed" style="background: white;">${feedHTML}</div>
 				<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
 			</div>
@@ -364,7 +363,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="flex items-center"
 			style="
-				padding: 0.34rem;
+				padding: calc(var(--spacing) * 0.34);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: 0.17rem;
@@ -377,7 +376,7 @@ function zonesModalHTML(feedHTML) {
 					class="js-1x text-color bg-color2 hover:bg-color1"
 					style="
 						font-size: 2rem;
-						padding: 0.24rem 0.51rem;
+						padding: calc(var(--spacing) * 0.24) 0.51rem;
 						border-width: 0.07rem;
 						border-color: var(--color3);
 						border-top-left-radius: 0.84rem;
@@ -391,7 +390,7 @@ function zonesModalHTML(feedHTML) {
 					class="js-4x text-color bg-color2 hover:bg-color1 motion-step-size-selected"
 					style="
 						font-size: 2rem;
-						padding: 0.24rem 0.51rem;
+						padding: calc(var(--spacing) * 0.24) calc(var(--spacing) * 0.51);
 						border-width: 0.07rem;
 						border-color: var(--color3);
 						border-style: hidden solid;
@@ -403,7 +402,7 @@ function zonesModalHTML(feedHTML) {
 					class="js-10x text-color bg-color2 hover:bg-color1"
 					style="
 						font-size: 2rem;
-						padding: 0.24rem 0.51rem;
+						padding: calc(var(--spacing) * 0.24) calc(var(--spacing) * 0.51);
 						border-width: 0.07rem;
 						border-color: var(--color3);
 						border-style: hidden solid;
@@ -415,7 +414,7 @@ function zonesModalHTML(feedHTML) {
 					class="js-20x text-color bg-color2 hover:bg-color1"
 					style="
 						font-size: 2rem;
-						padding: 0.24rem 0.51rem;
+						padding: calc(var(--spacing) * 0.24) calc(var(--spacing) * 0.51);
 						border-width: 0.07rem;
 						border-color: var(--color3);
 						border-top-right-radius: 0.84rem;
@@ -429,14 +428,14 @@ function zonesModalHTML(feedHTML) {
 			<div class="flex">
 				<input
 					class="js-x text-center"
-					style="width: 4.4rem; font-size: 2rem;"
+					style="width: calc(var(--spacing) * 4.4); font-size: 2rem;"
 					type="number"
 					min="0"
 					max="100"
 				/>
 				<input
 					class="js-y text-center"
-					style="width: 4.4rem; font-size: 2rem;"
+					style="width: calc(var(--spacing) * 4.4); font-size: 2rem;"
 					type="number"
 					min="0"
 					max="100"
@@ -765,11 +764,11 @@ function zones(hasSubStream, getMonitorId) {
 				id="${id}"
 				class="flex items-center"
 				style="
-					padding: 0.34rem;
+					padding: calc(var(--spacing) * 0.34);
+					padding-bottom: calc(var(--spacing) * 0.84);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
-					padding-bottom: 0.84rem;
 				"
 			>
 				<label
@@ -788,13 +787,13 @@ function zones(hasSubStream, getMonitorId) {
 							aspect-ratio: 1;
 							width: 3.4rem;
 							height: 3.4rem;
-							margin-left: 1.35rem;
+							margin-left: calc(var(--spacing) * 1.35);
 							border-radius: 0.68rem;
 						"
 					>
 						<img
 							class="icon-filter"
-							style="padding: 0.34rem;"
+							style="padding: calc(var(--spacing) * 0.34);"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>

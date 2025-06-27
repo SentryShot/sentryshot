@@ -110,7 +110,10 @@ function newForm(fields) {
 				}
 			}
 			return /* HTML */ `
-				<ul class="form" style="padding: 0 0.34rem; overflow-y: auto;">
+				<ul
+					class="form"
+					style="padding: 0 calc(var(--spacing) * 0.34); overflow-y: auto;"
+				>
 					${htmlFields}
 					<div class="flex">${htmlButtons}</div>
 				</ul>
@@ -166,9 +169,9 @@ function newSaveBtn(onClick) {
 				id="${id}"
 				class="bg-green hover:bg-green2"
 				style="
-					margin: 0.68rem;
-					padding-left: 0.34rem;
-					padding-right: 0.34rem;
+					margin: calc(var(--spacing) * 0.68);
+					padding-left: calc(var(--spacing) * 0.34);
+					padding-right: calc(var(--spacing) * 0.34);
 					border-radius: 0.68rem;
 				"
 			>
@@ -202,9 +205,9 @@ function newDeleteBtn(onClick) {
 				id="${id}"
 				class="bg-red hover:bg-red2"
 				style="
-					margin: 0.68rem;
-					padding-left: 0.34rem;
-					padding-right: 0.34rem;
+					margin: calc(var(--spacing) * 0.68);
+					padding-left: calc(var(--spacing) * 0.34);
+					padding-right: calc(var(--spacing) * 0.34);
 					border-radius: 0.68rem;
 					margin-left: auto;
 				"
@@ -544,7 +547,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					id="${id}"
 					class="js-input w-full"
 					style="
-						padding-left: 0.68rem;
+						padding-left: calc(var(--spacing) * 0.68);
 						height: 3.4rem;
 						font-size: 1.7rem;
 					"
@@ -558,13 +561,13 @@ function newHTMLfield(options, id, label, placeholder = "") {
 						aspect-ratio: 1;
 						width: 3.4rem;
 						height: 3.4rem;
-						margin-left: 1.35rem;
+						margin-left: calc(var(--spacing) * 1.35);
 						border-radius: 0.68rem;
 					"
 				>
 					<img
 						class="icon-filter"
-						style="padding: 0.34rem;"
+						style="padding: calc(var(--spacing) * 0.34);"
 						src="assets/icons/feather/edit-3.svg"
 					/>
 				</button>`
@@ -579,7 +582,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				id="js-${id}"
 				class="items-center"
 				style="
-					padding: 0.34rem;
+					padding: calc(var(--spacing) * 0.34);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -613,7 +616,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				id="js-${id}"
 				class="items-center"
 				style="
-					padding: 0.34rem;
+					padding: calc(var(--spacing) * 0.34);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;
@@ -777,7 +780,7 @@ function newPasswordField() {
 				id="js-${id}"
 				class="items-center"
 				style="
-					padding: 0.34rem;
+					padding: calc(var(--spacing) * 0.34);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: 0.17rem;

@@ -19,13 +19,13 @@ test("newModal", () => {
 	expect(document.querySelector(".modal").innerHTML).toMatchInlineSnapshot(`
 <header class="modal-header flex bg-color2"
         style="
-							padding-left: 0.68rem;
-							padding-right: 0.68rem;
+							padding-left: calc(var(--spacing) * 0.68);
+							padding-right: calc(var(--spacing) * 0.68);
 						"
 >
   <span class="w-full text-center text-color"
         style="
-								padding-left: 2.4rem;
+								padding-left: calc(var(--spacing) * 2.4);
 								font-size: 2.7rem;
 							"
   >
@@ -91,13 +91,13 @@ test("modalSelect", () => {
   <div class="modal js-modal flex">
     <header class="modal-header flex bg-color2"
             style="
-							padding-left: 0.68rem;
-							padding-right: 0.68rem;
+							padding-left: calc(var(--spacing) * 0.68);
+							padding-right: calc(var(--spacing) * 0.68);
 						"
     >
       <span class="w-full text-center text-color"
             style="
-								padding-left: 2.4rem;
+								padding-left: calc(var(--spacing) * 2.4);
 								font-size: 2.7rem;
 							"
       >
@@ -126,7 +126,7 @@ test("modalSelect", () => {
         <span data="m1"
               class="js-option text-color"
               style="
-						padding: 0 0.68rem;
+						padding: 0 calc(var(--spacing) * 0.68);
 						font-size: 2.7rem;
 						border-width: 0.034rem;
 						border-style: solid;
@@ -138,7 +138,7 @@ test("modalSelect", () => {
         <span data="m2"
               class="js-option text-color"
               style="
-						padding: 0 0.68rem;
+						padding: 0 calc(var(--spacing) * 0.68);
 						font-size: 2.7rem;
 						border-width: 0.034rem;
 						border-style: solid;

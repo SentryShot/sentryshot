@@ -62,7 +62,7 @@
 <div
 	id="options-menu"
 	class="absolute flex flex-col"
-	style="top: var(--topbar-height); z-index: 3; --options-menu-btn-width: 1.2rem"
+	style="top: var(--topbar-height); z-index: 3; --options-menu-btn-width: 4.08rem"
 ></div>
 
 <aside
@@ -75,9 +75,9 @@
 		class="flex items-center hover:bg-color2"
 		style="
 			width: var(--sidebar-width);
-			padding: var(--icon-padding);
+			padding: calc(var(--spacing) * 0.51);
+			padding-left: calc(var(--spacing) * 0.68);
 			text-decoration: none;
-			padding-left: 0.68rem;
 		"
 	>
 		<img
@@ -93,13 +93,13 @@
 			class="flex items-center hover:bg-color2"
 			style="
 				width: var(--sidebar-width);
-				padding: var(--icon-padding);
+				padding: calc(var(--spacing) * 0.51);
+				padding-left: calc(var(--spacing) * 0.68);
 				text-decoration: none;
 				border-width: 0.034rem;
 				border-color: var(--color2);
 				border-bottom-style: solid;
 				border-top: none;
-				padding-left: 0.68rem;
 			"
 		>
 			<img
@@ -107,7 +107,7 @@
 				src="assets/icons/feather/video.svg"
 				style="height: 3.7rem; aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: 1.35rem; font-size: 2rem"
+			<span class="text-color" style="margin-left: calc(var(--spacing) * 1.35); font-size: 2rem"
 				>Live</span
 			>
 		</a>
@@ -117,12 +117,12 @@
 			class="flex items-center hover:bg-color2"
 			style="
 				width: var(--sidebar-width);
-				padding: var(--icon-padding);
+				padding: calc(var(--spacing) * 0.51);
+				padding-left: calc(var(--spacing) * 0.68);
 				text-decoration: none;
 				border-width: 0.034rem;
 				border-color: var(--color2);
 				border-bottom-style: solid;
-				padding-left: 0.68rem;
 			"
 		>
 			<img
@@ -130,7 +130,7 @@
 				src="assets/icons/feather/film.svg"
 				style="height: 3.7rem; aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: 1.35rem; font-size: 2rem"
+			<span class="text-color" style="margin-left: calc(var(--spacing) * 1.35); font-size: 2rem"
 				>Recordings</span
 			>
 		</a>
@@ -141,12 +141,12 @@
 			class="flex items-center hover:bg-color2"
 			style="
 				width: var(--sidebar-width);
-				padding: var(--icon-padding);
+				padding: calc(var(--spacing) * 0.51);
+				padding-left: calc(var(--spacing) * 0.68);
 				text-decoration: none;
 				border-width: 0.034rem;
 				border-color: var(--color2);
 				border-bottom-style: solid;
-				padding-left: 0.68rem;
 			"
 		>
 			<img
@@ -154,7 +154,7 @@
 				src="assets/icons/feather/settings.svg"
 				style="height: 3.7rem; aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: 1.35rem; font-size: 2rem"
+			<span class="text-color" style="margin-left: calc(var(--spacing) * 1.35); font-size: 2rem"
 				>Settings</span
 			>
 		</a>
@@ -164,12 +164,12 @@
 			class="flex items-center hover:bg-color2"
 			style="
 				width: var(--sidebar-width);
-				padding: var(--icon-padding);
+				padding: calc(var(--spacing) * 0.51);
+				padding-left: calc(var(--spacing) * 0.68);
 				text-decoration: none;
 				border-width: 0.034rem;
 				border-color: var(--color2);
 				border-bottom-style: solid;
-				padding-left: 0.68rem;
 			"
 		>
 			<img
@@ -177,7 +177,7 @@
 				src="assets/icons/feather/book-open.svg"
 				style="height: 3.7rem; aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: 1.35rem; font-size: 2rem"
+			<span class="text-color" style="margin-left: calc(var(--spacing) * 1.35); font-size: 2rem"
 				>Logs</span
 			>
 		</a>

@@ -120,7 +120,7 @@ test("fullscreen", () => {
       <a href="http://test.com/recordings#monitors=undefined"
          class="feed-btn"
          style="
-					padding: 0.51rem;
+					padding: calc(var(--spacing) * 0.51);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -133,7 +133,7 @@ test("fullscreen", () => {
       </a>
       <button class="js-fullscreen-btn feed-btn"
               style="
-					padding: 0.51rem;
+					padding: calc(var(--spacing) * 0.51);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -191,7 +191,7 @@ test("fullscreen", () => {
       <a href="http://test.com/recordings#monitors=undefined"
          class="feed-btn"
          style="
-					padding: 0.51rem;
+					padding: calc(var(--spacing) * 0.51);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -204,7 +204,7 @@ test("fullscreen", () => {
       </a>
       <button class="js-fullscreen-btn feed-btn"
               style="
-					padding: 0.51rem;
+					padding: calc(var(--spacing) * 0.51);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
