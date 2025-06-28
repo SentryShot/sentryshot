@@ -35,7 +35,7 @@
 	<div
 		id="content"
 		class="absolute w-full h-full"
-		style="box-sizing: border-box; width: 100%;"
+		style="box-sizing: border-box; width: 100%"
 	>
 		<div id="js-content-grid-wrapper h-full" style="overflow-y: auto">
 			<div

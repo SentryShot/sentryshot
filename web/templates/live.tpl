@@ -39,11 +39,7 @@
 </head>
 <body class="flex" style="height: 100dvh; margin: 0; background-color: var(--color0)">
 	{% include "sidebar" %}
-	<div
-		id="content"
-		class="absolute w-full h-full"
-		style="box-sizing: border-box;"
-	>
+	<div id="content" class="absolute w-full h-full" style="box-sizing: border-box">
 		<div class="h-full" style="overflow-y: auto">
 			<div
 				id="js-content-grid"

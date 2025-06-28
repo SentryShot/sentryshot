@@ -799,7 +799,6 @@ img {
 	.modal {
 		width: 30vw;
 		max-height: 90vh;
-		padding-bottom: calc(var(--spacing) * 1);
 		border-radius: calc(var(--scale) * 0.68rem);
 	}
 

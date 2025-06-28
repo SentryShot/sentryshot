@@ -37,7 +37,7 @@
 		></div>
 		<div class="log-list-wrapper js-list bg-color3">
 			<div id="log-menubar" class="bg-color2" style="height: var(--barsize)">
-				<nav class="js-back" style="width: calc(var(--scale) * 4.7rem);">
+				<nav class="js-back" style="width: calc(var(--scale) * 4.7rem)">
 					<img
 						class="icon-filter"
 						style="
@@ -52,7 +52,11 @@
 			<div
 				id="js-log-lists"
 				class="text-color bg-color3"
-				style="font-size: calc(var(--scale) * 1.7rem); word-wrap: break-word; overflow-y: auto"
+				style="
+					font-size: calc(var(--scale) * 1.7rem);
+					word-wrap: break-word;
+					overflow-y: auto;
+				"
 			></div>
 		</div>
 	</div>

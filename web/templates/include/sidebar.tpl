@@ -2,18 +2,19 @@
 <header id="topbar" class="absolute flex" style="background: var(--color1)">
 	<div
 		class="topbar-btn flex shrink-0 justify-center items-center"
-		style="
-			width: var(--topbar-height);
-			height: var(--topbar-height);
-		"
+		style="width: var(--topbar-height); height: var(--topbar-height)"
 	>
 		<img
 			class="icon-filter"
-			style="aspect-ratio: 1; height: calc(var(--scale) * 3rem);"
+			style="aspect-ratio: 1; height: calc(var(--scale) * 3rem)"
 			src="assets/icons/feather/menu.svg"
 		/>
 	</div>
-	<h1 id="current-page" class="text-color" style="margin: auto; font-size: calc(var(--scale) * 2.4rem);">
+	<h1
+		id="current-page"
+		class="text-color"
+		style="margin: auto; font-size: calc(var(--scale) * 2.4rem)"
+	>
 		{{ current_page }}
 	</h1>
 	<div
@@ -28,7 +29,7 @@
 	>
 		<img
 			class="icon-filter"
-			style="aspect-ratio: 1; height: calc(var(--scale) * 3rem);"
+			style="aspect-ratio: 1; height: calc(var(--scale) * 3rem)"
 			src="assets/icons/feather/sliders.svg"
 		/>
 	</div>
@@ -62,7 +63,11 @@
 <div
 	id="options-menu"
 	class="absolute flex flex-col"
-	style="top: var(--topbar-height); z-index: 3; --options-menu-btn-width: calc(var(--scale) * 4.08rem);"
+	style="
+		top: var(--topbar-height);
+		z-index: 3;
+		--options-menu-btn-width: calc(var(--scale) * 4.08rem);
+	"
 ></div>
 
 <aside
@@ -76,7 +81,6 @@
 		style="
 			width: var(--sidebar-width);
 			padding: calc(var(--spacing) * 2);
-			padding-left: calc(var(--spacing) * 2.7);
 			text-decoration: none;
 		"
 	>
@@ -94,7 +98,6 @@
 			style="
 				width: var(--sidebar-width);
 				padding: calc(var(--spacing) * 2);
-				padding-left: calc(var(--spacing) * 2.7);
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
@@ -107,7 +110,12 @@
 				src="assets/icons/feather/video.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: calc(var(--spacing) * 5.4); font-size: calc(var(--scale) * 2rem);"
+			<span
+				class="text-color"
+				style="
+					margin-left: calc(var(--spacing) * 4);
+					font-size: calc(var(--scale) * 2rem);
+				"
 				>Live</span
 			>
 		</a>
@@ -118,7 +126,6 @@
 			style="
 				width: var(--sidebar-width);
 				padding: calc(var(--spacing) * 2);
-				padding-left: calc(var(--spacing) * 2.7);
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
@@ -130,7 +137,12 @@
 				src="assets/icons/feather/film.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: calc(var(--spacing) * 5.4); font-size: calc(var(--scale) * 2rem);"
+			<span
+				class="text-color"
+				style="
+					margin-left: calc(var(--spacing) * 4);
+					font-size: calc(var(--scale) * 2rem);
+				"
 				>Recordings</span
 			>
 		</a>
@@ -142,7 +154,6 @@
 			style="
 				width: var(--sidebar-width);
 				padding: calc(var(--spacing) * 2);
-				padding-left: calc(var(--spacing) * 2.7);
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
@@ -154,7 +165,12 @@
 				src="assets/icons/feather/settings.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: calc(var(--spacing) * 5.4); font-size: calc(var(--scale) * 2rem);"
+			<span
+				class="text-color"
+				style="
+					margin-left: calc(var(--spacing) * 4);
+					font-size: calc(var(--scale) * 2rem);
+				"
 				>Settings</span
 			>
 		</a>
@@ -165,7 +181,6 @@
 			style="
 				width: var(--sidebar-width);
 				padding: calc(var(--spacing) * 2);
-				padding-left: calc(var(--spacing) * 2.7);
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
@@ -177,7 +192,12 @@
 				src="assets/icons/feather/book-open.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span class="text-color" style="margin-left: calc(var(--spacing) * 5.4); font-size: calc(var(--scale) * 2rem);"
+			<span
+				class="text-color"
+				style="
+					margin-left: calc(var(--spacing) * 4);
+					font-size: calc(var(--scale) * 2rem);
+				"
 				>Logs</span
 			>
 		</a>

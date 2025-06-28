@@ -172,7 +172,7 @@ describe("newPlayer", () => {
     >
       <button class="js-play-btn bg-color0"
               style="
-					padding: calc(var(--spacing) * 2.7);
+					padding: calc(var(--spacing) * 2);
 					font-size: 0;
 					border-radius: 50%;
 					opacity: 0.8;
@@ -218,8 +218,8 @@ describe("newPlayer", () => {
                 style="
 					box-sizing: border-box;
 					width: var(--player-timeline-width);
-					padding-top: calc(var(--spacing) * 1.4);
-					padding-bottom: calc(var(--spacing) * 1.4);
+					padding-top: calc(var(--spacing) * 1.5);
+					padding-bottom: calc(var(--spacing) * 1.5);
 					background: rgb(0 0 0 / 0%);
 					opacity: 0.8;
 					user-select: none;

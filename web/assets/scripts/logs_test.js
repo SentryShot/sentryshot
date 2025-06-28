@@ -117,7 +117,7 @@ describe("MultiSelect", () => {
 <li id="uid4"
     class="items-center w-full"
     style="
-					padding: calc(var(--spacing) * 1.4);
+					padding: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -134,7 +134,7 @@ describe("MultiSelect", () => {
   </label>
   <div class="relative">
     <div class="item-uid1 flex items-center"
-         style="min-width: 1px;"
+         style="min-width: 1px; font-size: calc(var(--scale) * 2.4rem)"
     >
       <div class="flex justify-center items-center bg-color2"
            style="
@@ -170,13 +170,13 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 2.7); font-size: calc(var(--scale) * 1.7rem);"
+            style="margin-left: calc(var(--spacing) * 2); font-size: calc(var(--scale) * 1.7rem);"
       >
         a
       </span>
     </div>
     <div class="item-uid2 flex items-center"
-         style="min-width: 1px;"
+         style="min-width: 1px; font-size: calc(var(--scale) * 2.4rem)"
     >
       <div class="flex justify-center items-center bg-color2"
            style="
@@ -212,13 +212,13 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 2.7); font-size: calc(var(--scale) * 1.7rem);"
+            style="margin-left: calc(var(--spacing) * 2); font-size: calc(var(--scale) * 1.7rem);"
       >
         b
       </span>
     </div>
     <div class="item-uid3 flex items-center"
-         style="min-width: 1px;"
+         style="min-width: 1px; font-size: calc(var(--scale) * 2.4rem)"
     >
       <div class="flex justify-center items-center bg-color2"
            style="
@@ -254,7 +254,7 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 2.7); font-size: calc(var(--scale) * 1.7rem);"
+            style="margin-left: calc(var(--spacing) * 2); font-size: calc(var(--scale) * 1.7rem);"
       >
         c
       </span>
@@ -382,7 +382,7 @@ describe("logSelector", () => {
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <div class="js-sidebar">
   <ul class="form"
-      style="padding: 0 calc(var(--spacing) * 1.4); overflow-y: auto;"
+      style="overflow-y: auto;"
   >
     levelHTMLsourcesHTMLmonitorHTML
     <div class="flex">
@@ -391,9 +391,9 @@ describe("logSelector", () => {
   <div>
     <button class="js-reset bg-color3 hover:bg-color2"
             style="
-				   margin: calc(var(--spacing) * 2.7);
-				   padding-left: calc(var(--spacing) * 1.4);
-				   padding-right: calc(var(--spacing) * 1.4);
+				   margin: calc(var(--spacing) * 2);
+				   padding-left: calc(var(--spacing) * 2);
+				   padding-right: calc(var(--spacing) * 2);
 				   border-radius: calc(var(--scale) * 0.68rem);
 				"
     >
@@ -406,9 +406,9 @@ describe("logSelector", () => {
     <button class="log-apply-btn js-apply bg-green hover:bg-green2"
             style="
 					float: right;
-					margin: calc(var(--spacing) * 2.7);
-					padding-left: calc(var(--spacing) * 1.4);
-					padding-right: calc(var(--spacing) * 1.4);
+					margin: calc(var(--spacing) * 2);
+					padding-left: calc(var(--spacing) * 2);
+					padding-right: calc(var(--spacing) * 2);
 					border-radius: calc(var(--scale) * 0.68rem);
 				"
     >

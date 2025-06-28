@@ -110,10 +110,7 @@ function newForm(fields) {
 				}
 			}
 			return /* HTML */ `
-				<ul
-					class="form"
-					style="padding: 0 calc(var(--spacing) * 1.4); overflow-y: auto;"
-				>
+				<ul class="form" style="overflow-y: auto;">
 					${htmlFields}
 					<div class="flex">${htmlButtons}</div>
 				</ul>
@@ -169,9 +166,9 @@ function newSaveBtn(onClick) {
 				id="${id}"
 				class="bg-green hover:bg-green2"
 				style="
-					margin: calc(var(--spacing) * 2.7);
-					padding-left: calc(var(--spacing) * 1.4);
-					padding-right: calc(var(--spacing) * 1.4);
+					margin: calc(var(--spacing) * 2);
+					padding-left: calc(var(--spacing) * 2);
+					padding-right: calc(var(--spacing) * 2);
 					border-radius: calc(var(--scale) * 0.68rem);
 				"
 			>
@@ -207,9 +204,9 @@ function newDeleteBtn(onClick) {
 				id="${id}"
 				class="bg-red hover:bg-red2"
 				style="
-					margin: calc(var(--spacing) * 2.7);
-					padding-left: calc(var(--spacing) * 1.4);
-					padding-right: calc(var(--spacing) * 1.4);
+					margin: calc(var(--spacing) * 2);
+					padding-left: calc(var(--spacing) * 2);
+					padding-right: calc(var(--spacing) * 2);
 					border-radius: calc(var(--scale) * 0.68rem);
 					margin-left: auto;
 				"
@@ -551,7 +548,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					id="${id}"
 					class="js-input w-full"
 					style="
-						padding-left: calc(var(--spacing) * 2.7);
+						padding-left: calc(var(--spacing) * 2);
 						height: calc(var(--scale) * 3.4rem);
 						font-size: calc(var(--scale) * 1.7rem);
 					"
@@ -565,13 +562,13 @@ function newHTMLfield(options, id, label, placeholder = "") {
 						aspect-ratio: 1;
 						width: calc(var(--scale) * 3.4rem);
 						height: calc(var(--scale) * 3.4rem);
-						margin-left: calc(var(--spacing) * 5.4);
+						margin-left: calc(var(--spacing) * 2);
 						border-radius: calc(var(--scale) * 0.68rem);
 					"
 				>
 					<img
 						class="icon-filter"
-						style="padding: calc(var(--spacing) * 1.4);"
+						style="padding: calc(var(--spacing) * 2);"
 						src="assets/icons/feather/edit-3.svg"
 					/>
 				</button>`
@@ -586,7 +583,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				id="js-${id}"
 				class="items-center"
 				style="
-					padding: calc(var(--spacing) * 1.4);
+					padding-left: calc(var(--spacing) * 2);
+					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -620,7 +618,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				id="js-${id}"
 				class="items-center"
 				style="
-					padding: calc(var(--spacing) * 1.4);
+					padding-left: calc(var(--spacing) * 2);
+					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -784,7 +783,8 @@ function newPasswordField() {
 				id="js-${id}"
 				class="items-center"
 				style="
-					padding: calc(var(--spacing) * 1.4);
+					padding-left: calc(var(--spacing) * 2);
+					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);

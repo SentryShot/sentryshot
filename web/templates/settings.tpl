@@ -99,14 +99,6 @@
 		display: flex;
 	}
 
-	.settings-add-btn {
-		background: var(--color-green);
-	}
-
-	.settings-add-btn:hover {
-		background: var(--color-green-hover);
-	}
-
 	.monitor-selector {
 		display: flex;
 		flex-wrap: wrap;

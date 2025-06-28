@@ -84,7 +84,7 @@ export function motion2(hasSubStream, getMonitorId) {
 				id="${id}"
 				class="flex items-center"
 				style="
-					padding: calc(var(--spacing) * 1.4);
+					padding: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -106,13 +106,13 @@ export function motion2(hasSubStream, getMonitorId) {
 							aspect-ratio: 1;
 							width: calc(var(--scale) * 3.4rem);
 							height: calc(var(--scale) * 3.4rem);
-							margin-left: calc(var(--spacing) * 5.4);
+							margin-left: calc(var(--spacing) * 2);
 							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
 						<img
 							class="icon-filter"
-							style="padding: calc(var(--spacing) * 1.4);"
+							style="padding: calc(var(--spacing) * 2);"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -172,7 +172,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: calc(var(--spacing) * 1.4);
+				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -181,7 +181,7 @@ function zonesModalHTML(feedHTML) {
 			<div class="flex w-full">
 				<select
 					class="js-zone-select w-full"
-					style="padding-left: calc(var(--spacing) * 2.7); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
+					style="padding-left: calc(var(--spacing) * 2); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
 				></select>
 				<div
 					class="js-add-zone flex bg-color2 hover:bg-color3"
@@ -189,13 +189,13 @@ function zonesModalHTML(feedHTML) {
 						aspect-ratio: 1;
 						width: calc(var(--scale) * 3.4rem);
 						height: calc(var(--scale) * 3.4rem);
-						margin-left: calc(var(--spacing) * 5.4);
+						margin-left: calc(var(--spacing) * 4);
 						border-radius: calc(var(--scale) * 0.68rem);
 					"
 				>
 					<img
 						class="icon-filter"
-						style="padding: calc(var(--spacing) * 1.4);"
+						style="padding: calc(var(--spacing) * 2);"
 						src="assets/icons/feather/plus.svg"
 					/>
 				</div>
@@ -206,12 +206,12 @@ function zonesModalHTML(feedHTML) {
 						width: calc(var(--scale) * 3.4rem);
 						height: calc(var(--scale) * 3.4rem);
 						border-radius: calc(var(--scale) * 0.68rem);
-						margin-left: calc(var(--spacing) * 2.7);
+						margin-left: calc(var(--spacing) * 4);
 					"
 				>
 					<img
 						class="icon-filter"
-						style="padding: calc(var(--spacing) * 1.4);"
+						style="padding: calc(var(--spacing) * 2);"
 						src="assets/icons/feather/minus.svg"
 					/>
 				</div>
@@ -220,7 +220,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: calc(var(--spacing) * 1.4);
+				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -239,7 +239,7 @@ function zonesModalHTML(feedHTML) {
 			<div class="flex w-full">
 				<select
 					class="js-enable w-full"
-					style="padding-left: calc(var(--spacing) * 2.7); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
+					style="padding-left: calc(var(--spacing) * 2); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
 				>
 					<option>true</option>
 					<option>false</option>
@@ -249,7 +249,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: calc(var(--spacing) * 1.4);
+				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -283,7 +283,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: calc(var(--spacing) * 1.4);
+				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -330,7 +330,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="items-center"
 			style="
-				padding: calc(var(--spacing) * 1.4);
+				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -349,13 +349,13 @@ function zonesModalHTML(feedHTML) {
 			<div class="flex w-full">
 				<select
 					class="js-preview w-full"
-					style="padding-left: calc(var(--spacing) * 2.7); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
+					style="padding-left: calc(var(--spacing) * 2); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
 				>
 					<option>true</option>
 					<option>false</option>
 				</select>
 			</div>
-			<div class="relative" style="margin-top: calc(var(--spacing) * 2.7);">
+			<div class="relative" style="margin-top: calc(var(--spacing) * 4);">
 				<div class="js-feed" style="background: white;">${feedHTML}</div>
 				<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
 			</div>
@@ -363,7 +363,7 @@ function zonesModalHTML(feedHTML) {
 		<li
 			class="flex items-center"
 			style="
-				padding: calc(var(--spacing) * 1.4);
+				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -764,8 +764,7 @@ function zones(hasSubStream, getMonitorId) {
 				id="${id}"
 				class="flex items-center"
 				style="
-					padding: calc(var(--spacing) * 1.4);
-					padding-bottom: calc(var(--spacing) * 3.4);
+					padding: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -787,13 +786,13 @@ function zones(hasSubStream, getMonitorId) {
 							aspect-ratio: 1;
 							width: calc(var(--scale) * 3.4rem);
 							height: calc(var(--scale) * 3.4rem);
-							margin-left: calc(var(--spacing) * 5.4);
+							margin-left: calc(var(--spacing) * 2);
 							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
 						<img
 							class="icon-filter"
-							style="padding: calc(var(--spacing) * 1.4);"
+							style="padding: calc(var(--spacing) * 2);"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
