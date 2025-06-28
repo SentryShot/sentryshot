@@ -172,10 +172,12 @@ function newSaveBtn(onClick) {
 					margin: calc(var(--spacing) * 2.7);
 					padding-left: calc(var(--spacing) * 1.4);
 					padding-right: calc(var(--spacing) * 1.4);
-					border-radius: 0.68rem;
+					border-radius: calc(var(--scale) * 0.68rem);
 				"
 			>
-				<span class="text-color" style="font-size: 2.4rem;">Save</span>
+				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+					>Save</span
+				>
 			</button>
 		`,
 		init() {
@@ -208,11 +210,13 @@ function newDeleteBtn(onClick) {
 					margin: calc(var(--spacing) * 2.7);
 					padding-left: calc(var(--spacing) * 1.4);
 					padding-right: calc(var(--spacing) * 1.4);
-					border-radius: 0.68rem;
+					border-radius: calc(var(--scale) * 0.68rem);
 					margin-left: auto;
 				"
 			>
-				<span class="text-color" style="font-size: 2.4rem;">Delete</span>
+				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+					>Delete</span
+				>
 			</button>
 		`,
 		init() {
@@ -524,10 +528,10 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				id="${id}"
 				class="js-input w-full"
 				style="
-					height: 3.4rem;
+					height: calc(var(--scale) * 3.4rem);
 					overflow: auto;
-					font-size: 1.7rem;
-					text-indent: 0.68rem;
+					font-size: calc(var(--scale) * 1.7rem);
+					text-indent: calc(var(--scale) * 0.68rem);
 				"
 				type="${input}"
 				placeholder="${placeholder}"
@@ -548,8 +552,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					class="js-input w-full"
 					style="
 						padding-left: calc(var(--spacing) * 2.7);
-						height: 3.4rem;
-						font-size: 1.7rem;
+						height: calc(var(--scale) * 3.4rem);
+						font-size: calc(var(--scale) * 1.7rem);
 					"
 				>
 					${options}
@@ -559,10 +563,10 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					class="js-edit-btn flex bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
-						width: 3.4rem;
-						height: 3.4rem;
+						width: calc(var(--scale) * 3.4rem);
+						height: calc(var(--scale) * 3.4rem);
 						margin-left: calc(var(--spacing) * 5.4);
-						border-radius: 0.68rem;
+						border-radius: calc(var(--scale) * 0.68rem);
 					"
 				>
 					<img
@@ -585,7 +589,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			>
 				<label
@@ -593,8 +597,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					class="grow w-full text-color"
 					style="
 						float: left;
-						min-width: 13.5rem;
-						font-size: 2rem;
+						min-width: calc(var(--scale) * 13.5rem);
+						font-size: calc(var(--scale) * 2rem);
 					"
 					>${label}</label
 				>
@@ -602,8 +606,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				<span
 					class="js-error text-red"
 					style="
-						height: 1.7rem;
-						font-size: 1.35rem;
+						height: calc(var(--scale) * 1.7rem);
+						font-size: calc(var(--scale) * 1.35rem);
 						white-space: nowrap;
 						overflow: auto;
 					"
@@ -619,7 +623,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			>
 				<label
@@ -627,8 +631,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					class="grow w-full text-color"
 					style="
 						float: left;
-						min-width: 13.5rem;
-						font-size: 2rem;
+						min-width: calc(var(--scale) * 13.5rem);
+						font-size: calc(var(--scale) * 2rem);
 					"
 					>${label}</label
 				>
@@ -783,7 +787,7 @@ function newPasswordField() {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			>
 				<label
@@ -791,8 +795,8 @@ function newPasswordField() {
 					class="grow w-full text-color"
 					style="
 						float: left;
-						min-width: 13.5rem;
-						font-size: 2rem;
+						min-width: calc(var(--scale) * 13.5rem);
+						font-size: calc(var(--scale) * 2rem);
 					"
 					>${label}</label
 				>
@@ -800,16 +804,16 @@ function newPasswordField() {
 					id="${id}"
 					class="js-input w-full"
 					style="
-						height: 3.4rem;
+						height: calc(var(--scale) * 3.4rem);
 						overflow: auto;
-						font-size: 1.7rem;
-						text-indent: 0.68rem;
+						font-size: calc(var(--scale) * 1.7rem);
+						text-indent: calc(var(--scale) * 0.68rem);
 					"
 					type="password"
 				/>
 				<span
 					class="js-error text-red"
-					style="height: 1.7rem; font-size: 1.35rem; white-space: nowrap; overflow: auto;"
+					style="height: calc(var(--scale) * 1.7rem); font-size: calc(var(--scale) * 1.35rem); white-space: nowrap; overflow: auto;"
 				></span>
 			</li>
 		`;

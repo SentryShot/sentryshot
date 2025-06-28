@@ -370,11 +370,11 @@ fn edit_templates(tmpls: &mut Templates) {
             margin-top: calc(var(--spacing) * 1.4);
             padding-right: calc(var(--spacing) * 1.4);
             padding-left: calc(var(--spacing) * 1.4);
-            font-size: 2rem;
-            border-width: 0.17rem;
+            font-size: calc(var(--scale) * 2rem);
+            border-width: calc(var(--scale) * 0.17rem);
             border-style: solid;
             border-color: var(--color0);
-            border-radius: 0.68rem;
+            border-radius: calc(var(--scale) * 0.68rem);
         \"
         onclick='if (confirm(\"logout?\")) { window.location.href = \"logout\"; }'
     >

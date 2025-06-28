@@ -114,7 +114,7 @@ test("fullscreen", () => {
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: 0.68rem;
+							border-radius: calc(var(--scale) * 0.68rem);
 						"
     >
       <a href="http://test.com/recordings#monitors=undefined"
@@ -127,7 +127,7 @@ test("fullscreen", () => {
 				"
       >
         <img class="icon-filter"
-             style="height: 2.2rem; aspect-ratio: 1;"
+             style="height: calc(var(--scale) * 2.2rem); aspect-ratio: 1;"
              src="assets/icons/feather/film.svg"
         >
       </a>
@@ -140,7 +140,7 @@ test("fullscreen", () => {
 				"
       >
         <img class="icon-filter"
-             style="height: 2.4rem; aspect-ratio: 1;"
+             style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
              src="assets/icons/feather/maximize.svg"
         >
       </button>
@@ -185,7 +185,7 @@ test("fullscreen", () => {
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: 0.68rem;
+							border-radius: calc(var(--scale) * 0.68rem);
 						"
     >
       <a href="http://test.com/recordings#monitors=undefined"
@@ -198,7 +198,7 @@ test("fullscreen", () => {
 				"
       >
         <img class="icon-filter"
-             style="height: 2.2rem; aspect-ratio: 1;"
+             style="height: calc(var(--scale) * 2.2rem); aspect-ratio: 1;"
              src="assets/icons/feather/film.svg"
         >
       </a>
@@ -211,7 +211,7 @@ test("fullscreen", () => {
 				"
       >
         <img class="icon-filter"
-             style="height: 2.4rem; aspect-ratio: 1;"
+             style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
              src="assets/icons/feather/maximize.svg"
         >
       </button>

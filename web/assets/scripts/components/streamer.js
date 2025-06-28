@@ -78,7 +78,7 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: 0.68rem;
+							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
 						${html}
@@ -195,7 +195,7 @@ function newFullscreenBtn() {
 			>
 				<img
 					class="icon-filter"
-					style="height: 2.4rem; aspect-ratio: 1;"
+					style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
 					src="${iconMaximizePath}"
 				/>
 			</button>
@@ -247,7 +247,7 @@ function newRecordingsBtn(monitorIds) {
 			>
 				<img
 					class="icon-filter"
-					style="height: 2.2rem; aspect-ratio: 1;"
+					style="height: calc(var(--scale) * 2.2rem); aspect-ratio: 1;"
 					src="${iconRecordingsPath}"
 				/>
 			</a>

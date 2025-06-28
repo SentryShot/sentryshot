@@ -56,7 +56,7 @@ function newRenderer($parent) {
 						class="js-set-settings-category settings-nav-item flex items-center"
 						style="
 							padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 14) calc(var(--spacing) * 1.4) calc(var(--spacing) * 5.4);
-							border-width: 0.034rem;
+							border-width: calc(var(--scale) * 0.034rem);
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
@@ -65,13 +65,15 @@ function newRenderer($parent) {
 							class="icon-filter"
 							style="
 								aspect-ratio: 1;
-								height: 2.4rem;
+								height: calc(var(--scale) * 2.4rem);
 								margin-right: calc(var(--spacing) * 1);
-								font-size: 2.7rem;
+								font-size: calc(var(--scale) * 2.7rem);
 							"
 							src="${category.icon()}"
 						/>
-						<span class="text-color" style="font-size: 2.4rem;"
+						<span
+							class="text-color"
+							style="font-size: calc(var(--scale) * 2.4rem);"
 							>${category.title()}</span
 						>
 					</li>
@@ -146,7 +148,7 @@ function newSimpleCategory(category, title) {
 							style="
 								margin: auto;
 								margin-right: calc(var(--spacing) * 22);
-								font-size: 2.7rem;
+								font-size: calc(var(--scale) * 2.7rem);
 							"
 						>${title}</span>
 					</div>
@@ -258,7 +260,7 @@ function newCategory(categoryName, title) {
 						class="settings-menubar js-settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							border-width: 0.034rem;
+							border-width: calc(var(--scale) * 0.034rem);
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
@@ -267,12 +269,12 @@ function newCategory(categoryName, title) {
 							class="js-settings-category-back flex shrink-0"
 							style="
 								margin-left: calc(var(--spacing) * 2.7);
-								width: 4.7rem;
+								width: calc(var(--scale) * 4.7rem);
 							"
 						>
 							<img
 								class="icon-filter"
-								style="width: 3.7rem;"
+								style="width: calc(var(--scale) * 3.7rem);"
 								src="${backIconPath}"
 							/>
 						</nav>
@@ -281,7 +283,7 @@ function newCategory(categoryName, title) {
 							style="
 								margin: auto;
 								margin-right: calc(var(--spacing) * 22);
-								font-size: 2.7rem;
+								font-size: calc(var(--scale) * 2.7rem);
 							"
 							>${title}</span
 						>
@@ -298,7 +300,7 @@ function newCategory(categoryName, title) {
 						class="js-settings-menubar settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							border-width: 0.034rem;
+							border-width: calc(var(--scale) * 0.034rem);
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
@@ -307,12 +309,12 @@ function newCategory(categoryName, title) {
 							class="js-settings-subcategory-back flex shrink-0"
 							style="
 								margin-left: calc(var(--spacing) * 2.7);
-								width: 4.7rem;
+								width: calc(var(--scale) * 4.7rem);
 							"
 						>
 							<img
 								class="icon-filter"
-								style="width: 3.7rem;"
+								style="width: calc(var(--scale) * 3.7rem);"
 								src="${backIconPath}"
 							/>
 						</nav>
@@ -321,7 +323,7 @@ function newCategory(categoryName, title) {
 							style="
 								margin: auto;
 								margin-right: calc(var(--spacing) * 22);
-								font-size: 2.7rem;
+								font-size: calc(var(--scale) * 2.7rem);
 							"
 						></span>
 					</div>
@@ -445,7 +447,7 @@ function newCategory2(categoryName, title, form) {
 						class="settings-menubar js-settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							border-width: 0.034rem;
+							border-width: calc(var(--scale) * 0.034rem);
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
@@ -454,12 +456,12 @@ function newCategory2(categoryName, title, form) {
 							class="js-settings-category-back flex shrink-0"
 							style="
 								margin-left: calc(var(--spacing) * 2.7);
-								width: 4.7rem;
+								width: calc(var(--scale) * 4.7rem);
 							"
 						>
 							<img
 								class="icon-filter"
-								style="width: 3.7rem;"
+								style="width: calc(var(--scale) * 3.7rem);"
 								src="${backIconPath}"
 							/>
 						</nav>
@@ -468,7 +470,7 @@ function newCategory2(categoryName, title, form) {
 							style="
 								margin: auto;
 								margin-right: calc(var(--spacing) * 22);
-								font-size: 2.7rem;
+								font-size: calc(var(--scale) * 2.7rem);
 							"
 							>${title}</span
 						>
@@ -485,7 +487,7 @@ function newCategory2(categoryName, title, form) {
 						class="js-settings-menubar settings-menubar bg-color2"
 						style="
 							height: var(--barsize);
-							border-width: 0.034rem;
+							border-width: calc(var(--scale) * 0.034rem);
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
@@ -494,12 +496,12 @@ function newCategory2(categoryName, title, form) {
 							class="js-settings-subcategory-back flex shrink-0"
 							style="
 								margin-left: calc(var(--spacing) * 2.7);
-								width: 4.7rem;
+								width: calc(var(--scale) * 4.7rem);
 							"
 						>
 							<img
 								class="icon-filter"
-								style="width: 3.7rem;"
+								style="width: calc(var(--scale) * 3.7rem);"
 								src="${backIconPath}"
 							/>
 						</nav>
@@ -508,7 +510,7 @@ function newCategory2(categoryName, title, form) {
 							style="
 								margin: auto;
 								margin-right: calc(var(--spacing) * 22);
-								font-size: 2.7rem;
+								font-size: calc(var(--scale) * 2.7rem);
 							"
 						></span>
 					</div>
@@ -653,13 +655,17 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 					class="settings-nav-item js-nav flex items-center"
 					style="
 						padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 14) calc(var(--spacing) * 1.4) calc(var(--spacing) * 5.4);
-						border-width: 0.034rem;
+						border-width: calc(var(--scale) * 0.034rem);
 						border-color: var(--color3);
 						border-bottom-style: solid;
 					"
 					data="${m.id}"
 				>
-					<span class="text-color" style="font-size: 2.4rem;">${m.name}</span>
+					<span
+						class="text-color"
+						style="font-size: calc(var(--scale) * 2.4rem);"
+						>${m.name}</span
+					>
 				</li>
 			`;
 		}
@@ -671,11 +677,13 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 					margin: calc(var(--spacing) * 2.7) auto calc(var(--spacing) * 2.7) calc(var(--spacing) * 1);
 					padding-left: calc(var(--spacing) * 1.4);
 					padding-right: calc(var(--spacing) * 1.4);
-					border-radius: 0.34rem;
+					border-radius: calc(var(--scale) * 0.34rem);
 				"
 				data=""
 			>
-				<span class="text-color" style="font-size: 2.4rem;">Add</span>
+				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+					>Add</span
+				>
 			</button>
 		`;
 
@@ -891,12 +899,16 @@ function newMonitorGroups(token, fields, groups) {
 					data="${g.id}"
 					style="
 						padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 14) calc(var(--spacing) * 1.4) calc(var(--spacing) * 5.4);
-						border-width: 0.034rem;
+						border-width: calc(var(--scale) * 0.034rem);
 						border-color: var(--color3);
 						border-bottom-style: solid;
 					"
 				>
-					<span class="text-color" style="font-size: 2.4rem;">${g.name}</span>
+					<span
+						class="text-color"
+						style="font-size: calc(var(--scale) * 2.4rem);"
+						>${g.name}</span
+					>
 				</li>
 			`;
 		}
@@ -908,11 +920,13 @@ function newMonitorGroups(token, fields, groups) {
 					margin: calc(var(--spacing) * 2.7) auto calc(var(--spacing) * 2.7) calc(var(--spacing) * 1);
 					padding-left: calc(var(--spacing) * 1.4);
 					padding-right: calc(var(--spacing) * 1.4);
-					border-radius: 0.34rem;
+					border-radius: calc(var(--scale) * 0.34rem);
 				"
 				data=""
 			>
-				<span class="text-color" style="font-size: 2.4rem;">Add</span>
+				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+					>Add</span
+				>
 			</button>
 		`;
 
@@ -1042,13 +1056,15 @@ function newAccount(token, fields) {
 					class="settings-nav-item js-nav flex items-center"
 					style="
 						padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 14) calc(var(--spacing) * 1.4) calc(var(--spacing) * 5.4);
-						border-width: 0.034rem;
+						border-width: calc(var(--scale) * 0.034rem);
 						border-color: var(--color3);
 						border-bottom-style: solid;
 					"
 					data="${u.id}"
 				>
-					<span class="${c}" style="font-size: 2.4rem;">${u.username} </span>
+					<span class="${c}" style="font-size: calc(var(--scale) * 2.4rem);"
+						>${u.username}
+					</span>
 				</li>
 			`;
 		}
@@ -1060,11 +1076,13 @@ function newAccount(token, fields) {
 					margin: calc(var(--spacing) * 2.7) auto calc(var(--spacing) * 2.7) calc(var(--spacing) * 1);
 					padding-left: calc(var(--spacing) * 1.4);
 					padding-right: calc(var(--spacing) * 1.4);
-					border-radius: 0.34rem;
+					border-radius: calc(var(--scale) * 0.34rem);
 				"
 				data=""
 			>
-				<span class="text-color" style="font-size: 2.4rem;">Add</span>
+				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+					>Add</span
+				>
 			</button>
 		`;
 
@@ -1172,10 +1190,10 @@ function newSelectMonitorField(monitors) {
 					style="
 						width: auto;
 						padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 2.7);
-						border-width: 0.034rem;
+						border-width: calc(var(--scale) * 0.034rem);
 						border-style: solid;
 						border-color: var(--color1);
-						font-size: 2.4rem;
+						font-size: calc(var(--scale) * 2.4rem);
 					"
 				>
 					<span
@@ -1192,7 +1210,7 @@ function newSelectMonitorField(monitors) {
 						style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: 0.47rem;
+							border-radius: calc(var(--scale) * 0.47rem);
 							user-select: none;
 						"
 					>
@@ -1211,7 +1229,7 @@ function newSelectMonitorField(monitors) {
 							style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: 0.34rem;
+								border-radius: calc(var(--scale) * 0.34rem);
 							"
 						></div>
 						<img
@@ -1260,7 +1278,7 @@ function newSelectMonitorField(monitors) {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			></li>
 		`,
@@ -1417,7 +1435,8 @@ function newSourceRTSP() {
 		}
 		element.insertAdjacentHTML("beforeend", modal.html);
 		// @ts-ignore
-		element.querySelector(".js-modal").style.maxWidth = "40.5rem";
+		element.querySelector(".js-modal").style.maxWidth =
+			"calc(var(--scale) * 40.5rem)";
 
 		modal.init();
 		form.init();

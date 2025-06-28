@@ -103,7 +103,7 @@ function newPolygonEditor(element, props) {
 			// Points.
 			for (const [i, [x, y]] of value.entries()) {
 				if (i !== selected) {
-					html += `<circle cx="${x}" cy="${y}" r="0.045rem" data="${i}" ${arrowStyle} class="js-point"></circle>`;
+					html += `<circle cx="${x}" cy="${y}" r="calc(var(--scale) * 0.15rem)" data="${i}" ${arrowStyle} class="js-point"></circle>`;
 				}
 			}
 
@@ -112,7 +112,7 @@ function newPolygonEditor(element, props) {
 				const j = (i + 1) % value.length;
 				const x = (value[i][0] + value[j][0]) / 2;
 				const y = (value[i][1] + value[j][1]) / 2;
-				html += `<circle cx="${x}" cy="${y}" r="0.03rem" data="${i}" ${arrowStyle} class="js-fake-point"></circle>`;
+				html += `<circle cx="${x}" cy="${y}" r="calc(var(--scale) * 0.1rem)" data="${i}" ${arrowStyle} class="js-fake-point"></circle>`;
 			}
 
 			// Arrows.
@@ -122,7 +122,7 @@ function newPolygonEditor(element, props) {
 			if (!rem) {
 				rem = 16;
 			}
-			const offset = 0.08 * rem;
+			const offset = 0.2 * rem;
 			const width = offset * 0.75;
 			const height = width * 1.5;
 			const [x, y] = value[selected];

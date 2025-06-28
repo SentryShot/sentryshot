@@ -120,14 +120,14 @@ describe("MultiSelect", () => {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 >
   <label class="grow w-full text-color"
          style="
 					   float: left;
-					   min-width: 13.5rem;
-					   font-size: 2rem;
+					   min-width: calc(var(--scale) * 13.5rem);
+					   font-size: calc(var(--scale) * 2rem);
 					"
   >
     test
@@ -140,7 +140,7 @@ describe("MultiSelect", () => {
            style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: 0.47rem;
+							border-radius: calc(var(--scale) * 0.47rem);
 							user-select: none;
 						"
       >
@@ -157,7 +157,7 @@ describe("MultiSelect", () => {
              style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: 0.34rem;
+								border-radius: calc(var(--scale) * 0.34rem);
 							"
         >
         </div>
@@ -170,7 +170,7 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 2.7); font-size: 1.7rem;"
+            style="margin-left: calc(var(--spacing) * 2.7); font-size: calc(var(--scale) * 1.7rem);"
       >
         a
       </span>
@@ -182,7 +182,7 @@ describe("MultiSelect", () => {
            style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: 0.47rem;
+							border-radius: calc(var(--scale) * 0.47rem);
 							user-select: none;
 						"
       >
@@ -199,7 +199,7 @@ describe("MultiSelect", () => {
              style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: 0.34rem;
+								border-radius: calc(var(--scale) * 0.34rem);
 							"
         >
         </div>
@@ -212,7 +212,7 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 2.7); font-size: 1.7rem;"
+            style="margin-left: calc(var(--spacing) * 2.7); font-size: calc(var(--scale) * 1.7rem);"
       >
         b
       </span>
@@ -224,7 +224,7 @@ describe("MultiSelect", () => {
            style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: 0.47rem;
+							border-radius: calc(var(--scale) * 0.47rem);
 							user-select: none;
 						"
       >
@@ -241,7 +241,7 @@ describe("MultiSelect", () => {
              style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: 0.34rem;
+								border-radius: calc(var(--scale) * 0.34rem);
 							"
         >
         </div>
@@ -254,7 +254,7 @@ describe("MultiSelect", () => {
         >
       </div>
       <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 2.7); font-size: 1.7rem;"
+            style="margin-left: calc(var(--spacing) * 2.7); font-size: calc(var(--scale) * 1.7rem);"
       >
         c
       </span>
@@ -394,11 +394,11 @@ describe("logSelector", () => {
 				   margin: calc(var(--spacing) * 2.7);
 				   padding-left: calc(var(--spacing) * 1.4);
 				   padding-right: calc(var(--spacing) * 1.4);
-				   border-radius: 0.68rem;
+				   border-radius: calc(var(--scale) * 0.68rem);
 				"
     >
       <span class="text-color"
-            style="font-size: 2.4rem;"
+            style="font-size: calc(var(--scale) * 2.4rem);"
       >
         Reset
       </span>
@@ -409,11 +409,11 @@ describe("logSelector", () => {
 					margin: calc(var(--spacing) * 2.7);
 					padding-left: calc(var(--spacing) * 1.4);
 					padding-right: calc(var(--spacing) * 1.4);
-					border-radius: 0.68rem;
+					border-radius: calc(var(--scale) * 0.68rem);
 				"
     >
       <span class="text-color"
-            style="font-size: 2.4rem;"
+            style="font-size: calc(var(--scale) * 2.4rem);"
       >
         Apply
       </span>

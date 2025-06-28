@@ -490,7 +490,7 @@ function newMultiSelect(label, values, initial) {
 						style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: 0.47rem;
+							border-radius: calc(var(--scale) * 0.47rem);
 							user-select: none;
 						"
 					>
@@ -509,7 +509,7 @@ function newMultiSelect(label, values, initial) {
 							style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: 0.34rem;
+								border-radius: calc(var(--scale) * 0.34rem);
 							"
 						></div>
 						<img
@@ -523,7 +523,7 @@ function newMultiSelect(label, values, initial) {
 					</div>
 					<span
 						class="text-color"
-						style="margin-left: calc(var(--spacing) * 2.7); font-size: 1.7rem;"
+						style="margin-left: calc(var(--spacing) * 2.7); font-size: calc(var(--scale) * 1.7rem);"
 						>${name}</span
 					>
 				</div>
@@ -575,15 +575,15 @@ function newMultiSelect(label, values, initial) {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			>
 				<label
 					class="grow w-full text-color"
 					style="
 					   float: left;
-					   min-width: 13.5rem;
-					   font-size: 2rem;
+					   min-width: calc(var(--scale) * 13.5rem);
+					   font-size: calc(var(--scale) * 2rem);
 					"
 					>${label}</label
 				>
@@ -662,7 +662,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			>
 				<label
@@ -670,8 +670,8 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 					class="grow w-full text-color"
 					style="
 					   float: left;
-					   min-width: 13.5rem;
-					   font-size: 2rem;
+					   min-width: calc(var(--scale) * 13.5rem);
+					   font-size: calc(var(--scale) * 2rem);
 					"
 					>Monitor</label
 				>
@@ -679,7 +679,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 					<select
 						id="${inputID}"
 						class="w-full"
-						style="padding-left: calc(var(--spacing) * 2.7); height: 3.4rem; font-size: 1.7rem;"
+						style="padding-left: calc(var(--spacing) * 2.7); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
 					>
 						${options}
 					</select>
@@ -687,10 +687,10 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							width: 3.4rem;
-							height: 3.4rem;
+							width: calc(var(--scale) * 3.4rem);
+							height: calc(var(--scale) * 3.4rem);
 							margin-left: calc(var(--spacing) * 5.4);
-							border-radius: 0.68rem;
+							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
 						<img
@@ -793,10 +793,12 @@ function newLogSelector(logger, formFields) {
 				   margin: calc(var(--spacing) * 2.7);
 				   padding-left: calc(var(--spacing) * 1.4);
 				   padding-right: calc(var(--spacing) * 1.4);
-				   border-radius: 0.68rem;
+				   border-radius: calc(var(--scale) * 0.68rem);
 				"
 			>
-				<span class="text-color" style="font-size: 2.4rem;">Reset</span>
+				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+					>Reset</span
+				>
 			</button>
 			<button
 				class="log-apply-btn js-apply bg-green hover:bg-green2"
@@ -805,10 +807,12 @@ function newLogSelector(logger, formFields) {
 					margin: calc(var(--spacing) * 2.7);
 					padding-left: calc(var(--spacing) * 1.4);
 					padding-right: calc(var(--spacing) * 1.4);
-					border-radius: 0.68rem;
+					border-radius: calc(var(--scale) * 0.68rem);
 				"
 			>
-				<span class="text-color" style="font-size: 2.4rem;">Apply</span>
+				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+					>Apply</span
+				>
 			</button>
 		</div>
 	`;

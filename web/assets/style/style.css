@@ -275,10 +275,11 @@ progress[value]::-moz-progress-bar {
 :root {
 	font-family: Arial, Helvetica, sans-serif;
 
+	--scale: 1;
 	--spacing: 4px;
-	--barsize: 4.7rem;
-	--sidebar-width: 20rem;
-	--topbar-height: 4.7rem;
+	--barsize: calc(var(--scale) * 4.7rem);
+	--sidebar-width: calc(var(--scale) * 20rem);
+	--topbar-height: calc(var(--scale) * 4.7rem);
 	--size-minus-topbar: calc(100% - var(--topbar-height));
 	--gridsize: 1;
 	--color-text: hsl(215deg 40% 90%);
@@ -445,13 +446,13 @@ img {
 
 /* Date picker. */
 .date-picker-day-btn {
-	height: 2.9rem;
-	width: 2.9rem;
+	height: calc(var(--scale) * 2.9rem);
+	width: calc(var(--scale) * 2.9rem);
 	color: var(--color-text);
-	border-width: 0.17rem;
+	border-width: calc(var(--scale) * 0.17rem);
 	border-style: solid;
 	border-color: var(--color2);
-	border-radius: 0.51rem;
+	border-radius: calc(var(--scale) * 0.51rem);
 	background: var(--color3);
 }
 
@@ -552,12 +553,12 @@ img {
 /*
 .form-field-select-custom-btn {
 	flex-shrink: 0;
-	width: 3.4rem;
-	height: 3.4rem;
+	width: calc(var(--scale) * 3.4rem);
+	height: calc(var(--scale) * 3.4rem);
 	margin-left: calc(var(--spacing) * 7);
 	padding: 0;
 	border: 0;
-	border-radius: 0.68rem;
+	border-radius: calc(var(--scale) * 0.68rem);
 }
 
 .form-field-select-custom-btn:hover {
@@ -637,10 +638,8 @@ img {
 /* Mobile Landscape mode. */
 @media (aspect-ratio >= 3/2) {
 	:root {
+		--scale: 0.7;
 		--spacing: 3px;
-
-		font-size: 3.43vh; /* Window scale. */
-
 		--gridsize: 2;
 	}
 
@@ -693,10 +692,8 @@ img {
 /* Tablet/Dektop. */
 @media only screen and (width >= 768px) {
 	:root {
+		--scale: 0.6;
 		--spacing: 2px;
-
-		font-size: 1.32vh; /* Window scale. */
-
 		--gridsize: 3;
 	}
 
@@ -803,10 +800,10 @@ img {
 		width: 30vw;
 		max-height: 90vh;
 		padding-bottom: calc(var(--spacing) * 1);
-		border-radius: 0.68rem;
+		border-radius: calc(var(--scale) * 0.68rem);
 	}
 
 	.modal-header {
-		border-radius: 0.68rem 0.68rem 0 0;
+		border-radius: calc(var(--scale) * 0.68rem) calc(var(--scale) * 0.68rem) 0 0;
 	}
 }

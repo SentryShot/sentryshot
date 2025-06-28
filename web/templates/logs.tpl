@@ -37,12 +37,12 @@
 		></div>
 		<div class="log-list-wrapper js-list bg-color3">
 			<div id="log-menubar" class="bg-color2" style="height: var(--barsize)">
-				<nav class="js-back" style="width: 4.7rem">
+				<nav class="js-back" style="width: calc(var(--scale) * 4.7rem);">
 					<img
 						class="icon-filter"
 						style="
-							width: 3.7rem;
-							height: 3.7rem;
+							width: calc(var(--scale) * 3.7rem);
+							height: calc(var(--scale) * 3.7rem);
 							padding: calc(var(--spacing) * 2);
 						"
 						src="assets/icons/feather/arrow-left.svg"
@@ -52,7 +52,7 @@
 			<div
 				id="js-log-lists"
 				class="text-color bg-color3"
-				style="font-size: 1.7rem; word-wrap: break-word; overflow-y: auto"
+				style="font-size: calc(var(--scale) * 1.7rem); word-wrap: break-word; overflow-y: auto"
 			></div>
 		</div>
 	</div>
@@ -87,7 +87,7 @@
 
 	.log-list > span {
 		border-bottom: solid;
-		border-bottom-width: 0.14rem;
+		border-bottom-width: calc(var(--scale) * 0.14rem);
 	}
 
 	/* Mobile Landscape mode. */
@@ -107,7 +107,7 @@
 			transform: none;
 		}
 		.log-sidebar {
-			width: 20rem;
+			width: calc(var(--scale) * 20rem);
 		}
 		#log-menubar {
 			display: none;

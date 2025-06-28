@@ -50,19 +50,19 @@ function newModal(label, content = "") {
 							class="w-full text-center text-color"
 							style="
 								padding-left: calc(var(--spacing) * 10);
-								font-size: 2.7rem;
+								font-size: calc(var(--scale) * 2.7rem);
 							"
 						>${label}</span>
 						<button
 							class="js-modal-close-btn flex bg-color3"
 							style="
 								margin: auto;
-								border-radius: 0.34rem;
+								border-radius: calc(var(--scale) * 0.34rem);
 							"
 						>
 							<img
 								class="icon-filter"
-								style="height: 3rem;"
+								style="height: calc(var(--scale) * 3rem);"
 								src="assets/icons/feather/x.svg"
 							></img>
 						</button>
@@ -134,8 +134,8 @@ function newModalSelect(name, options, onSelect) {
 					class="js-option text-color"
 					style="
 						padding: 0 calc(var(--spacing) * 2.7);
-						font-size: 2.7rem;
-						border-width: 0.034rem;
+						font-size: calc(var(--scale) * 2.7rem);
+						border-width: calc(var(--scale) * 0.034rem);
 						border-style: solid;
 						border-color: var(--color1);
 					"

@@ -98,7 +98,7 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 		element.insertAdjacentHTML("beforeend", modal.html);
 		/** @type {HTMLElement} */
 		const $modal = element.querySelector(".js-modal");
-		$modal.style.maxWidth = "40.5rem";
+		$modal.style.maxWidth = "calc(var(--scale) * 40.5rem)";
 
 		modal.init();
 		form.init();
@@ -124,7 +124,7 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 					display:flex;
 				"
 			>
@@ -132,8 +132,8 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 					class="grow w-full text-color"
 					style="
 						float: left;
-						min-width: 13.5rem;
-						font-size: 2rem;
+						min-width: calc(var(--scale) * 13.5rem);
+						font-size: calc(var(--scale) * 2rem);
 					"
 					>Object detection</label
 				>
@@ -141,10 +141,10 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 					class="js-edit-btn flex bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
-						width: 3.4rem;
-						height: 3.4rem;
+						width: calc(var(--scale) * 3.4rem);
+						height: calc(var(--scale) * 3.4rem);
 						margin-left: calc(var(--spacing) * 5.4);
-						border-radius: 0.68rem;
+						border-radius: calc(var(--scale) * 0.68rem);
 					"
 				>
 					<img
@@ -209,10 +209,13 @@ function thresholds(detectors, getDetectorName) {
 					style="
 						padding: calc(var(--spacing) * 1.4);
 						border-color: var(--color1);
-						border-width: 0.1rem;
+						border-width: calc(var(--scale) * 0.1rem);
 					"
 				>
-					<label for="${id}" class="text-color" style="font-size: 2.4rem;"
+					<label
+						for="${id}"
+						class="text-color"
+						style="font-size: calc(var(--scale) * 2.4rem);"
 						>${label}</label
 					>
 					<input
@@ -220,8 +223,8 @@ function thresholds(detectors, getDetectorName) {
 						class="text-center h-full"
 						style="
 							margin-left: auto;
-							font-size: 2rem;
-							width: 4.7rem;
+							font-size: calc(var(--scale) * 2rem);
+							width: calc(var(--scale) * 4.7rem);
 						"
 						type="number"
 						value="${val}"
@@ -330,7 +333,7 @@ function thresholds(detectors, getDetectorName) {
 					padding-bottom: calc(var(--spacing) * 3.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 					display:flex;
 				"
 			>
@@ -338,8 +341,8 @@ function thresholds(detectors, getDetectorName) {
 					class="grow w-full text-color"
 					style="
 						float: left;
-						min-width: 13.5rem;
-						font-size: 2rem;
+						min-width: calc(var(--scale) * 13.5rem);
+						font-size: calc(var(--scale) * 2rem);
 					"
 					>Thresholds</label
 				>
@@ -348,10 +351,10 @@ function thresholds(detectors, getDetectorName) {
 						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							width: 3.4rem;
-							height: 3.4rem;
+							width: calc(var(--scale) * 3.4rem);
+							height: calc(var(--scale) * 3.4rem);
 							margin-left: calc(var(--spacing) * 5.4);
-							border-radius: 0.68rem;
+							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
 						<img
@@ -418,29 +421,26 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 		const html = /* HTML */ `
 			<li
 				id="object-detection-crop-preview"
-				class="items-center"
+				class="flex flex-col items-center"
 				style="
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			>
 				<label
 					for="object-detection-crop-preview"
 					class="grow text-color"
 					style="
-						float: left;
 						width: auto;
-						min-width: 13.5rem;
-						font-size: 2rem;
+						min-width: calc(var(--scale) * 13.5rem);
+						font-size: calc(var(--scale) * 2rem);
+						margin-right: auto;
 					"
 					>Preview</label
 				>
-				<div
-					class="js-preview-wrapper relative"
-					style="margin-top: calc(var(--spacing) * 2.8)"
-				>
+				<div class="js-preview-wrapper relative">
 					<div
 						class="js-feed flex w-full"
 						style="
@@ -453,10 +453,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<div class="js-preview-padding" style="background: white;"></div>
 					<svg
 						class="js-object-detection-overlay absolute w-full h-full"
-						style="top: 0;"
+						style="top: 0; opacity: 0.7;"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
-						style="opacity: 0.7;"
 					></svg>
 				</div>
 			</li>
@@ -466,7 +465,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 					flex-wrap: wrap;
 				"
 			>
@@ -474,7 +473,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					class="js-object-detection-crop-option flex bg-color2"
 					style="
 						padding: calc(var(--spacing) * 2);
-						border-radius: 0.51rem;
+						border-radius: calc(var(--scale) * 0.51rem);
 						margin-right: calc(var(--spacing) * 2.7);
 						margin-bottom: calc(var(--spacing) * 2.7);
 					"
@@ -482,7 +481,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<span
 						class="text-color"
 						style="
-							font-size: 2.4rem;
+							font-size: calc(var(--scale) * 2.4rem);
 							margin-left: calc(var(--spacing) * 1.4);
 							margin-right: calc(var(--spacing) * 2.7);
 						"
@@ -491,10 +490,10 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<input
 						class="js-x text-center"
 						style="
-							font-size: 1.7rem;
+							font-size: calc(var(--scale) * 1.7rem);
 							border-style: none;
 							border-radius: 5px;
-							width: 4.7rem;
+							width: calc(var(--scale) * 4.7rem);
 						"
 						type="number"
 						min="0"
@@ -506,7 +505,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					class="js-object-detection-crop-option flex bg-color2"
 					style="
 						padding: calc(var(--spacing) * 2);
-						border-radius: 0.51rem;
+						border-radius: calc(var(--scale) * 0.51rem);
 						margin-right: calc(var(--spacing) * 2.7);
 						margin-bottom: calc(var(--spacing) * 2.7);
 					"
@@ -514,7 +513,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<span
 						class="text-color"
 						style="
-							font-size: 2.4rem;
+							font-size: calc(var(--scale) * 2.4rem);
 							margin-left: calc(var(--spacing) * 1.4);
 							margin-right: calc(var(--spacing) * 2.7);
 						"
@@ -523,10 +522,10 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<input
 						class="js-y text-center"
 						style="
-							font-size: 1.7rem;
+							font-size: calc(var(--scale) * 1.7rem);
 							border-style: none;
 							border-radius: 5px;
-							width: 4.7rem;
+							width: calc(var(--scale) * 4.7rem);
 						"
 						type="number"
 						min="0"
@@ -538,7 +537,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					class="js-object-detection-crop-option flex bg-color2"
 					style="
 						padding: calc(var(--spacing) * 2);
-						border-radius: 0.51rem;
+						border-radius: calc(var(--scale) * 0.51rem);
 						margin-right: calc(var(--spacing) * 2.7);
 						margin-bottom: calc(var(--spacing) * 2.7);
 					"
@@ -546,7 +545,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<span
 						class="text-color"
 						style="
-							font-size: 2.4rem;
+							font-size: calc(var(--scale) * 2.4rem);
 							margin-left: calc(var(--spacing) * 1.4);
 							margin-right: calc(var(--spacing) * 2.7);
 						"
@@ -555,10 +554,10 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<input
 						class="js-size text-center"
 						style="
-							font-size: 1.7rem;
+							font-size: calc(var(--scale) * 1.7rem);
 							border-style: none;
 							border-radius: 5px;
-							width: 4.7rem;
+							width: calc(var(--scale) * 4.7rem);
 						"
 						type="number"
 						min="0"
@@ -689,7 +688,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					padding-bottom: calc(var(--spacing) * 3.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 					display:flex;
 				"
 			>
@@ -698,8 +697,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					style="
 						float: left;
 						width: auto;
-						min-width: 13.5rem;
-						font-size: 2rem;
+						min-width: calc(var(--scale) * 13.5rem);
+						font-size: calc(var(--scale) * 2rem);
 					"
 					>Crop</label
 				>
@@ -708,10 +707,10 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							width: 3.4rem;
-							height: 3.4rem;
+							width: calc(var(--scale) * 3.4rem);
+							height: calc(var(--scale) * 3.4rem);
 							margin-left: calc(var(--spacing) * 5.4);
-							border-radius: 0.68rem;
+							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
 						<img
@@ -827,7 +826,7 @@ function mask(hasSubStream, getMonitorId) {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			>
 				<label
@@ -836,15 +835,15 @@ function mask(hasSubStream, getMonitorId) {
 					style="
 						float: left;
 						width: auto;
-						min-width: 13.5rem;
-						font-size: 2rem;
+						min-width: calc(var(--scale) * 13.5rem);
+						font-size: calc(var(--scale) * 2rem);
 					"
 					>Enable mask</label
 				>
 				<div class="flex w-full">
 					<select
 						class="js-input w-full"
-						style="padding-left: calc(var(--spacing) * 2.7); height: 3.4rem; font-size: 1.7rem;"
+						style="padding-left: calc(var(--spacing) * 2.7); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
 					>
 						<option>true</option>
 						<option>false</option>
@@ -853,29 +852,26 @@ function mask(hasSubStream, getMonitorId) {
 			</li>
 			<li
 				id="object_detection_mask-preview"
-				class="items-center"
+				class="flex flex-col items-center"
 				style="
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			>
 				<label
 					for="object_detection_mask-preview"
 					class="grow text-color"
 					style="
-						float: left;
 						width: auto;
-						min-width: 13.5rem;
-						font-size: 2rem;
+						min-width: calc(var(--scale) * 13.5rem);
+						font-size: calc(var(--scale) * 2rem);
+						margin-right: auto;
 					"
 					>Preview</label
 				>
-				<div
-					class="js-preview-wrapper relative"
-					style="margin-top: calc(var(--spacing) * 2.8)"
-				>
+				<div class="js-preview-wrapper relative">
 					<div
 						class="js-feed flex w-full"
 						style="
@@ -904,7 +900,7 @@ function mask(hasSubStream, getMonitorId) {
 					padding: calc(var(--spacing) * 1.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 					flex-wrap: wrap;
 					justify-content: space-between
 				"
@@ -913,12 +909,12 @@ function mask(hasSubStream, getMonitorId) {
 					<button
 						class="js-1x text-color bg-color2 hover:bg-color1"
 						style="
-							font-size: 2rem;
+							font-size: calc(var(--scale) * 2rem);
 							padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
-							border-width: 0.07rem;
+							border-width: calc(var(--scale) * 0.07rem);
 							border-color: var(--color3);
-							border-top-left-radius: 0.84rem;
-							border-bottom-left-radius: 0.84rem;
+							border-top-left-radius: calc(var(--scale) * 0.84rem);
+							border-bottom-left-radius: calc(var(--scale) * 0.84rem);
 							border-right-style: solid;
 						"
 					>
@@ -927,9 +923,9 @@ function mask(hasSubStream, getMonitorId) {
 					<button
 						class="js-4x text-color bg-color2 hover:bg-color1 object_detection_mask-step-size-selected"
 						style="
-							font-size: 2rem;
+							font-size: calc(var(--scale) * 2rem);
 							padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
-							border-width: 0.07rem;
+							border-width: calc(var(--scale) * 0.07rem);
 							border-color: var(--color3);
 							border-style: hidden solid;
 						"
@@ -939,9 +935,9 @@ function mask(hasSubStream, getMonitorId) {
 					<button
 						class="js-10x text-color bg-color2 hover:bg-color1"
 						style="
-							font-size: 2rem;
+							font-size: calc(var(--scale) * 2rem);
 							padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
-							border-width: 0.07rem;
+							border-width: calc(var(--scale) * 0.07rem);
 							border-color: var(--color3);
 							border-style: hidden solid;
 						"
@@ -951,12 +947,12 @@ function mask(hasSubStream, getMonitorId) {
 					<button
 						class="js-20x text-color bg-color2 hover:bg-color1"
 						style="
-							font-size: 2rem;
+							font-size: calc(var(--scale) * 2rem);
 							padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
-							border-width: 0.07rem;
+							border-width: calc(var(--scale) * 0.07rem);
 							border-color: var(--color3);
-							border-top-right-radius: 0.84rem;
-							border-bottom-right-radius: 0.84rem;
+							border-top-right-radius: calc(var(--scale) * 0.84rem);
+							border-bottom-right-radius: calc(var(--scale) * 0.84rem);
 							border-left-style: solid;
 						"
 					>
@@ -966,14 +962,14 @@ function mask(hasSubStream, getMonitorId) {
 				<div class="flex">
 					<input
 						class="js-x text-center"
-						style="width: 4.4rem; font-size: 2rem;"
+						style="width: calc(var(--scale) * 4.4rem); font-size: calc(var(--scale) * 2rem);"
 						type="number"
 						min="0"
 						max="100"
 					/>
 					<input
 						class="js-y text-center"
-						style="width: 4.4rem; font-size: 2rem;"
+						style="width: calc(var(--scale) * 4.4rem); font-size: calc(var(--scale) * 2rem);"
 						type="number"
 						min="0"
 						max="100"
@@ -1145,7 +1141,7 @@ function mask(hasSubStream, getMonitorId) {
 					padding-bottom: calc(var(--spacing) * 3.4);
 					border-color: var(--color1);
 					border-bottom-style: solid;
-					border-bottom-width: 0.17rem;
+					border-bottom-width: calc(var(--scale) * 0.17rem);
 					display:flex;
 				"
 			>
@@ -1154,8 +1150,8 @@ function mask(hasSubStream, getMonitorId) {
 					style="
 						float: left;
 						width: auto;
-						min-width: 13.5rem;
-						font-size: 2rem;
+						min-width: calc(var(--scale) * 13.5rem);
+						font-size: calc(var(--scale) * 2rem);
 					"
 					>Mask</label
 				>
@@ -1164,10 +1160,10 @@ function mask(hasSubStream, getMonitorId) {
 						class="js-edit-btn flex bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
-							width: 3.4rem;
-							height: 3.4rem;
+							width: calc(var(--scale) * 3.4rem);
+							height: calc(var(--scale) * 3.4rem);
 							margin-left: calc(var(--spacing) * 5.4);
-							border-radius: 0.68rem;
+							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
 						<img

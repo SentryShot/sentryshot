@@ -151,8 +151,8 @@
 
 		.settings-category {
 			width: auto;
-			min-width: 20rem;
-			max-width: 30.4rem;
+			min-width: calc(var(--scale) * 20rem);
+			max-width: calc(var(--scale) * 30.4rem);
 		}
 
 		.settings-category-wrapper {
@@ -170,7 +170,7 @@
 		.settings-sub-category {
 			visibility: hidden;
 			position: relative;
-			max-width: 40.5rem;
+			max-width: calc(var(--scale) * 40.5rem);
 			transition: transform 0ms;
 		}
 

@@ -41,7 +41,7 @@ describe("feed", () => {
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: 0.68rem;
+							border-radius: calc(var(--scale) * 0.68rem);
 						"
     >
       <button class="js-fullscreen-btn feed-btn"
@@ -53,7 +53,7 @@ describe("feed", () => {
 				"
       >
         <img class="icon-filter"
-             style="height: 2.4rem; aspect-ratio: 1;"
+             style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
              src="assets/icons/feather/maximize.svg"
         >
       </button>
@@ -127,7 +127,7 @@ test("recordingsBtn", async () => {
    href="http://test.com/recordings#monitors=b"
 >
   <img class="icon-filter"
-       style="height: 2.2rem; aspect-ratio: 1;"
+       style="height: calc(var(--scale) * 2.2rem); aspect-ratio: 1;"
        src="assets/icons/feather/film.svg"
   >
 </a>
@@ -145,7 +145,7 @@ test("fullscreenBtn", () => {
 				"
 >
   <img class="icon-filter"
-       style="height: 2.4rem; aspect-ratio: 1;"
+       style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
        src="assets/icons/feather/maximize.svg"
   >
 </button>
