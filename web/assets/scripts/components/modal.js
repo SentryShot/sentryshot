@@ -40,11 +40,7 @@ function newModal(label, content = "") {
 			>
 				<div class="modal js-modal flex">
 					<header
-						class="modal-header flex bg-color2"
-						style="
-							padding-left: calc(var(--spacing) * 2);
-							padding-right: calc(var(--spacing) * 2);
-						"
+						class="modal-header flex px-2 bg-color2"
 					>
 						<span
 							class="w-full text-center text-color"
@@ -54,9 +50,8 @@ function newModal(label, content = "") {
 							"
 						>${label}</span>
 						<button
-							class="js-modal-close-btn flex bg-color3"
+							class="js-modal-close-btn flex m-auto bg-color3"
 							style="
-								margin: auto;
 								border-radius: calc(var(--scale) * 0.34rem);
 							"
 						>
@@ -131,9 +126,8 @@ function newModalSelect(name, options, onSelect) {
 			html += /* HTML */ `
 				<span
 					data="${option}"
-					class="js-option text-color"
+					class="js-option px-2 text-color"
 					style="
-						padding: 0 calc(var(--spacing) * 2);
 						font-size: calc(var(--scale) * 2.7rem);
 						border-width: calc(var(--scale) * 0.034rem);
 						border-style: solid;

@@ -120,11 +120,8 @@ describe("newForm", () => {
   html
   <div class="flex">
     <button id="uid1"
-            class="bg-red hover:bg-red2"
+            class="m-2 px-2 bg-red hover:bg-red2"
             style="
-					margin: calc(var(--spacing) * 2);
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-radius: calc(var(--scale) * 0.68rem);
 					margin-left: auto;
 				"
@@ -169,11 +166,8 @@ describe("newForm", () => {
   html
   <div class="flex">
     <button id="uid1"
-            class="bg-green hover:bg-green2"
+            class="m-2 px-2 bg-green hover:bg-green2"
             style="
-					margin: calc(var(--spacing) * 2);
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-radius: calc(var(--scale) * 0.68rem);
 				"
     >
@@ -184,11 +178,8 @@ describe("newForm", () => {
       </span>
     </button>
     <button id="uid2"
-            class="bg-red hover:bg-red2"
+            class="m-2 px-2 bg-red hover:bg-red2"
             style="
-					margin: calc(var(--spacing) * 2);
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-radius: calc(var(--scale) * 0.68rem);
 					margin-left: auto;
 				"
@@ -227,10 +218,8 @@ describe("newField", () => {
 
 		expect(newTestField().html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="items-center"
+    class="items-center px-2"
     style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -367,10 +356,8 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="items-center"
+    class="items-center px-2"
     style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -426,10 +413,8 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="items-center"
+    class="items-center px-2"
     style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -489,10 +474,8 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="items-center"
+    class="items-center px-2"
     style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -510,9 +493,8 @@ describe("fieldTemplate", () => {
   </label>
   <div class="flex w-full">
     <select id="uid1"
-            class="js-input w-full"
+            class="js-input w-full pl-2"
             style="
-						padding-left: calc(var(--spacing) * 2);
 						height: calc(var(--scale) * 3.4rem);
 						font-size: calc(var(--scale) * 1.7rem);
 					"
@@ -544,10 +526,8 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="items-center"
+    class="items-center px-2"
     style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -565,9 +545,8 @@ describe("fieldTemplate", () => {
   </label>
   <div class="flex w-full">
     <select id="uid1"
-            class="js-input w-full"
+            class="js-input w-full pl-2"
             style="
-						padding-left: calc(var(--spacing) * 2);
 						height: calc(var(--scale) * 3.4rem);
 						font-size: calc(var(--scale) * 1.7rem);
 					"
@@ -602,10 +581,8 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="items-center"
+    class="items-center px-2"
     style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -623,9 +600,8 @@ describe("fieldTemplate", () => {
   </label>
   <div class="flex w-full">
     <select id="uid1"
-            class="js-input w-full"
+            class="js-input w-full pl-2"
             style="
-						padding-left: calc(var(--spacing) * 2);
 						height: calc(var(--scale) * 3.4rem);
 						font-size: calc(var(--scale) * 1.7rem);
 					"
@@ -640,17 +616,15 @@ describe("fieldTemplate", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn flex bg-color2 hover:bg-color3"
+    <button class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
             style="
 						aspect-ratio: 1;
 						width: calc(var(--scale) * 3.4rem);
 						height: calc(var(--scale) * 3.4rem);
-						margin-left: calc(var(--spacing) * 2);
 						border-radius: calc(var(--scale) * 0.68rem);
 					"
     >
-      <img class="icon-filter"
-           style="padding: calc(var(--spacing) * 2);"
+      <img class="p-2 icon-filter"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
@@ -706,10 +680,8 @@ describe("selectCustomField", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="items-center"
+    class="items-center px-2"
     style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -727,9 +699,8 @@ describe("selectCustomField", () => {
   </label>
   <div class="flex w-full">
     <select id="uid1"
-            class="js-input w-full"
+            class="js-input w-full pl-2"
             style="
-						padding-left: calc(var(--spacing) * 2);
 						height: calc(var(--scale) * 3.4rem);
 						font-size: calc(var(--scale) * 1.7rem);
 					"
@@ -744,17 +715,15 @@ describe("selectCustomField", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn flex bg-color2 hover:bg-color3"
+    <button class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
             style="
 						aspect-ratio: 1;
 						width: calc(var(--scale) * 3.4rem);
 						height: calc(var(--scale) * 3.4rem);
-						margin-left: calc(var(--spacing) * 2);
 						border-radius: calc(var(--scale) * 0.68rem);
 					"
     >
-      <img class="icon-filter"
-           style="padding: calc(var(--spacing) * 2);"
+      <img class="p-2 icon-filter"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
@@ -787,10 +756,8 @@ describe("passwordField", () => {
 		uidReset();
 		expect(newPasswordField().html).toMatchInlineSnapshot(`
 <li id="js-uid1"
-    class="items-center"
+    class="items-center px-2"
     style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -822,10 +789,8 @@ describe("passwordField", () => {
   </span>
 </li>
 <li id="js-uid2"
-    class="items-center"
+    class="items-center px-2"
     style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);

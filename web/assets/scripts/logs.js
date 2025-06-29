@@ -525,8 +525,8 @@ function newMultiSelect(label, values, initial) {
 						/>
 					</div>
 					<span
-						class="text-color"
-						style="margin-left: calc(var(--spacing) * 2); font-size: calc(var(--scale) * 1.7rem);"
+						class="ml-2 text-color"
+						style="font-size: calc(var(--scale) * 1.7rem);"
 						>${name}</span
 					>
 				</div>
@@ -573,9 +573,8 @@ function newMultiSelect(label, values, initial) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
-				class="items-center w-full"
+				class="items-center w-full p-2"
 				style="
-					padding: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -660,9 +659,8 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 		html: /* HTML */ `
 			<li
 				id="${elementID}"
-				class="items-center"
+				class="items-center p-2"
 				style="
-					padding: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -681,24 +679,22 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 				<div class="flex w-full">
 					<select
 						id="${inputID}"
-						class="w-full"
-						style="padding-left: calc(var(--spacing) * 2); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
+						class="w-full pl-2"
+						style="height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
 					>
 						${options}
 					</select>
 					<button
-						class="js-edit-btn flex bg-color1 hover:bg-color2"
+						class="js-edit-btn flex ml-4 bg-color3 hover:bg-color2"
 						style="
 							aspect-ratio: 1;
 							width: calc(var(--scale) * 3.4rem);
 							height: calc(var(--scale) * 3.4rem);
-							margin-left: calc(var(--spacing) * 4);
 							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
 						<img
-							class="icon-filter"
-							style="padding: calc(var(--spacing) * 2);"
+							class="p-2 icon-filter"
 							src="assets/icons/feather/video.svg"
 						/>
 					</button>
@@ -791,11 +787,8 @@ function newLogSelector(logger, formFields) {
 		${form.html()}
 		<div>
 			<button
-				class="js-reset bg-color3 hover:bg-color2"
+				class="js-reset m-2 px-2 bg-color3 hover:bg-color2"
 				style="
-				   margin: calc(var(--spacing) * 2);
-				   padding-left: calc(var(--spacing) * 2);
-				   padding-right: calc(var(--spacing) * 2);
 				   border-radius: calc(var(--scale) * 0.68rem);
 				"
 			>
@@ -804,12 +797,9 @@ function newLogSelector(logger, formFields) {
 				>
 			</button>
 			<button
-				class="log-apply-btn js-apply bg-green hover:bg-green2"
+				class="log-apply-btn m-2 px-2 js-apply bg-green hover:bg-green2"
 				style="
 					float: right;
-					margin: calc(var(--spacing) * 2);
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-radius: calc(var(--scale) * 0.68rem);
 				"
 			>

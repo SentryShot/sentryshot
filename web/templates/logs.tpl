@@ -39,11 +39,10 @@
 			<div id="log-menubar" class="bg-color2" style="height: var(--barsize)">
 				<nav class="js-back" style="width: calc(var(--scale) * 4.7rem)">
 					<img
-						class="icon-filter"
+						class="p-2 icon-filter"
 						style="
 							width: calc(var(--scale) * 3.7rem);
 							height: calc(var(--scale) * 3.7rem);
-							padding: calc(var(--spacing) * 2);
 						"
 						src="assets/icons/feather/arrow-left.svg"
 					/>

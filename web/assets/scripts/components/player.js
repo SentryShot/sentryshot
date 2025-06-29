@@ -118,13 +118,12 @@ function newPlayer(data, isAdmin, token) {
 			src="${d.thumbPath}"
 		/>
 		<div
-			class="js-top-overlay absolute flex"
+			class="js-top-overlay absolute flex mr-auto"
 			style="
 				flex-wrap: wrap;
 				opacity: 0.8;
 				top: 0;
 				left: 0;
-				margin-right: auto;
 			"
 		>
 			${topOverlayHTML}
@@ -166,9 +165,8 @@ function newPlayer(data, isAdmin, token) {
 			"
 		>
 			<button
-				class="js-play-btn bg-color0"
+				class="js-play-btn p-2 bg-color0"
 				style="
-					padding: calc(var(--spacing) * 2);
 					font-size: 0;
 					border-radius: 50%;
 					opacity: 0.8;
@@ -218,10 +216,9 @@ function newPlayer(data, isAdmin, token) {
 				"
 			>
 				<div
-					class="bg-color0"
+					class="m-auto bg-color0"
 					style="
 						width: calc(var(--scale) * 1.35rem);
-						margin: auto;
 						border-radius: calc(var(--scale) * 0.34rem);
 					"
 				>
@@ -277,11 +274,10 @@ function newPlayer(data, isAdmin, token) {
 			</div>
 		</div>
 		<div
-			class="player-overlay absolute flex"
+			class="player-overlay absolute flex mr-auto"
 			style="
 				top: 0;
 				left: 0;
-				margin-right: auto;
 			"
 		>
 			<div

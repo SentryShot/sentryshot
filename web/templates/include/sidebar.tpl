@@ -12,8 +12,8 @@
 	</div>
 	<h1
 		id="current-page"
-		class="text-color"
-		style="margin: auto; font-size: calc(var(--scale) * 2.4rem)"
+		class="m-auto text-color"
+		style="font-size: calc(var(--scale) * 2.4rem)"
 	>
 		{{ current_page }}
 	</h1>
@@ -63,11 +63,7 @@
 <div
 	id="options-menu"
 	class="absolute flex flex-col"
-	style="
-		top: var(--topbar-height);
-		z-index: 3;
-		--options-menu-btn-width: calc(var(--scale) * 4.08rem);
-	"
+	style="z-index: 3; --options-menu-btn-width: calc(var(--scale) * 4.08rem)"
 ></div>
 
 <aside
@@ -77,12 +73,8 @@
 >
 	<div
 		id="nav-btn"
-		class="flex items-center hover:bg-color2"
-		style="
-			width: var(--sidebar-width);
-			padding: calc(var(--spacing) * 2);
-			text-decoration: none;
-		"
+		class="flex items-center p-2 hover:bg-color2"
+		style="width: var(--sidebar-width); text-decoration: none"
 	>
 		<img
 			class="icon-filter"
@@ -94,10 +86,9 @@
 		<a
 			href="live"
 			id="nav-link-live"
-			class="flex items-center hover:bg-color2"
+			class="flex items-center p-2 hover:bg-color2"
 			style="
 				width: var(--sidebar-width);
-				padding: calc(var(--spacing) * 2);
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
@@ -110,22 +101,16 @@
 				src="assets/icons/feather/video.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span
-				class="text-color"
-				style="
-					margin-left: calc(var(--spacing) * 4);
-					font-size: calc(var(--scale) * 2rem);
-				"
+			<span class="p-2 text-color" style="font-size: calc(var(--scale) * 2rem)"
 				>Live</span
 			>
 		</a>
 		<a
 			href="recordings"
 			id="nav-link-recordings"
-			class="flex items-center hover:bg-color2"
+			class="flex items-center p-2 hover:bg-color2"
 			style="
 				width: var(--sidebar-width);
-				padding: calc(var(--spacing) * 2);
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
@@ -137,12 +122,7 @@
 				src="assets/icons/feather/film.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span
-				class="text-color"
-				style="
-					margin-left: calc(var(--spacing) * 4);
-					font-size: calc(var(--scale) * 2rem);
-				"
+			<span class="ml-4 text-color" style="font-size: calc(var(--scale) * 2rem)"
 				>Recordings</span
 			>
 		</a>
@@ -150,10 +130,9 @@
 		<a
 			href="settings"
 			id="nav-link-settings"
-			class="flex items-center hover:bg-color2"
+			class="flex items-center p-2 hover:bg-color2"
 			style="
 				width: var(--sidebar-width);
-				padding: calc(var(--spacing) * 2);
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
@@ -165,22 +144,16 @@
 				src="assets/icons/feather/settings.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span
-				class="text-color"
-				style="
-					margin-left: calc(var(--spacing) * 4);
-					font-size: calc(var(--scale) * 2rem);
-				"
+			<span class="ml-4 text-color" style="font-size: calc(var(--scale) * 2rem)"
 				>Settings</span
 			>
 		</a>
 		<a
 			href="logs"
 			id="nav-link-logs"
-			class="flex items-center hover:bg-color2"
+			class="flex items-center p-2 hover:bg-color2"
 			style="
 				width: var(--sidebar-width);
-				padding: calc(var(--spacing) * 2);
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
@@ -192,12 +165,7 @@
 				src="assets/icons/feather/book-open.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span
-				class="text-color"
-				style="
-					margin-left: calc(var(--spacing) * 4);
-					font-size: calc(var(--scale) * 2rem);
-				"
+			<span class="ml-4 text-color" style="font-size: calc(var(--scale) * 2rem)"
 				>Logs</span
 			>
 		</a>

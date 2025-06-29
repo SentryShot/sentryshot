@@ -44,9 +44,8 @@ describe("feed", () => {
 							border-radius: calc(var(--scale) * 0.68rem);
 						"
     >
-      <button class="js-fullscreen-btn feed-btn"
+      <button class="js-fullscreen-btn feed-btn p-2"
               style="
-					padding: calc(var(--spacing) * 2);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -117,9 +116,8 @@ describe("muteBtn", () => {
 
 test("recordingsBtn", async () => {
 	expect(newFeedBtn.recordings("b").html).toMatchInlineSnapshot(`
-<a class="feed-btn"
+<a class="feed-btn p-2"
    style="
-					padding: calc(var(--spacing) * 2);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -136,9 +134,8 @@ test("recordingsBtn", async () => {
 
 test("fullscreenBtn", () => {
 	expect(newFeedBtn.fullscreen().html).toMatchInlineSnapshot(`
-<button class="js-fullscreen-btn feed-btn"
+<button class="js-fullscreen-btn feed-btn p-2"
         style="
-					padding: calc(var(--spacing) * 2);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;

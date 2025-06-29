@@ -46,9 +46,8 @@ describe("feed", () => {
 							border-radius: calc(var(--scale) * 0.68rem);
 						"
     >
-      <button class="js-fullscreen-btn feed-btn"
+      <button class="js-fullscreen-btn feed-btn p-2"
               style="
-					padding: calc(var(--spacing) * 2);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -122,9 +121,8 @@ describe("muteBtn", () => {
 test("recordingsBtn", async () => {
 	expect(newStreamerBtn.recordings("b").html).toMatchInlineSnapshot(`
 <a href="http://test.com/recordings#monitors=b"
-   class="feed-btn"
+   class="feed-btn p-2"
    style="
-					padding: calc(var(--spacing) * 2);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
@@ -140,9 +138,8 @@ test("recordingsBtn", async () => {
 
 test("fullscreenBtn", () => {
 	expect(newStreamerBtn.fullscreen().html).toMatchInlineSnapshot(`
-<button class="js-fullscreen-btn feed-btn"
+<button class="js-fullscreen-btn feed-btn p-2"
         style="
-					padding: calc(var(--spacing) * 2);
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;

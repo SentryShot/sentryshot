@@ -365,11 +365,8 @@ fn edit_templates(tmpls: &mut Templates) {
     \"
 >
 	<button
-        class=\"text-color bg-color2 hover:bg-color3\"
+        class=\"mt-2 px-2 text-color bg-color2 hover:bg-color3\"
         style=\"
-            margin-top: calc(var(--spacing) * 2);
-            padding-right: calc(var(--spacing) * 2);
-            padding-left: calc(var(--spacing) * 2);
             font-size: calc(var(--scale) * 2rem);
             border-width: calc(var(--scale) * 0.17rem);
             border-style: solid;

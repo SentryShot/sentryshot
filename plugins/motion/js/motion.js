@@ -82,9 +82,8 @@ export function motion2(hasSubStream, getMonitorId) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
-				class="flex items-center"
+				class="flex items-center p-2"
 				style="
-					padding: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -101,18 +100,16 @@ export function motion2(hasSubStream, getMonitorId) {
 				>
 				<div>
 					<button
-						class="js-edit-btn flex bg-color2 hover:bg-color3"
+						class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
 							width: calc(var(--scale) * 3.4rem);
 							height: calc(var(--scale) * 3.4rem);
-							margin-left: calc(var(--spacing) * 2);
 							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
 						<img
-							class="icon-filter"
-							style="padding: calc(var(--spacing) * 2);"
+							class="p-2 icon-filter"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>
@@ -170,9 +167,8 @@ export function motion2(hasSubStream, getMonitorId) {
 function zonesModalHTML(feedHTML) {
 	return /* HTML */ `
 		<li
-			class="items-center"
+			class="items-center p-2"
 			style="
-				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -180,47 +176,36 @@ function zonesModalHTML(feedHTML) {
 		>
 			<div class="flex w-full">
 				<select
-					class="js-zone-select w-full"
-					style="padding-left: calc(var(--spacing) * 2); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
+					class="js-zone-select w-full pl-2"
+					style="height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
 				></select>
 				<div
-					class="js-add-zone flex bg-color2 hover:bg-color3"
+					class="js-add-zone flex ml-4 bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
 						width: calc(var(--scale) * 3.4rem);
 						height: calc(var(--scale) * 3.4rem);
-						margin-left: calc(var(--spacing) * 4);
 						border-radius: calc(var(--scale) * 0.68rem);
 					"
 				>
-					<img
-						class="icon-filter"
-						style="padding: calc(var(--spacing) * 2);"
-						src="assets/icons/feather/plus.svg"
-					/>
+					<img class="p-2 icon-filter" src="assets/icons/feather/plus.svg" />
 				</div>
 				<div
-					class="js-remove-zone flex bg-color2 hover:bg-color3"
+					class="js-remove-zone flex ml-4 bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
 						width: calc(var(--scale) * 3.4rem);
 						height: calc(var(--scale) * 3.4rem);
 						border-radius: calc(var(--scale) * 0.68rem);
-						margin-left: calc(var(--spacing) * 4);
 					"
 				>
-					<img
-						class="icon-filter"
-						style="padding: calc(var(--spacing) * 2);"
-						src="assets/icons/feather/minus.svg"
-					/>
+					<img class="p-2 icon-filter" src="assets/icons/feather/minus.svg" />
 				</div>
 			</div>
 		</li>
 		<li
-			class="items-center"
+			class="items-center p-2"
 			style="
-				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -238,8 +223,8 @@ function zonesModalHTML(feedHTML) {
 			>
 			<div class="flex w-full">
 				<select
-					class="js-enable w-full"
-					style="padding-left: calc(var(--spacing) * 2); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
+					class="js-enable w-full pl-2"
+					style="height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
 				>
 					<option>true</option>
 					<option>false</option>
@@ -247,9 +232,8 @@ function zonesModalHTML(feedHTML) {
 			</div>
 		</li>
 		<li
-			class="items-center"
+			class="items-center p-2"
 			style="
-				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -281,9 +265,8 @@ function zonesModalHTML(feedHTML) {
 			/>
 		</li>
 		<li
-			class="items-center"
+			class="items-center p-2"
 			style="
-				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -328,9 +311,8 @@ function zonesModalHTML(feedHTML) {
 			</div>
 		</li>
 		<li
-			class="items-center"
+			class="items-center p-2"
 			style="
-				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -348,8 +330,8 @@ function zonesModalHTML(feedHTML) {
 			>
 			<div class="flex w-full">
 				<select
-					class="js-preview w-full"
-					style="padding-left: calc(var(--spacing) * 2); height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
+					class="js-preview w-full pl-2"
+					style="height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
 				>
 					<option>true</option>
 					<option>false</option>
@@ -361,9 +343,8 @@ function zonesModalHTML(feedHTML) {
 			</div>
 		</li>
 		<li
-			class="flex items-center"
+			class="flex items-center p-2"
 			style="
-				padding: calc(var(--spacing) * 2);
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -373,10 +354,9 @@ function zonesModalHTML(feedHTML) {
 		>
 			<div class="flex">
 				<button
-					class="js-1x text-color bg-color2 hover:bg-color1"
+					class="js-1x py-1 px-2 text-color bg-color2 hover:bg-color1"
 					style="
 						font-size: calc(var(--scale) * 2rem);
-						padding: calc(var(--spacing) * 1) calc(var(--scale) * 0.51rem);
 						border-width: calc(var(--scale) * 0.07rem);
 						border-color: var(--color3);
 						border-top-left-radius: calc(var(--scale) * 0.84rem);
@@ -387,10 +367,9 @@ function zonesModalHTML(feedHTML) {
 					1x
 				</button>
 				<button
-					class="js-4x text-color bg-color2 hover:bg-color1 motion-step-size-selected"
+					class="js-4x py-1 px-2 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
 					style="
 						font-size: calc(var(--scale) * 2rem);
-						padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
 						border-width: calc(var(--scale) * 0.07rem);
 						border-color: var(--color3);
 						border-style: hidden solid;
@@ -399,10 +378,9 @@ function zonesModalHTML(feedHTML) {
 					4x
 				</button>
 				<button
-					class="js-10x text-color bg-color2 hover:bg-color1"
+					class="js-10x py-1 px-2 text-color bg-color2 hover:bg-color1"
 					style="
 						font-size: calc(var(--scale) * 2rem);
-						padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
 						border-width: calc(var(--scale) * 0.07rem);
 						border-color: var(--color3);
 						border-style: hidden solid;
@@ -411,10 +389,9 @@ function zonesModalHTML(feedHTML) {
 					10x
 				</button>
 				<button
-					class="js-20x text-color bg-color2 hover:bg-color1"
+					class="js-20x py-1 px-2 text-color bg-color2 hover:bg-color1"
 					style="
 						font-size: calc(var(--scale) * 2rem);
-						padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
 						border-width: calc(var(--scale) * 0.07rem);
 						border-color: var(--color3);
 						border-top-right-radius: calc(var(--scale) * 0.84rem);
@@ -428,14 +405,14 @@ function zonesModalHTML(feedHTML) {
 			<div class="flex">
 				<input
 					class="js-x text-center"
-					style="width: calc(var(--spacing) * 18); font-size: calc(var(--scale) * 2rem);"
+					style="width: calc(var(--scale) * 5rem); font-size: calc(var(--scale) * 2rem);"
 					type="number"
 					min="0"
 					max="100"
 				/>
 				<input
 					class="js-y text-center"
-					style="width: calc(var(--spacing) * 18); font-size: calc(var(--scale) * 2rem);"
+					style="width: calc(var(--scale) * 5rem); font-size: calc(var(--scale) * 2rem);"
 					type="number"
 					min="0"
 					max="100"
@@ -762,9 +739,8 @@ function zones(hasSubStream, getMonitorId) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
-				class="flex items-center"
+				class="flex items-center p-2"
 				style="
-					padding: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -781,18 +757,16 @@ function zones(hasSubStream, getMonitorId) {
 				>
 				<div style="width:auto">
 					<button
-						class="js-edit-btn flex bg-color2 hover:bg-color3"
+						class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
 						style="
 							aspect-ratio: 1;
 							width: calc(var(--scale) * 3.4rem);
 							height: calc(var(--scale) * 3.4rem);
-							margin-left: calc(var(--spacing) * 2);
 							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
 						<img
-							class="icon-filter"
-							style="padding: calc(var(--spacing) * 2);"
+							class="p-2 icon-filter"
 							src="assets/icons/feather/edit-3.svg"
 						/>
 					</button>

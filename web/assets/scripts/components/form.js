@@ -164,11 +164,8 @@ function newSaveBtn(onClick) {
 		html: /* HTML */ `
 			<button
 				id="${id}"
-				class="bg-green hover:bg-green2"
+				class="m-2 px-2 bg-green hover:bg-green2"
 				style="
-					margin: calc(var(--spacing) * 2);
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-radius: calc(var(--scale) * 0.68rem);
 				"
 			>
@@ -202,11 +199,8 @@ function newDeleteBtn(onClick) {
 		html: /* HTML */ `
 			<button
 				id="${id}"
-				class="bg-red hover:bg-red2"
+				class="m-2 px-2 bg-red hover:bg-red2"
 				style="
-					margin: calc(var(--spacing) * 2);
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-radius: calc(var(--scale) * 0.68rem);
 					margin-left: auto;
 				"
@@ -546,9 +540,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			<div class="flex w-full">
 				<select
 					id="${id}"
-					class="js-input w-full"
+					class="js-input w-full pl-2"
 					style="
-						padding-left: calc(var(--spacing) * 2);
 						height: calc(var(--scale) * 3.4rem);
 						font-size: calc(var(--scale) * 1.7rem);
 					"
@@ -557,18 +550,16 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				</select>
 				${custom
 					? `<button
-					class="js-edit-btn flex bg-color2 hover:bg-color3"
+					class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
 					style="
 						aspect-ratio: 1;
 						width: calc(var(--scale) * 3.4rem);
 						height: calc(var(--scale) * 3.4rem);
-						margin-left: calc(var(--spacing) * 2);
 						border-radius: calc(var(--scale) * 0.68rem);
 					"
 				>
 					<img
-						class="icon-filter"
-						style="padding: calc(var(--spacing) * 2);"
+						class="p-2 icon-filter"
 						src="assets/icons/feather/edit-3.svg"
 					/>
 				</button>`
@@ -581,10 +572,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		return /* HTML */ `
 			<li
 				id="js-${id}"
-				class="items-center"
+				class="items-center px-2"
 				style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -616,10 +605,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		return /* HTML */ `
 			<li
 				id="js-${id}"
-				class="items-center"
+				class="items-center px-2"
 				style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -781,10 +768,8 @@ function newPasswordField() {
 		return /* HTML */ `
 			<li
 				id="js-${id}"
-				class="items-center"
+				class="items-center px-2"
 				style="
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);

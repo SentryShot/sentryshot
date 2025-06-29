@@ -115,9 +115,8 @@ describe("MultiSelect", () => {
 		const [element] = setup();
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <li id="uid4"
-    class="items-center w-full"
+    class="items-center w-full p-2"
     style="
-					padding: calc(var(--spacing) * 2);
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
@@ -169,8 +168,8 @@ describe("MultiSelect", () => {
              src="assets/icons/feather/check.svg"
         >
       </div>
-      <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 2); font-size: calc(var(--scale) * 1.7rem);"
+      <span class="ml-2 text-color"
+            style="font-size: calc(var(--scale) * 1.7rem);"
       >
         a
       </span>
@@ -211,8 +210,8 @@ describe("MultiSelect", () => {
              src="assets/icons/feather/check.svg"
         >
       </div>
-      <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 2); font-size: calc(var(--scale) * 1.7rem);"
+      <span class="ml-2 text-color"
+            style="font-size: calc(var(--scale) * 1.7rem);"
       >
         b
       </span>
@@ -253,8 +252,8 @@ describe("MultiSelect", () => {
              src="assets/icons/feather/check.svg"
         >
       </div>
-      <span class="text-color"
-            style="margin-left: calc(var(--spacing) * 2); font-size: calc(var(--scale) * 1.7rem);"
+      <span class="ml-2 text-color"
+            style="font-size: calc(var(--scale) * 1.7rem);"
       >
         c
       </span>
@@ -389,11 +388,8 @@ describe("logSelector", () => {
     </div>
   </ul>
   <div>
-    <button class="js-reset bg-color3 hover:bg-color2"
+    <button class="js-reset m-2 px-2 bg-color3 hover:bg-color2"
             style="
-				   margin: calc(var(--spacing) * 2);
-				   padding-left: calc(var(--spacing) * 2);
-				   padding-right: calc(var(--spacing) * 2);
 				   border-radius: calc(var(--scale) * 0.68rem);
 				"
     >
@@ -403,12 +399,9 @@ describe("logSelector", () => {
         Reset
       </span>
     </button>
-    <button class="log-apply-btn js-apply bg-green hover:bg-green2"
+    <button class="log-apply-btn m-2 px-2 js-apply bg-green hover:bg-green2"
             style="
 					float: right;
-					margin: calc(var(--spacing) * 2);
-					padding-left: calc(var(--spacing) * 2);
-					padding-right: calc(var(--spacing) * 2);
 					border-radius: calc(var(--scale) * 0.68rem);
 				"
     >

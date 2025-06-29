@@ -66,13 +66,12 @@ describe("newPlayer", () => {
 			"
          src="B"
     >
-    <div class="js-top-overlay absolute flex"
+    <div class="js-top-overlay absolute flex mr-auto"
          style="
 				flex-wrap: wrap;
 				opacity: 0.8;
 				top: 0;
 				left: 0;
-				margin-right: auto;
 			"
     >
       <span class="js-date text-color bg-color0"
@@ -170,9 +169,8 @@ describe("newPlayer", () => {
 				z-index: 2;
 			"
     >
-      <button class="js-play-btn bg-color0"
+      <button class="js-play-btn p-2 bg-color0"
               style="
-					padding: calc(var(--spacing) * 2);
 					font-size: 0;
 					border-radius: 50%;
 					opacity: 0.8;
@@ -240,10 +238,9 @@ describe("newPlayer", () => {
 					transition: opacity 250ms;
 				"
       >
-        <div class="bg-color0"
+        <div class="m-auto bg-color0"
              style="
 						width: calc(var(--scale) * 1.35rem);
-						margin: auto;
 						border-radius: calc(var(--scale) * 0.34rem);
 					"
         >
@@ -284,11 +281,10 @@ describe("newPlayer", () => {
         </button>
       </div>
     </div>
-    <div class="player-overlay absolute flex"
+    <div class="player-overlay absolute flex mr-auto"
          style="
 				top: 0;
 				left: 0;
-				margin-right: auto;
 			"
     >
       <div class="js-top-overlay flex"
@@ -350,13 +346,12 @@ describe("newPlayer", () => {
       
 		
       <div
-        class="js-top-overlay absolute flex"
+        class="js-top-overlay absolute flex mr-auto"
         style="
 				flex-wrap: wrap;
 				opacity: 0.8;
 				top: 0;
 				left: 0;
-				margin-right: auto;
 			"
       >
         
@@ -463,13 +458,12 @@ describe("newPlayer", () => {
 			"
          src="B"
     >
-    <div class="js-top-overlay absolute flex"
+    <div class="js-top-overlay absolute flex mr-auto"
          style="
 				flex-wrap: wrap;
 				opacity: 0.8;
 				top: 0;
 				left: 0;
-				margin-right: auto;
 			"
     >
       <span class="js-date text-color bg-color0"
