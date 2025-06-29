@@ -1,6 +1,7 @@
 ## unreleased
 
--	update the rtsp library
+-   fix default `accounts.json` file #77
+-   update the rtsp library
 
 ## `v0.3.0`
 
