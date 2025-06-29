@@ -1,5 +1,8 @@
 ## unreleased
 
+## `v0.3.1`
+
+-   respect the browser font size and zoom
 -   fix default `accounts.json` file #77
 -   update the rtsp library
 

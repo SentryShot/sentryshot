@@ -1,5 +1,5 @@
 {
-	"description": "Optional development tools, requires node 12.17+",
+	"description": "Development tools",
 	"type": "module",
 	"scripts": {
 		"test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=default --reporters=jest-junit",
