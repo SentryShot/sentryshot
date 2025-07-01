@@ -37,7 +37,7 @@
 		class="absolute w-full h-full"
 		style="box-sizing: border-box; width: 100%"
 	>
-		<div id="js-content-grid-wrapper h-full" style="overflow-y: auto">
+		<div id="js-content-grid-wrapper" class="h-full" style="overflow-y: auto">
 			<div
 				id="js-content-grid"
 				style="display: grid; grid-template-columns: repeat(var(--gridsize), 1fr)"

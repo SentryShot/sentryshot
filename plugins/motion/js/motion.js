@@ -2,7 +2,7 @@
 // @ts-check
 
 import { uniqueID, normalize, denormalize, globals } from "./libs/common.js";
-import { newForm, fieldTemplate } from "./components/form.js";
+import { newForm, newModalFieldHTML, fieldTemplate } from "./components/form.js";
 import { newStreamer } from "./components/streamer.js";
 import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
@@ -79,43 +79,7 @@ export function motion2(hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="flex items-center p-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
-			>
-				<label
-					class="grow w-full text-color"
-					style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					>Motion detection</label
-				>
-				<div>
-					<button
-						class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
-						style="
-							aspect-ratio: 1;
-							width: calc(var(--scale) * 3.4rem);
-							height: calc(var(--scale) * 3.4rem);
-							border-radius: calc(var(--scale) * 0.68rem);
-						"
-					>
-						<img
-							class="p-2 icon-filter"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-			</li>
-		`,
+		html: newModalFieldHTML(id, "Motion detection"),
 		value() {
 			if (isRendered) {
 				form.get(value);
@@ -736,43 +700,7 @@ function zones(hasSubStream, getMonitorId) {
 
 	const id = uniqueID();
 	return {
-		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="flex items-center p-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
-			>
-				<label
-					class="grow w-full text-color"
-					style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					>Zones</label
-				>
-				<div style="width:auto">
-					<button
-						class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
-						style="
-							aspect-ratio: 1;
-							width: calc(var(--scale) * 3.4rem);
-							height: calc(var(--scale) * 3.4rem);
-							border-radius: calc(var(--scale) * 0.68rem);
-						"
-					>
-						<img
-							class="p-2 icon-filter"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-			</li>
-		`,
+		html: newModalFieldHTML(id, "Zones"),
 		init() {
 			const element = document.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {

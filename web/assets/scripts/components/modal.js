@@ -83,7 +83,7 @@ function newModal(label, content = "") {
 			return $wrapper.classList.contains("modal-open");
 		},
 		init() {
-			$wrapper = document.querySelector(`#${wrapperId}`);
+			$wrapper = document.getElementById(wrapperId);
 			$wrapper
 				.querySelector(".js-modal-close-btn")
 				.addEventListener("click", () => {

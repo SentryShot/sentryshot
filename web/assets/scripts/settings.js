@@ -473,7 +473,7 @@ function newCategory2(categoryName, title, form) {
 					></ul>
 				</div>
 				<div
-					class="js-sub-category settings-sub-category flex flex-col bg-color3"
+					class="js-sub-category settings-sub-category flex flex-col w-full bg-color3"
 				>
 					<div
 						class="js-settings-menubar settings-menubar bg-color2"
@@ -1347,7 +1347,7 @@ function newSourceField(options, getField) {
 			);
 		})(),
 		init() {
-			const element = document.querySelector(`#js-${id}`);
+			const element = document.getElementById(id);
 			[$input, $error] = $getInputAndError(element);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				selectedSourceField().open();

@@ -422,6 +422,14 @@ img {
 	margin-right: auto;
 }
 
+.p-1 {
+	padding: calc(var(--spacing) * 1);
+}
+
+.pb-1 {
+	padding-bottom: calc(var(--spacing) * 1);
+}
+
 .py-1 {
 	padding-block: calc(var(--spacing) * 1);
 }
@@ -594,6 +602,7 @@ img {
 	max-height: 100%;
 	margin: auto;
 	background: var(--color3);
+	padding-bottom: calc(var(--spacing) * 4);
 }
 
 /* Modal select */

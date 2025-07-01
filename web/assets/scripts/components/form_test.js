@@ -9,6 +9,7 @@ import {
 	inputRules,
 	fieldTemplate,
 	newSelectCustomField,
+	newModalFieldHTML,
 	newPasswordField,
 	$getInputAndError,
 } from "./form.js";
@@ -217,30 +218,29 @@ describe("newField", () => {
 		uidReset();
 
 		expect(newTestField().html).toMatchInlineSnapshot(`
-<li id="js-uid1"
-    class="items-center px-2"
+<li id="uid1"
+    class="items-center px-2 "
     style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
 >
-  <label for="uid1"
+  <label for="label-uid1"
          class="grow w-full text-color"
          style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					float: left;
+					font-size: calc(var(--scale) * 1.5rem);
+				"
   >
     a
   </label>
-  <input id="uid1"
+  <input id="label-uid1"
          class="js-input w-full"
          style="
-					height: calc(var(--scale) * 3.4rem);
+					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
-					font-size: calc(var(--scale) * 1.7rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					text-indent: calc(var(--scale) * 0.68rem);
 				"
          type="number"
@@ -251,8 +251,8 @@ describe("newField", () => {
   >
   <span class="js-error text-red"
         style="
-						height: calc(var(--scale) * 1.7rem);
-						font-size: calc(var(--scale) * 1.35rem);
+						height: calc(var(--scale) * 1.5rem);
+						font-size: calc(var(--scale) * 1rem);
 						white-space: nowrap;
 						overflow: auto;
 					"
@@ -339,7 +339,7 @@ describe("fieldTemplate", () => {
 		expect([0, ""]).toContain(field.value());
 	};
 	const testOnChange = () => {
-		const element = document.querySelector("#js-uid1");
+		const element = document.getElementById("uid1");
 		const [$input, $error] = $getInputAndError(element);
 		expect($error.innerHTML).toBe("");
 
@@ -355,30 +355,29 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.text("1", "2");
 
 		expect(field.html).toMatchInlineSnapshot(`
-<li id="js-uid1"
-    class="items-center px-2"
+<li id="uid1"
+    class="items-center px-2 "
     style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
 >
-  <label for="uid1"
+  <label for="label-uid1"
          class="grow w-full text-color"
          style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					float: left;
+					font-size: calc(var(--scale) * 1.5rem);
+				"
   >
     1
   </label>
-  <input id="uid1"
+  <input id="label-uid1"
          class="js-input w-full"
          style="
-					height: calc(var(--scale) * 3.4rem);
+					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
-					font-size: calc(var(--scale) * 1.7rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					text-indent: calc(var(--scale) * 0.68rem);
 				"
          type="text"
@@ -386,8 +385,8 @@ describe("fieldTemplate", () => {
   >
   <span class="js-error text-red"
         style="
-						height: calc(var(--scale) * 1.7rem);
-						font-size: calc(var(--scale) * 1.35rem);
+						height: calc(var(--scale) * 1.5rem);
+						font-size: calc(var(--scale) * 1rem);
 						white-space: nowrap;
 						overflow: auto;
 					"
@@ -412,30 +411,29 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.integer("1", "2");
 
 		expect(field.html).toMatchInlineSnapshot(`
-<li id="js-uid1"
-    class="items-center px-2"
+<li id="uid1"
+    class="items-center px-2 "
     style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
 >
-  <label for="uid1"
+  <label for="label-uid1"
          class="grow w-full text-color"
          style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					float: left;
+					font-size: calc(var(--scale) * 1.5rem);
+				"
   >
     1
   </label>
-  <input id="uid1"
+  <input id="label-uid1"
          class="js-input w-full"
          style="
-					height: calc(var(--scale) * 3.4rem);
+					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
-					font-size: calc(var(--scale) * 1.7rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					text-indent: calc(var(--scale) * 0.68rem);
 				"
          type="number"
@@ -445,8 +443,8 @@ describe("fieldTemplate", () => {
   >
   <span class="js-error text-red"
         style="
-						height: calc(var(--scale) * 1.7rem);
-						font-size: calc(var(--scale) * 1.35rem);
+						height: calc(var(--scale) * 1.5rem);
+						font-size: calc(var(--scale) * 1rem);
 						white-space: nowrap;
 						overflow: auto;
 					"
@@ -473,30 +471,29 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.toggle("1", true);
 
 		expect(field.html).toMatchInlineSnapshot(`
-<li id="js-uid1"
-    class="items-center px-2"
+<li id="uid1"
+    class="items-center px-2 pb-1"
     style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
 >
-  <label for="uid1"
+  <label for="label-uid1"
          class="grow w-full text-color"
          style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					float: left;
+					font-size: calc(var(--scale) * 1.5rem);
+				"
   >
     1
   </label>
   <div class="flex w-full">
-    <select id="uid1"
+    <select id="label-uid1"
             class="js-input w-full pl-2"
             style="
-						height: calc(var(--scale) * 3.4rem);
-						font-size: calc(var(--scale) * 1.7rem);
+						height: calc(var(--scale) * 2.5rem);
+						font-size: calc(var(--scale) * 1.5rem);
 					"
     >
       <option>
@@ -525,30 +522,29 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.select("1", ["a", "b", "c"], "a");
 
 		expect(field.html).toMatchInlineSnapshot(`
-<li id="js-uid1"
-    class="items-center px-2"
+<li id="uid1"
+    class="items-center px-2 pb-1"
     style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
 >
-  <label for="uid1"
+  <label for="label-uid1"
          class="grow w-full text-color"
          style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					float: left;
+					font-size: calc(var(--scale) * 1.5rem);
+				"
   >
     1
   </label>
   <div class="flex w-full">
-    <select id="uid1"
+    <select id="label-uid1"
             class="js-input w-full pl-2"
             style="
-						height: calc(var(--scale) * 3.4rem);
-						font-size: calc(var(--scale) * 1.7rem);
+						height: calc(var(--scale) * 2.5rem);
+						font-size: calc(var(--scale) * 1.5rem);
 					"
     >
       <option>
@@ -580,30 +576,29 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.selectCustom("y", ["a", "b", "c"], "a");
 
 		expect(field.html).toMatchInlineSnapshot(`
-<li id="js-uid1"
-    class="items-center px-2"
+<li id="uid1"
+    class="items-center px-2 "
     style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
 >
-  <label for="uid1"
+  <label for="label-uid1"
          class="grow w-full text-color"
          style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					float: left;
+					font-size: calc(var(--scale) * 1.5rem);
+				"
   >
     y
   </label>
   <div class="flex w-full">
-    <select id="uid1"
+    <select id="label-uid1"
             class="js-input w-full pl-2"
             style="
-						height: calc(var(--scale) * 3.4rem);
-						font-size: calc(var(--scale) * 1.7rem);
+						height: calc(var(--scale) * 2.5rem);
+						font-size: calc(var(--scale) * 1.5rem);
 					"
     >
       <option>
@@ -618,21 +613,20 @@ describe("fieldTemplate", () => {
     </select>
     <button class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
             style="
-						aspect-ratio: 1;
-						width: calc(var(--scale) * 3.4rem);
-						height: calc(var(--scale) * 3.4rem);
-						border-radius: calc(var(--scale) * 0.68rem);
-					"
+			aspect-ratio: 1;
+			width: calc(var(--scale) * 3rem);
+			border-radius: calc(var(--scale) * 0.68rem);
+		"
     >
-      <img class="p-2 icon-filter"
+      <img class="p-1 icon-filter"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
   </div>
   <span class="js-error text-red"
         style="
-						height: calc(var(--scale) * 1.7rem);
-						font-size: calc(var(--scale) * 1.35rem);
+						height: calc(var(--scale) * 1.5rem);
+						font-size: calc(var(--scale) * 1rem);
 						white-space: nowrap;
 						overflow: auto;
 					"
@@ -679,30 +673,29 @@ describe("selectCustomField", () => {
 		});
 
 		expect(field.html).toMatchInlineSnapshot(`
-<li id="js-uid1"
-    class="items-center px-2"
+<li id="uid1"
+    class="items-center px-2 pb-1"
     style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
 >
-  <label for="uid1"
+  <label for="label-uid1"
          class="grow w-full text-color"
          style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					float: left;
+					font-size: calc(var(--scale) * 1.5rem);
+				"
   >
     d
   </label>
   <div class="flex w-full">
-    <select id="uid1"
+    <select id="label-uid1"
             class="js-input w-full pl-2"
             style="
-						height: calc(var(--scale) * 3.4rem);
-						font-size: calc(var(--scale) * 1.7rem);
+						height: calc(var(--scale) * 2.5rem);
+						font-size: calc(var(--scale) * 1.5rem);
 					"
     >
       <option>
@@ -717,13 +710,12 @@ describe("selectCustomField", () => {
     </select>
     <button class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
             style="
-						aspect-ratio: 1;
-						width: calc(var(--scale) * 3.4rem);
-						height: calc(var(--scale) * 3.4rem);
-						border-radius: calc(var(--scale) * 0.68rem);
-					"
+			aspect-ratio: 1;
+			width: calc(var(--scale) * 3rem);
+			border-radius: calc(var(--scale) * 0.68rem);
+		"
     >
-      <img class="p-2 icon-filter"
+      <img class="p-1 icon-filter"
            src="assets/icons/feather/edit-3.svg"
       >
     </button>
@@ -751,73 +743,115 @@ describe("selectCustomField", () => {
 	});
 });
 
+test("newModalFieldHTML", () => {
+	uidReset();
+	expect(newModalFieldHTML("uid1", "test")).toMatchInlineSnapshot(`
+<li id="uid1"
+    class="flex items-center p-2"
+    style="
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
+>
+  <label for="label-uid1"
+         class="grow w-full text-color"
+         style="float: left; font-size: calc(var(--scale) * 1.5rem);"
+  >
+    test
+  </label>
+  <button class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
+          style="
+			aspect-ratio: 1;
+			width: calc(var(--scale) * 3rem);
+			border-radius: calc(var(--scale) * 0.68rem);
+		"
+  >
+    <img class="p-1 icon-filter"
+         src="assets/icons/feather/edit-3.svg"
+    >
+  </button>
+</li>
+`);
+});
+
 describe("passwordField", () => {
 	test("rendering", () => {
 		uidReset();
 		expect(newPasswordField().html).toMatchInlineSnapshot(`
-<li id="js-uid1"
-    class="items-center px-2"
+<li id="uid1"
+    class="items-center px-2 "
     style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
 >
-  <label for="uid1"
+  <label for="label-uid1"
          class="grow w-full text-color"
          style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					float: left;
+					font-size: calc(var(--scale) * 1.5rem);
+				"
   >
     New password
   </label>
-  <input id="uid1"
+  <input id="label-uid1"
          class="js-input w-full"
          style="
-						height: calc(var(--scale) * 3.4rem);
-						overflow: auto;
-						font-size: calc(var(--scale) * 1.7rem);
-						text-indent: calc(var(--scale) * 0.68rem);
-					"
+					height: calc(var(--scale) * 2.5rem);
+					overflow: auto;
+					font-size: calc(var(--scale) * 1.5rem);
+					text-indent: calc(var(--scale) * 0.68rem);
+				"
          type="password"
+         placeholder
   >
   <span class="js-error text-red"
-        style="height: calc(var(--scale) * 1.7rem); font-size: calc(var(--scale) * 1.35rem); white-space: nowrap; overflow: auto;"
+        style="
+						height: calc(var(--scale) * 1.5rem);
+						font-size: calc(var(--scale) * 1rem);
+						white-space: nowrap;
+						overflow: auto;
+					"
   >
   </span>
 </li>
-<li id="js-uid2"
-    class="items-center px-2"
+<li id="uid2"
+    class="items-center px-2 "
     style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
 >
-  <label for="uid2"
+  <label for="label-uid2"
          class="grow w-full text-color"
          style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					float: left;
+					font-size: calc(var(--scale) * 1.5rem);
+				"
   >
     Repeat password
   </label>
-  <input id="uid2"
+  <input id="label-uid2"
          class="js-input w-full"
          style="
-						height: calc(var(--scale) * 3.4rem);
-						overflow: auto;
-						font-size: calc(var(--scale) * 1.7rem);
-						text-indent: calc(var(--scale) * 0.68rem);
-					"
+					height: calc(var(--scale) * 2.5rem);
+					overflow: auto;
+					font-size: calc(var(--scale) * 1.5rem);
+					text-indent: calc(var(--scale) * 0.68rem);
+				"
          type="password"
+         placeholder
   >
   <span class="js-error text-red"
-        style="height: calc(var(--scale) * 1.7rem); font-size: calc(var(--scale) * 1.35rem); white-space: nowrap; overflow: auto;"
+        style="
+						height: calc(var(--scale) * 1.5rem);
+						font-size: calc(var(--scale) * 1rem);
+						white-space: nowrap;
+						overflow: auto;
+					"
   >
   </span>
 </li>
@@ -834,11 +868,9 @@ describe("passwordField", () => {
 			$div.innerHTML = field.html;
 			field.init();
 
-			[$newInput, $newError] = $getInputAndError(
-				document.querySelector("#js-uid1"),
-			);
+			[$newInput, $newError] = $getInputAndError(document.getElementById("uid1"));
 			[$repeatInput, $repeatError] = $getInputAndError(
-				document.querySelector("#js-uid2"),
+				document.getElementById("uid2"),
 			);
 		});
 		const change = new Event("change");

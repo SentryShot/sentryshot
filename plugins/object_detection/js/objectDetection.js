@@ -2,7 +2,12 @@
 // @ts-check
 
 import { uniqueID, normalize, denormalize, globals } from "./libs/common.js";
-import { newForm, newNumberField, fieldTemplate } from "./components/form.js";
+import {
+	newForm,
+	newNumberField,
+	newModalFieldHTML,
+	fieldTemplate,
+} from "./components/form.js";
 import { newStreamer } from "./components/streamer.js";
 import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
@@ -116,39 +121,7 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="items-center p-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-					display:flex;
-				"
-			>
-				<label
-					class="grow w-full text-color"
-					style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					>Object detection</label
-				>
-				<button
-					class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
-					style="
-						aspect-ratio: 1;
-						width: calc(var(--scale) * 3.4rem);
-						height: calc(var(--scale) * 3.4rem);
-						border-radius: calc(var(--scale) * 0.68rem);
-					"
-				>
-					<img class="p-2 icon-filter" src="assets/icons/feather/edit-3.svg" />
-				</button>
-			</li>
-		`,
+		html: newModalFieldHTML(id, "Object detection"),
 		value() {
 			if (isRendered) {
 				value = {};
@@ -317,44 +290,7 @@ function thresholds(detectors, getDetectorName) {
 	const id = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="items-center p-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-					display:flex;
-				"
-			>
-				<label
-					class="grow w-full text-color"
-					style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					>Thresholds</label
-				>
-				<div style="width:auto">
-					<button
-						class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
-						style="
-							aspect-ratio: 1;
-							width: calc(var(--scale) * 3.4rem);
-							height: calc(var(--scale) * 3.4rem);
-							border-radius: calc(var(--scale) * 0.68rem);
-						"
-					>
-						<img
-							class="p-2 icon-filter"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-			</li>
-		`,
+		html: newModalFieldHTML(id, "Thresholds"),
 		value() {
 			return value;
 		},
@@ -650,47 +586,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 	};
 
 	return {
-		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="items-center p-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-					display:flex;
-				"
-			>
-				<label
-					class="grow text-color"
-					style="
-						float: left;
-						width: auto;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					>Crop</label
-				>
-				<div style="width:auto">
-					<button
-						class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
-						style="
-							aspect-ratio: 1;
-							width: calc(var(--scale) * 3.4rem);
-							height: calc(var(--scale) * 3.4rem);
-							border-radius: calc(var(--scale) * 0.68rem);
-						"
-					>
-						<img
-							class="p-2 icon-filter"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-				${modal.html}
-			</li>
-		`,
-
+		html: newModalFieldHTML(id, "Crop") + modal.html,
 		value() {
 			if (!rendered) {
 				return normalizeCrop(value);
@@ -1091,47 +987,7 @@ function mask(hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="items-center p-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-					display:flex;
-				"
-			>
-				<label
-					class="grow text-color"
-					style="
-						float: left;
-						width: auto;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					>Mask</label
-				>
-				<div style="width:auto">
-					<button
-						class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
-						style="
-							aspect-ratio: 1;
-							width: calc(var(--scale) * 3.4rem);
-							height: calc(var(--scale) * 3.4rem);
-							border-radius: calc(var(--scale) * 0.68rem);
-						"
-					>
-						<img
-							class="p-2 icon-filter"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-				${modal.html}
-			</li>
-		`,
-
+		html: newModalFieldHTML(id, "Mask") + modal.html,
 		value() {
 			if (rendered) {
 				return normalizeMask({

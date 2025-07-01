@@ -348,6 +348,7 @@ const fieldTemplate = {
  * @property {number=} max
  * @property {number=} step
  * @property {boolean=} custom
+ * @property {boolean=} modal
  */
 
 /**
@@ -394,7 +395,7 @@ function newField(inputRules, options, values) {
 	return {
 		html: newHTMLfield(options, id, label, placeholder),
 		init() {
-			element = document.querySelector(`#js-${id}`);
+			element = document.getElementById(id);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", validate);
 		},
@@ -455,7 +456,7 @@ function newNumberField(options, values) {
 	return {
 		html: newHTMLfield(options, id, label, placeholder),
 		init() {
-			element = document.querySelector(`#js-${id}`);
+			element = document.getElementById(id);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
 				// Only contains one or more digits.
@@ -492,6 +493,19 @@ function newNumberField(options, values) {
 	};
 }
 
+const editBtnHTML = /* HTML */ `
+	<button
+		class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
+		style="
+			aspect-ratio: 1;
+			width: calc(var(--scale) * 3rem);
+			border-radius: calc(var(--scale) * 0.68rem);
+		"
+	>
+		<img class="p-1 icon-filter" src="assets/icons/feather/edit-3.svg" />
+	</button>
+`;
+
 /**
  * @param {Options} options
  * @param {string} id
@@ -512,16 +526,16 @@ function newHTMLfield(options, id, label, placeholder = "") {
 	step === undefined ? (step = "") : (step = `step="${step}"`);
 	/* eslint-enable no-unused-expressions */
 
-	let body = "";
+	let innerHTML = "";
 	if (input) {
-		body = /* HTML */ `
+		innerHTML = /* HTML */ `
 			<input
-				id="${id}"
+				id="label-${id}"
 				class="js-input w-full"
 				style="
-					height: calc(var(--scale) * 3.4rem);
+					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
-					font-size: calc(var(--scale) * 1.7rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					text-indent: calc(var(--scale) * 0.68rem);
 				"
 				type="${input}"
@@ -536,96 +550,88 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		for (const option of select) {
 			options += `\n<option>${option}</option>`;
 		}
-		body = /* HTML */ `
+		innerHTML = /* HTML */ `
 			<div class="flex w-full">
 				<select
-					id="${id}"
+					id="label-${id}"
 					class="js-input w-full pl-2"
 					style="
-						height: calc(var(--scale) * 3.4rem);
-						font-size: calc(var(--scale) * 1.7rem);
+						height: calc(var(--scale) * 2.5rem);
+						font-size: calc(var(--scale) * 1.5rem);
 					"
 				>
 					${options}
 				</select>
-				${custom
-					? `<button
-					class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
-					style="
-						aspect-ratio: 1;
-						width: calc(var(--scale) * 3.4rem);
-						height: calc(var(--scale) * 3.4rem);
-						border-radius: calc(var(--scale) * 0.68rem);
-					"
-				>
-					<img
-						class="p-2 icon-filter"
-						src="assets/icons/feather/edit-3.svg"
-					/>
-				</button>`
-					: ""}
+				${custom === true ? editBtnHTML : ""}
 			</div>
 		`;
+	} else {
+		throw new Error("Unknown field type");
 	}
 
+	let errorFieldHTML = "";
 	if (errorField === true) {
-		return /* HTML */ `
-			<li
-				id="js-${id}"
-				class="items-center px-2"
+		errorFieldHTML = /* HTML */ `
+			<span
+				class="js-error text-red"
 				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
-			>
-				<label
-					for="${id}"
-					class="grow w-full text-color"
-					style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					>${label}</label
-				>
-				${body}
-				<span
-					class="js-error text-red"
-					style="
-						height: calc(var(--scale) * 1.7rem);
-						font-size: calc(var(--scale) * 1.35rem);
+						height: calc(var(--scale) * 1.5rem);
+						font-size: calc(var(--scale) * 1rem);
 						white-space: nowrap;
 						overflow: auto;
 					"
-				></span>
-			</li>
-		`;
-	} else {
-		return /* HTML */ `
-			<li
-				id="js-${id}"
-				class="items-center px-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
-			>
-				<label
-					for="${id}"
-					class="grow w-full text-color"
-					style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					>${label}</label
-				>
-				${body}
-			</li>
+			></span>
 		`;
 	}
+
+	return /* HTML */ `
+		<li
+			id="${id}"
+			class="items-center px-2 ${errorField === true ? "" : "pb-1"}"
+			style="
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
+		>
+			<label
+				for="label-${id}"
+				class="grow w-full text-color"
+				style="
+					float: left;
+					font-size: calc(var(--scale) * 1.5rem);
+				"
+				>${label}</label
+			>
+			${innerHTML} ${errorFieldHTML}
+		</li>
+	`;
+}
+
+/**
+ * @param {string} id
+ * @param {string} label
+ */
+function newModalFieldHTML(id, label) {
+	return /* HTML */ `
+		<li
+			id="${id}"
+			class="flex items-center p-2"
+			style="
+				border-color: var(--color1);
+				border-bottom-style: solid;
+				border-bottom-width: calc(var(--scale) * 0.17rem);
+			"
+		>
+			<label
+				for="label-${id}"
+				class="grow w-full text-color"
+				style="float: left; font-size: calc(var(--scale) * 1.5rem);"
+				>${label}</label
+			>
+			${editBtnHTML}
+		</li>
+	`;
 }
 
 /**
@@ -646,7 +652,7 @@ function newToggleField(label, initial) {
 	return {
 		html: newHTMLfield(options, id, label),
 		init() {
-			element = document.querySelector(`#js-${id}`);
+			element = document.getElementById(id);
 			// @ts-ignore
 			[$input] = $getInputAndError(element);
 		},
@@ -690,7 +696,7 @@ function newSelectCustomField(inputRules, options, values) {
 
 		let customValue = true;
 		// @ts-ignore
-		for (const option of document.querySelector(`#${id}`).options) {
+		for (const option of document.querySelector(`#${id} select`).options) {
 			if (option.value === input) {
 				customValue = false;
 			}
@@ -731,7 +737,7 @@ function newSelectCustomField(inputRules, options, values) {
 			);
 		})(),
 		init() {
-			const element = document.querySelector(`#js-${id}`);
+			const element = document.getElementById(id);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const input = prompt("Custom value");
 				if (input !== "") {
@@ -765,43 +771,7 @@ function newPasswordField() {
 	 * @param {string} label
 	 */
 	const passwordHTML = (id, label) => {
-		return /* HTML */ `
-			<li
-				id="js-${id}"
-				class="items-center px-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
-			>
-				<label
-					for="${id}"
-					class="grow w-full text-color"
-					style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					>${label}</label
-				>
-				<input
-					id="${id}"
-					class="js-input w-full"
-					style="
-						height: calc(var(--scale) * 3.4rem);
-						overflow: auto;
-						font-size: calc(var(--scale) * 1.7rem);
-						text-indent: calc(var(--scale) * 0.68rem);
-					"
-					type="password"
-				/>
-				<span
-					class="js-error text-red"
-					style="height: calc(var(--scale) * 1.7rem); font-size: calc(var(--scale) * 1.35rem); white-space: nowrap; overflow: auto;"
-				></span>
-			</li>
-		`;
+		return newHTMLfield({ errorField: true, input: "password" }, id, label);
 	};
 
 	/** @type {() => string} */
@@ -850,11 +820,9 @@ function newPasswordField() {
 			$repeatError.textContent = "";
 		},
 		init() {
-			[$newInput, $newError] = $getInputAndError(
-				document.querySelector(`#js-${newID}`),
-			);
+			[$newInput, $newError] = $getInputAndError(document.getElementById(newID));
 			[$repeatInput, $repeatError] = $getInputAndError(
-				document.querySelector(`#js-${repeatID}`),
+				document.getElementById(repeatID),
 			);
 
 			$newInput.addEventListener("change", () => {
@@ -884,6 +852,7 @@ export {
 	inputRules,
 	fieldTemplate,
 	newSelectCustomField,
+	newModalFieldHTML,
 	newPasswordField,
 	$getInputAndError,
 };
