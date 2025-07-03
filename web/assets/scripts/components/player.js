@@ -94,16 +94,14 @@ function newPlayer(data, isAdmin, token) {
 
 	const topOverlayHTML = /* HTML */ `
 		<span
-			class="js-date text-color bg-color0"
-			style="padding: 0.05em 0.4em 0.05em 0.2em;"
+			class="js-date pl-2 pr-1 text-color bg-color0"
 			>${dateString}</span
 		>
 		<span
-			class="js-time text-color bg-color0"
-			style="padding: 0.05em 0.4em 0.05em 0.2em;"
+			class="js-time px-1 text-color bg-color0"
 			>${timeString}</span
 		>
-		<span class="text-color bg-color0" style="padding: 0.05em 0.4em 0.05em 0.2em;"
+		<span class="text-color pl-1 pr-2 bg-color0""
 			>${d.name}</span
 		>
 	`;
@@ -128,7 +126,17 @@ function newPlayer(data, isAdmin, token) {
 		>
 			${topOverlayHTML}
 		</div>
-		${renderTimeline(d)}
+		<div
+			class="absolute flex justify-center w-full px-4"
+			style="
+				z-index: 2;
+				bottom: calc(var(--scale) * 0.5rem);
+				height: calc(var(--scale) * 1.75rem);
+				min-height: 3.5%;
+			"
+		>
+			${renderTimeline(d)}
+		</div>
 	`;
 
 	const videoHTML = /* HTML */ `
@@ -165,7 +173,7 @@ function newPlayer(data, isAdmin, token) {
 			"
 		>
 			<button
-				class="js-play-btn p-2 bg-color0"
+				class="js-play-btn p-1 bg-color0"
 				style="
 					font-size: 0;
 					border-radius: 50%;
@@ -173,17 +181,17 @@ function newPlayer(data, isAdmin, token) {
 				"
 			>
 				<img
-					style="aspect-ratio: 1; height: calc(var(--scale) * 2.7rem); filter: invert(90%);"
+					style="aspect-ratio: 1; height: calc(var(--scale) * 1.5rem); filter: invert(90%);"
 					src="${iconPlayPath}"
 				/>
 			</button>
 		</div>
 		<div
-			class="player-overlay absolute flex justify-center w-full"
+			class="player-overlay absolute flex justify-center w-full px-4"
 			style="
 				z-index: 2;
-				bottom: 4%;
-				height: calc(var(--scale) * 2rem);
+				bottom: calc(var(--scale) * 0.5rem);
+				height: calc(var(--scale) * 1.75rem);
 				min-height: 3.5%;
 			"
 		>
@@ -192,7 +200,6 @@ function newPlayer(data, isAdmin, token) {
 				class="js-progress w-full"
 				style="
 					box-sizing: border-box;
-					width: var(--player-timeline-width);
 					padding-top: calc(var(--spacing) * 1.5);
 					padding-bottom: calc(var(--spacing) * 1.5);
 					background: rgb(0 0 0 / 0%);
@@ -205,38 +212,25 @@ function newPlayer(data, isAdmin, token) {
 				<span class="js-progress-bar">
 			</progress>
 			<button
-				class="js-options-open-btn player-options-open-btn absolute"
+				class="js-options-open-btn player-options-open-btn absolute m-auto bg-color0"
 				style="
-					right: calc(var(--scale) * 0.95rem);
-					bottom: calc(var(--scale) * 2.7rem);
-					width: calc(var(--scale) * 2.7rem);
-					font-size: 0;
-					background-color: rgb(0 0 0 / 0%);
+					right: calc(var(--scale) * 1rem);
+					bottom: calc(var(--scale) * 2.5rem);
 					transition: opacity 250ms;
+					border-radius: calc(var(--scale) * 0.34rem);
 				"
 			>
-				<div
-					class="m-auto bg-color0"
-					style="
-						width: calc(var(--scale) * 1.35rem);
-						border-radius: calc(var(--scale) * 0.34rem);
-					"
+				<img
+					style="width: calc(var(--scale) * 1rem); height: calc(var(--scale) * 2rem); filter: invert(90%);"
+					src="assets/icons/feather/more-vertical-slim.svg"
 				>
-					<img
-						style="width: calc(var(--scale) * 1.35rem); height: calc(var(--scale) * 2.7rem); filter: invert(90%);"
-						src="assets/icons/feather/more-vertical-slim.svg"
-					>
-				</div>
 			</button>
 			<div
 				class="js-popup absolute bg-color0"
 				style="
-					right: calc(var(--scale) * 0.68rem);
-					bottom: calc(var(--scale) * 5.9rem);
+					right: calc(var(--scale) * 0.5rem);
+					bottom: calc(var(--scale) * 5rem);
 					display: none;
-					grid-gap: calc(var(--scale) * 0.68rem);
-					padding: calc(var(--scale) * 0.34rem);
-					font-size: 0;
 					border-radius: calc(var(--scale) * 0.51rem);
 					opacity: 0.8;
 				"
@@ -244,10 +238,10 @@ function newPlayer(data, isAdmin, token) {
 				${
 					isAdmin
 						? `
-				<button class="js-delete" style="background-color: rgb(0 0 0 / 0%);">
+				<button class="js-delete p-1" style="background-color: rgb(0 0 0 / 0%);">
 					<img
 						class="icon-filter"
-						style="aspect-ratio: 1; width: calc(var(--scale) * 2.7rem);"
+						style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
 						src="assets/icons/feather/trash-2.svg"
 					>
 				</button>`
@@ -256,39 +250,34 @@ function newPlayer(data, isAdmin, token) {
 				<a
 					download="${fileName}"]
 					href="${d.videoPath}"
+					class="p-1"
 					style="background-color: rgb(0 0 0 / 0%);"
 				>
 					<img
 						class="icon-filter"
-						style="aspect-ratio: 1; width: calc(var(--scale) * 2.7rem);"
+						style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
 						src="assets/icons/feather/download.svg"
 					>
 				</a>
-				<button class="js-fullscreen" style="background-color: rgb(0 0 0 / 0%);">
+				<button class="js-fullscreen p-1" style="background-color: rgb(0 0 0 / 0%);">
 					<img
 						class="icon-filter"
-						style="aspect-ratio: 1; width: calc(var(--scale) * 2.7rem);"
+						style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
 						src="${iconMaximizePath}"
 					>
 				</button>
 			</div>
 		</div>
 		<div
-			class="player-overlay absolute flex mr-auto"
+			class="js-top-overlay player-overlay absolute flex mr-auto"
 			style="
+				flex-wrap: wrap;
+				opacity: 0.8;
 				top: 0;
 				left: 0;
 			"
 		>
-			<div
-				class="js-top-overlay flex"
-				style="
-					flex-wrap: wrap;
-					opacity: 0.8;
-				"
-			>
-				${topOverlayHTML}
-			</div>
+			${topOverlayHTML}
 		</div>
 		`;
 
@@ -408,11 +397,7 @@ function newPlayer(data, isAdmin, token) {
 				<div
 					id="${elementID}"
 					class="relative flex justify-center items-center w-full"
-					style="
-						max-height: 100vh;
-						align-self: center;
-						--player-timeline-width: 90%;
-					"
+					style="max-height: 100vh; align-self: center;"
 				>
 					${thumbHTML}
 				</div>
@@ -455,7 +440,6 @@ function renderTimeline(data) {
 	const offset = endMs - startMs;
 
 	const resolution = 1000;
-	const multiplier = resolution / 100;
 
 	/**
 	 * Array of booleans representing events.
@@ -492,8 +476,8 @@ function renderTimeline(data) {
 				break;
 			}
 		}
-		const x = start / multiplier;
-		const width = end / multiplier - x;
+		const x = start;
+		const width = end - x;
 
 		svg += `<rect x="${x}" width="${width}" y="0" height="100"/>`;
 		start = end;
@@ -502,12 +486,7 @@ function renderTimeline(data) {
 	return /* HTML */ `
 		<svg
 			class="absolute"
-			style="
-				bottom: 0;
-				width: var(--player-timeline-width);
-				height: calc(var(--scale) * 2rem);
-				fill: var(--color-red);
-			"
+			style="height: 100%; fill: var(--color-red);"
 			viewBox="0 0 100 100"
 			preserveAspectRatio="none"
 		>

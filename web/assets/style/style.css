@@ -277,10 +277,10 @@ progress[value]::-moz-progress-bar {
 
 	--scale: 1;
 	--spacing: 4px;
-	--barsize: calc(var(--scale) * 4.7rem);
-	--sidebar-width: calc(var(--scale) * 20rem);
-	--topbar-height: calc(var(--scale) * 4.7rem);
+	--sidebar-width: calc(var(--scale) * 18rem);
+	--topbar-height: calc(var(--scale) * 4rem);
 	--size-minus-topbar: calc(100% - var(--topbar-height));
+	--options-menu-btn-width: calc(var(--scale) * 3rem);
 	--gridsize: 1;
 	--color-text: hsl(215deg 40% 90%);
 	--color0: hsl(215deg 40% 8%);
@@ -426,20 +426,48 @@ img {
 	padding: calc(var(--spacing) * 1);
 }
 
+.pr-1 {
+	padding-right: calc(var(--spacing) * 1);
+}
+
+.pl-1 {
+	padding-left: calc(var(--spacing) * 1);
+}
+
 .pb-1 {
 	padding-bottom: calc(var(--spacing) * 1);
+}
+
+.px-1 {
+	padding-inline: calc(var(--spacing) * 1);
 }
 
 .py-1 {
 	padding-block: calc(var(--spacing) * 1);
 }
 
+.mr-1 {
+	margin-right: calc(var(--spacing) * 1);
+}
+
+.mb-1 {
+	margin-bottom: calc(var(--spacing) * 1);
+}
+
 .ml-1 {
-	margin-left: calc(var(--spacing) * 2);
+	margin-left: calc(var(--spacing) * 1);
 }
 
 .p-2 {
 	padding: calc(var(--spacing) * 2);
+}
+
+.pr-2 {
+	padding-right: calc(var(--spacing) * 2);
+}
+
+.pl-2 {
+	padding-left: calc(var(--spacing) * 2);
 }
 
 .px-2 {
@@ -448,6 +476,10 @@ img {
 
 .py-2 {
 	padding-block: calc(var(--spacing) * 2);
+}
+
+.m-2 {
+	margin: calc(var(--spacing) * 2);
 }
 
 .mt-2 {
@@ -466,8 +498,24 @@ img {
 	margin-left: calc(var(--spacing) * 2);
 }
 
+.mx-2 {
+	margin-inline: calc(var(--spacing) * 2);
+}
+
+.p-3 {
+	padding: calc(var(--spacing) * 3);
+}
+
 .pl-4 {
 	padding-left: calc(var(--spacing) * 4);
+}
+
+.px-4 {
+	padding-inline: calc(var(--spacing) * 4);
+}
+
+.mr-4 {
+	margin-right: calc(var(--spacing) * 4);
 }
 
 .ml-4 {
@@ -485,6 +533,10 @@ img {
 #options-btn {
 	right: 0;
 	z-index: 2;
+}
+
+#options-btn:hover ~ * #topbar-options-btn {
+	background: var(--color2);
 }
 
 #options-menu {
@@ -507,18 +559,16 @@ img {
 
 /* Date picker. */
 .date-picker-day-btn {
-	height: calc(var(--scale) * 2.9rem);
-	width: calc(var(--scale) * 2.9rem);
+	height: calc(var(--scale) * 2rem);
+	width: calc(var(--scale) * 2rem);
 	color: var(--color-text);
 	border-width: calc(var(--scale) * 0.17rem);
 	border-style: solid;
 	border-color: var(--color2);
 	border-radius: calc(var(--scale) * 0.51rem);
 	background: var(--color3);
-}
-
-.date-picker-day-btn:hover {
-	background: var(--color2);
+	font-size: calc(var(--scale) * 1.5rem);
+	line-height: calc(var(--scale) * 1.9rem);
 }
 
 .date-picker-day-selected {
@@ -545,7 +595,7 @@ img {
 }
 
 #sidebar-btn {
-	width: var(--barsize);
+	width: var(--topbar-height);
 }
 
 #sidebar-closer {
@@ -575,7 +625,7 @@ img {
 
 /* Content */
 #content {
-	padding-top: var(--barsize);
+	padding-top: var(--topbar-height);
 }
 
 .grid-fullscreen {
@@ -700,8 +750,6 @@ img {
 /* Mobile Landscape mode. */
 @media (aspect-ratio >= 3/2) {
 	:root {
-		--scale: 0.7;
-		--spacing: 3px;
 		--gridsize: 2;
 	}
 
@@ -716,8 +764,12 @@ img {
 	}
 
 	#options-btn {
-		right: auto;
 		bottom: 0;
+		right: auto;
+	}
+
+	#topbar-options-btn {
+		margin-top: auto;
 	}
 
 	#options-menu {
@@ -747,15 +799,13 @@ img {
 
 	#content {
 		padding-top: 0;
-		padding-left: var(--barsize);
+		padding-left: var(--topbar-height);
 	}
 }
 
 /* Tablet/Dektop. */
 @media only screen and (width >= 768px) {
 	:root {
-		--scale: 0.6;
-		--spacing: 2px;
 		--gridsize: 3;
 	}
 

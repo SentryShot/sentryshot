@@ -185,7 +185,7 @@ function newFullscreenBtn() {
 	return {
 		html: /* HTML */ `
 			<button
-				class="js-fullscreen-btn feed-btn p-2"
+				class="js-fullscreen-btn feed-btn p-1"
 				style="
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
@@ -194,7 +194,7 @@ function newFullscreenBtn() {
 			>
 				<img
 					class="icon-filter"
-					style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
+					style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
 					src="${iconMaximizePath}"
 				/>
 			</button>
@@ -236,7 +236,7 @@ function newRecordingsBtn(monitorIds) {
 		html: /* HTML */ `
 			<a
 				href="${recordingsPath}"
-				class="feed-btn p-2"
+				class="feed-btn p-1"
 				style="
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
@@ -245,7 +245,7 @@ function newRecordingsBtn(monitorIds) {
 			>
 				<img
 					class="icon-filter"
-					style="height: calc(var(--scale) * 2.2rem); aspect-ratio: 1;"
+					style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
 					src="${iconRecordingsPath}"
 				/>
 			</a>

@@ -169,7 +169,7 @@ function newSaveBtn(onClick) {
 					border-radius: calc(var(--scale) * 0.68rem);
 				"
 			>
-				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
 					>Save</span
 				>
 			</button>
@@ -205,7 +205,7 @@ function newDeleteBtn(onClick) {
 					margin-left: auto;
 				"
 			>
-				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
 					>Delete</span
 				>
 			</button>
@@ -536,7 +536,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					text-indent: calc(var(--scale) * 0.68rem);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
 				type="${input}"
 				placeholder="${placeholder}"
@@ -555,10 +555,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 				<select
 					id="label-${id}"
 					class="js-input w-full pl-2"
-					style="
-						height: calc(var(--scale) * 2.5rem);
-						font-size: calc(var(--scale) * 1.5rem);
-					"
+					style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
 				>
 					${options}
 				</select>

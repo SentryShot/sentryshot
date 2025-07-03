@@ -36,7 +36,7 @@
 			style="overflow-y: auto"
 		></div>
 		<div class="log-list-wrapper js-list bg-color3">
-			<div id="log-menubar" class="bg-color2" style="height: var(--barsize)">
+			<div id="log-menubar" class="bg-color2" style="height: var(--topbar-height)">
 				<nav class="js-back" style="width: calc(var(--scale) * 4.7rem)">
 					<img
 						class="p-2 icon-filter"
@@ -52,7 +52,7 @@
 				id="js-log-lists"
 				class="text-color bg-color3"
 				style="
-					font-size: calc(var(--scale) * 1.7rem);
+					font-size: calc(var(--scale) * 1rem);
 					word-wrap: break-word;
 					overflow-y: auto;
 				"
@@ -90,7 +90,9 @@
 
 	.log-list > span {
 		border-bottom: solid;
-		border-bottom-width: calc(var(--scale) * 0.14rem);
+		border-bottom-width: calc(var(--scale) * 0.1rem);
+		padding-inline: calc(var(--spacing) * 1);
+		font-size: calc(var(--scale) * 1.2rem);
 	}
 
 	/* Mobile Landscape mode. */

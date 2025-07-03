@@ -53,7 +53,7 @@ function newRenderer($parent) {
 				htmlNav += /* HTML */ `
 					<li
 						id="js-set-category-${category.name()}"
-						class="js-set-settings-category settings-nav-item flex items-center py-2 pl-4"
+						class="js-set-settings-category flex items-center py-1 pl-4 hover:bg-color3"
 						style="
 							padding-right: calc(var(--spacing) * 14);
 							border-width: calc(var(--scale) * 0.034rem);
@@ -72,7 +72,7 @@ function newRenderer($parent) {
 						/>
 						<span
 							class="text-color"
-							style="font-size: calc(var(--scale) * 2.4rem);"
+							style="font-size: calc(var(--scale) * 2rem);"
 							>${category.title()}</span
 						>
 					</li>
@@ -112,6 +112,81 @@ function newRenderer($parent) {
 }
 
 const backIconPath = "assets/icons/feather/arrow-left.svg";
+
+const backIconHTML = /* HTML */ `
+	<img
+		class="icon-filter"
+		style="width: calc(var(--scale) * 3rem);"
+		src="${backIconPath}"
+	/>
+`;
+
+function categoryTitleHTML(title = "") {
+	return /* HTML */ `
+		<span
+			class="js-category-title w-full m-auto text-center text-color"
+			style="
+				margin-right: calc(var(--scale) * 3rem);;
+				font-size: calc(var(--scale) * 2rem);
+			"
+			>${title}</span
+		>
+	`;
+}
+
+const menubarHTML = /* HTML */ `
+	<div
+		class="js-settings-menubar settings-menubar px-2 bg-color2"
+		style="
+			height: var(--topbar-height);
+			border-width: calc(var(--scale) * 0.034rem);
+			border-color: var(--color3);
+			border-bottom-style: solid;
+		"
+	>
+		<nav class="js-settings-subcategory-back flex shrink-0">${backIconHTML}</nav>
+		${categoryTitleHTML()}
+	</div>
+`;
+
+const categoryNavsHTML = /* HTML */ `
+	<ul
+		class="js-category-nav settings-category-nav flex flex-col h-full"
+		style="overflow-y: hidden;"
+	></ul>
+`;
+
+/**
+ * @param {string} data
+ * @param {string} label
+ */
+function categoryNavHTML(data, label, c = "text-color") {
+	return /* HTML */ `
+		<li
+			class="js-nav flex items-center py-1 px-4 hover:bg-color3"
+			style="
+				border-width: calc(var(--scale) * 0.034rem);
+				border-color: var(--color3);
+				border-bottom-style: solid;
+			"
+			data="${data}"
+		>
+			<span class="${c}" style="font-size: calc(var(--scale) * 2rem);"
+				>${label}</span
+			>
+		</li>
+	`;
+}
+
+const addBtnHTML = /* HTML */ `
+	<button
+		class="js-add-btn js-nav shrink-0 mt-2 ml-4 mr-auto px-2 bg-green hover:bg-green2"
+		style="border-radius: calc(var(--scale) * 0.34rem);"
+	>
+		<span class="text-color" style="font-size: calc(var(--scale) * 2rem);">Add</span>
+	</button>
+`;
+
 function closeAllCategories() {
 	// @ts-ignore
 	for (const element of document.querySelectorAll(".settings-category-wrapper")) {
@@ -255,73 +330,24 @@ function newCategory(categoryName, title) {
 					"
 				>
 					<div
-						class="settings-menubar js-settings-menubar bg-color2"
+						class="settings-menubar js-settings-menubar px-2 bg-color2"
 						style="
-							height: var(--barsize);
 							border-width: calc(var(--scale) * 0.034rem);
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
 					>
-						<nav
-							class="js-settings-category-back flex shrink-0 ml-2"
-							style="
-								width: calc(var(--scale) * 4.7rem);
-							"
-						>
-							<img
-								class="icon-filter"
-								style="width: calc(var(--scale) * 3.7rem);"
-								src="${backIconPath}"
-							/>
+						<nav class="js-settings-category-back flex shrink-0">
+							${backIconHTML}
 						</nav>
-						<span
-							class="js-category-title w-full m-auto text-center text-color"
-							style="
-								margin-right: calc(var(--spacing) * 22);
-								font-size: calc(var(--scale) * 2.7rem);
-							"
-							>${title}</span
-						>
+						${categoryTitleHTML(title)}
 					</div>
-					<ul
-						class="js-category-nav settings-category-nav flex flex-col"
-						style="overflow-y: auto;"
-					></ul>
+					${categoryNavsHTML}
 				</div>
 				<div
 					class="js-sub-category settings-sub-category flex flex-col bg-color3"
 				>
-					<div
-						class="js-settings-menubar settings-menubar bg-color2"
-						style="
-							height: var(--barsize);
-							border-width: calc(var(--scale) * 0.034rem);
-							border-color: var(--color3);
-							border-bottom-style: solid;
-						"
-					>
-						<nav
-							class="js-settings-subcategory-back flex shrink-0 ml-2"
-							style="
-								width: calc(var(--scale) * 4.7rem);
-							"
-						>
-							<img
-								class="icon-filter"
-								style="width: calc(var(--scale) * 3.7rem);"
-								src="${backIconPath}"
-							/>
-						</nav>
-						<span
-							class="js-category-title w-full m-auto text-center text-color"
-							style="
-								margin-right: calc(var(--spacing) * 22);
-								font-size: calc(var(--scale) * 2.7rem);
-							"
-						></span>
-					</div>
-					${form.html()}
+					${menubarHTML} ${form.html()}
 				</div>
 			`;
 		},
@@ -438,73 +464,24 @@ function newCategory2(categoryName, title, form) {
 					"
 				>
 					<div
-						class="settings-menubar js-settings-menubar bg-color2"
+						class="settings-menubar js-settings-menubar px-2 bg-color2"
 						style="
-							height: var(--barsize);
 							border-width: calc(var(--scale) * 0.034rem);
 							border-color: var(--color3);
 							border-bottom-style: solid;
 						"
 					>
-						<nav
-							class="js-settings-category-back flex shrink-0 ml-2"
-							style="
-								width: calc(var(--scale) * 4.7rem);
-							"
-						>
-							<img
-								class="icon-filter"
-								style="width: calc(var(--scale) * 3.7rem);"
-								src="${backIconPath}"
-							/>
+						<nav class="js-settings-category-back flex shrink-0">
+							${backIconHTML}
 						</nav>
-						<span
-							class="js-category-title w-full m-auto text-center text-color"
-							style="
-								margin-right: calc(var(--spacing) * 22);
-								font-size: calc(var(--scale) * 2.7rem);
-							"
-							>${title}</span
-						>
+						${categoryTitleHTML(title)}
 					</div>
-					<ul
-						class="js-category-nav settings-category-nav flex flex-col"
-						style="overflow-y: auto;"
-					></ul>
+					${categoryNavsHTML}
 				</div>
 				<div
 					class="js-sub-category settings-sub-category flex flex-col w-full bg-color3"
 				>
-					<div
-						class="js-settings-menubar settings-menubar bg-color2"
-						style="
-							height: var(--barsize);
-							border-width: calc(var(--scale) * 0.034rem);
-							border-color: var(--color3);
-							border-bottom-style: solid;
-						"
-					>
-						<nav
-							class="js-settings-subcategory-back flex shrink-0 ml-2"
-							style="
-								width: calc(var(--scale) * 4.7rem);
-							"
-						>
-							<img
-								class="icon-filter"
-								style="width: calc(var(--scale) * 3.7rem);"
-								src="${backIconPath}"
-							/>
-						</nav>
-						<span
-							class="js-category-title w-full m-auto text-center text-color"
-							style="
-								margin-right: calc(var(--spacing) * 22);
-								font-size: calc(var(--scale) * 2.7rem);
-							"
-						></span>
-					</div>
-					${form.html()}
+					${menubarHTML} ${form.html()}
 				</div>
 			`;
 		},
@@ -640,40 +617,10 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		let html = "";
 		const sortedMonitors = sortByName(monitors);
 		for (const m of sortedMonitors) {
-			html += /* HTML */ `
-				<li
-					class="settings-nav-item js-nav flex items-center py-2"
-					style="
-						padding-right: calc(var(--spacing) * 14);
-						padding-left: calc(var(--spacing) * 6);
-						border-width: calc(var(--scale) * 0.034rem);
-						border-color: var(--color3);
-						border-bottom-style: solid;
-					"
-					data="${m.id}"
-				>
-					<span
-						class="text-color"
-						style="font-size: calc(var(--scale) * 2.4rem);"
-						>${m.name}</span
-					>
-				</li>
-			`;
+			html += categoryNavHTML(m.id, m.name);
 		}
 
-		html += /* HTML */ `
-			<button
-				class="js-add-btn js-nav shrink-0 mt-2 ml-4 mr-auto px-2 bg-green hover:bg-green2"
-				style="
-					border-radius: calc(var(--scale) * 0.34rem);
-				"
-				data=""
-			>
-				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
-					>Add</span
-				>
-			</button>
-		`;
+		html += addBtnHTML;
 
 		category.setNav(html);
 		category.onNav((element) => {
@@ -881,39 +828,10 @@ function newMonitorGroups(token, fields, groups) {
 		let html = "";
 		const sortedGroups = sortByName(groups);
 		for (const g of sortedGroups) {
-			html += /* HTML */ `
-				<li
-					class="settings-nav-item js-nav flex items-center py-2 pl-4"
-					data="${g.id}"
-					style="
-						padding-right: calc(var(--spacing) * 14);
-						border-width: calc(var(--scale) * 0.034rem);
-						border-color: var(--color3);
-						border-bottom-style: solid;
-					"
-				>
-					<span
-						class="text-color"
-						style="font-size: calc(var(--scale) * 2.4rem);"
-						>${g.name}</span
-					>
-				</li>
-			`;
+			html += categoryNavHTML(g.id, g.name);
 		}
 
-		html += /* HTML */ `
-			<button
-				class="js-add-btn js-nav shrink-0 mt-2 ml-4 mr-auto px-2 bg-green hover:bg-green2"
-				style="
-					border-radius: calc(var(--scale) * 0.34rem);
-				"
-				data=""
-			>
-				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
-					>Add</span
-				>
-			</button>
-		`;
+		html += addBtnHTML;
 
 		category.setNav(html);
 		category.onNav((element) => {
@@ -1036,37 +954,10 @@ function newAccount(token, fields) {
 
 		for (const u of sortByUsername(accounts)) {
 			const c = u.isAdmin === true ? "text-red" : "text-color";
-			html += /* HTML */ `
-				<li
-					class="settings-nav-item js-nav flex items-center py-2 pl-4"
-					style="
-						padding-right: calc(var(--spacing) * 14);
-						border-width: calc(var(--scale) * 0.034rem);
-						border-color: var(--color3);
-						border-bottom-style: solid;
-					"
-					data="${u.id}"
-				>
-					<span class="${c}" style="font-size: calc(var(--scale) * 2.4rem);"
-						>${u.username}
-					</span>
-				</li>
-			`;
+			html += categoryNavHTML(u.id, u.username, c);
 		}
 
-		html += /* HTML */ `
-			<button
-				class="js-add-btn js-nav shrink-0 mt-2 ml-4 mr-auto px-2 bg-green hover:bg-green2"
-				style="
-					border-radius: calc(var(--scale) * 0.34rem);
-				"
-				data=""
-			>
-				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
-					>Add</span
-				>
-			</button>
-		`;
+		html += addBtnHTML;
 
 		category.setNav(html);
 		category.onNav((element) => {
@@ -1174,7 +1065,7 @@ function newSelectMonitorField(monitors) {
 						border-width: calc(var(--scale) * 0.034rem);
 						border-style: solid;
 						border-color: var(--color1);
-						font-size: calc(var(--scale) * 2.4rem);
+						font-size: calc(var(--scale) * 1.8rem);
 					"
 				>
 					<span

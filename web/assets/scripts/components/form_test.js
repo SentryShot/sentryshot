@@ -128,7 +128,7 @@ describe("newForm", () => {
 				"
     >
       <span class="text-color"
-            style="font-size: calc(var(--scale) * 2.4rem);"
+            style="font-size: calc(var(--scale) * 2rem);"
       >
         Delete
       </span>
@@ -173,7 +173,7 @@ describe("newForm", () => {
 				"
     >
       <span class="text-color"
-            style="font-size: calc(var(--scale) * 2.4rem);"
+            style="font-size: calc(var(--scale) * 2rem);"
       >
         Save
       </span>
@@ -186,7 +186,7 @@ describe("newForm", () => {
 				"
     >
       <span class="text-color"
-            style="font-size: calc(var(--scale) * 2.4rem);"
+            style="font-size: calc(var(--scale) * 2rem);"
       >
         Delete
       </span>
@@ -241,7 +241,7 @@ describe("newField", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					text-indent: calc(var(--scale) * 0.68rem);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="number"
          placeholder="b"
@@ -378,7 +378,7 @@ describe("fieldTemplate", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					text-indent: calc(var(--scale) * 0.68rem);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="text"
          placeholder="2"
@@ -434,7 +434,7 @@ describe("fieldTemplate", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					text-indent: calc(var(--scale) * 0.68rem);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="number"
          placeholder="2"
@@ -491,10 +491,7 @@ describe("fieldTemplate", () => {
   <div class="flex w-full">
     <select id="label-uid1"
             class="js-input w-full pl-2"
-            style="
-						height: calc(var(--scale) * 2.5rem);
-						font-size: calc(var(--scale) * 1.5rem);
-					"
+            style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
     >
       <option>
         true
@@ -542,10 +539,7 @@ describe("fieldTemplate", () => {
   <div class="flex w-full">
     <select id="label-uid1"
             class="js-input w-full pl-2"
-            style="
-						height: calc(var(--scale) * 2.5rem);
-						font-size: calc(var(--scale) * 1.5rem);
-					"
+            style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
     >
       <option>
         a
@@ -596,10 +590,7 @@ describe("fieldTemplate", () => {
   <div class="flex w-full">
     <select id="label-uid1"
             class="js-input w-full pl-2"
-            style="
-						height: calc(var(--scale) * 2.5rem);
-						font-size: calc(var(--scale) * 1.5rem);
-					"
+            style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
     >
       <option>
         a
@@ -693,10 +684,7 @@ describe("selectCustomField", () => {
   <div class="flex w-full">
     <select id="label-uid1"
             class="js-input w-full pl-2"
-            style="
-						height: calc(var(--scale) * 2.5rem);
-						font-size: calc(var(--scale) * 1.5rem);
-					"
+            style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
     >
       <option>
         a
@@ -802,7 +790,7 @@ describe("passwordField", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					text-indent: calc(var(--scale) * 0.68rem);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="password"
          placeholder
@@ -840,7 +828,7 @@ describe("passwordField", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					text-indent: calc(var(--scale) * 0.68rem);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="password"
          placeholder

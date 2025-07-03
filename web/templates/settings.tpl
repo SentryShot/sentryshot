@@ -59,10 +59,6 @@
 		width: 100%;
 	}
 
-	.settings-nav-item:hover {
-		background: var(--color3);
-	}
-
 	.settings-nav-btn-selected {
 		background: var(--color3);
 	}
@@ -87,6 +83,7 @@
 	.settings-sub-category {
 		position: absolute;
 		height: 100%;
+		width: 100%;
 		transform: translateX(100%);
 		transition: transform 400ms;
 	}
@@ -119,12 +116,6 @@
 			flex-shrink: 0;
 		}
 
-		.settings-sub-category {
-			height: 100%;
-			width: 100%;
-			overflow-y: auto;
-		}
-
 		.form {
 			overflow-y: initial;
 		}
@@ -143,8 +134,8 @@
 
 		.settings-category {
 			width: auto;
-			min-width: calc(var(--scale) * 20rem);
-			max-width: calc(var(--scale) * 30.4rem);
+			min-width: calc(var(--scale) * 14rem);
+			max-width: calc(var(--scale) * 18rem);
 		}
 
 		.settings-category-wrapper {

@@ -3,7 +3,11 @@
 // @ts-check
 
 import { uniqueID, sortByName, globals } from "./libs/common.js";
-import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
+import {
+	newOptionsMenu,
+	newOptionsBtn,
+	optionsMenuBtnHTML,
+} from "./components/optionsMenu.js";
 import { newStreamer, newStreamerBtn } from "./components/streamer.js";
 
 /**
@@ -132,19 +136,7 @@ function resBtn(content) {
 	const id = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<button
-				id=${id}
-				class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
-				style="
-					width: var(--options-menu-btn-width);
-					height: var(--options-menu-btn-width);
-					font-size: calc(var(--scale) * 1.7rem);
-				"
-			>
-				X
-			</button>
-		`,
+		html: optionsMenuBtnHTML(id),
 		init() {
 			element = document.querySelector(`#${id}`);
 			element.addEventListener("click", () => {

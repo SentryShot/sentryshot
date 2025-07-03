@@ -2,7 +2,12 @@
 // @ts-check
 
 import { uniqueID, normalize, denormalize, globals } from "./libs/common.js";
-import { newForm, newModalFieldHTML, fieldTemplate } from "./components/form.js";
+import {
+	newForm,
+	newModalFieldHTML,
+	newHTMLfield,
+	fieldTemplate,
+} from "./components/form.js";
 import { newStreamer } from "./components/streamer.js";
 import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
@@ -127,262 +132,207 @@ export function motion2(hasSubStream, getMonitorId) {
  * @property {number} thresholdMax
  */
 
-/** @param {string} feedHTML */
-function zonesModalHTML(feedHTML) {
-	return /* HTML */ `
-		<li
-			class="items-center p-2"
-			style="
+const zoneSelectFieldHTML = /* HTML */ `
+	<li
+		class="items-center p-2"
+		style="
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
-		>
-			<div class="flex w-full">
-				<select
-					class="js-zone-select w-full pl-2"
-					style="height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
-				></select>
-				<div
-					class="js-add-zone flex ml-4 bg-color2 hover:bg-color3"
-					style="
-						aspect-ratio: 1;
-						width: calc(var(--scale) * 3.4rem);
-						height: calc(var(--scale) * 3.4rem);
-						border-radius: calc(var(--scale) * 0.68rem);
-					"
-				>
-					<img class="p-2 icon-filter" src="assets/icons/feather/plus.svg" />
-				</div>
-				<div
-					class="js-remove-zone flex ml-4 bg-color2 hover:bg-color3"
-					style="
-						aspect-ratio: 1;
-						width: calc(var(--scale) * 3.4rem);
-						height: calc(var(--scale) * 3.4rem);
-						border-radius: calc(var(--scale) * 0.68rem);
-					"
-				>
-					<img class="p-2 icon-filter" src="assets/icons/feather/minus.svg" />
-				</div>
-			</div>
-		</li>
-		<li
-			class="items-center p-2"
-			style="
+	>
+		<div class="flex w-full">
+			<select
+				class="js-zone-select w-full pl-2"
+				style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
+			></select>
+			<button
+				class="js-add-zone shrink-0 ml-2 bg-color2 hover:bg-color3"
+				style="border-radius: calc(var(--scale) * 0.68rem);"
+			>
+				<img
+					class="p-1 icon-filter"
+					style="width: calc(var(--scale) * 2.5rem);"
+					src="assets/icons/feather/plus.svg"
+				/>
+			</button>
+			<button
+				class="js-remove-zone shrink-0 ml-1 mr-2 bg-color2 hover:bg-color3"
+				style="border-radius: calc(var(--scale) * 0.68rem);"
+			>
+				<img
+					class="p-1 icon-filter"
+					style="width: calc(var(--scale) * 2.5rem);"
+					src="assets/icons/feather/minus.svg"
+				/>
+			</button>
+		</div>
+	</li>
+`;
+
+const thresholdsFieldHTML = /* HTML */ `
+	<li
+		class="items-center p-2"
+		style="
 				border-color: var(--color1);
 				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
-		>
-			<label
-				for="modal-enable"
-				class="grow w-full text-color"
-				style="
+	>
+		<label
+			class="grow w-full text-color"
+			style="
 					float: left;
 					min-width: calc(var(--scale) * 13.5rem);
-					font-size: calc(var(--scale) * 2rem);
+					font-size: calc(var(--scale) * 1.5rem);
 				"
-				>Enable</label
-			>
-			<div class="flex w-full">
-				<select
-					class="js-enable w-full pl-2"
-					style="height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
-				>
-					<option>true</option>
-					<option>false</option>
-				</select>
-			</div>
-		</li>
-		<li
-			class="items-center p-2"
-			style="
-				border-color: var(--color1);
-				border-bottom-style: solid;
-				border-bottom-width: calc(var(--scale) * 0.17rem);
-			"
+			>Threshold Min-Max</label
 		>
-			<label
-				for="motion-modal-sensitivity"
-				class="grow w-full text-color"
-				style="
-					float: left;
-					min-width: calc(var(--scale) * 13.5rem);
-					font-size: calc(var(--scale) * 2rem);
-				"
-				>Sensitivity</label
-			>
+		<div class="flex w-full">
 			<input
-				id="motion-modal-sensitivity"
-				class="js-sensitivity w-full"
+				class="js-threshold-min w-full mr-4 pl-2"
 				style="
-					height: calc(var(--scale) * 3.4rem);
-					overflow: auto;
-					font-size: calc(var(--scale) * 1.7rem);
-					text-indent: calc(var(--scale) * 0.68rem);
+					height: calc(var(--scale) * 2.5rem);
+					font-size: calc(var(--scale) * 1.5rem);
 				"
 				type="number"
 				min="0"
 				max="100"
 				step="any"
 			/>
-		</li>
-		<li
-			class="items-center p-2"
-			style="
-				border-color: var(--color1);
-				border-bottom-style: solid;
-				border-bottom-width: calc(var(--scale) * 0.17rem);
-			"
-		>
-			<label
-				class="grow w-full text-color"
+			<input
+				class="js-threshold-max grow w-full pl-2"
 				style="
-					float: left;
-					min-width: calc(var(--scale) * 13.5rem);
-					font-size: calc(var(--scale) * 2rem);
+					height: calc(var(--scale) * 2.5rem);
+					font-size: calc(var(--scale) * 1.5rem);
 				"
-				>Threshold Min-Max</label
-			>
-			<div class="flex w-full">
-				<input
-					class="js-threshold-min w-full"
-					style="
-						height: calc(var(--scale) * 3.4rem);
-						overflow: auto;
-						font-size: calc(var(--scale) * 1.7rem);
-						text-indent: calc(var(--scale) * 0.68rem);
-						margin-right: calc(var(--spacing) * 14);
-					"
-					type="number"
-					min="0"
-					max="100"
-					step="any"
-				/>
-				<input
-					class="js-threshold-max grow w-full text-color"
-					style="
-						float: left;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					type="number"
-					min="0"
-					max="100"
-					step="any"
-				/>
-			</div>
-		</li>
-		<li
-			class="items-center p-2"
-			style="
-				border-color: var(--color1);
-				border-bottom-style: solid;
-				border-bottom-width: calc(var(--scale) * 0.17rem);
-			"
-		>
-			<label
-				for="modal-preview"
-				class="grow w-full text-color"
+				type="number"
+				min="0"
+				max="100"
+				step="any"
+			/>
+		</div>
+	</li>
+`;
+
+const zonesPreviewOptionsHTML = /* HTML */ `
+	<li
+		class="flex items-center p-2"
+		style="
+			border-color: var(--color1);
+			border-bottom-style: solid;
+			border-bottom-width: calc(var(--scale) * 0.17rem);
+			flex-wrap: wrap;
+			justify-content: space-between
+		"
+	>
+		<div class="flex">
+			<button
+				class="js-1x pl-2 pr-1 text-color bg-color2 hover:bg-color1"
 				style="
-					float: left;
-					min-width: calc(var(--scale) * 13.5rem);
-					font-size: calc(var(--scale) * 2rem);
+					font-size: calc(var(--scale) * 1.4rem);
+					border-width: calc(var(--scale) * 0.07rem);
+					border-color: var(--color3);
+					border-top-left-radius: calc(var(--scale) * 0.84rem);
+					border-bottom-left-radius: calc(var(--scale) * 0.84rem);
+					border-right-style: solid;
 				"
-				>Preview</label
 			>
-			<div class="flex w-full">
-				<select
-					class="js-preview w-full pl-2"
-					style="height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
-				>
-					<option>true</option>
-					<option>false</option>
-				</select>
-			</div>
-			<div class="relative" style="margin-top: calc(var(--spacing) * 4);">
-				<div class="js-feed" style="background: white;">${feedHTML}</div>
-				<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
-			</div>
+				1x
+			</button>
+			<button
+				class="js-4x px-1 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
+				style="
+					font-size: calc(var(--scale) * 1.4rem);
+					border-width: calc(var(--scale) * 0.07rem);
+					border-color: var(--color3);
+					border-style: hidden solid;
+				"
+			>
+				4x
+			</button>
+			<button
+				class="js-10x px-1 text-color bg-color2 hover:bg-color1"
+				style="
+					font-size: calc(var(--scale) * 1.4rem);
+					border-width: calc(var(--scale) * 0.07rem);
+					border-color: var(--color3);
+					border-style: hidden solid;
+				"
+			>
+				10x
+			</button>
+			<button
+				class="js-20x pl-1 pr-2 text-color bg-color2 hover:bg-color1"
+				style="
+					font-size: calc(var(--scale) * 1.4rem);
+					border-width: calc(var(--scale) * 0.07rem);
+					border-color: var(--color3);
+					border-top-right-radius: calc(var(--scale) * 0.84rem);
+					border-bottom-right-radius: calc(var(--scale) * 0.84rem);
+					border-left-style: solid;
+				"
+			>
+				20x
+			</button>
+		</div>
+		<div class="flex">
+			<input
+				class="js-x mr-1 text-center"
+				style="width: calc(var(--scale) * 3.5rem); font-size: calc(var(--scale) * 1.4rem);"
+				type="number"
+				min="0"
+				max="100"
+			/>
+			<input
+				class="js-y text-center"
+				style="width: calc(var(--scale) * 3.5rem); font-size: calc(var(--scale) * 1.4rem);"
+				type="number"
+				min="0"
+				max="100"
+			/>
+		</div>
+	</li>
+`;
+
+/**
+ * @param {string} feedHTML
+ * @param {string} [enableID]
+ * @param {string} [sensitivityID]
+ * @param {string} [previewID]
+ */
+function zonesModalHTML(feedHTML, enableID, sensitivityID, previewID) {
+	return /* HTML */ `
+		${zoneSelectFieldHTML}
+		${newHTMLfield(
+			{
+				select: ["true", "false"],
+			},
+			enableID,
+			"Enable",
+		)}
+		${newHTMLfield(
+			{
+				input: "number",
+				min: 0,
+				max: 100,
+			},
+			sensitivityID,
+			"Sensitivity",
+		)}
+		${thresholdsFieldHTML}
+		${newHTMLfield(
+			{
+				select: ["true", "false"],
+			},
+			previewID,
+			"Preview",
+		)}
+		<li class="relative mx-2 mt-1">
+			<div class="js-feed" style="background: white;">${feedHTML}</div>
+			<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
 		</li>
-		<li
-			class="flex items-center p-2"
-			style="
-				border-color: var(--color1);
-				border-bottom-style: solid;
-				border-bottom-width: calc(var(--scale) * 0.17rem);
-				flex-wrap: wrap;
-				justify-content: space-between
-			"
-		>
-			<div class="flex">
-				<button
-					class="js-1x py-1 px-2 text-color bg-color2 hover:bg-color1"
-					style="
-						font-size: calc(var(--scale) * 2rem);
-						border-width: calc(var(--scale) * 0.07rem);
-						border-color: var(--color3);
-						border-top-left-radius: calc(var(--scale) * 0.84rem);
-						border-bottom-left-radius: calc(var(--scale) * 0.84rem);
-						border-right-style: solid;
-					"
-				>
-					1x
-				</button>
-				<button
-					class="js-4x py-1 px-2 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
-					style="
-						font-size: calc(var(--scale) * 2rem);
-						border-width: calc(var(--scale) * 0.07rem);
-						border-color: var(--color3);
-						border-style: hidden solid;
-					"
-				>
-					4x
-				</button>
-				<button
-					class="js-10x py-1 px-2 text-color bg-color2 hover:bg-color1"
-					style="
-						font-size: calc(var(--scale) * 2rem);
-						border-width: calc(var(--scale) * 0.07rem);
-						border-color: var(--color3);
-						border-style: hidden solid;
-					"
-				>
-					10x
-				</button>
-				<button
-					class="js-20x py-1 px-2 text-color bg-color2 hover:bg-color1"
-					style="
-						font-size: calc(var(--scale) * 2rem);
-						border-width: calc(var(--scale) * 0.07rem);
-						border-color: var(--color3);
-						border-top-right-radius: calc(var(--scale) * 0.84rem);
-						border-bottom-right-radius: calc(var(--scale) * 0.84rem);
-						border-left-style: solid;
-					"
-				>
-					20x
-				</button>
-			</div>
-			<div class="flex">
-				<input
-					class="js-x text-center"
-					style="width: calc(var(--scale) * 5rem); font-size: calc(var(--scale) * 2rem);"
-					type="number"
-					min="0"
-					max="100"
-				/>
-				<input
-					class="js-y text-center"
-					style="width: calc(var(--scale) * 5rem); font-size: calc(var(--scale) * 2rem);"
-					type="number"
-					min="0"
-					max="100"
-				/>
-			</div>
-		</li>
+		${zonesPreviewOptionsHTML}
 	`;
 }
 
@@ -418,24 +368,31 @@ function zones(hasSubStream, getMonitorId) {
 	/** @type {Feed} */
 	let feed;
 
+	const enableID = uniqueID();
+	const sensitivityID = uniqueID();
+	const previewID = uniqueID();
+
 	/**
 	 * @param {Element} element
 	 * @param {string} feedHTML
 	 */
 	const renderModal = (element, feedHTML) => {
-		modal = newModal("Zones", zonesModalHTML(feedHTML));
+		modal = newModal(
+			"Zones",
+			zonesModalHTML(feedHTML, enableID, sensitivityID, previewID),
+		);
 
 		element.insertAdjacentHTML("beforeend", modal.html);
 		$modalContent = modal.init();
 
 		$zoneSelect = $modalContent.querySelector(".js-zone-select");
 
-		$enable = $modalContent.querySelector(".js-enable");
+		$enable = document.querySelector(`#${enableID} select`);
 		$enable.addEventListener("change", () => {
 			getSelectedZone().setEnable($enable.value === "true");
 		});
 
-		$sensitivity = $modalContent.querySelector(".js-sensitivity");
+		$sensitivity = document.querySelector(`#${sensitivityID} input`);
 		$sensitivity.addEventListener("change", () => {
 			getSelectedZone().setSensitivity(
 				Math.min(100, Math.max($sensitivity.value, 0)),
@@ -590,7 +547,7 @@ function zones(hasSubStream, getMonitorId) {
 			}
 		};
 
-		$preview = $modalContent.querySelector(".js-preview");
+		$preview = document.querySelector(`#${previewID} select`);
 		$preview.addEventListener("change", () => {
 			getSelectedZone().setPreview($preview.value === "true");
 			updatePreview();
@@ -927,7 +884,7 @@ function denormalizeZones(zones) {
 const $style = document.createElement("style");
 $style.innerHTML = `
 	.motion-step-size-selected {
-		background: var(--color1);
+		background: var(--color1) !important;
 	}
 `;
 document.querySelector("head").append($style);

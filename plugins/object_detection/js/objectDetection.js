@@ -6,6 +6,7 @@ import {
 	newForm,
 	newNumberField,
 	newModalFieldHTML,
+	newHTMLfield,
 	fieldTemplate,
 } from "./components/form.js";
 import { newStreamer } from "./components/streamer.js";
@@ -180,17 +181,16 @@ function thresholds(detectors, getDetectorName) {
 				>
 					<label
 						for="${id}"
-						class="text-color"
-						style="font-size: calc(var(--scale) * 2.4rem);"
+						class="mr-auto text-color"
+						style="font-size: calc(var(--scale) * 1.5rem);"
 						>${label}</label
 					>
 					<input
 						id="${id}"
 						class="text-center h-full"
 						style="
-							margin-left: auto;
-							font-size: calc(var(--scale) * 2rem);
-							width: calc(var(--scale) * 5.5rem);
+							font-size: calc(var(--scale) * 1.5rem);
+							width: calc(var(--scale) * 4rem);
 						"
 						type="number"
 						value="${val}"
@@ -346,21 +346,12 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 		const html = /* HTML */ `
 			<li
 				id="object-detection-crop-preview"
-				class="flex flex-col items-center p-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				class="flex flex-col items-center px-2"
 			>
 				<label
 					for="object-detection-crop-preview"
-					class="grow mr-auto text-color"
-					style="
-						width: auto;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					class="mr-auto text-color"
+					style="font-size: calc(var(--scale) * 1.5rem);"
 					>Preview</label
 				>
 				<div class="js-preview-wrapper relative">
@@ -392,7 +383,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				"
 			>
 				<div
-					class="js-object-detection-crop-option flex mr-2 mb-2 p-2 bg-color2"
+					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 bg-color2"
 					style="
 						border-radius: calc(var(--scale) * 0.51rem);
 					"
@@ -400,17 +391,17 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<span
 						class="ml-1 mr-2 text-color"
 						style="
-							font-size: calc(var(--scale) * 2rem);
+							font-size: calc(var(--scale) * 1.3rem);
 						"
 						>X</span
 					>
 					<input
 						class="js-x text-center"
 						style="
-							font-size: calc(var(--scale) * 2rem);
+							font-size: calc(var(--scale) * 1.3rem);
 							border-style: none;
 							border-radius: 5px;
-							width: calc(var(--scale) * 4.7rem);
+							width: calc(var(--scale) * 3rem);
 						"
 						type="number"
 						min="0"
@@ -419,25 +410,21 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					/>
 				</div>
 				<div
-					class="js-object-detection-crop-option flex mr-2 mb-2 p-2 bg-color2"
-					style="
-						border-radius: calc(var(--scale) * 0.51rem);
-					"
+					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 bg-color2"
+					style="border-radius: calc(var(--scale) * 0.51rem);"
 				>
 					<span
 						class="ml-1 mr-2 text-color"
-						style="
-							font-size: calc(var(--scale) * 2rem);
-						"
+						style="font-size: calc(var(--scale) * 1.3rem);"
 						>Y</span
 					>
 					<input
 						class="js-y text-center"
 						style="
-							font-size: calc(var(--scale) * 2rem);
+							font-size: calc(var(--scale) * 1.3rem);
 							border-style: none;
 							border-radius: 5px;
-							width: calc(var(--scale) * 4.7rem);
+							width: calc(var(--scale) * 3rem);
 						"
 						type="number"
 						min="0"
@@ -446,7 +433,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					/>
 				</div>
 				<div
-					class="js-object-detection-crop-option flex mb-2 p-2 bg-color2"
+					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 bg-color2"
 					style="
 						border-radius: calc(var(--scale) * 0.51rem);
 					"
@@ -454,17 +441,17 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<span
 						class="mr-2 ml-1 text-color"
 						style="
-							font-size: calc(var(--scale) * 2rem);
+							font-size: calc(var(--scale) * 1.3rem);
 						"
 						>size</span
 					>
 					<input
 						class="js-size text-center"
 						style="
-							font-size: calc(var(--scale) * 2rem);
+							font-size: calc(var(--scale) * 1.3rem);
 							border-style: none;
 							border-radius: 5px;
-							width: calc(var(--scale) * 4.7rem);
+							width: calc(var(--scale) * 3.5rem);
 						"
 						type="number"
 						min="0"
@@ -663,6 +650,86 @@ function denormalizeCrop(crop) {
  * @property {[number,number][]} area
  */
 
+const maskOptionsHTML = /* HTML */ `
+	<li
+		class="flex items-center p-2"
+		style="
+			border-color: var(--color1);
+			border-bottom-style: solid;
+			border-bottom-width: calc(var(--scale) * 0.17rem);
+			flex-wrap: wrap;
+			justify-content: space-between
+		"
+	>
+		<div class="flex">
+			<button
+				class="js-1x pl-2 pr-1 text-color bg-color2 hover:bg-color1"
+				style="
+					font-size: calc(var(--scale) * 1.4rem);
+					border-width: calc(var(--scale) * 0.07rem);
+					border-color: var(--color3);
+					border-top-left-radius: calc(var(--scale) * 0.84rem);
+					border-bottom-left-radius: calc(var(--scale) * 0.84rem);
+					border-right-style: solid;
+				"
+			>
+				1x
+			</button>
+			<button
+				class="js-4x px-1 text-color bg-color2 hover:bg-color1 object_detection_mask-step-size-selected"
+				style="
+					font-size: calc(var(--scale) * 1.4rem);
+					border-width: calc(var(--scale) * 0.07rem);
+					border-color: var(--color3);
+					border-style: hidden solid;
+				"
+			>
+				4x
+			</button>
+			<button
+				class="js-10x px-1 text-color bg-color2 hover:bg-color1"
+				style="
+					font-size: calc(var(--scale) * 1.4rem);
+					border-width: calc(var(--scale) * 0.07rem);
+					border-color: var(--color3);
+					border-style: hidden solid;
+				"
+			>
+				10x
+			</button>
+			<button
+				class="js-20x pl-1 pr-2 text-color bg-color2 hover:bg-color1"
+				style="
+					font-size: calc(var(--scale) * 1.4rem);
+					border-width: calc(var(--scale) * 0.07rem);
+					border-color: var(--color3);
+					border-top-right-radius: calc(var(--scale) * 0.84rem);
+					border-bottom-right-radius: calc(var(--scale) * 0.84rem);
+					border-left-style: solid;
+				"
+			>
+				20x
+			</button>
+		</div>
+		<div class="flex">
+			<input
+				class="js-x mr-1 text-center"
+				style="width: calc(var(--scale) * 3.5rem); font-size: calc(var(--scale) * 1.4rem);"
+				type="number"
+				min="0"
+				max="100"
+			/>
+			<input
+				class="js-y text-center"
+				style="width: calc(var(--scale) * 3.5rem); font-size: calc(var(--scale) * 1.4rem);"
+				type="number"
+				min="0"
+				max="100"
+			/>
+		</div>
+	</li>
+`;
+
 /**
  * @param {(monitorID: string) => boolean} hasSubStream
  * @param {() => string} getMonitorId
@@ -680,55 +747,26 @@ function mask(hasSubStream, getMonitorId) {
 
 	let editor;
 
+	const enableID = uniqueID();
+
 	/** @param {string} feedHTML */
 	const renderModal = (feedHTML) => {
 		const html = /* HTML */ `
-			<li
-				class="js-enable object_detection_mask-enabled items-center p-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
-			>
-				<label
-					for="object_detection_mask-enable"
-					class="grow text-color"
-					style="
-						float: left;
-						width: auto;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
-					>Enable mask</label
-				>
-				<div class="flex w-full">
-					<select
-						class="js-input w-full pl-2"
-						style="height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
-					>
-						<option>true</option>
-						<option>false</option>
-					</select>
-				</div>
-			</li>
+			${newHTMLfield(
+				{
+					select: ["true", "false"],
+				},
+				enableID,
+				"Enable",
+			)}
 			<li
 				id="object_detection_mask-preview"
-				class="flex flex-col items-center p-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-				"
+				class="flex flex-col items-center px-2"
 			>
 				<label
 					for="object_detection_mask-preview"
 					class="grow mr-auto text-color"
-					style="
-						width: auto;
-						min-width: calc(var(--scale) * 13.5rem);
-						font-size: calc(var(--scale) * 2rem);
-					"
+					style="font-size: calc(var(--scale) * 1.5rem);"
 					>Preview</label
 				>
 				<div class="js-preview-wrapper relative">
@@ -754,90 +792,14 @@ function mask(hasSubStream, getMonitorId) {
 					></svg>
 				</div>
 			</li>
-			<li
-				class="flex items-center p-2"
-				style="
-					border-color: var(--color1);
-					border-bottom-style: solid;
-					border-bottom-width: calc(var(--scale) * 0.17rem);
-					flex-wrap: wrap;
-					justify-content: space-between
-				"
-			>
-				<div class="flex">
-					<button
-						class="js-1x py-1 px-2 text-color bg-color2 hover:bg-color1"
-						style="
-							font-size: calc(var(--scale) * 2rem);
-							border-width: calc(var(--scale) * 0.07rem);
-							border-color: var(--color3);
-							border-top-left-radius: calc(var(--scale) * 0.84rem);
-							border-bottom-left-radius: calc(var(--scale) * 0.84rem);
-							border-right-style: solid;
-						"
-					>
-						1x
-					</button>
-					<button
-						class="js-4x py-1 px-2 text-color bg-color2 hover:bg-color1 object_detection_mask-step-size-selected"
-						style="
-							font-size: calc(var(--scale) * 2rem);
-							border-width: calc(var(--scale) * 0.07rem);
-							border-color: var(--color3);
-							border-style: hidden solid;
-						"
-					>
-						4x
-					</button>
-					<button
-						class="js-10x py-1 px-2 text-color bg-color2 hover:bg-color1"
-						style="
-							font-size: calc(var(--scale) * 2rem);
-							border-width: calc(var(--scale) * 0.07rem);
-							border-color: var(--color3);
-							border-style: hidden solid;
-						"
-					>
-						10x
-					</button>
-					<button
-						class="js-20x py-1 px-2 text-color bg-color2 hover:bg-color1"
-						style="
-							font-size: calc(var(--scale) * 2rem);
-							border-width: calc(var(--scale) * 0.07rem);
-							border-color: var(--color3);
-							border-top-right-radius: calc(var(--scale) * 0.84rem);
-							border-bottom-right-radius: calc(var(--scale) * 0.84rem);
-							border-left-style: solid;
-						"
-					>
-						20x
-					</button>
-				</div>
-				<div class="flex">
-					<input
-						class="js-x text-center"
-						style="width: calc(var(--scale) * 4.4rem); font-size: calc(var(--scale) * 2rem);"
-						type="number"
-						min="0"
-						max="100"
-					/>
-					<input
-						class="js-y text-center"
-						style="width: calc(var(--scale) * 4.4rem); font-size: calc(var(--scale) * 2rem);"
-						type="number"
-						min="0"
-						max="100"
-					/>
-				</div>
-			</li>
+			${maskOptionsHTML}
 		`;
 
 		$modalContent = modal.init();
 		$modalContent.innerHTML = html;
 		$feed = $modalContent.querySelector(".js-feed");
 
-		$enable = $modalContent.querySelector(".js-enable .js-input");
+		$enable = $modalContent.querySelector(`#${enableID} select`);
 		$enable.value = String(value.enable);
 		$enable.addEventListener("change", () => {
 			value.enable = $enable.value === "true";

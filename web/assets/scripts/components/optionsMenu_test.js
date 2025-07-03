@@ -29,36 +29,36 @@ describe("optionsGridSize", () => {
 		expect(document.body.innerHTML).toMatchInlineSnapshot(`
 <div id="options-menu">
   <button id="uid1"
-          class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
+          class=" flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
           style="
-						width: var(--options-menu-btn-width);
-						height: var(--options-menu-btn-width);
-						font-size: calc(var(--scale) * 1.7rem);
-					"
+				width: var(--options-menu-btn-width);
+				height: var(--options-menu-btn-width);
+				font-size: calc(var(--scale) * 1.7rem);
+			"
   >
-    <img class="m-2 icon-filter"
+    <img class="icon-filter"
          style="
-							aspect-ratio: 1;
-							height: calc(var(--scale) * 2.7rem);
-							font-size: 0;
-						"
+					aspect-ratio: 1;
+					height: calc(var(--scale) * 2.7rem);
+					font-size: 0;
+				"
          src="assets/icons/feather/plus.svg"
     >
   </button>
   <button id="uid2"
-          class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
+          class=" flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
           style="
-						width: var(--options-menu-btn-width);
-						height: var(--options-menu-btn-width);
-						font-size: calc(var(--scale) * 1.7rem);
-					"
+				width: var(--options-menu-btn-width);
+				height: var(--options-menu-btn-width);
+				font-size: calc(var(--scale) * 1.7rem);
+			"
   >
-    <img class="m-2 icon-filter"
+    <img class="icon-filter"
          style="
-							aspect-ratio: 1;
-							height: calc(var(--scale) * 2.7rem);
-							font-size: 0;
-						"
+					aspect-ratio: 1;
+					height: calc(var(--scale) * 2.7rem);
+					font-size: 0;
+				"
          src="assets/icons/feather/minus.svg"
     >
   </button>
@@ -327,15 +327,15 @@ describe("optionsMonitorGroups", () => {
 
 		const $picker = document.querySelector(".js-select-one");
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
-<span class="p-2"
+<span class="px-2"
       style="font-size: calc(var(--scale) * 2rem);"
 >
   Groups
 </span>
-<span class="js-select-one-item p-2 bg-color2 hover:bg-color3"
+<span class="js-select-one-item px-2 bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					font-size: calc(var(--scale) * 2.4rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					border-top: solid;
 					border-top-width: calc(var(--scale) * 0.034rem);
 				"
@@ -343,10 +343,10 @@ describe("optionsMonitorGroups", () => {
 >
   group1
 </span>
-<span class="js-select-one-item p-2 bg-color2 hover:bg-color3"
+<span class="js-select-one-item px-2 bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					font-size: calc(var(--scale) * 2.4rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					border-top: solid;
 					border-top-width: calc(var(--scale) * 0.034rem);
 				"
@@ -358,15 +358,15 @@ describe("optionsMonitorGroups", () => {
 
 		document.querySelector(".js-select-one span").click();
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
-<span class="p-2"
+<span class="px-2"
       style="font-size: calc(var(--scale) * 2rem);"
 >
   Groups
 </span>
-<span class="js-select-one-item p-2 bg-color2 hover:bg-color3"
+<span class="js-select-one-item px-2 bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					font-size: calc(var(--scale) * 2.4rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					border-top: solid;
 					border-top-width: calc(var(--scale) * 0.034rem);
 				"
@@ -374,10 +374,10 @@ describe("optionsMonitorGroups", () => {
 >
   group1
 </span>
-<span class="js-select-one-item p-2 bg-color2 hover:bg-color3"
+<span class="js-select-one-item px-2 bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					font-size: calc(var(--scale) * 2.4rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					border-top: solid;
 					border-top-width: calc(var(--scale) * 0.034rem);
 				"

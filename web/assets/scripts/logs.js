@@ -486,7 +486,7 @@ function newMultiSelect(label, values, initial) {
 			html: /* HTML */ `
 				<div
 					class="item-${id} flex items-center"
-					style="min-width: 1px; font-size: calc(var(--scale) * 2.4rem)"
+					style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
 				>
 					<div
 						class="flex justify-center items-center bg-color2"
@@ -518,15 +518,15 @@ function newMultiSelect(label, values, initial) {
 						<img
 							class="checkbox-check absolute"
 							style="
-								width: 0.8em;
+								width: 0.7em;
 								filter: invert();
 							"
 							src="assets/icons/feather/check.svg"
 						/>
 					</div>
 					<span
-						class="ml-2 text-color"
-						style="font-size: calc(var(--scale) * 1.7rem);"
+						class="ml-1 text-color"
+						style="font-size: calc(var(--scale) * 1.2rem);"
 						>${name}</span
 					>
 				</div>
@@ -573,7 +573,7 @@ function newMultiSelect(label, values, initial) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
-				class="items-center w-full p-2"
+				class="items-center w-full px-2"
 				style="
 					border-color: var(--color1);
 					border-bottom-style: solid;
@@ -581,12 +581,8 @@ function newMultiSelect(label, values, initial) {
 				"
 			>
 				<label
-					class="grow w-full text-color"
-					style="
-					   float: left;
-					   min-width: calc(var(--scale) * 13.5rem);
-					   font-size: calc(var(--scale) * 2rem);
-					"
+					class="mr-auto text-color"
+					style="font-size: calc(var(--scale) * 1.5rem);"
 					>${label}</label
 				>
 				<div class="relative">${htmlFields}</div>
@@ -668,28 +664,24 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 			>
 				<label
 					for="${inputID}"
-					class="grow w-full text-color"
-					style="
-					   float: left;
-					   min-width: calc(var(--scale) * 13.5rem);
-					   font-size: calc(var(--scale) * 2rem);
-					"
+					class="mr-auto text-color"
+					style="font-size: calc(var(--scale) * 1.5rem);"
 					>Monitor</label
 				>
 				<div class="flex w-full">
 					<select
 						id="${inputID}"
 						class="w-full pl-2"
-						style="height: calc(var(--scale) * 3.4rem); font-size: calc(var(--scale) * 1.7rem);"
+						style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
 					>
 						${options}
 					</select>
 					<button
-						class="js-edit-btn flex ml-4 bg-color3 hover:bg-color2"
+						class="js-edit-btn flex ml-2 bg-color3 hover:bg-color2"
 						style="
 							aspect-ratio: 1;
-							width: calc(var(--scale) * 3.4rem);
-							height: calc(var(--scale) * 3.4rem);
+							width: calc(var(--scale) * 2.5rem);
+							height: calc(var(--scale) * 2.5rem);
 							border-radius: calc(var(--scale) * 0.68rem);
 						"
 					>
@@ -788,22 +780,17 @@ function newLogSelector(logger, formFields) {
 		<div>
 			<button
 				class="js-reset m-2 px-2 bg-color3 hover:bg-color2"
-				style="
-				   border-radius: calc(var(--scale) * 0.68rem);
-				"
+				style="border-radius: calc(var(--scale) * 0.68rem);"
 			>
-				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
 					>Reset</span
 				>
 			</button>
 			<button
 				class="log-apply-btn m-2 px-2 js-apply bg-green hover:bg-green2"
-				style="
-					float: right;
-					border-radius: calc(var(--scale) * 0.68rem);
-				"
+				style="border-radius: calc(var(--scale) * 0.68rem); float: right;"
 			>
-				<span class="text-color" style="font-size: calc(var(--scale) * 2.4rem);"
+				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
 					>Apply</span
 				>
 			</button>

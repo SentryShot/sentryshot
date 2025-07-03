@@ -46,7 +46,7 @@ describe("feed", () => {
 							border-radius: calc(var(--scale) * 0.68rem);
 						"
     >
-      <button class="js-fullscreen-btn feed-btn p-2"
+      <button class="js-fullscreen-btn feed-btn p-1"
               style="
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
@@ -54,7 +54,7 @@ describe("feed", () => {
 				"
       >
         <img class="icon-filter"
-             style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
+             style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
              src="assets/icons/feather/maximize.svg"
         >
       </button>
@@ -121,7 +121,7 @@ describe("muteBtn", () => {
 test("recordingsBtn", async () => {
 	expect(newStreamerBtn.recordings("b").html).toMatchInlineSnapshot(`
 <a href="http://test.com/recordings#monitors=b"
-   class="feed-btn p-2"
+   class="feed-btn p-1"
    style="
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
@@ -129,7 +129,7 @@ test("recordingsBtn", async () => {
 				"
 >
   <img class="icon-filter"
-       style="height: calc(var(--scale) * 2.2rem); aspect-ratio: 1;"
+       style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
        src="assets/icons/feather/film.svg"
   >
 </a>
@@ -138,7 +138,7 @@ test("recordingsBtn", async () => {
 
 test("fullscreenBtn", () => {
 	expect(newStreamerBtn.fullscreen().html).toMatchInlineSnapshot(`
-<button class="js-fullscreen-btn feed-btn p-2"
+<button class="js-fullscreen-btn feed-btn p-1"
         style="
 					font-size: 0;
 					background: rgb(0 0 0 / 0%);
@@ -146,7 +146,7 @@ test("fullscreenBtn", () => {
 				"
 >
   <img class="icon-filter"
-       style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
+       style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
        src="assets/icons/feather/maximize.svg"
   >
 </button>

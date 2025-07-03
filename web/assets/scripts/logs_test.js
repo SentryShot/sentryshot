@@ -115,25 +115,21 @@ describe("MultiSelect", () => {
 		const [element] = setup();
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <li id="uid4"
-    class="items-center w-full p-2"
+    class="items-center w-full px-2"
     style="
 					border-color: var(--color1);
 					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 >
-  <label class="grow w-full text-color"
-         style="
-					   float: left;
-					   min-width: calc(var(--scale) * 13.5rem);
-					   font-size: calc(var(--scale) * 2rem);
-					"
+  <label class="mr-auto text-color"
+         style="font-size: calc(var(--scale) * 1.5rem);"
   >
     test
   </label>
   <div class="relative">
     <div class="item-uid1 flex items-center"
-         style="min-width: 1px; font-size: calc(var(--scale) * 2.4rem)"
+         style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
     >
       <div class="flex justify-center items-center bg-color2"
            style="
@@ -162,20 +158,20 @@ describe("MultiSelect", () => {
         </div>
         <img class="checkbox-check absolute"
              style="
-								width: 0.8em;
+								width: 0.7em;
 								filter: invert();
 							"
              src="assets/icons/feather/check.svg"
         >
       </div>
-      <span class="ml-2 text-color"
-            style="font-size: calc(var(--scale) * 1.7rem);"
+      <span class="ml-1 text-color"
+            style="font-size: calc(var(--scale) * 1.2rem);"
       >
         a
       </span>
     </div>
     <div class="item-uid2 flex items-center"
-         style="min-width: 1px; font-size: calc(var(--scale) * 2.4rem)"
+         style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
     >
       <div class="flex justify-center items-center bg-color2"
            style="
@@ -204,20 +200,20 @@ describe("MultiSelect", () => {
         </div>
         <img class="checkbox-check absolute"
              style="
-								width: 0.8em;
+								width: 0.7em;
 								filter: invert();
 							"
              src="assets/icons/feather/check.svg"
         >
       </div>
-      <span class="ml-2 text-color"
-            style="font-size: calc(var(--scale) * 1.7rem);"
+      <span class="ml-1 text-color"
+            style="font-size: calc(var(--scale) * 1.2rem);"
       >
         b
       </span>
     </div>
     <div class="item-uid3 flex items-center"
-         style="min-width: 1px; font-size: calc(var(--scale) * 2.4rem)"
+         style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
     >
       <div class="flex justify-center items-center bg-color2"
            style="
@@ -246,14 +242,14 @@ describe("MultiSelect", () => {
         </div>
         <img class="checkbox-check absolute"
              style="
-								width: 0.8em;
+								width: 0.7em;
 								filter: invert();
 							"
              src="assets/icons/feather/check.svg"
         >
       </div>
-      <span class="ml-2 text-color"
-            style="font-size: calc(var(--scale) * 1.7rem);"
+      <span class="ml-1 text-color"
+            style="font-size: calc(var(--scale) * 1.2rem);"
       >
         c
       </span>
@@ -389,24 +385,19 @@ describe("logSelector", () => {
   </ul>
   <div>
     <button class="js-reset m-2 px-2 bg-color3 hover:bg-color2"
-            style="
-				   border-radius: calc(var(--scale) * 0.68rem);
-				"
+            style="border-radius: calc(var(--scale) * 0.68rem);"
     >
       <span class="text-color"
-            style="font-size: calc(var(--scale) * 2.4rem);"
+            style="font-size: calc(var(--scale) * 2rem);"
       >
         Reset
       </span>
     </button>
     <button class="log-apply-btn m-2 px-2 js-apply bg-green hover:bg-green2"
-            style="
-					float: right;
-					border-radius: calc(var(--scale) * 0.68rem);
-				"
+            style="border-radius: calc(var(--scale) * 0.68rem); float: right;"
     >
       <span class="text-color"
-            style="font-size: calc(var(--scale) * 2.4rem);"
+            style="font-size: calc(var(--scale) * 2rem);"
       >
         Apply
       </span>

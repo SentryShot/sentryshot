@@ -1,5 +1,7 @@
 ## unreleased
 
+-   fix web interface scale on mobile #78
+
 ## `v0.3.1`
 
 -   respect the browser font size and zoom

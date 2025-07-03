@@ -40,6 +40,40 @@ function newOptionsMenu(buttons) {
 }
 
 /**
+ * @param {string} id
+ * @param {string=} icon
+ */
+function optionsMenuBtnHTML(id, icon, tag = "") {
+	let inner = "";
+	if (icon !== undefined) {
+		inner = /* HTML */ `
+			<img
+				class="icon-filter"
+				style="
+					aspect-ratio: 1;
+					height: calc(var(--scale) * 2.7rem);
+					font-size: 0;
+				"
+				src="${icon}"
+			/>
+		`;
+	}
+	return /* HTML */ `
+		<button
+			id="${id}"
+			class="${tag} flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
+			style="
+				width: var(--options-menu-btn-width);
+				height: var(--options-menu-btn-width);
+				font-size: calc(var(--scale) * 1.7rem);
+			"
+		>
+			${inner}
+		</button>
+	`;
+}
+
+/**
  * @typedef MonitorGroup
  * @property {string} id
  * @property {string} name
@@ -83,46 +117,9 @@ const newOptionsBtn = {
 		const idPlus = uniqueID();
 		const idMinus = uniqueID();
 		return {
-			html: /* HTML */ `
-				<button
-					id="${idPlus}"
-					class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
-					style="
-						width: var(--options-menu-btn-width);
-						height: var(--options-menu-btn-width);
-						font-size: calc(var(--scale) * 1.7rem);
-					"
-				>
-					<img
-						class="m-2 icon-filter"
-						style="
-							aspect-ratio: 1;
-							height: calc(var(--scale) * 2.7rem);
-							font-size: 0;
-						"
-						src="assets/icons/feather/plus.svg"
-					/>
-				</button>
-				<button
-					id="${idMinus}"
-					class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
-					style="
-						width: var(--options-menu-btn-width);
-						height: var(--options-menu-btn-width);
-						font-size: calc(var(--scale) * 1.7rem);
-					"
-				>
-					<img
-						class="m-2 icon-filter"
-						style="
-							aspect-ratio: 1;
-							height: calc(var(--scale) * 2.7rem);
-							font-size: 0;
-						"
-						src="assets/icons/feather/minus.svg"
-					/>
-				</button>
-			`,
+			html:
+				optionsMenuBtnHTML(idPlus, "assets/icons/feather/plus.svg") +
+				optionsMenuBtnHTML(idMinus, "assets/icons/feather/minus.svg"),
 			init() {
 				document.querySelector(`#${idPlus}`).addEventListener("click", () => {
 					if (getGridSize() !== 1) {
@@ -221,27 +218,10 @@ function newOptionsPopup(label, icon, htmlContent) {
 
 	const buttonId = uniqueID();
 	const popupId = uniqueID();
+	const tag = `js-${label}`;
 	return {
 		html: /* HTML */ `
-			<button
-				id="${buttonId}"
-				class="flex justify-center items-center text-color bg-color2 hover:bg-color3 js-${label}"
-				style="
-					width: var(--options-menu-btn-width);
-					height: var(--options-menu-btn-width);
-					font-size: calc(var(--scale) * 1.7rem);
-				"
-			>
-				<img
-					class="m-2 icon-filter"
-					style="
-						aspect-ratio: 1;
-						height: calc(var(--scale) * 2.7rem);
-						font-size: 0;
-					"
-					src="${icon}"
-				/>
-			</button>
+			${optionsMenuBtnHTML(buttonId, icon, tag)}
 			<div
 				id="${popupId}"
 				class="options-popup absolute flex-col m-auto bg-color2"
@@ -300,7 +280,7 @@ const datePickerHTML = /* HTML */ `
 				<img
 					class="icon-filter"
 					style="
-						height: calc(var(--scale) * 3.7rem);
+						height: calc(var(--scale) * 2.5rem);
 						aspect-ratio: 1;
 					"
 					src="assets/icons/feather/chevron-left.svg"
@@ -309,14 +289,14 @@ const datePickerHTML = /* HTML */ `
 			<span
 				class="js-month w-full text-center text-color"
 				style="
-					font-size: calc(var(--scale) * 1.76rem);
+					font-size: calc(var(--scale) * 1.3rem);
 				"
 			></span>
 			<button class="js-next-month bg-color2">
 				<img
 					class="icon-filter"
 					style="
-						height: calc(var(--scale) * 3.7rem);
+						height: calc(var(--scale) * 2.5rem);
 						aspect-ratio: 1;
 					"
 					src="assets/icons/feather/chevron-right.svg"
@@ -385,8 +365,8 @@ const datePickerHTML = /* HTML */ `
 					<img
 						class="icon-filter"
 						style="
-							width: calc(var(--scale) * 2rem);
-							height: calc(var(--scale) * 1.7rem);
+							width: calc(var(--scale) * 1.5rem);
+							height: calc(var(--scale) * 1.5rem);
 							font-size: 0;
 							aspect-ratio: 1;
 						"
@@ -400,8 +380,8 @@ const datePickerHTML = /* HTML */ `
 					<img
 						class="icon-filter"
 						style="
-							width: calc(var(--scale) * 2rem);
-							height: calc(var(--scale) * 1.7rem);
+							width: calc(var(--scale) * 1.5rem);
+							height: calc(var(--scale) * 1.5rem);
 							font-size: 0;
 							aspect-ratio: 1;
 						"
@@ -412,14 +392,14 @@ const datePickerHTML = /* HTML */ `
 				class="flex items-center"
 			>
 				<input
-					class="date-picker-hour-input js-hour"
+					class="date-picker-hour-input js-hour pr-1"
 					type="number"
 					min="00"
 					max="23"
 					style="
-						width: calc(var(--scale) * 3rem);
-						height: calc(var(--scale) * 2.7rem);
-						font-size: calc(var(--scale) * 2.4rem);
+						width: calc(var(--scale) * 2rem);
+						height: calc(var(--scale) * 2rem);
+						font-size: calc(var(--scale) * 1.5rem);
 						-moz-appearance: textfield;
 						text-align: end;
 					"
@@ -427,18 +407,18 @@ const datePickerHTML = /* HTML */ `
 				<span
 					class="text-color"
 					style="
-						font-size: calc(var(--scale) * 3.4rem);
+						font-size: calc(var(--scale) * 2rem);
 					"
 				>:</span>
 				<input
-					class="date-picker-hour-input js-minute"
+					class="date-picker-hour-input js-minute pl-1"
 					type="number"
 					min="00"
 					max="59"
 					style="
-						width: calc(var(--scale) * 3rem);
-						height: calc(var(--scale) * 2.7rem);
-						font-size: calc(var(--scale) * 2.4rem);
+						width: calc(var(--scale) * 2rem);
+						height: calc(var(--scale) * 2rem);
+						font-size: calc(var(--scale) * 1.5rem);
 						-moz-appearance: textfield;
 					"
 				></input>
@@ -453,8 +433,8 @@ const datePickerHTML = /* HTML */ `
 					<img
 						class="icon-filter"
 						style="
-							width: calc(var(--scale) * 2rem);
-							height: calc(var(--scale) * 1.7rem);
+							width: calc(var(--scale) * 1.5rem);
+							height: calc(var(--scale) * 1.5rem);
 							font-size: 0;
 							aspect-ratio: 1;
 						"
@@ -468,8 +448,8 @@ const datePickerHTML = /* HTML */ `
 					<img
 						class="icon-filter"
 						style="
-							width: calc(var(--scale) * 2rem);
-							height: calc(var(--scale) * 1.7rem);
+							width: calc(var(--scale) * 1.5rem);
+							height: calc(var(--scale) * 1.5rem);
 							font-size: 0;
 							aspect-ratio: 1;
 						"
@@ -487,14 +467,14 @@ const datePickerHTML = /* HTML */ `
 			<button
 				class="js-reset px-2 text-color bg-color3 hover:bg-color2"
 				style="
-					font-size: calc(var(--scale) * 2rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					border-radius: calc(var(--scale) * 0.51rem);
 				"
 			>Reset</button>
 			<button
 				class=" js-apply px-2 text-color bg-green hover:bg-green2"
 				style="
-					font-size: calc(var(--scale) * 2rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					border-radius: calc(var(--scale) * 0.51rem);
 				"
 			>Apply</button>
@@ -709,27 +689,7 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 	const btnID = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<button
-				id="${btnID}"
-				class="flex justify-center items-center text-color bg-color2 hover:bg-color3"
-				style="
-					width: var(--options-menu-btn-width);
-					height: var(--options-menu-btn-width);
-					font-size: calc(var(--scale) * 1.7rem);
-				"
-			>
-				<img
-					class="m-2 icon-filter"
-					style="
-						aspect-ratio: 1;
-						height: calc(var(--scale) * 2.7rem);
-						font-size: 0;
-					"
-					src="assets/icons/feather/video.svg"
-				/>
-			</button>
-		`,
+		html: optionsMenuBtnHTML(btnID, "assets/icons/feather/video.svg"),
 		init() {
 			/** @param {string} selected */
 			const onSelect = (selected) => {
@@ -791,10 +751,10 @@ function newSelectOne(options, onSelect, alias) {
 	for (const option of sortByLabel(options)) {
 		optionsHTML += /* HTML */ `
 			<span
-				class="js-select-one-item p-2 bg-color2 hover:bg-color3"
+				class="js-select-one-item px-2 bg-color2 hover:bg-color3"
 				style="
 					display: block ruby;
-					font-size: calc(var(--scale) * 2.4rem);
+					font-size: calc(var(--scale) * 1.5rem);
 					border-top: solid;
 					border-top-width: calc(var(--scale) * 0.034rem);
 				"
@@ -809,7 +769,7 @@ function newSelectOne(options, onSelect, alias) {
 	return {
 		html: /* HTML */ `
 			<div id=${id} class="js-select-one flex flex-col text-center text-color">
-				<span class="p-2" style="font-size: calc(var(--scale) * 2rem);"
+				<span class="px-2" style="font-size: calc(var(--scale) * 2rem);"
 					>Groups</span
 				>
 				${optionsHTML}
@@ -858,4 +818,11 @@ function pad(n) {
 	return n < 10 ? `0${n}` : String(n);
 }
 
-export { newOptionsMenu, newOptionsBtn, newOptionsPopup, newSelectOne, newSelectMonitor };
+export {
+	newOptionsMenu,
+	optionsMenuBtnHTML,
+	newOptionsBtn,
+	newOptionsPopup,
+	newSelectOne,
+	newSelectMonitor,
+};

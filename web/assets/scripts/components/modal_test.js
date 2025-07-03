@@ -20,8 +20,8 @@ test("newModal", () => {
 <header class="modal-header flex px-2 bg-color2">
   <span class="w-full text-center text-color"
         style="
-								padding-left: calc(var(--spacing) * 10);
-								font-size: calc(var(--scale) * 2.7rem);
+								padding-left: calc(var(--scale) * 2.5rem);
+								font-size: calc(var(--scale) * 2rem);
 							"
   >
     test
@@ -32,7 +32,7 @@ test("newModal", () => {
 							"
   >
     <img class="icon-filter"
-         style="height: calc(var(--scale) * 3rem);"
+         style="width: calc(var(--scale) * 2.5rem);"
          src="assets/icons/feather/x.svg"
     >
   </button>
@@ -86,8 +86,8 @@ test("modalSelect", () => {
     <header class="modal-header flex px-2 bg-color2">
       <span class="w-full text-center text-color"
             style="
-								padding-left: calc(var(--spacing) * 10);
-								font-size: calc(var(--scale) * 2.7rem);
+								padding-left: calc(var(--scale) * 2.5rem);
+								font-size: calc(var(--scale) * 2rem);
 							"
       >
         x
@@ -98,7 +98,7 @@ test("modalSelect", () => {
 							"
       >
         <img class="icon-filter"
-             style="height: calc(var(--scale) * 3rem);"
+             style="width: calc(var(--scale) * 2.5rem);"
              src="assets/icons/feather/x.svg"
         >
       </button>
@@ -114,7 +114,7 @@ test("modalSelect", () => {
         <span data="m1"
               class="js-option px-2 text-color"
               style="
-						font-size: calc(var(--scale) * 2.7rem);
+						font-size: calc(var(--scale) * 1.5rem);
 						border-width: calc(var(--scale) * 0.034rem);
 						border-style: solid;
 						border-color: var(--color1);
@@ -125,7 +125,7 @@ test("modalSelect", () => {
         <span data="m2"
               class="js-option px-2 text-color"
               style="
-						font-size: calc(var(--scale) * 2.7rem);
+						font-size: calc(var(--scale) * 1.5rem);
 						border-width: calc(var(--scale) * 0.034rem);
 						border-style: solid;
 						border-color: var(--color1);
