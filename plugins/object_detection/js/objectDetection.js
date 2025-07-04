@@ -173,10 +173,10 @@ function thresholds(detectors, getDetectorName) {
 		return {
 			html: /* HTML */ `
 				<li
-					class="object-detection-label-wrapper flex items-center px-2"
+					class="flex items-center px-2"
 					style="
 						border-color: var(--color1);
-						border-width: calc(var(--scale) * 0.1rem);
+						border-bottom-width: calc(var(--scale) * 0.1rem);
 					"
 				>
 					<label
@@ -377,7 +377,6 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				class="js-options flex items-center p-2"
 				style="
 					border-color: var(--color1);
-					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
 					flex-wrap: wrap;
 				"
@@ -399,7 +398,6 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						class="js-x text-center"
 						style="
 							font-size: calc(var(--scale) * 1.3rem);
-							border-style: none;
 							border-radius: 5px;
 							width: calc(var(--scale) * 3rem);
 						"
@@ -422,7 +420,6 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						class="js-y text-center"
 						style="
 							font-size: calc(var(--scale) * 1.3rem);
-							border-style: none;
 							border-radius: 5px;
 							width: calc(var(--scale) * 3rem);
 						"
@@ -449,7 +446,6 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						class="js-size text-center"
 						style="
 							font-size: calc(var(--scale) * 1.3rem);
-							border-style: none;
 							border-radius: 5px;
 							width: calc(var(--scale) * 3.5rem);
 						"
@@ -655,7 +651,6 @@ const maskOptionsHTML = /* HTML */ `
 		class="flex items-center p-2"
 		style="
 			border-color: var(--color1);
-			border-bottom-style: solid;
 			border-bottom-width: calc(var(--scale) * 0.17rem);
 			flex-wrap: wrap;
 			justify-content: space-between
@@ -666,11 +661,8 @@ const maskOptionsHTML = /* HTML */ `
 				class="js-1x pl-2 pr-1 text-color bg-color2 hover:bg-color1"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-width: calc(var(--scale) * 0.07rem);
-					border-color: var(--color3);
 					border-top-left-radius: calc(var(--scale) * 0.84rem);
 					border-bottom-left-radius: calc(var(--scale) * 0.84rem);
-					border-right-style: solid;
 				"
 			>
 				1x
@@ -679,9 +671,6 @@ const maskOptionsHTML = /* HTML */ `
 				class="js-4x px-1 text-color bg-color2 hover:bg-color1 object_detection_mask-step-size-selected"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-width: calc(var(--scale) * 0.07rem);
-					border-color: var(--color3);
-					border-style: hidden solid;
 				"
 			>
 				4x
@@ -690,9 +679,6 @@ const maskOptionsHTML = /* HTML */ `
 				class="js-10x px-1 text-color bg-color2 hover:bg-color1"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-width: calc(var(--scale) * 0.07rem);
-					border-color: var(--color3);
-					border-style: hidden solid;
 				"
 			>
 				10x
@@ -701,11 +687,8 @@ const maskOptionsHTML = /* HTML */ `
 				class="js-20x pl-1 pr-2 text-color bg-color2 hover:bg-color1"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-width: calc(var(--scale) * 0.07rem);
-					border-color: var(--color3);
 					border-top-right-radius: calc(var(--scale) * 0.84rem);
 					border-bottom-right-radius: calc(var(--scale) * 0.84rem);
-					border-left-style: solid;
 				"
 			>
 				20x
@@ -1043,13 +1026,6 @@ function normalizeMask(mask) {
 // CSS.
 const $style = document.createElement("style");
 $style.innerHTML = /* CSS */ `
-	.object-detection-label-wrapper {
-		border-top-style: solid;
-	}
-	.object-detection-label-wrapper:first-child {
-		border-top-style: none;
-	}
-
 	/* Mask. */
 	.object_detection_mask-step-size-selected {
 		background: var(--color1) !important;

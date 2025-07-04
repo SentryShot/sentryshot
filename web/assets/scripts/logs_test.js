@@ -118,7 +118,6 @@ describe("MultiSelect", () => {
     class="items-center w-full px-2"
     style="
 					border-color: var(--color1);
-					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 >

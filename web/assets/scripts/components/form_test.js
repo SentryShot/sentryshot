@@ -222,7 +222,6 @@ describe("newField", () => {
     class="items-center px-2 "
     style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 >
@@ -359,7 +358,6 @@ describe("fieldTemplate", () => {
     class="items-center px-2 "
     style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 >
@@ -415,7 +413,6 @@ describe("fieldTemplate", () => {
     class="items-center px-2 "
     style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 >
@@ -475,7 +472,6 @@ describe("fieldTemplate", () => {
     class="items-center px-2 pb-1"
     style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 >
@@ -523,7 +519,6 @@ describe("fieldTemplate", () => {
     class="items-center px-2 pb-1"
     style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 >
@@ -574,7 +569,6 @@ describe("fieldTemplate", () => {
     class="items-center px-2 "
     style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 >
@@ -668,7 +662,6 @@ describe("selectCustomField", () => {
     class="items-center px-2 pb-1"
     style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 >
@@ -738,7 +731,6 @@ test("newModalFieldHTML", () => {
     class="flex items-center p-2"
     style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 >
@@ -771,7 +763,6 @@ describe("passwordField", () => {
     class="items-center px-2 "
     style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 >
@@ -809,7 +800,6 @@ describe("passwordField", () => {
     class="items-center px-2 "
     style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 >

@@ -576,7 +576,6 @@ function newMultiSelect(label, values, initial) {
 				class="items-center w-full px-2"
 				style="
 					border-color: var(--color1);
-					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			>
@@ -658,7 +657,6 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 				class="items-center p-2"
 				style="
 					border-color: var(--color1);
-					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			>

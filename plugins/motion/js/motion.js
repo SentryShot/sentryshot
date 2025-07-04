@@ -137,7 +137,6 @@ const zoneSelectFieldHTML = /* HTML */ `
 		class="items-center p-2"
 		style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 	>
@@ -175,7 +174,6 @@ const thresholdsFieldHTML = /* HTML */ `
 		class="items-center p-2"
 		style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 	>
@@ -220,7 +218,6 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 		class="flex items-center p-2"
 		style="
 			border-color: var(--color1);
-			border-bottom-style: solid;
 			border-bottom-width: calc(var(--scale) * 0.17rem);
 			flex-wrap: wrap;
 			justify-content: space-between
@@ -231,11 +228,8 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 				class="js-1x pl-2 pr-1 text-color bg-color2 hover:bg-color1"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-width: calc(var(--scale) * 0.07rem);
-					border-color: var(--color3);
 					border-top-left-radius: calc(var(--scale) * 0.84rem);
 					border-bottom-left-radius: calc(var(--scale) * 0.84rem);
-					border-right-style: solid;
 				"
 			>
 				1x
@@ -244,9 +238,6 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 				class="js-4x px-1 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-width: calc(var(--scale) * 0.07rem);
-					border-color: var(--color3);
-					border-style: hidden solid;
 				"
 			>
 				4x
@@ -255,9 +246,6 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 				class="js-10x px-1 text-color bg-color2 hover:bg-color1"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-width: calc(var(--scale) * 0.07rem);
-					border-color: var(--color3);
-					border-style: hidden solid;
 				"
 			>
 				10x
@@ -266,11 +254,8 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 				class="js-20x pl-1 pr-2 text-color bg-color2 hover:bg-color1"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-width: calc(var(--scale) * 0.07rem);
-					border-color: var(--color3);
 					border-top-right-radius: calc(var(--scale) * 0.84rem);
 					border-bottom-right-radius: calc(var(--scale) * 0.84rem);
-					border-left-style: solid;
 				"
 			>
 				20x

@@ -369,7 +369,6 @@ fn edit_templates(tmpls: &mut Templates) {
         style=\"
             font-size: calc(var(--scale) * 2rem);
             border-width: calc(var(--scale) * 0.17rem);
-            border-style: solid;
             border-color: var(--color0);
             border-radius: calc(var(--scale) * 0.68rem);
         \"

@@ -58,7 +58,6 @@ function newRenderer($parent) {
 							padding-right: calc(var(--spacing) * 14);
 							border-width: calc(var(--scale) * 0.034rem);
 							border-color: var(--color3);
-							border-bottom-style: solid;
 						"
 					>
 						<img
@@ -141,7 +140,6 @@ const menubarHTML = /* HTML */ `
 			height: var(--topbar-height);
 			border-width: calc(var(--scale) * 0.034rem);
 			border-color: var(--color3);
-			border-bottom-style: solid;
 		"
 	>
 		<nav class="js-settings-subcategory-back flex shrink-0">${backIconHTML}</nav>
@@ -167,7 +165,6 @@ function categoryNavHTML(data, label, c = "text-color") {
 			style="
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color3);
-				border-bottom-style: solid;
 			"
 			data="${data}"
 		>
@@ -334,7 +331,6 @@ function newCategory(categoryName, title) {
 						style="
 							border-width: calc(var(--scale) * 0.034rem);
 							border-color: var(--color3);
-							border-bottom-style: solid;
 						"
 					>
 						<nav class="js-settings-category-back flex shrink-0">
@@ -468,7 +464,6 @@ function newCategory2(categoryName, title, form) {
 						style="
 							border-width: calc(var(--scale) * 0.034rem);
 							border-color: var(--color3);
-							border-bottom-style: solid;
 						"
 					>
 						<nav class="js-settings-category-back flex shrink-0">
@@ -1063,7 +1058,6 @@ function newSelectMonitorField(monitors) {
 					style="
 						width: auto;
 						border-width: calc(var(--scale) * 0.034rem);
-						border-style: solid;
 						border-color: var(--color1);
 						font-size: calc(var(--scale) * 1.8rem);
 					"
@@ -1146,7 +1140,6 @@ function newSelectMonitorField(monitors) {
 				class="flex items-center p-2"
 				style="
 					border-color: var(--color1);
-					border-bottom-style: solid;
 					border-bottom-width: calc(var(--scale) * 0.17rem);
 				"
 			></li>

@@ -587,7 +587,6 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			class="items-center px-2 ${errorField === true ? "" : "pb-1"}"
 			style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 		>
@@ -616,7 +615,6 @@ function newModalFieldHTML(id, label) {
 			class="flex items-center p-2"
 			style="
 				border-color: var(--color1);
-				border-bottom-style: solid;
 				border-bottom-width: calc(var(--scale) * 0.17rem);
 			"
 		>

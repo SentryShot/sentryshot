@@ -563,7 +563,6 @@ img {
 	width: calc(var(--scale) * 2rem);
 	color: var(--color-text);
 	border-width: calc(var(--scale) * 0.17rem);
-	border-style: solid;
 	border-color: var(--color2);
 	border-radius: calc(var(--scale) * 0.51rem);
 	background: var(--color3);

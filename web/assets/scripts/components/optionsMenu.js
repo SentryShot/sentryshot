@@ -273,7 +273,6 @@ const datePickerHTML = /* HTML */ `
 			style="
 				font-size: 0;
 				border-color: var(--color3-hover);
-				border-bottom-style: solid;
 			"
 		>
 			<button class="js-prev-month bg-color2">

@@ -130,7 +130,6 @@ function newModalSelect(name, options, onSelect) {
 					style="
 						font-size: calc(var(--scale) * 1.5rem);
 						border-width: calc(var(--scale) * 0.034rem);
-						border-style: solid;
 						border-color: var(--color1);
 					"
 					>${option}</span

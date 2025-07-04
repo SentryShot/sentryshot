@@ -75,7 +75,6 @@
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
-				border-bottom-style: solid;
 				border-top: none;
 			"
 		>
@@ -96,7 +95,6 @@
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
-				border-bottom-style: solid;
 			"
 		>
 			<img
@@ -117,7 +115,6 @@
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
-				border-bottom-style: solid;
 			"
 		>
 			<img
@@ -137,7 +134,6 @@
 				text-decoration: none;
 				border-width: calc(var(--scale) * 0.034rem);
 				border-color: var(--color2);
-				border-bottom-style: solid;
 			"
 		>
 			<img
