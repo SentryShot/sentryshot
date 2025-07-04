@@ -1,5 +1,11 @@
 ## unreleased
 
+## `v0.3.3`
+
+-   more web interface fixes #78
+
+## `v0.3.2`
+
 -   fix web interface scale on mobile #78
 
 ## `v0.3.1`
