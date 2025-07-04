@@ -122,7 +122,7 @@
 	}
 
 	/* Tablet/Dektop. */
-	@media only screen and (width >= 768px) {
+	@media only screen and (width >= 48rem) {
 		.settings-navbar {
 			width: auto;
 			padding-top: calc(var(--spacing) * 27);

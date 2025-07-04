@@ -104,7 +104,7 @@
 	}
 
 	/* Tablet/Dektop. */
-	@media only screen and (min-width: 768px) {
+	@media only screen and (min-width: 48rem) {
 		.log-list-wrapper {
 			position: static;
 			width: 100%;

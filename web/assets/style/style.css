@@ -804,7 +804,7 @@ img {
 }
 
 /* Tablet/Dektop. */
-@media only screen and (width >= 768px) {
+@media only screen and (width >= 48rem) {
 	:root {
 		--scale: 0.75;
 		--spacing: 3px;
