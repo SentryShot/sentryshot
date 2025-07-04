@@ -127,11 +127,13 @@ function newPlayer(data, isAdmin, token) {
 			${topOverlayHTML}
 		</div>
 		<div
-			class="absolute flex justify-center w-full px-4"
+			class="absolute"
 			style="
 				z-index: 2;
-				bottom: calc(var(--scale) * 0.5rem);
-				height: calc(var(--scale) * 1.75rem);
+				right: calc(var(--spacing) * 4);
+				bottom: calc(var(--spacing) * 4);
+				left: calc(var(--spacing) * 4);
+				height: calc(var(--scale) * 1.5rem);
 				min-height: 3.5%;
 			"
 		>
@@ -187,21 +189,20 @@ function newPlayer(data, isAdmin, token) {
 			</button>
 		</div>
 		<div
-			class="player-overlay absolute flex justify-center w-full px-4"
+			class="player-overlay absolute"
 			style="
 				z-index: 2;
-				bottom: calc(var(--scale) * 0.5rem);
-				height: calc(var(--scale) * 1.75rem);
+				right: calc(var(--spacing) * 4);
+				bottom: calc(var(--spacing) * 4);
+				left: calc(var(--spacing) * 4);
+				height: calc(var(--scale) * 1.5rem);
 				min-height: 3.5%;
 			"
 		>
 			${renderTimeline(d)}
 			<progress
-				class="js-progress w-full"
+				class="js-progress w-full h-full py-1"
 				style="
-					box-sizing: border-box;
-					padding-top: calc(var(--spacing) * 1.5);
-					padding-bottom: calc(var(--spacing) * 1.5);
 					background: rgb(0 0 0 / 0%);
 					opacity: 0.8;
 					user-select: none;
@@ -476,18 +477,15 @@ function renderTimeline(data) {
 				break;
 			}
 		}
-		const x = start;
-		const width = end - x;
-
-		svg += `<rect x="${x}" width="${width}" y="0" height="100"/>`;
+		svg += `<rect x="${start}" width="${end - start}" y="0" height="1"/>`;
 		start = end;
 	}
 
 	return /* HTML */ `
 		<svg
-			class="absolute"
-			style="height: 100%; fill: var(--color-red);"
-			viewBox="0 0 100 100"
+			class="absolute w-full h-full"
+			style="fill: var(--color-red);"
+			viewBox="0 0 ${resolution} 1"
 			preserveAspectRatio="none"
 		>
 			${svg}

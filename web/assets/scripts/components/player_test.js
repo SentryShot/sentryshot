@@ -82,29 +82,31 @@ describe("newPlayer", () => {
         D
       </span>
     </div>
-    <div class="absolute flex justify-center w-full px-4"
+    <div class="absolute"
          style="
 				z-index: 2;
-				bottom: calc(var(--scale) * 0.5rem);
-				height: calc(var(--scale) * 1.75rem);
+				right: calc(var(--spacing) * 4);
+				bottom: calc(var(--spacing) * 4);
+				left: calc(var(--spacing) * 4);
+				height: calc(var(--scale) * 1.5rem);
 				min-height: 3.5%;
 			"
     >
-      <svg class="absolute"
-           style="height: 100%; fill: var(--color-red);"
-           viewbox="0 0 100 100"
+      <svg class="absolute w-full h-full"
+           style="fill: var(--color-red);"
+           viewbox="0 0 1000 1"
            preserveaspectratio="none"
       >
         <rect x="100"
               width="100"
               y="0"
-              height="100"
+              height="1"
         >
         </rect>
         <rect x="950"
               width="50"
               y="0"
-              height="100"
+              height="1"
         >
         </rect>
       </svg>
@@ -173,37 +175,36 @@ describe("newPlayer", () => {
         >
       </button>
     </div>
-    <div class="player-overlay absolute flex justify-center w-full px-4"
+    <div class="player-overlay absolute"
          style="
 				z-index: 2;
-				bottom: calc(var(--scale) * 0.5rem);
-				height: calc(var(--scale) * 1.75rem);
+				right: calc(var(--spacing) * 4);
+				bottom: calc(var(--spacing) * 4);
+				left: calc(var(--spacing) * 4);
+				height: calc(var(--scale) * 1.5rem);
 				min-height: 3.5%;
 			"
     >
-      <svg class="absolute"
-           style="height: 100%; fill: var(--color-red);"
-           viewbox="0 0 100 100"
+      <svg class="absolute w-full h-full"
+           style="fill: var(--color-red);"
+           viewbox="0 0 1000 1"
            preserveaspectratio="none"
       >
         <rect x="100"
               width="100"
               y="0"
-              height="100"
+              height="1"
         >
         </rect>
         <rect x="950"
               width="50"
               y="0"
-              height="100"
+              height="1"
         >
         </rect>
       </svg>
-      <progress class="js-progress w-full"
+      <progress class="js-progress w-full h-full py-1"
                 style="
-					box-sizing: border-box;
-					padding-top: calc(var(--spacing) * 1.5);
-					padding-bottom: calc(var(--spacing) * 1.5);
 					background: rgb(0 0 0 / 0%);
 					opacity: 0.8;
 					user-select: none;
@@ -346,11 +347,13 @@ describe("newPlayer", () => {
       
 		
       <div
-        class="absolute flex justify-center w-full px-4"
+        class="absolute"
         style="
 				z-index: 2;
-				bottom: calc(var(--scale) * 0.5rem);
-				height: calc(var(--scale) * 1.75rem);
+				right: calc(var(--spacing) * 4);
+				bottom: calc(var(--spacing) * 4);
+				left: calc(var(--spacing) * 4);
+				height: calc(var(--scale) * 1.5rem);
 				min-height: 3.5%;
 			"
       >
@@ -358,21 +361,21 @@ describe("newPlayer", () => {
 			
 		
         <svg
-          class="absolute"
+          class="absolute w-full h-full"
           preserveAspectRatio="none"
-          style="height: 100%; fill: var(--color-red);"
-          viewBox="0 0 100 100"
+          style="fill: var(--color-red);"
+          viewBox="0 0 1000 1"
         >
           
 			
           <rect
-            height="100"
+            height="1"
             width="100"
             x="100"
             y="0"
           />
           <rect
-            height="100"
+            height="1"
             width="50"
             x="950"
             y="0"
@@ -443,29 +446,31 @@ describe("newPlayer", () => {
         D
       </span>
     </div>
-    <div class="absolute flex justify-center w-full px-4"
+    <div class="absolute"
          style="
 				z-index: 2;
-				bottom: calc(var(--scale) * 0.5rem);
-				height: calc(var(--scale) * 1.75rem);
+				right: calc(var(--spacing) * 4);
+				bottom: calc(var(--spacing) * 4);
+				left: calc(var(--spacing) * 4);
+				height: calc(var(--scale) * 1.5rem);
 				min-height: 3.5%;
 			"
     >
-      <svg class="absolute"
-           style="height: 100%; fill: var(--color-red);"
-           viewbox="0 0 100 100"
+      <svg class="absolute w-full h-full"
+           style="fill: var(--color-red);"
+           viewbox="0 0 1000 1"
            preserveaspectratio="none"
       >
         <rect x="100"
               width="100"
               y="0"
-              height="100"
+              height="1"
         >
         </rect>
         <rect x="950"
               width="50"
               y="0"
-              height="100"
+              height="1"
         >
         </rect>
       </svg>
