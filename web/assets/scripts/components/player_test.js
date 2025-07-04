@@ -243,7 +243,7 @@ describe("newPlayer", () => {
            style="background-color: rgb(0 0 0 / 0%);"
         >
           <img class="icon-filter"
-               style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
+               style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
                src="assets/icons/feather/download.svg"
           >
         </a>
@@ -251,7 +251,7 @@ describe("newPlayer", () => {
                 style="background-color: rgb(0 0 0 / 0%);"
         >
           <img class="icon-filter"
-               style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
+               style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
                src="assets/icons/feather/maximize.svg"
           >
         </button>
@@ -487,7 +487,7 @@ describe("newPlayer", () => {
         style="background-color: rgb(0 0 0 / 0%);"
 >
   <img class="icon-filter"
-       style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
+       style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
        src="assets/icons/feather/trash-2.svg"
   >
 </button>
@@ -498,7 +498,7 @@ describe("newPlayer", () => {
    style="background-color: rgb(0 0 0 / 0%);"
 >
   <img class="icon-filter"
-       style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
+       style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
        src="assets/icons/feather/download.svg"
   >
 </a>
@@ -506,7 +506,7 @@ describe("newPlayer", () => {
         style="background-color: rgb(0 0 0 / 0%);"
 >
   <img class="icon-filter"
-       style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
+       style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
        src="assets/icons/feather/maximize.svg"
   >
 </button>

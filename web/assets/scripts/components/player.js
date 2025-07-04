@@ -242,7 +242,7 @@ function newPlayer(data, isAdmin, token) {
 				<button class="js-delete p-1" style="background-color: rgb(0 0 0 / 0%);">
 					<img
 						class="icon-filter"
-						style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
+						style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
 						src="assets/icons/feather/trash-2.svg"
 					>
 				</button>`
@@ -256,14 +256,14 @@ function newPlayer(data, isAdmin, token) {
 				>
 					<img
 						class="icon-filter"
-						style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
+						style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
 						src="assets/icons/feather/download.svg"
 					>
 				</a>
 				<button class="js-fullscreen p-1" style="background-color: rgb(0 0 0 / 0%);">
 					<img
 						class="icon-filter"
-						style="aspect-ratio: 1; width: calc(var(--scale) * 1.5rem);"
+						style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
 						src="${iconMaximizePath}"
 					>
 				</button>
