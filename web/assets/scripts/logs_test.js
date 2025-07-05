@@ -118,7 +118,7 @@ describe("MultiSelect", () => {
     class="items-center w-full px-2"
     style="
 					border-color: var(--color1);
-					border-bottom-width: calc(var(--scale) * 0.17rem);
+					border-bottom-width: 2px;
 				"
 >
   <label class="mr-auto text-color"

@@ -73,7 +73,7 @@
 			class="flex items-center px-2 hover:bg-color2"
 			style="
 				text-decoration: none;
-				border-width: calc(var(--scale) * 0.034rem);
+				border-width: 1px;
 				border-color: var(--color2);
 				border-top: none;
 			"
@@ -93,7 +93,7 @@
 			class="flex items-center px-2 hover:bg-color2"
 			style="
 				text-decoration: none;
-				border-width: calc(var(--scale) * 0.034rem);
+				border-width: 1px;
 				border-color: var(--color2);
 			"
 		>
@@ -113,7 +113,7 @@
 			class="flex items-center px-2 hover:bg-color2"
 			style="
 				text-decoration: none;
-				border-width: calc(var(--scale) * 0.034rem);
+				border-width: 1px;
 				border-color: var(--color2);
 			"
 		>
@@ -132,7 +132,7 @@
 			class="flex items-center px-2 hover:bg-color2"
 			style="
 				text-decoration: none;
-				border-width: calc(var(--scale) * 0.034rem);
+				border-width: 1px;
 				border-color: var(--color2);
 			"
 		>

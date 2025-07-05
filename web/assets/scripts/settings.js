@@ -56,7 +56,7 @@ function newRenderer($parent) {
 						class="js-set-settings-category flex items-center py-1 pl-4 hover:bg-color3"
 						style="
 							padding-right: calc(var(--spacing) * 14);
-							border-width: calc(var(--scale) * 0.034rem);
+							border-width: 1px;
 							border-color: var(--color3);
 						"
 					>
@@ -138,7 +138,7 @@ const menubarHTML = /* HTML */ `
 		class="js-settings-menubar settings-menubar px-2 bg-color2"
 		style="
 			height: var(--topbar-height);
-			border-width: calc(var(--scale) * 0.034rem);
+			border-width: 1px;
 			border-color: var(--color3);
 		"
 	>
@@ -163,7 +163,7 @@ function categoryNavHTML(data, label, c = "text-color") {
 		<li
 			class="js-nav flex items-center py-1 px-4 hover:bg-color3"
 			style="
-				border-width: calc(var(--scale) * 0.034rem);
+				border-width: 1px;
 				border-color: var(--color3);
 			"
 			data="${data}"
@@ -329,7 +329,7 @@ function newCategory(categoryName, title) {
 					<div
 						class="settings-menubar js-settings-menubar px-2 bg-color2"
 						style="
-							border-width: calc(var(--scale) * 0.034rem);
+							border-width: 1px;
 							border-color: var(--color3);
 						"
 					>
@@ -462,7 +462,7 @@ function newCategory2(categoryName, title, form) {
 					<div
 						class="settings-menubar js-settings-menubar px-2 bg-color2"
 						style="
-							border-width: calc(var(--scale) * 0.034rem);
+							border-width: 1px;
 							border-color: var(--color3);
 						"
 					>
@@ -1057,7 +1057,7 @@ function newSelectMonitorField(monitors) {
 					class="monitor-selector-item relative flex items-center px-2"
 					style="
 						width: auto;
-						border-width: calc(var(--scale) * 0.034rem);
+						border-width: 1px;
 						border-color: var(--color1);
 						font-size: calc(var(--scale) * 1.8rem);
 					"
@@ -1140,7 +1140,7 @@ function newSelectMonitorField(monitors) {
 				class="flex items-center p-2"
 				style="
 					border-color: var(--color1);
-					border-bottom-width: calc(var(--scale) * 0.17rem);
+					border-bottom-width: 2px;
 				"
 			></li>
 		`,

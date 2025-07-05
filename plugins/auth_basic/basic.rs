@@ -368,7 +368,7 @@ fn edit_templates(tmpls: &mut Templates) {
         class=\"mt-2 px-2 text-color bg-color2 hover:bg-color3\"
         style=\"
             font-size: calc(var(--scale) * 2rem);
-            border-width: calc(var(--scale) * 0.17rem);
+            border-width: 2px;
             border-color: var(--color0);
             border-radius: calc(var(--scale) * 0.68rem);
         \"

@@ -137,7 +137,7 @@ const zoneSelectFieldHTML = /* HTML */ `
 		class="items-center p-2"
 		style="
 				border-color: var(--color1);
-				border-bottom-width: calc(var(--scale) * 0.17rem);
+				border-bottom-width: 2px;
 			"
 	>
 		<div class="flex w-full">
@@ -174,7 +174,7 @@ const thresholdsFieldHTML = /* HTML */ `
 		class="items-center p-2"
 		style="
 				border-color: var(--color1);
-				border-bottom-width: calc(var(--scale) * 0.17rem);
+				border-bottom-width: 2px;
 			"
 	>
 		<label
@@ -218,7 +218,7 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 		class="flex items-center p-2"
 		style="
 			border-color: var(--color1);
-			border-bottom-width: calc(var(--scale) * 0.17rem);
+			border-bottom-width: 2px;
 			flex-wrap: wrap;
 			justify-content: space-between
 		"

@@ -755,7 +755,7 @@ function newSelectOne(options, onSelect, alias) {
 					display: block ruby;
 					font-size: calc(var(--scale) * 1.5rem);
 					border-top: solid;
-					border-top-width: calc(var(--scale) * 0.034rem);
+					border-top-width: 2px;
 				"
 				data="${option.id}"
 				>${option.label}</span

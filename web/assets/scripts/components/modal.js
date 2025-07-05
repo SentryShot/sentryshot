@@ -129,7 +129,7 @@ function newModalSelect(name, options, onSelect) {
 					class="js-option px-2 text-color"
 					style="
 						font-size: calc(var(--scale) * 1.5rem);
-						border-width: calc(var(--scale) * 0.034rem);
+						border-width: 1px;
 						border-color: var(--color1);
 					"
 					>${option}</span

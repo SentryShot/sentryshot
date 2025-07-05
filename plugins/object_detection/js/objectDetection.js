@@ -176,7 +176,7 @@ function thresholds(detectors, getDetectorName) {
 					class="flex items-center px-2"
 					style="
 						border-color: var(--color1);
-						border-bottom-width: calc(var(--scale) * 0.1rem);
+						border-bottom-width: 1px;
 					"
 				>
 					<label
@@ -377,7 +377,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				class="js-options flex items-center p-2"
 				style="
 					border-color: var(--color1);
-					border-bottom-width: calc(var(--scale) * 0.17rem);
+					border-bottom-width: 2px;
 					flex-wrap: wrap;
 				"
 			>
@@ -651,7 +651,7 @@ const maskOptionsHTML = /* HTML */ `
 		class="flex items-center p-2"
 		style="
 			border-color: var(--color1);
-			border-bottom-width: calc(var(--scale) * 0.17rem);
+			border-bottom-width: 2px;
 			flex-wrap: wrap;
 			justify-content: space-between
 		"

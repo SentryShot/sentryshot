@@ -90,7 +90,7 @@
 
 	.log-list > span {
 		border-bottom: solid;
-		border-bottom-width: calc(var(--scale) * 0.1rem);
+		border-bottom-width: 1px;
 		padding-inline: calc(var(--spacing) * 1);
 		font-size: calc(var(--scale) * 1.2rem);
 	}
