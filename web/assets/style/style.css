@@ -370,6 +370,18 @@ img {
 	background: var(--color-red2);
 }
 
+.border-color1 {
+	border-color: var(--color1);
+}
+
+.border-color2 {
+	border-color: var(--color2);
+}
+
+.border-color3 {
+	border-color: var(--color3);
+}
+
 .flex {
 	display: flex;
 }

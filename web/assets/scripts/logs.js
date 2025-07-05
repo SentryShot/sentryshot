@@ -571,13 +571,7 @@ function newMultiSelect(label, values, initial) {
 
 	return {
 		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="items-center w-full px-2 border-b-2"
-				style="
-					border-color: var(--color1);
-				"
-			>
+			<li id="${id}" class="items-center w-full px-2 border-b-2 border-color1">
 				<label
 					class="mr-auto text-color"
 					style="font-size: calc(var(--scale) * 1.5rem);"
@@ -651,13 +645,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 
 	return {
 		html: /* HTML */ `
-			<li
-				id="${elementID}"
-				class="items-center p-2 border-b-2"
-				style="
-					border-color: var(--color1);
-				"
-			>
+			<li id="${elementID}" class="items-center p-2 border-b-2 border-color1">
 				<label
 					for="${inputID}"
 					class="mr-auto text-color"

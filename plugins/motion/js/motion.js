@@ -134,10 +134,7 @@ export function motion2(hasSubStream, getMonitorId) {
 
 const zoneSelectFieldHTML = /* HTML */ `
 	<li
-		class="items-center p-2 border-b-2"
-		style="
-				border-color: var(--color1);
-			"
+		class="items-center p-2 border-b-2 border-color1"
 	>
 		<div class="flex w-full">
 			<select
@@ -159,6 +156,7 @@ const zoneSelectFieldHTML = /* HTML */ `
 				style="border-radius: calc(var(--scale) * 0.68rem);"
 			>
 				<img
+			"
 					class="p-1 icon-filter"
 					style="width: calc(var(--scale) * 2.5rem);"
 					src="assets/icons/feather/minus.svg"
@@ -169,12 +167,7 @@ const zoneSelectFieldHTML = /* HTML */ `
 `;
 
 const thresholdsFieldHTML = /* HTML */ `
-	<li
-		class="items-center p-2 border-b-2"
-		style="
-				border-color: var(--color1);
-			"
-	>
+	<li class="items-center p-2 border-b-2 border-color1">
 		<label
 			class="grow w-full text-color"
 			style="
@@ -213,9 +206,8 @@ const thresholdsFieldHTML = /* HTML */ `
 
 const zonesPreviewOptionsHTML = /* HTML */ `
 	<li
-		class="flex items-center p-2 border-b-2"
+		class="flex items-center p-2 border-b-2 border-color1"
 		style="
-			border-color: var(--color1);
 			flex-wrap: wrap;
 			justify-content: space-between
 		"

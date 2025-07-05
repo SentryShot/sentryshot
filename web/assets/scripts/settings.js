@@ -53,10 +53,9 @@ function newRenderer($parent) {
 				htmlNav += /* HTML */ `
 					<li
 						id="js-set-category-${category.name()}"
-						class="js-set-settings-category flex items-center py-1 pl-4 border hover:bg-color3"
+						class="js-set-settings-category flex items-center py-1 pl-4 border border-color3 hover:bg-color3"
 						style="
 							padding-right: calc(var(--spacing) * 14);
-							border-color: var(--color3);
 						"
 					>
 						<img
@@ -134,10 +133,9 @@ function categoryTitleHTML(title = "") {
 
 const menubarHTML = /* HTML */ `
 	<div
-		class="js-settings-menubar settings-menubar px-2 border bg-color2"
+		class="js-settings-menubar settings-menubar px-2 border border-color3 bg-color2"
 		style="
 			height: var(--topbar-height);
-			border-color: var(--color3);
 		"
 	>
 		<nav class="js-settings-subcategory-back flex shrink-0">${backIconHTML}</nav>
@@ -159,10 +157,7 @@ const categoryNavsHTML = /* HTML */ `
 function categoryNavHTML(data, label, c = "text-color") {
 	return /* HTML */ `
 		<li
-			class="js-nav flex items-center py-1 px-4 border hover:bg-color3"
-			style="
-				border-color: var(--color3);
-			"
+			class="js-nav flex items-center py-1 px-4 border border-color3 hover:bg-color3"
 			data="${data}"
 		>
 			<span class="${c}" style="font-size: calc(var(--scale) * 2rem);"
@@ -324,10 +319,7 @@ function newCategory(categoryName, title) {
 					"
 				>
 					<div
-						class="settings-menubar js-settings-menubar px-2 border bg-color2"
-						style="
-							border-color: var(--color3);
-						"
+						class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
 					>
 						<nav class="js-settings-category-back flex shrink-0">
 							${backIconHTML}
@@ -456,10 +448,7 @@ function newCategory2(categoryName, title, form) {
 					"
 				>
 					<div
-						class="settings-menubar js-settings-menubar px-2 border bg-color2"
-						style="
-							border-color: var(--color3);
-						"
+						class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
 					>
 						<nav class="js-settings-category-back flex shrink-0">
 							${backIconHTML}
@@ -1049,10 +1038,9 @@ function newSelectMonitorField(monitors) {
 			html: /* HTML */ `
 				<div
 					id="${id}"
-					class="monitor-selector-item relative flex items-center px-2 border"
+					class="monitor-selector-item relative flex items-center px-2 border border-color1"
 					style="
 						width: auto;
-						border-color: var(--color1);
 						font-size: calc(var(--scale) * 1.8rem);
 					"
 				>
@@ -1129,13 +1117,7 @@ function newSelectMonitorField(monitors) {
 
 	return {
 		html: /* HTML */ `
-			<li
-				id=${id}
-				class="flex items-center p-2 border-b-2"
-				style="
-					border-color: var(--color1);
-				"
-			></li>
+			<li id=${id} class="flex items-center p-2 border-b-2 border-color1"></li>
 		`,
 		init() {
 			element = document.getElementById(id);

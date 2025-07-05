@@ -173,9 +173,8 @@ function thresholds(detectors, getDetectorName) {
 		return {
 			html: /* HTML */ `
 				<li
-					class="flex items-center px-2"
+					class="flex items-center px-2 border-color1"
 					style="
-						border-color: var(--color1);
 						border-bottom-width: 1px;
 					"
 				>
@@ -374,9 +373,8 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				</div>
 			</li>
 			<li
-				class="js-options flex items-center p-2 border-b-2"
+				class="js-options flex items-center p-2 border-b-2 border-color1"
 				style="
-					border-color: var(--color1);
 					flex-wrap: wrap;
 				"
 			>
@@ -647,9 +645,8 @@ function denormalizeCrop(crop) {
 
 const maskOptionsHTML = /* HTML */ `
 	<li
-		class="flex items-center p-2 border-b-2"
+		class="flex items-center p-2 border-b-2 border-color1"
 		style="
-			border-color: var(--color1);
 			flex-wrap: wrap;
 			justify-content: space-between
 		"

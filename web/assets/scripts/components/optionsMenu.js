@@ -269,10 +269,9 @@ function toMonthString(time) {
 const datePickerHTML = /* HTML */ `
 	<div class="p-2">
 		<div
-			class="flex items-center"
+			class="flex items-center border-color2"
 			style="
 				font-size: 0;
-				border-color: var(--color3-hover);
 			"
 		>
 			<button class="js-prev-month bg-color2">

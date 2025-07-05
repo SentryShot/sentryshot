@@ -219,10 +219,7 @@ describe("newField", () => {
 
 		expect(newTestField().html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2  border-b-2"
-    style="
-				border-color: var(--color1);
-			"
+    class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid1"
          class="grow w-full text-color"
@@ -354,10 +351,7 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2  border-b-2"
-    style="
-				border-color: var(--color1);
-			"
+    class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid1"
          class="grow w-full text-color"
@@ -408,10 +402,7 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2  border-b-2"
-    style="
-				border-color: var(--color1);
-			"
+    class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid1"
          class="grow w-full text-color"
@@ -466,10 +457,7 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 pb-1 border-b-2"
-    style="
-				border-color: var(--color1);
-			"
+    class="items-center px-2 pb-1 border-b-2 border-color1"
 >
   <label for="label-uid1"
          class="grow w-full text-color"
@@ -512,10 +500,7 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 pb-1 border-b-2"
-    style="
-				border-color: var(--color1);
-			"
+    class="items-center px-2 pb-1 border-b-2 border-color1"
 >
   <label for="label-uid1"
          class="grow w-full text-color"
@@ -561,10 +546,7 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2  border-b-2"
-    style="
-				border-color: var(--color1);
-			"
+    class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid1"
          class="grow w-full text-color"
@@ -653,10 +635,7 @@ describe("selectCustomField", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 pb-1 border-b-2"
-    style="
-				border-color: var(--color1);
-			"
+    class="items-center px-2 pb-1 border-b-2 border-color1"
 >
   <label for="label-uid1"
          class="grow w-full text-color"
@@ -721,10 +700,7 @@ test("newModalFieldHTML", () => {
 	uidReset();
 	expect(newModalFieldHTML("uid1", "test")).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="flex items-center p-2 border-b-2"
-    style="
-				border-color: var(--color1);
-			"
+    class="flex items-center p-2 border-b-2 border-color1"
 >
   <label for="label-uid1"
          class="grow w-full text-color"
@@ -752,10 +728,7 @@ describe("passwordField", () => {
 		uidReset();
 		expect(newPasswordField().html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2  border-b-2"
-    style="
-				border-color: var(--color1);
-			"
+    class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid1"
          class="grow w-full text-color"
@@ -788,10 +761,7 @@ describe("passwordField", () => {
   </span>
 </li>
 <li id="uid2"
-    class="items-center px-2  border-b-2"
-    style="
-				border-color: var(--color1);
-			"
+    class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid2"
          class="grow w-full text-color"

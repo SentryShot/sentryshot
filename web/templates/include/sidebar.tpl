@@ -70,12 +70,8 @@
 		<a
 			href="live"
 			id="nav-link-live"
-			class="flex items-center px-2 border hover:bg-color2"
-			style="
-				text-decoration: none;
-				border-color: var(--color2);
-				border-top: none;
-			"
+			class="flex items-center px-2 border border-color2 hover:bg-color2"
+			style="text-decoration: none; border-top: none"
 		>
 			<img
 				class="p-2 icon-filter"
@@ -89,11 +85,8 @@
 		<a
 			href="recordings"
 			id="nav-link-recordings"
-			class="flex items-center px-2 border hover:bg-color2"
-			style="
-				text-decoration: none;
-				border-color: var(--color2);
-			"
+			class="flex items-center px-2 border border-color2 hover:bg-color2"
+			style="text-decoration: none"
 		>
 			<img
 				class="p-2 icon-filter"
@@ -108,11 +101,8 @@
 		<a
 			href="settings"
 			id="nav-link-settings"
-			class="flex items-center px-2 border hover:bg-color2"
-			style="
-				text-decoration: none;
-				border-color: var(--color2);
-			"
+			class="flex items-center px-2 border border-color2 hover:bg-color2"
+			style="text-decoration: none"
 		>
 			<img
 				class="p-2 icon-filter"
@@ -126,11 +116,8 @@
 		<a
 			href="logs"
 			id="nav-link-logs"
-			class="flex items-center px-2 border hover:bg-color2"
-			style="
-				text-decoration: none;
-				border-color: var(--color2);
-			"
+			class="flex items-center px-2 border border-color2 hover:bg-color2"
+			style="text-decoration: none"
 		>
 			<img
 				class="p-2 icon-filter"
