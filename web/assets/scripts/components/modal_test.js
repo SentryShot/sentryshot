@@ -112,20 +112,18 @@ test("modalSelect", () => {
            style="flex-wrap: wrap;"
       >
         <span data="m1"
-              class="js-option px-2 text-color"
+              class="js-option px-2 border text-color"
               style="
 						font-size: calc(var(--scale) * 1.5rem);
-						border-width: 1px;
 						border-color: var(--color1);
 					"
         >
           m1
         </span>
         <span data="m2"
-              class="js-option px-2 text-color"
+              class="js-option px-2 border text-color"
               style="
 						font-size: calc(var(--scale) * 1.5rem);
-						border-width: 1px;
 						border-color: var(--color1);
 					"
         >

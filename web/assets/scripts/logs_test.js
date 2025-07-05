@@ -115,10 +115,9 @@ describe("MultiSelect", () => {
 		const [element] = setup();
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <li id="uid4"
-    class="items-center w-full px-2"
+    class="items-center w-full px-2 border-b-2"
     style="
 					border-color: var(--color1);
-					border-bottom-width: 2px;
 				"
 >
   <label class="mr-auto text-color"

@@ -70,10 +70,9 @@
 		<a
 			href="live"
 			id="nav-link-live"
-			class="flex items-center px-2 hover:bg-color2"
+			class="flex items-center px-2 border hover:bg-color2"
 			style="
 				text-decoration: none;
-				border-width: 1px;
 				border-color: var(--color2);
 				border-top: none;
 			"
@@ -90,10 +89,9 @@
 		<a
 			href="recordings"
 			id="nav-link-recordings"
-			class="flex items-center px-2 hover:bg-color2"
+			class="flex items-center px-2 border hover:bg-color2"
 			style="
 				text-decoration: none;
-				border-width: 1px;
 				border-color: var(--color2);
 			"
 		>
@@ -110,10 +108,9 @@
 		<a
 			href="settings"
 			id="nav-link-settings"
-			class="flex items-center px-2 hover:bg-color2"
+			class="flex items-center px-2 border hover:bg-color2"
 			style="
 				text-decoration: none;
-				border-width: 1px;
 				border-color: var(--color2);
 			"
 		>
@@ -129,10 +126,9 @@
 		<a
 			href="logs"
 			id="nav-link-logs"
-			class="flex items-center px-2 hover:bg-color2"
+			class="flex items-center px-2 border hover:bg-color2"
 			style="
 				text-decoration: none;
-				border-width: 1px;
 				border-color: var(--color2);
 			"
 		>

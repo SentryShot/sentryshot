@@ -522,6 +522,14 @@ img {
 	margin-left: calc(var(--spacing) * 4);
 }
 
+.border {
+	border-width: 1px;
+}
+
+.border-b-2 {
+	border-bottom-width: 2px;
+}
+
 /* Mobile portrait mode */
 
 /* sidebar */

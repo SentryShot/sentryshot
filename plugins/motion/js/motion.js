@@ -134,10 +134,9 @@ export function motion2(hasSubStream, getMonitorId) {
 
 const zoneSelectFieldHTML = /* HTML */ `
 	<li
-		class="items-center p-2"
+		class="items-center p-2 border-b-2"
 		style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 	>
 		<div class="flex w-full">
@@ -171,10 +170,9 @@ const zoneSelectFieldHTML = /* HTML */ `
 
 const thresholdsFieldHTML = /* HTML */ `
 	<li
-		class="items-center p-2"
+		class="items-center p-2 border-b-2"
 		style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 	>
 		<label
@@ -215,10 +213,9 @@ const thresholdsFieldHTML = /* HTML */ `
 
 const zonesPreviewOptionsHTML = /* HTML */ `
 	<li
-		class="flex items-center p-2"
+		class="flex items-center p-2 border-b-2"
 		style="
 			border-color: var(--color1);
-			border-bottom-width: 2px;
 			flex-wrap: wrap;
 			justify-content: space-between
 		"

@@ -219,10 +219,9 @@ describe("newField", () => {
 
 		expect(newTestField().html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 "
+    class="items-center px-2  border-b-2"
     style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 >
   <label for="label-uid1"
@@ -355,10 +354,9 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 "
+    class="items-center px-2  border-b-2"
     style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 >
   <label for="label-uid1"
@@ -410,10 +408,9 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 "
+    class="items-center px-2  border-b-2"
     style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 >
   <label for="label-uid1"
@@ -469,10 +466,9 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 pb-1"
+    class="items-center px-2 pb-1 border-b-2"
     style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 >
   <label for="label-uid1"
@@ -516,10 +512,9 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 pb-1"
+    class="items-center px-2 pb-1 border-b-2"
     style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 >
   <label for="label-uid1"
@@ -566,10 +561,9 @@ describe("fieldTemplate", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 "
+    class="items-center px-2  border-b-2"
     style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 >
   <label for="label-uid1"
@@ -659,10 +653,9 @@ describe("selectCustomField", () => {
 
 		expect(field.html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 pb-1"
+    class="items-center px-2 pb-1 border-b-2"
     style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 >
   <label for="label-uid1"
@@ -728,10 +721,9 @@ test("newModalFieldHTML", () => {
 	uidReset();
 	expect(newModalFieldHTML("uid1", "test")).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="flex items-center p-2"
+    class="flex items-center p-2 border-b-2"
     style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 >
   <label for="label-uid1"
@@ -760,10 +752,9 @@ describe("passwordField", () => {
 		uidReset();
 		expect(newPasswordField().html).toMatchInlineSnapshot(`
 <li id="uid1"
-    class="items-center px-2 "
+    class="items-center px-2  border-b-2"
     style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 >
   <label for="label-uid1"
@@ -797,10 +788,9 @@ describe("passwordField", () => {
   </span>
 </li>
 <li id="uid2"
-    class="items-center px-2 "
+    class="items-center px-2  border-b-2"
     style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 >
   <label for="label-uid2"

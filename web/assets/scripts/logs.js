@@ -573,10 +573,9 @@ function newMultiSelect(label, values, initial) {
 		html: /* HTML */ `
 			<li
 				id="${id}"
-				class="items-center w-full px-2"
+				class="items-center w-full px-2 border-b-2"
 				style="
 					border-color: var(--color1);
-					border-bottom-width: 2px;
 				"
 			>
 				<label
@@ -654,10 +653,9 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 		html: /* HTML */ `
 			<li
 				id="${elementID}"
-				class="items-center p-2"
+				class="items-center p-2 border-b-2"
 				style="
 					border-color: var(--color1);
-					border-bottom-width: 2px;
 				"
 			>
 				<label

@@ -53,10 +53,9 @@ function newRenderer($parent) {
 				htmlNav += /* HTML */ `
 					<li
 						id="js-set-category-${category.name()}"
-						class="js-set-settings-category flex items-center py-1 pl-4 hover:bg-color3"
+						class="js-set-settings-category flex items-center py-1 pl-4 border hover:bg-color3"
 						style="
 							padding-right: calc(var(--spacing) * 14);
-							border-width: 1px;
 							border-color: var(--color3);
 						"
 					>
@@ -135,10 +134,9 @@ function categoryTitleHTML(title = "") {
 
 const menubarHTML = /* HTML */ `
 	<div
-		class="js-settings-menubar settings-menubar px-2 bg-color2"
+		class="js-settings-menubar settings-menubar px-2 border bg-color2"
 		style="
 			height: var(--topbar-height);
-			border-width: 1px;
 			border-color: var(--color3);
 		"
 	>
@@ -161,9 +159,8 @@ const categoryNavsHTML = /* HTML */ `
 function categoryNavHTML(data, label, c = "text-color") {
 	return /* HTML */ `
 		<li
-			class="js-nav flex items-center py-1 px-4 hover:bg-color3"
+			class="js-nav flex items-center py-1 px-4 border hover:bg-color3"
 			style="
-				border-width: 1px;
 				border-color: var(--color3);
 			"
 			data="${data}"
@@ -327,9 +324,8 @@ function newCategory(categoryName, title) {
 					"
 				>
 					<div
-						class="settings-menubar js-settings-menubar px-2 bg-color2"
+						class="settings-menubar js-settings-menubar px-2 border bg-color2"
 						style="
-							border-width: 1px;
 							border-color: var(--color3);
 						"
 					>
@@ -460,9 +456,8 @@ function newCategory2(categoryName, title, form) {
 					"
 				>
 					<div
-						class="settings-menubar js-settings-menubar px-2 bg-color2"
+						class="settings-menubar js-settings-menubar px-2 border bg-color2"
 						style="
-							border-width: 1px;
 							border-color: var(--color3);
 						"
 					>
@@ -1054,10 +1049,9 @@ function newSelectMonitorField(monitors) {
 			html: /* HTML */ `
 				<div
 					id="${id}"
-					class="monitor-selector-item relative flex items-center px-2"
+					class="monitor-selector-item relative flex items-center px-2 border"
 					style="
 						width: auto;
-						border-width: 1px;
 						border-color: var(--color1);
 						font-size: calc(var(--scale) * 1.8rem);
 					"
@@ -1137,10 +1131,9 @@ function newSelectMonitorField(monitors) {
 		html: /* HTML */ `
 			<li
 				id=${id}
-				class="flex items-center p-2"
+				class="flex items-center p-2 border-b-2"
 				style="
 					border-color: var(--color1);
-					border-bottom-width: 2px;
 				"
 			></li>
 		`,

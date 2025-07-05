@@ -584,10 +584,9 @@ function newHTMLfield(options, id, label, placeholder = "") {
 	return /* HTML */ `
 		<li
 			id="${id}"
-			class="items-center px-2 ${errorField === true ? "" : "pb-1"}"
+			class="items-center px-2 ${errorField === true ? "" : "pb-1"} border-b-2"
 			style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 		>
 			<label
@@ -612,10 +611,9 @@ function newModalFieldHTML(id, label) {
 	return /* HTML */ `
 		<li
 			id="${id}"
-			class="flex items-center p-2"
+			class="flex items-center p-2 border-b-2"
 			style="
 				border-color: var(--color1);
-				border-bottom-width: 2px;
 			"
 		>
 			<label
