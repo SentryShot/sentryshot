@@ -52,7 +52,7 @@ function newModal(label, content = "") {
 						<button
 							class="js-modal-close-btn flex m-auto bg-color3"
 							style="
-								border-radius: calc(var(--scale) * 0.34rem);
+								border-radius: calc(var(--scale) * 0.375rem);
 							"
 						>
 							<img

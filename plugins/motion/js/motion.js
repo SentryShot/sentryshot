@@ -143,7 +143,7 @@ const zoneSelectFieldHTML = /* HTML */ `
 			></select>
 			<button
 				class="js-add-zone shrink-0 ml-2 bg-color2 hover:bg-color3"
-				style="border-radius: calc(var(--scale) * 0.68rem);"
+				style="border-radius: calc(var(--scale) * 0.5rem);"
 			>
 				<img
 					class="p-1 icon-filter"
@@ -153,7 +153,7 @@ const zoneSelectFieldHTML = /* HTML */ `
 			</button>
 			<button
 				class="js-remove-zone shrink-0 ml-1 mr-2 bg-color2 hover:bg-color3"
-				style="border-radius: calc(var(--scale) * 0.68rem);"
+				style="border-radius: calc(var(--scale) * 0.5rem);"
 			>
 				<img
 			"
@@ -217,8 +217,8 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 				class="js-1x pl-2 pr-1 text-color bg-color2 hover:bg-color1"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-top-left-radius: calc(var(--scale) * 0.84rem);
-					border-bottom-left-radius: calc(var(--scale) * 0.84rem);
+					border-top-left-radius: calc(var(--scale) * 0.75rem);
+					border-bottom-left-radius: calc(var(--scale) * 0.75rem);
 				"
 			>
 				1x
@@ -243,8 +243,8 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 				class="js-20x pl-1 pr-2 text-color bg-color2 hover:bg-color1"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-top-right-radius: calc(var(--scale) * 0.84rem);
-					border-bottom-right-radius: calc(var(--scale) * 0.84rem);
+					border-top-right-radius: calc(var(--scale) * 0.75rem);
+					border-bottom-right-radius: calc(var(--scale) * 0.75rem);
 				"
 			>
 				20x

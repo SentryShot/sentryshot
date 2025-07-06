@@ -218,7 +218,7 @@ function newPlayer(data, isAdmin, token) {
 					right: calc(var(--scale) * 1rem);
 					bottom: calc(var(--scale) * 2.5rem);
 					transition: opacity 250ms;
-					border-radius: calc(var(--scale) * 0.34rem);
+					border-radius: calc(var(--scale) * 0.375rem);
 				"
 			>
 				<img
@@ -232,7 +232,7 @@ function newPlayer(data, isAdmin, token) {
 					right: calc(var(--scale) * 0.5rem);
 					bottom: calc(var(--scale) * 5rem);
 					display: none;
-					border-radius: calc(var(--scale) * 0.51rem);
+					border-radius: calc(var(--scale) * 0.5rem);
 					opacity: 0.8;
 				"
 			>

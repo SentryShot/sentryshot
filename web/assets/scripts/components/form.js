@@ -166,7 +166,7 @@ function newSaveBtn(onClick) {
 				id="${id}"
 				class="m-2 px-2 bg-green hover:bg-green2"
 				style="
-					border-radius: calc(var(--scale) * 0.68rem);
+					border-radius: calc(var(--scale) * 0.5rem);
 				"
 			>
 				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
@@ -201,7 +201,7 @@ function newDeleteBtn(onClick) {
 				id="${id}"
 				class="m-2 px-2 bg-red hover:bg-red2"
 				style="
-					border-radius: calc(var(--scale) * 0.68rem);
+					border-radius: calc(var(--scale) * 0.5rem);
 					margin-left: auto;
 				"
 			>
@@ -499,7 +499,7 @@ const editBtnHTML = /* HTML */ `
 		style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: calc(var(--scale) * 0.68rem);
+			border-radius: calc(var(--scale) * 0.5rem);
 		"
 	>
 		<img class="p-1 icon-filter" src="assets/icons/feather/edit-3.svg" />

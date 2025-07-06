@@ -123,7 +123,7 @@ describe("newForm", () => {
     <button id="uid1"
             class="m-2 px-2 bg-red hover:bg-red2"
             style="
-					border-radius: calc(var(--scale) * 0.68rem);
+					border-radius: calc(var(--scale) * 0.5rem);
 					margin-left: auto;
 				"
     >
@@ -169,7 +169,7 @@ describe("newForm", () => {
     <button id="uid1"
             class="m-2 px-2 bg-green hover:bg-green2"
             style="
-					border-radius: calc(var(--scale) * 0.68rem);
+					border-radius: calc(var(--scale) * 0.5rem);
 				"
     >
       <span class="text-color"
@@ -181,7 +181,7 @@ describe("newForm", () => {
     <button id="uid2"
             class="m-2 px-2 bg-red hover:bg-red2"
             style="
-					border-radius: calc(var(--scale) * 0.68rem);
+					border-radius: calc(var(--scale) * 0.5rem);
 					margin-left: auto;
 				"
     >
@@ -576,7 +576,7 @@ describe("fieldTemplate", () => {
             style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: calc(var(--scale) * 0.68rem);
+			border-radius: calc(var(--scale) * 0.5rem);
 		"
     >
       <img class="p-1 icon-filter"
@@ -665,7 +665,7 @@ describe("selectCustomField", () => {
             style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: calc(var(--scale) * 0.68rem);
+			border-radius: calc(var(--scale) * 0.5rem);
 		"
     >
       <img class="p-1 icon-filter"
@@ -712,7 +712,7 @@ test("newModalFieldHTML", () => {
           style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: calc(var(--scale) * 0.68rem);
+			border-radius: calc(var(--scale) * 0.5rem);
 		"
   >
     <img class="p-1 icon-filter"

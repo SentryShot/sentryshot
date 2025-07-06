@@ -381,7 +381,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				<div
 					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 bg-color2"
 					style="
-						border-radius: calc(var(--scale) * 0.51rem);
+						border-radius: calc(var(--scale) * 0.5rem);
 					"
 				>
 					<span
@@ -395,7 +395,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						class="js-x text-center"
 						style="
 							font-size: calc(var(--scale) * 1.3rem);
-							border-radius: 5px;
+							border-radius: calc(var(--scale) * 0.375rem);
 							width: calc(var(--scale) * 3rem);
 						"
 						type="number"
@@ -406,7 +406,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				</div>
 				<div
 					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 bg-color2"
-					style="border-radius: calc(var(--scale) * 0.51rem);"
+					style="border-radius: calc(var(--scale) * 0.5rem);"
 				>
 					<span
 						class="ml-1 mr-2 text-color"
@@ -417,7 +417,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						class="js-y text-center"
 						style="
 							font-size: calc(var(--scale) * 1.3rem);
-							border-radius: 5px;
+							border-radius: calc(var(--scale) * 0.375rem);
 							width: calc(var(--scale) * 3rem);
 						"
 						type="number"
@@ -429,7 +429,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				<div
 					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 bg-color2"
 					style="
-						border-radius: calc(var(--scale) * 0.51rem);
+						border-radius: calc(var(--scale) * 0.5rem);
 					"
 				>
 					<span
@@ -443,7 +443,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						class="js-size text-center"
 						style="
 							font-size: calc(var(--scale) * 1.3rem);
-							border-radius: 5px;
+							border-radius: calc(var(--scale) * 0.375rem);
 							width: calc(var(--scale) * 3.5rem);
 						"
 						type="number"
@@ -656,8 +656,8 @@ const maskOptionsHTML = /* HTML */ `
 				class="js-1x pl-2 pr-1 text-color bg-color2 hover:bg-color1"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-top-left-radius: calc(var(--scale) * 0.84rem);
-					border-bottom-left-radius: calc(var(--scale) * 0.84rem);
+					border-top-left-radius: calc(var(--scale) * 0.75rem);
+					border-bottom-left-radius: calc(var(--scale) * 0.75rem);
 				"
 			>
 				1x
@@ -682,8 +682,8 @@ const maskOptionsHTML = /* HTML */ `
 				class="js-20x pl-1 pr-2 text-color bg-color2 hover:bg-color1"
 				style="
 					font-size: calc(var(--scale) * 1.4rem);
-					border-top-right-radius: calc(var(--scale) * 0.84rem);
-					border-bottom-right-radius: calc(var(--scale) * 0.84rem);
+					border-top-right-radius: calc(var(--scale) * 0.75rem);
+					border-bottom-right-radius: calc(var(--scale) * 0.75rem);
 				"
 			>
 				20x

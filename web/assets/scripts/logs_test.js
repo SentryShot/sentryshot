@@ -130,7 +130,6 @@ describe("MultiSelect", () => {
            style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: calc(var(--scale) * 0.47rem);
 							user-select: none;
 						"
       >
@@ -147,7 +146,7 @@ describe("MultiSelect", () => {
              style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: calc(var(--scale) * 0.34rem);
+								border-radius: calc(var(--scale) * 0.375rem);
 							"
         >
         </div>
@@ -172,7 +171,6 @@ describe("MultiSelect", () => {
            style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: calc(var(--scale) * 0.47rem);
 							user-select: none;
 						"
       >
@@ -189,7 +187,7 @@ describe("MultiSelect", () => {
              style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: calc(var(--scale) * 0.34rem);
+								border-radius: calc(var(--scale) * 0.375rem);
 							"
         >
         </div>
@@ -214,7 +212,6 @@ describe("MultiSelect", () => {
            style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: calc(var(--scale) * 0.47rem);
 							user-select: none;
 						"
       >
@@ -231,7 +228,7 @@ describe("MultiSelect", () => {
              style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: calc(var(--scale) * 0.34rem);
+								border-radius: calc(var(--scale) * 0.375rem);
 							"
         >
         </div>
@@ -380,7 +377,7 @@ describe("logSelector", () => {
   </ul>
   <div>
     <button class="js-reset m-2 px-2 bg-color3 hover:bg-color2"
-            style="border-radius: calc(var(--scale) * 0.68rem);"
+            style="border-radius: calc(var(--scale) * 0.5rem);"
     >
       <span class="text-color"
             style="font-size: calc(var(--scale) * 2rem);"
@@ -389,7 +386,7 @@ describe("logSelector", () => {
       </span>
     </button>
     <button class="log-apply-btn m-2 px-2 js-apply bg-green hover:bg-green2"
-            style="border-radius: calc(var(--scale) * 0.68rem); float: right;"
+            style="border-radius: calc(var(--scale) * 0.5rem); float: right;"
     >
       <span class="text-color"
             style="font-size: calc(var(--scale) * 2rem);"

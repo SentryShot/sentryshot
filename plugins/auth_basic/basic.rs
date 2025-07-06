@@ -370,7 +370,7 @@ fn edit_templates(tmpls: &mut Templates) {
             font-size: calc(var(--scale) * 2rem);
             border-width: 2px;
             border-color: var(--color0);
-            border-radius: calc(var(--scale) * 0.68rem);
+            border-radius: calc(var(--scale) * 0.5rem);
         \"
         onclick='if (confirm(\"logout?\")) { window.location.href = \"logout\"; }'
     >
