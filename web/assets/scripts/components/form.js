@@ -162,13 +162,7 @@ function newSaveBtn(onClick) {
 	let element;
 	return {
 		html: /* HTML */ `
-			<button
-				id="${id}"
-				class="m-2 px-2 bg-green hover:bg-green2"
-				style="
-					border-radius: var(--radius-lg);
-				"
-			>
+			<button id="${id}" class="m-2 px-2 rounded-lg bg-green hover:bg-green2">
 				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
 					>Save</span
 				>
@@ -199,9 +193,8 @@ function newDeleteBtn(onClick) {
 		html: /* HTML */ `
 			<button
 				id="${id}"
-				class="m-2 px-2 bg-red hover:bg-red2"
+				class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
 				style="
-					border-radius: var(--radius-lg);
 					margin-left: auto;
 				"
 			>
@@ -495,11 +488,10 @@ function newNumberField(options, values) {
 
 const editBtnHTML = /* HTML */ `
 	<button
-		class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
+		class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
 		style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: var(--radius-lg);
 		"
 	>
 		<img class="p-1 icon-filter" src="assets/icons/feather/edit-3.svg" />
@@ -536,7 +528,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: var(--radius-lg);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
 				type="${input}"
 				placeholder="${placeholder}"

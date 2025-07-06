@@ -121,9 +121,8 @@ describe("newForm", () => {
   html
   <div class="flex">
     <button id="uid1"
-            class="m-2 px-2 bg-red hover:bg-red2"
+            class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
             style="
-					border-radius: var(--radius-lg);
 					margin-left: auto;
 				"
     >
@@ -167,10 +166,7 @@ describe("newForm", () => {
   html
   <div class="flex">
     <button id="uid1"
-            class="m-2 px-2 bg-green hover:bg-green2"
-            style="
-					border-radius: var(--radius-lg);
-				"
+            class="m-2 px-2 rounded-lg bg-green hover:bg-green2"
     >
       <span class="text-color"
             style="font-size: calc(var(--scale) * 2rem);"
@@ -179,9 +175,8 @@ describe("newForm", () => {
       </span>
     </button>
     <button id="uid2"
-            class="m-2 px-2 bg-red hover:bg-red2"
+            class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
             style="
-					border-radius: var(--radius-lg);
 					margin-left: auto;
 				"
     >
@@ -236,7 +231,7 @@ describe("newField", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: var(--radius-lg);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="number"
          placeholder="b"
@@ -368,7 +363,7 @@ describe("fieldTemplate", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: var(--radius-lg);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="text"
          placeholder="2"
@@ -419,7 +414,7 @@ describe("fieldTemplate", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: var(--radius-lg);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="number"
          placeholder="2"
@@ -572,11 +567,10 @@ describe("fieldTemplate", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
+    <button class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
             style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: var(--radius-lg);
 		"
     >
       <img class="p-1 icon-filter"
@@ -661,11 +655,10 @@ describe("selectCustomField", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
+    <button class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
             style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: var(--radius-lg);
 		"
     >
       <img class="p-1 icon-filter"
@@ -708,11 +701,10 @@ test("newModalFieldHTML", () => {
   >
     test
   </label>
-  <button class="js-edit-btn flex ml-2 bg-color2 hover:bg-color3"
+  <button class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
           style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: var(--radius-lg);
 		"
   >
     <img class="p-1 icon-filter"
@@ -745,7 +737,7 @@ describe("passwordField", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: var(--radius-lg);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="password"
          placeholder
@@ -778,7 +770,7 @@ describe("passwordField", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: var(--radius-lg);
+					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="password"
          placeholder

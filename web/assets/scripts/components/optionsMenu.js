@@ -463,17 +463,15 @@ const datePickerHTML = /* HTML */ `
 			"
 		>
 			<button
-				class="js-reset px-2 text-color bg-color3 hover:bg-color2"
+				class="js-reset px-2 rounded-md text-color bg-color3 hover:bg-color2"
 				style="
 					font-size: calc(var(--scale) * 1.5rem);
-					border-radius: var(--radius-md);
 				"
 			>Reset</button>
 			<button
-				class=" js-apply px-2 text-color bg-green hover:bg-green2"
+				class=" js-apply px-2 rounded-md text-color bg-green hover:bg-green2"
 				style="
 					font-size: calc(var(--scale) * 1.5rem);
-					border-radius: var(--radius-md);
 				"
 			>Apply</button>
 		</div>

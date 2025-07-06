@@ -379,10 +379,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				"
 			>
 				<div
-					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 bg-color2"
-					style="
-						border-radius: var(--radius-lg);
-					"
+					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
 				>
 					<span
 						class="ml-1 mr-2 text-color"
@@ -392,10 +389,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						>X</span
 					>
 					<input
-						class="js-x text-center"
+						class="js-x text-center rounded-md"
 						style="
 							font-size: calc(var(--scale) * 1.3rem);
-							border-radius: var(--radius-md);
 							width: calc(var(--scale) * 3rem);
 						"
 						type="number"
@@ -405,8 +401,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					/>
 				</div>
 				<div
-					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 bg-color2"
-					style="border-radius: var(--radius-lg);"
+					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
 				>
 					<span
 						class="ml-1 mr-2 text-color"
@@ -414,10 +409,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						>Y</span
 					>
 					<input
-						class="js-y text-center"
+						class="js-y text-center rounded-md"
 						style="
 							font-size: calc(var(--scale) * 1.3rem);
-							border-radius: var(--radius-md);
 							width: calc(var(--scale) * 3rem);
 						"
 						type="number"
@@ -427,10 +421,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					/>
 				</div>
 				<div
-					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 bg-color2"
-					style="
-						border-radius: var(--radius-lg);
-					"
+					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
 				>
 					<span
 						class="mr-2 ml-1 text-color"
@@ -440,10 +431,9 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						>size</span
 					>
 					<input
-						class="js-size text-center"
+						class="js-size text-center rounded-md"
 						style="
 							font-size: calc(var(--scale) * 1.3rem);
-							border-radius: var(--radius-md);
 							width: calc(var(--scale) * 3.5rem);
 						"
 						type="number"

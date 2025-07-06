@@ -215,24 +215,22 @@ describe("newPlayer", () => {
         <span class="js-progress-bar">
         </span>
       </progress>
-      <button class="js-options-open-btn player-options-open-btn absolute m-auto bg-color0"
+      <button class="js-options-open-btn player-options-open-btn absolute m-auto rounded-md bg-color0"
               style="
 					right: calc(var(--scale) * 1rem);
 					bottom: calc(var(--scale) * 2.5rem);
 					transition: opacity 250ms;
-					border-radius: var(--radius-md);
 				"
       >
         <img style="width: calc(var(--scale) * 1rem); height: calc(var(--scale) * 2rem); filter: invert(90%);"
              src="assets/icons/feather/more-vertical-slim.svg"
         >
       </button>
-      <div class="js-popup absolute bg-color0"
+      <div class="js-popup absolute rounded-lg bg-color0"
            style="
 					right: calc(var(--scale) * 0.5rem);
 					bottom: calc(var(--scale) * 5rem);
 					display: none;
-					border-radius: var(--radius-lg);
 					opacity: 0.8;
 				"
       >

@@ -142,8 +142,7 @@ const zoneSelectFieldHTML = /* HTML */ `
 				style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
 			></select>
 			<button
-				class="js-add-zone shrink-0 ml-2 bg-color2 hover:bg-color3"
-				style="border-radius: var(--radius-lg);"
+				class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3"
 			>
 				<img
 					class="p-1 icon-filter"
@@ -152,8 +151,7 @@ const zoneSelectFieldHTML = /* HTML */ `
 				/>
 			</button>
 			<button
-				class="js-remove-zone shrink-0 ml-1 mr-2 bg-color2 hover:bg-color3"
-				style="border-radius: var(--radius-lg);"
+				class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
 			>
 				<img
 			"

@@ -82,13 +82,12 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 						for="${checkboxID}"
 					></label>
 					<div
-						class="js-overlay player-overlay absolute flex justify-center bg-color1"
+						class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
 						style="
 							z-index: 2;
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: var(--radius-md);
 						"
 					>
 						${html}

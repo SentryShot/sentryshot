@@ -507,11 +507,10 @@ function newMultiSelect(label, values, initial) {
 							type="checkbox"
 						/>
 						<div
-							class="checkbox-box absolute"
+							class="checkbox-box absolute rounded-md"
 							style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: var(--radius-md);
 							"
 						></div>
 						<img
@@ -660,12 +659,11 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 						${options}
 					</select>
 					<button
-						class="js-edit-btn flex ml-2 bg-color3 hover:bg-color2"
+						class="js-edit-btn flex ml-2 rounded-lg bg-color3 hover:bg-color2"
 						style="
 							aspect-ratio: 1;
 							width: calc(var(--scale) * 2.5rem);
 							height: calc(var(--scale) * 2.5rem);
-							border-radius: var(--radius-lg);
 						"
 					>
 						<img
@@ -761,17 +759,14 @@ function newLogSelector(logger, formFields) {
 	const html = /* HTML */ `
 		${form.html()}
 		<div>
-			<button
-				class="js-reset m-2 px-2 bg-color3 hover:bg-color2"
-				style="border-radius: var(--radius-lg);"
-			>
+			<button class="js-reset m-2 px-2 bg-color3 rounded-lg hover:bg-color2">
 				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
 					>Reset</span
 				>
 			</button>
 			<button
-				class="log-apply-btn m-2 px-2 js-apply bg-green hover:bg-green2"
-				style="border-radius: var(--radius-lg); float: right;"
+				class="log-apply-btn m-2 px-2 js-apply rounded-lg bg-green hover:bg-green2"
+				style="float: right;"
 			>
 				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
 					>Apply</span

@@ -213,12 +213,11 @@ function newPlayer(data, isAdmin, token) {
 				<span class="js-progress-bar">
 			</progress>
 			<button
-				class="js-options-open-btn player-options-open-btn absolute m-auto bg-color0"
+				class="js-options-open-btn player-options-open-btn absolute m-auto rounded-md bg-color0"
 				style="
 					right: calc(var(--scale) * 1rem);
 					bottom: calc(var(--scale) * 2.5rem);
 					transition: opacity 250ms;
-					border-radius: var(--radius-md);
 				"
 			>
 				<img
@@ -227,12 +226,11 @@ function newPlayer(data, isAdmin, token) {
 				>
 			</button>
 			<div
-				class="js-popup absolute bg-color0"
+				class="js-popup absolute rounded-lg bg-color0"
 				style="
 					right: calc(var(--scale) * 0.5rem);
 					bottom: calc(var(--scale) * 5rem);
 					display: none;
-					border-radius: var(--radius-lg);
 					opacity: 0.8;
 				"
 			>

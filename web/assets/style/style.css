@@ -545,6 +545,14 @@ img {
 	border-bottom-width: 2px;
 }
 
+.rounded-md {
+	border-radius: var(--radius-md);
+}
+
+.rounded-lg {
+	border-radius: var(--radius-lg);
+}
+
 /* Mobile portrait mode */
 
 /* sidebar */

@@ -169,8 +169,7 @@ function categoryNavHTML(data, label, c = "text-color") {
 
 const addBtnHTML = /* HTML */ `
 	<button
-		class="js-add-btn js-nav shrink-0 mt-2 ml-4 mr-auto px-2 bg-green hover:bg-green2"
-		style="border-radius: var(--radius-md);"
+		class="js-add-btn js-nav shrink-0 mt-2 ml-4 mr-auto px-2 rounded-md bg-green hover:bg-green2"
 	>
 		<span class="text-color" style="font-size: calc(var(--scale) * 2rem);">Add</span>
 	</button>
@@ -1052,11 +1051,10 @@ function newSelectMonitorField(monitors) {
 						>${name}</span
 					>
 					<div
-						class="flex justify-center items-center bg-color2"
+						class="flex justify-center items-center rounded-md bg-color2"
 						style="
 							width: 0.8em;
 							height: 0.8em;
-							border-radius: var(--radius-md);
 							user-select: none;
 						"
 					>

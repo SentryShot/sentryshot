@@ -108,13 +108,12 @@ test("fullscreen", () => {
            for="uid2"
     >
     </label>
-    <div class="js-overlay player-overlay absolute flex justify-center bg-color1"
+    <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
          style="
 							z-index: 2;
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: var(--radius-md);
 						"
     >
       <a href="http://test.com/recordings#monitors=undefined"
@@ -177,13 +176,12 @@ test("fullscreen", () => {
            for="uid4"
     >
     </label>
-    <div class="js-overlay player-overlay absolute flex justify-center bg-color1"
+    <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
          style="
 							z-index: 2;
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: var(--radius-md);
 						"
     >
       <a href="http://test.com/recordings#monitors=undefined"

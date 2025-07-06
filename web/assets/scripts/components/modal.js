@@ -50,10 +50,7 @@ function newModal(label, content = "") {
 							"
 						>${label}</span>
 						<button
-							class="js-modal-close-btn flex m-auto bg-color3"
-							style="
-								border-radius: var(--radius-md);
-							"
+							class="js-modal-close-btn flex m-auto rounded-md bg-color3"
 						>
 							<img
 								class="icon-filter"
