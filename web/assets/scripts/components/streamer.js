@@ -78,7 +78,7 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: calc(var(--scale) * 0.375rem);
+							border-radius: var(--radius-md);
 						"
 					>
 						${html}

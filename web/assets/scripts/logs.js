@@ -511,7 +511,7 @@ function newMultiSelect(label, values, initial) {
 							style="
 								width: 0.62em;
 								height: 0.62em;
-								border-radius: calc(var(--scale) * 0.375rem);
+								border-radius: var(--radius-md);
 							"
 						></div>
 						<img
@@ -665,7 +665,7 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 							aspect-ratio: 1;
 							width: calc(var(--scale) * 2.5rem);
 							height: calc(var(--scale) * 2.5rem);
-							border-radius: calc(var(--scale) * 0.5rem);
+							border-radius: var(--radius-lg);
 						"
 					>
 						<img
@@ -763,7 +763,7 @@ function newLogSelector(logger, formFields) {
 		<div>
 			<button
 				class="js-reset m-2 px-2 bg-color3 hover:bg-color2"
-				style="border-radius: calc(var(--scale) * 0.5rem);"
+				style="border-radius: var(--radius-lg);"
 			>
 				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
 					>Reset</span
@@ -771,7 +771,7 @@ function newLogSelector(logger, formFields) {
 			</button>
 			<button
 				class="log-apply-btn m-2 px-2 js-apply bg-green hover:bg-green2"
-				style="border-radius: calc(var(--scale) * 0.5rem); float: right;"
+				style="border-radius: var(--radius-lg); float: right;"
 			>
 				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
 					>Apply</span

@@ -123,7 +123,7 @@ describe("newForm", () => {
     <button id="uid1"
             class="m-2 px-2 bg-red hover:bg-red2"
             style="
-					border-radius: calc(var(--scale) * 0.5rem);
+					border-radius: var(--radius-lg);
 					margin-left: auto;
 				"
     >
@@ -169,7 +169,7 @@ describe("newForm", () => {
     <button id="uid1"
             class="m-2 px-2 bg-green hover:bg-green2"
             style="
-					border-radius: calc(var(--scale) * 0.5rem);
+					border-radius: var(--radius-lg);
 				"
     >
       <span class="text-color"
@@ -181,7 +181,7 @@ describe("newForm", () => {
     <button id="uid2"
             class="m-2 px-2 bg-red hover:bg-red2"
             style="
-					border-radius: calc(var(--scale) * 0.5rem);
+					border-radius: var(--radius-lg);
 					margin-left: auto;
 				"
     >
@@ -236,7 +236,7 @@ describe("newField", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: calc(var(--scale) * 0.5rem);
+					padding-left: var(--radius-lg);
 				"
          type="number"
          placeholder="b"
@@ -368,7 +368,7 @@ describe("fieldTemplate", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: calc(var(--scale) * 0.5rem);
+					padding-left: var(--radius-lg);
 				"
          type="text"
          placeholder="2"
@@ -419,7 +419,7 @@ describe("fieldTemplate", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: calc(var(--scale) * 0.5rem);
+					padding-left: var(--radius-lg);
 				"
          type="number"
          placeholder="2"
@@ -576,7 +576,7 @@ describe("fieldTemplate", () => {
             style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: calc(var(--scale) * 0.5rem);
+			border-radius: var(--radius-lg);
 		"
     >
       <img class="p-1 icon-filter"
@@ -665,7 +665,7 @@ describe("selectCustomField", () => {
             style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: calc(var(--scale) * 0.5rem);
+			border-radius: var(--radius-lg);
 		"
     >
       <img class="p-1 icon-filter"
@@ -712,7 +712,7 @@ test("newModalFieldHTML", () => {
           style="
 			aspect-ratio: 1;
 			width: calc(var(--scale) * 3rem);
-			border-radius: calc(var(--scale) * 0.5rem);
+			border-radius: var(--radius-lg);
 		"
   >
     <img class="p-1 icon-filter"
@@ -745,7 +745,7 @@ describe("passwordField", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: calc(var(--scale) * 0.5rem);
+					padding-left: var(--radius-lg);
 				"
          type="password"
          placeholder
@@ -778,7 +778,7 @@ describe("passwordField", () => {
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
 					font-size: calc(var(--scale) * 1.5rem);
-					padding-left: calc(var(--scale) * 0.5rem);
+					padding-left: var(--radius-lg);
 				"
          type="password"
          placeholder

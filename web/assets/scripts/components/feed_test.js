@@ -41,7 +41,7 @@ describe("feed", () => {
 							bottom: 0;
 							margin-bottom: 5%;
 							border: none;
-							border-radius: calc(var(--scale) * 0.375rem);
+							border-radius: var(--radius-md);
 						"
     >
       <button class="js-fullscreen-btn feed-btn p-2"

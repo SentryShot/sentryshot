@@ -293,6 +293,9 @@ progress[value]::-moz-progress-bar {
 	--color-orange: hsl(40deg 100% 50%);
 	--color-red: hsl(0deg 70% 50%);
 	--color-red2: hsl(0deg 70% 40%);
+	--radius-md: calc(var(--scale) * 0.375rem);
+	--radius-lg: calc(var(--scale) * 0.5rem);
+	--radius-xl: calc(var(--scale) * 0.75rem);
 }
 
 ul {
@@ -584,7 +587,7 @@ img {
 	color: var(--color-text);
 	border-width: 2px;
 	border-color: var(--color2);
-	border-radius: calc(var(--scale) * 0.5rem);
+	border-radius: var(--radius-lg);
 	background: var(--color3);
 	font-size: calc(var(--scale) * 1.5rem);
 	line-height: calc(var(--scale) * 1.9rem);
@@ -689,7 +692,7 @@ img {
 	margin-left: calc(var(--spacing) * 7);
 	padding: 0;
 	border: 0;
-	border-radius: calc(var(--scale) * 0.5rem);
+	border-radius: var(--radius-lg);
 }
 
 .form-field-select-custom-btn:hover {
@@ -932,10 +935,11 @@ img {
 	.modal {
 		width: 30vw;
 		max-height: 90vh;
-		border-radius: calc(var(--scale) * 0.5rem);
+		border-radius: var(--radius-lg);
 	}
 
 	.modal-header {
-		border-radius: calc(var(--scale) * 0.5rem) calc(var(--scale) * 0.5rem) 0 0;
+		border-top-left-radius: var(--radius-lg);
+		border-top-right-radius: var(--radius-lg);
 	}
 }
