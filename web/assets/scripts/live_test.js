@@ -117,10 +117,9 @@ test("fullscreen", () => {
 						"
     >
       <a href="http://test.com/recordings#monitors=undefined"
-         class="feed-btn p-1"
+         class="feed-btn p-1 bg-transparent"
          style="
 					font-size: 0;
-					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
 				"
       >
@@ -129,10 +128,9 @@ test("fullscreen", () => {
              src="assets/icons/feather/film.svg"
         >
       </a>
-      <button class="js-fullscreen-btn feed-btn p-1"
+      <button class="js-fullscreen-btn feed-btn p-1 bg-transparent"
               style="
 					font-size: 0;
-					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
 				"
       >
@@ -185,10 +183,9 @@ test("fullscreen", () => {
 						"
     >
       <a href="http://test.com/recordings#monitors=undefined"
-         class="feed-btn p-1"
+         class="feed-btn p-1 bg-transparent"
          style="
 					font-size: 0;
-					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
 				"
       >
@@ -197,10 +194,9 @@ test("fullscreen", () => {
              src="assets/icons/feather/film.svg"
         >
       </a>
-      <button class="js-fullscreen-btn feed-btn p-1"
+      <button class="js-fullscreen-btn feed-btn p-1 bg-transparent"
               style="
 					font-size: 0;
-					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
 				"
       >

@@ -203,9 +203,8 @@ describe("newPlayer", () => {
         >
         </rect>
       </svg>
-      <progress class="js-progress w-full h-full py-1"
+      <progress class="js-progress w-full h-full py-1 bg-transparent"
                 style="
-					background: rgb(0 0 0 / 0%);
 					opacity: 0.8;
 					user-select: none;
 				"
@@ -237,17 +236,14 @@ describe("newPlayer", () => {
         <a download="2001-06-02_00:00:00_D.mp4"
            ]
            href="C"
-           class="p-1"
-           style="background-color: rgb(0 0 0 / 0%);"
+           class="p-1 bg-transparent"
         >
           <img class="icon-filter"
                style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
                src="assets/icons/feather/download.svg"
           >
         </a>
-        <button class="js-fullscreen p-1"
-                style="background-color: rgb(0 0 0 / 0%);"
-        >
+        <button class="js-fullscreen p-1 bg-transparent">
           <img class="icon-filter"
                style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
                src="assets/icons/feather/maximize.svg"
@@ -481,9 +477,7 @@ describe("newPlayer", () => {
 
 		// Popup buttons after click.
 		expect(element.querySelector(".js-popup").innerHTML).toMatchInlineSnapshot(`
-<button class="js-delete p-1"
-        style="background-color: rgb(0 0 0 / 0%);"
->
+<button class="js-delete p-1 bg-transparent">
   <img class="icon-filter"
        style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
        src="assets/icons/feather/trash-2.svg"
@@ -492,17 +486,14 @@ describe("newPlayer", () => {
 <a download="2001-06-02_00:00:00_D.mp4"
    ]
    href="C"
-   class="p-1"
-   style="background-color: rgb(0 0 0 / 0%);"
+   class="p-1 bg-transparent"
 >
   <img class="icon-filter"
        style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
        src="assets/icons/feather/download.svg"
   >
 </a>
-<button class="js-fullscreen p-1"
-        style="background-color: rgb(0 0 0 / 0%);"
->
+<button class="js-fullscreen p-1 bg-transparent">
   <img class="icon-filter"
        style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
        src="assets/icons/feather/maximize.svg"

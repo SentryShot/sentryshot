@@ -184,10 +184,9 @@ function newFullscreenBtn() {
 	return {
 		html: /* HTML */ `
 			<button
-				class="js-fullscreen-btn feed-btn p-1"
+				class="js-fullscreen-btn feed-btn p-1 bg-transparent"
 				style="
 					font-size: 0;
-					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
 				"
 			>
@@ -235,10 +234,9 @@ function newRecordingsBtn(monitorIds) {
 		html: /* HTML */ `
 			<a
 				href="${recordingsPath}"
-				class="feed-btn p-1"
+				class="feed-btn p-1 bg-transparent"
 				style="
 					font-size: 0;
-					background: rgb(0 0 0 / 0%);
 					aspect-ratio: 1;
 				"
 			>

@@ -201,9 +201,8 @@ function newPlayer(data, isAdmin, token) {
 		>
 			${renderTimeline(d)}
 			<progress
-				class="js-progress w-full h-full py-1"
+				class="js-progress w-full h-full py-1 bg-transparent"
 				style="
-					background: rgb(0 0 0 / 0%);
 					opacity: 0.8;
 					user-select: none;
 				"
@@ -237,7 +236,7 @@ function newPlayer(data, isAdmin, token) {
 				${
 					isAdmin
 						? `
-				<button class="js-delete p-1" style="background-color: rgb(0 0 0 / 0%);">
+				<button class="js-delete p-1 bg-transparent">
 					<img
 						class="icon-filter"
 						style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
@@ -249,8 +248,7 @@ function newPlayer(data, isAdmin, token) {
 				<a
 					download="${fileName}"]
 					href="${d.videoPath}"
-					class="p-1"
-					style="background-color: rgb(0 0 0 / 0%);"
+					class="p-1 bg-transparent"
 				>
 					<img
 						class="icon-filter"
@@ -258,7 +256,7 @@ function newPlayer(data, isAdmin, token) {
 						src="assets/icons/feather/download.svg"
 					>
 				</a>
-				<button class="js-fullscreen p-1" style="background-color: rgb(0 0 0 / 0%);">
+				<button class="js-fullscreen p-1 bg-transparent">
 					<img
 						class="icon-filter"
 						style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"

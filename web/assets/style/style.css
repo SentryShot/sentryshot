@@ -373,6 +373,10 @@ img {
 	background: var(--color-red2);
 }
 
+.bg-transparent {
+	background-color: transparent;
+}
+
 .border-color1 {
 	border-color: var(--color1);
 }
