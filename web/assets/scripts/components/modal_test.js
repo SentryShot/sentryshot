@@ -19,9 +19,7 @@ test("newModal", () => {
 	expect(document.querySelector(".modal").innerHTML).toMatchInlineSnapshot(`
 <header class="modal-header flex px-2 bg-color2">
   <span class="w-full text-center text-2 text-color"
-        style="
-								padding-left: calc(var(--scale) * 2.5rem);
-							"
+        style="padding-left: calc(var(--scale) * 2.5rem);"
   >
     test
   </span>
@@ -33,9 +31,7 @@ test("newModal", () => {
   </button>
 </header>
 <div class="js-modal-content h-full bg-color3"
-     style="
-							overflow-y: visible;
-						"
+     style="overflow-y: visible;"
 >
   a
 </div>
@@ -80,9 +76,7 @@ test("modalSelect", () => {
   <div class="modal js-modal flex">
     <header class="modal-header flex px-2 bg-color2">
       <span class="w-full text-center text-2 text-color"
-            style="
-								padding-left: calc(var(--scale) * 2.5rem);
-							"
+            style="padding-left: calc(var(--scale) * 2.5rem);"
       >
         x
       </span>
@@ -94,9 +88,7 @@ test("modalSelect", () => {
       </button>
     </header>
     <div class="js-modal-content h-full bg-color3"
-         style="
-							overflow-y: visible;
-						"
+         style="overflow-y: visible;"
     >
       <div class="js-selector flex"
            style="flex-wrap: wrap;"

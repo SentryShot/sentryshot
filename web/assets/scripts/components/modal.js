@@ -39,18 +39,12 @@ function newModal(label, content = "") {
 				"
 			>
 				<div class="modal js-modal flex">
-					<header
-						class="modal-header flex px-2 bg-color2"
-					>
+					<header class="modal-header flex px-2 bg-color2">
 						<span
 							class="w-full text-center text-2 text-color"
-							style="
-								padding-left: calc(var(--scale) * 2.5rem);
-							"
+							style="padding-left: calc(var(--scale) * 2.5rem);"
 						>${label}</span>
-						<button
-							class="js-modal-close-btn flex m-auto rounded-md bg-color3"
-						>
+						<button class="js-modal-close-btn flex m-auto rounded-md bg-color3">
 							<img
 								class="icon-filter"
 								style="width: calc(var(--scale) * 2.5rem);"
@@ -60,9 +54,7 @@ function newModal(label, content = "") {
 					</header>
 					<div
 						class="js-modal-content h-full bg-color3"
-						style="
-							overflow-y: visible;
-						"
+						style="overflow-y: visible;"
 					>${content}</div>
 				</div>
 			</div>`,

@@ -192,13 +192,9 @@ function newDeleteBtn(onClick) {
 			<button
 				id="${id}"
 				class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
-				style="
-					margin-left: auto;
-				"
+				style="margin-left: auto;"
 			>
-				<span class="text-2 text-color""
-					>Delete</span
-				>
+				<span class="text-2 text-color">Delete</span>
 			</button>
 		`,
 		init() {
@@ -487,10 +483,7 @@ function newNumberField(options, values) {
 const editBtnHTML = /* HTML */ `
 	<button
 		class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
-		style="
-			aspect-ratio: 1;
-			width: calc(var(--scale) * 3rem);
-		"
+		style="aspect-ratio: 1; width: calc(var(--scale) * 3rem);"
 	>
 		<img class="p-1 icon-filter" src="assets/icons/feather/edit-3.svg" />
 	</button>
@@ -561,11 +554,11 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			<span
 				class="js-error text-red"
 				style="
-						height: calc(var(--scale) * 1.5rem);
-						font-size: calc(var(--scale) * 1rem);
-						white-space: nowrap;
-						overflow: auto;
-					"
+					height: calc(var(--scale) * 1.5rem);
+					font-size: calc(var(--scale) * 1rem);
+					white-space: nowrap;
+					overflow: auto;
+				"
 			></span>
 		`;
 	}
@@ -580,9 +573,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			<label
 				for="label-${id}"
 				class="grow w-full text-1.5 text-color"
-				style="
-					float: left;
-				"
+				style="float: left;"
 				>${label}</label
 			>
 			${innerHTML} ${errorFieldHTML}

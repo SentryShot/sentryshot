@@ -61,11 +61,7 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 				<div
 					id="${elementID}"
 					class="relative flex justify-center items-center w-full"
-					style="
-						max-height: 100vh;
-						align-self: center;
-						--player-timeline-width: 90%;
-					"
+					style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
 				>
 					<input
 						id="${checkboxID}"
@@ -75,10 +71,7 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 					/>
 					<label
 						class="absolute w-full h-full"
-						style="
-							z-index: 1;
-							opacity: 0.5;
-						"
+						style="z-index: 1; opacity: 0.5;"
 						for="${checkboxID}"
 					></label>
 					<div
@@ -94,10 +87,7 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 					</div>
 					<video
 						class="w-full h-full"
-						style="
-							max-height: 100vh;
-							object-fit: contain;
-						"
+						style="max-height: 100vh; object-fit: contain;"
 						muted
 						disablepictureinpicture
 						playsinline

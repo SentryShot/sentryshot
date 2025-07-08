@@ -26,12 +26,7 @@
 			src="assets/icons/feather/menu.svg"
 		/>
 	</button>
-	<h1
-		id="current-page"
-		class="m-auto text-2 text-color"
-	>
-		{{ current_page }}
-	</h1>
+	<h1 id="current-page" class="m-auto text-2 text-color">{{ current_page }}</h1>
 	<button id="topbar-options-btn" class="bg-color1" style="visibility: hidden">
 		<img
 			class="icon-filter p-3"
@@ -77,8 +72,7 @@
 				src="assets/icons/feather/video.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span class="ml-2 text-2 text-color">Live</span
-			>
+			<span class="ml-2 text-2 text-color">Live</span>
 		</a>
 		<a
 			href="recordings"
@@ -91,8 +85,7 @@
 				src="assets/icons/feather/film.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span class="ml-2 text-2 text-color">Recordings</span
-			>
+			<span class="ml-2 text-2 text-color">Recordings</span>
 		</a>
 		{% if is_admin %}
 		<a
@@ -106,8 +99,7 @@
 				src="assets/icons/feather/settings.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span class="ml-2 text-2 text-color">Settings</span
-			>
+			<span class="ml-2 text-2 text-color">Settings</span>
 		</a>
 		<a
 			href="logs"
@@ -120,9 +112,7 @@
 				src="assets/icons/feather/book-open.svg"
 				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
 			/>
-			<span class="ml-2 text-2 text-color"
-				>Logs</span
-			>
+			<span class="ml-2 text-2 text-color">Logs</span>
 		</a>
 		{% endif %}
 		<!-- NAVBAR_BOTTOM -->

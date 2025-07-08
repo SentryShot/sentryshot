@@ -133,9 +133,7 @@ export function motion2(hasSubStream, getMonitorId) {
  */
 
 const zoneSelectFieldHTML = /* HTML */ `
-	<li
-		class="items-center p-2 border-b-2 border-color1"
-	>
+	<li class="items-center p-2 border-b-2 border-color1">
 		<div class="flex w-full">
 			<select
 				class="js-zone-select w-full pl-2 text-1.5"
@@ -154,7 +152,6 @@ const zoneSelectFieldHTML = /* HTML */ `
 				class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
 			>
 				<img
-			"
 					class="p-1 icon-filter"
 					style="width: calc(var(--scale) * 2.5rem);"
 					src="assets/icons/feather/minus.svg"
@@ -168,18 +165,13 @@ const thresholdsFieldHTML = /* HTML */ `
 	<li class="items-center p-2 border-b-2 border-color1">
 		<label
 			class="grow w-full text-1.5 text-color"
-			style="
-					float: left;
-					min-width: calc(var(--scale) * 13.5rem);
-				"
+			style="float: left; min-width: calc(var(--scale) * 13.5rem);"
 			>Threshold Min-Max</label
 		>
 		<div class="flex w-full">
 			<input
 				class="js-threshold-min w-full mr-4 pl-2 text-1.5"
-				style="
-					height: calc(var(--scale) * 2.5rem);
-				"
+				style="height: calc(var(--scale) * 2.5rem);"
 				type="number"
 				min="0"
 				max="100"
@@ -187,9 +179,7 @@ const thresholdsFieldHTML = /* HTML */ `
 			/>
 			<input
 				class="js-threshold-max grow w-full pl-2 text-1.5"
-				style="
-					height: calc(var(--scale) * 2.5rem);
-				"
+				style="height: calc(var(--scale) * 2.5rem);"
 				type="number"
 				min="0"
 				max="100"
@@ -202,10 +192,7 @@ const thresholdsFieldHTML = /* HTML */ `
 const zonesPreviewOptionsHTML = /* HTML */ `
 	<li
 		class="flex items-center p-2 border-b-2 border-color1"
-		style="
-			flex-wrap: wrap;
-			justify-content: space-between
-		"
+		style="flex-wrap: wrap; justify-content: space-between"
 	>
 		<div class="flex">
 			<button
@@ -703,13 +690,13 @@ function zones(hasSubStream, getMonitorId) {
 function newZone($parent, value, stepSize, onChange) {
 	const html = () => {
 		return /* HTML */ `
-		<svg
-			class="absolute w-full h-full"
-			style="overflow: visible"
-			viewBox="0 0 100 100"
-			preserveAspectRatio="none"
-		>
-		</svg>`.trim();
+			<svg
+				class="absolute w-full h-full"
+				style="overflow: visible"
+				viewBox="0 0 100 100"
+				preserveAspectRatio="none"
+			></svg>
+		`;
 	};
 
 	const template = document.createElement("template");

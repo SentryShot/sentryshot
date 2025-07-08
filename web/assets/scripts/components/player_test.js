@@ -56,19 +56,11 @@ describe("newPlayer", () => {
        style="max-height: 100vh; align-self: center;"
   >
     <img class="w-full h-full"
-         style="
-				max-height: 100vh;
-				object-fit: contain;
-			"
+         style="max-height: 100vh; object-fit: contain;"
          src="B"
     >
     <div class="js-top-overlay absolute flex mr-auto"
-         style="
-				flex-wrap: wrap;
-				opacity: 0.8;
-				top: 0;
-				left: 0;
-			"
+         style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
     >
       <span class="js-date pl-2 pr-1 text-color bg-color0">
         2001-06-02
@@ -76,9 +68,7 @@ describe("newPlayer", () => {
       <span class="js-time px-1 text-color bg-color0">
         00:00:00
       </span>
-      <span class="text-color pl-1 pr-2 bg-color0"
-            "
-      >
+      <span class="text-color pl-1 pr-2 bg-color0">
         D
       </span>
     </div>
@@ -123,12 +113,7 @@ describe("newPlayer", () => {
        class="relative flex justify-center items-center w-full js-loaded"
        style="max-height: 100vh; align-self: center;"
   >
-    <video style="
-				max-height: 100vh;
-				min-width: 100%;
-				min-height: 100%;
-				object-fit: contain;
-			"
+    <video style="max-height: 100vh; min-width: 100%; min-height: 100%; object-fit: contain;"
            disablepictureinpicture
     >
       <source src="C"
@@ -152,22 +137,14 @@ describe("newPlayer", () => {
     >
     <label for="uid1-overlay-checkbox"
            class="w-full h-full absolute"
-           style="
-				z-index: 1;
-				opacity: 0.5;
-			"
+           style="z-index: 1; opacity: 0.5;"
     >
     </label>
     <div class="player-overlay absolute flex justify-center"
-         style="
-				z-index: 2;
-			"
+         style="z-index: 2;"
     >
       <button class="js-play-btn p-1 bg-color0"
-              style="
-					border-radius: 50%;
-					opacity: 0.8;
-				"
+              style="border-radius: 50%; opacity: 0.8;"
       >
         <img style="aspect-ratio: 1; height: calc(var(--scale) * 1.5rem); filter: invert(90%);"
              src="assets/icons/feather/pause.svg"
@@ -203,10 +180,7 @@ describe("newPlayer", () => {
         </rect>
       </svg>
       <progress class="js-progress w-full h-full py-1 bg-transparent"
-                style="
-					opacity: 0.8;
-					user-select: none;
-				"
+                style="opacity: 0.8; user-select: none;"
                 value="0"
                 min="0"
       >
@@ -233,7 +207,6 @@ describe("newPlayer", () => {
 				"
       >
         <a download="2001-06-02_00:00:00_D.mp4"
-           ]
            href="C"
            class="p-1 bg-transparent"
         >
@@ -251,12 +224,7 @@ describe("newPlayer", () => {
       </div>
     </div>
     <div class="js-top-overlay player-overlay absolute flex mr-auto"
-         style="
-				flex-wrap: wrap;
-				opacity: 0.8;
-				top: 0;
-				left: 0;
-			"
+         style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
     >
       <span class="js-date pl-2 pr-1 text-color bg-color0">
         2001-06-02
@@ -264,9 +232,7 @@ describe("newPlayer", () => {
       <span class="js-time px-1 text-color bg-color0">
         00:00:00
       </span>
-      <span class="text-color pl-1 pr-2 bg-color0"
-            "
-      >
+      <span class="text-color pl-1 pr-2 bg-color0">
         D
       </span>
     </div>
@@ -294,21 +260,13 @@ describe("newPlayer", () => {
       <img
         class="w-full h-full"
         src="B"
-        style="
-				max-height: 100vh;
-				object-fit: contain;
-			"
+        style="max-height: 100vh; object-fit: contain;"
       />
       
 		
       <div
         class="js-top-overlay absolute flex mr-auto"
-        style="
-				flex-wrap: wrap;
-				opacity: 0.8;
-				top: 0;
-				left: 0;
-			"
+        style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
       >
         
 			
@@ -328,7 +286,6 @@ describe("newPlayer", () => {
         
 		
         <span
-          "=""
           class="text-color pl-1 pr-2 bg-color0"
         >
           D
@@ -413,19 +370,11 @@ describe("newPlayer", () => {
        style="max-height: 100vh; align-self: center;"
   >
     <img class="w-full h-full"
-         style="
-				max-height: 100vh;
-				object-fit: contain;
-			"
+         style="max-height: 100vh; object-fit: contain;"
          src="B"
     >
     <div class="js-top-overlay absolute flex mr-auto"
-         style="
-				flex-wrap: wrap;
-				opacity: 0.8;
-				top: 0;
-				left: 0;
-			"
+         style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
     >
       <span class="js-date pl-2 pr-1 text-color bg-color0">
         2001-06-02
@@ -433,9 +382,7 @@ describe("newPlayer", () => {
       <span class="js-time px-1 text-color bg-color0">
         00:00:00
       </span>
-      <span class="text-color pl-1 pr-2 bg-color0"
-            "
-      >
+      <span class="text-color pl-1 pr-2 bg-color0">
         D
       </span>
     </div>
@@ -483,7 +430,6 @@ describe("newPlayer", () => {
   >
 </button>
 <a download="2001-06-02_00:00:00_D.mp4"
-   ]
    href="C"
    class="p-1 bg-transparent"
 >

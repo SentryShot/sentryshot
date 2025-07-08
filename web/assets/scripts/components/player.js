@@ -93,36 +93,20 @@ function newPlayer(data, isAdmin, token) {
 	const fileName = `${dateString}_${timeString}_${d.name}.mp4`;
 
 	const topOverlayHTML = /* HTML */ `
-		<span
-			class="js-date pl-2 pr-1 text-color bg-color0"
-			>${dateString}</span
-		>
-		<span
-			class="js-time px-1 text-color bg-color0"
-			>${timeString}</span
-		>
-		<span class="text-color pl-1 pr-2 bg-color0""
-			>${d.name}</span
-		>
+		<span class="js-date pl-2 pr-1 text-color bg-color0">${dateString}</span>
+		<span class="js-time px-1 text-color bg-color0">${timeString}</span>
+		<span class="text-color pl-1 pr-2 bg-color0">${d.name}</span>
 	`;
 
 	const thumbHTML = /* HTML */ `
 		<img
 			class="w-full h-full"
-			style="
-				max-height: 100vh;
-				object-fit: contain;
-			"
+			style="max-height: 100vh; object-fit: contain;"
 			src="${d.thumbPath}"
 		/>
 		<div
 			class="js-top-overlay absolute flex mr-auto"
-			style="
-				flex-wrap: wrap;
-				opacity: 0.8;
-				top: 0;
-				left: 0;
-			"
+			style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
 		>
 			${topOverlayHTML}
 		</div>
@@ -143,12 +127,7 @@ function newPlayer(data, isAdmin, token) {
 
 	const videoHTML = /* HTML */ `
 		<video
-			style="
-				max-height: 100vh;
-				min-width: 100%;
-				min-height: 100%;
-				object-fit: contain;
-			"
+			style="max-height: 100vh; min-width: 100%; min-height: 100%; object-fit: contain;"
 			disablePictureInPicture
 		>
 			<source src="${d.videoPath}" type="video/mp4" />
@@ -163,23 +142,12 @@ function newPlayer(data, isAdmin, token) {
 		<label
 			for="${elementID}-overlay-checkbox"
 			class="w-full h-full absolute"
-			style="
-				z-index: 1;
-				opacity: 0.5;
-			"
+			style="z-index: 1; opacity: 0.5;"
 		></label>
-		<div
-			class="player-overlay absolute flex justify-center"
-			style="
-				z-index: 2;
-			"
-		>
+		<div class="player-overlay absolute flex justify-center" style="z-index: 2;">
 			<button
 				class="js-play-btn p-1 bg-color0"
-				style="
-					border-radius: 50%;
-					opacity: 0.8;
-				"
+				style="border-radius: 50%; opacity: 0.8;"
 			>
 				<img
 					style="aspect-ratio: 1; height: calc(var(--scale) * 1.5rem); filter: invert(90%);"
@@ -201,10 +169,7 @@ function newPlayer(data, isAdmin, token) {
 			${renderTimeline(d)}
 			<progress
 				class="js-progress w-full h-full py-1 bg-transparent"
-				style="
-					opacity: 0.8;
-					user-select: none;
-				"
+				style="opacity: 0.8; user-select: none;"
 				value="0"
 				min="0"
 			>
@@ -244,11 +209,7 @@ function newPlayer(data, isAdmin, token) {
 				</button>`
 						: ""
 				}
-				<a
-					download="${fileName}"]
-					href="${d.videoPath}"
-					class="p-1 bg-transparent"
-				>
+				<a download="${fileName}" href="${d.videoPath}" class="p-1 bg-transparent">
 					<img
 						class="icon-filter"
 						style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
@@ -266,12 +227,7 @@ function newPlayer(data, isAdmin, token) {
 		</div>
 		<div
 			class="js-top-overlay player-overlay absolute flex mr-auto"
-			style="
-				flex-wrap: wrap;
-				opacity: 0.8;
-				top: 0;
-				left: 0;
-			"
+			style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
 		>
 			${topOverlayHTML}
 		</div>

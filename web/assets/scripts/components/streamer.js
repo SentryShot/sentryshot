@@ -51,11 +51,7 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 				<div
 					id="${elementID}"
 					class="relative flex justify-center items-center w-full"
-					style="
-						max-height: 100vh;
-						align-self: center;
-						--player-timeline-width: 90%;
-					"
+					style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
 				>
 					<input
 						id="${checkboxID}"
@@ -65,29 +61,18 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 					/>
 					<label
 						class="absolute w-full h-full"
-						style="
-							z-index: 1;
-							opacity: 0.5;
-						"
+						style="z-index: 1; opacity: 0.5;"
 						for="${checkboxID}"
 					></label>
 					<div
 						class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
-						style="
-							z-index: 2;
-							bottom: 0;
-							margin-bottom: 5%;
-							border: none;
-						"
+						style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
 					>
 						${html}
 					</div>
 					<video
 						class="w-full h-full"
-						style="
-							max-height: 100vh;
-							object-fit: contain;
-						"
+						style="max-height: 100vh; object-fit: contain;"
 						autoplay
 						muted
 						disablepictureinpicture

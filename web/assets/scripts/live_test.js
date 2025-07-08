@@ -89,11 +89,7 @@ test("fullscreen", () => {
 <div class="flex justify-center">
   <div id="uid1"
        class="relative flex justify-center items-center w-full"
-       style="
-						max-height: 100vh;
-						align-self: center;
-						--player-timeline-width: 90%;
-					"
+       style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
   >
     <input id="uid2"
            class="js-checkbox player-overlay-checkbox absolute"
@@ -101,10 +97,7 @@ test("fullscreen", () => {
            type="checkbox"
     >
     <label class="absolute w-full h-full"
-           style="
-							z-index: 1;
-							opacity: 0.5;
-						"
+           style="z-index: 1; opacity: 0.5;"
            for="uid2"
     >
     </label>
@@ -132,10 +125,7 @@ test("fullscreen", () => {
       </button>
     </div>
     <video class="w-full h-full"
-           style="
-							max-height: 100vh;
-							object-fit: contain;
-						"
+           style="max-height: 100vh; object-fit: contain;"
            muted
            disablepictureinpicture
            playsinline
@@ -146,11 +136,7 @@ test("fullscreen", () => {
 <div class="flex justify-center">
   <div id="uid3"
        class="relative flex justify-center items-center w-full"
-       style="
-						max-height: 100vh;
-						align-self: center;
-						--player-timeline-width: 90%;
-					"
+       style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
   >
     <input id="uid4"
            class="js-checkbox player-overlay-checkbox absolute"
@@ -158,10 +144,7 @@ test("fullscreen", () => {
            type="checkbox"
     >
     <label class="absolute w-full h-full"
-           style="
-							z-index: 1;
-							opacity: 0.5;
-						"
+           style="z-index: 1; opacity: 0.5;"
            for="uid4"
     >
     </label>
@@ -189,10 +172,7 @@ test("fullscreen", () => {
       </button>
     </div>
     <video class="w-full h-full"
-           style="
-							max-height: 100vh;
-							object-fit: contain;
-						"
+           style="max-height: 100vh; object-fit: contain;"
            muted
            disablepictureinpicture
            playsinline

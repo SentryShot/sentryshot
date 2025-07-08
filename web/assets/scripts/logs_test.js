@@ -125,33 +125,18 @@ describe("MultiSelect", () => {
          style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
     >
       <div class="flex justify-center items-center bg-color2"
-           style="
-							width: 0.8em;
-							height: 0.8em;
-							user-select: none;
-						"
+           style="width: 0.8em; height: 0.8em; user-select: none;"
       >
         <input class="checkbox-checkbox w-full h-full"
-               style="
-								z-index: 1;
-								outline: none;
-								-moz-appearance: none;
-								-webkit-appearance: none;
-							"
+               style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
                type="checkbox"
         >
         <div class="checkbox-box absolute rounded-md"
-             style="
-								width: 0.62em;
-								height: 0.62em;
-							"
+             style="width: 0.62em; height: 0.62em;"
         >
         </div>
         <img class="checkbox-check absolute"
-             style="
-								width: 0.7em;
-								filter: invert();
-							"
+             style="width: 0.7em; filter: invert();"
              src="assets/icons/feather/check.svg"
         >
       </div>
@@ -165,33 +150,18 @@ describe("MultiSelect", () => {
          style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
     >
       <div class="flex justify-center items-center bg-color2"
-           style="
-							width: 0.8em;
-							height: 0.8em;
-							user-select: none;
-						"
+           style="width: 0.8em; height: 0.8em; user-select: none;"
       >
         <input class="checkbox-checkbox w-full h-full"
-               style="
-								z-index: 1;
-								outline: none;
-								-moz-appearance: none;
-								-webkit-appearance: none;
-							"
+               style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
                type="checkbox"
         >
         <div class="checkbox-box absolute rounded-md"
-             style="
-								width: 0.62em;
-								height: 0.62em;
-							"
+             style="width: 0.62em; height: 0.62em;"
         >
         </div>
         <img class="checkbox-check absolute"
-             style="
-								width: 0.7em;
-								filter: invert();
-							"
+             style="width: 0.7em; filter: invert();"
              src="assets/icons/feather/check.svg"
         >
       </div>
@@ -205,33 +175,18 @@ describe("MultiSelect", () => {
          style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
     >
       <div class="flex justify-center items-center bg-color2"
-           style="
-							width: 0.8em;
-							height: 0.8em;
-							user-select: none;
-						"
+           style="width: 0.8em; height: 0.8em; user-select: none;"
       >
         <input class="checkbox-checkbox w-full h-full"
-               style="
-								z-index: 1;
-								outline: none;
-								-moz-appearance: none;
-								-webkit-appearance: none;
-							"
+               style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
                type="checkbox"
         >
         <div class="checkbox-box absolute rounded-md"
-             style="
-								width: 0.62em;
-								height: 0.62em;
-							"
+             style="width: 0.62em; height: 0.62em;"
         >
         </div>
         <img class="checkbox-check absolute"
-             style="
-								width: 0.7em;
-								filter: invert();
-							"
+             style="width: 0.7em; filter: invert();"
              src="assets/icons/feather/check.svg"
         >
       </div>

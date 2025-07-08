@@ -37,10 +37,7 @@ describe("optionsGridSize", () => {
 			"
   >
     <img class="icon-filter"
-         style="
-					aspect-ratio: 1;
-					height: calc(var(--scale) * 2.7rem);
-				"
+         style="aspect-ratio: 1; height: calc(var(--scale) * 2.7rem);"
          src="assets/icons/feather/plus.svg"
     >
   </button>
@@ -53,10 +50,7 @@ describe("optionsGridSize", () => {
 			"
   >
     <img class="icon-filter"
-         style="
-					aspect-ratio: 1;
-					height: calc(var(--scale) * 2.7rem);
-				"
+         style="aspect-ratio: 1; height: calc(var(--scale) * 2.7rem);"
          src="assets/icons/feather/minus.svg"
     >
   </button>
@@ -325,27 +319,17 @@ describe("optionsMonitorGroups", () => {
 
 		const $picker = document.querySelector(".js-select-one");
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
-<span class="px-2 text-2"
-      "
->
+<span class="px-2 text-2">
   Groups
 </span>
 <span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
-      style="
-					display: block ruby;
-					border-top: solid;
-					border-top-width: 2px;
-				"
+      style="display: block ruby; border-top-width: 2px;"
       data="a"
 >
   group1
 </span>
 <span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
-      style="
-					display: block ruby;
-					border-top: solid;
-					border-top-width: 2px;
-				"
+      style="display: block ruby; border-top-width: 2px;"
       data="b"
 >
   group2
@@ -354,27 +338,17 @@ describe("optionsMonitorGroups", () => {
 
 		document.querySelector(".js-select-one span").click();
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
-<span class="px-2 text-2"
-      "
->
+<span class="px-2 text-2">
   Groups
 </span>
 <span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
-      style="
-					display: block ruby;
-					border-top: solid;
-					border-top-width: 2px;
-				"
+      style="display: block ruby; border-top-width: 2px;"
       data="a"
 >
   group1
 </span>
 <span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
-      style="
-					display: block ruby;
-					border-top: solid;
-					border-top-width: 2px;
-				"
+      style="display: block ruby; border-top-width: 2px;"
       data="b"
 >
   group2

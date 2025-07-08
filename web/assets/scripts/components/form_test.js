@@ -122,13 +122,9 @@ describe("newForm", () => {
   <div class="flex">
     <button id="uid1"
             class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
-            style="
-					margin-left: auto;
-				"
+            style="margin-left: auto;"
     >
-      <span class="text-2 text-color"
-            "
-      >
+      <span class="text-2 text-color">
         Delete
       </span>
     </button>
@@ -174,13 +170,9 @@ describe("newForm", () => {
     </button>
     <button id="uid2"
             class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
-            style="
-					margin-left: auto;
-				"
+            style="margin-left: auto;"
     >
-      <span class="text-2 text-color"
-            "
-      >
+      <span class="text-2 text-color">
         Delete
       </span>
     </button>
@@ -216,9 +208,7 @@ describe("newField", () => {
 >
   <label for="label-uid1"
          class="grow w-full text-1.5 text-color"
-         style="
-					float: left;
-				"
+         style="float: left;"
   >
     a
   </label>
@@ -237,11 +227,11 @@ describe("newField", () => {
   >
   <span class="js-error text-red"
         style="
-						height: calc(var(--scale) * 1.5rem);
-						font-size: calc(var(--scale) * 1rem);
-						white-space: nowrap;
-						overflow: auto;
-					"
+					height: calc(var(--scale) * 1.5rem);
+					font-size: calc(var(--scale) * 1rem);
+					white-space: nowrap;
+					overflow: auto;
+				"
   >
   </span>
 </li>
@@ -346,9 +336,7 @@ describe("fieldTemplate", () => {
 >
   <label for="label-uid1"
          class="grow w-full text-1.5 text-color"
-         style="
-					float: left;
-				"
+         style="float: left;"
   >
     1
   </label>
@@ -364,11 +352,11 @@ describe("fieldTemplate", () => {
   >
   <span class="js-error text-red"
         style="
-						height: calc(var(--scale) * 1.5rem);
-						font-size: calc(var(--scale) * 1rem);
-						white-space: nowrap;
-						overflow: auto;
-					"
+					height: calc(var(--scale) * 1.5rem);
+					font-size: calc(var(--scale) * 1rem);
+					white-space: nowrap;
+					overflow: auto;
+				"
   >
   </span>
 </li>
@@ -395,9 +383,7 @@ describe("fieldTemplate", () => {
 >
   <label for="label-uid1"
          class="grow w-full text-1.5 text-color"
-         style="
-					float: left;
-				"
+         style="float: left;"
   >
     1
   </label>
@@ -415,11 +401,11 @@ describe("fieldTemplate", () => {
   >
   <span class="js-error text-red"
         style="
-						height: calc(var(--scale) * 1.5rem);
-						font-size: calc(var(--scale) * 1rem);
-						white-space: nowrap;
-						overflow: auto;
-					"
+					height: calc(var(--scale) * 1.5rem);
+					font-size: calc(var(--scale) * 1rem);
+					white-space: nowrap;
+					overflow: auto;
+				"
   >
   </span>
 </li>
@@ -448,9 +434,7 @@ describe("fieldTemplate", () => {
 >
   <label for="label-uid1"
          class="grow w-full text-1.5 text-color"
-         style="
-					float: left;
-				"
+         style="float: left;"
   >
     1
   </label>
@@ -490,9 +474,7 @@ describe("fieldTemplate", () => {
 >
   <label for="label-uid1"
          class="grow w-full text-1.5 text-color"
-         style="
-					float: left;
-				"
+         style="float: left;"
   >
     1
   </label>
@@ -535,9 +517,7 @@ describe("fieldTemplate", () => {
 >
   <label for="label-uid1"
          class="grow w-full text-1.5 text-color"
-         style="
-					float: left;
-				"
+         style="float: left;"
   >
     y
   </label>
@@ -557,10 +537,7 @@ describe("fieldTemplate", () => {
       </option>
     </select>
     <button class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
-            style="
-			aspect-ratio: 1;
-			width: calc(var(--scale) * 3rem);
-		"
+            style="aspect-ratio: 1; width: calc(var(--scale) * 3rem);"
     >
       <img class="p-1 icon-filter"
            src="assets/icons/feather/edit-3.svg"
@@ -569,11 +546,11 @@ describe("fieldTemplate", () => {
   </div>
   <span class="js-error text-red"
         style="
-						height: calc(var(--scale) * 1.5rem);
-						font-size: calc(var(--scale) * 1rem);
-						white-space: nowrap;
-						overflow: auto;
-					"
+					height: calc(var(--scale) * 1.5rem);
+					font-size: calc(var(--scale) * 1rem);
+					white-space: nowrap;
+					overflow: auto;
+				"
   >
   </span>
 </li>
@@ -622,9 +599,7 @@ describe("selectCustomField", () => {
 >
   <label for="label-uid1"
          class="grow w-full text-1.5 text-color"
-         style="
-					float: left;
-				"
+         style="float: left;"
   >
     d
   </label>
@@ -644,10 +619,7 @@ describe("selectCustomField", () => {
       </option>
     </select>
     <button class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
-            style="
-			aspect-ratio: 1;
-			width: calc(var(--scale) * 3rem);
-		"
+            style="aspect-ratio: 1; width: calc(var(--scale) * 3rem);"
     >
       <img class="p-1 icon-filter"
            src="assets/icons/feather/edit-3.svg"
@@ -690,10 +662,7 @@ test("newModalFieldHTML", () => {
     test
   </label>
   <button class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
-          style="
-			aspect-ratio: 1;
-			width: calc(var(--scale) * 3rem);
-		"
+          style="aspect-ratio: 1; width: calc(var(--scale) * 3rem);"
   >
     <img class="p-1 icon-filter"
          src="assets/icons/feather/edit-3.svg"
@@ -712,9 +681,7 @@ describe("passwordField", () => {
 >
   <label for="label-uid1"
          class="grow w-full text-1.5 text-color"
-         style="
-					float: left;
-				"
+         style="float: left;"
   >
     New password
   </label>
@@ -730,11 +697,11 @@ describe("passwordField", () => {
   >
   <span class="js-error text-red"
         style="
-						height: calc(var(--scale) * 1.5rem);
-						font-size: calc(var(--scale) * 1rem);
-						white-space: nowrap;
-						overflow: auto;
-					"
+					height: calc(var(--scale) * 1.5rem);
+					font-size: calc(var(--scale) * 1rem);
+					white-space: nowrap;
+					overflow: auto;
+				"
   >
   </span>
 </li>
@@ -743,9 +710,7 @@ describe("passwordField", () => {
 >
   <label for="label-uid2"
          class="grow w-full text-1.5 text-color"
-         style="
-					float: left;
-				"
+         style="float: left;"
   >
     Repeat password
   </label>
@@ -761,11 +726,11 @@ describe("passwordField", () => {
   >
   <span class="js-error text-red"
         style="
-						height: calc(var(--scale) * 1.5rem);
-						font-size: calc(var(--scale) * 1rem);
-						white-space: nowrap;
-						overflow: auto;
-					"
+					height: calc(var(--scale) * 1.5rem);
+					font-size: calc(var(--scale) * 1rem);
+					white-space: nowrap;
+					overflow: auto;
+				"
   >
   </span>
 </li>

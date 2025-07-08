@@ -49,10 +49,7 @@ function optionsMenuBtnHTML(id, icon, tag = "") {
 		inner = /* HTML */ `
 			<img
 				class="icon-filter"
-				style="
-					aspect-ratio: 1;
-					height: calc(var(--scale) * 2.7rem);
-				"
+				style="aspect-ratio: 1; height: calc(var(--scale) * 2.7rem);"
 				src="${icon}"
 			/>
 		`;
@@ -224,10 +221,7 @@ function newOptionsPopup(label, icon, htmlContent) {
 			<div
 				id="${popupId}"
 				class="options-popup absolute flex-col m-auto bg-color2"
-				style="
-					display: none;
-					max-height: 100dvh;
-				"
+				style="display: none; max-height: 100dvh;"
 			>
 				<div style="overflow-y: auto;">${htmlContent}</div>
 			</div>
@@ -267,39 +261,26 @@ function toMonthString(time) {
 
 const datePickerHTML = /* HTML */ `
 	<div class="p-2">
-		<div
-			class="flex items-center border-color2"
-		>
+		<div class="flex items-center border-color2">
 			<button class="js-prev-month bg-color2">
 				<img
 					class="icon-filter"
-					style="
-						height: calc(var(--scale) * 2.5rem);
-						aspect-ratio: 1;
-					"
+					style="height: calc(var(--scale) * 2.5rem); aspect-ratio: 1;"
 					src="assets/icons/feather/chevron-left.svg"
 				>
 			</button>
-			<span
-				class="js-month w-full text-center text-1.3 text-color"
-			></span>
+			<span class="js-month w-full text-center text-1.3 text-color"></span>
 			<button class="js-next-month bg-color2">
 				<img
 					class="icon-filter"
-					style="
-						height: calc(var(--scale) * 2.5rem);
-						aspect-ratio: 1;
-					"
+					style="height: calc(var(--scale) * 2.5rem); aspect-ratio: 1;"
 					src="assets/icons/feather/chevron-right.svg"
 				>
 			</button>
 		</div>
 		<div
 			class="js-calendar text-2"
-			style="
-				display: grid;
-				grid-template-columns: repeat(7, auto);
-			"
+			style="display: grid; grid-template-columns: repeat(7, auto);"
 		>
 			<button class="date-picker-day-btn">00</button>
 			<button class="date-picker-day-btn">00</button>
@@ -345,24 +326,15 @@ const datePickerHTML = /* HTML */ `
 			<button class="date-picker-day-btn">00</button>
 		</div>
 		<div class="date-picker-hour">
-			<div
-				class="flex flex-col justify-center mr-2"
-			>
-				<button
-					class="js-next-hour bg-color3 hover:bg-color2"
-				>
+			<div class="flex flex-col justify-center mr-2">
+				<button class="js-next-hour bg-color3 hover:bg-color2">
 					<img
 						class="icon-filter"
-						style="
-							width: calc(var(--scale) * 1.5rem);
-							height: calc(var(--scale) * 1.5rem);
-						"
+						style="width: calc(var(--scale) * 1.5rem); height: calc(var(--scale) * 1.5rem);"
 						src="assets/icons/feather/chevron-up.svg"
 					>
 				</button>
-				<button
-					class="js-prev-hour bg-color3 hover:bg-color2"
-				>
+				<button class="js-prev-hour bg-color3 hover:bg-color2">
 					<img
 						class="icon-filter"
 						style="
@@ -373,9 +345,7 @@ const datePickerHTML = /* HTML */ `
 						src="assets/icons/feather/chevron-down.svg">
 				</button>
 			</div>
-			<div
-				class="flex items-center"
-			>
+			<div class="flex items-center">
 				<input
 					class="date-picker-hour-input js-hour pr-1 text-1.5"
 					type="number"
@@ -388,9 +358,7 @@ const datePickerHTML = /* HTML */ `
 						text-align: end;
 					"
 				></input>
-				<span
-					class="text-2 text-color"
-				>:</span>
+				<span class="text-2 text-color">:</span>
 				<input
 					class="date-picker-hour-input js-minute pl-1 text-1.5"
 					type="number"
@@ -403,12 +371,8 @@ const datePickerHTML = /* HTML */ `
 					"
 				></input>
 			</div>
-			<div
-				class="flex flex-col justify-center ml-2"
-			>
-				<button
-					class="js-next-minute bg-color3 hover:bg-color2"
-				>
+			<div class="flex flex-col justify-center ml-2">
+				<button class="js-next-minute bg-color3 hover:bg-color2">
 					<img
 						class="icon-filter"
 						style="
@@ -419,9 +383,7 @@ const datePickerHTML = /* HTML */ `
 						src="assets/icons/feather/chevron-up.svg"
 					>
 				</button>
-				<button
-					class="js-prev-minute bg-color3 hover:bg-color2"
-				>
+				<button class="js-prev-minute bg-color3 hover:bg-color2">
 					<img
 						class="icon-filter"
 						style="
@@ -434,12 +396,7 @@ const datePickerHTML = /* HTML */ `
 				</button>
 			</div>
 		</div>
-		<div
-			class="flex"
-			style="
-				justify-content: space-around;
-			"
-		>
+		<div class="flex" style="justify-content: space-around;">
 			<button
 				class="js-reset px-2 rounded-md text-1.5 text-color bg-color3 hover:bg-color2"
 			>Reset</button>
@@ -720,11 +677,7 @@ function newSelectOne(options, onSelect, alias) {
 		optionsHTML += /* HTML */ `
 			<span
 				class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
-				style="
-					display: block ruby;
-					border-top: solid;
-					border-top-width: 2px;
-				"
+				style="display: block ruby; border-top-width: 2px;"
 				data="${option.id}"
 				>${option.label}</span
 			>
@@ -736,9 +689,7 @@ function newSelectOne(options, onSelect, alias) {
 	return {
 		html: /* HTML */ `
 			<div id=${id} class="js-select-one flex flex-col text-center text-color">
-				<span class="px-2 text-2""
-					>Groups</span
-				>
+				<span class="px-2 text-2">Groups</span>
 				${optionsHTML}
 			</div>
 		`,

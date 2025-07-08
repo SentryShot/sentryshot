@@ -54,9 +54,7 @@ function newRenderer($parent) {
 					<li
 						id="js-set-category-${category.name()}"
 						class="js-set-settings-category flex items-center py-1 pl-4 border border-color3 hover:bg-color3"
-						style="
-							padding-right: calc(var(--spacing) * 14);
-						"
+						style="padding-right: calc(var(--spacing) * 14);"
 					>
 						<img
 							class="mr-2 icon-filter"
@@ -118,9 +116,7 @@ function categoryTitleHTML(title = "") {
 	return /* HTML */ `
 		<span
 			class="js-category-title w-full m-auto text-center text-2 text-color"
-			style="
-				margin-right: calc(var(--scale) * 3rem);;
-			"
+			style="margin-right: calc(var(--scale) * 3rem);"
 			>${title}</span
 		>
 	`;
@@ -129,9 +125,7 @@ function categoryTitleHTML(title = "") {
 const menubarHTML = /* HTML */ `
 	<div
 		class="js-settings-menubar settings-menubar px-2 border border-color3 bg-color2"
-		style="
-			height: var(--topbar-height);
-		"
+		style="height: var(--topbar-height);"
 	>
 		<nav class="js-settings-subcategory-back flex shrink-0">${backIconHTML}</nav>
 		${categoryTitleHTML()}
@@ -305,10 +299,7 @@ function newCategory(categoryName, title) {
 			return /* HTML */ `
 				<div
 					class="settings-category flex flex-col shrink-0 h-full bg-color2"
-					style="
-						z-index: 0;
-						overflow-y: auto;
-					"
+					style="z-index: 0; overflow-y: auto;"
 				>
 					<div
 						class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
@@ -434,10 +425,7 @@ function newCategory2(categoryName, title, form) {
 			return /* HTML */ `
 				<div
 					class="settings-category flex flex-col shrink-0 h-full bg-color2"
-					style="
-						z-index: 0;
-						overflow-y: auto;
-					"
+					style="z-index: 0; overflow-y: auto;"
 				>
 					<div
 						class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
@@ -1031,34 +1019,18 @@ function newSelectMonitorField(monitors) {
 				<div
 					id="${id}"
 					class="monitor-selector-item relative flex items-center px-2 border border-color1"
-					style="
-						width: auto;
-						font-size: calc(var(--scale) * 1.8rem);
-					"
+					style="width: auto; font-size: calc(var(--scale) * 1.8rem);"
 				>
-					<span
-						class="mr-auto pr-2 text-color"
-						style="
-							user-select: none;
-						"
+					<span class="mr-auto pr-2 text-color" style="user-select: none;"
 						>${name}</span
 					>
 					<div
 						class="flex justify-center items-center rounded-md bg-color2"
-						style="
-							width: 0.8em;
-							height: 0.8em;
-							user-select: none;
-						"
+						style="width: 0.8em; height: 0.8em; user-select: none;"
 					>
 						<input
 							class="checkbox-checkbox w-full h-full"
-							style="
-								z-index: 1;
-								outline: none;
-								-moz-appearance: none;
-								-webkit-appearance: none;
-							"
+							style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
 							type="checkbox"
 						/>
 						<div
@@ -1071,10 +1043,7 @@ function newSelectMonitorField(monitors) {
 						></div>
 						<img
 							class="checkbox-check absolute"
-							style="
-								width: 0.8em;
-								filter: invert();
-							"
+							style="width: 0.8em; filter: invert();"
 							src="assets/icons/feather/check.svg"
 						/>
 					</div>

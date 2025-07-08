@@ -358,18 +358,11 @@ fn edit_templates(tmpls: &mut Templates) {
     let logout_button = "
 <div
     class=\"flex justify-center items-center\"
-    style=\"
-        width: var(--sidebar-width);
-        margin-top: auto;
-        margin-bottom: calc(var(--spacing) * 4);
-    \"
+    style=\"width: var(--sidebar-width); margin-top: auto; margin-bottom: calc(var(--spacing) * 4);\"
 >
 	<button
         class=\"mt-2 px-2 rounded-lg text-2 text-color bg-color2 hover:bg-color3\"
-        style=\"
-            border-width: 2px;
-            border-color: var(--color0);
-        \"
+        style=\"border-width: 2px; border-color: var(--color0);\"
         onclick='if (confirm(\"logout?\")) { window.location.href = \"logout\"; }'
     >
 		Logout

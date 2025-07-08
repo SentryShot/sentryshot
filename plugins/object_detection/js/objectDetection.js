@@ -174,9 +174,7 @@ function thresholds(detectors, getDetectorName) {
 			html: /* HTML */ `
 				<li
 					class="flex items-center px-2 border-color1"
-					style="
-						border-bottom-width: 1px;
-					"
+					style="border-bottom-width: 1px;"
 				>
 					<label for="${id}" class="mr-auto text-1.5 text-color"
 						>${label}</label
@@ -184,9 +182,7 @@ function thresholds(detectors, getDetectorName) {
 					<input
 						id="${id}"
 						class="text-center h-full text-1.5"
-						style="
-							width: calc(var(--scale) * 4rem);
-						"
+						style="width: calc(var(--scale) * 4rem);"
 						type="number"
 						value="${val}"
 						min="0"
@@ -351,10 +347,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				<div class="js-preview-wrapper relative">
 					<div
 						class="js-feed flex w-full"
-						style="
-							min-width: 0;
-							background: white;
-						"
+						style="min-width: 0; background: white;"
 					>
 						${feedHTML}
 					</div>
@@ -369,9 +362,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 			</li>
 			<li
 				class="js-options flex items-center p-2 border-b-2 border-color1"
-				style="
-					flex-wrap: wrap;
-				"
+				style="flex-wrap: wrap;"
 			>
 				<div
 					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
@@ -379,9 +370,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<span class="ml-1 mr-2 text-1.3 text-color">X</span>
 					<input
 						class="js-x text-center rounded-md text-1.3"
-						style="
-							width: calc(var(--scale) * 3rem);
-						"
+						style="width: calc(var(--scale) * 3rem);"
 						type="number"
 						min="0"
 						max="100"
@@ -394,9 +383,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<span class="ml-1 mr-2 text-1.3 text-color">Y</span>
 					<input
 						class="js-y text-center rounded-md text-1.3"
-						style="
-							width: calc(var(--scale) * 3rem);
-						"
+						style="width: calc(var(--scale) * 3rem);"
 						type="number"
 						min="0"
 						max="100"
@@ -409,9 +396,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 					<span class="mr-2 ml-1 text-1.3 text-color">size</span>
 					<input
 						class="js-size text-center rounded-md text-1.3"
-						style="
-							width: calc(var(--scale) * 3.5rem);
-						"
+						style="width: calc(var(--scale) * 3.5rem);"
 						type="number"
 						min="0"
 						max="100"
@@ -612,10 +597,7 @@ function denormalizeCrop(crop) {
 const maskOptionsHTML = /* HTML */ `
 	<li
 		class="flex items-center p-2 border-b-2 border-color1"
-		style="
-			flex-wrap: wrap;
-			justify-content: space-between
-		"
+		style="flex-wrap: wrap; justify-content: space-between;"
 	>
 		<div class="flex">
 			<button
@@ -705,10 +687,7 @@ function mask(hasSubStream, getMonitorId) {
 				<div class="js-preview-wrapper relative">
 					<div
 						class="js-feed flex w-full"
-						style="
-							min-width: 0;
-							background: white;
-						"
+						style="min-width: 0; background: white;"
 					>
 						${feedHTML}
 					</div>
