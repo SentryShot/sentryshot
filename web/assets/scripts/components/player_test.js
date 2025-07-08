@@ -49,119 +49,304 @@ describe("newPlayer", () => {
 		element.innerHTML = player.html;
 		player.init();
 
-		const thumbnailHTML = `
-			<div style="display: flex; justify-content: center;">
-				<div id="uid1" class="grid-item-container">
-					<img class="grid-item" src="B">
-					<div class="player-overlay-top player-top-bar">
-						<span class="player-menu-text js-date">2001-06-02</span>
-						<span class="player-menu-text js-time">00:00:00</span>
-						<span class="player-menu-text">D</span>
-					</div>
-					<svg class="player-timeline" viewBox="00100100" preserveAspectRatio="none">
-						<rect x="10" width="10" y="0" height="100"></rect>
-						<rect x="95" width="5" y="0" height="100"></rect>
-					</svg>
-				</div>
-			</div>`.replaceAll(/\s/g, "");
-
-		expect(element.innerHTML.replaceAll(/\s/g, "")).toEqual(thumbnailHTML);
+		expect(element.innerHTML).toMatchInlineSnapshot(`
+<div class="flex justify-center">
+  <div id="uid1"
+       class="relative flex justify-center items-center w-full"
+       style="max-height: 100vh; align-self: center;"
+  >
+    <img class="w-full h-full"
+         style="max-height: 100vh; object-fit: contain;"
+         src="B"
+    >
+    <div class="js-top-overlay absolute flex mr-auto"
+         style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
+    >
+      <span class="js-date pl-2 pr-1 text-color bg-color0">
+        2001-06-02
+      </span>
+      <span class="js-time px-1 text-color bg-color0">
+        00:00:00
+      </span>
+      <span class="text-color pl-1 pr-2 bg-color0">
+        D
+      </span>
+    </div>
+    <div class="absolute"
+         style="
+				z-index: 2;
+				right: calc(var(--spacing) * 4);
+				bottom: calc(var(--spacing) * 4);
+				left: calc(var(--spacing) * 4);
+				height: calc(var(--scale) * 1.5rem);
+				min-height: 3.5%;
+			"
+    >
+      <svg class="absolute w-full h-full"
+           style="fill: var(--color-red);"
+           viewbox="0 0 1000 1"
+           preserveaspectratio="none"
+      >
+        <rect x="100"
+              width="100"
+              y="0"
+              height="1"
+        >
+        </rect>
+        <rect x="950"
+              width="50"
+              y="0"
+              height="1"
+        >
+        </rect>
+      </svg>
+    </div>
+  </div>
+</div>
+`);
 
 		document.querySelector("div img").click();
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<div style="display: flex; justify-content: center;">
+<div class="flex justify-center">
   <div id="uid1"
-       class="grid-item-container js-loaded"
+       class="relative flex justify-center items-center w-full js-loaded"
+       style="max-height: 100vh; align-self: center;"
   >
-    <video class="grid-item"
+    <video style="max-height: 100vh; min-width: 100%; min-height: 100%; object-fit: contain;"
            disablepictureinpicture
     >
       <source src="C"
               type="video/mp4"
       >
     </video>
-    <svg class="js-detections player-detections"
+    <svg class="js-detections absolute w-full h-full"
+         style="
+					stroke: var(--color-red);
+					fill-opacity: 0;
+					stroke-width: calc(var(--scale) * 0.05rem);
+				"
          viewbox="0 0 100 100"
          preserveaspectratio="none"
     >
     </svg>
-    <input class="player-overlay-checkbox"
-           id="uid1-overlay-checkbox"
+    <input id="uid1-overlay-checkbox"
            type="checkbox"
+           class="js-checkbox player-overlay-checkbox absolute"
+           style="opacity: 0;"
     >
-    <label class="player-overlay-selector"
-           for="uid1-overlay-checkbox"
+    <label for="uid1-overlay-checkbox"
+           class="w-full h-full absolute"
+           style="z-index: 1; opacity: 0.5;"
     >
     </label>
-    <div class="player-overlay">
-      <button class="player-play-btn">
-        <img src="assets/icons/feather/pause.svg">
+    <div class="player-overlay absolute flex justify-center"
+         style="z-index: 2;"
+    >
+      <button class="js-play-btn p-1 bg-color0"
+              style="border-radius: 50%; opacity: 0.8;"
+      >
+        <img style="aspect-ratio: 1; height: calc(var(--scale) * 1.5rem); filter: invert(90%);"
+             src="assets/icons/feather/pause.svg"
+        >
       </button>
     </div>
-    <div class="player-overlay player-overlay-bottom">
-      <svg class="player-timeline"
-           viewbox="0 0 100 100"
+    <div class="player-overlay absolute"
+         style="
+				z-index: 2;
+				right: calc(var(--spacing) * 4);
+				bottom: calc(var(--spacing) * 4);
+				left: calc(var(--spacing) * 4);
+				height: calc(var(--scale) * 1.5rem);
+				min-height: 3.5%;
+			"
+    >
+      <svg class="absolute w-full h-full"
+           style="fill: var(--color-red);"
+           viewbox="0 0 1000 1"
            preserveaspectratio="none"
       >
-        <rect x="10"
-              width="10"
+        <rect x="100"
+              width="100"
               y="0"
-              height="100"
+              height="1"
         >
         </rect>
-        <rect x="95"
-              width="5"
+        <rect x="950"
+              width="50"
               y="0"
-              height="100"
+              height="1"
         >
         </rect>
       </svg>
-      <progress class="player-progress"
+      <progress class="js-progress w-full h-full py-1 bg-transparent"
+                style="opacity: 0.8; user-select: none;"
                 value="0"
                 min="0"
       >
-        <span class="player-progress-bar">
+        <span class="js-progress-bar">
         </span>
       </progress>
-      <button class="player-options-open-btn">
-        <div class="player-options-open-btn-icon">
-          <img class="player-options-open-btn-img"
-               src="assets/icons/feather/more-vertical-slim.svg"
-          >
-        </div>
+      <button class="js-options-open-btn player-options-open-btn absolute m-auto rounded-md bg-color0"
+              style="
+					right: calc(var(--scale) * 1rem);
+					bottom: calc(var(--scale) * 2.5rem);
+					transition: opacity 250ms;
+				"
+      >
+        <img style="width: calc(var(--scale) * 1rem); height: calc(var(--scale) * 2rem); filter: invert(90%);"
+             src="assets/icons/feather/more-vertical-slim.svg"
+        >
       </button>
-      <div class="js-popup player-options-popup">
+      <div class="js-popup absolute rounded-lg bg-color0"
+           style="
+					right: calc(var(--scale) * 0.5rem);
+					bottom: calc(var(--scale) * 5rem);
+					display: none;
+					opacity: 0.8;
+				"
+      >
         <a download="2001-06-02_00:00:00_D.mp4"
            href="C"
-           class="player-options-btn"
+           class="p-1 bg-transparent"
         >
-          <img src="assets/icons/feather/download.svg">
+          <img class="icon-filter"
+               style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
+               src="assets/icons/feather/download.svg"
+          >
         </a>
-        <button class="js-fullscreen player-options-btn">
-          <img src="assets/icons/feather/maximize.svg">
+        <button class="js-fullscreen p-1 bg-transparent">
+          <img class="icon-filter"
+               style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
+               src="assets/icons/feather/maximize.svg"
+          >
         </button>
       </div>
     </div>
-    <div class="player-overlay player-overlay-top">
-      <div class="player-top-bar">
-        <span class="player-menu-text js-date">
-          2001-06-02
-        </span>
-        <span class="player-menu-text js-time">
-          00:00:00
-        </span>
-        <span class="player-menu-text">
-          D
-        </span>
-      </div>
+    <div class="js-top-overlay player-overlay absolute flex mr-auto"
+         style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
+    >
+      <span class="js-date pl-2 pr-1 text-color bg-color0">
+        2001-06-02
+      </span>
+      <span class="js-time px-1 text-color bg-color0">
+        00:00:00
+      </span>
+      <span class="text-color pl-1 pr-2 bg-color0">
+        D
+      </span>
     </div>
   </div>
 </div>
 `);
 
 		player.reset();
-		expect(element.innerHTML.replaceAll(/\s/g, "")).toEqual(thumbnailHTML);
+		expect(element).toMatchInlineSnapshot(`
+<div>
+  
+			
+  <div
+    class="flex justify-center"
+  >
+    
+				
+    <div
+      class="relative flex justify-center items-center w-full"
+      id="uid1"
+      style="max-height: 100vh; align-self: center;"
+    >
+      
+		
+      <img
+        class="w-full h-full"
+        src="B"
+        style="max-height: 100vh; object-fit: contain;"
+      />
+      
+		
+      <div
+        class="js-top-overlay absolute flex mr-auto"
+        style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
+      >
+        
+			
+		
+        <span
+          class="js-date pl-2 pr-1 text-color bg-color0"
+        >
+          2001-06-02
+        </span>
+        
+		
+        <span
+          class="js-time px-1 text-color bg-color0"
+        >
+          00:00:00
+        </span>
+        
+		
+        <span
+          class="text-color pl-1 pr-2 bg-color0"
+        >
+          D
+        </span>
+        
+	
+		
+      </div>
+      
+		
+      <div
+        class="absolute"
+        style="
+				z-index: 2;
+				right: calc(var(--spacing) * 4);
+				bottom: calc(var(--spacing) * 4);
+				left: calc(var(--spacing) * 4);
+				height: calc(var(--scale) * 1.5rem);
+				min-height: 3.5%;
+			"
+      >
+        
+			
+		
+        <svg
+          class="absolute w-full h-full"
+          preserveAspectRatio="none"
+          style="fill: var(--color-red);"
+          viewBox="0 0 1000 1"
+        >
+          
+			
+          <rect
+            height="1"
+            width="100"
+            x="100"
+            y="0"
+          />
+          <rect
+            height="1"
+            width="50"
+            x="950"
+            y="0"
+          />
+          
+		
+        </svg>
+        
+	
+		
+      </div>
+      
+	
+    </div>
+    
+			
+  </div>
+  
+		
+</div>
+`);
 	});
 
 	test("delete", async () => {
@@ -179,41 +364,57 @@ describe("newPlayer", () => {
 
 		// Original.
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<div style="display: flex; justify-content: center;">
+<div class="flex justify-center">
   <div id="uid2"
-       class="grid-item-container"
+       class="relative flex justify-center items-center w-full"
+       style="max-height: 100vh; align-self: center;"
   >
-    <img class="grid-item"
+    <img class="w-full h-full"
+         style="max-height: 100vh; object-fit: contain;"
          src="B"
     >
-    <div class="player-overlay-top player-top-bar">
-      <span class="player-menu-text js-date">
+    <div class="js-top-overlay absolute flex mr-auto"
+         style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
+    >
+      <span class="js-date pl-2 pr-1 text-color bg-color0">
         2001-06-02
       </span>
-      <span class="player-menu-text js-time">
+      <span class="js-time px-1 text-color bg-color0">
         00:00:00
       </span>
-      <span class="player-menu-text">
+      <span class="text-color pl-1 pr-2 bg-color0">
         D
       </span>
     </div>
-    <svg class="player-timeline"
-         viewbox="0 0 100 100"
-         preserveaspectratio="none"
+    <div class="absolute"
+         style="
+				z-index: 2;
+				right: calc(var(--spacing) * 4);
+				bottom: calc(var(--spacing) * 4);
+				left: calc(var(--spacing) * 4);
+				height: calc(var(--scale) * 1.5rem);
+				min-height: 3.5%;
+			"
     >
-      <rect x="10"
-            width="10"
-            y="0"
-            height="100"
+      <svg class="absolute w-full h-full"
+           style="fill: var(--color-red);"
+           viewbox="0 0 1000 1"
+           preserveaspectratio="none"
       >
-      </rect>
-      <rect x="95"
-            width="5"
-            y="0"
-            height="100"
-      >
-      </rect>
-    </svg>
+        <rect x="100"
+              width="100"
+              y="0"
+              height="1"
+        >
+        </rect>
+        <rect x="950"
+              width="50"
+              y="0"
+              height="1"
+        >
+        </rect>
+      </svg>
+    </div>
   </div>
 </div>
 `);
@@ -222,17 +423,26 @@ describe("newPlayer", () => {
 
 		// Popup buttons after click.
 		expect(element.querySelector(".js-popup").innerHTML).toMatchInlineSnapshot(`
-<button class="js-delete player-options-btn">
-  <img src="assets/icons/feather/trash-2.svg">
+<button class="js-delete p-1 bg-transparent">
+  <img class="icon-filter"
+       style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
+       src="assets/icons/feather/trash-2.svg"
+  >
 </button>
 <a download="2001-06-02_00:00:00_D.mp4"
    href="C"
-   class="player-options-btn"
+   class="p-1 bg-transparent"
 >
-  <img src="assets/icons/feather/download.svg">
+  <img class="icon-filter"
+       style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
+       src="assets/icons/feather/download.svg"
+  >
 </a>
-<button class="js-fullscreen player-options-btn">
-  <img src="assets/icons/feather/maximize.svg">
+<button class="js-fullscreen p-1 bg-transparent">
+  <img class="icon-filter"
+       style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
+       src="assets/icons/feather/maximize.svg"
+  >
 </button>
 `);
 
@@ -256,8 +466,8 @@ describe("newPlayer", () => {
 			nclicks++;
 		});
 		document.querySelector("div img").click();
-		document.querySelector(".player-play-btn").click();
-		document.querySelector(".player-play-btn").click();
+		document.querySelector(".js-play-btn").click();
+		document.querySelector(".js-play-btn").click();
 
 		expect(nclicks).toBe(1);
 	});
@@ -279,14 +489,19 @@ describe("detectionRenderer", () => {
 		const [d, element] = newTestRenderer();
 		d.set(60);
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<svg class="js-detections player-detections"
+<svg class="js-detections absolute w-full h-full"
+     style="
+					stroke: var(--color-red);
+					fill-opacity: 0;
+					stroke-width: calc(var(--scale) * 0.05rem);
+				"
      viewbox="0 0 100 100"
      preserveaspectratio="none"
 >
   <text x="20"
         y="35"
         font-size="5"
-        class="player-detection-text"
+        style="fill-opacity: 1; fill: var(--color-red); stroke-opacity: 0;"
   >
     1 2%
   </text>
@@ -303,7 +518,12 @@ describe("detectionRenderer", () => {
 		const [d, element] = newTestRenderer();
 		d.set(60 * 10); // Second event.
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<svg class="js-detections player-detections"
+<svg class="js-detections absolute w-full h-full"
+     style="
+					stroke: var(--color-red);
+					fill-opacity: 0;
+					stroke-width: calc(var(--scale) * 0.05rem);
+				"
      viewbox="0 0 100 100"
      preserveaspectratio="none"
 >

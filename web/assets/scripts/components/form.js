@@ -110,9 +110,9 @@ function newForm(fields) {
 				}
 			}
 			return /* HTML */ `
-				<ul class="form" style="padding: 0 0.1rem;">
+				<ul class="form" style="overflow-y: auto;">
 					${htmlFields}
-					<div class="form-button-wrapper">${htmlButtons}</div>
+					<div class="flex">${htmlButtons}</div>
 				</ul>
 			`;
 		},
@@ -162,8 +162,8 @@ function newSaveBtn(onClick) {
 	let element;
 	return {
 		html: /* HTML */ `
-			<button id="${id}" class="form-button save-btn">
-				<span>Save</span>
+			<button id="${id}" class="m-2 px-2 rounded-lg bg-green hover:bg-green2">
+				<span class="text-2 text-color">Save</span>
 			</button>
 		`,
 		init() {
@@ -189,8 +189,12 @@ function newDeleteBtn(onClick) {
 	let element;
 	return {
 		html: /* HTML */ `
-			<button id="${id}" class="form-button delete-btn">
-				<span>Delete</span>
+			<button
+				id="${id}"
+				class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
+				style="margin-left: auto;"
+			>
+				<span class="text-2 text-color">Delete</span>
 			</button>
 		`,
 		init() {
@@ -238,7 +242,7 @@ const fieldTemplate = {
 				label,
 				placeholder,
 				initial,
-			}
+			},
 		);
 	},
 	/**
@@ -259,7 +263,7 @@ const fieldTemplate = {
 				label,
 				placeholder,
 				initial,
-			}
+			},
 		);
 	},
 	/**
@@ -279,7 +283,7 @@ const fieldTemplate = {
 				label,
 				placeholder,
 				initial,
-			}
+			},
 		);
 	},
 	/**
@@ -305,7 +309,7 @@ const fieldTemplate = {
 			{
 				label,
 				initial,
-			}
+			},
 		);
 	},
 	/**
@@ -331,6 +335,7 @@ const fieldTemplate = {
  * @property {number=} max
  * @property {number=} step
  * @property {boolean=} custom
+ * @property {boolean=} modal
  */
 
 /**
@@ -377,7 +382,7 @@ function newField(inputRules, options, values) {
 	return {
 		html: newHTMLfield(options, id, label, placeholder),
 		init() {
-			element = document.querySelector(`#js-${id}`);
+			element = document.getElementById(id);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", validate);
 		},
@@ -438,7 +443,7 @@ function newNumberField(options, values) {
 	return {
 		html: newHTMLfield(options, id, label, placeholder),
 		init() {
-			element = document.querySelector(`#js-${id}`);
+			element = document.getElementById(id);
 			[$input, $error] = $getInputAndError(element);
 			$input.addEventListener("change", () => {
 				// Only contains one or more digits.
@@ -475,6 +480,15 @@ function newNumberField(options, values) {
 	};
 }
 
+const editBtnHTML = /* HTML */ `
+	<button
+		class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
+		style="aspect-ratio: 1; width: calc(var(--scale) * 3rem);"
+	>
+		<img class="p-1 icon-filter" src="assets/icons/feather/edit-3.svg" />
+	</button>
+`;
+
 /**
  * @param {Options} options
  * @param {string} id
@@ -495,12 +509,17 @@ function newHTMLfield(options, id, label, placeholder = "") {
 	step === undefined ? (step = "") : (step = `step="${step}"`);
 	/* eslint-enable no-unused-expressions */
 
-	let body = "";
+	let innerHTML = "";
 	if (input) {
-		body = /* HTML */ `
+		innerHTML = /* HTML */ `
 			<input
-				id="${id}"
-				class="js-input settings-input-text"
+				id="label-${id}"
+				class="js-input w-full text-1.5"
+				style="
+					height: calc(var(--scale) * 2.5rem);
+					overflow: auto;
+					padding-left: calc(var(--scale) * 0.5rem);
+				"
 				type="${input}"
 				placeholder="${placeholder}"
 				${min}
@@ -513,24 +532,69 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		for (const option of select) {
 			options += `\n<option>${option}</option>`;
 		}
-		body = /* HTML */ `
-			<div class="form-field-select-container">
-				<select id="${id}" class="js-input form-field-select">
+		innerHTML = /* HTML */ `
+			<div class="flex w-full">
+				<select
+					id="label-${id}"
+					class="js-input w-full pl-2 text-1.5"
+					style="height: calc(var(--scale) * 2.5rem);"
+				>
 					${options}
 				</select>
-				${custom
-					? `<button class="js-edit-btn form-field-edit-btn">
-					<img class="form-field-edit-btn-img" src="assets/icons/feather/edit-3.svg"/>
-				</button>`
-					: ""}
+				${custom === true ? editBtnHTML : ""}
 			</div>
+		`;
+	} else {
+		throw new Error("Unknown field type");
+	}
+
+	let errorFieldHTML = "";
+	if (errorField === true) {
+		errorFieldHTML = /* HTML */ `
+			<span
+				class="js-error text-red"
+				style="
+					height: calc(var(--scale) * 1.5rem);
+					font-size: calc(var(--scale) * 1rem);
+					white-space: nowrap;
+					overflow: auto;
+				"
+			></span>
 		`;
 	}
 
 	return /* HTML */ `
-		<li id="js-${id}" class="${errorField ? "form-field-error" : "form-field"}">
-			<label for="${id}" class="form-field-label">${label}</label>${body}
-			${errorField ? '<span class="settings-error js-error"></span>' : ""}
+		<li
+			id="${id}"
+			class="items-center px-2 ${errorField === true
+				? ""
+				: "pb-1"} border-b-2 border-color1"
+		>
+			<label
+				for="label-${id}"
+				class="grow w-full text-1.5 text-color"
+				style="float: left;"
+				>${label}</label
+			>
+			${innerHTML} ${errorFieldHTML}
+		</li>
+	`;
+}
+
+/**
+ * @param {string} id
+ * @param {string} label
+ */
+function newModalFieldHTML(id, label) {
+	return /* HTML */ `
+		<li id="${id}" class="flex items-center p-2 border-b-2 border-color1">
+			<label
+				for="label-${id}"
+				class="grow w-full text-1.5 text-color"
+				style="float: left;"
+				>${label}</label
+			>
+			${editBtnHTML}
 		</li>
 	`;
 }
@@ -553,7 +617,7 @@ function newToggleField(label, initial) {
 	return {
 		html: newHTMLfield(options, id, label),
 		init() {
-			element = document.querySelector(`#js-${id}`);
+			element = document.getElementById(id);
 			// @ts-ignore
 			[$input] = $getInputAndError(element);
 		},
@@ -597,7 +661,7 @@ function newSelectCustomField(inputRules, options, values) {
 
 		let customValue = true;
 		// @ts-ignore
-		for (const option of document.querySelector(`#${id}`).options) {
+		for (const option of document.querySelector(`#${id} select`).options) {
 			if (option.value === input) {
 				customValue = false;
 			}
@@ -634,11 +698,11 @@ function newSelectCustomField(inputRules, options, values) {
 				},
 				id,
 				values.label,
-				values.placeholder
+				values.placeholder,
 			);
 		})(),
 		init() {
-			const element = document.querySelector(`#js-${id}`);
+			const element = document.getElementById(id);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				const input = prompt("Custom value");
 				if (input !== "") {
@@ -672,13 +736,7 @@ function newPasswordField() {
 	 * @param {string} label
 	 */
 	const passwordHTML = (id, label) => {
-		return /* HTML */ `
-			<li id="js-${id}" class="form-field-error">
-				<label for="${id}" class="form-field-label">${label}</label>
-				<input id="${id}" class="js-input settings-input-text" type="password" />
-				<span class="settings-error js-error"></span>
-			</li>
-		`;
+		return newHTMLfield({ errorField: true, input: "password" }, id, label);
 	};
 
 	/** @type {() => string} */
@@ -727,11 +785,9 @@ function newPasswordField() {
 			$repeatError.textContent = "";
 		},
 		init() {
-			[$newInput, $newError] = $getInputAndError(
-				document.querySelector(`#js-${newID}`)
-			);
+			[$newInput, $newError] = $getInputAndError(document.getElementById(newID));
 			[$repeatInput, $repeatError] = $getInputAndError(
-				document.querySelector(`#js-${repeatID}`)
+				document.getElementById(repeatID),
 			);
 
 			$newInput.addEventListener("change", () => {
@@ -761,6 +817,7 @@ export {
 	inputRules,
 	fieldTemplate,
 	newSelectCustomField,
+	newModalFieldHTML,
 	newPasswordField,
 	$getInputAndError,
 };

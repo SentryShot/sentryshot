@@ -27,23 +27,35 @@ describe("optionsGridSize", () => {
 		setup(newOptionsBtn.gridSize(content));
 
 		expect(document.body.innerHTML).toMatchInlineSnapshot(`
-			<div id="options-menu">
-			  <button id="uid1"
-			          class="options-menu-btn"
-			  >
-			    <img class="icon"
-			         src="assets/icons/feather/plus.svg"
-			    >
-			  </button>
-			  <button id="uid2"
-			          class="options-menu-btn"
-			  >
-			    <img class="icon"
-			         src="assets/icons/feather/minus.svg"
-			    >
-			  </button>
-			</div>
-		`);
+<div id="options-menu">
+  <button id="uid1"
+          class=" flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
+          style="
+				width: var(--options-menu-btn-width);
+				height: var(--options-menu-btn-width);
+				font-size: calc(var(--scale) * 1.7rem);
+			"
+  >
+    <img class="icon-filter"
+         style="aspect-ratio: 1; height: calc(var(--scale) * 2.7rem);"
+         src="assets/icons/feather/plus.svg"
+    >
+  </button>
+  <button id="uid2"
+          class=" flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
+          style="
+				width: var(--options-menu-btn-width);
+				height: var(--options-menu-btn-width);
+				font-size: calc(var(--scale) * 1.7rem);
+			"
+  >
+    <img class="icon-filter"
+         style="aspect-ratio: 1; height: calc(var(--scale) * 2.7rem);"
+         src="assets/icons/feather/minus.svg"
+    >
+  </button>
+</div>
+`);
 	});
 	test("logic", () => {
 		uidReset();
@@ -54,7 +66,7 @@ describe("optionsGridSize", () => {
 			return Number(
 				getComputedStyle(document.documentElement)
 					.getPropertyValue("--gridsize")
-					.trim()
+					.trim(),
 			);
 		};
 		const element = setup(newOptionsBtn.gridSize(content));
@@ -126,7 +138,7 @@ describe("optionsDate", () => {
 		};
 
 		$calendar.children[0].click();
-		document.querySelector(".date-picker-calendar").click();
+		document.querySelector(".js-calendar").click();
 
 		// prettier-ignore
 		expect(domState()).toEqual([
@@ -304,20 +316,46 @@ describe("optionsMonitorGroups", () => {
 	};
 	test("rendering", () => {
 		setup();
-		const expected = `
-			<span class="select-one-label">Groups</span>
-			<span class="select-one-item" data="a">group1</span>
-			<span class="select-one-item" data="b">group2</span>`.replaceAll(/\s/g, "");
-		const $picker = document.querySelector(".select-one");
 
-		let actual = $picker.innerHTML.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		const $picker = document.querySelector(".js-select-one");
+		expect($picker.innerHTML).toMatchInlineSnapshot(`
+<span class="px-2 text-2">
+  Groups
+</span>
+<span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
+      style="display: block ruby; border-top-width: 2px;"
+      data="a"
+>
+  group1
+</span>
+<span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
+      style="display: block ruby; border-top-width: 2px;"
+      data="b"
+>
+  group2
+</span>
+`);
 
-		document.querySelector(".select-one-label").click();
-		actual = $picker.innerHTML.replaceAll(/\s/g, "");
-		expect(actual).toEqual(expected);
+		document.querySelector(".js-select-one span").click();
+		expect($picker.innerHTML).toMatchInlineSnapshot(`
+<span class="px-2 text-2">
+  Groups
+</span>
+<span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
+      style="display: block ruby; border-top-width: 2px;"
+      data="a"
+>
+  group1
+</span>
+<span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
+      style="display: block ruby; border-top-width: 2px;"
+      data="b"
+>
+  group2
+</span>
+`);
 
-		const $group1 = document.querySelector(".select-one-item[data='a']");
+		const $group1 = document.querySelector(".js-select-one-item[data='a']");
 		expect($group1.classList.contains("select-one-item-selected")).toBe(false);
 		$group1.click();
 		expect($group1.classList.contains("select-one-item-selected")).toBe(true);
@@ -336,7 +374,7 @@ describe("optionsMonitorGroups", () => {
 		const group = setup(content);
 
 		group.init();
-		const $group1 = document.querySelector(".select-one-item[data='a']");
+		const $group1 = document.querySelector(".js-select-one-item[data='a']");
 		$group1.click();
 
 		expect(setMonitorsCalled).toBe(true);

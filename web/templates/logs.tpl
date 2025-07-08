@@ -24,77 +24,55 @@
 		init();
 	</script>
 </head>
-<body>
+<body class="flex" style="height: 100dvh; margin: 0; background-color: var(--color0)">
 	{% include "sidebar" %}
-	<div class="js-content" id="content">
-		<div class="log-sidebar js-sidebar"></div>
-		<div class="log-list-wrapper js-list">
-			<div id="log-menubar">
-				<nav id="log-back-btn" class="js-back">
-					<img src="assets/icons/feather/arrow-left.svg" />
+	<div
+		id="content"
+		class="js-content absolute flex w-full h-full bg-color2"
+		style="box-sizing: border-box; overflow-x: hidden"
+	>
+		<div
+			class="log-sidebar js-sidebar shrink-0 h-full"
+			style="overflow-y: auto"
+		></div>
+		<div class="log-list-wrapper js-list bg-color3">
+			<div id="log-menubar" class="bg-color2" style="height: var(--topbar-height)">
+				<nav class="js-back" style="width: calc(var(--scale) * 4.7rem)">
+					<img
+						class="p-2 icon-filter"
+						style="
+							width: calc(var(--scale) * 3.7rem);
+							height: calc(var(--scale) * 3.7rem);
+						"
+						src="assets/icons/feather/arrow-left.svg"
+					/>
 				</nav>
 			</div>
-			<div id="js-log-lists" class="log-lists"></div>
+			<div
+				id="js-log-lists"
+				class="text-color bg-color3"
+				style="
+					font-size: calc(var(--scale) * 1rem);
+					word-wrap: break-word;
+					overflow-y: auto;
+				"
+			></div>
 		</div>
 	</div>
 </body>
 <style>
 	#nav-link-logs {
-		background: var(--color1-hover);
-	}
-	#content {
-		display: flex;
-		overflow-x: hidden;
 		background: var(--color2);
 	}
+
 	.log-sidebar {
-		flex-shrink: 0;
 		width: 100%;
-		height: 100%;
-		overflow-y: auto;
 	}
-	.source-fields {
-		position: relative;
-	}
-	.log-selector-item {
-		display: flex;
-		align-items: center;
-		min-width: 1px;
-	}
-	.log-selector-label {
-		margin-left: 0.2rem;
-		color: var(--color-text);
-		font-size: 0.5rem;
-	}
+
 	.checkbox-checkbox:checked ~ .checkbox-box {
 		background: var(--color3);
 	}
-	.log-reset-btn {
-		background: var(--color3);
-	}
-	.log-reset-btn:hover {
-		background: var(--color3-hover);
-	}
-	.log-apply-btn {
-		float: right;
-		background: var(--color-green);
-	}
-	.log-apply-btn:hover {
-		background: var(--color-green-hover);
-	}
-	#log-menubar {
-		height: var(--barsize);
-		background: var(--color2);
-	}
-	#log-back-btn {
-		width: 1.4rem;
-	}
-	#log-back-btn img {
-		width: 1.1rem;
-		height: 1.1rem;
-		padding: var(--icon-padding);
-		filter: var(--color-icons);
-	}
+
 	.log-list-wrapper {
 		position: absolute;
 		z-index: 1;
@@ -103,24 +81,18 @@
 		width: 100%;
 		height: var(--size-minus-topbar);
 		overflow-x: hidden;
-		background: var(--color3);
 		transform: translateX(100%);
 		transition: transform 400ms;
 	}
 	.log-list-open {
 		transform: none;
 	}
-	.log-lists {
-		color: var(--color-text);
-		font-size: 0.5rem;
-		word-wrap: break-word;
-		background: var(--color3);
-		overflow-y: auto;
-	}
+
 	.log-list > span {
-		border-color: var(--color4);
 		border-bottom: solid;
-		border-bottom-width: 0.04rem;
+		border-bottom-width: 1px;
+		padding-inline: calc(var(--spacing) * 1);
+		font-size: calc(var(--scale) * 1.2rem);
 	}
 
 	/* Mobile Landscape mode. */
@@ -132,7 +104,7 @@
 	}
 
 	/* Tablet/Dektop. */
-	@media only screen and (min-width: 768px) {
+	@media only screen and (min-width: 48rem) {
 		.log-list-wrapper {
 			position: static;
 			width: 100%;
@@ -140,7 +112,7 @@
 			transform: none;
 		}
 		.log-sidebar {
-			width: 6rem;
+			width: calc(var(--scale) * 20rem);
 		}
 		#log-menubar {
 			display: none;

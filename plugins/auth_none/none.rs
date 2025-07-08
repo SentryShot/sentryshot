@@ -79,7 +79,7 @@ impl NoneAuth {
             let accounts_json = fs::read_to_string(&path).map_err(|e| ReadFile(path.clone(), e))?;
             accounts = serde_json::from_str(&accounts_json).map_err(ParseFile)?;
         } else {
-            common::write_file(&path, b"{{}}").map_err(|e| WriteInitialFile(path.clone(), e))?;
+            common::write_file(&path, b"{}").map_err(|e| WriteInitialFile(path.clone(), e))?;
         }
 
         let data = BasicAuthData {
@@ -260,7 +260,7 @@ func (a *Authenticator) MyToken() http.Handler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{AccountId, Username};
+    use common::{AccountId, DummyLogger, Username};
     use pretty_assertions::assert_eq;
     use std::fs::File;
     use tempfile::{TempDir, tempdir};
@@ -323,6 +323,13 @@ mod tests {
             rt_handle: tokio::runtime::Handle::current(),
         };
         (temp_dir, auth)
+    }
+
+    #[tokio::test]
+    async fn test_new_auth() {
+        let temp_dir = tempdir().unwrap();
+        NoneAuth::new(Handle::current(), temp_dir.path(), DummyLogger::new()).unwrap();
+        NoneAuth::new(Handle::current(), temp_dir.path(), DummyLogger::new()).unwrap();
     }
 
     #[tokio::test]

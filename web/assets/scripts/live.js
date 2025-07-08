@@ -3,7 +3,11 @@
 // @ts-check
 
 import { uniqueID, sortByName, globals } from "./libs/common.js";
-import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
+import {
+	newOptionsMenu,
+	newOptionsBtn,
+	optionsMenuBtnHTML,
+} from "./components/optionsMenu.js";
 import { newStreamer, newStreamerBtn } from "./components/streamer.js";
 
 /**
@@ -132,7 +136,7 @@ function resBtn(content) {
 	const id = uniqueID();
 
 	return {
-		html: `<button id=${id} class="options-menu-btn">X</button>`,
+		html: optionsMenuBtnHTML(id),
 		init() {
 			element = document.querySelector(`#${id}`);
 			element.addEventListener("click", () => {
@@ -147,7 +151,7 @@ function resBtn(content) {
 function init() {
 	const { monitorGroups, monitorsInfo } = globals();
 
-	const $contentGrid = document.querySelector("#content-grid");
+	const $contentGrid = document.querySelector("#js-content-grid");
 	const viewer = newViewer($contentGrid, monitorsInfo);
 
 	const buttons = [newOptionsBtn.gridSize(viewer), resBtn(viewer)];

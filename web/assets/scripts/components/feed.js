@@ -57,17 +57,37 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 
 	return {
 		html: /* HTML */ `
-			<div style="display: flex; justify-content: center;">
-				<div id="${elementID}" class="grid-item-container">
+			<div class="flex justify-center">
+				<div
+					id="${elementID}"
+					class="relative flex justify-center items-center w-full"
+					style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
+				>
 					<input
-						class="js-checkbox player-overlay-checkbox"
 						id="${checkboxID}"
+						class="js-checkbox player-overlay-checkbox absolute"
+						style="opacity: 0;"
 						type="checkbox"
 					/>
-					<label class="player-overlay-selector" for="${checkboxID}"></label>
-					<div class="js-overlay player-overlay feed-menu">${html}</div>
+					<label
+						class="absolute w-full h-full"
+						style="z-index: 1; opacity: 0.5;"
+						for="${checkboxID}"
+					></label>
+					<div
+						class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
+						style="
+							z-index: 2;
+							bottom: 0;
+							margin-bottom: 5%;
+							border: none;
+						"
+					>
+						${html}
+					</div>
 					<video
-						class="grid-item"
+						class="w-full h-full"
+						style="max-height: 100vh; object-fit: contain;"
 						muted
 						disablepictureinpicture
 						playsinline
@@ -179,8 +199,12 @@ function newFullscreenBtn() {
 	let $img, $wrapper;
 	return {
 		html: /* HTML */ `
-			<button class="js-fullscreen-btn feed-btn">
-				<img class="feed-btn-img icon" src="${iconMaximizePath}" />
+			<button class="js-fullscreen-btn feed-btn p-2 bg-transparent">
+				<img
+					class="icon-filter"
+					style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
+					src="${iconMaximizePath}"
+				/>
 			</button>
 		`,
 		init($parent) {
@@ -218,10 +242,10 @@ function newRecordingsBtn(monitorIds) {
 	const recordingsPath = `${relativePathname("recordings")}#monitors=${monitorIds}`;
 	return {
 		html: /* HTML */ `
-			<a href="${recordingsPath}" class="feed-btn">
+			<a class="feed-btn p-2 bg-transparent" href="${recordingsPath}">
 				<img
-					class="feed-btn-img icon"
-					style="height: 0.65rem;"
+					class="icon-filter"
+					style="height: calc(var(--scale) * 2.2rem); aspect-ratio: 1;"
 					src="${iconRecordingsPath}"
 				/>
 			</a>

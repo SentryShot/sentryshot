@@ -37,18 +37,21 @@
 		init();
 	</script>
 </head>
-<body>
+<body class="flex" style="height: 100dvh; margin: 0; background-color: var(--color0)">
 	{% include "sidebar" %}
-	<div id="content">
-		<div id="content-grid-wrapper">
-			<div id="content-grid"></div>
+	<div id="content" class="absolute w-full h-full" style="box-sizing: border-box">
+		<div class="h-full" style="overflow-y: auto">
+			<div
+				id="js-content-grid"
+				style="display: grid; grid-template-columns: repeat(var(--gridsize), 1fr)"
+			></div>
 		</div>
 	</div>
 </body>
 
 <style>
 	#nav-link-live {
-		background: var(--color1-hover);
+		background: var(--color2);
 	}
 </style>
 {% include "html2" %}

@@ -2,7 +2,7 @@
 
 <!DOCTYPE html>
 <head></head>
-<body>
+<body style="display: flex; height: 100dvh; margin: 0; background-color: var(--color0)">
 	<div id="content">
 		<div id="log-list"></div>
 		<div id="buttons">

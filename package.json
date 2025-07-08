@@ -1,5 +1,5 @@
 {
-	"description": "Optional development tools, requires node 12.17+",
+	"description": "Development tools",
 	"type": "module",
 	"scripts": {
 		"test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=default --reporters=jest-junit",
@@ -109,7 +109,8 @@
 			"unicorn/numeric-separators-style": "off",
 			"unicorn/prefer-logical-operator-over-ternary": "off",
 			"unicorn/prefer-query-selector": "off",
-			"unicorn/template-indent": "off"
+			"unicorn/template-indent": "off",
+			"unicorn/prefer-ternary": "off"
 		}
 	},
 	"stylelint": {
@@ -124,6 +125,7 @@
 			"value-keyword-case": null,
 			"no-descending-specificity": null,
 			"property-no-vendor-prefix": null,
+			"selector-class-pattern": null,
 			"plugin/no-unsupported-browser-features": [
 				true,
 				{

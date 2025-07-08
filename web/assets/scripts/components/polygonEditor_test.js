@@ -25,73 +25,73 @@ test("ok", () => {
 	expect(editor.isVisible()).toBe(true);
 
 	expect(document.body.innerHTML).toMatchInlineSnapshot(`
-		<svg>
-		  <polygon points="20,20 80,20 50,70 "
-		           style="fill: black; opacity: 0.2;"
-		  >
-		  </polygon>
-		  <circle cx="80"
-		          cy="20"
-		          r="0.045rem"
-		          data="1"
-		          style="fill: var(--colorbg); opacity: 0.85"
-		          class="js-point"
-		  >
-		  </circle>
-		  <circle cx="50"
-		          cy="70"
-		          r="0.045rem"
-		          data="2"
-		          style="fill: var(--colorbg); opacity: 0.85"
-		          class="js-point"
-		  >
-		  </circle>
-		  <circle cx="50"
-		          cy="20"
-		          r="0.03rem"
-		          data="0"
-		          style="fill: var(--colorbg); opacity: 0.85"
-		          class="js-fake-point"
-		  >
-		  </circle>
-		  <circle cx="65"
-		          cy="45"
-		          r="0.03rem"
-		          data="1"
-		          style="fill: var(--colorbg); opacity: 0.85"
-		          class="js-fake-point"
-		  >
-		  </circle>
-		  <circle cx="35"
-		          cy="45"
-		          r="0.03rem"
-		          data="2"
-		          style="fill: var(--colorbg); opacity: 0.85"
-		          class="js-fake-point"
-		  >
-		  </circle>
-		  <polygon points="20,17.279999999999998 19.04,18.72 20.96,18.72"
-		           style="fill: var(--colorbg); opacity: 0.85"
-		           class="js-top"
-		  >
-		  </polygon>
-		  <polygon points="17.279999999999998,20 18.72,19.04 18.72,20.96"
-		           style="fill: var(--colorbg); opacity: 0.85"
-		           class="js-left"
-		  >
-		  </polygon>
-		  <polygon points="20,22.720000000000002 19.04,21.28 20.96,21.28"
-		           style="fill: var(--colorbg); opacity: 0.85"
-		           class="js-bottom"
-		  >
-		  </polygon>
-		  <polygon points="22.720000000000002,20 21.28,19.04 21.28,20.96"
-		           style="fill: var(--colorbg); opacity: 0.85"
-		           class="js-right"
-		  >
-		  </polygon>
-		</svg>
-	`);
+<svg>
+  <polygon points="20,20 80,20 50,70 "
+           style="fill: black; opacity: 0.2;"
+  >
+  </polygon>
+  <circle cx="80"
+          cy="20"
+          r="calc(var(--scale) * 0.15rem)"
+          data="1"
+          style="fill: var(--color0); opacity: 0.85"
+          class="js-point"
+  >
+  </circle>
+  <circle cx="50"
+          cy="70"
+          r="calc(var(--scale) * 0.15rem)"
+          data="2"
+          style="fill: var(--color0); opacity: 0.85"
+          class="js-point"
+  >
+  </circle>
+  <circle cx="50"
+          cy="20"
+          r="calc(var(--scale) * 0.1rem)"
+          data="0"
+          style="fill: var(--color0); opacity: 0.85"
+          class="js-fake-point"
+  >
+  </circle>
+  <circle cx="65"
+          cy="45"
+          r="calc(var(--scale) * 0.1rem)"
+          data="1"
+          style="fill: var(--color0); opacity: 0.85"
+          class="js-fake-point"
+  >
+  </circle>
+  <circle cx="35"
+          cy="45"
+          r="calc(var(--scale) * 0.1rem)"
+          data="2"
+          style="fill: var(--color0); opacity: 0.85"
+          class="js-fake-point"
+  >
+  </circle>
+  <polygon points="20,13.2 17.6,16.8 22.4,16.8"
+           style="fill: var(--color0); opacity: 0.85"
+           class="js-top"
+  >
+  </polygon>
+  <polygon points="13.2,20 16.8,17.6 16.8,22.4"
+           style="fill: var(--color0); opacity: 0.85"
+           class="js-left"
+  >
+  </polygon>
+  <polygon points="20,26.8 17.6,23.2 22.4,23.2"
+           style="fill: var(--color0); opacity: 0.85"
+           class="js-bottom"
+  >
+  </polygon>
+  <polygon points="26.8,20 23.2,17.6 23.2,22.4"
+           style="fill: var(--color0); opacity: 0.85"
+           class="js-right"
+  >
+  </polygon>
+</svg>
+`);
 	expect(editor.value()).toBe(input);
 
 	editor.enabled(false);

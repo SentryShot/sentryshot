@@ -17,25 +17,30 @@ test("newModal", () => {
 	modal.open();
 
 	expect(document.querySelector(".modal").innerHTML).toMatchInlineSnapshot(`
-		<header class="modal-header">
-		  <span class="modal-title">
-		    test
-		  </span>
-		  <button class="modal-close-btn">
-		    <img class="modal-close-icon"
-		         src="assets/icons/feather/x.svg"
-		    >
-		  </button>
-		</header>
-		<div class="modal-content">
-		  a
-		</div>
-	`);
+<header class="modal-header flex px-2 bg-color2">
+  <span class="w-full text-center text-2 text-color"
+        style="padding-left: calc(var(--scale) * 2.5rem);"
+  >
+    test
+  </span>
+  <button class="js-modal-close-btn flex m-auto rounded-md bg-color3">
+    <img class="icon-filter"
+         style="width: calc(var(--scale) * 2.5rem);"
+         src="assets/icons/feather/x.svg"
+    >
+  </button>
+</header>
+<div class="js-modal-content h-full bg-color3"
+     style="overflow-y: visible;"
+>
+  a
+</div>
+`);
 
 	expect(modal.isOpen()).toBe(true);
 	expect(onCloseCalled).toBe(false);
 
-	document.querySelector(".modal-close-btn").click();
+	document.querySelector(".js-modal-close-btn").click();
 	expect(modal.isOpen()).toBe(false);
 	expect(onCloseCalled).toBe(true);
 });
@@ -56,37 +61,53 @@ test("modalSelect", () => {
 	expect(modal.isOpen()).toBe(true);
 
 	expect(element.innerHTML).toMatchInlineSnapshot(`
-		<div id="uid1"
-		     class="modal-wrapper modal-open"
-		>
-		  <div class="modal js-modal">
-		    <header class="modal-header">
-		      <span class="modal-title">
-		        x
-		      </span>
-		      <button class="modal-close-btn">
-		        <img class="modal-close-icon"
-		             src="assets/icons/feather/x.svg"
-		        >
-		      </button>
-		    </header>
-		    <div class="modal-content">
-		      <div class="js-selector modal-select">
-		        <span data="m1"
-		              class="js-option modal-select-option"
-		        >
-		          m1
-		        </span>
-		        <span data="m2"
-		              class="js-option modal-select-option"
-		        >
-		          m2
-		        </span>
-		      </div>
-		    </div>
-		  </div>
-		</div>
-	`);
+<div id="uid1"
+     class="w-full h-full modal-open"
+     style="
+					position: fixed;
+					top: 0;
+					left: 0;
+					z-index: 20;
+					display: none;
+					overflow-y: auto;
+					background-color: rgb(0 0 0 / 40%);
+				"
+>
+  <div class="modal js-modal flex">
+    <header class="modal-header flex px-2 bg-color2">
+      <span class="w-full text-center text-2 text-color"
+            style="padding-left: calc(var(--scale) * 2.5rem);"
+      >
+        x
+      </span>
+      <button class="js-modal-close-btn flex m-auto rounded-md bg-color3">
+        <img class="icon-filter"
+             style="width: calc(var(--scale) * 2.5rem);"
+             src="assets/icons/feather/x.svg"
+        >
+      </button>
+    </header>
+    <div class="js-modal-content h-full bg-color3"
+         style="overflow-y: visible;"
+    >
+      <div class="js-selector flex"
+           style="flex-wrap: wrap;"
+      >
+        <span data="m1"
+              class="js-option px-2 border text-1.5 border-color1 text-color"
+        >
+          m1
+        </span>
+        <span data="m2"
+              class="js-option px-2 border text-1.5 border-color1 text-color"
+        >
+          m2
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+`);
 
 	const item1 = document.querySelector(".js-option[data='m1']");
 	const item2 = document.querySelector(".js-option[data='m2']");

@@ -58,7 +58,7 @@ function newLogger(formatLog, element) {
 			element.innerHTML = /* HTML */ `
 				<div class="js-new-logs log-list"></div>
 				<div class="js-old-logs log-list"></div>
-				<span class="js-loading-indicator"></div>
+				<span class="js-loading-indicator"></span>
 			`;
 
 			const $newLogs = element.querySelector(".js-new-logs");
@@ -75,7 +75,7 @@ function newLogger(formatLog, element) {
 				time - 1,
 				levels,
 				sources,
-				monitors
+				monitors,
 			);
 			savedlogsLoader = newSavedLogsLoader(
 				newLoadingIndicator($loadingIndicator),
@@ -85,7 +85,7 @@ function newLogger(formatLog, element) {
 				time,
 				levels,
 				sources,
-				monitors
+				monitors,
 			);
 			savedlogsLoader.lazyLoad();
 		},
@@ -111,7 +111,7 @@ async function fetchLogs(abortSignal, levels, sources, monitors, time) {
 			monitors,
 			time,
 			limit: 20,
-		})
+		}),
 	);
 
 	const url = new URL(`${relativePathname("api/log/query")}?${query}`);
@@ -164,7 +164,7 @@ function newFeedLogger(formatLog, element, time, levels, sources, monitors) {
 				sources,
 				monitors,
 				time,
-			})
+			}),
 		);
 		const url = `${path}?${query}`;
 
@@ -198,7 +198,7 @@ function newFeedLogger(formatLog, element, time, levels, sources, monitors) {
 					alert(
 						`failed to fetch logs: ${
 							response.status
-						}, ${await response.text()}`
+						}, ${await response.text()}`,
 					);
 					return;
 				}
@@ -337,7 +337,7 @@ function newSavedLogsLoader(
 	time,
 	levels,
 	sources,
-	monitors
+	monitors,
 ) {
 	const [IDLE, FETCHING, CANCELLED] = [0, 1, 2];
 	let state = IDLE;
@@ -363,7 +363,7 @@ function newSavedLogsLoader(
 					levels,
 					sources,
 					monitors,
-					time
+					time,
 				);
 				loadingIndicator.setLoading(false);
 				// Check state after await point.
@@ -423,7 +423,7 @@ function newFormater(monitorNameByID, timeZone) {
 	const unixToDateStr = (unixMillisecond) => {
 		const { YY, MM, DD, hh, mm, ss } = fromUTC2(
 			new Date(unixMillisecond / 1000),
-			timeZone
+			timeZone,
 		);
 		return `${YY}-${MM}-${DD}_${hh}:${mm}:${ss}`;
 	};
@@ -484,20 +484,38 @@ function newMultiSelect(label, values, initial) {
 		let $checkbox;
 		return {
 			html: /* HTML */ `
-				<div class="log-selector-item item-${id}">
-					<div class="checkbox">
-						<input class="checkbox-checkbox" type="checkbox" />
-						<div class="checkbox-box"></div>
+				<div
+					class="item-${id} flex items-center"
+					style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
+				>
+					<div
+						class="flex justify-center items-center bg-color2"
+						style="width: 0.8em; height: 0.8em; user-select: none;"
+					>
+						<input
+							class="checkbox-checkbox w-full h-full"
+							style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
+							type="checkbox"
+						/>
+						<div
+							class="checkbox-box absolute rounded-md"
+							style="width: 0.62em; height: 0.62em;"
+						></div>
 						<img
-							class="checkbox-check"
+							class="checkbox-check absolute"
+							style="width: 0.7em; filter: invert();"
 							src="assets/icons/feather/check.svg"
 						/>
 					</div>
-					<span class="log-selector-label">${name}</span>
+					<span
+						class="ml-1 text-color"
+						style="font-size: calc(var(--scale) * 1.2rem);"
+						>${name}</span
+					>
 				</div>
 			`,
 			init() {
-				$checkbox = document.querySelector(`.item-${id} .checkbox-checkbox`);
+				$checkbox = document.querySelector(`.item-${id} input`);
 			},
 			set(input) {
 				$checkbox.checked = input;
@@ -536,9 +554,9 @@ function newMultiSelect(label, values, initial) {
 
 	return {
 		html: /* HTML */ `
-			<li id="${id}" class="form-field">
-				<label class="form-field-label">${label}</label>
-				<div class="source-fields">${htmlFields}</div>
+			<li id="${id}" class="items-center w-full px-2 border-b-2 border-color1">
+				<label class="mr-auto text-1.5 text-color">${label}</label>
+				<div class="relative">${htmlFields}</div>
 			</li>
 		`,
 		init() {
@@ -606,15 +624,28 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 
 	return {
 		html: /* HTML */ `
-			<li id="${elementID}" class="form-field">
-				<label for="${inputID}" class="form-field-label">Monitor</label>
-				<div class="form-field-select-container">
-					<select id="${inputID}" class="form-field-select">
+			<li id="${elementID}" class="items-center p-2 border-b-2 border-color1">
+				<label for="${inputID}" class="mr-auto text-1.5 text-color"
+					>Monitor</label
+				>
+				<div class="flex w-full">
+					<select
+						id="${inputID}"
+						class="w-full pl-2 text-1.5"
+						style="height: calc(var(--scale) * 2.5rem);"
+					>
 						${options}
 					</select>
-					<button class="js-edit-btn form-field-edit-btn color3">
+					<button
+						class="js-edit-btn flex ml-2 rounded-lg bg-color3 hover:bg-color2"
+						style="
+							aspect-ratio: 1;
+							width: calc(var(--scale) * 2.5rem);
+							height: calc(var(--scale) * 2.5rem);
+						"
+					>
 						<img
-							class="form-field-edit-btn-img"
+							class="p-2 icon-filter"
 							src="assets/icons/feather/video.svg"
 						/>
 					</button>
@@ -706,11 +737,14 @@ function newLogSelector(logger, formFields) {
 	const html = /* HTML */ `
 		${form.html()}
 		<div>
-			<button class="form-button log-reset-btn js-reset">
-				<span>Reset</span>
+			<button class="js-reset m-2 px-2 bg-color3 rounded-lg hover:bg-color2">
+				<span class="text-2 text-color">Reset</span>
 			</button>
-			<button class="form-button log-apply-btn js-apply">
-				<span>Apply</span>
+			<button
+				class="log-apply-btn m-2 px-2 js-apply rounded-lg bg-green hover:bg-green2"
+				style="float: right;"
+			>
+				<span class="text-2 text-color">Apply</span>
 			</button>
 		</div>
 	`;
@@ -755,7 +789,7 @@ function init() {
 		level: fieldTemplate.select(
 			"Level",
 			["error", "warning", "info", "debug"],
-			"info"
+			"info",
 		),
 		monitor: newMonitorPicker(monitors),
 		sources: newMultiSelect("Sources", logSources, logSources),

@@ -114,61 +114,91 @@ describe("MultiSelect", () => {
 	test("rendering", () => {
 		const [element] = setup();
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-			<li id="uid4"
-			    class="form-field"
-			>
-			  <label class="form-field-label">
-			    test
-			  </label>
-			  <div class="source-fields">
-			    <div class="log-selector-item item-uid1">
-			      <div class="checkbox">
-			        <input class="checkbox-checkbox"
-			               type="checkbox"
-			        >
-			        <div class="checkbox-box">
-			        </div>
-			        <img class="checkbox-check"
-			             src="assets/icons/feather/check.svg"
-			        >
-			      </div>
-			      <span class="log-selector-label">
-			        a
-			      </span>
-			    </div>
-			    <div class="log-selector-item item-uid2">
-			      <div class="checkbox">
-			        <input class="checkbox-checkbox"
-			               type="checkbox"
-			        >
-			        <div class="checkbox-box">
-			        </div>
-			        <img class="checkbox-check"
-			             src="assets/icons/feather/check.svg"
-			        >
-			      </div>
-			      <span class="log-selector-label">
-			        b
-			      </span>
-			    </div>
-			    <div class="log-selector-item item-uid3">
-			      <div class="checkbox">
-			        <input class="checkbox-checkbox"
-			               type="checkbox"
-			        >
-			        <div class="checkbox-box">
-			        </div>
-			        <img class="checkbox-check"
-			             src="assets/icons/feather/check.svg"
-			        >
-			      </div>
-			      <span class="log-selector-label">
-			        c
-			      </span>
-			    </div>
-			  </div>
-			</li>
-		`);
+<li id="uid4"
+    class="items-center w-full px-2 border-b-2 border-color1"
+>
+  <label class="mr-auto text-1.5 text-color">
+    test
+  </label>
+  <div class="relative">
+    <div class="item-uid1 flex items-center"
+         style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
+    >
+      <div class="flex justify-center items-center bg-color2"
+           style="width: 0.8em; height: 0.8em; user-select: none;"
+      >
+        <input class="checkbox-checkbox w-full h-full"
+               style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
+               type="checkbox"
+        >
+        <div class="checkbox-box absolute rounded-md"
+             style="width: 0.62em; height: 0.62em;"
+        >
+        </div>
+        <img class="checkbox-check absolute"
+             style="width: 0.7em; filter: invert();"
+             src="assets/icons/feather/check.svg"
+        >
+      </div>
+      <span class="ml-1 text-color"
+            style="font-size: calc(var(--scale) * 1.2rem);"
+      >
+        a
+      </span>
+    </div>
+    <div class="item-uid2 flex items-center"
+         style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
+    >
+      <div class="flex justify-center items-center bg-color2"
+           style="width: 0.8em; height: 0.8em; user-select: none;"
+      >
+        <input class="checkbox-checkbox w-full h-full"
+               style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
+               type="checkbox"
+        >
+        <div class="checkbox-box absolute rounded-md"
+             style="width: 0.62em; height: 0.62em;"
+        >
+        </div>
+        <img class="checkbox-check absolute"
+             style="width: 0.7em; filter: invert();"
+             src="assets/icons/feather/check.svg"
+        >
+      </div>
+      <span class="ml-1 text-color"
+            style="font-size: calc(var(--scale) * 1.2rem);"
+      >
+        b
+      </span>
+    </div>
+    <div class="item-uid3 flex items-center"
+         style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
+    >
+      <div class="flex justify-center items-center bg-color2"
+           style="width: 0.8em; height: 0.8em; user-select: none;"
+      >
+        <input class="checkbox-checkbox w-full h-full"
+               style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
+               type="checkbox"
+        >
+        <div class="checkbox-box absolute rounded-md"
+             style="width: 0.62em; height: 0.62em;"
+        >
+        </div>
+        <img class="checkbox-check absolute"
+             style="width: 0.7em; filter: invert();"
+             src="assets/icons/feather/check.svg"
+        >
+      </div>
+      <span class="ml-1 text-color"
+            style="font-size: calc(var(--scale) * 1.2rem);"
+      >
+        c
+      </span>
+    </div>
+  </div>
+</li>
+`);
 	});
 	test("set", () => {
 		const [element, field] = setup();
@@ -287,30 +317,32 @@ describe("logSelector", () => {
 		logSelector.init(element);
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-			<div class="js-sidebar">
-			  <ul class="form"
-			      style="padding: 0 0.1rem;"
-			  >
-			    levelHTMLsourcesHTMLmonitorHTML
-			    <div class="form-button-wrapper">
-			    </div>
-			  </ul>
-			  <div>
-			    <button class="form-button log-reset-btn js-reset">
-			      <span>
-			        Reset
-			      </span>
-			    </button>
-			    <button class="form-button log-apply-btn js-apply">
-			      <span>
-			        Apply
-			      </span>
-			    </button>
-			  </div>
-			</div>
-			<div class="js-back">
-			</div>
-		`);
+<div class="js-sidebar">
+  <ul class="form"
+      style="overflow-y: auto;"
+  >
+    levelHTMLsourcesHTMLmonitorHTML
+    <div class="flex">
+    </div>
+  </ul>
+  <div>
+    <button class="js-reset m-2 px-2 bg-color3 rounded-lg hover:bg-color2">
+      <span class="text-2 text-color">
+        Reset
+      </span>
+    </button>
+    <button class="log-apply-btn m-2 px-2 js-apply rounded-lg bg-green hover:bg-green2"
+            style="float: right;"
+    >
+      <span class="text-2 text-color">
+        Apply
+      </span>
+    </button>
+  </div>
+</div>
+<div class="js-back">
+</div>
+`);
 	});
 
 	describe("logic", () => {

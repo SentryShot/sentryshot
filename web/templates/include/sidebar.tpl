@@ -1,51 +1,120 @@
-<input type="checkbox" id="sidebar-checkbox" />
-<header id="topbar">
-	<div class="topbar-btn">
-		<img class="icon" src="assets/icons/feather/menu.svg" />
-	</div>
-	<h1 id="current-page">{{ current_page }}</h1>
-	<div id="topbar-options-btn" class="topbar-btn">
-		<img class="icon" src="assets/icons/feather/sliders.svg" />
-	</div>
+<input type="checkbox" id="sidebar-checkbox" class="absolute" style="display: none" />
+<label
+	id="sidebar-btn"
+	for="sidebar-checkbox"
+	class="absolute"
+	style="z-index: 10; height: var(--topbar-height)"
+></label>
+
+<input
+	type="checkbox"
+	id="options-checkbox"
+	class="absolute"
+	style="visibility: hidden"
+/>
+<label
+	id="options-btn"
+	for="options-checkbox"
+	class="absolute"
+	style="width: var(--topbar-height); height: var(--topbar-height)"
+></label>
+<header id="topbar" class="absolute flex" style="background: var(--color1)">
+	<button id="topbar-btn" class="bg-color1">
+		<img
+			class="icon-filter p-2"
+			style="aspect-ratio: 1; width: var(--topbar-height)"
+			src="assets/icons/feather/menu.svg"
+		/>
+	</button>
+	<h1 id="current-page" class="m-auto text-2 text-color">{{ current_page }}</h1>
+	<button id="topbar-options-btn" class="bg-color1" style="visibility: hidden">
+		<img
+			class="icon-filter p-3"
+			style="aspect-ratio: 1; width: var(--topbar-height)"
+			src="assets/icons/feather/sliders.svg"
+		/>
+	</button>
 </header>
+<label
+	id="sidebar-closer"
+	for="sidebar-checkbox"
+	class="absolute"
+	style="z-index: 4; height: 100dvh"
+></label>
+<div id="options-menu" class="absolute flex flex-col" style="z-index: 3"></div>
 
-<label id="sidebar-btn" for="sidebar-checkbox"></label>
-<label id="sidebar-closer" for="sidebar-checkbox"></label>
-
-<input type="checkbox" id="options-checkbox" />
-<label id="options-btn" for="options-checkbox"></label>
-<div id="options-menu"></div>
-
-<aside id="sidebar">
-	<div class="nav-link" id="nav-btn">
-		<img class="icon" src="assets/icons/feather/x.svg" />
-	</div>
-	<nav id="navbar">
-		<a href="live" id="nav-link-live" class="nav-link">
-			<img class="icon" src="assets/icons/feather/video.svg" />
-			<span class="nav-text">Live</span>
+<aside
+	id="sidebar"
+	class="flex flex-col h-full"
+	style="
+		z-index: 5;
+		overflow-x: hidden;
+		background: var(--color1);
+		width: var(--sidebar-width);
+	"
+>
+	<button id="nav-btn" class="bg-color1">
+		<img
+			class="p-2 icon-filter"
+			src="assets/icons/feather/x.svg"
+			style="width: var(--topbar-height); aspect-ratio: 1"
+		/>
+	</button>
+	<nav class="flex flex-col h-full" style="overflow-x: hidden">
+		<a
+			href="live"
+			id="nav-link-live"
+			class="flex items-center px-2 border border-color2 hover:bg-color2"
+			style="text-decoration: none; border-top: none"
+		>
+			<img
+				class="p-2 icon-filter"
+				src="assets/icons/feather/video.svg"
+				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
+			/>
+			<span class="ml-2 text-2 text-color">Live</span>
 		</a>
-		<a href="recordings" id="nav-link-recordings" class="nav-link">
-			<img class="icon" src="assets/icons/feather/film.svg" />
-			<span class="nav-text">Recordings</span>
+		<a
+			href="recordings"
+			id="nav-link-recordings"
+			class="flex items-center px-2 border border-color2 hover:bg-color2"
+			style="text-decoration: none"
+		>
+			<img
+				class="p-2 icon-filter"
+				src="assets/icons/feather/film.svg"
+				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
+			/>
+			<span class="ml-2 text-2 text-color">Recordings</span>
 		</a>
 		{% if is_admin %}
-			<a href="settings" id="nav-link-settings" class="nav-link">
-				<img class="icon" src="assets/icons/feather/settings.svg" />
-				<span class="nav-text">Settings</span>
-			</a>
-			<a href="logs" id="nav-link-logs" class="nav-link">
-				<img class="icon" src="assets/icons/feather/book-open.svg" />
-				<span class="nav-text">Logs</span>
-			</a>
+		<a
+			href="settings"
+			id="nav-link-settings"
+			class="flex items-center px-2 border border-color2 hover:bg-color2"
+			style="text-decoration: none"
+		>
+			<img
+				class="p-2 icon-filter"
+				src="assets/icons/feather/settings.svg"
+				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
+			/>
+			<span class="ml-2 text-2 text-color">Settings</span>
+		</a>
+		<a
+			href="logs"
+			id="nav-link-logs"
+			class="flex items-center px-2 border border-color2 hover:bg-color2"
+			style="text-decoration: none"
+		>
+			<img
+				class="p-2 icon-filter"
+				src="assets/icons/feather/book-open.svg"
+				style="height: calc(var(--scale) * 3.7rem); aspect-ratio: 1"
+			/>
+			<span class="ml-2 text-2 text-color">Logs</span>
+		</a>
 		{% endif %}
-		<!-- <div id="logout">
-			<button
-				onclick='if (confirm("logout?")) { window.location.href = "logout"; }'
-			>
-				Logout
-			</button>
-		</div> -->
 		<!-- NAVBAR_BOTTOM -->
 	</nav>
 </aside>

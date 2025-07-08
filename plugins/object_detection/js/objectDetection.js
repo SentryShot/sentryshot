@@ -2,7 +2,13 @@
 // @ts-check
 
 import { uniqueID, normalize, denormalize, globals } from "./libs/common.js";
-import { newForm, newNumberField, fieldTemplate } from "./components/form.js";
+import {
+	newForm,
+	newNumberField,
+	newModalFieldHTML,
+	newHTMLfield,
+	fieldTemplate,
+} from "./components/form.js";
 import { newStreamer } from "./components/streamer.js";
 import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
@@ -63,7 +69,7 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 	fields.detectorName = fieldTemplate.select(
 		"Detector",
 		detectorNames,
-		detectorNames.at(-1) // Last item.
+		detectorNames.at(-1), // Last item.
 	);
 	fields.feedRate = newNumberField(
 		{
@@ -76,7 +82,7 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 			label: "Feed rate (fps)",
 			placeholder: "",
 			initial: 0.2,
-		}
+		},
 	);
 	fields.duration = fieldTemplate.integer("Trigger duration (sec)", "", 120);
 	fields.useSubStream = fieldTemplate.toggle("Use sub stream", true);
@@ -98,7 +104,7 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 		element.insertAdjacentHTML("beforeend", modal.html);
 		/** @type {HTMLElement} */
 		const $modal = element.querySelector(".js-modal");
-		$modal.style.maxWidth = "12rem";
+		$modal.style.maxWidth = "calc(var(--scale) * 40.5rem)";
 
 		modal.init();
 		form.init();
@@ -116,17 +122,7 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<li id="${id}" class="form-field" style="display:flex;">
-				<label class="form-field-label">Object detection</label>
-				<button class="js-edit-btn form-field-edit-btn">
-					<img
-						class="form-field-edit-btn-img"
-						src="assets/icons/feather/edit-3.svg"
-					/>
-				</button>
-			</li>
-		`,
+		html: newModalFieldHTML(id, "Object detection"),
 		value() {
 			if (isRendered) {
 				value = {};
@@ -176,11 +172,17 @@ function thresholds(detectors, getDetectorName) {
 		const id = uniqueID();
 		return {
 			html: /* HTML */ `
-				<li class="object-detection-label-wrapper">
-					<label for="${id}" class="object-detection-label">${label}</label>
+				<li
+					class="flex items-center px-2 border-color1"
+					style="border-bottom-width: 1px;"
+				>
+					<label for="${id}" class="mr-auto text-1.5 text-color"
+						>${label}</label
+					>
 					<input
 						id="${id}"
-						class="object-detection-threshold"
+						class="text-center h-full text-1.5"
+						style="width: calc(var(--scale) * 4rem);"
 						type="number"
 						value="${val}"
 						min="0"
@@ -279,23 +281,7 @@ function thresholds(detectors, getDetectorName) {
 	const id = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="form-field"
-				style="display:flex; padding-bottom:0.25rem;"
-			>
-				<label class="form-field-label">Thresholds</label>
-				<div style="width:auto">
-					<button class="js-edit-btn form-field-edit-btn">
-						<img
-							class="form-field-edit-btn-img"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-			</li>
-		`,
+		html: newModalFieldHTML(id, "Thresholds"),
 		value() {
 			return value;
 		},
@@ -349,54 +335,68 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 	/** @param {string} feedHTML */
 	const renderModal = (feedHTML) => {
 		const html = /* HTML */ `
-			<li id="object-detection-crop-preview" class="form-field">
+			<li
+				id="object-detection-crop-preview"
+				class="flex flex-col items-center px-2"
+			>
 				<label
-					class="form-field-label"
 					for="object-detection-crop-preview"
-					style="width: auto;"
+					class="mr-auto text-1.5 text-color"
 					>Preview</label
 				>
-				<div
-					class="js-preview-wrapper"
-					style="position: relative; margin-top: 0.69rem"
-				>
-					<div class="js-feed object-detection-crop-preview-feed">
+				<div class="js-preview-wrapper relative">
+					<div
+						class="js-feed flex w-full"
+						style="min-width: 0; background: white;"
+					>
 						${feedHTML}
 					</div>
 					<div class="js-preview-padding" style="background: white;"></div>
 					<svg
-						class="js-object-detection-overlay object-detection-crop-preview-overlay"
+						class="js-object-detection-overlay absolute w-full h-full"
+						style="top: 0; opacity: 0.7;"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
-						style="opacity: 0.7;"
 					></svg>
 				</div>
 			</li>
-			<li class="js-options form-field object-detection-crop-option-wrapper">
-				<div class="js-object-detection-crop-option object-detection-crop-option">
-					<span class="object-detection-crop-option-label">X</span>
+			<li
+				class="js-options flex items-center p-2 border-b-2 border-color1"
+				style="flex-wrap: wrap;"
+			>
+				<div
+					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
+				>
+					<span class="ml-1 mr-2 text-1.3 text-color">X</span>
 					<input
-						class="js-x object-detection-crop-option-input"
+						class="js-x text-center rounded-md text-1.3"
+						style="width: calc(var(--scale) * 3rem);"
 						type="number"
 						min="0"
 						max="100"
 						value="0"
 					/>
 				</div>
-				<div class="js-object-detection-crop-option object-detection-crop-option">
-					<span class="object-detection-crop-option-label">Y</span>
+				<div
+					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
+				>
+					<span class="ml-1 mr-2 text-1.3 text-color">Y</span>
 					<input
-						class="js-y object-detection-crop-option-input"
+						class="js-y text-center rounded-md text-1.3"
+						style="width: calc(var(--scale) * 3rem);"
 						type="number"
 						min="0"
 						max="100"
 						value="0"
 					/>
 				</div>
-				<div class="js-object-detection-crop-option object-detection-crop-option">
-					<span class="object-detection-crop-option-label">size</span>
+				<div
+					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
+				>
+					<span class="mr-2 ml-1 text-1.3 text-color">size</span>
 					<input
-						class="js-size object-detection-crop-option-input"
+						class="js-size text-center rounded-md text-1.3"
+						style="width: calc(var(--scale) * 3.5rem);"
 						type="number"
 						min="0"
 						max="100"
@@ -517,25 +517,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 	};
 
 	return {
-		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="form-field"
-				style="display:flex; padding-bottom:0.25rem;"
-			>
-				<label class="form-field-label">Crop</label>
-				<div style="width:auto">
-					<button class="js-edit-btn form-field-edit-btn">
-						<img
-							class="form-field-edit-btn-img"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-				${modal.html}
-			</li>
-		`,
-
+		html: newModalFieldHTML(id, "Crop") + modal.html,
 		value() {
 			if (!rendered) {
 				return normalizeCrop(value);
@@ -612,6 +594,58 @@ function denormalizeCrop(crop) {
  * @property {[number,number][]} area
  */
 
+const maskOptionsHTML = /* HTML */ `
+	<li
+		class="flex items-center p-2 border-b-2 border-color1"
+		style="flex-wrap: wrap; justify-content: space-between;"
+	>
+		<div class="flex">
+			<button
+				class="js-1x pl-2 pr-1 text-1.4 text-color bg-color2 hover:bg-color1"
+				style="
+					border-top-left-radius: var(--radius-xl);
+					border-bottom-left-radius: var(--radius-xl);
+				"
+			>
+				1x
+			</button>
+			<button
+				class="js-4x px-1 text-1.4 text-color bg-color2 hover:bg-color1 object_detection_mask-step-size-selected"
+			>
+				4x
+			</button>
+			<button class="js-10x px-1 text-1.4 text-color bg-color2 hover:bg-color1">
+				10x
+			</button>
+			<button
+				class="js-20x pl-1 pr-2 text-1.4 text-color bg-color2 hover:bg-color1"
+				style="
+					border-top-right-radius: var(--radius-xl);
+					border-bottom-right-radius: var(--radius-xl);
+				"
+			>
+				20x
+			</button>
+		</div>
+		<div class="flex">
+			<input
+				class="js-x mr-1 text-center text-1.4"
+				style="width: calc(var(--scale) * 3.5rem);"
+				type="number"
+				min="0"
+				max="100"
+			/>
+			<input
+				class="js-y text-center text-1.4"
+				style="width: calc(var(--scale) * 3.5rem);"
+				type="number"
+				min="0"
+				max="100"
+			/>
+		</div>
+	</li>
+`;
+
 /**
  * @param {(monitorID: string) => boolean} hasSubStream
  * @param {() => string} getMonitorId
@@ -629,88 +663,55 @@ function mask(hasSubStream, getMonitorId) {
 
 	let editor;
 
+	const enableID = uniqueID();
+
 	/** @param {string} feedHTML */
 	const renderModal = (feedHTML) => {
 		const html = /* HTML */ `
-			<li class="js-enable object_detection_mask-enabled form-field">
-				<label class="form-field-label" for="object_detection_mask-enable"
-					>Enable mask</label
-				>
-				<div class="form-field-select-container">
-					<select id="modal-enable" class="form-field-select js-input">
-						<option>true</option>
-						<option>false</option>
-					</select>
-				</div>
-			</li>
-			<li id="object_detection_mask-preview" class="form-field">
-				<label class="form-field-label" for="object_detection_mask-preview"
+			${newHTMLfield(
+				{
+					select: ["true", "false"],
+				},
+				enableID,
+				"Enable",
+			)}
+			<li
+				id="object_detection_mask-preview"
+				class="flex flex-col items-center px-2"
+			>
+				<label
+					for="object_detection_mask-preview"
+					class="grow mr-auto text-1.5 text-color"
 					>Preview</label
 				>
-				<div
-					class="js-preview-wrapper"
-					style="position: relative; margin-top: 0.69rem"
-				>
-					<div class="js-feed object-detection-crop-preview-feed">
+				<div class="js-preview-wrapper relative">
+					<div
+						class="js-feed flex w-full"
+						style="min-width: 0; background: white;"
+					>
 						${feedHTML}
 					</div>
 					<svg
-						class="js-object-detection-overlay object_detection_mask-preview-overlay"
+						class="js-object-detection-overlay absolute w-full h-full"
+						style="
+							top: 0;
+							z-index: 1;
+							user-select: none;
+							overflow: visible;
+						"
 						viewBox="0 0 100 100"
 						preserveAspectRatio="none"
 					></svg>
 				</div>
 			</li>
-			<li
-				class="form-field"
-				style="display: flex; flex-wrap: wrap; justify-content: space-between"
-			>
-				<div class="object_detection_mask-step-sizes">
-					<button
-						class="js-1x object_detection_mask-step-size"
-						style="
-							border-top-left-radius: 0.25rem;
-							border-bottom-left-radius: 0.25rem;
-							border-right-style: solid;
-						"
-					>
-						1x
-					</button>
-					<button
-						class="js-4x object_detection_mask-step-size object_detection_mask-step-size-selected"
-						style="border-style: hidden solid;"
-					>
-						4x
-					</button>
-					<button
-						class="js-10x object_detection_mask-step-size"
-						style="border-style: hidden solid;"
-					>
-						10x
-					</button>
-					<button
-						class="js-20x object_detection_mask-step-size"
-						style="
-							border-top-right-radius: 0.25rem;
-							border-bottom-right-radius: 0.25rem;
-							border-left-style: solid;
-						"
-					>
-						20x
-					</button>
-				</div>
-				<div class="object_detection_mask-xy-wrapper">
-					<input type="number" min="0" max="100" class="js-x" />
-					<input type="number" min="0" max="100" class="js-y" />
-				</div>
-			</li>
+			${maskOptionsHTML}
 		`;
 
 		$modalContent = modal.init();
 		$modalContent.innerHTML = html;
 		$feed = $modalContent.querySelector(".js-feed");
 
-		$enable = $modalContent.querySelector(".js-enable .js-input");
+		$enable = $modalContent.querySelector(`#${enableID} select`);
 		$enable.value = String(value.enable);
 		$enable.addEventListener("change", () => {
 			value.enable = $enable.value === "true";
@@ -860,25 +861,7 @@ function mask(hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="form-field"
-				style="display:flex; padding-bottom:0.25rem;"
-			>
-				<label class="form-field-label">Mask</label>
-				<div style="width:auto">
-					<button class="js-edit-btn form-field-edit-btn color2">
-						<img
-							class="form-field-edit-btn-img"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-				${modal.html}
-			</li>
-		`,
-
+		html: newModalFieldHTML(id, "Mask") + modal.html,
 		value() {
 			if (rendered) {
 				return normalizeMask({
@@ -956,8 +939,8 @@ function normalizeMask(mask) {
 	let element;
 	return {
 		html: `
-			<div style="margin: 0.3rem; margin-bottom: 0;">
-				<img id=${id} style="width: 100%; height: 100%">
+			<div style="margin: calc(var(--spacing) * 1); margin-bottom: 0;">
+				<img id=${id} class="w-full h-full">
 			</div>`,
 		init() {
 			element = document.querySelector(`#${id}`);
@@ -971,110 +954,10 @@ function normalizeMask(mask) {
 
 // CSS.
 const $style = document.createElement("style");
-$style.innerHTML = `
-	.object-detection-label-wrapper {
-		display: flex;
-		padding: 0.1rem;
-		border-top-style: solid;
-		border-color: var(--color1);
-		border-width: 0.03rem;
-		align-items: center;
-	}
-	.object-detection-label-wrapper:first-child {
-		border-top-style: none;
-	}
-	.object-detection-label {
-		font-size: 0.7rem;
-		color: var(--color-text);
-	}
-	.object-detection-threshold {
-		margin-left: auto;
-		font-size: 0.6rem;
-		text-align: center;
-		width: 1.4rem;
-		height: 100%;
-	}
-
-	/* Crop. */
-	.object-detection-crop-preview-feed {
-		width: 100%;
-		min-width: 0;
-		display: flex;
-		background: white;
-	}
-	.object-detection-crop-preview-overlay {
-		position: absolute;
-		height: 100%;
-		width: 100%;
-		top: 0;
-	}
-	.object-detection-crop-option-wrapper {
-		display: flex;
-		flex-wrap: wrap;
-	}
-	.object-detection-crop-option {
-		display: flex;
-		background: var(--color2);
-		padding: 0.15rem;
-		border-radius: 0.15rem;
-		margin-right: 0.2rem;
-		margin-bottom: 0.2rem;
-	}
-	.object-detection-crop-option-label {
-		font-size: 0.7rem;
-		color: var(--color-text);
-		margin-left: 0.1rem;
-		margin-right: 0.2rem;
-	}
-	.object-detection-crop-option-input {
-		text-align: center;
-		font-size: 0.5rem;
-		border-style: none;
-		border-radius: 5px;
-		width: 1.4rem;
-	}
-
+$style.innerHTML = /* CSS */ `
 	/* Mask. */
-	.object_detection_mask-preview-overlay {
-		position: absolute;
-		height: 100%;
-		width: 100%;
-		top: 0;
-		z-index: 1;
-		user-select: none;
-		overflow: visible;
-	}
-
-
-	.object_detection_mask-step-sizes {
-		display: flex;
-	}
-
-	.object_detection_mask-step-size {
-		background: var(--color2);
-		color: var(--color-text);
-		font-size: 0.6rem;
-		padding: 0.07rem 0.15rem;
-		border-width: 0.02rem;
-		border-color: var(--color3);
-	}
-
-	.object_detection_mask-step-size:hover {
-		background: var(--color1);
-	}
-
 	.object_detection_mask-step-size-selected {
-		background: var(--color1);
-	}
-
-
-	.object_detection_mask-xy-wrapper {
-		display: flex;
-	}
-	.object_detection_mask-xy-wrapper > input {
-		width: 1.3rem;
-		font-size: 0.6rem;
-		text-align: center;
+		background: var(--color1) !important;
 	}
 `;
 

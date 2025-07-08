@@ -15,36 +15,43 @@ describe("feed", () => {
 		const feed = newSlowPollStream(monitor, true, buttons);
 
 		expect(feed.html).toMatchInlineSnapshot(`
-			<div style="display: flex; justify-content: center;">
-			  <div id="uid1"
-			       class="grid-item-container"
-			  >
-			    <input class="js-checkbox player-overlay-checkbox"
-			           id="uid2"
-			           type="checkbox"
-			    >
-			    <label class="player-overlay-selector"
-			           for="uid2"
-			    >
-			    </label>
-			    <div class="js-overlay player-overlay feed-menu">
-			      <button class="js-fullscreen-btn feed-btn">
-			        <img class="feed-btn-img icon"
-			             src="assets/icons/feather/maximize.svg"
-			        >
-			      </button>
-			    </div>
-			    <video class="grid-item"
-			           autoplay
-			           muted
-			           disablepictureinpicture
-			           playsinline
-			           type="video/mp4"
-			    >
-			    </video>
-			  </div>
-			</div>
-		`);
+<div class="flex justify-center">
+  <div id="uid1"
+       class="relative flex justify-center items-center w-full"
+       style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
+  >
+    <input id="uid2"
+           class="js-checkbox player-overlay-checkbox absolute"
+           style="opacity: 0;"
+           type="checkbox"
+    >
+    <label class="absolute w-full h-full"
+           style="z-index: 1; opacity: 0.5;"
+           for="uid2"
+    >
+    </label>
+    <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
+         style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
+    >
+      <button class="js-fullscreen-btn feed-btn p-1 bg-transparent">
+        <img class="icon-filter"
+             style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
+             src="assets/icons/feather/maximize.svg"
+        >
+      </button>
+    </div>
+    <video class="w-full h-full"
+           style="max-height: 100vh; object-fit: contain;"
+           autoplay
+           muted
+           disablepictureinpicture
+           playsinline
+           type="video/mp4"
+    >
+    </video>
+  </div>
+</div>
+`);
 	});
 });
 
@@ -91,23 +98,24 @@ describe("muteBtn", () => {
 
 test("recordingsBtn", async () => {
 	expect(newStreamerBtn.recordings("b").html).toMatchInlineSnapshot(`
-		<a href="http://test.com/recordings#monitors=b"
-		   class="feed-btn"
-		>
-		  <img class="feed-btn-img icon"
-		       style="height: 0.65rem;"
-		       src="assets/icons/feather/film.svg"
-		  >
-		</a>
-	`);
+<a href="http://test.com/recordings#monitors=b"
+   class="feed-btn p-1 bg-transparent"
+>
+  <img class="icon-filter"
+       style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
+       src="assets/icons/feather/film.svg"
+  >
+</a>
+`);
 });
 
 test("fullscreenBtn", () => {
 	expect(newStreamerBtn.fullscreen().html).toMatchInlineSnapshot(`
-		<button class="js-fullscreen-btn feed-btn">
-		  <img class="feed-btn-img icon"
-		       src="assets/icons/feather/maximize.svg"
-		  >
-		</button>
-	`);
+<button class="js-fullscreen-btn feed-btn p-1 bg-transparent">
+  <img class="icon-filter"
+       style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
+       src="assets/icons/feather/maximize.svg"
+  >
+</button>
+`);
 });

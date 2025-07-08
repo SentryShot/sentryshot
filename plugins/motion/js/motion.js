@@ -2,7 +2,12 @@
 // @ts-check
 
 import { uniqueID, normalize, denormalize, globals } from "./libs/common.js";
-import { newForm, fieldTemplate } from "./components/form.js";
+import {
+	newForm,
+	newModalFieldHTML,
+	newHTMLfield,
+	fieldTemplate,
+} from "./components/form.js";
 import { newStreamer } from "./components/streamer.js";
 import { newModal } from "./components/modal.js";
 import { newPolygonEditor } from "./components/polygonEditor.js";
@@ -61,7 +66,7 @@ export function motion2(hasSubStream, getMonitorId) {
 		element.insertAdjacentHTML("beforeend", modal.html);
 		/** @type {HTMLElement} */
 		const $modal = element.querySelector(".js-modal");
-		$modal.style.maxWidth = "12rem";
+		$modal.style.maxWidth = "40.5rem";
 
 		modal.init();
 		form.init();
@@ -79,19 +84,7 @@ export function motion2(hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: /* HTML */ `
-			<li id="${id}" class="form-field" style="display:flex;">
-				<label class="form-field-label">Motion detection</label>
-				<div>
-					<button class="form-field-edit-btn">
-						<img
-							class="form-field-edit-btn-img"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-			</li>
-		`,
+		html: newModalFieldHTML(id, "Motion detection"),
 		value() {
 			if (isRendered) {
 				form.get(value);
@@ -116,11 +109,9 @@ export function motion2(hasSubStream, getMonitorId) {
 		},
 		init() {
 			element = document.querySelector(`#${id}`);
-			element
-				.querySelector(".form-field-edit-btn")
-				.addEventListener("click", () => {
-					open();
-				});
+			element.querySelector(".js-edit-btn").addEventListener("click", () => {
+				open();
+			});
 		},
 		// @ts-ignore
 		openTesting() {
@@ -141,133 +132,153 @@ export function motion2(hasSubStream, getMonitorId) {
  * @property {number} thresholdMax
  */
 
-/** @param {string} feedHTML */
-function zonesModalHTML(feedHTML) {
-	return /* HTML */ `
-		<li class="form-field">
-			<div class="form-field-select-container">
-				<select class="js-zone-select form-field-select"></select>
-				<div
-					class="js-add-zone form-field-edit-btn"
-					style="background: var(--color2)"
-				>
-					<img
-						class="form-field-edit-btn-img"
-						src="assets/icons/feather/plus.svg"
-					/>
-				</div>
-				<div
-					class="js-remove-zone form-field-edit-btn"
-					style="margin-left: 0.2rem; background: var(--color2)"
-				>
-					<img
-						class="form-field-edit-btn-img"
-						src="assets/icons/feather/minus.svg"
-					/>
-				</div>
-			</div>
-		</li>
-		<li class="form-field">
-			<label class="form-field-label" for="modal-enable">Enable</label>
-			<div class="form-field-select-container">
-				<select class="js-enable form-field-select">
-					<option>true</option>
-					<option>false</option>
-				</select>
-			</div>
-		</li>
-		<li class="form-field">
-			<label for="motion-modal-sensitivity" class="form-field-label"
-				>Sensitivity</label
+const zoneSelectFieldHTML = /* HTML */ `
+	<li class="items-center p-2 border-b-2 border-color1">
+		<div class="flex w-full">
+			<select
+				class="js-zone-select w-full pl-2 text-1.5"
+				style="height: calc(var(--scale) * 2.5rem);"
+			></select>
+			<button
+				class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3"
 			>
+				<img
+					class="p-1 icon-filter"
+					style="width: calc(var(--scale) * 2.5rem);"
+					src="assets/icons/feather/plus.svg"
+				/>
+			</button>
+			<button
+				class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
+			>
+				<img
+					class="p-1 icon-filter"
+					style="width: calc(var(--scale) * 2.5rem);"
+					src="assets/icons/feather/minus.svg"
+				/>
+			</button>
+		</div>
+	</li>
+`;
+
+const thresholdsFieldHTML = /* HTML */ `
+	<li class="items-center p-2 border-b-2 border-color1">
+		<label
+			class="grow w-full text-1.5 text-color"
+			style="float: left; min-width: calc(var(--scale) * 13.5rem);"
+			>Threshold Min-Max</label
+		>
+		<div class="flex w-full">
 			<input
-				id="motion-modal-sensitivity"
-				class="js-sensitivity settings-input-text"
+				class="js-threshold-min w-full mr-4 pl-2 text-1.5"
+				style="height: calc(var(--scale) * 2.5rem);"
 				type="number"
 				min="0"
 				max="100"
 				step="any"
 			/>
+			<input
+				class="js-threshold-max grow w-full pl-2 text-1.5"
+				style="height: calc(var(--scale) * 2.5rem);"
+				type="number"
+				min="0"
+				max="100"
+				step="any"
+			/>
+		</div>
+	</li>
+`;
+
+const zonesPreviewOptionsHTML = /* HTML */ `
+	<li
+		class="flex items-center p-2 border-b-2 border-color1"
+		style="flex-wrap: wrap; justify-content: space-between"
+	>
+		<div class="flex">
+			<button
+				class="js-1x pl-2 pr-1 text-1.4 text-color bg-color2 hover:bg-color1"
+				style="
+					border-top-left-radius: var(--radius-xl);
+					border-bottom-left-radius: var(--radius-xl);
+				"
+			>
+				1x
+			</button>
+			<button
+				class="js-4x px-1 text-1.4 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
+			>
+				4x
+			</button>
+			<button class="js-10x px-1 text-1.4 text-color bg-color2 hover:bg-color1">
+				10x
+			</button>
+			<button
+				class="js-20x pl-1 pr-2 text-1.4 text-color bg-color2 hover:bg-color1"
+				style="
+					border-top-right-radius: var(--radius-xl);
+					border-bottom-right-radius: var(--radius-xl);
+				"
+			>
+				20x
+			</button>
+		</div>
+		<div class="flex">
+			<input
+				class="js-x mr-1 text-center text-1.4"
+				style="width: calc(var(--scale) * 3.5rem);"
+				type="number"
+				min="0"
+				max="100"
+			/>
+			<input
+				class="js-y text-center text-1.4"
+				style="width: calc(var(--scale) * 3.5rem);"
+				type="number"
+				min="0"
+				max="100"
+			/>
+		</div>
+	</li>
+`;
+
+/**
+ * @param {string} feedHTML
+ * @param {string} [enableID]
+ * @param {string} [sensitivityID]
+ * @param {string} [previewID]
+ */
+function zonesModalHTML(feedHTML, enableID, sensitivityID, previewID) {
+	return /* HTML */ `
+		${zoneSelectFieldHTML}
+		${newHTMLfield(
+			{
+				select: ["true", "false"],
+			},
+			enableID,
+			"Enable",
+		)}
+		${newHTMLfield(
+			{
+				input: "number",
+				min: 0,
+				max: 100,
+			},
+			sensitivityID,
+			"Sensitivity",
+		)}
+		${thresholdsFieldHTML}
+		${newHTMLfield(
+			{
+				select: ["true", "false"],
+			},
+			previewID,
+			"Preview",
+		)}
+		<li class="relative mx-2 mt-1">
+			<div class="js-feed" style="background: white;">${feedHTML}</div>
+			<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
 		</li>
-		<li class="form-field">
-			<label class="form-field-label">Threshold Min-Max</label>
-			<div style="display: flex; width: 100%;">
-				<input
-					class="js-threshold-min settings-input-text"
-					style="margin-right: 1rem;"
-					type="number"
-					min="0"
-					max="100"
-					step="any"
-				/>
-				<input
-					class="js-threshold-max settings-input-text"
-					type="number"
-					min="0"
-					max="100"
-					step="any"
-				/>
-			</div>
-		</li>
-		<li class="form-field">
-			<label class="form-field-label" for="modal-preview">Preview</label>
-			<div class="form-field-select-container">
-				<select class="js-preview form-field-select">
-					<option>true</option>
-					<option>false</option>
-				</select>
-			</div>
-			<div style="position: relative; margin-top: 0.2rem;">
-				<div class="js-feed" style="background: white;">${feedHTML}</div>
-				<div
-					class="js-feed-overlay"
-					style="position: absolute; height: 100%; width: 100%; top: 0;"
-				></div>
-			</div>
-		</li>
-		<li
-			class="form-field"
-			style="display: flex; flex-wrap: wrap; justify-content: space-between"
-		>
-			<div class="motion-step-sizes">
-				<button
-					class="js-1x motion-step-size"
-					style="
-						border-top-left-radius: 0.25rem;
-						border-bottom-left-radius: 0.25rem;
-						border-right-style: solid;
-					"
-				>
-					1x
-				</button>
-				<button
-					class="js-4x motion-step-size motion-step-size-selected"
-					style="border-style: hidden solid;"
-				>
-					4x
-				</button>
-				<button
-					class="js-10x motion-step-size"
-					style="border-style: hidden solid;"
-				>
-					10x
-				</button>
-				<button
-					class="js-20x motion-step-size"
-					style="
-						border-top-right-radius: 0.25rem;
-						border-bottom-right-radius: 0.25rem;
-						border-left-style: solid;
-					"
-				>
-					20x
-				</button>
-			</div>
-			<div class="motion-xy-wrapper">
-				<input type="number" min="0" max="100" class="js-x" />
-				<input type="number" min="0" max="100" class="js-y" />
-			</div>
-		</li>
+		${zonesPreviewOptionsHTML}
 	`;
 }
 
@@ -303,40 +314,47 @@ function zones(hasSubStream, getMonitorId) {
 	/** @type {Feed} */
 	let feed;
 
+	const enableID = uniqueID();
+	const sensitivityID = uniqueID();
+	const previewID = uniqueID();
+
 	/**
 	 * @param {Element} element
 	 * @param {string} feedHTML
 	 */
 	const renderModal = (element, feedHTML) => {
-		modal = newModal("Zones", zonesModalHTML(feedHTML));
+		modal = newModal(
+			"Zones",
+			zonesModalHTML(feedHTML, enableID, sensitivityID, previewID),
+		);
 
 		element.insertAdjacentHTML("beforeend", modal.html);
 		$modalContent = modal.init();
 
 		$zoneSelect = $modalContent.querySelector(".js-zone-select");
 
-		$enable = $modalContent.querySelector(".js-enable");
+		$enable = document.querySelector(`#${enableID} select`);
 		$enable.addEventListener("change", () => {
 			getSelectedZone().setEnable($enable.value === "true");
 		});
 
-		$sensitivity = $modalContent.querySelector(".js-sensitivity");
+		$sensitivity = document.querySelector(`#${sensitivityID} input`);
 		$sensitivity.addEventListener("change", () => {
 			getSelectedZone().setSensitivity(
-				Math.min(100, Math.max($sensitivity.value, 0))
+				Math.min(100, Math.max($sensitivity.value, 0)),
 			);
 		});
 
 		$thresholdMin = $modalContent.querySelector(".js-threshold-min");
 		$thresholdMin.addEventListener("change", () => {
 			getSelectedZone().setThresholdMin(
-				Math.min(100, Math.max($thresholdMin.value, 0))
+				Math.min(100, Math.max($thresholdMin.value, 0)),
 			);
 		});
 		$thresholdMax = $modalContent.querySelector(".js-threshold-max");
 		$thresholdMax.addEventListener("change", () => {
 			getSelectedZone().setThresholdMax(
-				Math.min(100, Math.max($thresholdMax.value, 0))
+				Math.min(100, Math.max($thresholdMax.value, 0)),
 			);
 		});
 
@@ -363,7 +381,7 @@ function zones(hasSubStream, getMonitorId) {
 		};
 
 		zones = denormalizeZones(value).map((z) =>
-			newZone($feedOverlay, z, stepSize, onZoneChange)
+			newZone($feedOverlay, z, stepSize, onZoneChange),
 		);
 		value = undefined;
 
@@ -475,7 +493,7 @@ function zones(hasSubStream, getMonitorId) {
 			}
 		};
 
-		$preview = $modalContent.querySelector(".js-preview");
+		$preview = document.querySelector(`#${previewID} select`);
 		$preview.addEventListener("change", () => {
 			getSelectedZone().setPreview($preview.value === "true");
 			updatePreview();
@@ -585,50 +603,32 @@ function zones(hasSubStream, getMonitorId) {
 
 	const id = uniqueID();
 	return {
-		html: /* HTML */ `
-			<li
-				id="${id}"
-				class="form-field"
-				style="display:flex; padding-bottom:0.25rem;"
-			>
-				<label class="form-field-label" style="width:100%">Zones</label>
-				<div style="width:auto">
-					<button class="form-field-edit-btn color2">
-						<img
-							class="form-field-edit-btn-img"
-							src="assets/icons/feather/edit-3.svg"
-						/>
-					</button>
-				</div>
-			</li>
-		`,
+		html: newModalFieldHTML(id, "Zones"),
 		init() {
 			const element = document.querySelector(`#${id}`);
-			element
-				.querySelector(".form-field-edit-btn")
-				.addEventListener("click", () => {
-					// On open modal.
-					const monitor = {
-						id: getMonitorId(),
-						audioEnabled: "false",
-						hasSubStream: hasSubStream(getMonitorId()),
-					};
-					feed = newStreamer(monitor, true);
+			element.querySelector(".js-edit-btn").addEventListener("click", () => {
+				// On open modal.
+				const monitor = {
+					id: getMonitorId(),
+					audioEnabled: "false",
+					hasSubStream: hasSubStream(getMonitorId()),
+				};
+				feed = newStreamer(monitor, true);
 
-					if (rendered) {
-						// Update feed.
-						$feed.innerHTML = feed.html;
-					} else {
-						renderModal(element, feed.html);
-						modal.onClose(() => {
-							feed.destroy();
-						});
-						rendered = true;
-					}
+				if (rendered) {
+					// Update feed.
+					$feed.innerHTML = feed.html;
+				} else {
+					renderModal(element, feed.html);
+					modal.onClose(() => {
+						feed.destroy();
+					});
+					rendered = true;
+				}
 
-					modal.open();
-					feed.init();
-				});
+				modal.open();
+				feed.init();
+			});
 		},
 		value() {
 			if (rendered) {
@@ -644,7 +644,7 @@ function zones(hasSubStream, getMonitorId) {
 					zone.destroy();
 				}
 				zones = denormalizeZones(value).map((z) =>
-					newZone($feedOverlay, z, stepSize, onZoneChange)
+					newZone($feedOverlay, z, stepSize, onZoneChange),
 				);
 				setSelectedZoneIndex(0);
 				$zoneSelect.innerHTML = zoneSelectHTML();
@@ -690,12 +690,13 @@ function zones(hasSubStream, getMonitorId) {
 function newZone($parent, value, stepSize, onChange) {
 	const html = () => {
 		return /* HTML */ `
-		<svg
-			viewBox="0 0 100 100"
-			preserveAspectRatio="none"
-			style="position: absolute; width: 100%; height: 100%; overflow: visible"
-		>
-		</svg>`.trim();
+			<svg
+				class="absolute w-full h-full"
+				style="overflow: visible"
+				viewBox="0 0 100 100"
+				preserveAspectRatio="none"
+			></svg>
+		`;
 	};
 
 	const template = document.createElement("template");
@@ -828,59 +829,8 @@ function denormalizeZones(zones) {
 // CSS.
 const $style = document.createElement("style");
 $style.innerHTML = `
-	.motion-modal-point {
-		display: flex;
-		background: var(--color2);
-		padding: 0.15rem;
-		border-radius: 0.15rem;
-	}
-	.motion-modal-points-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(3.6rem, 3.7rem));
-		column-gap: 0.1rem;
-		row-gap: 0.1rem;
-	}
-	.motion-modal-points-label {
-		font-size: 0.7rem;
-		color: var(--color-text);
-		margin-left: 0.1rem;
-		margin-right: 0.1rem;
-	}
-	.motion-modal-input-point {
-		text-align: center;
-		font-size: 0.5rem;
-		border-style: none;
-		border-radius: 5px;
-		min-width: 0;
-	}
-	.motion-step-sizes {
-		display: flex;
-	}
-
-	.motion-step-size {
-		background: var(--color2);
-		color: var(--color-text);
-		font-size: 0.6rem;
-		padding: 0.07rem 0.15rem;
-		border-width: 0.02rem;
-		border-color: var(--color3);
-	}
-
-	.motion-step-size:hover {
-		background: var(--color1);
-	}
-
 	.motion-step-size-selected {
-		background: var(--color1);
+		background: var(--color1) !important;
 	}
-
-
-	.motion-xy-wrapper {
-		display: flex;
-	}
-	.motion-xy-wrapper > input {
-		width: 1.3rem;
-		font-size: 0.6rem;
-		text-align: center;
-	}`;
+`;
 document.querySelector("head").append($style);

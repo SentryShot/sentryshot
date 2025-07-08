@@ -1,6 +1,18 @@
 ## unreleased
 
--	update the rtsp library
+## `v0.3.3`
+
+-   more web interface fixes #78
+
+## `v0.3.2`
+
+-   fix web interface scale on mobile #78
+
+## `v0.3.1`
+
+-   respect the browser font size and zoom
+-   fix default `accounts.json` file #77
+-   update the rtsp library
 
 ## `v0.3.0`
 

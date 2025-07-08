@@ -53,10 +53,19 @@ function newRenderer($parent) {
 				htmlNav += /* HTML */ `
 					<li
 						id="js-set-category-${category.name()}"
-						class="settings-nav-item js-set-settings-category"
+						class="js-set-settings-category flex items-center py-1 pl-4 border border-color3 hover:bg-color3"
+						style="padding-right: calc(var(--spacing) * 14);"
 					>
-						<img src="${category.icon()}" />
-						<span>${category.title()}</span>
+						<img
+							class="mr-2 icon-filter"
+							style="
+								aspect-ratio: 1;
+								height: calc(var(--scale) * 2.4rem);
+								font-size: calc(var(--scale) * 2.7rem);
+							"
+							src="${category.icon()}"
+						/>
+						<span class="text-2 text-color">${category.title()}</span>
 					</li>
 				`;
 
@@ -71,8 +80,11 @@ function newRenderer($parent) {
 			}
 
 			$parent.innerHTML = /* HTML */ `
-				<nav id="js-settings-navbar" class="settings-navbar">
-					<ul id="settings-navbar-nav">
+				<nav
+					id="js-settings-navbar"
+					class="settings-navbar shrink-0 h-full bg-color2"
+				>
+					<ul class="h-full" style="overflow-y: auto;">
 						${htmlNav}
 					</ul>
 				</nav>
@@ -91,6 +103,65 @@ function newRenderer($parent) {
 }
 
 const backIconPath = "assets/icons/feather/arrow-left.svg";
+
+const backIconHTML = /* HTML */ `
+	<img
+		class="icon-filter"
+		style="width: calc(var(--scale) * 3rem);"
+		src="${backIconPath}"
+	/>
+`;
+
+function categoryTitleHTML(title = "") {
+	return /* HTML */ `
+		<span
+			class="js-category-title w-full m-auto text-center text-2 text-color"
+			style="margin-right: calc(var(--scale) * 3rem);"
+			>${title}</span
+		>
+	`;
+}
+
+const menubarHTML = /* HTML */ `
+	<div
+		class="js-settings-menubar settings-menubar px-2 border border-color3 bg-color2"
+		style="height: var(--topbar-height);"
+	>
+		<nav class="js-settings-subcategory-back flex shrink-0">${backIconHTML}</nav>
+		${categoryTitleHTML()}
+	</div>
+`;
+
+const categoryNavsHTML = /* HTML */ `
+	<ul
+		class="js-category-nav settings-category-nav flex flex-col h-full"
+		style="overflow-y: hidden;"
+	></ul>
+`;
+
+/**
+ * @param {string} data
+ * @param {string} label
+ */
+function categoryNavHTML(data, label, c = "text-color") {
+	return /* HTML */ `
+		<li
+			class="js-nav flex items-center py-1 px-4 border border-color3 hover:bg-color3"
+			data="${data}"
+		>
+			<span class="text-2 ${c}">${label}</span>
+		</li>
+	`;
+}
+
+const addBtnHTML = /* HTML */ `
+	<button
+		class="js-add-btn js-nav shrink-0 mt-2 ml-4 mr-auto px-2 rounded-md bg-green hover:bg-green2"
+	>
+		<span class="text-2 text-color">Add</span>
+	</button>
+`;
+
 function closeAllCategories() {
 	// @ts-ignore
 	for (const element of document.querySelectorAll(".settings-category-wrapper")) {
@@ -114,14 +185,20 @@ function newSimpleCategory(category, title) {
 		},
 		html() {
 			return `
-				<div class="settings-category settings-simple-category">
+				<div class="settings-category" style="width: 100vw;">
 					<div class="settings-menubar js-settings-menubar">
 						<nav
 							class="settings-menu-back-btn js-settings-category-back"
 						>
 							<img src="${backIconPath}"/>
 						</nav>
-						<span class="settings-category-title" >${title}</span>
+						<span
+							class="w-full m-auto text-center text-color"
+							style="
+								margin-right: calc(var(--spacing) * 22);
+								font-size: calc(var(--scale) * 2.7rem);
+							"
+						>${title}</span>
 					</div>
 					${form.html()}
 				</div>`;
@@ -188,7 +265,7 @@ function newCategory(categoryName, title) {
 	const openSubcategory = ($navBtn) => {
 		closeSubcategory();
 
-		if (!$navBtn.classList.contains("settings-add-btn")) {
+		if (!$navBtn.classList.contains("js-add-btn")) {
 			$navBtn.classList.add("settings-nav-btn-selected");
 		}
 
@@ -220,31 +297,30 @@ function newCategory(categoryName, title) {
 		},
 		html() {
 			return /* HTML */ `
-				<div class="settings-category">
-					<div class="settings-menubar js-settings-menubar">
-						<nav class="settings-menu-back-btn js-settings-category-back">
-							<img src="${backIconPath}" />
-						</nav>
-						<span class="settings-category-title">${title}</span>
-					</div>
-					<ul class="settings-category-nav"></ul>
-				</div>
-				<div class="settings-sub-category">
+				<div
+					class="settings-category flex flex-col shrink-0 h-full bg-color2"
+					style="z-index: 0; overflow-y: auto;"
+				>
 					<div
-						class="js-settings-menubar settings-menubar settings-subcategory-menubar"
+						class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
 					>
-						<nav class="settings-menu-back-btn js-settings-subcategory-back">
-							<img src="${backIconPath}" />
+						<nav class="js-settings-category-back flex shrink-0">
+							${backIconHTML}
 						</nav>
-						<span class="settings-category-title"></span>
+						${categoryTitleHTML(title)}
 					</div>
-					${form.html()}
+					${categoryNavsHTML}
+				</div>
+				<div
+					class="js-sub-category settings-sub-category flex flex-col bg-color3"
+				>
+					${menubarHTML} ${form.html()}
 				</div>
 			`;
 		},
 		init() {
 			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
-			$nav = $wrapper.querySelector(".settings-category-nav");
+			$nav = $wrapper.querySelector(".js-category-nav");
 
 			const $navBtn = document.querySelector(`#js-set-category-${categoryName}`);
 
@@ -254,7 +330,7 @@ function newCategory(categoryName, title) {
 				$wrapper.classList.remove("settings-category-selected");
 				// @ts-ignore
 				for (const element of document.querySelectorAll(
-					".js-set-settings-category"
+					".js-set-settings-category",
 				)) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
@@ -271,7 +347,7 @@ function newCategory(categoryName, title) {
 			const $backBtn = $wrapper.querySelector(".js-settings-category-back");
 			$backBtn.addEventListener("click", close);
 
-			$subcategory = $wrapper.querySelector(".settings-sub-category");
+			$subcategory = $wrapper.querySelector(".js-sub-category");
 
 			$wrapper
 				.querySelector(".js-settings-subcategory-back")
@@ -279,7 +355,7 @@ function newCategory(categoryName, title) {
 					closeSubcategory();
 				});
 
-			$title = $subcategory.querySelector(".settings-category-title");
+			$title = $subcategory.querySelector(".js-category-title");
 		},
 		open() {
 			open();
@@ -320,7 +396,7 @@ function newCategory2(categoryName, title, form) {
 	const openSubcategory = ($navBtn) => {
 		closeSubcategory();
 
-		if (!$navBtn.classList.contains("settings-add-btn")) {
+		if (!$navBtn.classList.contains("js-add-btn")) {
 			$navBtn.classList.add("settings-nav-btn-selected");
 		}
 
@@ -347,31 +423,30 @@ function newCategory2(categoryName, title, form) {
 		},
 		html() {
 			return /* HTML */ `
-				<div class="settings-category">
-					<div class="settings-menubar js-settings-menubar">
-						<nav class="settings-menu-back-btn js-settings-category-back">
-							<img src="${backIconPath}" />
-						</nav>
-						<span class="settings-category-title">${title}</span>
-					</div>
-					<ul class="settings-category-nav"></ul>
-				</div>
-				<div class="settings-sub-category">
+				<div
+					class="settings-category flex flex-col shrink-0 h-full bg-color2"
+					style="z-index: 0; overflow-y: auto;"
+				>
 					<div
-						class="js-settings-menubar settings-menubar settings-subcategory-menubar"
+						class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
 					>
-						<nav class="settings-menu-back-btn js-settings-subcategory-back">
-							<img src="${backIconPath}" />
+						<nav class="js-settings-category-back flex shrink-0">
+							${backIconHTML}
 						</nav>
-						<span class="settings-category-title"></span>
+						${categoryTitleHTML(title)}
 					</div>
-					${form.html()}
+					${categoryNavsHTML}
+				</div>
+				<div
+					class="js-sub-category settings-sub-category flex flex-col w-full bg-color3"
+				>
+					${menubarHTML} ${form.html()}
 				</div>
 			`;
 		},
 		init() {
 			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
-			$nav = $wrapper.querySelector(".settings-category-nav");
+			$nav = $wrapper.querySelector(".js-category-nav");
 
 			const $navBtn = document.querySelector(`#js-set-category-${categoryName}`);
 
@@ -381,7 +456,7 @@ function newCategory2(categoryName, title, form) {
 				$wrapper.classList.remove("settings-category-selected");
 				// @ts-ignore
 				for (const element of document.querySelectorAll(
-					".js-set-settings-category"
+					".js-set-settings-category",
 				)) {
 					element.classList.remove("settings-nav-btn-selected");
 				}
@@ -398,7 +473,7 @@ function newCategory2(categoryName, title, form) {
 			const $backBtn = $wrapper.querySelector(".js-settings-category-back");
 			$backBtn.addEventListener("click", close);
 
-			$subcategory = $wrapper.querySelector(".settings-sub-category");
+			$subcategory = $wrapper.querySelector(".js-sub-category");
 
 			$wrapper
 				.querySelector(".js-settings-subcategory-back")
@@ -406,7 +481,7 @@ function newCategory2(categoryName, title, form) {
 					closeSubcategory();
 				});
 
-			$title = $subcategory.querySelector(".settings-category-title");
+			$title = $subcategory.querySelector(".js-category-title");
 		},
 		open() {
 			open();
@@ -501,18 +576,10 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		let html = "";
 		const sortedMonitors = sortByName(monitors);
 		for (const m of sortedMonitors) {
-			html += /* HTML */ `
-				<li class="settings-nav-item js-nav" data="${m.id}">
-					<span>${m.name}</span>
-				</li>
-			`;
+			html += categoryNavHTML(m.id, m.name);
 		}
 
-		html += /* HTML */ `
-			<button class="settings-add-btn js-nav" data="">
-				<span>Add</span>
-			</button>
-		`;
+		html += addBtnHTML;
 
 		category.setNav(html);
 		category.onNav((element) => {
@@ -526,7 +593,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		// Update global `montiors` object so the groups category has updated values.
 		const m = await fetchGet(
 			new URL(relativePathname("api/monitors")),
-			"could not fetch monitors"
+			"could not fetch monitors",
 		);
 		for (const key in monitors) {
 			delete monitors[key];
@@ -556,7 +623,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 			new URL(relativePathname("api/monitor")),
 			monitor,
 			token,
-			"failed to save monitor"
+			"failed to save monitor",
 		);
 		if (!ok) {
 			return;
@@ -568,7 +635,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 			new URL(`${pathname}?${params}`),
 			monitor,
 			token,
-			"failed to restart monitor"
+			"failed to restart monitor",
 		);
 
 		load();
@@ -581,7 +648,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		const ok = await fetchDelete(
 			new URL(`${pathname}?${params}`),
 			token,
-			"failed to delete monitor"
+			"failed to delete monitor",
 		);
 		if (!ok) {
 			return;
@@ -648,7 +715,7 @@ function newMonitorGroups(token, fields, groups) {
 			new URL(relativePathname("api/monitor-groups")),
 			groups,
 			token,
-			"failed to save monitor groups"
+			"failed to save monitor groups",
 		);
 		if (!ok) {
 			return;
@@ -668,7 +735,7 @@ function newMonitorGroups(token, fields, groups) {
 			new URL(relativePathname("api/monitor-groups")),
 			groups,
 			token,
-			"failed to save monitor groups"
+			"failed to save monitor groups",
 		);
 		if (!ok) {
 			return;
@@ -720,18 +787,10 @@ function newMonitorGroups(token, fields, groups) {
 		let html = "";
 		const sortedGroups = sortByName(groups);
 		for (const g of sortedGroups) {
-			html += /* HTML */ `
-				<li class="settings-nav-item js-nav" data="${g.id}">
-					<span>${g.name}</span>
-				</li>
-			`;
+			html += categoryNavHTML(g.id, g.name);
 		}
 
-		html += /* HTML */ `
-			<button class="settings-add-btn js-nav" data="">
-				<span>Add</span>
-			</button>
-		`;
+		html += addBtnHTML;
 
 		category.setNav(html);
 		category.onNav((element) => {
@@ -853,20 +912,11 @@ function newAccount(token, fields) {
 		let html = "";
 
 		for (const u of sortByUsername(accounts)) {
-			html += /* HTML */ `
-				<li class="settings-nav-item js-nav" data="${u.id}">
-					<span ${u.isAdmin ? 'style="color: var(--color-red);"' : ""}
-						>${u.username}
-					</span>
-				</li>
-			`;
+			const c = u.isAdmin === true ? "text-red" : "text-color";
+			html += categoryNavHTML(u.id, u.username, c);
 		}
 
-		html += /* HTML */ `
-			<button class="settings-add-btn js-nav" data="">
-				<span>Add</span>
-			</button>
-		`;
+		html += addBtnHTML;
 
 		category.setNav(html);
 		category.onNav((element) => {
@@ -878,7 +928,7 @@ function newAccount(token, fields) {
 		category.closeSubcategory();
 		const accounts = await fetchGet(
 			new URL(relativePathname("api/accounts")),
-			"failed to get accounts"
+			"failed to get accounts",
 		);
 		renderAccountList(accounts);
 	};
@@ -901,7 +951,7 @@ function newAccount(token, fields) {
 			new URL(relativePathname("api/account")),
 			removeEmptyValues(account),
 			token,
-			"failed to save account"
+			"failed to save account",
 		);
 		if (!ok) {
 			return;
@@ -917,7 +967,7 @@ function newAccount(token, fields) {
 		const ok = await fetchDelete(
 			new URL(`${pathname}?${params}`),
 			token,
-			"failed to delete account"
+			"failed to delete account",
 		);
 		if (!ok) {
 			return;
@@ -955,126 +1005,6 @@ function randomString(length) {
 	return output;
 }
 
-/** @returns Field<Any> */
-/*function newSelectMonitorFieldModal() {
-	/** @param {string} name */ /*
-const newField = (name) => {
-let $input;
-const id = uniqueID();
-return {
-html: `
-<div id="${id}" class="monitor-selector-item">
-<span class="monitor-selector-label">${name}</span>
-<div class="checkbox">
-<input class="checkbox-checkbox" type="checkbox"/>
-<div class="checkbox-box"></div>
-<img class="checkbox-check" src="assets/icons/feather/check.svg"/>
-</div>
-</div>`,
-init() {
-const element = document.getElementById(id);
-$input = element.querySelector("input");
-element.addEventListener("click", (e) => {
-if (e.target instanceof HTMLInputElement) {
-return;
-}
-$input.checked = !$input.checked;
-});
-},
-/** @param {boolean} input */ /*
-set(input) {
-$input.checked = input;
-},
-value() {
-return $input.checked;
-},
-};
-};
-
-const modal = newModal("Monitors");
-
-let value;
-let fields = {};
-let isRendered = false;
-const render = async () => {
-if (isRendered) {
-return;
-}
-const monitorsList = await fetchGet("api/monitors", "failed to fetch monitors");
-
-fields = {};
-let html = "";
-const sortedMonitors = sortByName(monitorsList);
-for (const monitor of sortedMonitors) {
-const id = monitor["id"];
-const field = newField(monitor["name"]);
-html += field.html;
-fields[id] = field;
-}
-
-const $modalContent = modal.init();
-$modalContent.innerHTML = `
-<div class="monitor-selector">
-${html}
-</div>`;
-
-for (const field of Object.values(fields)) {
-field.init();
-}
-
-modal.onClose(() => {
-// Get value.
-value = [];
-for (const [id, field] of Object.entries(fields)) {
-if (field.value()) {
-value.push(id);
-}
-}
-});
-
-isRendered = true;
-};
-
-const id = uniqueID();
-
-return {
-html: `
-<li id="${id}" class="form-field" style="display: flex">
-<label class="form-field-label">Monitors</label>
-<button class="js-edit-btn form-field-edit-btn">
-<img class="form-field-edit-btn-img" src="assets/icons/feather/edit-3.svg"/>
-</button>
-${modal.html}
-</li> `,
-init() {
-document
-.getElementById(id)
-.querySelector(".js-edit-btn")
-.addEventListener("click", async () => {
-await render();
-modal.open();
-
-// Set value.
-for (const [id, field] of Object.entries(fields)) {
-const state = value.includes(id);
-field.set(state);
-}
-});
-},
-/** @param {string} input */ /*
-set(input) {
-	if (input === undefined) {
-		value = [];
-		return;
-	}
-	value = input;
-},
-value() {
-	return value;
-},
-};
-}*/
-
 /**
  * @param {{[x: string]: { id: string, name: string} }} monitors
  * @returns Field<Any>
@@ -1086,13 +1016,34 @@ function newSelectMonitorField(monitors) {
 		const id = uniqueID();
 		return {
 			html: /* HTML */ `
-				<div id="${id}" class="monitor-selector-item">
-					<span class="monitor-selector-label">${name}</span>
-					<div class="checkbox">
-						<input class="checkbox-checkbox" type="checkbox" />
-						<div class="checkbox-box"></div>
+				<div
+					id="${id}"
+					class="monitor-selector-item relative flex items-center px-2 border border-color1"
+					style="width: auto; font-size: calc(var(--scale) * 1.8rem);"
+				>
+					<span class="mr-auto pr-2 text-color" style="user-select: none;"
+						>${name}</span
+					>
+					<div
+						class="flex justify-center items-center rounded-md bg-color2"
+						style="width: 0.8em; height: 0.8em; user-select: none;"
+					>
+						<input
+							class="checkbox-checkbox w-full h-full"
+							style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
+							type="checkbox"
+						/>
+						<div
+							class="checkbox-box absolute"
+							style="
+								width: 0.62em;
+								height: 0.62em;
+								border-radius: calc(var(--scale) * 0.25rem);
+							"
+						></div>
 						<img
-							class="checkbox-check"
+							class="checkbox-check absolute"
+							style="width: 0.8em; filter: invert();"
 							src="assets/icons/feather/check.svg"
 						/>
 					</div>
@@ -1125,7 +1076,9 @@ function newSelectMonitorField(monitors) {
 	const id = uniqueID();
 
 	return {
-		html: `<li id=${id} class="form-field" style="display: flex"></li>`,
+		html: /* HTML */ `
+			<li id=${id} class="flex items-center p-2 border-b-2 border-color1"></li>
+		`,
 		init() {
 			element = document.getElementById(id);
 		},
@@ -1209,11 +1162,11 @@ function newSourceField(options, getField) {
 					custom: true,
 				},
 				id,
-				"Source"
+				"Source",
 			);
 		})(),
 		init() {
-			const element = document.querySelector(`#js-${id}`);
+			const element = document.getElementById(id);
 			[$input, $error] = $getInputAndError(element);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
 				selectedSourceField().open();
@@ -1252,7 +1205,7 @@ function newSourceRTSP() {
 			{
 				label: "Main stream",
 				placeholder: "rtsp://x.x.x.x/main",
-			}
+			},
 		),
 		subStream: newField(
 			[],
@@ -1262,7 +1215,7 @@ function newSourceRTSP() {
 			{
 				label: "Sub stream",
 				placeholder: "rtsp://x.x.x.x/sub (optional)",
-			}
+			},
 		),
 	};
 
@@ -1279,7 +1232,8 @@ function newSourceRTSP() {
 		}
 		element.insertAdjacentHTML("beforeend", modal.html);
 		// @ts-ignore
-		element.querySelector(".js-modal").style.maxWidth = "12rem";
+		element.querySelector(".js-modal").style.maxWidth =
+			"calc(var(--scale) * 40.5rem)";
 
 		modal.init();
 		form.init();
@@ -1353,7 +1307,7 @@ function init() {
 		},
 		{
 			label: "ID",
-		}
+		},
 	);
 	monitorFields.name = fieldTemplate.text("Name", "my_monitor");
 	monitorFields.enable = fieldTemplate.toggle("Enable monitor", true);
@@ -1403,7 +1357,7 @@ function init() {
 				label: "Username",
 				placeholder: "name",
 				initial: "",
-			}
+			},
 		),
 		isAdmin: fieldTemplate.toggle("Admin"),
 		password: newPasswordField(),
