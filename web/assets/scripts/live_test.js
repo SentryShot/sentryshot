@@ -118,22 +118,13 @@ test("fullscreen", () => {
     >
       <a href="http://test.com/recordings#monitors=undefined"
          class="feed-btn p-1 bg-transparent"
-         style="
-					font-size: 0;
-					aspect-ratio: 1;
-				"
       >
         <img class="icon-filter"
              style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
              src="assets/icons/feather/film.svg"
         >
       </a>
-      <button class="js-fullscreen-btn feed-btn p-1 bg-transparent"
-              style="
-					font-size: 0;
-					aspect-ratio: 1;
-				"
-      >
+      <button class="js-fullscreen-btn feed-btn p-1 bg-transparent">
         <img class="icon-filter"
              style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
              src="assets/icons/feather/maximize.svg"
@@ -184,22 +175,13 @@ test("fullscreen", () => {
     >
       <a href="http://test.com/recordings#monitors=undefined"
          class="feed-btn p-1 bg-transparent"
-         style="
-					font-size: 0;
-					aspect-ratio: 1;
-				"
       >
         <img class="icon-filter"
              style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
              src="assets/icons/feather/film.svg"
         >
       </a>
-      <button class="js-fullscreen-btn feed-btn p-1 bg-transparent"
-              style="
-					font-size: 0;
-					aspect-ratio: 1;
-				"
-      >
+      <button class="js-fullscreen-btn feed-btn p-1 bg-transparent">
         <img class="icon-filter"
              style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
              src="assets/icons/feather/maximize.svg"

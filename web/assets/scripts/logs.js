@@ -570,11 +570,7 @@ function newMultiSelect(label, values, initial) {
 	return {
 		html: /* HTML */ `
 			<li id="${id}" class="items-center w-full px-2 border-b-2 border-color1">
-				<label
-					class="mr-auto text-color"
-					style="font-size: calc(var(--scale) * 1.5rem);"
-					>${label}</label
-				>
+				<label class="mr-auto text-1.5 text-color">${label}</label>
 				<div class="relative">${htmlFields}</div>
 			</li>
 		`,
@@ -644,17 +640,14 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 	return {
 		html: /* HTML */ `
 			<li id="${elementID}" class="items-center p-2 border-b-2 border-color1">
-				<label
-					for="${inputID}"
-					class="mr-auto text-color"
-					style="font-size: calc(var(--scale) * 1.5rem);"
+				<label for="${inputID}" class="mr-auto text-1.5 text-color"
 					>Monitor</label
 				>
 				<div class="flex w-full">
 					<select
 						id="${inputID}"
-						class="w-full pl-2"
-						style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
+						class="w-full pl-2 text-1.5"
+						style="height: calc(var(--scale) * 2.5rem);"
 					>
 						${options}
 					</select>
@@ -760,17 +753,13 @@ function newLogSelector(logger, formFields) {
 		${form.html()}
 		<div>
 			<button class="js-reset m-2 px-2 bg-color3 rounded-lg hover:bg-color2">
-				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
-					>Reset</span
-				>
+				<span class="text-2 text-color">Reset</span>
 			</button>
 			<button
 				class="log-apply-btn m-2 px-2 js-apply rounded-lg bg-green hover:bg-green2"
 				style="float: right;"
 			>
-				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
-					>Apply</span
-				>
+				<span class="text-2 text-color">Apply</span>
 			</button>
 		</div>
 	`;

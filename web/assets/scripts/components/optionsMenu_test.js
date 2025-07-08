@@ -40,7 +40,6 @@ describe("optionsGridSize", () => {
          style="
 					aspect-ratio: 1;
 					height: calc(var(--scale) * 2.7rem);
-					font-size: 0;
 				"
          src="assets/icons/feather/plus.svg"
     >
@@ -57,7 +56,6 @@ describe("optionsGridSize", () => {
          style="
 					aspect-ratio: 1;
 					height: calc(var(--scale) * 2.7rem);
-					font-size: 0;
 				"
          src="assets/icons/feather/minus.svg"
     >
@@ -327,15 +325,14 @@ describe("optionsMonitorGroups", () => {
 
 		const $picker = document.querySelector(".js-select-one");
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
-<span class="px-2"
-      style="font-size: calc(var(--scale) * 2rem);"
+<span class="px-2 text-2"
+      "
 >
   Groups
 </span>
-<span class="js-select-one-item px-2 bg-color2 hover:bg-color3"
+<span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					font-size: calc(var(--scale) * 1.5rem);
 					border-top: solid;
 					border-top-width: 2px;
 				"
@@ -343,10 +340,9 @@ describe("optionsMonitorGroups", () => {
 >
   group1
 </span>
-<span class="js-select-one-item px-2 bg-color2 hover:bg-color3"
+<span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					font-size: calc(var(--scale) * 1.5rem);
 					border-top: solid;
 					border-top-width: 2px;
 				"
@@ -358,15 +354,14 @@ describe("optionsMonitorGroups", () => {
 
 		document.querySelector(".js-select-one span").click();
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
-<span class="px-2"
-      style="font-size: calc(var(--scale) * 2rem);"
+<span class="px-2 text-2"
+      "
 >
   Groups
 </span>
-<span class="js-select-one-item px-2 bg-color2 hover:bg-color3"
+<span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					font-size: calc(var(--scale) * 1.5rem);
 					border-top: solid;
 					border-top-width: 2px;
 				"
@@ -374,10 +369,9 @@ describe("optionsMonitorGroups", () => {
 >
   group1
 </span>
-<span class="js-select-one-item px-2 bg-color2 hover:bg-color3"
+<span class="js-select-one-item px-2 text-1.5 bg-color2 hover:bg-color3"
       style="
 					display: block ruby;
-					font-size: calc(var(--scale) * 1.5rem);
 					border-top: solid;
 					border-top-width: 2px;
 				"

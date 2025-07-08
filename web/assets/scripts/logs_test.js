@@ -117,9 +117,7 @@ describe("MultiSelect", () => {
 <li id="uid4"
     class="items-center w-full px-2 border-b-2 border-color1"
 >
-  <label class="mr-auto text-color"
-         style="font-size: calc(var(--scale) * 1.5rem);"
-  >
+  <label class="mr-auto text-1.5 text-color">
     test
   </label>
   <div class="relative">
@@ -374,18 +372,14 @@ describe("logSelector", () => {
   </ul>
   <div>
     <button class="js-reset m-2 px-2 bg-color3 rounded-lg hover:bg-color2">
-      <span class="text-color"
-            style="font-size: calc(var(--scale) * 2rem);"
-      >
+      <span class="text-2 text-color">
         Reset
       </span>
     </button>
     <button class="log-apply-btn m-2 px-2 js-apply rounded-lg bg-green hover:bg-green2"
             style="float: right;"
     >
-      <span class="text-color"
-            style="font-size: calc(var(--scale) * 2rem);"
-      >
+      <span class="text-2 text-color">
         Apply
       </span>
     </button>

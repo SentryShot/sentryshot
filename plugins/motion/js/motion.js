@@ -138,8 +138,8 @@ const zoneSelectFieldHTML = /* HTML */ `
 	>
 		<div class="flex w-full">
 			<select
-				class="js-zone-select w-full pl-2"
-				style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
+				class="js-zone-select w-full pl-2 text-1.5"
+				style="height: calc(var(--scale) * 2.5rem);"
 			></select>
 			<button
 				class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3"
@@ -167,20 +167,18 @@ const zoneSelectFieldHTML = /* HTML */ `
 const thresholdsFieldHTML = /* HTML */ `
 	<li class="items-center p-2 border-b-2 border-color1">
 		<label
-			class="grow w-full text-color"
+			class="grow w-full text-1.5 text-color"
 			style="
 					float: left;
 					min-width: calc(var(--scale) * 13.5rem);
-					font-size: calc(var(--scale) * 1.5rem);
 				"
 			>Threshold Min-Max</label
 		>
 		<div class="flex w-full">
 			<input
-				class="js-threshold-min w-full mr-4 pl-2"
+				class="js-threshold-min w-full mr-4 pl-2 text-1.5"
 				style="
 					height: calc(var(--scale) * 2.5rem);
-					font-size: calc(var(--scale) * 1.5rem);
 				"
 				type="number"
 				min="0"
@@ -188,10 +186,9 @@ const thresholdsFieldHTML = /* HTML */ `
 				step="any"
 			/>
 			<input
-				class="js-threshold-max grow w-full pl-2"
+				class="js-threshold-max grow w-full pl-2 text-1.5"
 				style="
 					height: calc(var(--scale) * 2.5rem);
-					font-size: calc(var(--scale) * 1.5rem);
 				"
 				type="number"
 				min="0"
@@ -212,9 +209,8 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 	>
 		<div class="flex">
 			<button
-				class="js-1x pl-2 pr-1 text-color bg-color2 hover:bg-color1"
+				class="js-1x pl-2 pr-1 text-1.4 text-color bg-color2 hover:bg-color1"
 				style="
-					font-size: calc(var(--scale) * 1.4rem);
 					border-top-left-radius: var(--radius-xl);
 					border-bottom-left-radius: var(--radius-xl);
 				"
@@ -222,25 +218,16 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 				1x
 			</button>
 			<button
-				class="js-4x px-1 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
-				style="
-					font-size: calc(var(--scale) * 1.4rem);
-				"
+				class="js-4x px-1 text-1.4 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
 			>
 				4x
 			</button>
-			<button
-				class="js-10x px-1 text-color bg-color2 hover:bg-color1"
-				style="
-					font-size: calc(var(--scale) * 1.4rem);
-				"
-			>
+			<button class="js-10x px-1 text-1.4 text-color bg-color2 hover:bg-color1">
 				10x
 			</button>
 			<button
-				class="js-20x pl-1 pr-2 text-color bg-color2 hover:bg-color1"
+				class="js-20x pl-1 pr-2 text-1.4 text-color bg-color2 hover:bg-color1"
 				style="
-					font-size: calc(var(--scale) * 1.4rem);
 					border-top-right-radius: var(--radius-xl);
 					border-bottom-right-radius: var(--radius-xl);
 				"
@@ -250,15 +237,15 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 		</div>
 		<div class="flex">
 			<input
-				class="js-x mr-1 text-center"
-				style="width: calc(var(--scale) * 3.5rem); font-size: calc(var(--scale) * 1.4rem);"
+				class="js-x mr-1 text-center text-1.4"
+				style="width: calc(var(--scale) * 3.5rem);"
 				type="number"
 				min="0"
 				max="100"
 			/>
 			<input
-				class="js-y text-center"
-				style="width: calc(var(--scale) * 3.5rem); font-size: calc(var(--scale) * 1.4rem);"
+				class="js-y text-center text-1.4"
+				style="width: calc(var(--scale) * 3.5rem);"
 				type="number"
 				min="0"
 				max="100"

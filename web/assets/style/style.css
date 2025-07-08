@@ -557,6 +557,22 @@ img {
 	border-radius: var(--radius-lg);
 }
 
+.text-1\.3 {
+	font-size: calc(var(--scale) * 1.3rem);
+}
+
+.text-1\.4 {
+	font-size: calc(var(--scale) * 1.4rem);
+}
+
+.text-1\.5 {
+	font-size: calc(var(--scale) * 1.5rem);
+}
+
+.text-2 {
+	font-size: calc(var(--scale) * 2rem);
+}
+
 /* Mobile portrait mode */
 
 /* sidebar */

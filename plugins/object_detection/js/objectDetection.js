@@ -178,17 +178,13 @@ function thresholds(detectors, getDetectorName) {
 						border-bottom-width: 1px;
 					"
 				>
-					<label
-						for="${id}"
-						class="mr-auto text-color"
-						style="font-size: calc(var(--scale) * 1.5rem);"
+					<label for="${id}" class="mr-auto text-1.5 text-color"
 						>${label}</label
 					>
 					<input
 						id="${id}"
-						class="text-center h-full"
+						class="text-center h-full text-1.5"
 						style="
-							font-size: calc(var(--scale) * 1.5rem);
 							width: calc(var(--scale) * 4rem);
 						"
 						type="number"
@@ -349,8 +345,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 			>
 				<label
 					for="object-detection-crop-preview"
-					class="mr-auto text-color"
-					style="font-size: calc(var(--scale) * 1.5rem);"
+					class="mr-auto text-1.5 text-color"
 					>Preview</label
 				>
 				<div class="js-preview-wrapper relative">
@@ -381,17 +376,10 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				<div
 					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
 				>
-					<span
-						class="ml-1 mr-2 text-color"
-						style="
-							font-size: calc(var(--scale) * 1.3rem);
-						"
-						>X</span
-					>
+					<span class="ml-1 mr-2 text-1.3 text-color">X</span>
 					<input
-						class="js-x text-center rounded-md"
+						class="js-x text-center rounded-md text-1.3"
 						style="
-							font-size: calc(var(--scale) * 1.3rem);
 							width: calc(var(--scale) * 3rem);
 						"
 						type="number"
@@ -403,15 +391,10 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				<div
 					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
 				>
-					<span
-						class="ml-1 mr-2 text-color"
-						style="font-size: calc(var(--scale) * 1.3rem);"
-						>Y</span
-					>
+					<span class="ml-1 mr-2 text-1.3 text-color">Y</span>
 					<input
-						class="js-y text-center rounded-md"
+						class="js-y text-center rounded-md text-1.3"
 						style="
-							font-size: calc(var(--scale) * 1.3rem);
 							width: calc(var(--scale) * 3rem);
 						"
 						type="number"
@@ -423,17 +406,10 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				<div
 					class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
 				>
-					<span
-						class="mr-2 ml-1 text-color"
-						style="
-							font-size: calc(var(--scale) * 1.3rem);
-						"
-						>size</span
-					>
+					<span class="mr-2 ml-1 text-1.3 text-color">size</span>
 					<input
-						class="js-size text-center rounded-md"
+						class="js-size text-center rounded-md text-1.3"
 						style="
-							font-size: calc(var(--scale) * 1.3rem);
 							width: calc(var(--scale) * 3.5rem);
 						"
 						type="number"
@@ -643,9 +619,8 @@ const maskOptionsHTML = /* HTML */ `
 	>
 		<div class="flex">
 			<button
-				class="js-1x pl-2 pr-1 text-color bg-color2 hover:bg-color1"
+				class="js-1x pl-2 pr-1 text-1.4 text-color bg-color2 hover:bg-color1"
 				style="
-					font-size: calc(var(--scale) * 1.4rem);
 					border-top-left-radius: var(--radius-xl);
 					border-bottom-left-radius: var(--radius-xl);
 				"
@@ -653,25 +628,16 @@ const maskOptionsHTML = /* HTML */ `
 				1x
 			</button>
 			<button
-				class="js-4x px-1 text-color bg-color2 hover:bg-color1 object_detection_mask-step-size-selected"
-				style="
-					font-size: calc(var(--scale) * 1.4rem);
-				"
+				class="js-4x px-1 text-1.4 text-color bg-color2 hover:bg-color1 object_detection_mask-step-size-selected"
 			>
 				4x
 			</button>
-			<button
-				class="js-10x px-1 text-color bg-color2 hover:bg-color1"
-				style="
-					font-size: calc(var(--scale) * 1.4rem);
-				"
-			>
+			<button class="js-10x px-1 text-1.4 text-color bg-color2 hover:bg-color1">
 				10x
 			</button>
 			<button
-				class="js-20x pl-1 pr-2 text-color bg-color2 hover:bg-color1"
+				class="js-20x pl-1 pr-2 text-1.4 text-color bg-color2 hover:bg-color1"
 				style="
-					font-size: calc(var(--scale) * 1.4rem);
 					border-top-right-radius: var(--radius-xl);
 					border-bottom-right-radius: var(--radius-xl);
 				"
@@ -681,15 +647,15 @@ const maskOptionsHTML = /* HTML */ `
 		</div>
 		<div class="flex">
 			<input
-				class="js-x mr-1 text-center"
-				style="width: calc(var(--scale) * 3.5rem); font-size: calc(var(--scale) * 1.4rem);"
+				class="js-x mr-1 text-center text-1.4"
+				style="width: calc(var(--scale) * 3.5rem);"
 				type="number"
 				min="0"
 				max="100"
 			/>
 			<input
-				class="js-y text-center"
-				style="width: calc(var(--scale) * 3.5rem); font-size: calc(var(--scale) * 1.4rem);"
+				class="js-y text-center text-1.4"
+				style="width: calc(var(--scale) * 3.5rem);"
 				type="number"
 				min="0"
 				max="100"
@@ -733,8 +699,7 @@ function mask(hasSubStream, getMonitorId) {
 			>
 				<label
 					for="object_detection_mask-preview"
-					class="grow mr-auto text-color"
-					style="font-size: calc(var(--scale) * 1.5rem);"
+					class="grow mr-auto text-1.5 text-color"
 					>Preview</label
 				>
 				<div class="js-preview-wrapper relative">

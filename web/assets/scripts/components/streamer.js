@@ -183,13 +183,7 @@ function newFullscreenBtn() {
 	let $img, $wrapper;
 	return {
 		html: /* HTML */ `
-			<button
-				class="js-fullscreen-btn feed-btn p-1 bg-transparent"
-				style="
-					font-size: 0;
-					aspect-ratio: 1;
-				"
-			>
+			<button class="js-fullscreen-btn feed-btn p-1 bg-transparent">
 				<img
 					class="icon-filter"
 					style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
@@ -232,14 +226,7 @@ function newRecordingsBtn(monitorIds) {
 	const recordingsPath = `${relativePathname("recordings")}#monitors=${monitorIds}`;
 	return {
 		html: /* HTML */ `
-			<a
-				href="${recordingsPath}"
-				class="feed-btn p-1 bg-transparent"
-				style="
-					font-size: 0;
-					aspect-ratio: 1;
-				"
-			>
+			<a href="${recordingsPath}" class="feed-btn p-1 bg-transparent">
 				<img
 					class="icon-filter"
 					style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"

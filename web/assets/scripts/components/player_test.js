@@ -165,7 +165,6 @@ describe("newPlayer", () => {
     >
       <button class="js-play-btn p-1 bg-color0"
               style="
-					font-size: 0;
 					border-radius: 50%;
 					opacity: 0.8;
 				"

@@ -163,9 +163,7 @@ function newSaveBtn(onClick) {
 	return {
 		html: /* HTML */ `
 			<button id="${id}" class="m-2 px-2 rounded-lg bg-green hover:bg-green2">
-				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
-					>Save</span
-				>
+				<span class="text-2 text-color">Save</span>
 			</button>
 		`,
 		init() {
@@ -198,7 +196,7 @@ function newDeleteBtn(onClick) {
 					margin-left: auto;
 				"
 			>
-				<span class="text-color" style="font-size: calc(var(--scale) * 2rem);"
+				<span class="text-2 text-color""
 					>Delete</span
 				>
 			</button>
@@ -523,11 +521,10 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		innerHTML = /* HTML */ `
 			<input
 				id="label-${id}"
-				class="js-input w-full"
+				class="js-input w-full text-1.5"
 				style="
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
-					font-size: calc(var(--scale) * 1.5rem);
 					padding-left: calc(var(--scale) * 0.5rem);
 				"
 				type="${input}"
@@ -546,8 +543,8 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			<div class="flex w-full">
 				<select
 					id="label-${id}"
-					class="js-input w-full pl-2"
-					style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
+					class="js-input w-full pl-2 text-1.5"
+					style="height: calc(var(--scale) * 2.5rem);"
 				>
 					${options}
 				</select>
@@ -582,10 +579,9 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		>
 			<label
 				for="label-${id}"
-				class="grow w-full text-color"
+				class="grow w-full text-1.5 text-color"
 				style="
 					float: left;
-					font-size: calc(var(--scale) * 1.5rem);
 				"
 				>${label}</label
 			>
@@ -603,8 +599,8 @@ function newModalFieldHTML(id, label) {
 		<li id="${id}" class="flex items-center p-2 border-b-2 border-color1">
 			<label
 				for="label-${id}"
-				class="grow w-full text-color"
-				style="float: left; font-size: calc(var(--scale) * 1.5rem);"
+				class="grow w-full text-1.5 text-color"
+				style="float: left;"
 				>${label}</label
 			>
 			${editBtnHTML}

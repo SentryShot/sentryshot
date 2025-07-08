@@ -365,9 +365,8 @@ fn edit_templates(tmpls: &mut Templates) {
     \"
 >
 	<button
-        class=\"mt-2 px-2 rounded-lg text-color bg-color2 hover:bg-color3\"
+        class=\"mt-2 px-2 rounded-lg text-2 text-color bg-color2 hover:bg-color3\"
         style=\"
-            font-size: calc(var(--scale) * 2rem);
             border-width: 2px;
             border-color: var(--color0);
         \"

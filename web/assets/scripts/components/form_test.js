@@ -126,8 +126,8 @@ describe("newForm", () => {
 					margin-left: auto;
 				"
     >
-      <span class="text-color"
-            style="font-size: calc(var(--scale) * 2rem);"
+      <span class="text-2 text-color"
+            "
       >
         Delete
       </span>
@@ -168,9 +168,7 @@ describe("newForm", () => {
     <button id="uid1"
             class="m-2 px-2 rounded-lg bg-green hover:bg-green2"
     >
-      <span class="text-color"
-            style="font-size: calc(var(--scale) * 2rem);"
-      >
+      <span class="text-2 text-color">
         Save
       </span>
     </button>
@@ -180,8 +178,8 @@ describe("newForm", () => {
 					margin-left: auto;
 				"
     >
-      <span class="text-color"
-            style="font-size: calc(var(--scale) * 2rem);"
+      <span class="text-2 text-color"
+            "
       >
         Delete
       </span>
@@ -217,20 +215,18 @@ describe("newField", () => {
     class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid1"
-         class="grow w-full text-color"
+         class="grow w-full text-1.5 text-color"
          style="
 					float: left;
-					font-size: calc(var(--scale) * 1.5rem);
 				"
   >
     a
   </label>
   <input id="label-uid1"
-         class="js-input w-full"
+         class="js-input w-full text-1.5"
          style="
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
-					font-size: calc(var(--scale) * 1.5rem);
 					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="number"
@@ -349,20 +345,18 @@ describe("fieldTemplate", () => {
     class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid1"
-         class="grow w-full text-color"
+         class="grow w-full text-1.5 text-color"
          style="
 					float: left;
-					font-size: calc(var(--scale) * 1.5rem);
 				"
   >
     1
   </label>
   <input id="label-uid1"
-         class="js-input w-full"
+         class="js-input w-full text-1.5"
          style="
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
-					font-size: calc(var(--scale) * 1.5rem);
 					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="text"
@@ -400,20 +394,18 @@ describe("fieldTemplate", () => {
     class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid1"
-         class="grow w-full text-color"
+         class="grow w-full text-1.5 text-color"
          style="
 					float: left;
-					font-size: calc(var(--scale) * 1.5rem);
 				"
   >
     1
   </label>
   <input id="label-uid1"
-         class="js-input w-full"
+         class="js-input w-full text-1.5"
          style="
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
-					font-size: calc(var(--scale) * 1.5rem);
 					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="number"
@@ -455,18 +447,17 @@ describe("fieldTemplate", () => {
     class="items-center px-2 pb-1 border-b-2 border-color1"
 >
   <label for="label-uid1"
-         class="grow w-full text-color"
+         class="grow w-full text-1.5 text-color"
          style="
 					float: left;
-					font-size: calc(var(--scale) * 1.5rem);
 				"
   >
     1
   </label>
   <div class="flex w-full">
     <select id="label-uid1"
-            class="js-input w-full pl-2"
-            style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
+            class="js-input w-full pl-2 text-1.5"
+            style="height: calc(var(--scale) * 2.5rem);"
     >
       <option>
         true
@@ -498,18 +489,17 @@ describe("fieldTemplate", () => {
     class="items-center px-2 pb-1 border-b-2 border-color1"
 >
   <label for="label-uid1"
-         class="grow w-full text-color"
+         class="grow w-full text-1.5 text-color"
          style="
 					float: left;
-					font-size: calc(var(--scale) * 1.5rem);
 				"
   >
     1
   </label>
   <div class="flex w-full">
     <select id="label-uid1"
-            class="js-input w-full pl-2"
-            style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
+            class="js-input w-full pl-2 text-1.5"
+            style="height: calc(var(--scale) * 2.5rem);"
     >
       <option>
         a
@@ -544,18 +534,17 @@ describe("fieldTemplate", () => {
     class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid1"
-         class="grow w-full text-color"
+         class="grow w-full text-1.5 text-color"
          style="
 					float: left;
-					font-size: calc(var(--scale) * 1.5rem);
 				"
   >
     y
   </label>
   <div class="flex w-full">
     <select id="label-uid1"
-            class="js-input w-full pl-2"
-            style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
+            class="js-input w-full pl-2 text-1.5"
+            style="height: calc(var(--scale) * 2.5rem);"
     >
       <option>
         a
@@ -632,18 +621,17 @@ describe("selectCustomField", () => {
     class="items-center px-2 pb-1 border-b-2 border-color1"
 >
   <label for="label-uid1"
-         class="grow w-full text-color"
+         class="grow w-full text-1.5 text-color"
          style="
 					float: left;
-					font-size: calc(var(--scale) * 1.5rem);
 				"
   >
     d
   </label>
   <div class="flex w-full">
     <select id="label-uid1"
-            class="js-input w-full pl-2"
-            style="height: calc(var(--scale) * 2.5rem); font-size: calc(var(--scale) * 1.5rem);"
+            class="js-input w-full pl-2 text-1.5"
+            style="height: calc(var(--scale) * 2.5rem);"
     >
       <option>
         a
@@ -696,8 +684,8 @@ test("newModalFieldHTML", () => {
     class="flex items-center p-2 border-b-2 border-color1"
 >
   <label for="label-uid1"
-         class="grow w-full text-color"
-         style="float: left; font-size: calc(var(--scale) * 1.5rem);"
+         class="grow w-full text-1.5 text-color"
+         style="float: left;"
   >
     test
   </label>
@@ -723,20 +711,18 @@ describe("passwordField", () => {
     class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid1"
-         class="grow w-full text-color"
+         class="grow w-full text-1.5 text-color"
          style="
 					float: left;
-					font-size: calc(var(--scale) * 1.5rem);
 				"
   >
     New password
   </label>
   <input id="label-uid1"
-         class="js-input w-full"
+         class="js-input w-full text-1.5"
          style="
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
-					font-size: calc(var(--scale) * 1.5rem);
 					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="password"
@@ -756,20 +742,18 @@ describe("passwordField", () => {
     class="items-center px-2  border-b-2 border-color1"
 >
   <label for="label-uid2"
-         class="grow w-full text-color"
+         class="grow w-full text-1.5 text-color"
          style="
 					float: left;
-					font-size: calc(var(--scale) * 1.5rem);
 				"
   >
     Repeat password
   </label>
   <input id="label-uid2"
-         class="js-input w-full"
+         class="js-input w-full text-1.5"
          style="
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
-					font-size: calc(var(--scale) * 1.5rem);
 					padding-left: calc(var(--scale) * 0.5rem);
 				"
          type="password"

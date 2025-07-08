@@ -43,12 +43,7 @@ describe("feed", () => {
 							border: none;
 						"
     >
-      <button class="js-fullscreen-btn feed-btn p-2 bg-transparent"
-              style="
-					font-size: 0;
-					aspect-ratio: 1;
-				"
-      >
+      <button class="js-fullscreen-btn feed-btn p-2 bg-transparent">
         <img class="icon-filter"
              style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
              src="assets/icons/feather/maximize.svg"
@@ -115,10 +110,6 @@ describe("muteBtn", () => {
 test("recordingsBtn", async () => {
 	expect(newFeedBtn.recordings("b").html).toMatchInlineSnapshot(`
 <a class="feed-btn p-2 bg-transparent"
-   style="
-					font-size: 0;
-					aspect-ratio: 1;
-				"
    href="http://test.com/recordings#monitors=b"
 >
   <img class="icon-filter"
@@ -131,12 +122,7 @@ test("recordingsBtn", async () => {
 
 test("fullscreenBtn", () => {
 	expect(newFeedBtn.fullscreen().html).toMatchInlineSnapshot(`
-<button class="js-fullscreen-btn feed-btn p-2 bg-transparent"
-        style="
-					font-size: 0;
-					aspect-ratio: 1;
-				"
->
+<button class="js-fullscreen-btn feed-btn p-2 bg-transparent">
   <img class="icon-filter"
        style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
        src="assets/icons/feather/maximize.svg"

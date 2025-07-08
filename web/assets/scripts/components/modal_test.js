@@ -18,10 +18,9 @@ test("newModal", () => {
 
 	expect(document.querySelector(".modal").innerHTML).toMatchInlineSnapshot(`
 <header class="modal-header flex px-2 bg-color2">
-  <span class="w-full text-center text-color"
+  <span class="w-full text-center text-2 text-color"
         style="
 								padding-left: calc(var(--scale) * 2.5rem);
-								font-size: calc(var(--scale) * 2rem);
 							"
   >
     test
@@ -80,10 +79,9 @@ test("modalSelect", () => {
 >
   <div class="modal js-modal flex">
     <header class="modal-header flex px-2 bg-color2">
-      <span class="w-full text-center text-color"
+      <span class="w-full text-center text-2 text-color"
             style="
 								padding-left: calc(var(--scale) * 2.5rem);
-								font-size: calc(var(--scale) * 2rem);
 							"
       >
         x
@@ -104,18 +102,12 @@ test("modalSelect", () => {
            style="flex-wrap: wrap;"
       >
         <span data="m1"
-              class="js-option px-2 border border-color1 text-color"
-              style="
-						font-size: calc(var(--scale) * 1.5rem);
-					"
+              class="js-option px-2 border text-1.5 border-color1 text-color"
         >
           m1
         </span>
         <span data="m2"
-              class="js-option px-2 border border-color1 text-color"
-              style="
-						font-size: calc(var(--scale) * 1.5rem);
-					"
+              class="js-option px-2 border text-1.5 border-color1 text-color"
         >
           m2
         </span>

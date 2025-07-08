@@ -67,11 +67,7 @@ function newRenderer($parent) {
 							"
 							src="${category.icon()}"
 						/>
-						<span
-							class="text-color"
-							style="font-size: calc(var(--scale) * 2rem);"
-							>${category.title()}</span
-						>
+						<span class="text-2 text-color">${category.title()}</span>
 					</li>
 				`;
 
@@ -121,10 +117,9 @@ const backIconHTML = /* HTML */ `
 function categoryTitleHTML(title = "") {
 	return /* HTML */ `
 		<span
-			class="js-category-title w-full m-auto text-center text-color"
+			class="js-category-title w-full m-auto text-center text-2 text-color"
 			style="
 				margin-right: calc(var(--scale) * 3rem);;
-				font-size: calc(var(--scale) * 2rem);
 			"
 			>${title}</span
 		>
@@ -160,9 +155,7 @@ function categoryNavHTML(data, label, c = "text-color") {
 			class="js-nav flex items-center py-1 px-4 border border-color3 hover:bg-color3"
 			data="${data}"
 		>
-			<span class="${c}" style="font-size: calc(var(--scale) * 2rem);"
-				>${label}</span
-			>
+			<span class="text-2 ${c}">${label}</span>
 		</li>
 	`;
 }
@@ -171,7 +164,7 @@ const addBtnHTML = /* HTML */ `
 	<button
 		class="js-add-btn js-nav shrink-0 mt-2 ml-4 mr-auto px-2 rounded-md bg-green hover:bg-green2"
 	>
-		<span class="text-color" style="font-size: calc(var(--scale) * 2rem);">Add</span>
+		<span class="text-2 text-color">Add</span>
 	</button>
 `;
 
