@@ -4,7 +4,7 @@
 
 /* eslint-disable require-await */
 
-import { uidReset } from "./libs/common.js";
+import { uidReset, htmlToElems } from "./libs/common.js";
 import {
 	newFormater,
 	createSpan,
@@ -107,7 +107,7 @@ describe("MultiSelect", () => {
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
 		const field = newMultiSelect("test", ["a", "b", "c"], ["a", "b"]);
-		element.innerHTML = field.html;
+		element.replaceChildren(...field.elems);
 		field.init();
 		return [element, field];
 	};
@@ -252,7 +252,7 @@ test("monitorPicker", () => {
 
 	// @ts-ignore
 	const picker = newMonitorPicker(monitors, mockModalSelect);
-	element.innerHTML = picker.html;
+	element.replaceChildren(...picker.elems);
 	picker.init();
 
 	// Open modal.
@@ -289,17 +289,17 @@ describe("logSelector", () => {
 		};
 		const fields = {
 			level: {
-				html: "levelHTML",
+				elems: htmlToElems("<span>levelHTML</span>"),
 				value() {
 					return "debug";
 				},
 			},
 			sources: {
-				html: "sourcesHTML",
+				elems: htmlToElems("<span>sourcesHTML</span>"),
 				value() {},
 			},
 			monitor: {
-				html: "monitorHTML",
+				elems: htmlToElems("<span>monitorHTML</span>"),
 				value() {},
 			},
 		};
@@ -321,7 +321,15 @@ describe("logSelector", () => {
   <ul class="form"
       style="overflow-y: auto;"
   >
-    levelHTMLsourcesHTMLmonitorHTML
+    <span>
+      levelHTML
+    </span>
+    <span>
+      sourcesHTML
+    </span>
+    <span>
+      monitorHTML
+    </span>
     <div class="flex">
     </div>
   </ul>

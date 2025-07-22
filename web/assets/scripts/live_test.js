@@ -28,7 +28,7 @@ describe("resBtn", () => {
 		const element = document.querySelector("div");
 
 		const res = resBtn(mockContent);
-		element.innerHTML = res.html;
+		element.replaceChildren(...res.elems);
 
 		const $btn = document.querySelector("button");
 		expect($btn.textContent.trim()).toBe("");
@@ -67,7 +67,7 @@ describe("resBtn", () => {
 		};
 
 		const res = resBtn(content);
-		element.innerHTML = res.html;
+		element.replaceChildren(...res.elems);
 
 		res.init();
 		// @ts-ignore
@@ -103,11 +103,11 @@ test("fullscreen", () => {
     </label>
     <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
          style="
-							z-index: 2;
-							bottom: 0;
-							margin-bottom: 5%;
-							border: none;
-						"
+						z-index: 2;
+						bottom: 0;
+						margin-bottom: 5%;
+						border: none;
+					"
     >
       <a href="http://test.com/recordings#monitors=undefined"
          class="feed-btn p-1 bg-transparent"
@@ -150,11 +150,11 @@ test("fullscreen", () => {
     </label>
     <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
          style="
-							z-index: 2;
-							bottom: 0;
-							margin-bottom: 5%;
-							border: none;
-						"
+						z-index: 2;
+						bottom: 0;
+						margin-bottom: 5%;
+						border: none;
+					"
     >
       <a href="http://test.com/recordings#monitors=undefined"
          class="feed-btn p-1 bg-transparent"

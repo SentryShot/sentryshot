@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-check
+
 import { fromUTC } from "../libs/time.js";
-import { uniqueID, fetchDelete, denormalize } from "../libs/common.js";
+import {
+	uniqueID,
+	fetchDelete,
+	denormalize,
+	htmlToElem,
+	htmlToElems,
+	elemsToHTML,
+} from "../libs/common.js";
 
 const millisecond = 1000000;
 
@@ -48,7 +57,7 @@ const millisecond = 1000000;
 
 /**
  * @typedef {Object} Player
- * @property {string} html
+ * @property {Element} elem
  * @property {(onLoad: () => void) => void} init
  * @property {() => void} reset
  * @property {() => void} exitFullscreen
@@ -121,7 +130,7 @@ function newPlayer(data, isAdmin, token) {
 				min-height: 3.5%;
 			"
 		>
-			${renderTimeline(d)}
+			${elemsToHTML(renderTimeline(d))}
 		</div>
 	`;
 
@@ -132,7 +141,7 @@ function newPlayer(data, isAdmin, token) {
 		>
 			<source src="${d.videoPath}" type="video/mp4" />
 		</video>
-		${detectionRenderer.html}
+		${detectionRenderer.elem.outerHTML}
 		<input
 			id="${elementID}-overlay-checkbox" type="checkbox"
 			class="js-checkbox player-overlay-checkbox absolute"
@@ -166,7 +175,7 @@ function newPlayer(data, isAdmin, token) {
 				min-height: 3.5%;
 			"
 		>
-			${renderTimeline(d)}
+			${elemsToHTML(renderTimeline(d))}
 			<progress
 				class="js-progress w-full h-full py-1 bg-transparent"
 				style="opacity: 0.8; user-select: none;"
@@ -275,6 +284,7 @@ function newPlayer(data, isAdmin, token) {
 			videoDuration = $video.duration;
 			$progress.setAttribute("max", String(videoDuration));
 		});
+		/** @param {number} newTime */
 		const updateProgress = (newTime) => {
 			$progress.value = newTime;
 			/** @type {HTMLElement} */
@@ -343,18 +353,21 @@ function newPlayer(data, isAdmin, token) {
 		element.classList.remove("js-loaded");
 	};
 
-	return {
-		html: /* HTML */ `
-			<div class="flex justify-center">
-				<div
-					id="${elementID}"
-					class="relative flex justify-center items-center w-full"
-					style="max-height: 100vh; align-self: center;"
-				>
-					${thumbHTML}
-				</div>
+	const html = /* HTML */ `
+		<div class="flex justify-center">
+			<div
+				id="${elementID}"
+				class="relative flex justify-center items-center w-full"
+				style="max-height: 100vh; align-self: center;"
+			>
+				${thumbHTML}
 			</div>
-		`,
+		</div>
+	`;
+
+	return {
+		elem: htmlToElem(html),
+		/** @param {() => void} onLoad */
 		init(onLoad) {
 			element = document.querySelector(`#${elementID}`);
 			$wrapper = element.parentElement;
@@ -382,10 +395,13 @@ function newPlayer(data, isAdmin, token) {
 	};
 }
 
-/** @param {RecordingData} data */
+/**
+ * @param {RecordingData} data
+ * @returns {Element[]}
+ */
 function renderTimeline(data) {
 	if (!data.start || !data.end || !data.events) {
-		return "";
+		return [];
 	}
 	const startMs = data.start / millisecond;
 	const endMs = data.end / millisecond;
@@ -432,7 +448,7 @@ function renderTimeline(data) {
 		start = end;
 	}
 
-	return /* HTML */ `
+	return htmlToElems(/* HTML */ `
 		<svg
 			class="absolute w-full h-full"
 			style="fill: var(--color-red);"
@@ -441,7 +457,7 @@ function renderTimeline(data) {
 		>
 			${svg}
 		</svg>
-	`;
+	`);
 }
 
 /**
@@ -461,7 +477,7 @@ function newDetectionRenderer(startTimeMs, events) {
 		const height = denormalize(rect.height, 100);
 
 		const textY = y > 10 ? y - 2 : y + height + 5;
-		return /* HTML */ `
+		return htmlToElems(/* HTML */ `
 			<text
 				x="${x}"
 				y="${textY}"
@@ -471,39 +487,43 @@ function newDetectionRenderer(startTimeMs, events) {
 				${label} ${Math.round(score)}%
 			</text>
 			<rect x="${x}" width="${width}" y="${y}" height="${height}" />
-		`;
+		`);
 	};
 
 	/** @param {Detection[]} detections */
 	const renderDetections = (detections) => {
-		let html = "";
+		let elems = [];
 		if (!detections) {
-			return "";
+			return [];
 		}
 		for (const d of detections) {
 			if (d.region && d.region.rectangle) {
-				html += renderRectangle(d.region.rectangle, d.label, d.score);
+				elems = [
+					...elems,
+					...renderRectangle(d.region.rectangle, d.label, d.score),
+				];
 			}
 		}
-		return html;
+		return elems;
 	};
 
 	/** @type {Element} */
 	let element;
+	const html = /* HTML */ `
+		<svg
+			class="js-detections absolute w-full h-full"
+			style="
+				stroke: var(--color-red);
+				fill-opacity: 0;
+				stroke-width: calc(var(--scale) * 0.05rem);
+			"
+			viewBox="0 0 100 100"
+			preserveAspectRatio="none"
+		></svg>
+	`;
 
 	return {
-		html: /* HTML */ `
-			<svg
-				class="js-detections absolute w-full h-full"
-				style="
-					stroke: var(--color-red);
-					fill-opacity: 0;
-					stroke-width: calc(var(--scale) * 0.05rem);
-				"
-				viewBox="0 0 100 100"
-				preserveAspectRatio="none"
-			></svg>
-		`,
+		elem: htmlToElem(html),
 		/** @param {Element} e */
 		init(e) {
 			element = e;
@@ -511,7 +531,7 @@ function newDetectionRenderer(startTimeMs, events) {
 		/** @param {number} newDurationSec */
 		set(newDurationSec) {
 			const newDurationMs = startTimeMs + newDurationSec * 1000;
-			let html = "";
+			let elems = [];
 
 			if (events) {
 				for (const e of events) {
@@ -520,12 +540,12 @@ function newDetectionRenderer(startTimeMs, events) {
 					const eventEndMs = eventStartMs + eventDurationMs;
 
 					if (eventStartMs <= newDurationMs && newDurationMs < eventEndMs) {
-						html += renderDetections(e.detections);
+						elems = [...elems, ...renderDetections(e.detections)];
 					}
 				}
 			}
 
-			element.innerHTML = html;
+			element.replaceChildren(...elems);
 		},
 	};
 }

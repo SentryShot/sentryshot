@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import { uniqueID, normalize, denormalize, globals } from "./libs/common.js";
+import {
+	uniqueID,
+	normalize,
+	denormalize,
+	globals,
+	htmlToElem,
+	htmlToElems,
+} from "./libs/common.js";
 import {
 	newForm,
 	newModalFieldHTML,
@@ -51,7 +58,7 @@ export function motion2(hasSubStream, getMonitorId) {
 	};
 
 	const form = newForm(fields);
-	const modal = newModal("Motion detection", form.html());
+	const modal = newModal("Motion detection", [form.elem()]);
 
 	let value = {};
 
@@ -63,7 +70,7 @@ export function motion2(hasSubStream, getMonitorId) {
 		if (isRendered) {
 			return;
 		}
-		element.insertAdjacentHTML("beforeend", modal.html);
+		element.append(modal.elem);
 		/** @type {HTMLElement} */
 		const $modal = element.querySelector(".js-modal");
 		$modal.style.maxWidth = "40.5rem";
@@ -84,7 +91,7 @@ export function motion2(hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: newModalFieldHTML(id, "Motion detection"),
+		elems: [newModalFieldHTML(id, "Motion detection")],
 		value() {
 			if (isRendered) {
 				form.get(value);
@@ -242,12 +249,12 @@ const zonesPreviewOptionsHTML = /* HTML */ `
 `;
 
 /**
- * @param {string} feedHTML
+ * @param {Element} feedElem
  * @param {string} [enableID]
  * @param {string} [sensitivityID]
  * @param {string} [previewID]
  */
-function zonesModalHTML(feedHTML, enableID, sensitivityID, previewID) {
+function zonesModalHTML(feedElem, enableID, sensitivityID, previewID) {
 	return /* HTML */ `
 		${zoneSelectFieldHTML}
 		${newHTMLfield(
@@ -256,7 +263,7 @@ function zonesModalHTML(feedHTML, enableID, sensitivityID, previewID) {
 			},
 			enableID,
 			"Enable",
-		)}
+		).outerHTML}
 		${newHTMLfield(
 			{
 				input: "number",
@@ -265,7 +272,7 @@ function zonesModalHTML(feedHTML, enableID, sensitivityID, previewID) {
 			},
 			sensitivityID,
 			"Sensitivity",
-		)}
+		).outerHTML}
 		${thresholdsFieldHTML}
 		${newHTMLfield(
 			{
@@ -273,9 +280,9 @@ function zonesModalHTML(feedHTML, enableID, sensitivityID, previewID) {
 			},
 			previewID,
 			"Preview",
-		)}
+		).outerHTML}
 		<li class="relative mx-2 mt-1">
-			<div class="js-feed" style="background: white;">${feedHTML}</div>
+			<div class="js-feed" style="background: white;">${feedElem.outerHTML}</div>
 			<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
 		</li>
 		${zonesPreviewOptionsHTML}
@@ -297,15 +304,12 @@ function zones(hasSubStream, getMonitorId) {
 	let modal;
 	/** @type {ZoneData[]} */
 	let value;
-	let $modalContent,
-		$enable,
-		$sensitivity,
-		$thresholdMin,
-		$thresholdMax,
-		$preview,
-		$feed,
-		$feedOverlay,
-		$zoneSelect;
+	let $modalContent, $enable, $sensitivity, $thresholdMin, $thresholdMax, $preview;
+	/** @type Element */
+	let $feed;
+	let $feedOverlay;
+	/** @type HTMLSelectElement */
+	let $zoneSelect;
 	let stepSize = 4;
 	/** @type {OnChangeFunc} */
 	let onZoneChange;
@@ -320,15 +324,15 @@ function zones(hasSubStream, getMonitorId) {
 
 	/**
 	 * @param {Element} element
-	 * @param {string} feedHTML
+	 * @param {Element} feedElem
 	 */
-	const renderModal = (element, feedHTML) => {
+	const renderModal = (element, feedElem) => {
 		modal = newModal(
 			"Zones",
-			zonesModalHTML(feedHTML, enableID, sensitivityID, previewID),
+			htmlToElems(zonesModalHTML(feedElem, enableID, sensitivityID, previewID)),
 		);
 
-		element.insertAdjacentHTML("beforeend", modal.html);
+		element.append(modal.elem);
 		$modalContent = modal.init();
 
 		$zoneSelect = $modalContent.querySelector(".js-zone-select");
@@ -505,7 +509,7 @@ function zones(hasSubStream, getMonitorId) {
 
 		$modalContent.querySelector(".js-add-zone").addEventListener("click", () => {
 			zones.push(newZone($feedOverlay, defaultZone(), stepSize, onZoneChange));
-			$zoneSelect.innerHTML = zoneSelectHTML();
+			$zoneSelect.replaceChildren(zoneSelectHTML());
 			setSelectedZoneIndex(zones.length - 1);
 			loadZone();
 			updatePreview();
@@ -516,14 +520,14 @@ function zones(hasSubStream, getMonitorId) {
 				getSelectedZone().destroy();
 				const index = getSelectedZoneIndex();
 				zones.splice(index, 1);
-				$zoneSelect.innerHTML = zoneSelectHTML();
+				$zoneSelect.replaceChildren(zoneSelectHTML());
 				setSelectedZoneIndex(zones.length - 1);
 				loadZone();
 				updatePreview();
 			}
 		});
 
-		$zoneSelect.innerHTML = zoneSelectHTML();
+		$zoneSelect.replaceChildren(zoneSelectHTML());
 		loadZone();
 
 		updatePreview();
@@ -535,7 +539,7 @@ function zones(hasSubStream, getMonitorId) {
 	};
 	/** @return {number} */
 	const getSelectedZoneIndex = () => {
-		return $zoneSelect.value.slice(5, 6);
+		return Number($zoneSelect.value.slice(5, 6));
 	};
 	const getSelectedZone = () => {
 		return zones[getSelectedZoneIndex()];
@@ -575,11 +579,11 @@ function zones(hasSubStream, getMonitorId) {
 	};
 
 	const zoneSelectHTML = () => {
-		let html = "";
+		const frag = new DocumentFragment();
 		for (const index of Object.keys(zones)) {
-			html += `<option>zone ${index}</option>`;
+			frag.append(htmlToElem(`<option>zone ${index}</option>`));
 		}
-		return html;
+		return frag;
 	};
 
 	/** @return {ZoneData} */
@@ -603,7 +607,7 @@ function zones(hasSubStream, getMonitorId) {
 
 	const id = uniqueID();
 	return {
-		html: newModalFieldHTML(id, "Zones"),
+		elems: [newModalFieldHTML(id, "Zones")],
 		init() {
 			const element = document.querySelector(`#${id}`);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
@@ -617,9 +621,9 @@ function zones(hasSubStream, getMonitorId) {
 
 				if (rendered) {
 					// Update feed.
-					$feed.innerHTML = feed.html;
+					$feed.replaceChildren(feed.elem);
 				} else {
-					renderModal(element, feed.html);
+					renderModal(element, feed.elem);
 					modal.onClose(() => {
 						feed.destroy();
 					});
@@ -647,7 +651,7 @@ function zones(hasSubStream, getMonitorId) {
 					newZone($feedOverlay, z, stepSize, onZoneChange),
 				);
 				setSelectedZoneIndex(0);
-				$zoneSelect.innerHTML = zoneSelectHTML();
+				$zoneSelect.replaceChildren(zoneSelectHTML());
 				loadZone();
 			}
 		},
@@ -688,20 +692,16 @@ function zones(hasSubStream, getMonitorId) {
  * @return {Zone}
  */
 function newZone($parent, value, stepSize, onChange) {
-	const html = () => {
-		return /* HTML */ `
-			<svg
-				class="absolute w-full h-full"
-				style="overflow: visible"
-				viewBox="0 0 100 100"
-				preserveAspectRatio="none"
-			></svg>
-		`;
-	};
+	const html = /* HTML */ `
+		<svg
+			class="absolute w-full h-full"
+			style="overflow: visible"
+			viewBox="0 0 100 100"
+			preserveAspectRatio="none"
+		></svg>
+	`.trim(); // element.style is undefined without trim() for some reason.
 
-	const template = document.createElement("template");
-	template.innerHTML = html();
-	const element = template.content.firstChild;
+	const element = htmlToElem(html);
 	$parent.append(element);
 
 	// @ts-ignore

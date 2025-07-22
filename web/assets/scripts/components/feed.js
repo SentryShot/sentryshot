@@ -2,7 +2,7 @@
 
 // @ts-check
 
-import { uniqueID, relativePathname } from "../libs/common.js";
+import { uniqueID, relativePathname, htmlToElem, elemsToHTML } from "../libs/common.js";
 
 const hlsConfig = {
 	maxDelaySec: 2,
@@ -16,13 +16,13 @@ const hlsConfig = {
 
 /**
  * @typedef {Object} Button
- * @property {string} html
+ * @property {Element} elem
  * @property {($parent: Element, $video: HTMLVideoElement) => void} init
  */
 
 /**
  * @typedef {Object} Feed
- * @property {string} html
+ * @property {Element} elem
  * @property {() => void} init
  * @property {() => void} enableDebugging
  * @property {() => void} destroy
@@ -46,55 +46,57 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 	const stream = `hls/${id}${res}/stream.m3u8`;
 	const index = `hls/${id}${res}/index.m3u8`;
 
-	let html = "";
+	const buttonElems = [];
 	for (const button of buttons) {
-		html += button.html;
+		buttonElems.push(button.elem);
 	}
 
 	let hls;
 	const elementID = uniqueID();
 	const checkboxID = uniqueID();
 
-	return {
-		html: /* HTML */ `
-			<div class="flex justify-center">
+	const html = /* HTML */ `
+		<div class="flex justify-center">
+			<div
+				id="${elementID}"
+				class="relative flex justify-center items-center w-full"
+				style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
+			>
+				<input
+					id="${checkboxID}"
+					class="js-checkbox player-overlay-checkbox absolute"
+					style="opacity: 0;"
+					type="checkbox"
+				/>
+				<label
+					class="absolute w-full h-full"
+					style="z-index: 1; opacity: 0.5;"
+					for="${checkboxID}"
+				></label>
 				<div
-					id="${elementID}"
-					class="relative flex justify-center items-center w-full"
-					style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
+					class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
+					style="
+						z-index: 2;
+						bottom: 0;
+						margin-bottom: 5%;
+						border: none;
+					"
 				>
-					<input
-						id="${checkboxID}"
-						class="js-checkbox player-overlay-checkbox absolute"
-						style="opacity: 0;"
-						type="checkbox"
-					/>
-					<label
-						class="absolute w-full h-full"
-						style="z-index: 1; opacity: 0.5;"
-						for="${checkboxID}"
-					></label>
-					<div
-						class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
-						style="
-							z-index: 2;
-							bottom: 0;
-							margin-bottom: 5%;
-							border: none;
-						"
-					>
-						${html}
-					</div>
-					<video
-						class="w-full h-full"
-						style="max-height: 100vh; object-fit: contain;"
-						muted
-						disablepictureinpicture
-						playsinline
-					></video>
+					${elemsToHTML(buttonElems)}
 				</div>
+				<video
+					class="w-full h-full"
+					style="max-height: 100vh; object-fit: contain;"
+					muted
+					disablepictureinpicture
+					playsinline
+				></video>
 			</div>
-		`,
+		</div>
+	`;
+
+	return {
+		elem: htmlToElem(html),
 		init() {
 			const element = document.querySelector(`#${elementID}`);
 			const $overlay = element.querySelector(`.js-overlay`);
@@ -189,7 +191,7 @@ const iconMinimizePath = "assets/icons/feather/minimize.svg";
 
 /**
  * @typedef {Object} FullscreenButton
- * @property {string} html
+ * @property {Element} elem
  * @property {($parent: Element, $video: HTMLVideoElement) => void} init
  * @property {() => void} exitFullscreen
  */
@@ -197,16 +199,17 @@ const iconMinimizePath = "assets/icons/feather/minimize.svg";
 /** @return {FullscreenButton} */
 function newFullscreenBtn() {
 	let $img, $wrapper;
+	const html = /* HTML */ `
+		<button class="js-fullscreen-btn feed-btn p-2 bg-transparent">
+			<img
+				class="icon-filter"
+				style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
+				src="${iconMaximizePath}"
+			/>
+		</button>
+	`;
 	return {
-		html: /* HTML */ `
-			<button class="js-fullscreen-btn feed-btn p-2 bg-transparent">
-				<img
-					class="icon-filter"
-					style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"
-					src="${iconMaximizePath}"
-				/>
-			</button>
-		`,
+		elem: htmlToElem(html),
 		init($parent) {
 			const element = $parent.parentElement;
 			$wrapper = element.parentElement;
@@ -241,7 +244,7 @@ const iconRecordingsPath = "assets/icons/feather/film.svg";
 function newRecordingsBtn(monitorIds) {
 	const recordingsPath = `${relativePathname("recordings")}#monitors=${monitorIds}`;
 	return {
-		html: /* HTML */ `
+		elem: htmlToElem(/* HTML */ `
 			<a class="feed-btn p-2 bg-transparent" href="${recordingsPath}">
 				<img
 					class="icon-filter"
@@ -249,7 +252,7 @@ function newRecordingsBtn(monitorIds) {
 					src="${iconRecordingsPath}"
 				/>
 			</a>
-		`,
+		`),
 		init() {},
 	};
 }

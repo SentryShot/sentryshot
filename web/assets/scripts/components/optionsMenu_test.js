@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-check
+
 import { jest } from "@jest/globals";
 
 import { NS_MILLISECOND } from "../libs/time.js";
-import { uidReset } from "../libs/common.js";
+import { uidReset, htmlToElems } from "../libs/common.js";
 import { newOptionsMenu, newOptionsBtn, newSelectMonitor } from "./optionsMenu.js";
 
 /** @typedef {import("./optionsMenu.js").Button} Button */
@@ -14,7 +16,7 @@ describe("optionsGridSize", () => {
 		document.body.innerHTML = `<div id="options-menu"></div>`;
 		const element = document.querySelector("#options-menu");
 
-		element.innerHTML = button.html;
+		element.replaceChildren(...button.elems);
 		button.init();
 
 		return element;
@@ -93,7 +95,7 @@ describe("optionsDate", () => {
 		const element = document.querySelector("div");
 
 		const date = newOptionsBtn.date("utc", content);
-		element.innerHTML = date.html;
+		element.replaceChildren(...date.elems);
 		date.init(element);
 
 		return [date, element];
@@ -269,7 +271,7 @@ test("optionsMonitor", () => {
 	};
 
 	const selectMonitor = newSelectMonitor(monitors, content, true, mockModalSelect);
-	element.innerHTML = selectMonitor.html;
+	element.replaceChildren(...selectMonitor.elems);
 
 	localStorage.setItem("selected-monitor", "b");
 	expect(modalSetCalls).toEqual([]);
@@ -309,7 +311,7 @@ describe("optionsMonitorGroups", () => {
 		};
 
 		const group = newOptionsBtn.monitorGroup(groups, content);
-		element.innerHTML = group.html;
+		element.replaceChildren(...group.elems);
 		group.init();
 
 		return group;
@@ -400,25 +402,35 @@ describe("newOptionsMenu", () => {
 
 		const mockButtons = [
 			{
-				html: "a",
+				html: "<span>a</span>",
+				elems: htmlToElems("<span>a</span>"),
 				init() {},
 			},
 			{
-				html: "b",
+				html: "<span>b</span>",
+				elems: htmlToElems("<span>b</span>"),
 				init() {},
 			},
 		];
 
 		const options = newOptionsMenu(mockButtons);
-		element.innerHTML = options.html();
-		options.init(element);
+		element.replaceChildren(...options.elems());
+		options.init();
 
-		const want = `
-			<button id="topbar-options-btn" style="visibility:visible;"></button>
-			<div id="options-menu">ab</div>`.replaceAll(/\s/g, "");
-
-		const got = document.body.innerHTML.replaceAll(/\s/g, "");
-		expect(got).toEqual(want);
+		expect(document.body.innerHTML).toMatchInlineSnapshot(`
+<button id="topbar-options-btn"
+        style="visibility: visible;"
+>
+</button>
+<div id="options-menu">
+  <span>
+    a
+  </span>
+  <span>
+    b
+  </span>
+</div>
+`);
 	});
 	test("logic", () => {
 		document.body.innerHTML = `
@@ -429,6 +441,8 @@ describe("newOptionsMenu", () => {
 		let initCalled = false;
 		const mockButtons = [
 			{
+				html: "<span>test</span>",
+				elems: htmlToElems("<span>test</span>"),
 				init() {
 					initCalled = true;
 				},
@@ -436,8 +450,8 @@ describe("newOptionsMenu", () => {
 		];
 
 		const options = newOptionsMenu(mockButtons);
-		element.innerHTML = options.html();
-		options.init(element);
+		element.replaceChildren(...options.elems());
+		options.init();
 
 		expect(initCalled).toBe(true);
 	});

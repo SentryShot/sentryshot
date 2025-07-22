@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import { uniqueID } from "../libs/common.js";
+import { uniqueID, htmlToElem, elemsToHTML } from "../libs/common.js";
 
 /*
  * A form field can have the following methods.
@@ -26,7 +26,7 @@ import { uniqueID } from "../libs/common.js";
 /**
  * @template T
  * @typedef {Object} Field
- * @property {string} html
+ * @property {Element[]} elems
  * @property {() => void} init
  * @property {() => T} value
  * @property {(input: T|undefined) => void} set
@@ -41,7 +41,7 @@ import { uniqueID } from "../libs/common.js";
  * @property {any} fields
  * @property {() => void} reset
  * @property {() => string|undefined} validate
- * @property {() => string} html
+ * @property {() => Element} elem
  * @property {() => void} init
  * @property {(values: {[x: string]: any}) => void} set
  * @property {(values: {[x: string]: any}) => void} get
@@ -59,6 +59,30 @@ import { uniqueID } from "../libs/common.js";
 function newForm(fields) {
 	/** @type {Buttons} */
 	const buttons = {};
+	const html = () => {
+		/** @type {Element[]} */
+		let fieldsElems = [];
+		for (const item of Object.values(fields)) {
+			if (item && item.elems) {
+				if (!item.elems) {
+					throw new Error(`field doesn't have element ${item.html}`);
+				}
+				fieldsElems = [...fieldsElems, ...item.elems];
+			}
+		}
+		const buttonElems = [];
+		if (buttons) {
+			for (const btn of Object.values(buttons)) {
+				buttonElems.push(btn.elem);
+			}
+		}
+		return /* HTML */ `
+			<ul class="form" style="overflow-y: auto;">
+				${elemsToHTML(fieldsElems)}
+				<div class="flex">${elemsToHTML(buttonElems)}</div>
+			</ul>
+		`;
+	};
 	return {
 		buttons() {
 			return buttons;
@@ -96,25 +120,8 @@ function newForm(fields) {
 				}
 			}
 		},
-		html() {
-			let htmlFields = "";
-			for (const item of Object.values(fields)) {
-				if (item && item.html) {
-					htmlFields += item.html;
-				}
-			}
-			let htmlButtons = "";
-			if (buttons) {
-				for (const btn of Object.values(buttons)) {
-					htmlButtons += btn.html;
-				}
-			}
-			return /* HTML */ `
-				<ul class="form" style="overflow-y: auto;">
-					${htmlFields}
-					<div class="flex">${htmlButtons}</div>
-				</ul>
-			`;
+		elem() {
+			return htmlToElem(html());
 		},
 		init() {
 			for (const item of Object.values(fields)) {
@@ -145,7 +152,7 @@ function newForm(fields) {
 
 /**
  * @typedef Button
- * @property {string} html
+ * @property {Element} elem
  * @property {() => void} init
  * @property {() => HTMLButtonElement} element
  */
@@ -161,11 +168,11 @@ function newSaveBtn(onClick) {
 	/** @type {HTMLButtonElement} */
 	let element;
 	return {
-		html: /* HTML */ `
+		elem: htmlToElem(/* HTML */ `
 			<button id="${id}" class="m-2 px-2 rounded-lg bg-green hover:bg-green2">
 				<span class="text-2 text-color">Save</span>
 			</button>
-		`,
+		`),
 		init() {
 			// @ts-ignore
 			element = document.getElementById(id);
@@ -188,7 +195,7 @@ function newDeleteBtn(onClick) {
 	/** @type {HTMLButtonElement} */
 	let element;
 	return {
-		html: /* HTML */ `
+		elem: htmlToElem(/* HTML */ `
 			<button
 				id="${id}"
 				class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
@@ -196,7 +203,7 @@ function newDeleteBtn(onClick) {
 			>
 				<span class="text-2 text-color">Delete</span>
 			</button>
-		`,
+		`),
 		init() {
 			// @ts-ignore
 			element = document.getElementById(id);
@@ -380,7 +387,7 @@ function newField(inputRules, options, values) {
 	const id = uniqueID();
 
 	return {
-		html: newHTMLfield(options, id, label, placeholder),
+		elems: [newHTMLfield(options, id, label, placeholder)],
 		init() {
 			element = document.getElementById(id);
 			[$input, $error] = $getInputAndError(element);
@@ -441,7 +448,7 @@ function newNumberField(options, values) {
 	const id = uniqueID();
 
 	return {
-		html: newHTMLfield(options, id, label, placeholder),
+		elems: [newHTMLfield(options, id, label, placeholder)],
 		init() {
 			element = document.getElementById(id);
 			[$input, $error] = $getInputAndError(element);
@@ -563,7 +570,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 		`;
 	}
 
-	return /* HTML */ `
+	return htmlToElem(/* HTML */ `
 		<li
 			id="${id}"
 			class="items-center px-2 ${errorField === true
@@ -578,7 +585,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
 			>
 			${innerHTML} ${errorFieldHTML}
 		</li>
-	`;
+	`);
 }
 
 /**
@@ -586,7 +593,7 @@ function newHTMLfield(options, id, label, placeholder = "") {
  * @param {string} label
  */
 function newModalFieldHTML(id, label) {
-	return /* HTML */ `
+	return htmlToElem(/* HTML */ `
 		<li id="${id}" class="flex items-center p-2 border-b-2 border-color1">
 			<label
 				for="label-${id}"
@@ -596,7 +603,7 @@ function newModalFieldHTML(id, label) {
 			>
 			${editBtnHTML}
 		</li>
-	`;
+	`);
 }
 
 /**
@@ -615,7 +622,7 @@ function newToggleField(label, initial) {
 	};
 
 	return {
-		html: newHTMLfield(options, id, label),
+		elems: [newHTMLfield(options, id, label)],
 		init() {
 			element = document.getElementById(id);
 			// @ts-ignore
@@ -689,8 +696,8 @@ function newSelectCustomField(inputRules, options, values) {
 	};
 
 	return {
-		html: (() => {
-			return newHTMLfield(
+		elems: [
+			newHTMLfield(
 				{
 					select: options,
 					custom: true,
@@ -699,8 +706,8 @@ function newSelectCustomField(inputRules, options, values) {
 				id,
 				values.label,
 				values.placeholder,
-			);
-		})(),
+			),
+		],
 		init() {
 			const element = document.getElementById(id);
 			element.querySelector(".js-edit-btn").addEventListener("click", () => {
@@ -773,9 +780,10 @@ function newPasswordField() {
 	};
 
 	return {
-		html:
-			passwordHTML(newID, "New password") +
+		elems: [
+			passwordHTML(newID, "New password"),
 			passwordHTML(repeatID, "Repeat password"),
+		],
 		value,
 		// Always called with undefined.
 		set() {

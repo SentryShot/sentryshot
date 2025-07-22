@@ -46,7 +46,7 @@ describe("newPlayer", () => {
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
 		const player = newPlayer(data);
-		element.innerHTML = player.html;
+		element.replaceChildren(player.elem);
 		player.init();
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
@@ -122,10 +122,10 @@ describe("newPlayer", () => {
     </video>
     <svg class="js-detections absolute w-full h-full"
          style="
-					stroke: var(--color-red);
-					fill-opacity: 0;
-					stroke-width: calc(var(--scale) * 0.05rem);
-				"
+				stroke: var(--color-red);
+				fill-opacity: 0;
+				stroke-width: calc(var(--scale) * 0.05rem);
+			"
          viewbox="0 0 100 100"
          preserveaspectratio="none"
     >
@@ -241,64 +241,32 @@ describe("newPlayer", () => {
 `);
 
 		player.reset();
-		expect(element).toMatchInlineSnapshot(`
+		expect(element.outerHTML).toMatchInlineSnapshot(`
 <div>
-  
-			
-  <div
-    class="flex justify-center"
-  >
-    
-				
-    <div
-      class="relative flex justify-center items-center w-full"
-      id="uid1"
-      style="max-height: 100vh; align-self: center;"
+  <div class="flex justify-center">
+    <div id="uid1"
+         class="relative flex justify-center items-center w-full"
+         style="max-height: 100vh; align-self: center;"
     >
-      
-		
-      <img
-        class="w-full h-full"
-        src="B"
-        style="max-height: 100vh; object-fit: contain;"
-      />
-      
-		
-      <div
-        class="js-top-overlay absolute flex mr-auto"
-        style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
+      <img class="w-full h-full"
+           style="max-height: 100vh; object-fit: contain;"
+           src="B"
       >
-        
-			
-		
-        <span
-          class="js-date pl-2 pr-1 text-color bg-color0"
-        >
+      <div class="js-top-overlay absolute flex mr-auto"
+           style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
+      >
+        <span class="js-date pl-2 pr-1 text-color bg-color0">
           2001-06-02
         </span>
-        
-		
-        <span
-          class="js-time px-1 text-color bg-color0"
-        >
+        <span class="js-time px-1 text-color bg-color0">
           00:00:00
         </span>
-        
-		
-        <span
-          class="text-color pl-1 pr-2 bg-color0"
-        >
+        <span class="text-color pl-1 pr-2 bg-color0">
           D
         </span>
-        
-	
-		
       </div>
-      
-		
-      <div
-        class="absolute"
-        style="
+      <div class="absolute"
+           style="
 				z-index: 2;
 				right: calc(var(--spacing) * 4);
 				bottom: calc(var(--spacing) * 4);
@@ -307,44 +275,27 @@ describe("newPlayer", () => {
 				min-height: 3.5%;
 			"
       >
-        
-			
-		
-        <svg
-          class="absolute w-full h-full"
-          preserveAspectRatio="none"
-          style="fill: var(--color-red);"
-          viewBox="0 0 1000 1"
+        <svg class="absolute w-full h-full"
+             style="fill: var(--color-red);"
+             viewbox="0 0 1000 1"
+             preserveaspectratio="none"
         >
-          
-			
-          <rect
-            height="1"
-            width="100"
-            x="100"
-            y="0"
-          />
-          <rect
-            height="1"
-            width="50"
-            x="950"
-            y="0"
-          />
-          
-		
+          <rect x="100"
+                width="100"
+                y="0"
+                height="1"
+          >
+          </rect>
+          <rect x="950"
+                width="50"
+                y="0"
+                height="1"
+          >
+          </rect>
         </svg>
-        
-	
-		
       </div>
-      
-	
     </div>
-    
-			
   </div>
-  
-		
 </div>
 `);
 	});
@@ -359,7 +310,7 @@ describe("newPlayer", () => {
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
 		const player = newPlayer(data, true);
-		element.innerHTML = player.html;
+		element.replaceChildren(player.elem);
 		player.init();
 
 		// Original.
@@ -459,7 +410,7 @@ describe("newPlayer", () => {
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
 		const player = newPlayer(data);
-		element.innerHTML = player.html;
+		element.replaceChildren(player.elem);
 
 		let nclicks = 0;
 		player.init(() => {
@@ -480,7 +431,7 @@ describe("detectionRenderer", () => {
 
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
-		element.innerHTML = d.html;
+		element.replaceChildren(d.elem);
 		d.init(element.querySelector(".js-detections"));
 		return [d, element];
 	};
@@ -491,10 +442,10 @@ describe("detectionRenderer", () => {
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <svg class="js-detections absolute w-full h-full"
      style="
-					stroke: var(--color-red);
-					fill-opacity: 0;
-					stroke-width: calc(var(--scale) * 0.05rem);
-				"
+				stroke: var(--color-red);
+				fill-opacity: 0;
+				stroke-width: calc(var(--scale) * 0.05rem);
+			"
      viewbox="0 0 100 100"
      preserveaspectratio="none"
 >
@@ -520,10 +471,10 @@ describe("detectionRenderer", () => {
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <svg class="js-detections absolute w-full h-full"
      style="
-					stroke: var(--color-red);
-					fill-opacity: 0;
-					stroke-width: calc(var(--scale) * 0.05rem);
-				"
+				stroke: var(--color-red);
+				fill-opacity: 0;
+				stroke-width: calc(var(--scale) * 0.05rem);
+			"
      viewbox="0 0 100 100"
      preserveaspectratio="none"
 >

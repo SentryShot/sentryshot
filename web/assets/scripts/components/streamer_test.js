@@ -14,7 +14,7 @@ describe("feed", () => {
 		const buttons = [newStreamerBtn.fullscreen()];
 		const feed = newSlowPollStream(monitor, true, buttons);
 
-		expect(feed.html).toMatchInlineSnapshot(`
+		expect(feed.elem.outerHTML).toMatchInlineSnapshot(`
 <div class="flex justify-center">
   <div id="uid1"
        class="relative flex justify-center items-center w-full"
@@ -97,7 +97,7 @@ describe("muteBtn", () => {
 */
 
 test("recordingsBtn", async () => {
-	expect(newStreamerBtn.recordings("b").html).toMatchInlineSnapshot(`
+	expect(newStreamerBtn.recordings("b").elem.outerHTML).toMatchInlineSnapshot(`
 <a href="http://test.com/recordings#monitors=b"
    class="feed-btn p-1 bg-transparent"
 >
@@ -110,7 +110,7 @@ test("recordingsBtn", async () => {
 });
 
 test("fullscreenBtn", () => {
-	expect(newStreamerBtn.fullscreen().html).toMatchInlineSnapshot(`
+	expect(newStreamerBtn.fullscreen().elem.outerHTML).toMatchInlineSnapshot(`
 <button class="js-fullscreen-btn feed-btn p-1 bg-transparent">
   <img class="icon-filter"
        style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"

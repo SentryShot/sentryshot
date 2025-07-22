@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { uniqueID } from "../libs/common.js";
+// @ts-check
+
+import { uniqueID, htmlToElem, elemsToHTML } from "../libs/common.js";
 
 /**
  * @typedef {Object} Modal
- * @property {string} html
+ * @property {Element} elem
  * @property {() => void} open
  * @property {() => void} close
  * @property {(func: () => void) => void} onClose
@@ -14,50 +16,52 @@ import { uniqueID } from "../libs/common.js";
 
 /**
  * @param {string} label
+ * @param {Element[]} content
  * @return {Modal}
  */
-function newModal(label, content = "") {
+function newModal(label, content = []) {
 	/** @type {Element} */
 	let $wrapper;
 	/** @type {() => void} */
 	let onClose;
 
 	const wrapperId = uniqueID();
+	const html = /* HTML */ `
+		<div
+			id="${wrapperId}"
+			class="w-full h-full"
+			style="
+				position: fixed;
+				top: 0;
+				left: 0;
+				z-index: 20;
+				display: none;
+				overflow-y: auto;
+				background-color: rgb(0 0 0 / 40%);
+			"
+		>
+			<div class="modal js-modal flex">
+				<header class="modal-header flex px-2 bg-color2">
+					<span
+						class="w-full text-center text-2 text-color"
+						style="padding-left: calc(var(--scale) * 2.5rem);"
+					>${label}</span>
+					<button class="js-modal-close-btn flex m-auto rounded-md bg-color3">
+						<img
+							class="icon-filter"
+							style="width: calc(var(--scale) * 2.5rem);"
+							src="assets/icons/feather/x.svg"
+						></img>
+					</button>
+				</header>
+				<div
+					class="js-modal-content h-full bg-color3"
+					style="overflow-y: visible;"
+				>${elemsToHTML(content)}</div>
+			</div>
+		</div>`;
 	return {
-		html: /* HTML */ `
-			<div
-				id="${wrapperId}"
-				class="w-full h-full"
-				style="
-					position: fixed;
-					top: 0;
-					left: 0;
-					z-index: 20;
-					display: none;
-					overflow-y: auto;
-					background-color: rgb(0 0 0 / 40%);
-				"
-			>
-				<div class="modal js-modal flex">
-					<header class="modal-header flex px-2 bg-color2">
-						<span
-							class="w-full text-center text-2 text-color"
-							style="padding-left: calc(var(--scale) * 2.5rem);"
-						>${label}</span>
-						<button class="js-modal-close-btn flex m-auto rounded-md bg-color3">
-							<img
-								class="icon-filter"
-								style="width: calc(var(--scale) * 2.5rem);"
-								src="assets/icons/feather/x.svg"
-							></img>
-						</button>
-					</header>
-					<div
-						class="js-modal-content h-full bg-color3"
-						style="overflow-y: visible;"
-					>${content}</div>
-				</div>
-			</div>`,
+		elem: htmlToElem(html),
 		open() {
 			$wrapper.classList.add("modal-open");
 		},
@@ -109,19 +113,20 @@ function newModal(label, content = "") {
  */
 function newModalSelect(name, options, onSelect) {
 	const renderOptions = () => {
-		let html = "";
+		const optionElems = [];
 		for (const option of options) {
-			html += /* HTML */ `
+			const html = /* HTML */ `
 				<span
 					data="${option}"
 					class="js-option px-2 border text-1.5 border-color1 text-color"
 					>${option}</span
 				>
 			`;
+			optionElems.push(htmlToElem(html));
 		}
-		return /* HTML */ `
-			<div class="js-selector flex" style="flex-wrap: wrap;">${html}</div>
-		`;
+		return htmlToElem(/** HTML */ `
+			<div class="js-selector flex" style="flex-wrap: wrap;">${elemsToHTML(optionElems)}</div>
+		`);
 	};
 
 	/** @type {Element} */
@@ -140,8 +145,8 @@ function newModalSelect(name, options, onSelect) {
 		if (isRendered) {
 			return;
 		}
-		modal = newModal(name, renderOptions());
-		$parent.insertAdjacentHTML("beforeend", modal.html);
+		modal = newModal(name, [renderOptions()]);
+		$parent.append(modal.elem);
 		$modalContent = modal.init();
 		$selector = $modalContent.querySelector(".js-selector");
 

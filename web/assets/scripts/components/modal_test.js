@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { uidReset } from "../libs/common.js";
+// @ts-check
+
+import { uidReset, htmlToElems } from "../libs/common.js";
 import { newModal, newModalSelect } from "./modal.js";
 
 test("newModal", () => {
-	const modal = newModal("test", "a");
+	const modal = newModal("test", htmlToElems("<span>a</span>"));
 
-	document.body.innerHTML = modal.html;
+	document.body.replaceChildren(modal.elem);
 	modal.init();
 
 	let onCloseCalled = false;
@@ -33,7 +35,9 @@ test("newModal", () => {
 <div class="js-modal-content h-full bg-color3"
      style="overflow-y: visible;"
 >
-  a
+  <span>
+    a
+  </span>
 </div>
 `);
 
@@ -64,14 +68,14 @@ test("modalSelect", () => {
 <div id="uid1"
      class="w-full h-full modal-open"
      style="
-					position: fixed;
-					top: 0;
-					left: 0;
-					z-index: 20;
-					display: none;
-					overflow-y: auto;
-					background-color: rgb(0 0 0 / 40%);
-				"
+				position: fixed;
+				top: 0;
+				left: 0;
+				z-index: 20;
+				display: none;
+				overflow-y: auto;
+				background-color: rgb(0 0 0 / 40%);
+			"
 >
   <div class="modal js-modal flex">
     <header class="modal-header flex px-2 bg-color2">

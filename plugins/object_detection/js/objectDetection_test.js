@@ -32,7 +32,7 @@ describe("object detection", () => {
 		const element = document.querySelector("div");
 
 		const od = newObjectDetection();
-		element.innerHTML = od.html;
+		element.replaceChildren(...od.elems);
 		od.init();
 		od.set();
 		expect(od.validate()).toBeUndefined();
@@ -45,7 +45,7 @@ describe("object detection", () => {
 		const element = document.querySelector("div");
 
 		const od = newObjectDetection();
-		element.innerHTML = od.html;
+		element.replaceChildren(...od.elems);
 		od.init();
 		od.set();
 		// @ts-ignore

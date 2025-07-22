@@ -12,7 +12,7 @@ describe("feed", () => {
 		const buttons = [newFeedBtn.fullscreen()];
 		const feed = newFeed(undefined, monitor, true, buttons);
 
-		expect(feed.html).toMatchInlineSnapshot(`
+		expect(feed.elem.outerHTML).toMatchInlineSnapshot(`
 <div class="flex justify-center">
   <div id="uid1"
        class="relative flex justify-center items-center w-full"
@@ -30,11 +30,11 @@ describe("feed", () => {
     </label>
     <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
          style="
-							z-index: 2;
-							bottom: 0;
-							margin-bottom: 5%;
-							border: none;
-						"
+						z-index: 2;
+						bottom: 0;
+						margin-bottom: 5%;
+						border: none;
+					"
     >
       <button class="js-fullscreen-btn feed-btn p-2 bg-transparent">
         <img class="icon-filter"
@@ -98,7 +98,7 @@ describe("muteBtn", () => {
 */
 
 test("recordingsBtn", async () => {
-	expect(newFeedBtn.recordings("b").html).toMatchInlineSnapshot(`
+	expect(newFeedBtn.recordings("b").elem.outerHTML).toMatchInlineSnapshot(`
 <a class="feed-btn p-2 bg-transparent"
    href="http://test.com/recordings#monitors=b"
 >
@@ -111,7 +111,7 @@ test("recordingsBtn", async () => {
 });
 
 test("fullscreenBtn", () => {
-	expect(newFeedBtn.fullscreen().html).toMatchInlineSnapshot(`
+	expect(newFeedBtn.fullscreen().elem.outerHTML).toMatchInlineSnapshot(`
 <button class="js-fullscreen-btn feed-btn p-2 bg-transparent">
   <img class="icon-filter"
        style="height: calc(var(--scale) * 2.4rem); aspect-ratio: 1;"

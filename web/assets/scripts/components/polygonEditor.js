@@ -87,6 +87,11 @@ function newPolygonEditor(element, props) {
 	};
 
 	const arrowStyle = `style="fill: var(--color0); opacity: 0.85"`;
+	const scale = Number(
+		window.getComputedStyle(document.body).getPropertyValue("--scale"),
+	);
+	const pointRadius = `${scale * 0.15}rem`;
+	const fakePointRadius = `${scale * 0.1}rem`;
 	const render = () => {
 		let html = "";
 
@@ -103,7 +108,7 @@ function newPolygonEditor(element, props) {
 			// Points.
 			for (const [i, [x, y]] of value.entries()) {
 				if (i !== selected) {
-					html += `<circle cx="${x}" cy="${y}" r="calc(var(--scale) * 0.15rem)" data="${i}" ${arrowStyle} class="js-point"></circle>`;
+					html += `<circle cx="${x}" cy="${y}" r="${pointRadius}" data="${i}" ${arrowStyle} class="js-point"></circle>`;
 				}
 			}
 
@@ -112,7 +117,7 @@ function newPolygonEditor(element, props) {
 				const j = (i + 1) % value.length;
 				const x = (value[i][0] + value[j][0]) / 2;
 				const y = (value[i][1] + value[j][1]) / 2;
-				html += `<circle cx="${x}" cy="${y}" r="calc(var(--scale) * 0.1rem)" data="${i}" ${arrowStyle} class="js-fake-point"></circle>`;
+				html += `<circle cx="${x}" cy="${y}" r="${fakePointRadius}" data="${i}" ${arrowStyle} class="js-fake-point"></circle>`;
 			}
 
 			// Arrows.

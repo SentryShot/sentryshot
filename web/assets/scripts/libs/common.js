@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// @ts-check
+
 async function sendAlert(msg, response) {
 	alert(`${msg}: ${response.status}, ${await response.text()}`);
 }
@@ -316,6 +318,44 @@ function sleep(abortSignal, ms) {
 	});
 }
 
+/**
+ * @param {string} html
+ * @returns {Element}
+ */
+function htmlToElem(html) {
+	const template = document.createElement("template");
+	template.innerHTML = html;
+	if (template.content.childElementCount !== 1) {
+		throw new Error(`expected 1 element got ${template.content.childElementCount}`);
+	}
+	return template.content.firstElementChild;
+}
+
+/**
+ * @param {string} html
+ * @returns {Element[]}
+ */
+function htmlToElems(html) {
+	const template = document.createElement("template");
+	template.innerHTML = html;
+	if (template.content.childElementCount === 0) {
+		throw new Error(`no elements`);
+	}
+	return [...template.content.children];
+}
+
+/**
+ * @param {Element[]} elems
+ * @return string
+ */
+function elemsToHTML(elems) {
+	let html = "";
+	for (const elem of elems) {
+		html += elem.outerHTML;
+	}
+	return html;
+}
+
 export {
 	fetchGet,
 	fetchPost,
@@ -333,4 +373,7 @@ export {
 	globals,
 	relativePathname,
 	sleep,
+	htmlToElem,
+	htmlToElems,
+	elemsToHTML,
 };

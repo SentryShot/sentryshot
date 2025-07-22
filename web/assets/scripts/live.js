@@ -2,7 +2,7 @@
 
 // @ts-check
 
-import { uniqueID, sortByName, globals } from "./libs/common.js";
+import { uniqueID, sortByName, globals, htmlToElems } from "./libs/common.js";
 import {
 	newOptionsMenu,
 	newOptionsBtn,
@@ -44,6 +44,9 @@ function newViewer($parent, monitors) {
 	const fullscreenButtons = [];
 
 	return {
+		/**
+		 * @param {string[]} input
+		 */
 		setMonitors(input) {
 			selectedMonitors = input;
 		},
@@ -74,11 +77,11 @@ function newViewer($parent, monitors) {
 				feeds.push(newStreamer(monitor, preferLowRes, buttons));
 			}
 
-			let html = "";
+			const fragment = new DocumentFragment();
 			for (const feed of feeds) {
-				html += feed.html;
+				fragment.append(feed.elem);
 			}
-			$parent.innerHTML = html;
+			$parent.replaceChildren(fragment);
 
 			for (const feed of feeds) {
 				feed.init();
@@ -136,7 +139,7 @@ function resBtn(content) {
 	const id = uniqueID();
 
 	return {
-		html: optionsMenuBtnHTML(id),
+		elems: htmlToElems(optionsMenuBtnHTML(id)),
 		init() {
 			element = document.querySelector(`#${id}`);
 			element.addEventListener("click", () => {
@@ -161,7 +164,7 @@ function init() {
 	}
 
 	const optionsMenu = newOptionsMenu(buttons);
-	document.querySelector("#options-menu").innerHTML = optionsMenu.html();
+	document.querySelector("#options-menu").replaceChildren(...optionsMenu.elems());
 	optionsMenu.init();
 
 	/** @type {number[]} */

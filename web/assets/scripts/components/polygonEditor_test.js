@@ -1,6 +1,7 @@
 import { newPolygonEditor } from "./polygonEditor.js";
 
 test("ok", () => {
+	document.body.style = "--scale: 1;";
 	document.body.innerHTML = `<svg></svg>`;
 	const element = document.querySelector("svg");
 
@@ -32,7 +33,7 @@ test("ok", () => {
   </polygon>
   <circle cx="80"
           cy="20"
-          r="calc(var(--scale) * 0.15rem)"
+          r="0.15rem"
           data="1"
           style="fill: var(--color0); opacity: 0.85"
           class="js-point"
@@ -40,7 +41,7 @@ test("ok", () => {
   </circle>
   <circle cx="50"
           cy="70"
-          r="calc(var(--scale) * 0.15rem)"
+          r="0.15rem"
           data="2"
           style="fill: var(--color0); opacity: 0.85"
           class="js-point"
@@ -48,7 +49,7 @@ test("ok", () => {
   </circle>
   <circle cx="50"
           cy="20"
-          r="calc(var(--scale) * 0.1rem)"
+          r="0.1rem"
           data="0"
           style="fill: var(--color0); opacity: 0.85"
           class="js-fake-point"
@@ -56,7 +57,7 @@ test("ok", () => {
   </circle>
   <circle cx="65"
           cy="45"
-          r="calc(var(--scale) * 0.1rem)"
+          r="0.1rem"
           data="1"
           style="fill: var(--color0); opacity: 0.85"
           class="js-fake-point"
@@ -64,7 +65,7 @@ test("ok", () => {
   </circle>
   <circle cx="35"
           cy="45"
-          r="calc(var(--scale) * 0.1rem)"
+          r="0.1rem"
           data="2"
           style="fill: var(--color0); opacity: 0.85"
           class="js-fake-point"

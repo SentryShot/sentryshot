@@ -10,6 +10,8 @@ import {
 	globals,
 	relativePathname,
 	sleep,
+	htmlToElems,
+	elemsToHTML,
 } from "./libs/common.js";
 import { fromUTC2 } from "./libs/time.js";
 import { newForm, fieldTemplate } from "./components/form.js";
@@ -482,38 +484,40 @@ function newMultiSelect(label, values, initial) {
 	 */
 	const newField = (id, name) => {
 		let $checkbox;
-		return {
-			html: /* HTML */ `
+
+		const html = /* HTML */ `
+			<div
+				class="item-${id} flex items-center"
+				style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
+			>
 				<div
-					class="item-${id} flex items-center"
-					style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
+					class="flex justify-center items-center bg-color2"
+					style="width: 0.8em; height: 0.8em; user-select: none;"
 				>
+					<input
+						class="checkbox-checkbox w-full h-full"
+						style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
+						type="checkbox"
+					/>
 					<div
-						class="flex justify-center items-center bg-color2"
-						style="width: 0.8em; height: 0.8em; user-select: none;"
-					>
-						<input
-							class="checkbox-checkbox w-full h-full"
-							style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
-							type="checkbox"
-						/>
-						<div
-							class="checkbox-box absolute rounded-md"
-							style="width: 0.62em; height: 0.62em;"
-						></div>
-						<img
-							class="checkbox-check absolute"
-							style="width: 0.7em; filter: invert();"
-							src="assets/icons/feather/check.svg"
-						/>
-					</div>
-					<span
-						class="ml-1 text-color"
-						style="font-size: calc(var(--scale) * 1.2rem);"
-						>${name}</span
-					>
+						class="checkbox-box absolute rounded-md"
+						style="width: 0.62em; height: 0.62em;"
+					></div>
+					<img
+						class="checkbox-check absolute"
+						style="width: 0.7em; filter: invert();"
+						src="assets/icons/feather/check.svg"
+					/>
 				</div>
-			`,
+				<span
+					class="ml-1 text-color"
+					style="font-size: calc(var(--scale) * 1.2rem);"
+					>${name}</span
+				>
+			</div>
+		`;
+		return {
+			elems: htmlToElems(html),
 			init() {
 				$checkbox = document.querySelector(`.item-${id} input`);
 			},
@@ -536,9 +540,9 @@ function newMultiSelect(label, values, initial) {
 		fields[val] = newField(uniqueID(), val);
 	}
 
-	let htmlFields = "";
+	let fieldElems = [];
 	for (const field of Object.values(fields)) {
-		htmlFields += field.html;
+		fieldElems = [...fieldElems, ...field.elems];
 	}
 
 	const reset = () => {
@@ -552,13 +556,14 @@ function newMultiSelect(label, values, initial) {
 
 	const id = uniqueID();
 
+	const html = /* HTML */ `
+		<li id="${id}" class="items-center w-full px-2 border-b-2 border-color1">
+			<label class="mr-auto text-1.5 text-color">${label}</label>
+			<div class="relative">${elemsToHTML(fieldElems)}</div>
+		</li>
+	`;
 	return {
-		html: /* HTML */ `
-			<li id="${id}" class="items-center w-full px-2 border-b-2 border-color1">
-				<label class="mr-auto text-1.5 text-color">${label}</label>
-				<div class="relative">${htmlFields}</div>
-			</li>
-		`,
+		elems: htmlToElems(html),
 		init() {
 			for (const field of Object.values(fields)) {
 				field.init();
@@ -622,36 +627,32 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 	const elementID = uniqueID();
 	const inputID = uniqueID();
 
-	return {
-		html: /* HTML */ `
-			<li id="${elementID}" class="items-center p-2 border-b-2 border-color1">
-				<label for="${inputID}" class="mr-auto text-1.5 text-color"
-					>Monitor</label
+	const html = /* HTML */ `
+		<li id="${elementID}" class="items-center p-2 border-b-2 border-color1">
+			<label for="${inputID}" class="mr-auto text-1.5 text-color">Monitor</label>
+			<div class="flex w-full">
+				<select
+					id="${inputID}"
+					class="w-full pl-2 text-1.5"
+					style="height: calc(var(--scale) * 2.5rem);"
 				>
-				<div class="flex w-full">
-					<select
-						id="${inputID}"
-						class="w-full pl-2 text-1.5"
-						style="height: calc(var(--scale) * 2.5rem);"
-					>
-						${options}
-					</select>
-					<button
-						class="js-edit-btn flex ml-2 rounded-lg bg-color3 hover:bg-color2"
-						style="
+					${options}
+				</select>
+				<button
+					class="js-edit-btn flex ml-2 rounded-lg bg-color3 hover:bg-color2"
+					style="
 							aspect-ratio: 1;
 							width: calc(var(--scale) * 2.5rem);
 							height: calc(var(--scale) * 2.5rem);
 						"
-					>
-						<img
-							class="p-2 icon-filter"
-							src="assets/icons/feather/video.svg"
-						/>
-					</button>
-				</div>
-			</li>
-		`,
+				>
+					<img class="p-2 icon-filter" src="assets/icons/feather/video.svg" />
+				</button>
+			</div>
+		</li>
+	`;
+	return {
+		elems: htmlToElems(html),
 		init() {
 			const element = document.querySelector(`#${elementID}`);
 			$input = element.querySelector(`#${inputID}`);
@@ -735,7 +736,7 @@ function newLogSelector(logger, formFields) {
 	};
 
 	const html = /* HTML */ `
-		${form.html()}
+		${elemsToHTML([form.elem()])}
 		<div>
 			<button class="js-reset m-2 px-2 bg-color3 rounded-lg hover:bg-color2">
 				<span class="text-2 text-color">Reset</span>
@@ -755,7 +756,7 @@ function newLogSelector(logger, formFields) {
 			$sidebar = $parent.querySelector(".js-sidebar");
 			const $list = $parent.querySelector(".js-list");
 
-			$sidebar.innerHTML = html;
+			$sidebar.replaceChildren(...htmlToElems(html));
 			form.init();
 			form.reset();
 			apply();

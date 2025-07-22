@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import { uniqueID, normalize, denormalize, globals } from "./libs/common.js";
+import {
+	uniqueID,
+	normalize,
+	denormalize,
+	globals,
+	htmlToElem,
+	htmlToElems,
+} from "./libs/common.js";
 import {
 	newForm,
 	newNumberField,
@@ -89,7 +96,7 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 	//fields.preview = preview()
 
 	const form = newForm(fields);
-	const modal = newModal("Object detection", form.html());
+	const modal = newModal("Object detection", [form.elem()]);
 
 	let value;
 
@@ -101,7 +108,7 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 		if (isRendered) {
 			return;
 		}
-		element.insertAdjacentHTML("beforeend", modal.html);
+		element.append(modal.elem);
 		/** @type {HTMLElement} */
 		const $modal = element.querySelector(".js-modal");
 		$modal.style.maxWidth = "calc(var(--scale) * 40.5rem)";
@@ -122,7 +129,7 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: newModalFieldHTML(id, "Object detection"),
+		elems: [newModalFieldHTML(id, "Object detection")],
 		value() {
 			if (isRendered) {
 				value = {};
@@ -170,26 +177,25 @@ function thresholds(detectors, getDetectorName) {
 	 */
 	const newField = (label, val) => {
 		const id = uniqueID();
+		const html = /* HTML */ `
+			<li
+				class="flex items-center px-2 border-color1"
+				style="border-bottom-width: 1px;"
+			>
+				<label for="${id}" class="mr-auto text-1.5 text-color">${label}</label>
+				<input
+					id="${id}"
+					class="text-center h-full text-1.5"
+					style="width: calc(var(--scale) * 4rem);"
+					type="number"
+					value="${val}"
+					min="0"
+					max="100"
+				/>
+			</li>
+		`;
 		return {
-			html: /* HTML */ `
-				<li
-					class="flex items-center px-2 border-color1"
-					style="border-bottom-width: 1px;"
-				>
-					<label for="${id}" class="mr-auto text-1.5 text-color"
-						>${label}</label
-					>
-					<input
-						id="${id}"
-						class="text-center h-full text-1.5"
-						style="width: calc(var(--scale) * 4rem);"
-						type="number"
-						value="${val}"
-						min="0"
-						max="100"
-					/>
-				</li>
-			`,
+			elem: htmlToElem(html),
 			value() {
 				// @ts-ignore
 				return document.getElementById(id).value;
@@ -200,7 +206,9 @@ function thresholds(detectors, getDetectorName) {
 		};
 	};
 
-	let value, modal, fields, $modalContent;
+	let value, modal, fields;
+	/** @type {Element} */
+	let $modalContent;
 	let isRendered = false;
 	/** @param {Element} element */
 	const render = (element) => {
@@ -208,7 +216,7 @@ function thresholds(detectors, getDetectorName) {
 			return;
 		}
 		modal = newModal("Thresholds");
-		element.insertAdjacentHTML("beforeend", modal.html);
+		element.append(modal.elem);
 		$modalContent = modal.init();
 
 		$modalContent.addEventListener("change", (e) => {
@@ -265,23 +273,24 @@ function thresholds(detectors, getDetectorName) {
 
 		fields = [];
 
+		// TODO: combine loops.
 		// Create fields
 		for (const name of labelKeys) {
 			fields.push(newField(name, labels[name]));
 		}
 
 		// Render fields.
-		let html = "";
+		const frag = new DocumentFragment();
 		for (const field of fields) {
-			html += field.html;
+			frag.append(field.elem);
 		}
-		$modalContent.innerHTML = html;
+		$modalContent.replaceChildren(frag);
 	};
 
 	const id = uniqueID();
 
 	return {
-		html: newModalFieldHTML(id, "Thresholds"),
+		elems: [newModalFieldHTML(id, "Thresholds")],
 		value() {
 			return value;
 		},
@@ -328,12 +337,16 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 
 	/** @type {Crop} */
 	let value;
-	let $wrapper, $padding, $x, $y, $size, $modalContent, $feed, $overlay;
+	let $wrapper, $padding, $x, $y, $size, $modalContent;
+	/** @type {Element} */
+	let $feed;
+	/** @type {Element} */
+	let $overlay;
 
 	const modal = newModal("Crop");
 
-	/** @param {string} feedHTML */
-	const renderModal = (feedHTML) => {
+	/** @param {Element} feedElem */
+	const renderModal = (feedElem) => {
 		const html = /* HTML */ `
 			<li
 				id="object-detection-crop-preview"
@@ -349,7 +362,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 						class="js-feed flex w-full"
 						style="min-width: 0; background: white;"
 					>
-						${feedHTML}
+						${feedElem.outerHTML}
 					</div>
 					<div class="js-preview-padding" style="background: white;"></div>
 					<svg
@@ -407,7 +420,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 		`;
 
 		$modalContent = modal.init();
-		$modalContent.innerHTML = html;
+		$modalContent.replaceChildren(...htmlToElems(html));
 
 		$feed = $modalContent.querySelector(".js-feed");
 		$wrapper = $modalContent.querySelector(".js-preview-wrapper");
@@ -489,11 +502,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 			` L ${x} ${y + s}` +
 			` L ${x} ${y}`;
 
-		return `
-			<path
-				fill-rule="evenodd"
-				d="${draw}"
-			/>`;
+		return `<path fill-rule="evenodd" d="${draw}"/>`;
 	};
 
 	/** @param {Crop} input */
@@ -517,7 +526,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 	};
 
 	return {
-		html: newModalFieldHTML(id, "Crop") + modal.html,
+		elems: [newModalFieldHTML(id, "Crop"), modal.elem],
 		value() {
 			if (!rendered) {
 				return normalizeCrop(value);
@@ -547,10 +556,10 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 
 				if (rendered) {
 					// Update feed and preview.
-					$feed.innerHTML = feed.html;
+					$feed.replaceChildren(feed.elem);
 					$overlay.innerHTML = renderPreviewOverlay();
 				} else {
-					renderModal(feed.html);
+					renderModal(feed.elem);
 					modal.onClose(() => {
 						feed.destroy();
 					});
@@ -657,7 +666,9 @@ function mask(hasSubStream, getMonitorId) {
 
 	/** @type {HTMLSelectElement} */
 	let $enable;
-	let $overlay, $modalContent, $feed;
+	let $overlay, $modalContent;
+	/** @type {Element} */
+	let $feed;
 
 	const modal = newModal("Mask");
 
@@ -665,8 +676,8 @@ function mask(hasSubStream, getMonitorId) {
 
 	const enableID = uniqueID();
 
-	/** @param {string} feedHTML */
-	const renderModal = (feedHTML) => {
+	/** @param {Element} feedElem */
+	const renderModal = (feedElem) => {
 		const html = /* HTML */ `
 			${newHTMLfield(
 				{
@@ -674,7 +685,7 @@ function mask(hasSubStream, getMonitorId) {
 				},
 				enableID,
 				"Enable",
-			)}
+			).outerHTML}
 			<li
 				id="object_detection_mask-preview"
 				class="flex flex-col items-center px-2"
@@ -689,7 +700,7 @@ function mask(hasSubStream, getMonitorId) {
 						class="js-feed flex w-full"
 						style="min-width: 0; background: white;"
 					>
-						${feedHTML}
+						${feedElem.outerHTML}
 					</div>
 					<svg
 						class="js-object-detection-overlay absolute w-full h-full"
@@ -708,7 +719,7 @@ function mask(hasSubStream, getMonitorId) {
 		`;
 
 		$modalContent = modal.init();
-		$modalContent.innerHTML = html;
+		$modalContent.replaceChildren(...htmlToElems(html));
 		$feed = $modalContent.querySelector(".js-feed");
 
 		$enable = $modalContent.querySelector(`#${enableID} select`);
@@ -861,7 +872,7 @@ function mask(hasSubStream, getMonitorId) {
 	const id = uniqueID();
 
 	return {
-		html: newModalFieldHTML(id, "Mask") + modal.html,
+		elems: [newModalFieldHTML(id, "Mask"), modal.elem],
 		value() {
 			if (rendered) {
 				return normalizeMask({
@@ -892,9 +903,9 @@ function mask(hasSubStream, getMonitorId) {
 
 				if (rendered) {
 					// Update feed.
-					$feed.innerHTML = feed.html;
+					$feed.replaceChildren(feed.elem);
 				} else {
-					renderModal(feed.html);
+					renderModal(feed.elem);
 					modal.onClose(() => {
 						feed.destroy();
 					});

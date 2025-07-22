@@ -100,11 +100,11 @@ function newViewer(monitorNameByID, element, timeZone, isAdmin, token) {
 			current = rec.id;
 		}
 
-		let html = "";
+		const fragment = new DocumentFragment();
 		for (const player of players) {
-			html += player.html;
+			fragment.append(player.elem);
 		}
-		element.insertAdjacentHTML("beforeend", html);
+		element.append(fragment);
 
 		for (const player of players) {
 			const onVideoLoad = () => {
@@ -286,7 +286,7 @@ function init() {
 		buttons.push(newOptionsBtn.monitorGroup(monitorGroups, viewer));
 	}
 	const optionsMenu = newOptionsMenu(buttons);
-	document.querySelector("#options-menu").innerHTML = optionsMenu.html();
+	document.querySelector("#options-menu").replaceChildren(...optionsMenu.elems());
 	optionsMenu.init();
 	viewer.reset();
 

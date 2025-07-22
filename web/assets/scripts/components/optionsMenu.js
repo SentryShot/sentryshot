@@ -2,7 +2,13 @@
 
 // @ts-check
 
-import { sortByName, uniqueID } from "../libs/common.js";
+import {
+	sortByName,
+	uniqueID,
+	htmlToElem,
+	htmlToElems,
+	elemsToHTML,
+} from "../libs/common.js";
 import { newTimeNow } from "../libs/time.js";
 import { newModalSelect } from "../components/modal.js";
 
@@ -13,7 +19,7 @@ import { newModalSelect } from "../components/modal.js";
 
 /**
  * @typedef {Object} Button
- * @property {string} html
+ * @property {Element[]} elems
  * @property {() => void} init
  */
 
@@ -24,8 +30,13 @@ function newOptionsMenu(buttons) {
 	$optionsBtn.style.visibility = "visible";
 
 	return {
-		html() {
-			return buttons.map((btn) => btn.html).join("");
+		elems() {
+			/** @type {Element[]} */
+			let buttonElems = [];
+			for (const btn of buttons) {
+				buttonElems = [...buttonElems, ...btn.elems];
+			}
+			return buttonElems;
 		},
 		/** @param {() => void} cb */
 		onMenuBtnclick(cb) {
@@ -67,6 +78,37 @@ function optionsMenuBtnHTML(id, icon, tag = "") {
 			${inner}
 		</button>
 	`;
+}
+
+/**
+ * @param {string} id
+ * @param {string=} icon
+ */
+function optionsMenuBtnHTML2(id, icon, tag = "") {
+	let inner = "";
+	if (icon !== undefined) {
+		inner = /* HTML */ `
+			<img
+				class="icon-filter"
+				style="aspect-ratio: 1; height: calc(var(--scale) * 2.7rem);"
+				src="${icon}"
+			/>
+		`;
+	}
+	const html = /* HTML */ `
+		<button
+			id="${id}"
+			class="${tag} flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
+			style="
+				width: var(--options-menu-btn-width);
+				height: var(--options-menu-btn-width);
+				font-size: calc(var(--scale) * 1.7rem);
+			"
+		>
+			${inner}
+		</button>
+	`;
+	return htmlToElem(html);
 }
 
 /**
@@ -113,9 +155,10 @@ const newOptionsBtn = {
 		const idPlus = uniqueID();
 		const idMinus = uniqueID();
 		return {
-			html:
-				optionsMenuBtnHTML(idPlus, "assets/icons/feather/plus.svg") +
-				optionsMenuBtnHTML(idMinus, "assets/icons/feather/minus.svg"),
+			elems: [
+				optionsMenuBtnHTML2(idPlus, "assets/icons/feather/plus.svg"),
+				optionsMenuBtnHTML2(idMinus, "assets/icons/feather/minus.svg"),
+			],
 			init() {
 				document.querySelector(`#${idPlus}`).addEventListener("click", () => {
 					if (getGridSize() !== 1) {
@@ -139,10 +182,10 @@ const newOptionsBtn = {
 	date(timeZone, content) {
 		const datePicker = newDatePicker(timeZone, content);
 		const icon = "assets/icons/feather/calendar.svg";
-		const popup = newOptionsPopup("date", icon, datePicker.html);
+		const popup = newOptionsPopup("date", icon, datePicker.elems);
 
 		return {
-			html: popup.html,
+			elems: popup.elems,
 			init() {
 				popup.init();
 				datePicker.init(popup);
@@ -179,10 +222,10 @@ const newOptionsBtn = {
 		const selectOne = newSelectOne(options, onSelect, "group");
 
 		const icon = "assets/icons/feather/group.svg";
-		const popup = newOptionsPopup("group", icon, selectOne.html);
+		const popup = newOptionsPopup("group", icon, selectOne.elems);
 
 		return {
-			html: popup.html,
+			elems: popup.elems,
 			init() {
 				popup.init();
 				selectOne.init();
@@ -193,7 +236,7 @@ const newOptionsBtn = {
 
 /**
  * @typedef {Object} Popup
- * @property {string} html
+ * @property {Element[]} elems
  * @property {() => void} toggle
  * @property {() => void} init
  * @property {() => Element} element
@@ -202,7 +245,7 @@ const newOptionsBtn = {
 /**
  * @param {string} label
  * @param {string} icon
- * @param {string} htmlContent
+ * @param {Element[]} htmlContent
  * @return {Popup}
  */
 function newOptionsPopup(label, icon, htmlContent) {
@@ -215,17 +258,18 @@ function newOptionsPopup(label, icon, htmlContent) {
 	const buttonId = uniqueID();
 	const popupId = uniqueID();
 	const tag = `js-${label}`;
+	const html = /* HTML */ `
+		${elemsToHTML([optionsMenuBtnHTML2(buttonId, icon, tag)])}
+		<div
+			id="${popupId}"
+			class="options-popup absolute flex-col m-auto bg-color2"
+			style="display: none; max-height: 100dvh;"
+		>
+			<div style="overflow-y: auto;">${elemsToHTML(htmlContent)}</div>
+		</div>
+	`;
 	return {
-		html: /* HTML */ `
-			${optionsMenuBtnHTML(buttonId, icon, tag)}
-			<div
-				id="${popupId}"
-				class="options-popup absolute flex-col m-auto bg-color2"
-				style="display: none; max-height: 100dvh;"
-			>
-				<div style="overflow-y: auto;">${htmlContent}</div>
-			</div>
-		`,
+		elems: htmlToElems(html),
 		toggle,
 		init() {
 			element = document.querySelector(`#${popupId}`);
@@ -477,7 +521,7 @@ function newDatePicker(timeZone, content) {
 	};
 
 	return {
-		html: datePickerHTML,
+		elems: htmlToElems(datePickerHTML),
 		/** @param {Popup} popup */
 		init(popup) {
 			const $parent = popup.element();
@@ -614,7 +658,7 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 	const btnID = uniqueID();
 
 	return {
-		html: optionsMenuBtnHTML(btnID, "assets/icons/feather/video.svg"),
+		elems: htmlToElems(optionsMenuBtnHTML(btnID, "assets/icons/feather/video.svg")),
 		init() {
 			/** @param {string} selected */
 			const onSelect = (selected) => {
@@ -685,14 +729,15 @@ function newSelectOne(options, onSelect, alias) {
 	}
 
 	const id = uniqueID();
+	const html = /* HTML */ `
+		<div id=${id} class="js-select-one flex flex-col text-center text-color">
+			<span class="px-2 text-2">Groups</span>
+			${optionsHTML}
+		</div>
+	`;
 
 	return {
-		html: /* HTML */ `
-			<div id=${id} class="js-select-one flex flex-col text-center text-color">
-				<span class="px-2 text-2">Groups</span>
-				${optionsHTML}
-			</div>
-		`,
+		elems: htmlToElems(html),
 		init() {
 			const element = document.getElementById(id);
 

@@ -11,6 +11,8 @@ import {
 	getHashParam,
 	normalize,
 	denormalize,
+	htmlToElem,
+	htmlToElems,
 } from "./common.js";
 
 async function testFetchError(fetch) {
@@ -211,5 +213,208 @@ describe("normalize", () => {
 
 		const got2 = denormalize(normalized, max);
 		expect(got2).toBe(value);
+	});
+});
+
+describe("htmlToElem", () => {
+	test("empty", async () => {
+		expect(() => htmlToElem("")).toThrow();
+	});
+	test("single element", async () => {
+		expect(htmlToElem("<span></span>")).toMatchInlineSnapshot(`<span />`);
+	});
+	test("two elements", async () => {
+		expect(() => htmlToElem("<label></label><span></span>")).toThrow();
+	});
+	test("complex", async () => {
+		expect(
+			htmlToElem(/* HTML */ `
+				<li class="items-center p-2 border-b-2 border-color1">
+					<div class="flex w-full">
+						<select
+							class="js-zone-select w-full pl-2 text-1.5"
+							style="height: calc(var(--scale) * 2.5rem);"
+						></select>
+						<button
+							class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3"
+						>
+							<img
+								class="p-1 icon-filter"
+								style="width: calc(var(--scale) * 2.5rem);"
+								src="assets/icons/feather/plus.svg"
+							/>
+						</button>
+						<button
+							class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
+						>
+							<img
+								class="p-1 icon-filter"
+								style="width: calc(var(--scale) * 2.5rem);"
+								src="assets/icons/feather/minus.svg"
+							/>
+						</button>
+					</div>
+				</li>
+			`),
+		).toMatchInlineSnapshot(`
+<li
+  class="items-center p-2 border-b-2 border-color1"
+>
+  
+					
+  <div
+    class="flex w-full"
+  >
+    
+						
+    <select
+      class="js-zone-select w-full pl-2 text-1.5"
+      style="height: calc(var(--scale) * 2.5rem);"
+    />
+    
+						
+    <button
+      class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3"
+    >
+      
+							
+      <img
+        class="p-1 icon-filter"
+        src="assets/icons/feather/plus.svg"
+        style="width: calc(var(--scale) * 2.5rem);"
+      />
+      
+						
+    </button>
+    
+						
+    <button
+      class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
+    >
+      
+							
+      <img
+        class="p-1 icon-filter"
+        src="assets/icons/feather/minus.svg"
+        style="width: calc(var(--scale) * 2.5rem);"
+      />
+      
+						
+    </button>
+    
+					
+  </div>
+  
+				
+</li>
+`);
+	});
+});
+
+describe("htmlToElems", () => {
+	test("empty", async () => {
+		expect(() => htmlToElem("")).toThrow();
+	});
+	test("single element", async () => {
+		expect(htmlToElems("<span></span>")).toMatchInlineSnapshot(`
+[
+  <span />,
+]
+`);
+	});
+	test("two elements", async () => {
+		expect(htmlToElems("<label></label><span></span>")).toMatchInlineSnapshot(`
+[
+  <label />,
+  <span />,
+]
+`);
+	});
+	test("complex", async () => {
+		expect(
+			htmlToElems(/* HTML */ `
+				<li class="items-center p-2 border-b-2 border-color1">
+					<div class="flex w-full">
+						<select
+							class="js-zone-select w-full pl-2 text-1.5"
+							style="height: calc(var(--scale) * 2.5rem);"
+						></select>
+						<button
+							class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3"
+						>
+							<img
+								class="p-1 icon-filter"
+								style="width: calc(var(--scale) * 2.5rem);"
+								src="assets/icons/feather/plus.svg"
+							/>
+						</button>
+						<button
+							class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
+						>
+							<img
+								class="p-1 icon-filter"
+								style="width: calc(var(--scale) * 2.5rem);"
+								src="assets/icons/feather/minus.svg"
+							/>
+						</button>
+					</div>
+				</li>
+				<span></span>
+			`),
+		).toMatchInlineSnapshot(`
+[
+  <li
+    class="items-center p-2 border-b-2 border-color1"
+  >
+    
+					
+    <div
+      class="flex w-full"
+    >
+      
+						
+      <select
+        class="js-zone-select w-full pl-2 text-1.5"
+        style="height: calc(var(--scale) * 2.5rem);"
+      />
+      
+						
+      <button
+        class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3"
+      >
+        
+							
+        <img
+          class="p-1 icon-filter"
+          src="assets/icons/feather/plus.svg"
+          style="width: calc(var(--scale) * 2.5rem);"
+        />
+        
+						
+      </button>
+      
+						
+      <button
+        class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
+      >
+        
+							
+        <img
+          class="p-1 icon-filter"
+          src="assets/icons/feather/minus.svg"
+          style="width: calc(var(--scale) * 2.5rem);"
+        />
+        
+						
+      </button>
+      
+					
+    </div>
+    
+				
+  </li>,
+  <span />,
+]
+`);
 	});
 });
