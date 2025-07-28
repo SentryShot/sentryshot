@@ -883,16 +883,17 @@ function newAccount(token, fields) {
 	 * @param {Accounts} accounts
 	 */
 	const accountLoad = (navElement, accounts) => {
+		let id, username, isAdmin, title;
 		// @ts-ignore
-		let id = navElement.attributes.data.value;
-		let username, isAdmin, title;
-
-		if (id === "") {
+		if (navElement.attributes.data === undefined) {
+			// New account.
 			id = randomString(16);
 			title = "Add";
 			username = "";
 			isAdmin = false;
 		} else {
+			// @ts-ignore
+			id = navElement.attributes.data.value;
 			username = accounts[id]["username"];
 			isAdmin = accounts[id]["isAdmin"];
 			title = username;

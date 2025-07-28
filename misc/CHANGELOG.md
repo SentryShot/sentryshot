@@ -1,5 +1,7 @@
 ## unreleased
 
+-   fix account creation id error #81
+
 ## `v0.3.3`
 
 -   more web interface fixes #78
