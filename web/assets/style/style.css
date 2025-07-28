@@ -922,7 +922,7 @@ img {
 	}
 
 	#sidebar-checkbox:checked ~ #sidebar {
-		width: 0;
+		width: 0 !important;
 	}
 
 	#sidebar-checkbox:checked ~ #sidebar-btn {
@@ -935,7 +935,7 @@ img {
 	}
 
 	#sidebar-checkbox:checked ~ #topbar {
-		width: 0;
+		width: calc(var(--topbar-height) * 2);
 		opacity: 0.5;
 	}
 
