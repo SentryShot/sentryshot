@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.3.4`
+
 -   fix account creation id error #81
 
 ## `v0.3.3`
