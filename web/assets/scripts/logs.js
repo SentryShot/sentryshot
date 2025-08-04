@@ -10,8 +10,8 @@ import {
 	globals,
 	relativePathname,
 	sleep,
+	htmlToElem,
 	htmlToElems,
-	elemsToHTML,
 } from "./libs/common.js";
 import { fromUTC2 } from "./libs/time.js";
 import { newForm, fieldTemplate } from "./components/form.js";
@@ -540,6 +540,7 @@ function newMultiSelect(label, values, initial) {
 		fields[val] = newField(uniqueID(), val);
 	}
 
+	/** @type {Element[]} */
 	let fieldElems = [];
 	for (const field of Object.values(fields)) {
 		fieldElems = [...fieldElems, ...field.elems];
@@ -556,14 +557,23 @@ function newMultiSelect(label, values, initial) {
 
 	const id = uniqueID();
 
-	const html = /* HTML */ `
-		<li id="${id}" class="items-center w-full px-2 border-b-2 border-color1">
-			<label class="mr-auto text-1.5 text-color">${label}</label>
-			<div class="relative">${elemsToHTML(fieldElems)}</div>
-		</li>
-	`;
 	return {
-		elems: htmlToElems(html),
+		elems: [
+			htmlToElem(
+				/* HTML */ `
+					<li
+						id="${id}"
+						class="items-center w-full px-2 border-b-2 border-color1"
+					></li>
+				`,
+				[
+					htmlToElem(
+						`<label class="mr-auto text-1.5 text-color">${label}</label>`,
+					),
+					htmlToElem(`<div class="relative"></div>`, fieldElems),
+				],
+			),
+		],
 		init() {
 			for (const field of Object.values(fields)) {
 				field.init();
@@ -735,20 +745,22 @@ function newLogSelector(logger, formFields) {
 		logger.set(levels, sources, monitors);
 	};
 
-	const html = /* HTML */ `
-		${elemsToHTML([form.elem()])}
-		<div>
-			<button class="js-reset m-2 px-2 bg-color3 rounded-lg hover:bg-color2">
-				<span class="text-2 text-color">Reset</span>
-			</button>
-			<button
-				class="log-apply-btn m-2 px-2 js-apply rounded-lg bg-green hover:bg-green2"
-				style="float: right;"
-			>
-				<span class="text-2 text-color">Apply</span>
-			</button>
-		</div>
-	`;
+	const elems = [
+		form.elem(),
+		htmlToElem(/* HTML */ `
+			<div>
+				<button class="js-reset m-2 px-2 bg-color3 rounded-lg hover:bg-color2">
+					<span class="text-2 text-color">Reset</span>
+				</button>
+				<button
+					class="log-apply-btn m-2 px-2 js-apply rounded-lg bg-green hover:bg-green2"
+					style="float: right;"
+				>
+					<span class="text-2 text-color">Apply</span>
+				</button>
+			</div>
+		`),
+	];
 
 	return {
 		/** @param {Element} $parent */
@@ -756,7 +768,7 @@ function newLogSelector(logger, formFields) {
 			$sidebar = $parent.querySelector(".js-sidebar");
 			const $list = $parent.querySelector(".js-list");
 
-			$sidebar.replaceChildren(...htmlToElems(html));
+			$sidebar.replaceChildren(...elems);
 			form.init();
 			form.reset();
 			apply();

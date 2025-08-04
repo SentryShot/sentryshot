@@ -74,13 +74,13 @@ describe("newPlayer", () => {
     </div>
     <div class="absolute"
          style="
-				z-index: 2;
-				right: calc(var(--spacing) * 4);
-				bottom: calc(var(--spacing) * 4);
-				left: calc(var(--spacing) * 4);
-				height: calc(var(--scale) * 1.5rem);
-				min-height: 3.5%;
-			"
+						z-index: 2;
+						right: calc(var(--spacing) * 4);
+						bottom: calc(var(--spacing) * 4);
+						left: calc(var(--spacing) * 4);
+						height: calc(var(--scale) * 1.5rem);
+						min-height: 3.5%;
+					"
     >
       <svg class="absolute w-full h-full"
            style="fill: var(--color-red);"
@@ -153,13 +153,13 @@ describe("newPlayer", () => {
     </div>
     <div class="player-overlay absolute"
          style="
-				z-index: 2;
-				right: calc(var(--spacing) * 4);
-				bottom: calc(var(--spacing) * 4);
-				left: calc(var(--spacing) * 4);
-				height: calc(var(--scale) * 1.5rem);
-				min-height: 3.5%;
-			"
+						z-index: 2;
+						right: calc(var(--spacing) * 4);
+						bottom: calc(var(--spacing) * 4);
+						left: calc(var(--spacing) * 4);
+						height: calc(var(--scale) * 1.5rem);
+						min-height: 3.5 %;
+					"
     >
       <svg class="absolute w-full h-full"
            style="fill: var(--color-red);"
@@ -189,10 +189,10 @@ describe("newPlayer", () => {
       </progress>
       <button class="js-options-open-btn player-options-open-btn absolute m-auto rounded-md bg-color0"
               style="
-					right: calc(var(--scale) * 1rem);
-					bottom: calc(var(--scale) * 2.5rem);
-					transition: opacity 250ms;
-				"
+							right: calc(var(--scale) * 1rem);
+							bottom: calc(var(--scale) * 2.5rem);
+							transition: opacity 250ms;
+						"
       >
         <img style="width: calc(var(--scale) * 1rem); height: calc(var(--scale) * 2rem); filter: invert(90%);"
              src="assets/icons/feather/more-vertical-slim.svg"
@@ -200,11 +200,11 @@ describe("newPlayer", () => {
       </button>
       <div class="js-popup absolute rounded-lg bg-color0"
            style="
-					right: calc(var(--scale) * 0.5rem);
-					bottom: calc(var(--scale) * 5rem);
-					display: none;
-					opacity: 0.8;
-				"
+							right: calc(var(--scale) * 0.5rem);
+							bottom: calc(var(--scale) * 5rem);
+							display: none;
+							opacity: 0.8;
+						"
       >
         <a download="2001-06-02_00:00:00_D.mp4"
            href="C"
@@ -267,13 +267,13 @@ describe("newPlayer", () => {
       </div>
       <div class="absolute"
            style="
-				z-index: 2;
-				right: calc(var(--spacing) * 4);
-				bottom: calc(var(--spacing) * 4);
-				left: calc(var(--spacing) * 4);
-				height: calc(var(--scale) * 1.5rem);
-				min-height: 3.5%;
-			"
+						z-index: 2;
+						right: calc(var(--spacing) * 4);
+						bottom: calc(var(--spacing) * 4);
+						left: calc(var(--spacing) * 4);
+						height: calc(var(--scale) * 1.5rem);
+						min-height: 3.5%;
+					"
       >
         <svg class="absolute w-full h-full"
              style="fill: var(--color-red);"
@@ -339,13 +339,13 @@ describe("newPlayer", () => {
     </div>
     <div class="absolute"
          style="
-				z-index: 2;
-				right: calc(var(--spacing) * 4);
-				bottom: calc(var(--spacing) * 4);
-				left: calc(var(--spacing) * 4);
-				height: calc(var(--scale) * 1.5rem);
-				min-height: 3.5%;
-			"
+						z-index: 2;
+						right: calc(var(--spacing) * 4);
+						bottom: calc(var(--spacing) * 4);
+						left: calc(var(--spacing) * 4);
+						height: calc(var(--scale) * 1.5rem);
+						min-height: 3.5%;
+					"
     >
       <svg class="absolute w-full h-full"
            style="fill: var(--color-red);"

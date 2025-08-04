@@ -102,12 +102,7 @@ test("fullscreen", () => {
     >
     </label>
     <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
-         style="
-						z-index: 2;
-						bottom: 0;
-						margin-bottom: 5%;
-						border: none;
-					"
+         style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
     >
       <a href="http://test.com/recordings#monitors=undefined"
          class="feed-btn p-1 bg-transparent"
@@ -149,12 +144,7 @@ test("fullscreen", () => {
     >
     </label>
     <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
-         style="
-						z-index: 2;
-						bottom: 0;
-						margin-bottom: 5%;
-						border: none;
-					"
+         style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
     >
       <a href="http://test.com/recordings#monitors=undefined"
          class="feed-btn p-1 bg-transparent"

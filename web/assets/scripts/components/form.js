@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import { uniqueID, htmlToElem, elemsToHTML } from "../libs/common.js";
+import { uniqueID, htmlToElem } from "../libs/common.js";
 
 /*
  * A form field can have the following methods.
@@ -59,30 +59,6 @@ import { uniqueID, htmlToElem, elemsToHTML } from "../libs/common.js";
 function newForm(fields) {
 	/** @type {Buttons} */
 	const buttons = {};
-	const html = () => {
-		/** @type {Element[]} */
-		let fieldsElems = [];
-		for (const item of Object.values(fields)) {
-			if (item && item.elems) {
-				if (!item.elems) {
-					throw new Error(`field doesn't have element ${item.html}`);
-				}
-				fieldsElems = [...fieldsElems, ...item.elems];
-			}
-		}
-		const buttonElems = [];
-		if (buttons) {
-			for (const btn of Object.values(buttons)) {
-				buttonElems.push(btn.elem);
-			}
-		}
-		return /* HTML */ `
-			<ul class="form" style="overflow-y: auto;">
-				${elemsToHTML(fieldsElems)}
-				<div class="flex">${elemsToHTML(buttonElems)}</div>
-			</ul>
-		`;
-	};
 	return {
 		buttons() {
 			return buttons;
@@ -121,7 +97,34 @@ function newForm(fields) {
 			}
 		},
 		elem() {
-			return htmlToElem(html());
+			/** @type {Element[]} */
+			let fieldsElems = [];
+			for (const item of Object.values(fields)) {
+				if (item && item.elems) {
+					if (!item.elems) {
+						throw new Error(`field doesn't have element ${item.html}`);
+					}
+					fieldsElems = [...fieldsElems, ...item.elems];
+				}
+			}
+			const buttonElems = [];
+			if (buttons) {
+				for (const btn of Object.values(buttons)) {
+					buttonElems.push(btn.elem);
+				}
+			}
+			return htmlToElem(
+				//
+				`<ul class="form" style="overflow-y: auto;"></ul>`,
+				[
+					...fieldsElems,
+					htmlToElem(
+						//
+						`<div class="flex"></div>`,
+						buttonElems,
+					),
+				],
+			);
 		},
 		init() {
 			for (const item of Object.values(fields)) {

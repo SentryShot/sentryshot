@@ -2,7 +2,7 @@
 
 // @ts-check
 
-import { uidReset, htmlToElems, elemsToHTML } from "../libs/common.js";
+import { uidReset, htmlToElems } from "../libs/common.js";
 import {
 	newForm,
 	newNumberField,
@@ -839,3 +839,15 @@ describe("passwordField", () => {
 		});
 	});
 });
+
+/**
+ * @param {Element[]} elems
+ * @return string
+ */
+function elemsToHTML(elems) {
+	let html = "";
+	for (const elem of elems) {
+		html += elem.outerHTML;
+	}
+	return html;
+}

@@ -1,14 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import {
-	uniqueID,
-	normalize,
-	denormalize,
-	globals,
-	htmlToElem,
-	htmlToElems,
-} from "./libs/common.js";
+import { uniqueID, normalize, denormalize, globals, htmlToElem } from "./libs/common.js";
 import {
 	newForm,
 	newModalFieldHTML,
@@ -139,132 +132,139 @@ export function motion2(hasSubStream, getMonitorId) {
  * @property {number} thresholdMax
  */
 
-const zoneSelectFieldHTML = /* HTML */ `
-	<li class="items-center p-2 border-b-2 border-color1">
-		<div class="flex w-full">
-			<select
-				class="js-zone-select w-full pl-2 text-1.5"
-				style="height: calc(var(--scale) * 2.5rem);"
-			></select>
-			<button
-				class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3"
-			>
-				<img
-					class="p-1 icon-filter"
-					style="width: calc(var(--scale) * 2.5rem);"
-					src="assets/icons/feather/plus.svg"
-				/>
-			</button>
-			<button
-				class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
-			>
-				<img
-					class="p-1 icon-filter"
-					style="width: calc(var(--scale) * 2.5rem);"
-					src="assets/icons/feather/minus.svg"
-				/>
-			</button>
-		</div>
-	</li>
-`;
+function zoneSelectField() {
+	return htmlToElem(/* HTML */ `
+		<li class="items-center p-2 border-b-2 border-color1">
+			<div class="flex w-full">
+				<select
+					class="js-zone-select w-full pl-2 text-1.5"
+					style="height: calc(var(--scale) * 2.5rem);"
+				></select>
+				<button
+					class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3"
+				>
+					<img
+						class="p-1 icon-filter"
+						style="width: calc(var(--scale) * 2.5rem);"
+						src="assets/icons/feather/plus.svg"
+					/>
+				</button>
+				<button
+					class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
+				>
+					<img
+						class="p-1 icon-filter"
+						style="width: calc(var(--scale) * 2.5rem);"
+						src="assets/icons/feather/minus.svg"
+					/>
+				</button>
+			</div>
+		</li>
+	`);
+}
 
-const thresholdsFieldHTML = /* HTML */ `
-	<li class="items-center p-2 border-b-2 border-color1">
-		<label
-			class="grow w-full text-1.5 text-color"
-			style="float: left; min-width: calc(var(--scale) * 13.5rem);"
-			>Threshold Min-Max</label
+function thresholdsField() {
+	return htmlToElem(/* HTML */ `
+		<li class="items-center p-2 border-b-2 border-color1">
+			<label
+				class="grow w-full text-1.5 text-color"
+				style="float: left; min-width: calc(var(--scale) * 13.5rem);"
+				>Threshold Min-Max</label
+			>
+			<div class="flex w-full">
+				<input
+					class="js-threshold-min w-full mr-4 pl-2 text-1.5"
+					style="height: calc(var(--scale) * 2.5rem);"
+					type="number"
+					min="0"
+					max="100"
+					step="any"
+				/>
+				<input
+					class="js-threshold-max grow w-full pl-2 text-1.5"
+					style="height: calc(var(--scale) * 2.5rem);"
+					type="number"
+					min="0"
+					max="100"
+					step="any"
+				/>
+			</div>
+		</li>
+	`);
+}
+
+function zonesPreviewOptions() {
+	return htmlToElem(/* HTML */ `
+		<li
+			class="flex items-center p-2 border-b-2 border-color1"
+			style="flex-wrap: wrap; justify-content: space-between"
 		>
-		<div class="flex w-full">
-			<input
-				class="js-threshold-min w-full mr-4 pl-2 text-1.5"
-				style="height: calc(var(--scale) * 2.5rem);"
-				type="number"
-				min="0"
-				max="100"
-				step="any"
-			/>
-			<input
-				class="js-threshold-max grow w-full pl-2 text-1.5"
-				style="height: calc(var(--scale) * 2.5rem);"
-				type="number"
-				min="0"
-				max="100"
-				step="any"
-			/>
-		</div>
-	</li>
-`;
-
-const zonesPreviewOptionsHTML = /* HTML */ `
-	<li
-		class="flex items-center p-2 border-b-2 border-color1"
-		style="flex-wrap: wrap; justify-content: space-between"
-	>
-		<div class="flex">
-			<button
-				class="js-1x pl-2 pr-1 text-1.4 text-color bg-color2 hover:bg-color1"
-				style="
+			<div class="flex">
+				<button
+					class="js-1x pl-2 pr-1 text-1.4 text-color bg-color2 hover:bg-color1"
+					style="
 					border-top-left-radius: var(--radius-xl);
 					border-bottom-left-radius: var(--radius-xl);
 				"
-			>
-				1x
-			</button>
-			<button
-				class="js-4x px-1 text-1.4 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
-			>
-				4x
-			</button>
-			<button class="js-10x px-1 text-1.4 text-color bg-color2 hover:bg-color1">
-				10x
-			</button>
-			<button
-				class="js-20x pl-1 pr-2 text-1.4 text-color bg-color2 hover:bg-color1"
-				style="
+				>
+					1x
+				</button>
+				<button
+					class="js-4x px-1 text-1.4 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
+				>
+					4x
+				</button>
+				<button class="js-10x px-1 text-1.4 text-color bg-color2 hover:bg-color1">
+					10x
+				</button>
+				<button
+					class="js-20x pl-1 pr-2 text-1.4 text-color bg-color2 hover:bg-color1"
+					style="
 					border-top-right-radius: var(--radius-xl);
 					border-bottom-right-radius: var(--radius-xl);
 				"
-			>
-				20x
-			</button>
-		</div>
-		<div class="flex">
-			<input
-				class="js-x mr-1 text-center text-1.4"
-				style="width: calc(var(--scale) * 3.5rem);"
-				type="number"
-				min="0"
-				max="100"
-			/>
-			<input
-				class="js-y text-center text-1.4"
-				style="width: calc(var(--scale) * 3.5rem);"
-				type="number"
-				min="0"
-				max="100"
-			/>
-		</div>
-	</li>
-`;
+				>
+					20x
+				</button>
+			</div>
+			<div class="flex">
+				<input
+					class="js-x mr-1 text-center text-1.4"
+					style="width: calc(var(--scale) * 3.5rem);"
+					type="number"
+					min="0"
+					max="100"
+				/>
+				<input
+					class="js-y text-center text-1.4"
+					style="width: calc(var(--scale) * 3.5rem);"
+					type="number"
+					min="0"
+					max="100"
+				/>
+			</div>
+		</li>
+	`);
+}
 
 /**
  * @param {Element} feedElem
  * @param {string} [enableID]
  * @param {string} [sensitivityID]
  * @param {string} [previewID]
+ * @returns {Element[]}
  */
-function zonesModalHTML(feedElem, enableID, sensitivityID, previewID) {
-	return /* HTML */ `
-		${zoneSelectFieldHTML}
-		${newHTMLfield(
+function zonesModalElem(feedElem, enableID, sensitivityID, previewID) {
+	return [
+		zoneSelectField(),
+		newHTMLfield(
 			{
 				select: ["true", "false"],
 			},
 			enableID,
 			"Enable",
-		).outerHTML}
-		${newHTMLfield(
+		),
+		newHTMLfield(
 			{
 				input: "number",
 				min: 0,
@@ -272,21 +272,27 @@ function zonesModalHTML(feedElem, enableID, sensitivityID, previewID) {
 			},
 			sensitivityID,
 			"Sensitivity",
-		).outerHTML}
-		${thresholdsFieldHTML}
-		${newHTMLfield(
+		),
+		thresholdsField(),
+		newHTMLfield(
 			{
 				select: ["true", "false"],
 			},
 			previewID,
 			"Preview",
-		).outerHTML}
-		<li class="relative mx-2 mt-1">
-			<div class="js-feed" style="background: white;">${feedElem.outerHTML}</div>
-			<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
-		</li>
-		${zonesPreviewOptionsHTML}
-	`;
+		),
+		htmlToElem(/* HTML */ ` <li class="relative mx-2 mt-1"></li> `, [
+			htmlToElem(
+				//
+				` <div class="js-feed" style="background: white;"></div> `,
+				[feedElem],
+			),
+			htmlToElem(`
+				<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
+			`),
+		]),
+		zonesPreviewOptions(),
+	];
 }
 
 /**
@@ -329,7 +335,7 @@ function zones(hasSubStream, getMonitorId) {
 	const renderModal = (element, feedElem) => {
 		modal = newModal(
 			"Zones",
-			htmlToElems(zonesModalHTML(feedElem, enableID, sensitivityID, previewID)),
+			zonesModalElem(feedElem, enableID, sensitivityID, previewID),
 		);
 
 		element.append(modal.elem);

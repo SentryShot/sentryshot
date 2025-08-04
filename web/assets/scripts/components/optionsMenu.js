@@ -2,13 +2,7 @@
 
 // @ts-check
 
-import {
-	sortByName,
-	uniqueID,
-	htmlToElem,
-	htmlToElems,
-	elemsToHTML,
-} from "../libs/common.js";
+import { sortByName, uniqueID, htmlToElem, htmlToElems } from "../libs/common.js";
 import { newTimeNow } from "../libs/time.js";
 import { newModalSelect } from "../components/modal.js";
 
@@ -258,18 +252,26 @@ function newOptionsPopup(label, icon, htmlContent) {
 	const buttonId = uniqueID();
 	const popupId = uniqueID();
 	const tag = `js-${label}`;
-	const html = /* HTML */ `
-		${elemsToHTML([optionsMenuBtnHTML2(buttonId, icon, tag)])}
-		<div
-			id="${popupId}"
-			class="options-popup absolute flex-col m-auto bg-color2"
-			style="display: none; max-height: 100dvh;"
-		>
-			<div style="overflow-y: auto;">${elemsToHTML(htmlContent)}</div>
-		</div>
-	`;
 	return {
-		elems: htmlToElems(html),
+		elems: [
+			optionsMenuBtnHTML2(buttonId, icon, tag),
+			htmlToElem(
+				/* HTML */ `
+					<div
+						id="${popupId}"
+						class="options-popup absolute flex-col m-auto bg-color2"
+						style="display: none; max-height: 100dvh;"
+					></div>
+				`,
+				[
+					htmlToElem(
+						//
+						`<div style="overflow-y: auto;"></div>`,
+						htmlContent,
+					),
+				],
+			),
+		],
 		toggle,
 		init() {
 			element = document.querySelector(`#${popupId}`);

@@ -29,12 +29,7 @@ describe("feed", () => {
     >
     </label>
     <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
-         style="
-						z-index: 2;
-						bottom: 0;
-						margin-bottom: 5%;
-						border: none;
-					"
+         style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
     >
       <button class="js-fullscreen-btn feed-btn p-2 bg-transparent">
         <img class="icon-filter"

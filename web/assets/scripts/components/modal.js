@@ -2,7 +2,7 @@
 
 // @ts-check
 
-import { uniqueID, htmlToElem, elemsToHTML } from "../libs/common.js";
+import { uniqueID, htmlToElem } from "../libs/common.js";
 
 /**
  * @typedef {Object} Modal
@@ -26,42 +26,56 @@ function newModal(label, content = []) {
 	let onClose;
 
 	const wrapperId = uniqueID();
-	const html = /* HTML */ `
-		<div
-			id="${wrapperId}"
-			class="w-full h-full"
-			style="
-				position: fixed;
-				top: 0;
-				left: 0;
-				z-index: 20;
-				display: none;
-				overflow-y: auto;
-				background-color: rgb(0 0 0 / 40%);
-			"
-		>
-			<div class="modal js-modal flex">
-				<header class="modal-header flex px-2 bg-color2">
-					<span
-						class="w-full text-center text-2 text-color"
-						style="padding-left: calc(var(--scale) * 2.5rem);"
-					>${label}</span>
-					<button class="js-modal-close-btn flex m-auto rounded-md bg-color3">
-						<img
-							class="icon-filter"
-							style="width: calc(var(--scale) * 2.5rem);"
-							src="assets/icons/feather/x.svg"
-						></img>
-					</button>
-				</header>
-				<div
-					class="js-modal-content h-full bg-color3"
-					style="overflow-y: visible;"
-				>${elemsToHTML(content)}</div>
-			</div>
-		</div>`;
 	return {
-		elem: htmlToElem(html),
+		elem: htmlToElem(
+			/* HTML */ `
+				<div
+					id="${wrapperId}"
+					class="w-full h-full"
+					style="
+						position: fixed;
+						top: 0;
+						left: 0;
+						z-index: 20;
+						display: none;
+						overflow-y: auto;
+						background-color: rgb(0 0 0 / 40%);
+					"
+				></div>
+			`,
+			[
+				htmlToElem(
+					//
+					`<div class="modal js-modal flex"></div>`,
+					[
+						htmlToElem(/* HTML */ `
+							<header class="modal-header flex px-2 bg-color2">
+								<span
+									class="w-full text-center text-2 text-color"
+									style="padding-left: calc(var(--scale) * 2.5rem);"
+								>${label}</span>
+								<button class="js-modal-close-btn flex m-auto rounded-md bg-color3">
+									<img
+										class="icon-filter"
+										style="width: calc(var(--scale) * 2.5rem);"
+										src="assets/icons/feather/x.svg"
+									></img>
+								</button>
+							</header>`),
+						htmlToElem(
+							/* HTML */ `
+								<div
+									class="js-modal-content h-full bg-color3"
+									style="overflow-y: visible;"
+								></div>
+							`,
+							content,
+						),
+					],
+				),
+			],
+		),
+
 		open() {
 			$wrapper.classList.add("modal-open");
 		},
@@ -124,9 +138,10 @@ function newModalSelect(name, options, onSelect) {
 			`;
 			optionElems.push(htmlToElem(html));
 		}
-		return htmlToElem(/** HTML */ `
-			<div class="js-selector flex" style="flex-wrap: wrap;">${elemsToHTML(optionElems)}</div>
-		`);
+		return htmlToElem(
+			`<div class="js-selector flex" style="flex-wrap: wrap;"></div>`,
+			optionElems,
+		);
 	};
 
 	/** @type {Element} */

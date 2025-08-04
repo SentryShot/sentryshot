@@ -68,14 +68,14 @@ test("modalSelect", () => {
 <div id="uid1"
      class="w-full h-full modal-open"
      style="
-				position: fixed;
-				top: 0;
-				left: 0;
-				z-index: 20;
-				display: none;
-				overflow-y: auto;
-				background-color: rgb(0 0 0 / 40%);
-			"
+						position: fixed;
+						top: 0;
+						left: 0;
+						z-index: 20;
+						display: none;
+						overflow-y: auto;
+						background-color: rgb(0 0 0 / 40%);
+					"
 >
   <div class="modal js-modal flex">
     <header class="modal-header flex px-2 bg-color2">

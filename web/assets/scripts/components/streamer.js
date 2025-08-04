@@ -8,7 +8,6 @@ import {
 	sleep,
 	relativePathname,
 	htmlToElem,
-	elemsToHTML,
 } from "../libs/common.js";
 import { newFeed } from "./feed.js";
 import Hls from "../vendor/hls.js";
@@ -52,44 +51,55 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 	/** @type {DebugOvelay} */
 	let debugOverlay;
 
-	const html = /* HTML */ `
-		<div class="flex justify-center">
-			<div
-				id="${elementID}"
-				class="relative flex justify-center items-center w-full"
-				style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
-			>
-				<input
-					id="${checkboxID}"
-					class="js-checkbox player-overlay-checkbox absolute"
-					style="opacity: 0;"
-					type="checkbox"
-				/>
-				<label
-					class="absolute w-full h-full"
-					style="z-index: 1; opacity: 0.5;"
-					for="${checkboxID}"
-				></label>
-				<div
-					class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
-					style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
-				>
-					${elemsToHTML(buttonElems)}
-				</div>
-				<video
-					class="w-full h-full"
-					style="max-height: 100vh; object-fit: contain;"
-					autoplay
-					muted
-					disablepictureinpicture
-					playsinline
-					type="video/mp4"
-				></video>
-			</div>
-		</div>
-	`;
 	return {
-		elem: htmlToElem(html),
+		elem: htmlToElem(`<div class="flex justify-center"></div>`, [
+			htmlToElem(
+				/* HTML */ `
+					<div
+						id="${elementID}"
+						class="relative flex justify-center items-center w-full"
+						style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
+					></div>
+				`,
+				[
+					htmlToElem(/* HTML */ `
+						<input
+							id="${checkboxID}"
+							class="js-checkbox player-overlay-checkbox absolute"
+							style="opacity: 0;"
+							type="checkbox"
+						/>
+					`),
+					htmlToElem(/* HTML */ `
+						<label
+							class="absolute w-full h-full"
+							style="z-index: 1; opacity: 0.5;"
+							for="${checkboxID}"
+						></label>
+					`),
+					htmlToElem(
+						/* HTML */ `
+							<div
+								class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
+								style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
+							></div>
+						`,
+						buttonElems,
+					),
+					htmlToElem(/* HTML */ `
+						<video
+							class="w-full h-full"
+							style="max-height: 100vh; object-fit: contain;"
+							autoplay
+							muted
+							disablepictureinpicture
+							playsinline
+							type="video/mp4"
+						></video>
+					`),
+				],
+			),
+		]),
 		init() {
 			const element = document.querySelector(`#${elementID}`);
 			const $overlay = element.querySelector(`.js-overlay`);

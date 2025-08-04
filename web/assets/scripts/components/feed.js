@@ -2,7 +2,7 @@
 
 // @ts-check
 
-import { uniqueID, relativePathname, htmlToElem, elemsToHTML } from "../libs/common.js";
+import { uniqueID, relativePathname, htmlToElem } from "../libs/common.js";
 
 const hlsConfig = {
 	maxDelaySec: 2,
@@ -55,48 +55,59 @@ function newFeed(Hls, monitor, preferLowRes, buttons = []) {
 	const elementID = uniqueID();
 	const checkboxID = uniqueID();
 
-	const html = /* HTML */ `
-		<div class="flex justify-center">
-			<div
-				id="${elementID}"
-				class="relative flex justify-center items-center w-full"
-				style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
-			>
-				<input
-					id="${checkboxID}"
-					class="js-checkbox player-overlay-checkbox absolute"
-					style="opacity: 0;"
-					type="checkbox"
-				/>
-				<label
-					class="absolute w-full h-full"
-					style="z-index: 1; opacity: 0.5;"
-					for="${checkboxID}"
-				></label>
-				<div
-					class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
-					style="
-						z-index: 2;
-						bottom: 0;
-						margin-bottom: 5%;
-						border: none;
-					"
-				>
-					${elemsToHTML(buttonElems)}
-				</div>
-				<video
-					class="w-full h-full"
-					style="max-height: 100vh; object-fit: contain;"
-					muted
-					disablepictureinpicture
-					playsinline
-				></video>
-			</div>
-		</div>
-	`;
+	const elem = htmlToElem(
+		//
+		`<div class="flex justify-center"></div>`,
+		[
+			htmlToElem(
+				/* HTML */ `
+					<div
+						id="${elementID}"
+						class="relative flex justify-center items-center w-full"
+						style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
+					></div>
+				`,
+				[
+					htmlToElem(/* HTML */ `
+						<input
+							id="${checkboxID}"
+							class="js-checkbox player-overlay-checkbox absolute"
+							style="opacity: 0;"
+							type="checkbox"
+						/>
+					`),
+					htmlToElem(/* HTML */ `
+						<label
+							class="absolute w-full h-full"
+							style="z-index: 1; opacity: 0.5;"
+							for="${checkboxID}"
+						></label>
+					`),
+					htmlToElem(
+						/* HTML */ `
+							<div
+								class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
+								style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
+							></div>
+						`,
+						buttonElems,
+					),
+					htmlToElem(/* HTML */ `
+						<video
+							class="w-full h-full"
+							style="max-height: 100vh; object-fit: contain;"
+							muted
+							disablepictureinpicture
+							playsinline
+						></video>
+					`),
+				],
+			),
+		],
+	);
 
 	return {
-		elem: htmlToElem(html),
+		elem,
 		init() {
 			const element = document.querySelector(`#${elementID}`);
 			const $overlay = element.querySelector(`.js-overlay`);
@@ -158,9 +169,9 @@ function newMuteBtn(monitor) {
 	let html = "";
 	if (audioEnabled) {
 		html = `
-			<button class="js-mute-btn feed-btn">
-				<img class="feed-btn-img icon" src="${iconUnmutedPath}"/>
-			</button>`;
+	< button class= "js-mute-btn feed-btn" >
+	<img class="feed-btn-img icon" src="${iconUnmutedPath}" />
+			</button > `;
 	}
 
 	return {

@@ -14,7 +14,6 @@ import {
 	relativePathname,
 	htmlToElem,
 	htmlToElems,
-	elemsToHTML,
 } from "./libs/common.js";
 import {
 	newForm,
@@ -75,30 +74,37 @@ function newRenderer($parent) {
 				);
 
 				categoryElems.push(
-					htmlToElem(/* HTML */ `
-						<div
-							id="js-settings-wrapper-${category.name()}"
-							class="settings-category-wrapper"
-						>
-							${elemsToHTML(category.elems())}
-						</div>
-					`),
+					htmlToElem(
+						/* HTML */ `
+							<div
+								id="js-settings-wrapper-${category.name()}"
+								class="settings-category-wrapper"
+							></div>
+						`,
+						category.elems(),
+					),
 				);
 			}
 
-			const html = /* HTML */ `
-				<nav
-					id="js-settings-navbar"
-					class="settings-navbar shrink-0 h-full bg-color2"
-				>
-					<ul class="h-full" style="overflow-y: auto;">
-						${elemsToHTML(navElems)}
-					</ul>
-				</nav>
-				${elemsToHTML(categoryElems)}
-			`;
+			const elems = [
+				htmlToElem(
+					/* HTML */ `
+						<nav
+							id="js-settings-navbar"
+							class="settings-navbar shrink-0 h-full bg-color2"
+						></nav>
+					`,
+					[
+						htmlToElem(
+							`<ul class="h-full" style="overflow-y: auto;"></ul>`,
+							navElems,
+						),
+					],
+				),
+				...categoryElems,
+			];
 
-			$parent.replaceChildren(...htmlToElems(html));
+			$parent.replaceChildren(...elems);
 		},
 		init() {
 			for (const category of Object.values(categories)) {
@@ -131,15 +137,22 @@ function categoryTitleHTML(title = "") {
 	`);
 }
 
-const menubarHTML = /* HTML */ `
-	<div
-		class="js-settings-menubar settings-menubar px-2 border border-color3 bg-color2"
-		style="height: var(--topbar-height);"
-	>
-		<nav class="js-settings-subcategory-back flex shrink-0">${backIconHTML}</nav>
-		${categoryTitleHTML().outerHTML}
-	</div>
-`;
+function menubarElem() {
+	return htmlToElem(
+		/* HTML */ `
+			<div
+				class="js-settings-menubar settings-menubar px-2 border border-color3 bg-color2"
+				style="height: var(--topbar-height);"
+			></div>
+		`,
+		[
+			htmlToElem(
+				`<nav class="js-settings-subcategory-back flex shrink-0">${backIconHTML}</nav>`,
+			),
+			categoryTitleHTML(),
+		],
+	);
+}
 
 const categoryNavsHTML = /* HTML */ `
 	<ul
@@ -283,28 +296,6 @@ function newCategory(categoryName, title) {
 		$subcategory.classList.add("settings-subcategory-open");
 	};
 
-	const html = () => {
-		return /* HTML */ `
-			<div
-				class="settings-category flex flex-col shrink-0 h-full bg-color2"
-				style="z-index: 0; overflow-y: auto;"
-			>
-				<div
-					class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
-				>
-					<nav class="js-settings-category-back flex shrink-0">
-						${backIconHTML}
-					</nav>
-					${categoryTitleHTML(title).outerHTML}
-				</div>
-				${categoryNavsHTML}
-			</div>
-			<div class="js-sub-category settings-sub-category flex flex-col bg-color3">
-				${menubarHTML} ${form.elem().outerHTML}
-			</div>
-		`;
-	};
-
 	return {
 		form() {
 			return form;
@@ -329,7 +320,42 @@ function newCategory(categoryName, title) {
 			onNav = func;
 		},
 		elems: () => {
-			return htmlToElems(html());
+			return [
+				htmlToElem(
+					/* HTML */ `
+						<div
+							class="settings-category flex flex-col shrink-0 h-full bg-color2"
+							style="z-index: 0; overflow-y: auto;"
+						></div>
+					`,
+					[
+						htmlToElem(
+							/* HTML */ `
+								<div
+									class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
+								></div>
+							`,
+							[
+								htmlToElem(/* HTML */ `
+									<nav class="js-settings-category-back flex shrink-0">
+										${backIconHTML}
+									</nav>
+								`),
+								categoryTitleHTML(title),
+							],
+						),
+						htmlToElem(categoryNavsHTML),
+					],
+				),
+				htmlToElem(
+					/* HTML */ `
+						<div
+							class="js-sub-category settings-sub-category flex flex-col bg-color3"
+						></div>
+					`,
+					[menubarElem(), form.elem()],
+				),
+			];
 		},
 		init() {
 			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
@@ -416,30 +442,6 @@ function newCategory2(categoryName, title, form) {
 		$subcategory.classList.add("settings-subcategory-open");
 	};
 
-	const html = () => {
-		return /* HTML */ `
-			<div
-				class="settings-category flex flex-col shrink-0 h-full bg-color2"
-				style="z-index: 0; overflow-y: auto;"
-			>
-				<div
-					class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
-				>
-					<nav class="js-settings-category-back flex shrink-0">
-						${backIconHTML}
-					</nav>
-					${categoryTitleHTML(title).outerHTML}
-				</div>
-				${categoryNavsHTML}
-			</div>
-			<div
-				class="js-sub-category settings-sub-category flex flex-col w-full bg-color3"
-			>
-				${menubarHTML} ${form.elem().outerHTML}
-			</div>
-		`;
-	};
-
 	return {
 		form() {
 			return form;
@@ -459,7 +461,44 @@ function newCategory2(categoryName, title, form) {
 			onNav = func;
 		},
 		elems: () => {
-			return htmlToElems(html());
+			return [
+				htmlToElem(
+					/* HTML */ `
+						<div
+							class="settings-category flex flex-col shrink-0 h-full bg-color2"
+							style="z-index: 0; overflow-y: auto;"
+						></div>
+					`,
+					[
+						htmlToElem(
+							/* HTML */
+							`
+								<div
+									class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
+								></div>
+							`,
+							[
+								htmlToElem(/* HTML */
+								`
+									<nav class="js-settings-category-back flex shrink-0">
+										${backIconHTML}
+									</nav>
+								`),
+								categoryTitleHTML(title),
+							],
+						),
+						htmlToElem(categoryNavsHTML),
+					],
+				),
+				htmlToElem(
+					/* HTML */ `
+						<div
+							class="js-sub-category settings-sub-category flex flex-col w-full bg-color3"
+						></div>
+					`,
+					[menubarElem(), form.elem()],
+				),
+			];
 		},
 		init() {
 			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
@@ -1119,7 +1158,11 @@ function newSelectMonitorField(monitors) {
 			}
 
 			element.replaceChildren(
-				htmlToElem(`<div class="monitor-selector">${elemsToHTML(elems)}</div>`),
+				htmlToElem(
+					//
+					`<div class="monitor-selector"></div>`,
+					elems,
+				),
 			);
 
 			for (const field of Object.values(fields)) {

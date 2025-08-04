@@ -320,15 +320,18 @@ function sleep(abortSignal, ms) {
 
 /**
  * @param {string} html
+ * @param {Element[]} children
  * @returns {Element}
  */
-function htmlToElem(html) {
+function htmlToElem(html, children = []) {
 	const template = document.createElement("template");
 	template.innerHTML = html;
 	if (template.content.childElementCount !== 1) {
 		throw new Error(`expected 1 element got ${template.content.childElementCount}`);
 	}
-	return template.content.firstElementChild;
+	const elem = template.content.firstElementChild;
+	elem.append(...children);
+	return elem;
 }
 
 /**
@@ -342,18 +345,6 @@ function htmlToElems(html) {
 		throw new Error(`no elements`);
 	}
 	return [...template.content.children];
-}
-
-/**
- * @param {Element[]} elems
- * @return string
- */
-function elemsToHTML(elems) {
-	let html = "";
-	for (const elem of elems) {
-		html += elem.outerHTML;
-	}
-	return html;
 }
 
 export {
@@ -375,5 +366,4 @@ export {
 	sleep,
 	htmlToElem,
 	htmlToElems,
-	elemsToHTML,
 };
