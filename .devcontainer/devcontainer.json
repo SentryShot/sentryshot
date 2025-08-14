@@ -1,3 +1,4 @@
 {
-  "image": "mcr.microsoft.com/devcontainers/rust:latest"
+  "image": "mcr.microsoft.com/devcontainers/rust:latest",
+  "postCreateCommand": "sudo apt update && sudo apt install -y libavcodec-dev libavutil-dev"
 }
