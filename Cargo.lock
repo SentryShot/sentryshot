@@ -1652,6 +1652,7 @@ dependencies = [
  "async-trait",
  "common",
  "plugin",
+ "tokio-util",
 ]
 
 [[package]]

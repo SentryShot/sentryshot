@@ -19,3 +19,4 @@ common.path = "../../src/common"
 plugin.path = "../../src/plugin"
 
 async-trait.workspace = true
+tokio-util.workspace = true
