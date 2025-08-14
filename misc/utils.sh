@@ -46,7 +46,7 @@ if [ -z "${CARGO_TARGET_DIR}" ]; then
 	export CARGO_TARGET_DIR="$target_dir"
 fi
 
-plugins="auth_basic auth_none motion mqtt object_detection thumb_scale"
+plugins="auth_basic auth_none motion mqtt object_detection thumb_scale openvino"
 packages="-p sentryshot"
 for plugin in $plugins; do
 	packages="$packages -p $plugin"

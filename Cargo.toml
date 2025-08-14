@@ -1,14 +1,15 @@
 [workspace]
 members = [
-	"plugins/auth_basic",
-	"plugins/auth_none",
-	"plugins/motion",
-	"plugins/mqtt",
-	"plugins/object_detection",
-	"plugins/object_detection_tflite",
-	"plugins/thumb_scale",
+  "plugins/auth_basic",
+  "plugins/auth_none",
+  "plugins/motion",
+  "plugins/mqtt",
+  "plugins/object_detection",
+  "plugins/object_detection_tflite",
+  "plugins/openvino",
+  "plugins/thumb_scale",
 
-	"src/sentryshot",
+  "src/sentryshot",
 ]
 resolver = "2"
 
@@ -32,11 +33,17 @@ async-channel = "2.0.0"
 async-recursion = "1.1.1"
 async-trait = "0.1.64"
 argon2 = "0.5.0"
-axum = { version = "0.8.0", default-features = false, features = ["tokio", "http1", "http2", "json", "query"] }
+axum = { version = "0.8.0", default-features = false, features = [
+  "tokio",
+  "http1",
+  "http2",
+  "json",
+  "query",
+] }
 bytes = "1.4.0"
 bytesize = "2"
 console-subscriber = "0.4"
-criterion = { version="0.5.0", features = ["async_tokio"] }
+criterion = { version = "0.5.0", features = ["async_tokio"] }
 futures-lite = "2"
 headers = "0.4.0"
 http = "1.0.0"
@@ -44,9 +51,16 @@ httpdate = "1.0.2"
 http-body = "1.0.0"
 http-body-util = "0.1"
 hyper = { version = "1.6", default-features = false }
-hyper-rustls = { version = "0.27", default-features = false, features = ["ring", "webpki-roots",  "http1"] }
+hyper-rustls = { version = "0.27", default-features = false, features = [
+  "ring",
+  "webpki-roots",
+  "http1",
+] }
 hyper-util = { version = "0.1", default-features = false }
-jiff = { version = "0.1", default-features = false, features = ["serde", "tz-system"] }
+jiff = { version = "0.1", default-features = false, features = [
+  "serde",
+  "tz-system",
+] }
 jpeg-encoder = "0.6.0"
 libloading = "0.8.2"
 mime_guess = { version = "2.0.4", default-features = false }
@@ -71,7 +85,7 @@ url = { version = "2.5", features = ["serde"] }
 [workspace.dependencies.tokio]
 version = "1.43.0"
 default-features = false
-features = ["fs" ,"macros", "rt-multi-thread", "signal", "sync", "time"]
+features = ["fs", "macros", "rt-multi-thread", "signal", "sync", "time"]
 
 
 [workspace.lints.clippy]
