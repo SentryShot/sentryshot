@@ -15,7 +15,6 @@ crate-type = ["cdylib"]
 doctest = false
 
 [dependencies]
-object_detection_tflite.path = "../object_detection_tflite"
 common.path = "../../src/common"
 plugin.path = "../../src/plugin"
 
