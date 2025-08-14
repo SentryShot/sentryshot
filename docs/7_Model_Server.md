@@ -100,19 +100,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### 3.3. Configuration
 
-The `plugins/openvino/config.rs` will be extended to include model server details. These will be read from a global `openvino.toml` file and the monitor's specific JSON configuration.
+The plugin's global settings are configured directly in the main `configs/sentryshot.toml` file. This avoids the need for a separate configuration file and keeps all plugin settings centralized.
+
+The plugin will read its settings from the `env` object provided by the application, which contains the parsed content of `sentryshot.toml`.
+
+**Example `sentryshot.toml` configuration:**
 
 ```toml
-# In a new configs/openvino.toml file
-[server]
-host = "127.0.0.1:8500" # gRPC server address
+# In configs/sentryshot.toml
 
-[model]
-name = "yolov8n"
-input_tensor = "images"
-output_tensor = "output0"
-# ... other model-specific parameters
+[[plugin]]
+name = "openvino"
+enable = true
+
+  # -- OpenVINO Model Server Settings --
+  # Host and port for the gRPC inference server
+  host = "127.0.0.1:8500"
+
+  # Name of the model deployed on the server
+  model_name = "yolov8n"
+
+  # Names of the input and output tensors for the model
+  input_tensor = "images"
+  output_tensor = "output0"
 ```
+
+The monitor-specific settings (e.g., `feedRate`, `crop`, `useSubStream`) will remain in the individual monitor's JSON configuration file as previously discussed.
 
 ### 3.4. Detector Implementation
 
