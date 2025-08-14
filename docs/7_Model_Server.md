@@ -66,7 +66,128 @@ A `PredictRequest` message is constructed. Its structure depends on the pre-proc
 **SSD MobileNet Output:**
 *   Multiple, separate output tensors are common (e.g., `detection_boxes`, `detection_scores`, `detection_classes`). Post-processing is simpler as NMS is often handled by the model itself.
 
-## 3. Go Example (YOLOv8)
+## 3. Rust Implementation in SentryShot (`openvino` plugin)
+
+To implement this workflow in the `openvino` plugin, we will need to add gRPC client capabilities.
+
+### 3.1. Dependencies
+
+The `plugins/openvino/Cargo.toml` will need to be updated with gRPC and Protobuf libraries. The `tonic` and `prost` crates are the standard choices in the Rust ecosystem.
+
+```toml
+# In plugins/openvino/Cargo.toml
+[dependencies]
+# ... existing dependencies
+prost.workspace = true
+tonic.workspace = true
+
+[build-dependencies]
+tonic-build.workspace = true
+```
+
+### 3.2. Protobuf Definitions
+
+We will need the `.proto` files that define the TensorFlow Serving gRPC API (e.g., `prediction_service.proto`, `tensor.proto`, etc.). These would be placed in a new `proto` directory inside `plugins/openvino`. A `build.rs` script will use `tonic-build` to compile these into Rust code during the build process.
+
+```rust
+// In plugins/openvino/build.rs
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tonic_build::configure()
+        .compile(&["proto/prediction_service.proto"], &["proto"])?;
+    Ok(())
+}
+```
+
+### 3.3. Configuration
+
+The `plugins/openvino/config.rs` will be extended to include model server details. These will be read from a global `openvino.toml` file and the monitor's specific JSON configuration.
+
+```toml
+# In a new configs/openvino.toml file
+[server]
+host = "127.0.0.1:8500" # gRPC server address
+
+[model]
+name = "yolov8n"
+input_tensor = "images"
+output_tensor = "output0"
+# ... other model-specific parameters
+```
+
+### 3.4. Detector Implementation
+
+The core logic will reside in `plugins/openvino/detector.rs`.
+
+```rust
+// In plugins/openvino/detector.rs
+use async_trait::async_trait;
+use common::{Detections, DynError};
+use std::num::NonZeroU16;
+use std::sync::Arc;
+use tonic::transport::Channel;
+
+// Import generated protobuf code
+use crate::proto::prediction_service_client::PredictionServiceClient;
+use crate::proto::{ModelSpec, PredictRequest, TensorProto, TensorShapeProto};
+
+pub(crate) struct GrpcDetector {
+    client: PredictionServiceClient<Channel>,
+    model_name: String,
+    input_name: String,
+    width: NonZeroU16,
+    height: NonZeroU16,
+}
+
+impl GrpcDetector {
+    pub async fn new(host: String, model_name: String, input_name: String) -> Result<Self, Box<dyn std::error::Error>> {
+        let channel = Channel::from_shared(format!("http://{}", host))?
+            .connect()
+            .await?;
+        let client = PredictionServiceClient::new(channel);
+        // ...
+        Ok(Self { /* ... */ })
+    }
+}
+
+#[async_trait]
+impl Detector for GrpcDetector {
+    async fn detect(&self, data: Vec<u8>) -> Result<Option<Detections>, DynError> {
+        // The `data` here is the pre-processed frame from `openvino.rs`
+        
+        // 1. Construct the TensorProto from the raw pixel data
+        let tensor = TensorProto {
+            dtype: DataType::DtHalf.into(), // For YOLOv8 FP16
+            tensor_shape: Some(TensorShapeProto {
+                dim: vec![
+                    Dim { size: 1 },
+                    Dim { size: 3 },
+                    Dim { size: self.height.get() as i64 },
+                    Dim { size: self.width.get() as i64 },
+                ],
+            }),
+            // The `data` needs to be converted to the appropriate format (e.g. half_val)
+            half_val: bytes_to_half_val(data), 
+        };
+
+        // 2. Construct the PredictRequest
+        let request = PredictRequest {
+            model_spec: Some(ModelSpec { name: self.model_name.clone(), ..Default::default() }),
+            inputs: [(self.input_name.clone(), tensor)].into(),
+        };
+
+        // 3. Send the request
+        let response = self.client.clone().predict(request).await?.into_inner();
+
+        // 4. Decode the response and perform NMS
+        let detections = decode_yolo_response(response)?;
+
+        Ok(Some(detections))
+    }
+    // ... width() and height() methods
+}
+```
+
+## 4. Go Example (YOLOv8)
 
 The code in the `@yolo/` directory provides a detailed example of communicating with a server running a YOLOv8 model. It demonstrates the more complex "Raw Pixel Tensor" workflow.
 
@@ -132,6 +253,6 @@ func decodeResponse(response *apis.PredictResponse) ([]BoundingBox, error) {
 }
 ```
 
-## 4. SentryShot Plugin Integration
+## 5. SentryShot Plugin Integration Summary
 
-To integrate this into a SentryShot plugin, the logic from the Go example would be adapted to fit inside the `detect` method of the plugin's `Detector` trait. The `detect` method would receive the raw frame bytes, perform the pre-processing and gRPC communication, and return the parsed `Detections`.
+To integrate this into a SentryShot plugin, the logic from the Go example would be adapted to fit inside the `detect` method of the plugin's `Detector` trait. The `process_frame` function in `openvino.rs` would be responsible for resizing and normalizing the image into the raw `Vec<u8>` that `detect` expects. The `detect` method then focuses purely on the gRPC communication and response parsing.
