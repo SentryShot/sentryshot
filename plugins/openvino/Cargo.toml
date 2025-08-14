@@ -1,0 +1,21 @@
+[package]
+name = "openvino"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "openvino"
+path = "openvino.rs"
+crate-type = ["cdylib"]
+doctest = false
+
+[dependencies]
+common.path = "../../src/common"
+plugin.path = "../../src/plugin"
+
+async-trait.workspace = true
