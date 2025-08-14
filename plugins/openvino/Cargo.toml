@@ -18,5 +18,14 @@ doctest = false
 common.path = "../../src/common"
 plugin.path = "../../src/plugin"
 
+sentryshot_convert.workspace = true
+sentryshot_filter.workspace = true
+sentryshot_scale.workspace = true
+sentryshot_util.workspace = true
+
 async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
 tokio-util.workspace = true
