@@ -11,7 +11,7 @@ use common::{
     recording::FrameRateLimiter,
     time::{DurationH264, UnixH264, UnixNano},
 };
-use config::{Crop, OpenvinoConfig};
+use config::{Crop, OpenvinoConfig, Config};
 use detector::ArcDetector;
 use plugin::{Application, Plugin, PreLoadPlugin};
 use sentryshot_convert::{
@@ -53,7 +53,11 @@ impl PreLoadPlugin for PreLoadOpenvino {
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
   app.rt_handle().block_on(async {
     Arc::new(
-      OpenvinoPlugin::new(app.rt_handle(), app.logger())
+      OpenvinoPlugin::new(
+        app.rt_handle(), 
+        app.logger(),
+        app.env().raw(),
+      )
       .await
     )
   })
@@ -66,11 +70,22 @@ struct OpenvinoPlugin {
 }
 
 impl OpenvinoPlugin {
-    async fn new(rt_handle: Handle, logger: ArcLogger) -> Self {
+    async fn new(
+        rt_handle: Handle, 
+        logger: ArcLogger, 
+        raw_env_config: &str
+    ) -> Self {
+        let config = match raw_env_config.parse::<Config>() {
+            Ok(config) => config,
+            Err(e) => {
+                eprintln!("failed to parse openvino config: {e}");
+                std::process::exit(1);
+            }
+        };
         let openvino_logger = Arc::new(OpenvinoLogger {
             logger: logger.clone(),
         });
-        let detector_manager = DetectorManager::new(openvino_logger).await;
+        let detector_manager = DetectorManager::new(openvino_logger, &config).await;
         Self {
             rt_handle,
             logger,
