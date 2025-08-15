@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use async_trait::async_trait;
+use crate::config::Config;
 use common::{ArcMsgLogger, Detections, DynError, LogLevel};
 use http::uri::InvalidUri;
 use std::num::NonZeroU16;
@@ -49,12 +50,13 @@ pub(crate) struct GrpcDetector {
 impl GrpcDetector {
     pub(crate) async fn new(
         logger: ArcMsgLogger,
+        config: &Config,
     ) -> Result<Self, GrpcDetectorError> {
         // Hardcode width and height for YOLOv8 as per documentation example
         let width = NonZeroU16::new(640).expect("640 is not zero");
         let height = NonZeroU16::new(640).expect("640 is not zero");
 
-        let channel = Channel::from_shared(format!("http://{}", "config.host"))
+        let channel = Channel::from_shared(format!("http://{}", config.host))
             .map_err(GrpcDetectorError::InvalidUri)?
             .connect()
             .await
@@ -64,15 +66,15 @@ impl GrpcDetector {
 
         logger.log(
             LogLevel::Info,
-            &format!("GrpcDetector: connected to {}", "config.host"),
+            &format!("GrpcDetector: connected to {}", config.host),
         );
 
         Ok(Self {
             logger,
             client,
-            model_name: "config.model_name".into(),
-            input_name: "config.input_tensor".into(),
-            output_name: "config.output_tensor".into(),
+            model_name: config.model_name.clone(),
+            input_name: config.input_tensor.clone(),
+            output_name: config.output_tensor.clone(),
             width,
             height,
         })
@@ -281,9 +283,12 @@ pub(crate) struct DetectorManager {
 }
 
 impl DetectorManager {
-    pub(crate) async fn new(logger: ArcMsgLogger) -> Self {
+    pub(crate) async fn new(
+        logger: ArcMsgLogger,
+        config: &Config
+    ) -> Self {
         Self { detector: Arc::new(
-            GrpcDetector::new(logger)
+            GrpcDetector::new(logger, config)
                 .await
                 .expect("Failed to create GrpcDetector")) // TODO: Handle error gracefully
         }
