@@ -204,6 +204,7 @@ impl OpenvinoPlugin {
     ) -> Result<(), RunError> {
         use RunError::*;
         let Some(muxer) = source.muxer().await else {
+            // Cancelled.
             return Ok(());
         };
         let params = muxer.params();
@@ -216,14 +217,7 @@ impl OpenvinoPlugin {
             output_width: detector.width(),
             output_height: detector.height(),
         };
-
-        let (outputs, _uncrop) = calculate_outputs(config.crop, &inputs)?;
-
-        let mut state = DetectorState {
-            frame_processed: vec![0; outputs.output_size],
-            outputs,
-        };
-
+        
         let rate_limiter =
             FrameRateLimiter::new(u64::try_from(*DurationH264::from(*config.feed_rate))?);
         let Some(feed) = source
@@ -234,12 +228,21 @@ impl OpenvinoPlugin {
             )
             .await
         else {
+            // Cancelled.
             return Ok(());
         };
         let mut feed = feed?;
+        
+        let (outputs, uncrop) = calculate_outputs(config.crop, &inputs)?;
+                
+        let mut state = DetectorState {
+            frame_processed: vec![0; outputs.output_size],
+            outputs,
+        };
 
         loop {
             let Some(frame) = feed.recv().await else {
+                // Feed was cancelled.
                 return Ok(());
             };
             let frame = frame?;
