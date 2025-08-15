@@ -20,6 +20,10 @@ pub(crate) struct Config {
     pub(crate) input_tensor: String,
     #[serde(rename = "output_tensor")]
     pub(crate) output_tensor: String,
+    #[serde(rename = "input_width")]
+    pub(crate) input_width: NonZeroU16,
+    #[serde(rename = "input_height")]
+    pub(crate) input_height: NonZeroU16,
 }
 
 #[derive(Debug, Error)]

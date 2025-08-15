@@ -52,10 +52,6 @@ impl GrpcDetector {
         logger: ArcMsgLogger,
         config: &Config,
     ) -> Result<Self, GrpcDetectorError> {
-        // Hardcode width and height for YOLOv8 as per documentation example
-        let width = NonZeroU16::new(640).expect("640 is not zero");
-        let height = NonZeroU16::new(640).expect("640 is not zero");
-
         let channel = Channel::from_shared(format!("http://{}", config.host))
             .map_err(GrpcDetectorError::InvalidUri)?
             .connect()
@@ -75,8 +71,8 @@ impl GrpcDetector {
             model_name: config.model_name.clone(),
             input_name: config.input_tensor.clone(),
             output_name: config.output_tensor.clone(),
-            width,
-            height,
+            width: config.input_width,
+            height: config.input_height,
         })
     }
 }
@@ -213,16 +209,22 @@ fn rgb_to_nchw_half(
     Ok(half_vals)
 }
 
-// Placeholder for float32 to half-precision float conversion
-// This is a simplified version and might need a proper library for accurate conversion.
-// For now, it's a direct cast, which is not correct for half-precision.
-// A proper implementation would use `half` crate or similar.
+// float32_to_f16 converts a 32-bit float to a 16-bit half-precision float.
 fn float32_to_f16(val: f32) -> u16 {
-    // This is a placeholder. A real implementation would use a proper half-precision float conversion.
-    // For example, using the `half` crate: `half::f16::from_f32(val).to_bits()`
-    // For demonstration, we'll just cast to u16, which is incorrect for actual half-precision.
-    // This will need to be replaced with a proper implementation.
-    val as u16 // INCORRECT: Placeholder for actual f32 to f16 conversion
+    let bits = val.to_bits();
+    let sign = (bits >> 16) & 0x8000;
+    let mut exp = ((bits >> 23) & 0xff) as i32 - 127;
+    let mant = bits & 0x7fffff;
+
+    if exp > 15 { // Exponent overflow -> infinity
+        return (sign | 0x7c00) as u16;
+    }
+    if exp < -14 { // Exponent underflow -> flush to zero
+        return sign as u16;
+    }
+    exp += 15;
+    let mant = mant >> 13;
+    (sign | (exp as u32) << 10 | mant) as u16
 }
 
 // Placeholder for decoding YOLO response and performing NMS
