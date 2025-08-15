@@ -51,7 +51,12 @@ impl PreLoadPlugin for PreLoadOpenvino {
 
 #[unsafe(no_mangle)]
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
-    Arc::new(OpenvinoPlugin::new(app.rt_handle(), app.logger()))
+  app.rt_handle().block_on(async {
+    Arc::new(
+      OpenvinoPlugin::new(app.rt_handle(), app.logger())
+      .await
+    )
+  })
 }
 
 struct OpenvinoPlugin {
@@ -61,11 +66,11 @@ struct OpenvinoPlugin {
 }
 
 impl OpenvinoPlugin {
-    pub fn new(rt_handle: Handle, logger: ArcLogger) -> Self {
+    async fn new(rt_handle: Handle, logger: ArcLogger) -> Self {
         let openvino_logger = Arc::new(OpenvinoLogger {
             logger: logger.clone(),
         });
-        let detector_manager = DetectorManager::new(openvino_logger);
+        let detector_manager = DetectorManager::new(openvino_logger).await;
         Self {
             rt_handle,
             logger,

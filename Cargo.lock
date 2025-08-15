@@ -1677,6 +1677,7 @@ dependencies = [
  "async-trait",
  "common",
  "glob",
+ "http",
  "plugin",
  "prost 0.14.1",
  "prost-types 0.14.1",
