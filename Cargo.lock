@@ -1679,6 +1679,7 @@ dependencies = [
  "glob",
  "plugin",
  "prost 0.14.1",
+ "prost-types 0.14.1",
  "sentryshot_convert",
  "sentryshot_filter",
  "sentryshot_scale",
@@ -1690,6 +1691,7 @@ dependencies = [
  "tokio-util",
  "toml",
  "tonic 0.14.1",
+ "tonic-prost",
  "tonic-prost-build",
 ]
 
@@ -2969,6 +2971,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.96",
+]
+
+[[package]]
+name = "tonic-prost"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9c511b9a96d40cb12b7d5d00464446acf3b9105fd3ce25437cfe41c92b1c87d"
+dependencies = [
+ "bytes",
+ "prost 0.14.1",
+ "tonic 0.14.1",
 ]
 
 [[package]]
