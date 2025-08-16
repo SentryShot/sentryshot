@@ -2,9 +2,9 @@
 
 use async_trait::async_trait;
 use crate::config::Config;
-use common::{ArcMsgLogger, Detections, DynError, LogLevel};
+use common::{ArcMsgLogger, Detection, Detections, DynError, LogLevel, RectangleNormalized, Region};
 use http::uri::InvalidUri;
-use std::num::NonZeroU16;
+use std::num::{NonZeroU16, NonZeroU32};
 use std::sync::Arc;
 use tokio::sync::OnceCell;
 use tonic::transport::Channel;
@@ -100,6 +100,8 @@ pub(crate) enum GrpcDetectorError {
     InvalidTensorShape,
     #[error("failed to decode YOLO response: {0}")]
     DecodeYoloResponse(String),
+    #[error("tensor data not found")]
+    TensorDataNotFound,
 }
 
 #[async_trait]
@@ -235,7 +237,63 @@ fn float32_to_f16(val: f32) -> u16 {
     (sign | (exp as u32) << 10 | mant) as u16
 }
 
-// Placeholder for decoding YOLO response and performing NMS
+fn half_to_float32(h: u16) -> f32 {
+    let sign = (h & 0x8000) as u32;
+    let exp = (h & 0x7C00) >> 10;
+    let mant = (h & 0x03FF) as u32;
+
+    let bits = if exp == 0x1F {
+        0x7F800000 | (mant << 13)
+    } else if exp == 0 {
+        if mant != 0 {
+            let mut exp_val = 1 - 15;
+            let mut mant_val = mant;
+            while (mant_val & 0x0400) == 0 {
+                mant_val <<= 1;
+                exp_val -= 1;
+            }
+            let mant32 = (mant_val & 0x03FF) << 13;
+            ((exp_val + 127) as u32) << 23 | mant32
+        } else {
+            0
+        }
+    } else {
+        ((exp - 15 + 127) as u32) << 23 | (mant << 13)
+    };
+
+    f32::from_bits(sign << 16 | bits)
+}
+
+fn decode_half_tensor(tensor: &TensorProto) -> Result<Vec<f32>, GrpcDetectorError> {
+    if tensor.dtype != DataType::DtHalf as i32 {
+        return Err(GrpcDetectorError::InvalidTensorDataType);
+    }
+    if !tensor.tensor_content.is_empty() {
+        Ok(tensor
+            .tensor_content
+            .chunks_exact(2)
+            .map(|chunk| half_to_float32(u16::from_le_bytes([chunk[0], chunk[1]])))
+            .collect())
+    } else if !tensor.half_val.is_empty() {
+        Ok(tensor
+            .half_val
+            .iter()
+            .map(|&h| half_to_float32(h as u16))
+            .collect())
+    } else {
+        Err(GrpcDetectorError::TensorDataNotFound)
+    }
+}
+
+struct BoundingBox {
+    xmin: f32,
+    ymin: f32,
+    xmax: f32,
+    ymax: f32,
+    confidence: f32,
+    class_id: usize,
+}
+
 fn decode_yolo_response(
     response: PredictResponse,
     output_name: &str,
@@ -243,10 +301,9 @@ fn decode_yolo_response(
     _height: u16,
     logger: &ArcMsgLogger,
 ) -> Result<Detections, GrpcDetectorError> {
-    logger.log(
-        LogLevel::Debug,
-        &format!("GrpcDetector: decoding YOLO response for output '{}'", output_name),
-    );
+    const CONFIDENCE_THRESHOLD: f32 = 0.5;
+    const NMS_IOU_THRESHOLD: f32 = 0.45;
+    const NUM_CLASSES: usize = 80;
 
     let output_tensor = response
         .outputs
@@ -264,28 +321,118 @@ fn decode_yolo_response(
     if shape.dim.len() != 3
         || shape.dim[0].size != 1
         || shape.dim[1].size != 84
-        || shape.dim[2].size != 8400
     {
         return Err(GrpcDetectorError::InvalidTensorShape);
     }
 
-    // The output tensor contains float values.
-    let _raw_output_data = &output_tensor.float_val; // Assuming float_val for output
+    let num_proposals = shape.dim[2].size as usize;
+    let raw_data = decode_half_tensor(output_tensor)?;
 
-    // TODO: Implement actual YOLOv8 post-processing (confidence filtering, NMS, etc.)
-    // This is a complex step that involves:
-    // 1. Iterating through `raw_output_data` to extract bounding boxes, confidence scores, and class probabilities.
-    // 2. Applying a confidence threshold.
-    // 3. Converting bounding box coordinates (e.g., from center_x, center_y, width, height to xmin, ymin, xmax, ymax).
-    // 4. Performing Non-Maximum Suppression (NMS) to remove overlapping boxes.
-    // 5. Mapping class IDs to actual labels (requires a label map, not provided in this context).
+    let mut candidates: Vec<BoundingBox> = Vec::new();
+    for i in 0..num_proposals {
+        let cx = raw_data[0 * num_proposals + i];
+        let cy = raw_data[1 * num_proposals + i];
+        let w = raw_data[2 * num_proposals + i];
+        let h = raw_data[3 * num_proposals + i];
 
-    logger.log(
-        LogLevel::Info,
-        "YOLOv8 post-processing (confidence filtering, NMS) is not yet implemented.",
-    );
+        let mut max_class_score = 0.0;
+        let mut max_class_id = 0;
+        for j in 0..NUM_CLASSES {
+            let class_score = raw_data[(4 + j) * num_proposals + i];
+            if class_score > max_class_score {
+                max_class_score = class_score;
+                max_class_id = j;
+            }
+        }
 
-    Ok(Vec::new()) // Return empty Detections for now
+        if max_class_score > CONFIDENCE_THRESHOLD {
+            candidates.push(BoundingBox {
+                xmin: cx - w * 0.5,
+                ymin: cy - h * 0.5,
+                xmax: cx + w * 0.5,
+                ymax: cy + h * 0.5,
+                confidence: max_class_score,
+                class_id: max_class_id,
+            });
+        }
+    }
+
+    let final_boxes = perform_nms(candidates, NMS_IOU_THRESHOLD);
+
+    let detections = final_boxes
+        .into_iter()
+        .map(|bbox| {
+            logger.log(LogLevel::Info, &format!("Detected class ID: {}", bbox.class_id));
+            Detection {
+                label: format!("class{}", bbox.class_id).try_into().unwrap(),
+                score: bbox.confidence,
+                region: Region {
+                    rectangle: parse_rect(bbox.ymin, bbox.xmin, bbox.ymax, bbox.xmax),
+                    polygon: None,
+                },
+            }
+        })
+        .collect();
+
+    Ok(detections)
+}
+
+fn parse_rect(top: f32, left: f32, bottom: f32, right: f32) -> Option<RectangleNormalized> {
+    #[allow(
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation,
+        clippy::as_conversions
+    )]
+    fn scale(v: f32) -> u32 {
+        (v * 1_000_000.0) as u32
+    }
+    let top = scale(top);
+    let left = scale(left);
+    let bottom = scale(bottom);
+    let right = scale(right);
+    if top > bottom || left > right {
+        return None;
+    }
+    Some(RectangleNormalized {
+        x: left,
+        y: top,
+        width: NonZeroU32::new(right - left)?,
+        height: NonZeroU32::new(bottom - top)?,
+    })
+}
+
+fn perform_nms(mut boxes: Vec<BoundingBox>, iou_threshold: f32) -> Vec<BoundingBox> {
+    if boxes.is_empty() {
+        return Vec::new();
+    }
+
+    boxes.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+
+    let mut final_boxes = Vec::new();
+    while !boxes.is_empty() {
+        let best_box = boxes.remove(0);
+        final_boxes.push(best_box);
+        boxes.retain(|b| calculate_iou(&final_boxes.last().unwrap(), b) < iou_threshold);
+    }
+    final_boxes
+}
+
+fn calculate_iou(box1: &BoundingBox, box2: &BoundingBox) -> f32 {
+    let x1 = box1.xmin.max(box2.xmin);
+    let y1 = box1.ymin.max(box2.ymin);
+    let x2 = box1.xmax.min(box2.xmax);
+    let y2 = box1.ymax.min(box2.ymax);
+
+    let intersection = (x2 - x1).max(0.0) * (y2 - y1).max(0.0);
+    let area1 = (box1.xmax - box1.xmin) * (box1.ymax - box1.ymin);
+    let area2 = (box2.xmax - box2.xmin) * (box2.ymax - box2.ymin);
+    let union = area1 + area2 - intersection;
+
+    if union > 0.0 {
+        intersection / union
+    } else {
+        0.0
+    }
 }
 
 pub(crate) struct DetectorManager {
