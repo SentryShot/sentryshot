@@ -269,17 +269,17 @@ async fn run(
                 continue;
             }
 
-            monitor
-                .trigger(
-                    *config.trigger_duration,
-                    Event {
-                        time,
-                        duration: *config.feed_rate,
-                        detections,
-                        source: Some("openvino".to_owned().try_into().expect("valid")),
-                    },
-                )
-                .await?;
+            // monitor
+            //     .trigger(
+            //         *config.trigger_duration,
+            //         Event {
+            //             time,
+            //             duration: *config.feed_rate,
+            //             detections,
+            //             source: Some("object".to_owned().try_into().expect("valid")),
+            //         },
+            //     )
+            //     .await?;
         }
   }
 
