@@ -27,7 +27,7 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
-use tokio::runtime::Handle;
+use tokio::runtime::{Handle, Runtime};
 use tokio_util::sync::CancellationToken;
 
 #[unsafe(no_mangle)]
@@ -51,30 +51,22 @@ impl PreLoadPlugin for PreLoadOpenvino {
 
 #[unsafe(no_mangle)]
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
-  app.rt_handle().block_on(async {
     Arc::new(
-      OpenvinoPlugin::new(
-        app.rt_handle(), 
-        app.logger(),
-        app.env().raw(),
-      )
-      .await
+        OpenvinoPlugin::new(
+            app.logger(),
+            app.env().raw(),
+        )
     )
-  })
 }
 
 struct OpenvinoPlugin {
-    rt_handle: Handle,
+    runtime: Runtime,
     logger: ArcLogger,
     detector_manager: DetectorManager,
 }
 
 impl OpenvinoPlugin {
-    async fn new(
-        rt_handle: Handle, 
-        logger: ArcLogger, 
-        raw_env_config: &str
-    ) -> Self {
+    fn new(logger: ArcLogger, raw_env_config: &str) -> Self {
         let config = match raw_env_config.parse::<Config>() {
             Ok(config) => config,
             Err(e) => {
@@ -85,9 +77,9 @@ impl OpenvinoPlugin {
         let openvino_logger = Arc::new(OpenvinoLogger {
             logger: logger.clone(),
         });
-        let detector_manager = DetectorManager::new(openvino_logger, &config).await;
+        let detector_manager = DetectorManager::new(openvino_logger, &config);
         Self {
-            rt_handle,
+            runtime: tokio::runtime::Runtime::new().unwrap(),
             logger,
             detector_manager,
         }
@@ -97,14 +89,21 @@ impl OpenvinoPlugin {
 #[async_trait]
 impl Plugin for OpenvinoPlugin {
     async fn on_monitor_start(&self, token: CancellationToken, monitor: ArcMonitor) {
-        let msg_logger = Arc::new(OpenvinoMsgLogger {
-            logger: self.logger.clone(),
-            monitor_id: monitor.config().id().to_owned(),
-        });
+        let detector = self.detector_manager.get_detector();
+        let logger = self.logger.clone();
+        let rt_handle = self.runtime.handle().clone();
 
-        if let Err(e) = self.start(&token, msg_logger.clone(), monitor).await {
-            msg_logger.log(LogLevel::Error, &format!("start: {e}"));
-        };
+        // Since on_monitor_start is not guaranteed to be run in tokio runtime, immediately spawn a new tokio task in the runtime we created.
+        self.runtime.spawn(async move {
+            let msg_logger = Arc::new(OpenvinoMsgLogger {
+                logger,
+                monitor_id: monitor.config().id().to_owned(),
+            });
+
+            if let Err(e) = start(&token, msg_logger.clone(), monitor, detector, rt_handle).await {
+                msg_logger.log(LogLevel::Error, &format!("start: {e}"));
+            };
+        });
     }
 }
 
@@ -136,13 +135,13 @@ enum RunError {
     SendEvent(#[from] CreateEventDbError),
 }
 
-impl OpenvinoPlugin {
-    async fn start(
-        &self,
-        token: &CancellationToken,
-        msg_logger: ArcMsgLogger,
-        monitor: ArcMonitor,
-    ) -> Result<(), StartError> {
+async fn start(
+    token: &CancellationToken,
+    msg_logger: ArcMsgLogger,
+    monitor: ArcMonitor,
+    detector: ArcDetector,
+    rt_handle: Handle,
+) -> Result<(), StartError> {
         use StartError::*;
         let config = monitor.config();
 
@@ -172,19 +171,17 @@ impl OpenvinoPlugin {
             &format!("using {}-stream", source.stream_type().name()),
         );
 
-        let detector = self.detector_manager.get_detector();
-
         loop {
             msg_logger.log(LogLevel::Debug, "run");
-            if let Err(e) = self
-                .run(&msg_logger, &monitor, &config, &source, &detector)
+            if let Err(e) = 
+                run(&msg_logger, &monitor, &config, &source, &detector, &rt_handle)
                 .await
             {
                 msg_logger.log(LogLevel::Error, &format!("run: {e}"));
             }
 
             let sleep = || {
-                let _enter = self.rt_handle.enter();
+                let _enter = rt_handle.enter();
                 tokio::time::sleep(Duration::from_secs(3))
             };
             tokio::select! {
@@ -194,13 +191,13 @@ impl OpenvinoPlugin {
         }
     }
 
-    async fn run(
-        &self,
+async fn run(
         msg_logger: &ArcMsgLogger,
         monitor: &ArcMonitor,
         config: &OpenvinoConfig,
         source: &ArcSource,
         detector: &ArcDetector,
+        rt_handle: &Handle,
     ) -> Result<(), RunError> {
         use RunError::*;
         let Some(muxer) = source.muxer().await else {
@@ -222,7 +219,7 @@ impl OpenvinoPlugin {
             FrameRateLimiter::new(u64::try_from(*DurationH264::from(*config.feed_rate))?);
         let Some(feed) = source
             .subscribe_decoded(
-                self.rt_handle.clone(),
+                rt_handle.clone(),
                 msg_logger.clone(),
                 Some(rate_limiter),
             )
@@ -249,16 +246,21 @@ impl OpenvinoPlugin {
 
             let time = UnixNano::from(UnixH264::new(frame.pts()));
 
-            state = self
-                .rt_handle
+            state = rt_handle
                 .spawn_blocking(move || process_frame(&mut state, frame).map(|()| state))
                 .await
                 .expect("join")?;
 
-            let Some(detections) = detector
-                .detect(state.frame_processed.clone())
-                .await
-                .map_err(Detect)?
+            let detector = Arc::clone(detector);
+            let frame_processed = state.frame_processed.clone();
+            let Some(detections) = rt_handle.spawn(async move {
+                detector
+                    .detect(frame_processed)
+                    .await
+            })
+            .await
+            .expect("task join failed")
+            .map_err(Detect)?
             else {
                 return Ok(());
             };
@@ -279,8 +281,7 @@ impl OpenvinoPlugin {
                 )
                 .await?;
         }
-    }
-}
+  }
 
 struct DetectorState {
     outputs: Outputs,

@@ -6,6 +6,7 @@ use common::{ArcMsgLogger, Detections, DynError, LogLevel};
 use http::uri::InvalidUri;
 use std::num::NonZeroU16;
 use std::sync::Arc;
+use tokio::sync::OnceCell;
 use tonic::transport::Channel;
 
 mod tensorflow {
@@ -21,12 +22,12 @@ mod tensorflow {
     }
 }
 
-// Assuming these paths based on common tonic/prost generation and proto file structure
-// The actual paths might vary slightly depending on the tonic-prost-build configuration.
-use tensorflow::{TensorProto, DataType, TensorShapeProto};
-use tensorflow::tensor_shape_proto::Dim as TensorShapeProto_Dim;
-use tensorflow::serving::{PredictRequest, PredictResponse, ModelSpec};
-use tensorflow::serving::prediction_service_client::PredictionServiceClient;
+use tensorflow::{
+    serving::prediction_service_client::PredictionServiceClient,
+    serving::{ModelSpec, PredictRequest, PredictResponse},
+    tensor_shape_proto::Dim as TensorShapeProto_Dim,
+    DataType, TensorProto, TensorShapeProto,
+};
 
 #[async_trait]
 pub(crate) trait Detector: Send + Sync {
@@ -39,7 +40,8 @@ pub(crate) type ArcDetector = Arc<dyn Detector>;
 
 pub(crate) struct GrpcDetector {
     logger: ArcMsgLogger,
-    client: PredictionServiceClient<Channel>,
+    client: OnceCell<PredictionServiceClient<Channel>>,
+    host: String,
     model_name: String,
     input_name: String,
     output_name: String,
@@ -48,32 +50,37 @@ pub(crate) struct GrpcDetector {
 }
 
 impl GrpcDetector {
-    pub(crate) async fn new(
-        logger: ArcMsgLogger,
-        config: &Config,
-    ) -> Result<Self, GrpcDetectorError> {
-        let channel = Channel::from_shared(format!("http://{}", config.host))
-            .map_err(GrpcDetectorError::InvalidUri)?
-            .connect()
-            .await
-            .map_err(GrpcDetectorError::Connection)?;
-
-        let client = PredictionServiceClient::new(channel);
-
-        logger.log(
-            LogLevel::Info,
-            &format!("GrpcDetector: connected to {}", config.host),
-        );
-
-        Ok(Self {
+    pub(crate) fn new(logger: ArcMsgLogger, config: &Config) -> Self {
+        Self {
             logger,
-            client,
+            client: OnceCell::new(),
+            host: config.host.clone(),
             model_name: config.model_name.clone(),
             input_name: config.input_tensor.clone(),
             output_name: config.output_tensor.clone(),
             width: config.input_width,
             height: config.input_height,
-        })
+        }
+    }
+
+    async fn get_client(&self) -> Result<&PredictionServiceClient<Channel>, GrpcDetectorError> {
+        self.client
+            .get_or_try_init(|| async {
+                let channel = Channel::from_shared(format!("http://{}", self.host))
+                    .map_err(GrpcDetectorError::InvalidUri)?
+                    .connect()
+                    .await
+                    .map_err(GrpcDetectorError::Connection)?;
+
+                let client = PredictionServiceClient::new(channel);
+
+                self.logger.log(
+                    LogLevel::Info,
+                    &format!("GrpcDetector: connected to {}", self.host),
+                );
+                Ok(client)
+            })
+            .await
     }
 }
 
@@ -100,6 +107,8 @@ impl Detector for GrpcDetector {
     async fn detect(&self, data: Vec<u8>) -> Result<Option<Detections>, DynError> {
         self.logger
             .log(LogLevel::Debug, "GrpcDetector: received detection request.");
+
+        let client = self.get_client().await?;
 
         // Convert RGB24 Vec<u8> to NCHW half-precision float tensor
         let input_tensor_data = rgb_to_nchw_half(&data, self.width.get(), self.height.get())?;
@@ -146,8 +155,7 @@ impl Detector for GrpcDetector {
             output_filter: vec![self.output_name.clone()],
         };
 
-        let response = self
-            .client
+        let response = client
             .clone()
             .predict(predict_request)
             .await
@@ -285,14 +293,9 @@ pub(crate) struct DetectorManager {
 }
 
 impl DetectorManager {
-    pub(crate) async fn new(
-        logger: ArcMsgLogger,
-        config: &Config
-    ) -> Self {
-        Self { detector: Arc::new(
-            GrpcDetector::new(logger, config)
-                .await
-                .expect("Failed to create GrpcDetector")) // TODO: Handle error gracefully
+    pub(crate) fn new(logger: ArcMsgLogger, config: &Config) -> Self {
+        Self {
+            detector: Arc::new(GrpcDetector::new(logger, config)),
         }
     }
 
