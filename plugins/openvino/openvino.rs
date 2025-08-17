@@ -53,6 +53,7 @@ impl PreLoadPlugin for PreLoadOpenvino {
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(
         OpenvinoPlugin::new(
+            app.rt_handle(),
             app.logger(),
             app.env().raw(),
         )
@@ -60,13 +61,14 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
 }
 
 struct OpenvinoPlugin {
-    runtime: Runtime,
+    detector_runtime: Runtime,
+    rt_handle: Handle,
     logger: ArcLogger,
     detector_manager: DetectorManager,
 }
 
 impl OpenvinoPlugin {
-    fn new(logger: ArcLogger, raw_env_config: &str) -> Self {
+    fn new(rt_handle: Handle, logger: ArcLogger, raw_env_config: &str) -> Self {
         let config = match raw_env_config.parse::<Config>() {
             Ok(config) => config,
             Err(e) => {
@@ -79,7 +81,8 @@ impl OpenvinoPlugin {
         });
         let detector_manager = DetectorManager::new(openvino_logger, &config);
         Self {
-            runtime: tokio::runtime::Runtime::new().unwrap(),
+            detector_runtime: tokio::runtime::Runtime::new().unwrap(),
+            rt_handle,
             logger,
             detector_manager,
         }
@@ -91,19 +94,15 @@ impl Plugin for OpenvinoPlugin {
     async fn on_monitor_start(&self, token: CancellationToken, monitor: ArcMonitor) {
         let detector = self.detector_manager.get_detector();
         let logger = self.logger.clone();
-        let rt_handle = self.runtime.handle().clone();
 
-        // Since on_monitor_start is not guaranteed to be run in tokio runtime, immediately spawn a new tokio task in the runtime we created.
-        self.runtime.spawn(async move {
-            let msg_logger = Arc::new(OpenvinoMsgLogger {
-                logger,
-                monitor_id: monitor.config().id().to_owned(),
-            });
-
-            if let Err(e) = start(&token, msg_logger.clone(), monitor, detector, rt_handle).await {
-                msg_logger.log(LogLevel::Error, &format!("start: {e}"));
-            };
+        let msg_logger = Arc::new(OpenvinoMsgLogger {
+            logger,
+            monitor_id: monitor.config().id().to_owned(),
         });
+
+        if let Err(e) = self.start(&token, msg_logger.clone(), monitor, detector).await {
+            msg_logger.log(LogLevel::Error, &format!("start: {e}"));
+        };
     }
 }
 
@@ -135,13 +134,14 @@ enum RunError {
     SendEvent(#[from] CreateEventDbError),
 }
 
-async fn start(
-    token: &CancellationToken,
-    msg_logger: ArcMsgLogger,
-    monitor: ArcMonitor,
-    detector: ArcDetector,
-    rt_handle: Handle,
-) -> Result<(), StartError> {
+impl OpenvinoPlugin {
+    async fn start(
+        &self,
+        token: &CancellationToken,
+        msg_logger: ArcMsgLogger,
+        monitor: ArcMonitor,
+        detector: ArcDetector,
+    ) -> Result<(), StartError> {
         use StartError::*;
         let config = monitor.config();
 
@@ -174,14 +174,14 @@ async fn start(
         loop {
             msg_logger.log(LogLevel::Debug, "run");
             if let Err(e) = 
-                run(&msg_logger, &monitor, &config, &source, &detector, &rt_handle)
+                self.run(&msg_logger, &monitor, &config, &source, &detector)
                 .await
             {
                 msg_logger.log(LogLevel::Error, &format!("run: {e}"));
             }
 
             let sleep = || {
-                let _enter = rt_handle.enter();
+                let _enter = self.rt_handle.enter();
                 tokio::time::sleep(Duration::from_secs(3))
             };
             tokio::select! {
@@ -191,13 +191,13 @@ async fn start(
         }
     }
 
-async fn run(
+    async fn run(
+        &self,
         msg_logger: &ArcMsgLogger,
         monitor: &ArcMonitor,
         config: &OpenvinoConfig,
         source: &ArcSource,
         detector: &ArcDetector,
-        rt_handle: &Handle,
     ) -> Result<(), RunError> {
         use RunError::*;
         let Some(muxer) = source.muxer().await else {
@@ -219,7 +219,7 @@ async fn run(
             FrameRateLimiter::new(u64::try_from(*DurationH264::from(*config.feed_rate))?);
         let Some(feed) = source
             .subscribe_decoded(
-                rt_handle.clone(),
+                self.rt_handle.clone(),
                 msg_logger.clone(),
                 Some(rate_limiter),
             )
@@ -246,14 +246,14 @@ async fn run(
 
             let time = UnixNano::from(UnixH264::new(frame.pts()));
 
-            state = rt_handle
+            state = self.rt_handle
                 .spawn_blocking(move || process_frame(&mut state, frame).map(|()| state))
                 .await
                 .expect("join")?;
 
             let detector = Arc::clone(detector);
             let frame_processed = state.frame_processed.clone();
-            let Some(detections) = rt_handle.spawn(async move {
+            let Some(detections) = self.detector_runtime.spawn(async move {
                 detector
                     .detect(frame_processed)
                     .await
@@ -269,19 +269,20 @@ async fn run(
                 continue;
             }
 
-            // monitor
-            //     .trigger(
-            //         *config.trigger_duration,
-            //         Event {
-            //             time,
-            //             duration: *config.feed_rate,
-            //             detections,
-            //             source: Some("object".to_owned().try_into().expect("valid")),
-            //         },
-            //     )
-            //     .await?;
+            monitor
+                .trigger(
+                    *config.trigger_duration,
+                    Event {
+                        time,
+                        duration: *config.feed_rate,
+                        detections,
+                        source: Some("object".to_owned().try_into().expect("valid")),
+                    },
+                )
+                .await?;
         }
-  }
+    }
+}
 
 struct DetectorState {
     outputs: Outputs,
