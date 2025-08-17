@@ -60,7 +60,6 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
 }
 
 struct OpenvinoPlugin {
-    detector_runtime: Runtime,
     rt_handle: Handle,
     logger: ArcLogger,
     detector_manager: DetectorManager,
@@ -80,7 +79,6 @@ impl OpenvinoPlugin {
         });
         let detector_manager = DetectorManager::new(openvino_logger, &config);
         Self {
-            detector_runtime: tokio::runtime::Runtime::new().expect("failed to create detector runtime"),
             rt_handle,
             logger,
             detector_manager,
@@ -248,14 +246,7 @@ impl OpenvinoPlugin {
                 .expect("join")?;
 
             let frame_processed = state.frame_processed.clone();
-            let detector = detector.clone();
-            let Some(detections) = self.detector_runtime.spawn(async move {
-                detector
-                    .detect(frame_processed)
-                    .await
-            })
-            .await
-            .expect("task join failed")
+            let Some(detections) = self.detector_manager.detect(frame_processed).await
             .map_err(Detect)?
             else {
                 return Ok(());

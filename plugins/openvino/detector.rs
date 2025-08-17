@@ -437,16 +437,27 @@ fn calculate_iou(box1: &BoundingBox, box2: &BoundingBox) -> f32 {
 
 pub(crate) struct DetectorManager {
     detector: ArcDetector,
+    detector_runtime: tokio::runtime::Runtime,
 }
 
 impl DetectorManager {
     pub(crate) fn new(logger: ArcMsgLogger, config: &Config) -> Self {
+        let detector_runtime = tokio::runtime::Runtime::new().expect("failed to create detector runtime");
         Self {
             detector: Arc::new(GrpcDetector::new(logger, config)),
+            detector_runtime,
         }
     }
 
     pub(crate) fn get_detector(&self) -> ArcDetector {
         self.detector.clone()
+    }
+
+    pub(crate) async fn detect(&self, data: Vec<u8>) -> Result<Option<Detections>, DynError> {
+        let detector = self.detector.clone();
+        self.detector_runtime.handle().spawn(async move {
+            detector.detect(data).await
+        })
+        .await? // Await the spawned task
     }
 }
