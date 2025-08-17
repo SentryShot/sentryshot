@@ -6,7 +6,7 @@ mod detector;
 use crate::detector::DetectorManager;
 use async_trait::async_trait;
 use common::{
-    ArcLogger, ArcMsgLogger, DynError, Event, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
+    ArcLogger, ArcMsgLogger, DynError, Event, Label, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
     monitor::{ArcMonitor, ArcSource, CreateEventDbError, DecoderError, SubscribeDecodedError},
     recording::FrameRateLimiter,
     time::{DurationH264, UnixH264, UnixNano},
@@ -265,8 +265,18 @@ impl OpenvinoPlugin {
                 return Ok(());
             };
 
-            if detections.is_empty() {
+            // Continue if there are no detections.
+            let Some(d) = detections.first() else {
                 continue;
+            };
+
+            msg_logger.log(
+                LogLevel::Debug,
+                &format!("trigger: label:{} score:{:.1}", d.label, d.score),
+            );
+
+            if d.label != "class0".to_string().try_into().unwrap() {
+               continue;
             }
 
             monitor
