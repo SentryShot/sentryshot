@@ -6,13 +6,12 @@ mod detector;
 use crate::detector::DetectorManager;
 use async_trait::async_trait;
 use common::{
-    ArcLogger, ArcMsgLogger, DynError, Event, Label, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
+    ArcLogger, ArcMsgLogger, DynError, Event, LogEntry, LogLevel, LogSource, MonitorId, MsgLogger,
     monitor::{ArcMonitor, ArcSource, CreateEventDbError, DecoderError, SubscribeDecodedError},
     recording::FrameRateLimiter,
     time::{DurationH264, UnixH264, UnixNano},
 };
 use config::{Crop, OpenvinoConfig, Config};
-use detector::ArcDetector;
 use plugin::{Application, Plugin, PreLoadPlugin};
 use sentryshot_convert::{
     ConvertError, Frame, NewConverterError, PixelFormat, PixelFormatConverter,
@@ -53,9 +52,9 @@ impl PreLoadPlugin for PreLoadOpenvino {
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(
         OpenvinoPlugin::new(
-            app.rt_handle(),
             app.logger(),
             app.env().raw(),
+            app.rt_handle(),
         )
     )
 }
@@ -68,7 +67,7 @@ struct OpenvinoPlugin {
 }
 
 impl OpenvinoPlugin {
-    fn new(rt_handle: Handle, logger: ArcLogger, raw_env_config: &str) -> Self {
+    fn new(logger: ArcLogger, raw_env_config: &str, rt_handle: Handle) -> Self {
         let config = match raw_env_config.parse::<Config>() {
             Ok(config) => config,
             Err(e) => {
@@ -81,7 +80,7 @@ impl OpenvinoPlugin {
         });
         let detector_manager = DetectorManager::new(openvino_logger, &config);
         Self {
-            detector_runtime: tokio::runtime::Runtime::new().unwrap(),
+            detector_runtime: tokio::runtime::Runtime::new().expect("failed to create detector runtime"),
             rt_handle,
             logger,
             detector_manager,
@@ -92,15 +91,12 @@ impl OpenvinoPlugin {
 #[async_trait]
 impl Plugin for OpenvinoPlugin {
     async fn on_monitor_start(&self, token: CancellationToken, monitor: ArcMonitor) {
-        let detector = self.detector_manager.get_detector();
-        let logger = self.logger.clone();
-
         let msg_logger = Arc::new(OpenvinoMsgLogger {
-            logger,
+            logger: self.logger.clone(),
             monitor_id: monitor.config().id().to_owned(),
         });
 
-        if let Err(e) = self.start(&token, msg_logger.clone(), monitor, detector).await {
+        if let Err(e) = self.start(&token, msg_logger.clone(), monitor).await {
             msg_logger.log(LogLevel::Error, &format!("start: {e}"));
         };
     }
@@ -140,7 +136,6 @@ impl OpenvinoPlugin {
         token: &CancellationToken,
         msg_logger: ArcMsgLogger,
         monitor: ArcMonitor,
-        detector: ArcDetector,
     ) -> Result<(), StartError> {
         use StartError::*;
         let config = monitor.config();
@@ -174,7 +169,7 @@ impl OpenvinoPlugin {
         loop {
             msg_logger.log(LogLevel::Debug, "run");
             if let Err(e) = 
-                self.run(&msg_logger, &monitor, &config, &source, &detector)
+                self.run(&msg_logger, &monitor, &config, &source)
                 .await
             {
                 msg_logger.log(LogLevel::Error, &format!("run: {e}"));
@@ -197,7 +192,6 @@ impl OpenvinoPlugin {
         monitor: &ArcMonitor,
         config: &OpenvinoConfig,
         source: &ArcSource,
-        detector: &ArcDetector,
     ) -> Result<(), RunError> {
         use RunError::*;
         let Some(muxer) = source.muxer().await else {
@@ -207,6 +201,8 @@ impl OpenvinoPlugin {
         let params = muxer.params();
         let width = params.width;
         let height = params.height;
+
+        let detector = self.detector_manager.get_detector();
 
         let inputs = Inputs {
             input_width: NonZeroU16::new(width).ok_or(InputSizeZero)?,
@@ -251,8 +247,8 @@ impl OpenvinoPlugin {
                 .await
                 .expect("join")?;
 
-            let detector = Arc::clone(detector);
             let frame_processed = state.frame_processed.clone();
+            let detector = detector.clone();
             let Some(detections) = self.detector_runtime.spawn(async move {
                 detector
                     .detect(frame_processed)
