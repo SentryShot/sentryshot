@@ -14,7 +14,7 @@ let
     pkgs.nodejs-18_x
     pkgs.shellcheck
   ];
-  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 pkgs.openh264 ];
+  buildInputs = [ ffmpeg tflite libedgetpu pkgs.libusb1 pkgs.openh264 pkgs.protobuf ];
 
   # Debug builds don't work without this.
   hardeningDisable = [ "fortify" ];
