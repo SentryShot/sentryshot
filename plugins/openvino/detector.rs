@@ -437,7 +437,7 @@ fn calculate_iou(box1: &BoundingBox, box2: &BoundingBox) -> f32 {
 
 pub(crate) struct DetectorManager {
     detector: ArcDetector,
-    detector_runtime: tokio::runtime::Runtime,
+    detector_runtime: Option<tokio::runtime::Runtime>,
 }
 
 impl DetectorManager {
@@ -445,7 +445,7 @@ impl DetectorManager {
         let detector_runtime = tokio::runtime::Runtime::new().expect("failed to create detector runtime");
         Self {
             detector: Arc::new(GrpcDetector::new(logger, config)),
-            detector_runtime,
+            detector_runtime: Some(detector_runtime),
         }
     }
 
@@ -455,9 +455,20 @@ impl DetectorManager {
 
     pub(crate) async fn detect(&self, data: Vec<u8>) -> Result<Option<Detections>, DynError> {
         let detector = self.detector.clone();
-        self.detector_runtime.handle().spawn(async move {
-            detector.detect(data).await
-        })
+        self.detector_runtime
+            .as_ref().expect("runtime not set")
+            .handle()
+            .spawn(async move {
+                detector.detect(data).await
+            })
         .await? // Await the spawned task
+    }
+}
+
+impl Drop for DetectorManager {
+    fn drop(&mut self) {
+        // This method is called when the DetectorManager instance is dropped.
+        // We shut down the associated Tokio runtime in the background.
+        self.detector_runtime.take().map(|rt| rt.shutdown_background());
     }
 }
