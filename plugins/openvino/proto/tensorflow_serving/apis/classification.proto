@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+option cc_enable_arenas = true;
+
+import "tensorflow_serving/apis/input.proto";
+import "tensorflow_serving/apis/model.proto";
+
+package tensorflow.serving;
+
+// A single class.
+message Class {
+  // Label or name of the class.
+  string label = 1;
+  // Score for this class (e.g., the probability the item belongs to this
+  // class).
+  float score = 2;
+}
+
+// List of classes for a single item (tensorflow.Example).
+message Classifications {
+  repeated Class classes = 1;
+}
+
+// Contains one result per input example, in the same order as the input in
+// ClassificationRequest.
+message ClassificationResult {
+  repeated Classifications classifications = 1;
+}
+
+// RPC Interfaces
+
+message ClassificationRequest {
+  // Model Specification.
+  ModelSpec model_spec = 1;
+
+  // Input data.
+  tensorflow.serving.Input input = 2;
+}
+
+message ClassificationResponse {
+  // Result of the classification.
+  ClassificationResult result = 1;
+}

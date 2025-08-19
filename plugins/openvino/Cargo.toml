@@ -1,5 +1,5 @@
 [package]
-name = "object_detection"
+name = "openvino"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,8 +9,8 @@ license.workspace = true
 workspace = true
 
 [lib]
-name = "object_detection"
-path = "object_detection.rs"
+name = "openvino"
+path = "openvino.rs"
 crate-type = ["cdylib"]
 doctest = false
 
@@ -24,22 +24,19 @@ sentryshot_scale.workspace = true
 sentryshot_util.workspace = true
 
 async-trait.workspace = true
-axum.workspace = true
-http-body-util.workspace = true
-hyper.workspace = true
-hyper-rustls.workspace = true
-hyper-util.workspace = true
-libloading.workspace = true
+http.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-sha2.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 toml.workspace = true
-url.workspace = true
 
+tonic.workspace = true
+prost.workspace = true
+prost-types.workspace = true
+tonic-prost.workspace = true
 
-[dev-dependencies]
-pretty_assertions.workspace = true
-test-case.workspace = true
+[build-dependencies]
+tonic-prost-build.workspace = true
+glob.workspace = true

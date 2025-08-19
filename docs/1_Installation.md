@@ -93,7 +93,7 @@ git clone --branch master https://codeberg.org/SentryShot/sentryshot.git
 cd sentryshot
 
 # Build 
-./misc/utils build-target x86_64
+./misc/utils.sh build-target x86_64
 
 # Make a tarball.
 tar -czvf "./build/sentryshot-x86_64.tar.gz" -C "./build/x86_64"
