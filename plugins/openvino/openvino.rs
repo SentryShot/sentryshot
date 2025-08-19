@@ -26,7 +26,7 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
-use tokio::runtime::{Handle, Runtime};
+use tokio::runtime::Handle;
 use tokio_util::sync::CancellationToken;
 
 #[unsafe(no_mangle)]
@@ -224,7 +224,7 @@ impl OpenvinoPlugin {
         };
         let mut feed = feed?;
         
-        let (outputs, uncrop) = calculate_outputs(config.crop, &inputs)?;
+        let (outputs, _uncrop) = calculate_outputs(config.crop, &inputs)?;
                 
         let mut state = DetectorState {
             frame_processed: vec![0; outputs.output_size],
@@ -262,7 +262,7 @@ impl OpenvinoPlugin {
                 &format!("trigger: label:{} score:{:.1}", d.label, d.score),
             );
 
-            if d.label != "class0".to_string().try_into().unwrap() {
+            if d.label != "class0".to_owned().try_into().expect("valid") {
                continue;
             }
 
@@ -309,6 +309,7 @@ struct Outputs {
 
 type UncropFn = Box<dyn Fn(u32) -> u32 + Send>;
 
+#[allow(dead_code)]
 pub(crate) struct Uncrop {
     uncrop_x_fn: UncropFn,
     uncrop_y_fn: UncropFn,
