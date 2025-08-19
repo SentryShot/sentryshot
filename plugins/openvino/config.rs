@@ -8,7 +8,6 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::{num::NonZeroU16, str::FromStr};
 use thiserror::Error;
-use toml;
 
 // Global configuration parsed from sentryshot.toml
 #[derive(Debug, PartialEq, Eq, Deserialize)]
@@ -24,6 +23,17 @@ pub(crate) struct Config {
     pub(crate) input_width: NonZeroU16,
     #[serde(rename = "input_height")]
     pub(crate) input_height: NonZeroU16,
+}
+
+#[derive(Deserialize)]
+struct RawConfig {
+    enable: bool,
+    #[serde(rename = "feedRate")]
+    feed_rate: FeedRateSec,
+    duration: DurationSec,
+    #[serde(rename = "useSubStream")]
+    use_sub_stream: bool,
+    crop: Crop,
 }
 
 #[derive(Debug, Error)]
@@ -91,17 +101,6 @@ impl OpenvinoConfig {
         };
         if temp.openvino.is_null() {
             return Ok(None);
-        }
-
-        #[derive(Deserialize)]
-        struct RawConfig {
-            enable: bool,
-            #[serde(rename = "feedRate")]
-            feed_rate: FeedRateSec,
-            duration: DurationSec,
-            #[serde(rename = "useSubStream")]
-            use_sub_stream: bool,
-            crop: Crop,
         }
 
         let config: RawConfig = serde_json::from_value(temp.openvino)?;
