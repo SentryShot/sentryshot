@@ -9,6 +9,17 @@ use std::sync::Arc;
 use tokio::sync::OnceCell;
 use tonic::transport::Channel;
 
+#[allow(clippy::as_conversions)]
+#[allow(clippy::default_trait_access)]
+#[allow(clippy::doc_markdown)]
+#[allow(clippy::empty_structs_with_brackets)]
+#[allow(clippy::enum_variant_names)]
+#[allow(clippy::impl_trait_in_params)]
+#[allow(clippy::large_enum_variant)]
+#[allow(clippy::struct_excessive_bools)]
+#[allow(clippy::struct_field_names)]
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::trivially_copy_pass_by_ref)]
 mod tensorflow {
     mod error {
         include!(concat!(env!("OUT_DIR"), "/tensorflow.error.rs"));
@@ -100,12 +111,11 @@ pub(crate) enum GrpcDetectorError {
     InvalidTensorShape,
     #[error("failed to decode YOLO response: {0}")]
     DecodeYoloResponse(String),
-    #[error("tensor data not found")]
-    TensorDataNotFound,
 }
 
 #[async_trait]
 impl Detector for GrpcDetector {
+    #[allow(clippy::as_conversions)]
     async fn detect(&self, data: Vec<u8>) -> Result<Option<Detections>, DynError> {
         self.logger
             .log(LogLevel::Debug, "GrpcDetector: received detection request.");
@@ -126,11 +136,11 @@ impl Detector for GrpcDetector {
                     name: String::new(),
                 },
                 TensorShapeProto_Dim {
-                    size: self.height.get() as i64,
+                    size: i64::from(self.height.get()),
                     name: String::new(),
                 },
                 TensorShapeProto_Dim {
-                    size: self.width.get() as i64,
+                    size: i64::from(self.width.get()),
                     name: String::new(),
                 },
             ],
@@ -165,7 +175,7 @@ impl Detector for GrpcDetector {
             .into_inner();
 
         let detections = decode_yolo_response(
-            response,
+            &response,
             &self.output_name,
             self.width.get(),
             self.height.get(),
@@ -187,13 +197,16 @@ impl Detector for GrpcDetector {
 // Helper function to convert RGB24 Vec<u8> to NCHW half-precision float Vec<i32>
 // The input `data` is expected to be a flat RGB24 byte array (width * height * 3 bytes).
 // Output is a flat NCHW half-precision float array (3 * width * height half-floats).
+#[allow(clippy::as_conversions)]
+#[allow(clippy::erasing_op)]
+#[allow(clippy::identity_op)]
 fn rgb_to_nchw_half(
     data: &[u8],
     width: u16,
     height: u16,
 ) -> Result<Vec<i32>, GrpcDetectorError> {
     let num_pixels = (width as usize) * (height as usize);
-    let mut half_vals = vec![0i32; 3 * num_pixels]; // 3 channels * num_pixels
+    let mut half_vals = vec![0_i32; 3 * num_pixels]; // 3 channels * num_pixels
 
     if data.len() != num_pixels * 3 {
         return Err(GrpcDetectorError::InvalidTensorShape);
@@ -209,22 +222,26 @@ fn rgb_to_nchw_half(
             // Normalize to [0, 1] and convert to half-precision float
             // Store in NCHW format
             half_vals[0 * num_pixels + y * width as usize + x] = 
-                float32_to_f16(r as f32 / 255.0) as i32;
+                i32::from(float32_to_f16(f32::from(r) / 255.0));
             half_vals[1 * num_pixels + y * width as usize + x] = 
-                float32_to_f16(g as f32 / 255.0) as i32;
+                i32::from(float32_to_f16(f32::from(g) / 255.0));
             half_vals[2 * num_pixels + y * width as usize + x] = 
-                float32_to_f16(b as f32 / 255.0) as i32;
+                i32::from(float32_to_f16(f32::from(b) / 255.0));
         }
     }
     Ok(half_vals)
 }
 
 // float32_to_f16 converts a 32-bit float to a 16-bit half-precision float.
+#[allow(clippy::as_conversions)]
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::cast_sign_loss)]
 fn float32_to_f16(val: f32) -> u16 {
     let bits = val.to_bits();
     let sign = (bits >> 16) & 0x8000;
     let mut exp = ((bits >> 23) & 0xff) as i32 - 127;
-    let mant = bits & 0x7fffff;
+    let mant = bits & 0x7f_ffff;
 
     if exp > 15 { // Exponent overflow -> infinity
         return (sign | 0x7c00) as u16;
@@ -234,16 +251,18 @@ fn float32_to_f16(val: f32) -> u16 {
     }
     exp += 15;
     let mant = mant >> 13;
-    (sign | (exp as u32) << 10 | mant) as u16
+    (sign | ((exp as u32) << 10) | mant) as u16
 }
 
+#[allow(clippy::as_conversions)]
+#[allow(clippy::cast_sign_loss)]
 fn half_to_float32(h: u16) -> f32 {
-    let sign = (h & 0x8000) as u32;
+    let sign = u32::from(h & 0x8000);
     let exp = (h & 0x7C00) >> 10;
-    let mant = (h & 0x03FF) as u32;
+    let mant = u32::from(h & 0x03FF);
 
     let bits = if exp == 0x1F {
-        0x7F800000 | (mant << 13)
+        0x7F80_0000 | (mant << 13)
     } else if exp == 0 {
         if mant != 0 {
             let mut exp_val = 1 - 15;
@@ -253,17 +272,20 @@ fn half_to_float32(h: u16) -> f32 {
                 exp_val -= 1;
             }
             let mant32 = (mant_val & 0x03FF) << 13;
-            ((exp_val + 127) as u32) << 23 | mant32
+            (((exp_val + 127) as u32) << 23) | mant32
         } else {
             0
         }
     } else {
-        ((exp - 15 + 127) as u32) << 23 | (mant << 13)
+        (u32::from(exp - 15 + 127) << 23) | (mant << 13)
     };
 
-    f32::from_bits(sign << 16 | bits)
+    f32::from_bits((sign << 16) | bits)
 }
 
+#[allow(clippy::as_conversions)]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_truncation)]
 fn decode_half_tensor(tensor: &TensorProto) -> Result<Vec<f32>, GrpcDetectorError> {
     if tensor.dtype != DataType::DtHalf as i32 {
         return Err(GrpcDetectorError::InvalidTensorDataType);
@@ -281,7 +303,7 @@ fn decode_half_tensor(tensor: &TensorProto) -> Result<Vec<f32>, GrpcDetectorErro
             .map(|&h| half_to_float32(h as u16))
             .collect())
     } else {
-        Err(GrpcDetectorError::TensorDataNotFound)
+        Err(GrpcDetectorError::DecodeYoloResponse("tensor data not found".to_owned()))
     }
 }
 
@@ -294,8 +316,10 @@ struct BoundingBox {
     class_id: usize,
 }
 
+#[allow(clippy::erasing_op)]
+#[allow(clippy::identity_op)]
 fn decode_yolo_response(
-    response: PredictResponse,
+    response: &PredictResponse,
     output_name: &str,
     _width: u16,
     _height: u16,
@@ -308,7 +332,7 @@ fn decode_yolo_response(
     let output_tensor = response
         .outputs
         .get(output_name)
-        .ok_or_else(|| GrpcDetectorError::MissingOutputTensor(output_name.to_string()))?;
+        .ok_or_else(|| GrpcDetectorError::MissingOutputTensor(output_name.to_owned()))?;
 
     // Assuming YOLOv8 output format: [1, 84, 8400]
     // 84: 4 (bbox) + 80 (classes)
@@ -325,7 +349,8 @@ fn decode_yolo_response(
         return Err(GrpcDetectorError::InvalidTensorShape);
     }
 
-    let num_proposals = shape.dim[2].size as usize;
+    let num_proposals = usize::try_from(shape.dim[2].size)
+        .map_err(|e| GrpcDetectorError::DecodeYoloResponse(format!("failed to convert num_proposals: {e}")))?;
     let raw_data = decode_half_tensor(output_tensor)?;
 
     let mut candidates: Vec<BoundingBox> = Vec::new();
@@ -357,14 +382,15 @@ fn decode_yolo_response(
         }
     }
 
-    let final_boxes = perform_nms(candidates, NMS_IOU_THRESHOLD);
+    let final_boxes = perform_nms(candidates, NMS_IOU_THRESHOLD)
+        .map_err(|e| GrpcDetectorError::DecodeYoloResponse(format!("NMS failed: {e}")))?;
 
     let detections = final_boxes
         .into_iter()
         .map(|bbox| {
             logger.log(LogLevel::Info, &format!("Detected class ID: {}", bbox.class_id));
             Detection {
-                label: format!("class{}", bbox.class_id).try_into().unwrap(),
+                label: format!("class{}", bbox.class_id).try_into().expect("valid"),
                 score: bbox.confidence,
                 region: Region {
                     rectangle: parse_rect(bbox.ymin, bbox.xmin, bbox.ymax, bbox.xmax),
@@ -401,20 +427,23 @@ fn parse_rect(top: f32, left: f32, bottom: f32, right: f32) -> Option<RectangleN
     })
 }
 
-fn perform_nms(mut boxes: Vec<BoundingBox>, iou_threshold: f32) -> Vec<BoundingBox> {
+fn perform_nms(mut boxes: Vec<BoundingBox>, iou_threshold: f32) -> Result<Vec<BoundingBox>, GrpcDetectorError> {
     if boxes.is_empty() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
-    boxes.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+    boxes.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).expect("failed to compare confidence"));
 
     let mut final_boxes = Vec::new();
     while !boxes.is_empty() {
         let best_box = boxes.remove(0);
         final_boxes.push(best_box);
-        boxes.retain(|b| calculate_iou(&final_boxes.last().unwrap(), b) < iou_threshold);
+        let last_inserted = final_boxes
+            .last()
+            .ok_or(GrpcDetectorError::DecodeYoloResponse("failed to get last inserted box".to_owned()))?;
+        boxes.retain(|b| calculate_iou(last_inserted, b) < iou_threshold);
     }
-    final_boxes
+    Ok(final_boxes)
 }
 
 fn calculate_iou(box1: &BoundingBox, box2: &BoundingBox) -> f32 {
@@ -469,6 +498,6 @@ impl Drop for DetectorManager {
     fn drop(&mut self) {
         // This method is called when the DetectorManager instance is dropped.
         // We shut down the associated Tokio runtime in the background.
-        self.detector_runtime.take().map(|rt| rt.shutdown_background());
+        if let Some(a) = self.detector_runtime.take() { tokio::runtime::Runtime::shutdown_background(a) }
     }
 }
