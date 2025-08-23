@@ -6,43 +6,32 @@ import { uniqueID, htmlToElem } from "../libs/common.js";
 /*
  * A form field can have the following methods.
  *
- * HTML   html for the field to be rendered.
- *
- * value()   Return value from DOM input field.
+ * value()   Return value, usually from DOM element directly.
  *
  * set(input)   Set form field value. Reset field to initial value if input is undefined.
  *
  * validate()
  * Returns undefined or error string.
  * If undefined is returned, it's assumed that the field is valid.
- *
- * init()
- * Called after the html has been rendered.
- * Used to query rendered elements and to add event listeners.
- *
- * element()   Returns field element. optional
  */
 
 /**
  * @template T
  * @typedef {Object} Field
  * @property {Element[]} elems
- * @property {() => void} init
  * @property {() => T} value
  * @property {(input: T|undefined) => void} set
  * @property {() => string|undefined=} validate
- * @property {() => HTMLElement=} element
  */
 
 /**
  * @typedef {Object} Form
- * @property {() => Buttons} buttons
+ * @property {{[x: string]: HTMLButtonElement}} buttons
  * @property {(type: string, onClick: () => void) => void} addButton
  * @property {any} fields
  * @property {() => void} reset
  * @property {() => string|undefined} validate
  * @property {() => Element} elem
- * @property {() => void} init
  * @property {(values: {[x: string]: any}) => void} set
  * @property {(values: {[x: string]: any}) => void} get
  */
@@ -57,12 +46,10 @@ import { uniqueID, htmlToElem } from "../libs/common.js";
  * @returns {Form}
  */
 function newForm(fields) {
-	/** @type {Buttons} */
+	/** @type {{[x: string]: HTMLButtonElement}} */
 	const buttons = {};
 	return {
-		buttons() {
-			return buttons;
-		},
+		buttons,
 		addButton(type, onClick) {
 			switch (type) {
 				case "save": {
@@ -100,17 +87,12 @@ function newForm(fields) {
 			/** @type {Element[]} */
 			let fieldsElems = [];
 			for (const item of Object.values(fields)) {
-				if (item && item.elems) {
-					if (!item.elems) {
-						throw new Error(`field doesn't have element ${item.html}`);
-					}
-					fieldsElems = [...fieldsElems, ...item.elems];
-				}
+				fieldsElems = [...fieldsElems, ...item.elems];
 			}
 			const buttonElems = [];
 			if (buttons) {
 				for (const btn of Object.values(buttons)) {
-					buttonElems.push(btn.elem);
+					buttonElems.push(btn);
 				}
 			}
 			return htmlToElem(
@@ -125,16 +107,6 @@ function newForm(fields) {
 					),
 				],
 			);
-		},
-		init() {
-			for (const item of Object.values(fields)) {
-				if (item && item.init) {
-					item.init();
-				}
-			}
-			for (const btn of Object.values(buttons)) {
-				btn.init();
-			}
 		},
 		set(values) {
 			for (const [key, field] of Object.entries(fields)) {
@@ -153,71 +125,131 @@ function newForm(fields) {
 	};
 }
 
-/**
- * @typedef Button
- * @property {Element} elem
- * @property {() => void} init
- * @property {() => HTMLButtonElement} element
- */
+/** @returns {HTMLSpanElement} */
+function newErrorElem() {
+	// @ts-ignore
+	return htmlToElem(/* HTML */ `
+		<span
+			class="text-red"
+			style="
+				height: calc(var(--scale) * 1.5rem);
+				font-size: calc(var(--scale) * 1rem);
+				white-space: nowrap;
+				overflow: auto;
+			"
+		></span>
+	`);
+}
 
-/** @typedef {{[x: string]: Button}} Buttons */
+const liHTML = `<li class="items-center px-2 pb-1 border-b-2 border-color1"></li>`;
+const liHTMLError = `<li class="items-center px-2 border-b-2 border-color1"></li>`;
 
 /**
- * @param {() => void} onClick
- * @returns {Button}
+ * @param {string} id
+ * @param {string} label
  */
+function newLabelElem(id, label) {
+	return htmlToElem(/* HTML */ `
+		<label for="${id}" class="grow w-full text-1.5 text-color" style="float: left;"
+			>${label}</label
+		>
+	`);
+}
+
+/** @param {() => void} onClick */
 function newSaveBtn(onClick) {
-	const id = uniqueID();
 	/** @type {HTMLButtonElement} */
-	let element;
-	return {
-		elem: htmlToElem(/* HTML */ `
-			<button id="${id}" class="m-2 px-2 rounded-lg bg-green hover:bg-green2">
-				<span class="text-2 text-color">Save</span>
-			</button>
-		`),
-		init() {
-			// @ts-ignore
-			element = document.getElementById(id);
-			element.addEventListener("click", () => {
-				onClick();
-			});
-		},
-		element() {
-			return element;
-		},
-	};
+	// @ts-ignore
+	const elem = htmlToElem(/* HTML */ `
+		<button class="m-2 px-2 rounded-lg bg-green hover:bg-green2">
+			<span class="text-2 text-color">Save</span>
+		</button>
+	`);
+	elem.onclick = onClick;
+	return elem;
+}
+
+/** @param {() => void} onClick */
+function newDeleteBtn(onClick) {
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const elem = htmlToElem(/* HTML */ `
+		<button
+			class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
+			style="margin-left: auto;"
+		>
+			<span class="text-2 text-color">Delete</span>
+		</button>
+	`);
+	elem.onclick = onClick;
+	return elem;
+}
+
+/** @param {() => void=} onClick */
+function newEditBtn(onClick) {
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const btn = htmlToElem(/* HTML */ `
+		<button
+			class="flex ml-2 rounded-lg bg-color2 hover:bg-color3"
+			style="aspect-ratio: 1; width: calc(var(--scale) * 3rem);"
+		>
+			<img class="p-1 icon-filter" src="assets/icons/feather/edit-3.svg" />
+		</button>
+	`);
+	btn.onclick = onClick;
+	return btn;
 }
 
 /**
- * @param {() => void} onClick
- * @returns {Button}
+ * @param {string} labelId
+ * @param {string} input
+ * @param {string} placeholder
+ * @param {number} min
+ * @param {number} max
+ * @param {number} step
+ * @returns {HTMLInputElement}
  */
-function newDeleteBtn(onClick) {
-	const id = uniqueID();
-	/** @type {HTMLButtonElement} */
-	let element;
-	return {
-		elem: htmlToElem(/* HTML */ `
-			<button
-				id="${id}"
-				class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
-				style="margin-left: auto;"
-			>
-				<span class="text-2 text-color">Delete</span>
-			</button>
-		`),
-		init() {
-			// @ts-ignore
-			element = document.getElementById(id);
-			element.addEventListener("click", () => {
-				onClick();
-			});
-		},
-		element() {
-			return element;
-		},
-	};
+function newInputElem(labelId, input, placeholder, min, max, step) {
+	// @ts-ignore
+	return htmlToElem(/* HTML */ `
+		<input
+			id="${labelId}"
+			class="w-full text-1.5"
+			style="
+					height: calc(var(--scale) * 2.5rem);
+					overflow: auto;
+					padding-left: calc(var(--scale) * 0.5rem);
+				"
+			type="${input}"
+			placeholder="${placeholder}"
+			${min}
+			${max}
+			${step}
+		/>
+	`);
+}
+
+/**
+ * @param {string} labelId
+ * @param {string[]} options
+ * @return {HTMLSelectElement}
+ */
+function newSelectElem(labelId, options) {
+	let selectOptions = "";
+	for (const option of options) {
+		selectOptions += `\n<option>${option}</option>`;
+	}
+	// @ts-ignore
+	return htmlToElem(/* HTML */ `
+		<select
+			id="${labelId}"
+			class="w-full pl-2 text-1.5"
+			style="height: calc(var(--scale) * 2.5rem);"
+		>
+			${selectOptions}
+		</select>
+	`);
 }
 
 /** @typedef {[RegExp, string]} InputRule */
@@ -242,17 +274,13 @@ const fieldTemplate = {
 	 * @return {Field<string>}
 	 */
 	text(label, placeholder, initial = "") {
-		return newField(
+		return newErrorField(
+			"text",
 			[inputRules.notEmpty, inputRules.noSpaces],
-			{
-				errorField: true,
-				input: "text",
-			},
-			{
-				label,
-				placeholder,
-				initial,
-			},
+			{},
+			label,
+			placeholder,
+			initial,
 		);
 	},
 	/**
@@ -264,16 +292,12 @@ const fieldTemplate = {
 	integer(label, placeholder, initial = 0) {
 		return newNumberField(
 			{
-				errorField: true,
-				input: "number",
 				min: 0,
 				step: 1,
 			},
-			{
-				label,
-				placeholder,
-				initial,
-			},
+			label,
+			placeholder,
+			initial,
 		);
 	},
 	/**
@@ -285,15 +309,11 @@ const fieldTemplate = {
 	number(label, placeholder, initial = 0) {
 		return newNumberField(
 			{
-				errorField: true,
-				input: "number",
 				min: 0,
 			},
-			{
-				label,
-				placeholder,
-				initial,
-			},
+			label,
+			placeholder,
+			initial,
 		);
 	},
 	/**
@@ -310,18 +330,7 @@ const fieldTemplate = {
 	 * @param {string} initial
 	 * @return {Field<string>}
 	 */
-	select(label, options, initial) {
-		return newField(
-			[],
-			{
-				select: options,
-			},
-			{
-				label,
-				initial,
-			},
-		);
-	},
+	select: newSelectField,
 	/**
 	 * @param {string} label
 	 * @param {string[]} options
@@ -329,154 +338,78 @@ const fieldTemplate = {
 	 * @return {Field<string>}
 	 */
 	selectCustom(label, options, initial) {
-		return newSelectCustomField([inputRules.notEmpty], options, {
-			label,
-			initial,
-		});
+		return newSelectCustomField([inputRules.notEmpty], options, label, initial);
 	},
 };
 
 /**
  * @typedef {Object} Options
- * @property {boolean=} errorField
- * @property {string=} input
- * @property {string[]=} select
  * @property {number=} min
  * @property {number=} max
  * @property {number=} step
- * @property {boolean=} custom
- * @property {boolean=} modal
  */
 
 /**
- * @template T
- * @typedef {Object} Values
- * @property {string} label
- * @property {string=} placeholder
- * @property {T=} initial
- */
-
-/**
- * @template T
- * @param {InputRule[]} inputRules
  * @param {Options} options
- * @param {Values<T>} values
+ * @param {string} input
+ * @param {string} label
+ * @param {string=} placeholder
+ * @param {string=} initial
  * @return {Field<string>}
  */
-function newField(inputRules, options, values) {
-	let element;
-	/** @type HTMLInputElement */
-	let $input;
-	let $error;
-
-	const { errorField } = options;
-	const { label, placeholder, initial } = values;
-
-	const validate = () => {
-		if (!errorField) {
-			return;
-		}
-
-		const value = $input.value;
-		for (const rule of inputRules) {
-			if (rule[0].test(String(value))) {
-				$error.textContent = rule[1];
-				return rule[1];
-			}
-		}
-		$error.textContent = "";
-	};
-
-	const id = uniqueID();
-
+function newField(options, input, label, placeholder, initial) {
+	const field = newRawField(options, input, label, placeholder);
 	return {
-		elems: [newHTMLfield(options, id, label, placeholder)],
-		init() {
-			element = document.getElementById(id);
-			[$input, $error] = $getInputAndError(element);
-			$input.addEventListener("change", validate);
-		},
+		elems: [field.elem],
 		value() {
-			return $input.value;
+			return field.$input.value;
 		},
 		set(input) {
 			if (input === undefined) {
-				$input.value = initial ? String(initial) : "";
+				field.$input.value = initial ? String(initial) : "";
 			} else {
-				$input.value = input;
+				field.$input.value = input;
 			}
-			if (errorField) {
-				$error.textContent = "";
-			}
-		},
-		validate() {
-			const err = validate();
-			if (err !== undefined) {
-				return `"${label}": ${err}`;
-			}
-		},
-		element() {
-			return element;
 		},
 	};
 }
 
 /**
+ * @param {InputRule[]} inputRules
+ * @param {string} input,
  * @param {Options} options
- * @param {Values<number>} values
- * @return {Field<number>}
+ * @param {string} label,
+ * @param {string=} placeholder,
+ * @param {string=} initial,
+ * @return {Field<string>}
  */
-function newNumberField(options, values) {
-	let element;
-	/** @type HTMLInputElement */
-	let $input;
-	let $error;
-
-	const { errorField, min, max } = options;
-	const { label, placeholder, initial } = values;
-
+function newErrorField(input, inputRules, options, label, placeholder, initial) {
 	const validate = () => {
-		if (!errorField) {
-			return;
+		const value = field.$input.value;
+		for (const rule of inputRules) {
+			if (rule[0].test(String(value))) {
+				field.$error.textContent = rule[1];
+				return rule[1];
+			}
 		}
-
-		if ($input.validationMessage !== "") {
-			$error.textContent = $input.validationMessage;
-			return $input.validationMessage;
-		}
-
-		$error.textContent = "";
+		field.$error.textContent = "";
 	};
 
-	const id = uniqueID();
+	const field = newRawErrorField(options, input, label, placeholder);
+	field.$input.addEventListener("change", validate);
 
 	return {
-		elems: [newHTMLfield(options, id, label, placeholder)],
-		init() {
-			element = document.getElementById(id);
-			[$input, $error] = $getInputAndError(element);
-			$input.addEventListener("change", () => {
-				// Only contains one or more digits.
-				if (/^\d+$/.test($input.value)) {
-					const input = Number($input.value);
-					if (min !== undefined && input < min) {
-						$input.value = String(min);
-					}
-					if (max !== undefined && input > max) {
-						$input.value = String(max);
-					}
-				}
-				validate();
-			});
-		},
+		elems: [field.elem],
 		value() {
-			return Number($input.value);
+			return field.$input.value;
 		},
 		set(input) {
-			$input.value = input === undefined ? String(initial) : String(input);
-			if (errorField) {
-				$error.textContent = "";
+			if (input === undefined) {
+				field.$input.value = initial ? String(initial) : "";
+			} else {
+				field.$input.value = input;
 			}
+			field.$error.textContent = "";
 		},
 		validate() {
 			const err = validate();
@@ -484,29 +417,91 @@ function newNumberField(options, values) {
 				return `"${label}": ${err}`;
 			}
 		},
-		element() {
-			return element;
+	};
+}
+
+/**
+ * @param {string} label
+ * @param {string[]} options
+ * @param {string} initial
+ * @return {Field<string>}
+ */
+function newSelectField(label, options, initial) {
+	const field = newRawSelectField(label, options);
+	return {
+		elems: [field.elem],
+		value() {
+			return field.$input.value;
+		},
+		set(input) {
+			if (input === undefined) {
+				field.$input.value = initial;
+			} else {
+				field.$input.value = input;
+			}
 		},
 	};
 }
 
-const editBtnHTML = /* HTML */ `
-	<button
-		class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
-		style="aspect-ratio: 1; width: calc(var(--scale) * 3rem);"
-	>
-		<img class="p-1 icon-filter" src="assets/icons/feather/edit-3.svg" />
-	</button>
-`;
+/**
+ * @param {Options} options
+ * @param {string} label
+ * @param {string=} placeholder
+ * @param {number=} initial
+ * @return {Field<number>}
+ */
+function newNumberField(options, label, placeholder, initial) {
+	const { min, max } = options;
+
+	const validate = () => {
+		if (field.$input.validationMessage !== "") {
+			field.$error.textContent = field.$input.validationMessage;
+			return field.$input.validationMessage;
+		}
+
+		field.$error.textContent = "";
+	};
+
+	const field = newRawErrorField(options, "number", label, placeholder);
+	field.$input.onchange = () => {
+		// Only contains one or more digits.
+		if (/^\d+$/.test(field.$input.value)) {
+			const input = Number(field.$input.value);
+			if (min !== undefined && input < min) {
+				field.$input.value = String(min);
+			}
+			if (max !== undefined && input > max) {
+				field.$input.value = String(max);
+			}
+		}
+		validate();
+	};
+
+	return {
+		elems: [field.elem],
+		value() {
+			return Number(field.$input.value);
+		},
+		set(input) {
+			field.$input.value = input === undefined ? String(initial) : String(input);
+			field.$error.textContent = "";
+		},
+		validate() {
+			const err = validate();
+			if (err !== undefined) {
+				return `"${label}": ${err}`;
+			}
+		},
+	};
+}
 
 /**
  * @param {Options} options
- * @param {string} id
+ * @param {string} input
  * @param {string} label
  * @param {string} placeholder
  */
-function newHTMLfield(options, id, label, placeholder = "") {
-	const { errorField, input, select, custom } = options;
+function newRawField(options, input, label, placeholder = "") {
 	let { min, max, step } = options;
 
 	/* eslint-disable no-unused-expressions */
@@ -519,94 +514,116 @@ function newHTMLfield(options, id, label, placeholder = "") {
 	step === undefined ? (step = "") : (step = `step="${step}"`);
 	/* eslint-enable no-unused-expressions */
 
-	let innerHTML = "";
-	if (input) {
-		innerHTML = /* HTML */ `
-			<input
-				id="label-${id}"
-				class="js-input w-full text-1.5"
-				style="
-					height: calc(var(--scale) * 2.5rem);
-					overflow: auto;
-					padding-left: calc(var(--scale) * 0.5rem);
-				"
-				type="${input}"
-				placeholder="${placeholder}"
-				${min}
-				${max}
-				${step}
-			/>
-		`;
-	} else if (select) {
-		let options = "";
-		for (const option of select) {
-			options += `\n<option>${option}</option>`;
-		}
-		innerHTML = /* HTML */ `
-			<div class="flex w-full">
-				<select
-					id="label-${id}"
-					class="js-input w-full pl-2 text-1.5"
-					style="height: calc(var(--scale) * 2.5rem);"
-				>
-					${options}
-				</select>
-				${custom === true ? editBtnHTML : ""}
-			</div>
-		`;
-	} else {
-		throw new Error("Unknown field type");
-	}
+	const labelId = uniqueID();
+	const $input = newInputElem(labelId, input, placeholder, min, max, step);
 
-	let errorFieldHTML = "";
-	if (errorField === true) {
-		errorFieldHTML = /* HTML */ `
-			<span
-				class="js-error text-red"
-				style="
-					height: calc(var(--scale) * 1.5rem);
-					font-size: calc(var(--scale) * 1rem);
-					white-space: nowrap;
-					overflow: auto;
-				"
-			></span>
-		`;
-	}
-
-	return htmlToElem(/* HTML */ `
-		<li
-			id="${id}"
-			class="items-center px-2 ${errorField === true
-				? ""
-				: "pb-1"} border-b-2 border-color1"
-		>
-			<label
-				for="label-${id}"
-				class="grow w-full text-1.5 text-color"
-				style="float: left;"
-				>${label}</label
-			>
-			${innerHTML} ${errorFieldHTML}
-		</li>
-	`);
+	/** @type {HTMLLIElement} */
+	// @ts-ignore
+	const elem = htmlToElem(
+		//
+		liHTML,
+		[newLabelElem(labelId, label), $input],
+	);
+	return { elem, $input };
 }
 
 /**
- * @param {string} id
+ * @param {Options} options
+ * @param {string} input
+ * @param {string} label
+ * @param {string} placeholder
+ */
+function newRawErrorField(options, input, label, placeholder = "") {
+	let { min, max, step } = options;
+
+	/* eslint-disable no-unused-expressions */
+	placeholder ? "" : (placeholder = "");
+	// @ts-ignore
+	min === undefined ? (min = "") : (min = `min="${min}"`);
+	// @ts-ignore
+	max === undefined ? (max = "") : (max = `max="${max}"`);
+	// @ts-ignore
+	step === undefined ? (step = "") : (step = `step="${step}"`);
+	/* eslint-enable no-unused-expressions */
+
+	const labelId = uniqueID();
+	const $input = newInputElem(labelId, input, placeholder, min, max, step);
+	const $error = newErrorElem();
+
+	/** @type {HTMLLIElement} */
+	// @ts-ignore
+	const elem = htmlToElem(
+		//
+		liHTMLError,
+		[newLabelElem(labelId, label), $input, $error],
+	);
+	return { elem, $input, $error };
+}
+
+/**
+ * @param {string} label
+ * @param {string[]} options
+ */
+function newRawSelectField(label, options) {
+	const labelId = uniqueID();
+	const $input = newSelectElem(labelId, options);
+
+	/** @type {HTMLLIElement} */
+	// @ts-ignore
+	const elem = htmlToElem(
+		//
+		liHTML,
+		[
+			newLabelElem(labelId, label),
+			htmlToElem(
+				//
+				`<div class="flex w-full"></div>`,
+				[$input],
+			),
+		],
+	);
+
+	return { elem, $input };
+}
+
+/**
+ * @param {string[]} options
  * @param {string} label
  */
-function newModalFieldHTML(id, label) {
-	return htmlToElem(/* HTML */ `
-		<li id="${id}" class="flex items-center p-2 border-b-2 border-color1">
-			<label
-				for="label-${id}"
-				class="grow w-full text-1.5 text-color"
-				style="float: left;"
-				>${label}</label
-			>
-			${editBtnHTML}
-		</li>
-	`);
+function newRawSelectCustomField(options, label) {
+	const labelId = uniqueID();
+	const $input = newSelectElem(labelId, options);
+	const $editBtn = newEditBtn();
+	const $error = newErrorElem();
+
+	/** @type {HTMLLIElement} */
+	// @ts-ignore
+	const elem = htmlToElem(
+		//
+		liHTMLError,
+		[
+			newLabelElem(labelId, label),
+			htmlToElem(
+				//
+				`<div class="flex w-full"></div>`,
+				[$input, $editBtn],
+			),
+			$error,
+		],
+	);
+	return { elem, $input, $editBtn, $error };
+}
+
+/**
+ * @param {string} label
+ * @param {() => void} onEditBtnClick
+ */
+function newModalField(label, onEditBtnClick) {
+	const id = uniqueID();
+	return htmlToElem(
+		`<li class="flex items-center p-2 border-b-2 border-color1"></li>`,
+		[newLabelElem(id, label), newEditBtn(onEditBtnClick)],
+	);
 }
 
 /**
@@ -615,119 +632,78 @@ function newModalFieldHTML(id, label) {
  * @return {Field<boolean>}
  */
 function newToggleField(label, initial) {
-	let element;
-	/** @type {HTMLInputElement} */
-	let $input;
-
-	const id = uniqueID();
-	const options = {
-		select: ["true", "false"],
-	};
-
+	const field = newRawSelectField(label, ["true", "false"]);
 	return {
-		elems: [newHTMLfield(options, id, label)],
-		init() {
-			element = document.getElementById(id);
-			// @ts-ignore
-			[$input] = $getInputAndError(element);
-		},
+		elems: [field.elem],
 		value() {
-			return $input.value === "true";
+			return field.$input.value === "true";
 		},
 		set(input) {
-			$input.value = input === undefined ? String(initial) : String(input);
-		},
-		element() {
-			return element;
+			field.$input.value = input === undefined ? String(initial) : String(input);
 		},
 	};
 }
 
 /**
  * New select field with button to add custom value.
- *
  * @param {InputRule[]} inputRules
  * @param {string[]} options
- * @param {Values<string>} values
+ * @param {string} label
+ * @param {string} initial
  * @return {Field<string>}
  */
-function newSelectCustomField(inputRules, options, values) {
-	/** @type HTMLInputElement */
-	let $input;
-	let $error;
-	const id = uniqueID();
-
-	const errorField = inputRules.length > 0;
-
+function newSelectCustomField(inputRules, options, label, initial) {
 	/** @param {string|undefined} input */
 	const set = (input) => {
 		if (input === undefined) {
-			$input.value = values.initial;
-			if (errorField) {
-				$error.innerHTML = "";
-			}
+			field.$input.value = initial;
+			field.$error.innerHTML = "";
 			return;
 		}
 
 		let customValue = true;
-		// @ts-ignore
-		for (const option of document.querySelector(`#${id} select`).options) {
+		for (const option of field.$input.options) {
 			if (option.value === input) {
 				customValue = false;
 			}
 		}
 
 		if (customValue) {
-			$input.innerHTML += `<option>${input}</option>`;
+			field.$input.innerHTML += `<option>${input}</option>`;
 		}
-		$input.value = input;
+		field.$input.value = input;
 	};
 
 	/** @returns {string|undefined} */
 	const validate = () => {
-		if (!errorField) {
-			return;
-		}
-		const value = $input.value;
+		const value = field.$input.value;
 		for (const rule of inputRules) {
 			if (rule[0].test(value)) {
-				$error.textContent = `${values.label} ${rule[1]}`;
-				return `${values.label} ${rule[1]}`;
+				field.$error.textContent = `${label} ${rule[1]}`;
+				return `${label} ${rule[1]}`;
 			}
 		}
-		$error.textContent = "";
+		field.$error.textContent = "";
+	};
+
+	const field = newRawSelectCustomField(options, label);
+	field.$input.onchange = validate;
+	field.$editBtn.onclick = () => {
+		const input = prompt("Custom value");
+		if (input !== "") {
+			set(input);
+		}
 	};
 
 	return {
-		elems: [
-			newHTMLfield(
-				{
-					select: options,
-					custom: true,
-					errorField,
-				},
-				id,
-				values.label,
-				values.placeholder,
-			),
-		],
-		init() {
-			const element = document.getElementById(id);
-			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				const input = prompt("Custom value");
-				if (input !== "") {
-					set(input);
-				}
-			});
-
-			[$input, $error] = $getInputAndError(element);
-			$input.addEventListener("change", validate);
-		},
+		elems: [field.elem],
 		value() {
-			return $input.value;
+			return field.$input.value;
 		},
 		set,
 		validate,
+		// @ts-ignore
+		testing: field,
 	};
 }
 
@@ -735,31 +711,17 @@ function newSelectCustomField(inputRules, options, values) {
  * @return {Field<string>}
  */
 function newPasswordField() {
-	const newID = uniqueID();
-	const repeatID = uniqueID();
-	let $newInput, $newError, $repeatInput;
-	/** @type {HTMLSpanElement} */
-	let $repeatError;
-
-	/**
-	 * @param {string} id
-	 * @param {string} label
-	 */
-	const passwordHTML = (id, label) => {
-		return newHTMLfield({ errorField: true, input: "password" }, id, label);
-	};
-
-	/** @type {() => string} */
+	/** @returns {string} */
 	const validate = () => {
-		if ($newInput.value !== "" && $repeatInput.value === "") {
+		if (newPassword.$input.value !== "" && repeatPassword.$input.value === "") {
 			return "repeat password";
-		} else if ($repeatInput.value !== $newInput.value) {
+		} else if (repeatPassword.$input.value !== newPassword.$input.value) {
 			return "Passwords do not match";
 		}
 	};
 
 	const value = () => {
-		return $repeatInput.value;
+		return repeatPassword.$input.value;
 	};
 
 	/** @param {string} string */
@@ -777,58 +739,48 @@ function newPasswordField() {
 		}
 	};
 	const checkPassword = () => {
-		$newError.innerHTML = passwordStrength($newInput.value);
+		newPassword.$error.textContent = passwordStrength(newPassword.$input.value);
 		const err = validate();
-		$repeatError.textContent = err === undefined ? "" : err;
+		repeatPassword.$error.textContent = err === undefined ? "" : err;
 	};
 
+	/** @param {string} label */
+	const passwordElem = (label) => {
+		return newRawErrorField({}, "password", label);
+	};
+	const newPassword = passwordElem("New password");
+	const repeatPassword = passwordElem("Repeat password");
+
+	newPassword.$input.onchange = checkPassword;
+	repeatPassword.$input.onchange = checkPassword;
+
 	return {
-		elems: [
-			passwordHTML(newID, "New password"),
-			passwordHTML(repeatID, "Repeat password"),
-		],
+		elems: [newPassword.elem, repeatPassword.elem],
 		value,
 		// Always called with undefined.
 		set() {
-			$newInput.value = "";
-			$repeatInput.value = "";
-			$newError.textContent = "";
-			$repeatError.textContent = "";
-		},
-		init() {
-			[$newInput, $newError] = $getInputAndError(document.getElementById(newID));
-			[$repeatInput, $repeatError] = $getInputAndError(
-				document.getElementById(repeatID),
-			);
-
-			$newInput.addEventListener("change", () => {
-				checkPassword();
-			});
-			$repeatInput.addEventListener("change", () => {
-				checkPassword();
-			});
+			newPassword.$input.value = "";
+			repeatPassword.$input.value = "";
+			newPassword.$error.textContent = "";
+			repeatPassword.$error.textContent = "";
 		},
 		validate,
+		// @ts-ignore
+		testing: { newPassword, repeatPassword },
 	};
-}
-
-/**
- * @param {Element} $parent
- * @returns {[HTMLInputElement, HTMLSpanElement]}
- */
-function $getInputAndError($parent) {
-	return [$parent.querySelector(".js-input"), $parent.querySelector(".js-error")];
 }
 
 export {
 	newForm,
 	newField,
+	newErrorField,
 	newNumberField,
-	newHTMLfield,
+	newRawField,
+	newRawSelectField,
+	newRawSelectCustomField,
 	inputRules,
 	fieldTemplate,
 	newSelectCustomField,
-	newModalFieldHTML,
+	newModalField,
 	newPasswordField,
-	$getInputAndError,
 };

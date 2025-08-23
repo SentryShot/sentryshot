@@ -94,7 +94,10 @@ function newViewer(monitorNameByID, element, timeZone, isAdmin, token) {
 				d.start = Date.parse(idToISOstring(d.id)) * 1000000;
 			}
 
-			const player = newPlayer(d, isAdmin, token);
+			const onVideoLoad = () => {
+				addPlayingVideo(player);
+			};
+			const player = newPlayer(d, isAdmin, token, onVideoLoad);
 			players.push(player);
 
 			current = rec.id;
@@ -106,12 +109,6 @@ function newViewer(monitorNameByID, element, timeZone, isAdmin, token) {
 		}
 		element.append(fragment);
 
-		for (const player of players) {
-			const onVideoLoad = () => {
-				addPlayingVideo(player);
-			};
-			player.init(onVideoLoad);
-		}
 		return current;
 	};
 
@@ -268,7 +265,7 @@ function init() {
 	const { tz, monitorsInfo, monitorGroups, isAdmin, csrfToken } = globals();
 
 	const monitorNameByID = newMonitorNameByID(monitorsInfo);
-	const $grid = document.querySelector("#js-content-grid");
+	const $grid = document.getElementById("js-content-grid");
 	const viewer = newViewer(monitorNameByID, $grid, tz, isAdmin, csrfToken);
 
 	const hashMonitors = getHashParam("monitors").split(",");
@@ -276,18 +273,19 @@ function init() {
 		viewer.setMonitors(hashMonitors);
 	}
 
-	const buttons = [
-		newOptionsBtn.gridSize(viewer),
-		newOptionsBtn.date(tz, viewer),
+	/** @type {Element[]} */
+	let buttons = [
+		...newOptionsBtn.gridSize(viewer),
+		...newOptionsBtn.date(tz, viewer).elems,
 		newOptionsBtn.monitor(monitorsInfo, viewer),
 	];
 	// Add the group picker if there are any groups.
 	if (Object.keys(monitorGroups).length > 0) {
-		buttons.push(newOptionsBtn.monitorGroup(monitorGroups, viewer));
+		const group = newOptionsBtn.monitorGroup(monitorGroups, viewer);
+		buttons = [...buttons, ...group.elems];
 	}
 	const optionsMenu = newOptionsMenu(buttons);
-	document.querySelector("#options-menu").replaceChildren(...optionsMenu.elems());
-	optionsMenu.init();
+	document.getElementById("options-menu").replaceChildren(...optionsMenu.elems);
 	viewer.reset();
 
 	window.addEventListener("resize", viewer.lazyLoadRecordings);

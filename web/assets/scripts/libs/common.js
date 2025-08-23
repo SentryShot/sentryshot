@@ -302,7 +302,10 @@ function sleep(abortSignal, ms) {
 			resolve(false);
 			return;
 		}
-		abortSignal.throwIfAborted();
+		// NODE: remove this check.
+		if (abortSignal.throwIfAborted !== undefined) {
+			abortSignal.throwIfAborted();
+		}
 
 		const timeout = setTimeout(() => {
 			resolve(false);
@@ -320,31 +323,18 @@ function sleep(abortSignal, ms) {
 
 /**
  * @param {string} html
- * @param {Element[]} children
+ * @param {Node[]} children
  * @returns {Element}
  */
 function htmlToElem(html, children = []) {
 	const template = document.createElement("template");
 	template.innerHTML = html;
-	if (template.content.childElementCount !== 1) {
-		throw new Error(`expected 1 element got ${template.content.childElementCount}`);
-	}
+	//if (template.content.childElementCount !== 1) {
+	//	throw new Error(`expected 1 element got ${template.content.childElementCount}`);
+	//}
 	const elem = template.content.firstElementChild;
 	elem.append(...children);
 	return elem;
-}
-
-/**
- * @param {string} html
- * @returns {Element[]}
- */
-function htmlToElems(html) {
-	const template = document.createElement("template");
-	template.innerHTML = html;
-	if (template.content.childElementCount === 0) {
-		throw new Error(`no elements`);
-	}
-	return [...template.content.children];
 }
 
 export {
@@ -365,5 +355,4 @@ export {
 	relativePathname,
 	sleep,
 	htmlToElem,
-	htmlToElems,
 };

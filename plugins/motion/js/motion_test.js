@@ -31,7 +31,6 @@ describe("motion", () => {
 
 		const motion = newMotion();
 		element.replaceChildren(...motion.elems);
-		motion.init();
 		motion.set();
 		expect(motion.validate()).toBeUndefined();
 		expect(motion.validate()).toBeUndefined();
@@ -44,7 +43,6 @@ describe("motion", () => {
 
 		const motion = newMotion();
 		element.replaceChildren(...motion.elems);
-		motion.init();
 		motion.set();
 		// @ts-ignore
 		motion.openTesting();

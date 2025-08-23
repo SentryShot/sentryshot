@@ -27,13 +27,9 @@ describe("resBtn", () => {
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
 
-		const res = resBtn(mockContent);
-		element.replaceChildren(...res.elems);
+		element.replaceChildren(resBtn(mockContent));
 
 		const $btn = document.querySelector("button");
-		expect($btn.textContent.trim()).toBe("");
-
-		res.init();
 		expect($btn.textContent).toBe("HD");
 
 		// @ts-ignore
@@ -66,10 +62,8 @@ describe("resBtn", () => {
 			},
 		};
 
-		const res = resBtn(content);
-		element.replaceChildren(...res.elems);
+		element.replaceChildren(resBtn(content));
 
-		res.init();
 		// @ts-ignore
 		document.querySelector("button").click();
 		expect(preferLowCalled).toBe(true);
@@ -87,21 +81,20 @@ test("fullscreen", () => {
 
 	expect(element.innerHTML).toMatchInlineSnapshot(`
 <div class="flex justify-center">
-  <div id="uid1"
-       class="relative flex justify-center items-center w-full"
+  <div class="relative flex justify-center items-center w-full"
        style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
   >
-    <input id="uid2"
+    <input id="uid1"
            class="js-checkbox player-overlay-checkbox absolute"
            style="opacity: 0;"
            type="checkbox"
     >
-    <label class="absolute w-full h-full"
+    <label for="uid1"
+           class="absolute w-full h-full"
            style="z-index: 1; opacity: 0.5;"
-           for="uid2"
     >
     </label>
-    <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
+    <div class="player-overlay absolute flex justify-center rounded-md bg-color1"
          style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
     >
       <a href="http://test.com/recordings#monitors=undefined"
@@ -129,21 +122,20 @@ test("fullscreen", () => {
   </div>
 </div>
 <div class="flex justify-center">
-  <div id="uid3"
-       class="relative flex justify-center items-center w-full"
+  <div class="relative flex justify-center items-center w-full"
        style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
   >
-    <input id="uid4"
+    <input id="uid2"
            class="js-checkbox player-overlay-checkbox absolute"
            style="opacity: 0;"
            type="checkbox"
     >
-    <label class="absolute w-full h-full"
+    <label for="uid2"
+           class="absolute w-full h-full"
            style="z-index: 1; opacity: 0.5;"
-           for="uid4"
     >
     </label>
-    <div class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
+    <div class="player-overlay absolute flex justify-center rounded-md bg-color1"
          style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
     >
       <a href="http://test.com/recordings#monitors=undefined"

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // @ts-check
 
-import { uniqueID, normalize, denormalize, globals, htmlToElem } from "./libs/common.js";
+import { normalize, denormalize, globals, htmlToElem } from "./libs/common.js";
 import {
 	newForm,
-	newModalFieldHTML,
-	newHTMLfield,
+	newModalField,
+	newRawField,
+	newRawSelectField,
 	fieldTemplate,
 } from "./components/form.js";
 import { newStreamer } from "./components/streamer.js";
@@ -55,21 +56,12 @@ export function motion2(hasSubStream, getMonitorId) {
 
 	let value = {};
 
-	/** @type {Element} */
-	let element;
-
 	let isRendered = false;
 	const render = () => {
 		if (isRendered) {
 			return;
 		}
-		element.append(modal.elem);
-		/** @type {HTMLElement} */
-		const $modal = element.querySelector(".js-modal");
-		$modal.style.maxWidth = "40.5rem";
-
-		modal.init();
-		form.init();
+		elem.append(modal.elem);
 
 		isRendered = true;
 		value = value === undefined ? {} : value;
@@ -81,10 +73,10 @@ export function motion2(hasSubStream, getMonitorId) {
 		modal.open();
 	};
 
-	const id = uniqueID();
+	const elem = newModalField("Motion detection", open);
 
 	return {
-		elems: [newModalFieldHTML(id, "Motion detection")],
+		elems: [elem],
 		value() {
 			if (isRendered) {
 				form.get(value);
@@ -107,12 +99,6 @@ export function motion2(hasSubStream, getMonitorId) {
 				return `Motion detection: ${err}`;
 			}
 		},
-		init() {
-			element = document.querySelector(`#${id}`);
-			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				open();
-			});
-		},
 		// @ts-ignore
 		openTesting() {
 			open();
@@ -132,167 +118,204 @@ export function motion2(hasSubStream, getMonitorId) {
  * @property {number} thresholdMax
  */
 
-function zoneSelectField() {
-	return htmlToElem(/* HTML */ `
-		<li class="items-center p-2 border-b-2 border-color1">
-			<div class="flex w-full">
-				<select
-					class="js-zone-select w-full pl-2 text-1.5"
-					style="height: calc(var(--scale) * 2.5rem);"
-				></select>
-				<button
-					class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3"
-				>
-					<img
-						class="p-1 icon-filter"
-						style="width: calc(var(--scale) * 2.5rem);"
-						src="assets/icons/feather/plus.svg"
-					/>
-				</button>
-				<button
-					class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
-				>
-					<img
-						class="p-1 icon-filter"
-						style="width: calc(var(--scale) * 2.5rem);"
-						src="assets/icons/feather/minus.svg"
-					/>
-				</button>
-			</div>
-		</li>
+function newZoneSelectField() {
+	/** @type {HTMLSelectElement} */
+	// @ts-ignore
+	const $select = htmlToElem(/* HTML */ `
+		<select
+			class="js-zone-select w-full pl-2 text-1.5"
+			style="height: calc(var(--scale) * 2.5rem);"
+		></select>
 	`);
-}
-
-function thresholdsField() {
-	return htmlToElem(/* HTML */ `
-		<li class="items-center p-2 border-b-2 border-color1">
-			<label
-				class="grow w-full text-1.5 text-color"
-				style="float: left; min-width: calc(var(--scale) * 13.5rem);"
-				>Threshold Min-Max</label
-			>
-			<div class="flex w-full">
-				<input
-					class="js-threshold-min w-full mr-4 pl-2 text-1.5"
-					style="height: calc(var(--scale) * 2.5rem);"
-					type="number"
-					min="0"
-					max="100"
-					step="any"
-				/>
-				<input
-					class="js-threshold-max grow w-full pl-2 text-1.5"
-					style="height: calc(var(--scale) * 2.5rem);"
-					type="number"
-					min="0"
-					max="100"
-					step="any"
-				/>
-			</div>
-		</li>
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $addZone = htmlToElem(/* HTML */ `
+		<button class="js-add-zone shrink-0 ml-2 rounded-lg bg-color2 hover:bg-color3">
+			<img
+				class="p-1 icon-filter"
+				style="width: calc(var(--scale) * 2.5rem);"
+				src="assets/icons/feather/plus.svg"
+			/>
+		</button>
 	`);
-}
-
-function zonesPreviewOptions() {
-	return htmlToElem(/* HTML */ `
-		<li
-			class="flex items-center p-2 border-b-2 border-color1"
-			style="flex-wrap: wrap; justify-content: space-between"
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $removeZone = htmlToElem(/* HTML */ `
+		<button
+			class="js-remove-zone shrink-0 ml-1 mr-2 rounded-lg bg-color2 hover:bg-color3"
 		>
-			<div class="flex">
-				<button
-					class="js-1x pl-2 pr-1 text-1.4 text-color bg-color2 hover:bg-color1"
-					style="
-					border-top-left-radius: var(--radius-xl);
-					border-bottom-left-radius: var(--radius-xl);
-				"
-				>
-					1x
-				</button>
-				<button
-					class="js-4x px-1 text-1.4 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
-				>
-					4x
-				</button>
-				<button class="js-10x px-1 text-1.4 text-color bg-color2 hover:bg-color1">
-					10x
-				</button>
-				<button
-					class="js-20x pl-1 pr-2 text-1.4 text-color bg-color2 hover:bg-color1"
-					style="
-					border-top-right-radius: var(--radius-xl);
-					border-bottom-right-radius: var(--radius-xl);
-				"
-				>
-					20x
-				</button>
-			</div>
-			<div class="flex">
-				<input
-					class="js-x mr-1 text-center text-1.4"
-					style="width: calc(var(--scale) * 3.5rem);"
-					type="number"
-					min="0"
-					max="100"
-				/>
-				<input
-					class="js-y text-center text-1.4"
-					style="width: calc(var(--scale) * 3.5rem);"
-					type="number"
-					min="0"
-					max="100"
-				/>
-			</div>
-		</li>
+			<img
+				class="p-1 icon-filter"
+				style="width: calc(var(--scale) * 2.5rem);"
+				src="assets/icons/feather/minus.svg"
+			/>
+		</button>
 	`);
-}
 
-/**
- * @param {Element} feedElem
- * @param {string} [enableID]
- * @param {string} [sensitivityID]
- * @param {string} [previewID]
- * @returns {Element[]}
- */
-function zonesModalElem(feedElem, enableID, sensitivityID, previewID) {
-	return [
-		zoneSelectField(),
-		newHTMLfield(
-			{
-				select: ["true", "false"],
-			},
-			enableID,
-			"Enable",
-		),
-		newHTMLfield(
-			{
-				input: "number",
-				min: 0,
-				max: 100,
-			},
-			sensitivityID,
-			"Sensitivity",
-		),
-		thresholdsField(),
-		newHTMLfield(
-			{
-				select: ["true", "false"],
-			},
-			previewID,
-			"Preview",
-		),
-		htmlToElem(/* HTML */ ` <li class="relative mx-2 mt-1"></li> `, [
+	const elem = htmlToElem(
+		`<li class="items-center p-2 border-b-2 border-color1"></li>`,
+		[
 			htmlToElem(
 				//
-				` <div class="js-feed" style="background: white;"></div> `,
-				[feedElem],
+				`<div class="flex w-full"></div>`,
+				[$select, $addZone, $removeZone],
 			),
-			htmlToElem(`
-				<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>
+		],
+	);
+	return {
+		elem,
+		$select,
+		$addZone,
+		$removeZone,
+		/** @param {Zone[]} zones */
+		updateOptions(zones) {
+			const frag = new DocumentFragment();
+			for (const index of Object.keys(zones)) {
+				frag.append(htmlToElem(`<option>zone ${index}</option>`));
+			}
+			$select.replaceChildren(frag);
+		},
+		/** @param {number} index */
+		setSelectedZoneIndex(index) {
+			$select.value = `zone ${index}`;
+		},
+		/** @return {number} */
+		getSelectedZoneIndex() {
+			return Number($select.value.slice(5, 6));
+		},
+	};
+}
+
+function newThresholdsField() {
+	/** @type {HTMLInputElement} */
+	// @ts-ignore
+	const $min = htmlToElem(/* HTML */ `
+		<input
+			class="w-full mr-4 pl-2 text-1.5"
+			style="height: calc(var(--scale) * 2.5rem);"
+			type="number"
+			min="0"
+			max="100"
+			step="any"
+		/>
+	`);
+	/** @type {HTMLInputElement} */
+	// @ts-ignore
+	const $max = htmlToElem(/* HTML */ `
+		<input
+			class="grow w-full pl-2 text-1.5"
+			style="height: calc(var(--scale) * 2.5rem);"
+			type="number"
+			min="0"
+			max="100"
+			step="any"
+		/>
+	`);
+	const elem = htmlToElem(
+		`<li class="items-center p-2 border-b-2 border-color1"></li>`,
+		[
+			htmlToElem(/* HTML */ `
+				<label
+					class="grow w-full text-1.5 text-color"
+					style="float: left; min-width: calc(var(--scale) * 13.5rem);"
+					>Threshold Min-Max</label
+				>
 			`),
-		]),
-		zonesPreviewOptions(),
-	];
+			htmlToElem(`<div class="flex w-full"></div>`, [$min, $max]),
+		],
+	);
+	return { elem, $min, $max };
+}
+
+function newZonesPreviewOptions() {
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $x1 = htmlToElem(/* HTML */ `
+		<button
+			class="js-1x pl-2 pr-1 text-1.4 text-color bg-color2 hover:bg-color1"
+			style="
+				border-top-left-radius: var(--radius-xl);
+				border-bottom-left-radius: var(--radius-xl);
+			"
+		>
+			1x
+		</button>
+	`);
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $x4 = htmlToElem(/* HTML */ `
+		<button
+			class="js-4x px-1 text-1.4 text-color bg-color2 hover:bg-color1 motion-step-size-selected"
+		>
+			4x
+		</button>
+	`);
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $x10 = htmlToElem(/* HTML */ `
+		<button class="js-10x px-1 text-1.4 text-color bg-color2 hover:bg-color1">
+			10x
+		</button>
+	`);
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $x20 = htmlToElem(/* HTML */ `
+		<button
+			class="js-20x pl-1 pr-2 text-1.4 text-color bg-color2 hover:bg-color1"
+			style="
+							border-top-right-radius: var(--radius-xl);
+							border-bottom-right-radius: var(--radius-xl);
+						"
+		>
+			20x
+		</button>
+	`);
+
+	/** @type {HTMLInputElement} */
+	// @ts-ignore
+	const $x = htmlToElem(/* HTML */ `
+		<input
+			class="js-x mr-1 text-center text-1.4"
+			style="width: calc(var(--scale) * 3.5rem);"
+			type="number"
+			min="0"
+			max="100"
+		/>
+	`);
+	/** @type {HTMLInputElement} */
+	// @ts-ignore
+	const $y = htmlToElem(/* HTML */ `
+		<input
+			class="js-y text-center text-1.4"
+			style="width: calc(var(--scale) * 3.5rem);"
+			type="number"
+			min="0"
+			max="100"
+		/>
+	`);
+
+	const elem = htmlToElem(
+		/* HTML */ `
+			<li
+				class="flex items-center p-2 border-b-2 border-color1"
+				style="flex-wrap: wrap; justify-content: space-between"
+			></li>
+		`,
+		[
+			htmlToElem(
+				//
+				`<div class="flex"></div>`,
+				[$x1, $x4, $x10, $x20],
+			),
+			htmlToElem(
+				//
+				`<div class="flex"></div>`,
+				[$x, $y],
+			),
+		],
+	);
+
+	return { elem, $x1, $x4, $x10, $x20, $x, $y };
 }
 
 /**
@@ -306,118 +329,169 @@ function zonesModalElem(feedElem, enableID, sensitivityID, previewID) {
  * @return {Field<ZoneData[]>}
  */
 function zones(hasSubStream, getMonitorId) {
-	/** @type {Modal} */
-	let modal;
 	/** @type {ZoneData[]} */
 	let value;
-	let $modalContent, $enable, $sensitivity, $thresholdMin, $thresholdMax, $preview;
-	/** @type Element */
-	let $feed;
-	let $feedOverlay;
-	/** @type HTMLSelectElement */
-	let $zoneSelect;
-	let stepSize = 4;
-	/** @type {OnChangeFunc} */
-	let onZoneChange;
+
 	/** @type {Zone[]} */
 	let zones;
-	/** @type {Feed} */
-	let feed;
 
-	const enableID = uniqueID();
-	const sensitivityID = uniqueID();
-	const previewID = uniqueID();
+	/** @returns {[Modal, Element, () => void]} */
+	const renderModal = () => {
+		let stepSize = 4;
 
-	/**
-	 * @param {Element} element
-	 * @param {Element} feedElem
-	 */
-	const renderModal = (element, feedElem) => {
-		modal = newModal(
-			"Zones",
-			zonesModalElem(feedElem, enableID, sensitivityID, previewID),
+		const zoneSelect = newZoneSelectField();
+		const enable = newRawSelectField("Enable", ["true", "false"]);
+		const sensitivity = newRawField(
+			{
+				min: 0,
+				max: 100,
+			},
+			"number",
+			"Sensitivity",
 		);
+		const thresholds = newThresholdsField();
+		const preview = newRawSelectField("Preview", ["true", "false"]);
+		$feed = htmlToElem(`<div class="js-feed" style="background: white;"></div>`);
+		const $feedOverlay = htmlToElem(
+			`<div class="js-feed-overlay absolute w-full h-full" style="top: 0;"></div>`,
+		);
+		const previewOptions = newZonesPreviewOptions();
 
-		element.append(modal.elem);
-		$modalContent = modal.init();
-
-		$zoneSelect = $modalContent.querySelector(".js-zone-select");
-
-		$enable = document.querySelector(`#${enableID} select`);
-		$enable.addEventListener("change", () => {
-			getSelectedZone().setEnable($enable.value === "true");
-		});
-
-		$sensitivity = document.querySelector(`#${sensitivityID} input`);
-		$sensitivity.addEventListener("change", () => {
-			getSelectedZone().setSensitivity(
-				Math.min(100, Math.max($sensitivity.value, 0)),
-			);
-		});
-
-		$thresholdMin = $modalContent.querySelector(".js-threshold-min");
-		$thresholdMin.addEventListener("change", () => {
-			getSelectedZone().setThresholdMin(
-				Math.min(100, Math.max($thresholdMin.value, 0)),
-			);
-		});
-		$thresholdMax = $modalContent.querySelector(".js-threshold-max");
-		$thresholdMax.addEventListener("change", () => {
-			getSelectedZone().setThresholdMax(
-				Math.min(100, Math.max($thresholdMax.value, 0)),
-			);
-		});
-
-		$feed = $modalContent.querySelector(".js-feed");
-		$feedOverlay = $modalContent.querySelector(".js-feed-overlay");
-
-		/** @type {HTMLElement} */
-		const $x1 = $modalContent.querySelector(".js-1x");
-		/** @type {HTMLElement} */
-		const $x4 = $modalContent.querySelector(".js-4x");
-		/** @type {HTMLElement} */
-		const $x10 = $modalContent.querySelector(".js-10x");
-		/** @type {HTMLElement} */
-		const $x20 = $modalContent.querySelector(".js-20x");
-
-		/** @type {HTMLInputElement} */
-		const $x = $modalContent.querySelector(".js-x");
-		/** @type {HTMLInputElement} */
-		const $y = $modalContent.querySelector(".js-y");
-
-		onZoneChange = (_, x, y) => {
-			$x.value = x.toString();
-			$y.value = y.toString();
+		/** @type {OnChangeFunc} */
+		const onZoneChange = (_, x, y) => {
+			previewOptions.$x.value = x.toString();
+			previewOptions.$y.value = y.toString();
 		};
 
-		zones = denormalizeZones(value).map((z) =>
-			newZone($feedOverlay, z, stepSize, onZoneChange),
-		);
+		const updateZones = () => {
+			const frag = new DocumentFragment();
+			zones = [];
+			for (const z of denormalizeZones(value)) {
+				const zone = newZone(z, stepSize, onZoneChange);
+				frag.append(zone.elem);
+				zones.push(zone);
+			}
+			$feedOverlay.append(frag);
+		};
+		updateZones();
 		value = undefined;
+
+		zoneSelect.updateOptions(zones);
+
+		// The selected zone must be on top.
+		let zIndex = 0;
+		const updateZindex = () => {
+			zIndex += 1;
+			getSelectedZone(zones).setZindex(zIndex);
+		};
+
+		const loadZone = () => {
+			const v = getSelectedZone(zones).value;
+			enable.$input.value = v.enable.toString();
+			sensitivity.$input.value = v.sensitivity.toString();
+			thresholds.$min.value = v.thresholdMin.toString();
+			thresholds.$max.value = v.thresholdMax.toString();
+			preview.$input.value = v.preview.toString();
+			updateZindex();
+
+			const colorMap = [
+				"red",
+				"green",
+				"blue",
+				"yellow",
+				"purple",
+				"orange",
+				"grey",
+				"cyan",
+			];
+			for (const [i, zone] of zones.entries()) {
+				zone.setColor(colorMap[i]);
+				zone.setEnabled(false);
+			}
+			getSelectedZone(zones).setEnabled(true);
+		};
+
+		zoneSelect.$select.onchange = loadZone;
+
+		/** @param {Zone[]} zones */
+		const getSelectedZone = (zones) => {
+			return zones[zoneSelect.getSelectedZoneIndex()];
+		};
+
+		zoneSelect.$addZone.onclick = () => {
+			const zone = newZone(defaultZone(), stepSize, onZoneChange);
+			$feedOverlay.append(zone.elem);
+			zones.push(zone);
+			zoneSelect.updateOptions(zones);
+			zoneSelect.setSelectedZoneIndex(zones.length - 1);
+			loadZone();
+			updatePreview();
+		};
+		zoneSelect.$removeZone.onclick = () => {
+			if (zones.length > 1 && confirm("delete zone?")) {
+				getSelectedZone(zones).destroy();
+				const index = zoneSelect.getSelectedZoneIndex();
+				zones.splice(index, 1);
+				zoneSelect.updateOptions(zones);
+				zoneSelect.setSelectedZoneIndex(zones.length - 1);
+				loadZone();
+				updatePreview();
+			}
+		};
+		enable.$input.onchange = () => {
+			getSelectedZone(zones).setEnable(enable.$input.value === "true");
+		};
+		sensitivity.$input.onchange = () => {
+			getSelectedZone(zones).setSensitivity(
+				Math.min(100, Math.max(Number(sensitivity.$input.value), 0)),
+			);
+		};
+
+		thresholds.$min.addEventListener("change", () => {
+			getSelectedZone(zones).setThresholdMin(
+				Math.min(100, Math.max(Number(thresholds.$min.value), 0)),
+			);
+		});
+		thresholds.$max.addEventListener("change", () => {
+			getSelectedZone(zones).setThresholdMax(
+				Math.min(100, Math.max(Number(thresholds.$max.value), 0)),
+			);
+		});
+
+		const updatePreview = () => {
+			for (const zone of zones) {
+				zone.update();
+			}
+		};
+
+		preview.$input.onchange = () => {
+			getSelectedZone(zones).setPreview(preview.$input.value === "true");
+			updatePreview();
+		};
 
 		/** @param {number} v */
 		const setStepSize = (v) => {
 			const selectedClass = "motion-step-size-selected";
-			$x1.classList.remove(selectedClass);
-			$x4.classList.remove(selectedClass);
-			$x10.classList.remove(selectedClass);
-			$x20.classList.remove(selectedClass);
+			previewOptions.$x1.classList.remove(selectedClass);
+			previewOptions.$x4.classList.remove(selectedClass);
+			previewOptions.$x10.classList.remove(selectedClass);
+			previewOptions.$x20.classList.remove(selectedClass);
 
 			switch (v) {
 				case 1: {
-					$x1.classList.add(selectedClass);
+					previewOptions.$x1.classList.add(selectedClass);
 					break;
 				}
 				case 4: {
-					$x4.classList.add(selectedClass);
+					previewOptions.$x4.classList.add(selectedClass);
 					break;
 				}
 				case 10: {
-					$x10.classList.add(selectedClass);
+					previewOptions.$x10.classList.add(selectedClass);
 					break;
 				}
 				case 20: {
-					$x20.classList.add(selectedClass);
+					previewOptions.$x20.classList.add(selectedClass);
 					break;
 				}
 				default: {
@@ -430,27 +504,29 @@ function zones(hasSubStream, getMonitorId) {
 			}
 		};
 
-		$x1.addEventListener("click", () => {
+		previewOptions.$x1.onclick = () => {
 			setStepSize(1);
-		});
-		$x4.addEventListener("click", () => {
+		};
+		previewOptions.$x4.onclick = () => {
 			setStepSize(4);
-		});
-		$x10.addEventListener("click", () => {
+		};
+		previewOptions.$x10.onclick = () => {
 			setStepSize(10);
-		});
-		$x20.addEventListener("click", () => {
+		};
+		previewOptions.$x20.onclick = () => {
 			setStepSize(20);
-		});
+		};
 
-		$x.addEventListener("change", () => {
+		const $x = previewOptions.$x;
+		const $y = previewOptions.$y;
+		previewOptions.$x.onchange = () => {
 			$x.value = String(Math.min(100, Math.max(0, Number($x.value))));
-			getSelectedZone().setXY(Number($x.value), Number($y.value));
-		});
-		$y.addEventListener("change", () => {
+			getSelectedZone(zones).setXY(Number($x.value), Number($y.value));
+		};
+		previewOptions.$y.onchange = () => {
 			$y.value = String(Math.min(100, Math.max(0, Number($y.value))));
-			getSelectedZone().setXY(Number($x.value), Number($y.value));
-		});
+			getSelectedZone(zones).setXY(Number($x.value), Number($y.value));
+		};
 
 		let shiftPressed = false;
 		let ctrlPressed = false;
@@ -497,99 +573,34 @@ function zones(hasSubStream, getMonitorId) {
 			}
 		});
 
-		const updatePreview = () => {
+		const elems = [
+			zoneSelect.elem,
+			enable.elem,
+			sensitivity.elem,
+			thresholds.elem,
+			preview.elem,
+			htmlToElem(`<li class="relative mx-2 mt-1"></li>`, [$feed, $feedOverlay]),
+			previewOptions.elem,
+		];
+
+		modal = newModal("Zones", elems);
+
+		elem.append(modal.elem);
+
+		loadZone();
+		updatePreview();
+
+		onSet = () => {
 			for (const zone of zones) {
-				zone.update();
+				zone.destroy();
 			}
+			updateZones();
+			zoneSelect.setSelectedZoneIndex(0);
+			zoneSelect.updateOptions(zones);
+			loadZone();
 		};
 
-		$preview = document.querySelector(`#${previewID} select`);
-		$preview.addEventListener("change", () => {
-			getSelectedZone().setPreview($preview.value === "true");
-			updatePreview();
-		});
-
-		$zoneSelect.addEventListener("change", () => {
-			loadZone();
-		});
-
-		$modalContent.querySelector(".js-add-zone").addEventListener("click", () => {
-			zones.push(newZone($feedOverlay, defaultZone(), stepSize, onZoneChange));
-			$zoneSelect.replaceChildren(zoneSelectHTML());
-			setSelectedZoneIndex(zones.length - 1);
-			loadZone();
-			updatePreview();
-		});
-
-		$modalContent.querySelector(".js-remove-zone").addEventListener("click", () => {
-			if (zones.length > 1 && confirm("delete zone?")) {
-				getSelectedZone().destroy();
-				const index = getSelectedZoneIndex();
-				zones.splice(index, 1);
-				$zoneSelect.replaceChildren(zoneSelectHTML());
-				setSelectedZoneIndex(zones.length - 1);
-				loadZone();
-				updatePreview();
-			}
-		});
-
-		$zoneSelect.replaceChildren(zoneSelectHTML());
-		loadZone();
-
-		updatePreview();
-	};
-
-	/** @param {number} index */
-	const setSelectedZoneIndex = (index) => {
-		$zoneSelect.value = `zone ${index}`;
-	};
-	/** @return {number} */
-	const getSelectedZoneIndex = () => {
-		return Number($zoneSelect.value.slice(5, 6));
-	};
-	const getSelectedZone = () => {
-		return zones[getSelectedZoneIndex()];
-	};
-
-	// The selected zone must be on top.
-	let zIndex = 0;
-	const updateZindex = () => {
-		zIndex += 1;
-		getSelectedZone().setZindex(zIndex);
-	};
-
-	const loadZone = () => {
-		const selectedZone = getSelectedZone();
-		$enable.value = selectedZone.enable().toString();
-		$sensitivity.value = selectedZone.sensitivity().toString();
-		$thresholdMin.value = selectedZone.thresholdMin().toString();
-		$thresholdMax.value = selectedZone.thresholdMax().toString();
-		$preview.value = selectedZone.preview().toString();
-		updateZindex();
-
-		const colorMap = [
-			"red",
-			"green",
-			"blue",
-			"yellow",
-			"purple",
-			"orange",
-			"grey",
-			"cyan",
-		];
-		for (const [i, zone] of zones.entries()) {
-			zone.setColor(colorMap[i]);
-			zone.setEnabled(false);
-		}
-		getSelectedZone().setEnabled(true);
-	};
-
-	const zoneSelectHTML = () => {
-		const frag = new DocumentFragment();
-		for (const index of Object.keys(zones)) {
-			frag.append(htmlToElem(`<option>zone ${index}</option>`));
-		}
-		return frag;
+		return [modal, $feed, onSet];
 	};
 
 	/** @return {ZoneData} */
@@ -609,40 +620,47 @@ function zones(hasSubStream, getMonitorId) {
 		};
 	};
 
-	let rendered;
+	/** @type {Modal} */
+	let modal;
 
-	const id = uniqueID();
+	/** @type {Element} */
+	let $feed;
+
+	/** @type {() => void} */
+	let onSet;
+
+	/** @type {Feed} */
+	let feed;
+
+	let rendered = false;
+	const elem = newModalField("Zones", () => {
+		// On open modal.
+		if (feed !== undefined) {
+			feed.destroy();
+		}
+		const monitor = {
+			id: getMonitorId(),
+			audioEnabled: "false",
+			hasSubStream: hasSubStream(getMonitorId()),
+		};
+		feed = newStreamer(monitor, true);
+
+		if (!rendered) {
+			[modal, $feed, onSet] = renderModal();
+			rendered = true;
+		}
+		modal.onClose = feed.destroy;
+		modal.open();
+
+		// Update feed.
+		$feed.replaceChildren(feed.elem);
+	});
+
 	return {
-		elems: [newModalFieldHTML(id, "Zones")],
-		init() {
-			const element = document.querySelector(`#${id}`);
-			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				// On open modal.
-				const monitor = {
-					id: getMonitorId(),
-					audioEnabled: "false",
-					hasSubStream: hasSubStream(getMonitorId()),
-				};
-				feed = newStreamer(monitor, true);
-
-				if (rendered) {
-					// Update feed.
-					$feed.replaceChildren(feed.elem);
-				} else {
-					renderModal(element, feed.elem);
-					modal.onClose(() => {
-						feed.destroy();
-					});
-					rendered = true;
-				}
-
-				modal.open();
-				feed.init();
-			});
-		},
+		elems: [elem],
 		value() {
 			if (rendered) {
-				return normalizeZones(zones.map((z) => z.value()));
+				return normalizeZones(zones.map((z) => z.value));
 			}
 			return value;
 		},
@@ -650,15 +668,7 @@ function zones(hasSubStream, getMonitorId) {
 			// @ts-ignore
 			value = input === undefined ? normalizeZones([defaultZone()]) : input;
 			if (rendered) {
-				for (const zone of zones) {
-					zone.destroy();
-				}
-				zones = denormalizeZones(value).map((z) =>
-					newZone($feedOverlay, z, stepSize, onZoneChange),
-				);
-				setSelectedZoneIndex(0);
-				$zoneSelect.replaceChildren(zoneSelectHTML());
-				loadZone();
+				onSet();
 			}
 		},
 	};
@@ -666,13 +676,8 @@ function zones(hasSubStream, getMonitorId) {
 
 /**
  * @typedef {Object} Zone
- * @property {() => ZoneData} value
- * @property {() => ZoneArea} area
- * @property {() => boolean} enable
- * @property {() => number} sensitivity
- * @property {() => number} thresholdMin
- * @property {() => number} thresholdMax
- * @property {() => boolean} preview
+ * @property {Element} elem
+ * @property {ZoneData} value
  * @property {(v: ZoneArea) => void} setArea
  * @property {(v: boolean) => void} setEnable
  * @property {(v: number) =>  void} setSensitivity
@@ -691,13 +696,12 @@ function zones(hasSubStream, getMonitorId) {
 /** @typedef {import("./components/polygonEditor.js").OnChangeFunc} OnChangeFunc */
 
 /**
- * @param {Element} $parent
  * @param {ZoneData} value
  * @param {number} stepSize
  * @param {OnChangeFunc} onChange
  * @return {Zone}
  */
-function newZone($parent, value, stepSize, onChange) {
+function newZone(value, stepSize, onChange) {
 	const html = /* HTML */ `
 		<svg
 			class="absolute w-full h-full"
@@ -707,11 +711,10 @@ function newZone($parent, value, stepSize, onChange) {
 		></svg>
 	`.trim(); // element.style is undefined without trim() for some reason.
 
-	const element = htmlToElem(html);
-	$parent.append(element);
+	const elem = htmlToElem(html);
 
 	// @ts-ignore
-	const editor = newPolygonEditor(element, {
+	const editor = newPolygonEditor(elem, {
 		stepSize,
 		onChange,
 		visible: value.preview,
@@ -719,30 +722,9 @@ function newZone($parent, value, stepSize, onChange) {
 	editor.set(value.area);
 
 	return {
-		value() {
-			return value;
-		},
-		area() {
-			return value.area;
-		},
-		enable() {
-			return value.enable;
-		},
-		sensitivity() {
-			return value.sensitivity;
-		},
+		elem,
+		value,
 
-		thresholdMin() {
-			return value.thresholdMin;
-		},
-
-		thresholdMax() {
-			return value.thresholdMax;
-		},
-
-		preview() {
-			return value.preview;
-		},
 		/** @param {ZoneArea} v */
 		setArea(v) {
 			value.area = v;
@@ -776,11 +758,11 @@ function newZone($parent, value, stepSize, onChange) {
 			editor.set(value.area);
 		},
 		destroy() {
-			element.remove();
+			elem.remove();
 		},
 		setZindex(v) {
 			// @ts-ignore
-			element.style.zIndex = v.toString();
+			elem.style.zIndex = v.toString();
 		},
 		setEnabled(enabled) {
 			editor.enabled(enabled);

@@ -2,16 +2,17 @@
 
 // @ts-check
 
-import { uniqueID, htmlToElem } from "../libs/common.js";
+import { htmlToElem } from "../libs/common.js";
 
 /**
  * @typedef {Object} Modal
  * @property {Element} elem
+ * @property {Element} $content
  * @property {() => void} open
  * @property {() => void} close
  * @property {(func: () => void) => void} onClose
  * @property {() => boolean} isOpen
- * @property {() => Element} init
+ * @property {HTMLButtonElement} testingCloseBtn
  */
 
 /**
@@ -20,86 +21,84 @@ import { uniqueID, htmlToElem } from "../libs/common.js";
  * @return {Modal}
  */
 function newModal(label, content = []) {
-	/** @type {Element} */
-	let $wrapper;
 	/** @type {() => void} */
 	let onClose;
 
-	const wrapperId = uniqueID();
-	return {
-		elem: htmlToElem(
-			/* HTML */ `
-				<div
-					id="${wrapperId}"
-					class="w-full h-full"
-					style="
-						position: fixed;
-						top: 0;
-						left: 0;
-						z-index: 20;
-						display: none;
-						overflow-y: auto;
-						background-color: rgb(0 0 0 / 40%);
-					"
-				></div>
-			`,
-			[
-				htmlToElem(
-					//
-					`<div class="modal js-modal flex"></div>`,
-					[
-						htmlToElem(/* HTML */ `
-							<header class="modal-header flex px-2 bg-color2">
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $closeBtn = htmlToElem(/* HTML */ `
+		<button class="flex m-auto rounded-md bg-color3">
+			<img
+				class="icon-filter"
+				style="width: calc(var(--scale) * 2.5rem);"
+				src="assets/icons/feather/x.svg"
+			/>
+		</button>
+	`);
+	const $content = htmlToElem(
+		/* HTML */ ` <div class="h-full bg-color3" style="overflow-y: visible;"></div> `,
+		content,
+	);
+	const elem = htmlToElem(
+		/* HTML */ `
+			<div
+				class="w-full h-full"
+				style="
+					position: fixed;
+					top: 0;
+					left: 0;
+					z-index: 20;
+					display: none;
+					overflow-y: auto;
+					background-color: rgb(0 0 0 / 40%);
+				"
+			></div>
+		`,
+		[
+			htmlToElem(
+				//
+				`<div class="modal flex"></div>`,
+				[
+					htmlToElem(
+						`<header class="modal-header flex px-2 bg-color2"></header>`,
+						[
+							htmlToElem(/* HTML */ `
 								<span
 									class="w-full text-center text-2 text-color"
 									style="padding-left: calc(var(--scale) * 2.5rem);"
-								>${label}</span>
-								<button class="js-modal-close-btn flex m-auto rounded-md bg-color3">
-									<img
-										class="icon-filter"
-										style="width: calc(var(--scale) * 2.5rem);"
-										src="assets/icons/feather/x.svg"
-									></img>
-								</button>
-							</header>`),
-						htmlToElem(
-							/* HTML */ `
-								<div
-									class="js-modal-content h-full bg-color3"
-									style="overflow-y: visible;"
-								></div>
-							`,
-							content,
-						),
-					],
-				),
-			],
-		),
-
+									>${label}</span
+								>
+							`),
+							$closeBtn,
+						],
+					),
+					$content,
+				],
+			),
+		],
+	);
+	$closeBtn.onclick = () => {
+		elem.classList.remove("modal-open");
+		if (onClose) {
+			onClose();
+		}
+	};
+	return {
+		elem,
+		$content,
 		open() {
-			$wrapper.classList.add("modal-open");
+			elem.classList.add("modal-open");
 		},
 		close() {
-			$wrapper.classList.remove("modal-open");
+			elem.classList.remove("modal-open");
 		},
 		onClose(func) {
 			onClose = func;
 		},
 		isOpen() {
-			return $wrapper.classList.contains("modal-open");
+			return elem.classList.contains("modal-open");
 		},
-		init() {
-			$wrapper = document.getElementById(wrapperId);
-			$wrapper
-				.querySelector(".js-modal-close-btn")
-				.addEventListener("click", () => {
-					$wrapper.classList.remove("modal-open");
-					if (onClose) {
-						onClose();
-					}
-				});
-			return $wrapper.querySelector(".js-modal-content");
-		},
+		testingCloseBtn: $closeBtn,
 	};
 }
 
@@ -108,13 +107,12 @@ function newModal(label, content = []) {
  * @param {string} name
  * @param {string[]} options
  * @param {(name: string) => void} onSelect
+ * @param {Element} $parent
  * @return {ModalSelect}
-
  */
 
 /**
  * @typedef {Object} ModalSelect
- * @property {($parent: Element) => void} init
  * @property {() => void} open
  * @property {(v: string) => void} set
  * @property {() => boolean} isOpen
@@ -125,64 +123,46 @@ function newModal(label, content = []) {
  *
  * @type {NewModalSelectFunc}
  */
-function newModalSelect(name, options, onSelect) {
+function newModalSelect(name, options, onSelect, $parent) {
 	const renderOptions = () => {
 		const optionElems = [];
 		for (const option of options) {
-			const html = /* HTML */ `
+			const elem = htmlToElem(/* HTML */ `
 				<span
 					data="${option}"
 					class="js-option px-2 border text-1.5 border-color1 text-color"
 					>${option}</span
 				>
-			`;
-			optionElems.push(htmlToElem(html));
+			`);
+			optionElems.push(elem);
 		}
 		return htmlToElem(
-			`<div class="js-selector flex" style="flex-wrap: wrap;"></div>`,
+			`<div class="flex" style="flex-wrap: wrap;"></div>`,
 			optionElems,
 		);
 	};
 
-	/** @type {Element} */
-	let $parent;
 	/** $type {string} */
 	let value;
-	/** @type {Modal} */
-	let modal;
-	/** @type {Element} */
-	let $modalContent;
-	/** @type {Element} */
-	let $selector;
 
-	let isRendered = false;
-	const render = () => {
-		if (isRendered) {
-			return;
-		}
-		modal = newModal(name, [renderOptions()]);
-		$parent.append(modal.elem);
-		$modalContent = modal.init();
-		$selector = $modalContent.querySelector(".js-selector");
-
-		$selector.addEventListener("click", (e) => {
-			const target = e.target;
-			if (target instanceof HTMLElement) {
-				if (!target.classList.contains("js-option")) {
-					return;
-				}
-
-				clearSelection();
-				target.classList.add("modal-select-option-selected");
-
-				const name = target.textContent;
-				value = name;
-				onSelect(name);
-				modal.close();
+	const $selector = renderOptions();
+	$selector.addEventListener("click", (e) => {
+		const target = e.target;
+		if (target instanceof HTMLElement) {
+			if (!target.classList.contains("js-option")) {
+				return;
 			}
-		});
-		isRendered = true;
-	};
+
+			clearSelection();
+			target.classList.add("modal-select-option-selected");
+
+			const name = target.textContent;
+			value = name;
+			onSelect(name);
+			modal.close();
+		}
+	});
+	const modal = newModal(name, [$selector]);
 
 	const clearSelection = () => {
 		const options = $selector.querySelectorAll(".js-option");
@@ -191,16 +171,17 @@ function newModalSelect(name, options, onSelect) {
 		}
 	};
 
+	let rendered = false;
 	return {
-		init(parent) {
-			$parent = parent;
-		},
 		open() {
-			render();
+			if (!rendered) {
+				$parent.append(modal.elem);
+				rendered = true;
+			}
 			clearSelection();
 
 			// Highlight selected option.
-			const option = $modalContent.querySelector(`.js-option[data='${value}']`);
+			const option = modal.$content.querySelector(`.js-option[data='${value}']`);
 			if (option) {
 				option.classList.add("modal-select-option-selected");
 			}

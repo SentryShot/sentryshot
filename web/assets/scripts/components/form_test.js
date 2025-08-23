@@ -2,16 +2,13 @@
 
 // @ts-check
 
-import { uidReset, htmlToElems } from "../libs/common.js";
+import { uidReset, htmlToElem } from "../libs/common.js";
 import {
 	newForm,
 	newNumberField,
 	inputRules,
 	fieldTemplate,
-	newSelectCustomField,
-	newModalFieldHTML,
 	newPasswordField,
-	$getInputAndError,
 } from "./form.js";
 
 /**
@@ -21,16 +18,12 @@ import {
 
 describe("newForm", () => {
 	test("logic", () => {
-		let initCalled = false;
 		let validateCalled = false;
 		let setValue;
 
 		const mockField = {
 			field: {
-				elems: htmlToElems("<span>html</span>"),
-				init() {
-					initCalled = true;
-				},
+				elems: [htmlToElem("<span>html</span>")],
 				/** @param {any} input */
 				set(input) {
 					setValue = input;
@@ -51,10 +44,6 @@ describe("newForm", () => {
 
 		const form = newForm(mockField);
 		document.body.replaceChildren(form.elem());
-
-		expect(initCalled).toBe(false);
-		form.init();
-		expect(initCalled).toBe(true);
 
 		expect(setValue).toBeUndefined();
 		form.set({ field: true });
@@ -77,7 +66,7 @@ describe("newForm", () => {
 	const newTestForm = () => {
 		return newForm({
 			field: {
-				elems: htmlToElems("<span>html</span>"),
+				elems: [htmlToElem("<span>html</span>")],
 			},
 		});
 	};
@@ -95,9 +84,7 @@ describe("newForm", () => {
     html
   </span>
   <div class="flex">
-    <button id="uid1"
-            class="m-2 px-2 rounded-lg bg-green hover:bg-green2"
-    >
+    <button class="m-2 px-2 rounded-lg bg-green hover:bg-green2">
       <span class="text-2 text-color">
         Save
       </span>
@@ -115,9 +102,8 @@ describe("newForm", () => {
 			};
 			form.addButton("save", onSave);
 			document.body.replaceChildren(form.elem());
-			form.init();
 
-			form.buttons()["save"].element().click();
+			form.buttons["save"].click();
 
 			expect(clicked).toBe(true);
 		});
@@ -136,8 +122,7 @@ describe("newForm", () => {
     html
   </span>
   <div class="flex">
-    <button id="uid1"
-            class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
+    <button class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
             style="margin-left: auto;"
     >
       <span class="text-2 text-color">
@@ -157,10 +142,8 @@ describe("newForm", () => {
 			};
 			form.addButton("delete", onDelete);
 			document.body.replaceChildren(form.elem());
-			form.init();
 
-			// @ts-ignore
-			form.buttons()["delete"].element().click();
+			form.buttons["delete"].click();
 
 			expect(clicked).toBe(true);
 		});
@@ -179,15 +162,12 @@ describe("newForm", () => {
     html
   </span>
   <div class="flex">
-    <button id="uid1"
-            class="m-2 px-2 rounded-lg bg-green hover:bg-green2"
-    >
+    <button class="m-2 px-2 rounded-lg bg-green hover:bg-green2">
       <span class="text-2 text-color">
         Save
       </span>
     </button>
-    <button id="uid2"
-            class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
+    <button class="m-2 px-2 bg-red rounded-lg hover:bg-red2"
             style="margin-left: auto;"
     >
       <span class="text-2 text-color">
@@ -204,34 +184,28 @@ describe("newField", () => {
 	const newTestField = () => {
 		return newNumberField(
 			{
-				errorField: true,
-				input: "number",
 				min: 2,
 				max: 4,
 				step: 0.5,
 			},
-			{
-				label: "a",
-				placeholder: "b",
-				initial: 3,
-			},
+			"a",
+			"b",
+			3,
 		);
 	};
 	test("rendering", () => {
 		uidReset();
 
 		expect(elemsToHTML(newTestField().elems)).toMatchInlineSnapshot(`
-<li id="uid1"
-    class="items-center px-2  border-b-2 border-color1"
->
-  <label for="label-uid1"
+<li class="items-center px-2 border-b-2 border-color1">
+  <label for="uid1"
          class="grow w-full text-1.5 text-color"
          style="float: left;"
   >
     a
   </label>
-  <input id="label-uid1"
-         class="js-input w-full text-1.5"
+  <input id="uid1"
+         class="w-full text-1.5"
          style="
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
@@ -243,13 +217,13 @@ describe("newField", () => {
          max="4"
          step="0.5"
   >
-  <span class="js-error text-red"
+  <span class="text-red"
         style="
-					height: calc(var(--scale) * 1.5rem);
-					font-size: calc(var(--scale) * 1rem);
-					white-space: nowrap;
-					overflow: auto;
-				"
+				height: calc(var(--scale) * 1.5rem);
+				font-size: calc(var(--scale) * 1rem);
+				white-space: nowrap;
+				overflow: auto;
+			"
   >
   </span>
 </li>
@@ -258,7 +232,6 @@ describe("newField", () => {
 	test("validate", () => {
 		const field = newTestField();
 		document.body.replaceChildren(...field.elems);
-		field.init();
 
 		field.set(1);
 		expect(field.validate()).toBe(`"a": Constraints not satisfied`);
@@ -333,8 +306,8 @@ describe("fieldTemplate", () => {
 		expect([0, ""]).toContain(field.value());
 	};
 	const testOnChange = () => {
-		const element = document.getElementById("uid1");
-		const [$input, $error] = $getInputAndError(element);
+		const $input = document.querySelector("input");
+		const $error = document.querySelector("span");
 		expect($error.innerHTML).toBe("");
 
 		$input.value = "";
@@ -349,17 +322,15 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.text("1", "2");
 
 		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
-<li id="uid1"
-    class="items-center px-2  border-b-2 border-color1"
->
-  <label for="label-uid1"
+<li class="items-center px-2 border-b-2 border-color1">
+  <label for="uid1"
          class="grow w-full text-1.5 text-color"
          style="float: left;"
   >
     1
   </label>
-  <input id="label-uid1"
-         class="js-input w-full text-1.5"
+  <input id="uid1"
+         class="w-full text-1.5"
          style="
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
@@ -368,20 +339,19 @@ describe("fieldTemplate", () => {
          type="text"
          placeholder="2"
   >
-  <span class="js-error text-red"
+  <span class="text-red"
         style="
-					height: calc(var(--scale) * 1.5rem);
-					font-size: calc(var(--scale) * 1rem);
-					white-space: nowrap;
-					overflow: auto;
-				"
+				height: calc(var(--scale) * 1.5rem);
+				font-size: calc(var(--scale) * 1rem);
+				white-space: nowrap;
+				overflow: auto;
+			"
   >
   </span>
 </li>
 `);
 
 		document.body.replaceChildren(...field.elems);
-		field.init();
 
 		field.set("x");
 		expect(field.validate()).toBeUndefined();
@@ -396,17 +366,15 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.integer("1", "2");
 
 		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
-<li id="uid1"
-    class="items-center px-2  border-b-2 border-color1"
->
-  <label for="label-uid1"
+<li class="items-center px-2 border-b-2 border-color1">
+  <label for="uid1"
          class="grow w-full text-1.5 text-color"
          style="float: left;"
   >
     1
   </label>
-  <input id="label-uid1"
-         class="js-input w-full text-1.5"
+  <input id="uid1"
+         class="w-full text-1.5"
          style="
 					height: calc(var(--scale) * 2.5rem);
 					overflow: auto;
@@ -417,20 +385,19 @@ describe("fieldTemplate", () => {
          min="0"
          step="1"
   >
-  <span class="js-error text-red"
+  <span class="text-red"
         style="
-					height: calc(var(--scale) * 1.5rem);
-					font-size: calc(var(--scale) * 1rem);
-					white-space: nowrap;
-					overflow: auto;
-				"
+				height: calc(var(--scale) * 1.5rem);
+				font-size: calc(var(--scale) * 1rem);
+				white-space: nowrap;
+				overflow: auto;
+			"
   >
   </span>
 </li>
 `);
 
 		document.body.replaceChildren(...field.elems);
-		field.init();
 
 		field.set(5);
 		expect(field.validate()).toBeUndefined();
@@ -447,18 +414,16 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.toggle("1", true);
 
 		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
-<li id="uid1"
-    class="items-center px-2 pb-1 border-b-2 border-color1"
->
-  <label for="label-uid1"
+<li class="items-center px-2 pb-1 border-b-2 border-color1">
+  <label for="uid1"
          class="grow w-full text-1.5 text-color"
          style="float: left;"
   >
     1
   </label>
   <div class="flex w-full">
-    <select id="label-uid1"
-            class="js-input w-full pl-2 text-1.5"
+    <select id="uid1"
+            class="w-full pl-2 text-1.5"
             style="height: calc(var(--scale) * 2.5rem);"
     >
       <option>
@@ -473,7 +438,6 @@ describe("fieldTemplate", () => {
 `);
 
 		document.body.replaceChildren(...field.elems);
-		field.init();
 
 		expect(field.value()).toBe(true);
 		field.set(false);
@@ -487,18 +451,16 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.select("1", ["a", "b", "c"], "a");
 
 		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
-<li id="uid1"
-    class="items-center px-2 pb-1 border-b-2 border-color1"
->
-  <label for="label-uid1"
+<li class="items-center px-2 pb-1 border-b-2 border-color1">
+  <label for="uid1"
          class="grow w-full text-1.5 text-color"
          style="float: left;"
   >
     1
   </label>
   <div class="flex w-full">
-    <select id="label-uid1"
-            class="js-input w-full pl-2 text-1.5"
+    <select id="uid1"
+            class="w-full pl-2 text-1.5"
             style="height: calc(var(--scale) * 2.5rem);"
     >
       <option>
@@ -516,7 +478,6 @@ describe("fieldTemplate", () => {
 `);
 
 		document.body.replaceChildren(...field.elems);
-		field.init();
 
 		expect(field.value()).toBe("a");
 		field.set("b");
@@ -530,18 +491,16 @@ describe("fieldTemplate", () => {
 		const field = fieldTemplate.selectCustom("y", ["a", "b", "c"], "a");
 
 		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
-<li id="uid1"
-    class="items-center px-2  border-b-2 border-color1"
->
-  <label for="label-uid1"
+<li class="items-center px-2 border-b-2 border-color1">
+  <label for="uid1"
          class="grow w-full text-1.5 text-color"
          style="float: left;"
   >
     y
   </label>
   <div class="flex w-full">
-    <select id="label-uid1"
-            class="js-input w-full pl-2 text-1.5"
+    <select id="uid1"
+            class="w-full pl-2 text-1.5"
             style="height: calc(var(--scale) * 2.5rem);"
     >
       <option>
@@ -554,7 +513,7 @@ describe("fieldTemplate", () => {
         c
       </option>
     </select>
-    <button class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
+    <button class="flex ml-2 rounded-lg bg-color2 hover:bg-color3"
             style="aspect-ratio: 1; width: calc(var(--scale) * 3rem);"
     >
       <img class="p-1 icon-filter"
@@ -562,20 +521,19 @@ describe("fieldTemplate", () => {
       >
     </button>
   </div>
-  <span class="js-error text-red"
+  <span class="text-red"
         style="
-					height: calc(var(--scale) * 1.5rem);
-					font-size: calc(var(--scale) * 1rem);
-					white-space: nowrap;
-					overflow: auto;
-				"
+				height: calc(var(--scale) * 1.5rem);
+				font-size: calc(var(--scale) * 1rem);
+				white-space: nowrap;
+				overflow: auto;
+			"
   >
   </span>
 </li>
 `);
 
 		document.body.replaceChildren(...field.elems);
-		field.init();
 
 		testNotEmpty(field);
 		field.set("x");
@@ -593,101 +551,13 @@ describe("fieldTemplate", () => {
 
 		expect(field.value()).toBe("custom");
 
-		const $input = document.querySelector("#uid1");
-		const $error = document.querySelector(".js-error");
-
 		const change = new Event("change");
-		$input.dispatchEvent(change);
+		// @ts-ignore
+		const testing = field.testing;
+		testing.$input.dispatchEvent(change);
 
-		expect($error.innerHTML).toBe("");
+		expect(testing.$error.innerHTML).toBe("");
 	});
-});
-
-describe("selectCustomField", () => {
-	test("noRules", () => {
-		uidReset();
-		const field = newSelectCustomField([], ["a", "b", "c"], {
-			label: "d",
-			initial: "e",
-		});
-
-		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
-<li id="uid1"
-    class="items-center px-2 pb-1 border-b-2 border-color1"
->
-  <label for="label-uid1"
-         class="grow w-full text-1.5 text-color"
-         style="float: left;"
-  >
-    d
-  </label>
-  <div class="flex w-full">
-    <select id="label-uid1"
-            class="js-input w-full pl-2 text-1.5"
-            style="height: calc(var(--scale) * 2.5rem);"
-    >
-      <option>
-        a
-      </option>
-      <option>
-        b
-      </option>
-      <option>
-        c
-      </option>
-    </select>
-    <button class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
-            style="aspect-ratio: 1; width: calc(var(--scale) * 3rem);"
-    >
-      <img class="p-1 icon-filter"
-           src="assets/icons/feather/edit-3.svg"
-      >
-    </button>
-  </div>
-</li>
-`);
-
-		document.body.replaceChildren(...field.elems);
-		field.init();
-
-		field.set("x");
-		expect(field.validate()).toBeUndefined();
-
-		field.set("a");
-		expect(field.value()).toBe("a");
-		field.set("");
-		expect(field.value()).toBe("");
-
-		window.prompt = () => {
-			return "custom";
-		};
-		document.querySelector("button").click();
-
-		expect(field.value()).toBe("custom");
-	});
-});
-
-test("newModalFieldHTML", () => {
-	uidReset();
-	expect(newModalFieldHTML("uid1", "test").outerHTML).toMatchInlineSnapshot(`
-<li id="uid1"
-    class="flex items-center p-2 border-b-2 border-color1"
->
-  <label for="label-uid1"
-         class="grow w-full text-1.5 text-color"
-         style="float: left;"
-  >
-    test
-  </label>
-  <button class="js-edit-btn flex ml-2 rounded-lg bg-color2 hover:bg-color3"
-          style="aspect-ratio: 1; width: calc(var(--scale) * 3rem);"
-  >
-    <img class="p-1 icon-filter"
-         src="assets/icons/feather/edit-3.svg"
-    >
-  </button>
-</li>
-`);
 });
 
 describe("passwordField", () => {
@@ -696,24 +566,18 @@ describe("passwordField", () => {
 		expect(newPasswordField().elems).toMatchInlineSnapshot(`
 [
   <li
-    class="items-center px-2  border-b-2 border-color1"
-    id="uid1"
+    class="items-center px-2 border-b-2 border-color1"
   >
-    
-			
     <label
       class="grow w-full text-1.5 text-color"
-      for="label-uid1"
+      for="uid1"
       style="float: left;"
     >
       New password
     </label>
-    
-			
-			
     <input
-      class="js-input w-full text-1.5"
-      id="label-uid1"
+      class="w-full text-1.5"
+      id="uid1"
       placeholder=""
       style="
 					height: calc(var(--scale) * 2.5rem);
@@ -722,41 +586,29 @@ describe("passwordField", () => {
 				"
       type="password"
     />
-    
-		 
-			
     <span
-      class="js-error text-red"
+      class="text-red"
       style="
-					height: calc(var(--scale) * 1.5rem);
-					font-size: calc(var(--scale) * 1rem);
-					white-space: nowrap;
-					overflow: auto;
-				"
+				height: calc(var(--scale) * 1.5rem);
+				font-size: calc(var(--scale) * 1rem);
+				white-space: nowrap;
+				overflow: auto;
+			"
     />
-    
-		
-		
   </li>,
   <li
-    class="items-center px-2  border-b-2 border-color1"
-    id="uid2"
+    class="items-center px-2 border-b-2 border-color1"
   >
-    
-			
     <label
       class="grow w-full text-1.5 text-color"
-      for="label-uid2"
+      for="uid2"
       style="float: left;"
     >
       Repeat password
     </label>
-    
-			
-			
     <input
-      class="js-input w-full text-1.5"
-      id="label-uid2"
+      class="w-full text-1.5"
+      id="uid2"
       placeholder=""
       style="
 					height: calc(var(--scale) * 2.5rem);
@@ -765,75 +617,75 @@ describe("passwordField", () => {
 				"
       type="password"
     />
-    
-		 
-			
     <span
-      class="js-error text-red"
+      class="text-red"
       style="
-					height: calc(var(--scale) * 1.5rem);
-					font-size: calc(var(--scale) * 1rem);
-					white-space: nowrap;
-					overflow: auto;
-				"
+				height: calc(var(--scale) * 1.5rem);
+				font-size: calc(var(--scale) * 1rem);
+				white-space: nowrap;
+				overflow: auto;
+			"
     />
-    
-		
-		
   </li>,
 ]
 `);
 	});
 	describe("logic", () => {
-		let field, $newInput, $newError, $repeatInput, $repeatError;
-
-		beforeEach(() => {
+		/** @returns {any} */
+		const setup = () => {
 			uidReset();
 			document.body.innerHTML = "<div></div>";
-			field = newPasswordField();
+			const field = newPasswordField();
 			const $div = document.querySelector("div");
 			$div.replaceChildren(...field.elems);
-			field.init();
-
-			[$newInput, $newError] = $getInputAndError(document.getElementById("uid1"));
-			[$repeatInput, $repeatError] = $getInputAndError(
-				document.getElementById("uid2"),
-			);
-		});
+			return field;
+		};
 		const change = new Event("change");
 
 		test("initial", () => {
-			$newInput.dispatchEvent(change);
-			$repeatInput.dispatchEvent(change);
+			const field = setup();
+			field.testing.newPassword.$input.dispatchEvent(change);
+			field.testing.repeatPassword.$input.dispatchEvent(change);
 
-			expect($newError.textContent).toBe("");
-			expect($repeatError.textContent).toBe("");
+			expect(field.testing.newPassword.$error.textContent).toBe("");
+			expect(field.testing.repeatPassword.$error.textContent).toBe("");
 		});
 		test("repeatPassword", () => {
-			$newInput.value = "A";
-			$newInput.dispatchEvent(change);
-			expect($newError.textContent).toBe("warning: weak password");
-			expect($repeatError.textContent).toBe("repeat password");
+			const field = setup();
+			field.testing.newPassword.$input.value = "A";
+			field.testing.newPassword.$input.dispatchEvent(change);
+			expect(field.testing.newPassword.$error.textContent).toBe(
+				"warning: weak password",
+			);
+			expect(field.testing.repeatPassword.$error.textContent).toBe(
+				"repeat password",
+			);
 			expect(field.validate()).toBe("repeat password");
 		});
 		test("reset", () => {
+			const field = setup();
 			field.set("");
-			expect($newError.textContent).toBe("");
-			expect($repeatError.textContent).toBe("");
+			expect(field.testing.newPassword.$error.textContent).toBe("");
+			expect(field.testing.repeatPassword.$error.textContent).toBe("");
 		});
 		test("strength", () => {
-			$newInput.value = "AAAAA1";
-			$newInput.dispatchEvent(change);
-			expect($newError.textContent).toBe("strength: medium");
+			const field = setup();
+			field.testing.newPassword.$input.value = "AAAAA1";
+			field.testing.newPassword.$input.dispatchEvent(change);
+			expect(field.testing.newPassword.$error.textContent).toBe("strength: medium");
 		});
 		test("mismatch", () => {
-			$repeatInput.value = "x";
-			$repeatInput.dispatchEvent(change);
-			expect($repeatError.textContent).toBe("Passwords do not match");
+			const field = setup();
+			field.testing.repeatPassword.$input.value = "x";
+			field.testing.repeatPassword.$input.dispatchEvent(change);
+			expect(field.testing.repeatPassword.$error.textContent).toBe(
+				"Passwords do not match",
+			);
 			expect(field.validate()).toBe("Passwords do not match");
 			expect(field.value()).toBe("x");
 		});
 		test("validate", () => {
+			const field = setup();
 			field.set("AAAAAa1@");
 			expect(field.validate()).toBeUndefined();
 		});

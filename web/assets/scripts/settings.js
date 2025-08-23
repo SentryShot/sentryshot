@@ -8,21 +8,19 @@ import {
 	fetchPut,
 	fetchDelete,
 	sortByName,
-	uniqueID,
 	removeEmptyValues,
 	globals,
 	relativePathname,
 	htmlToElem,
-	htmlToElems,
 } from "./libs/common.js";
 import {
 	newForm,
 	newField,
-	newHTMLfield,
+	newErrorField,
+	newRawSelectCustomField,
 	inputRules,
 	fieldTemplate,
 	newPasswordField,
-	$getInputAndError,
 } from "./components/form.js";
 import { newModal } from "./components/modal.js";
 
@@ -30,91 +28,31 @@ import { newModal } from "./components/modal.js";
 
 /**
  * @typedef Category
- * @property {() => string} name
- * @property {() => string} title
- * @property {() => string} icon
- * @property {() => Element[]} elems
- * @property {() => void} init
- * @property {() => void} open
+ * @property {Element} navElem
+ * @property {Element} elem
  */
 
-/** @param {Element} $parent */
-function newRenderer($parent) {
-	/** @type {Category[]} */
-	const categories = [];
+/** @param {Category[]} categories */
+function rendererCategories(categories) {
+	const navElems = [];
+	const categoryElems = [];
+	for (const category of Object.values(categories)) {
+		navElems.push(category.navElem);
+		categoryElems.push(category.elem);
+	}
 
-	return {
-		/** @param {Category} category */
-		addCategory(category) {
-			categories.push(category);
-		},
-		render() {
-			const navElems = [];
-			const categoryElems = [];
-			for (const category of Object.values(categories)) {
-				navElems.push(
-					htmlToElem(/* HTML */ `
-						<li
-							id="js-set-category-${category.name()}"
-							class="js-set-settings-category flex items-center py-1 pl-4 border border-color3 hover:bg-color3"
-							style="padding-right: calc(var(--spacing) * 14);"
-						>
-							<img
-								class="mr-2 icon-filter"
-								style="
-								aspect-ratio: 1;
-								height: calc(var(--scale) * 2.4rem);
-								font-size: calc(var(--scale) * 2.7rem);
-							"
-								src="${category.icon()}"
-							/>
-							<span class="text-2 text-color">${category.title()}</span>
-						</li>
-					`),
-				);
-
-				categoryElems.push(
-					htmlToElem(
-						/* HTML */ `
-							<div
-								id="js-settings-wrapper-${category.name()}"
-								class="settings-category-wrapper"
-							></div>
-						`,
-						category.elems(),
-					),
-				);
-			}
-
-			const elems = [
-				htmlToElem(
-					/* HTML */ `
-						<nav
-							id="js-settings-navbar"
-							class="settings-navbar shrink-0 h-full bg-color2"
-						></nav>
-					`,
-					[
-						htmlToElem(
-							`<ul class="h-full" style="overflow-y: auto;"></ul>`,
-							navElems,
-						),
-					],
-				),
-				...categoryElems,
-			];
-
-			$parent.replaceChildren(...elems);
-		},
-		init() {
-			for (const category of Object.values(categories)) {
-				category.init();
-				document
-					.querySelector(`#js-set-category-${category.name()}`)
-					.addEventListener("click", category.open);
-			}
-		},
-	};
+	return [
+		htmlToElem(
+			/* HTML */ `
+				<nav
+					id="js-settings-navbar"
+					class="settings-navbar shrink-0 h-full bg-color2"
+				></nav>
+			`,
+			[htmlToElem(`<ul class="h-full" style="overflow-y: auto;"></ul>`, navElems)],
+		),
+		...categoryElems,
+	];
 }
 
 const backIconPath = "assets/icons/feather/arrow-left.svg";
@@ -127,48 +65,33 @@ const backIconHTML = /* HTML */ `
 	/>
 `;
 
-function categoryTitleHTML(title = "") {
+function newCategoryTitle(title = "") {
 	return htmlToElem(/* HTML */ `
 		<span
-			class="js-category-title w-full m-auto text-center text-2 text-color"
+			class="w-full m-auto text-center text-2 text-color"
 			style="margin-right: calc(var(--scale) * 3rem);"
 			>${title}</span
 		>
 	`);
 }
 
-function menubarElem() {
-	return htmlToElem(
-		/* HTML */ `
-			<div
-				class="js-settings-menubar settings-menubar px-2 border border-color3 bg-color2"
-				style="height: var(--topbar-height);"
-			></div>
-		`,
-		[
-			htmlToElem(
-				`<nav class="js-settings-subcategory-back flex shrink-0">${backIconHTML}</nav>`,
-			),
-			categoryTitleHTML(),
-		],
-	);
+function newCategoryNavs() {
+	return htmlToElem(/* HTML */ `
+		<ul
+			class="settings-category-nav flex flex-col h-full"
+			style="overflow-y: hidden;"
+		></ul>
+	`);
 }
-
-const categoryNavsHTML = /* HTML */ `
-	<ul
-		class="js-category-nav settings-category-nav flex flex-col h-full"
-		style="overflow-y: hidden;"
-	></ul>
-`;
 
 /**
  * @param {string} data
  * @param {string} label
  */
-function categoryNavHTML(data, label, c = "text-color") {
+function newCategoryNav(data, label, c = "text-color") {
 	return htmlToElem(/* HTML */ `
 		<li
-			class="js-nav flex items-center py-1 px-4 border border-color3 hover:bg-color3"
+			class="flex items-center py-1 px-4 border border-color3 hover:bg-color3"
 			data="${data}"
 		>
 			<span class="text-2 ${c}">${label}</span>
@@ -178,387 +101,168 @@ function categoryNavHTML(data, label, c = "text-color") {
 
 const addBtnHTML = /* HTML */ `
 	<button
-		class="js-add-btn js-nav shrink-0 mt-2 ml-4 mr-auto px-2 rounded-md bg-green hover:bg-green2"
+		class="js-add-btn shrink-0 mt-2 ml-4 mr-auto px-2 rounded-md bg-green hover:bg-green2"
 	>
 		<span class="text-2 text-color">Add</span>
 	</button>
 `;
 
-function closeAllCategories() {
-	// @ts-ignore
-	for (const element of document.querySelectorAll(".settings-category-wrapper")) {
-		element.classList.remove("settings-category-selected");
-	}
-	// @ts-ignore
-	for (const element of document.querySelectorAll(".js-set-settings-category")) {
-		element.classList.remove("settings-nav-btn-selected");
-	}
-}
-/*
-function newSimpleCategory(category, title) {
-	let form, open, close;
-
-	return {
-		form() {
-			return form;
-		},
-		setForm(input) {
-			form = input;
-		},
-		html() {
-			return `
-				<div class="settings-category" style="width: 100vw;">
-					<div class="settings-menubar js-settings-menubar">
-						<nav
-							class="settings-menu-back-btn js-settings-category-back"
-						>
-							<img src="${backIconPath}"/>
-						</nav>
-						<span
-							class="w-full m-auto text-center text-color"
-							style="
-								margin-right: calc(var(--spacing) * 22);
-								font-size: calc(var(--scale) * 2.7rem);
-							"
-						>${title}</span>
-					</div>
-					${form.html()}
-				</div>`;
-		},
-		init() {
-			const $wrapper = document.querySelector(`#js-settings-wrapper-${category}`);
-
-			const $navBtn = document.querySelector(`#js-set-category-${category}`);
-
-			form.init($wrapper);
-
-			close = () => {
-				for (const element of document.querySelectorAll(
-					".js-set-settings-category"
-				)) {
-					element.classList.remove("settings-nav-btn-selected");
-				}
-				$wrapper.classList.remove("settings-category-selected");
-			};
-
-			open = () => {
-				closeAllCategories();
-
-				$wrapper.classList.add("settings-category-selected");
-				$navBtn.classList.add("settings-nav-btn-selected");
-			};
-
-			const $backBtn = $wrapper.querySelector(".js-settings-category-back");
-			$backBtn.addEventListener("click", close);
-		},
-		open() {
-			open();
-		},
-		close() {
-			close();
-		},
-	};
-}
-*/
-
-// TODO: deprecate in favor of newCategory2.
 /**
- * @param {string} categoryName
  * @param {string} title
- */
-function newCategory(categoryName, title) {
-	/** @type {Form} */
-	let form;
-
-	/** @type {(element: Element) => void} */
-	let onNav;
-
-	let $wrapper, $subcategory, $title, open, close;
-	/** @type Element */
-	let $nav;
-
-	const closeSubcategory = () => {
-		// @ts-ignore
-		for (const element of document.querySelectorAll(`.js-nav`)) {
-			element.classList.remove("settings-nav-btn-selected");
-		}
-		$subcategory.classList.remove("settings-subcategory-open");
-	};
-
-	/** @param {Element} $navBtn */
-	const openSubcategory = ($navBtn) => {
-		closeSubcategory();
-
-		if (!$navBtn.classList.contains("js-add-btn")) {
-			$navBtn.classList.add("settings-nav-btn-selected");
-		}
-
-		$subcategory.classList.add("settings-subcategory-open");
-	};
-
-	return {
-		form() {
-			return form;
-		},
-		/** @param {Form} f */
-		// TODO: make this part of the constructor.
-		setForm(f) {
-			form = f;
-		},
-		/** @param {Element[]} elements */
-		setNav(elements) {
-			$nav.replaceChildren(...elements);
-			for (const element of $nav.querySelectorAll(".js-nav")) {
-				element.addEventListener("click", () => {
-					openSubcategory(element);
-					onNav(element);
-				});
-			}
-		},
-		/** @param {(element: Element) => void} func */
-		onNav(func) {
-			onNav = func;
-		},
-		elems: () => {
-			return [
-				htmlToElem(
-					/* HTML */ `
-						<div
-							class="settings-category flex flex-col shrink-0 h-full bg-color2"
-							style="z-index: 0; overflow-y: auto;"
-						></div>
-					`,
-					[
-						htmlToElem(
-							/* HTML */ `
-								<div
-									class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
-								></div>
-							`,
-							[
-								htmlToElem(/* HTML */ `
-									<nav class="js-settings-category-back flex shrink-0">
-										${backIconHTML}
-									</nav>
-								`),
-								categoryTitleHTML(title),
-							],
-						),
-						htmlToElem(categoryNavsHTML),
-					],
-				),
-				htmlToElem(
-					/* HTML */ `
-						<div
-							class="js-sub-category settings-sub-category flex flex-col bg-color3"
-						></div>
-					`,
-					[menubarElem(), form.elem()],
-				),
-			];
-		},
-		init() {
-			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
-			$nav = $wrapper.querySelector(".js-category-nav");
-
-			const $navBtn = document.querySelector(`#js-set-category-${categoryName}`);
-
-			form.init();
-
-			close = () => {
-				$wrapper.classList.remove("settings-category-selected");
-				// @ts-ignore
-				for (const element of document.querySelectorAll(
-					".js-set-settings-category",
-				)) {
-					element.classList.remove("settings-nav-btn-selected");
-				}
-			};
-
-			open = () => {
-				closeAllCategories();
-				closeSubcategory();
-
-				$wrapper.classList.add("settings-category-selected");
-				$navBtn.classList.add("settings-nav-btn-selected");
-			};
-
-			const $backBtn = $wrapper.querySelector(".js-settings-category-back");
-			$backBtn.addEventListener("click", close);
-
-			$subcategory = $wrapper.querySelector(".js-sub-category");
-
-			$wrapper
-				.querySelector(".js-settings-subcategory-back")
-				.addEventListener("click", () => {
-					closeSubcategory();
-				});
-
-			$title = $subcategory.querySelector(".js-category-title");
-		},
-		open() {
-			open();
-		},
-		close() {
-			close();
-		},
-		closeSubcategory() {
-			closeSubcategory();
-		},
-		/** @param {string} title */
-		setTitle(title) {
-			$title.innerHTML = title;
-		},
-	};
-}
-
-/**
- * @param {string} categoryName
- * @param {string} title
+ * @param {string} icon
  * @param {Form} form
+ * onNav should return the sub-category title (only visible on mobile).
+ * @param {(element: Element) => string} onNav
  */
-function newCategory2(categoryName, title, form) {
-	/** @type {(element: Element) => void} */
-	let onNav;
+function newCategory(title, icon, form, onNav) {
+	/** @type {() => void} */
+	let onOpen;
 
-	let $wrapper, $subcategory, $title, open, close, $nav;
+	const $nav = newCategoryNavs();
+
+	/** @type {HTMLElement} */
+	// @ts-ignore
+	const $backBtn = htmlToElem(`<nav class="flex shrink-0">${backIconHTML}</nav>`);
+	const $category = htmlToElem(
+		/* HTML */ `
+			<div
+				class="settings-category flex flex-col shrink-0 h-full bg-color2"
+				style="z-index: 0; overflow-y: auto;"
+			></div>
+		`,
+		[
+			htmlToElem(
+				`<div class="settings-menubar px-2 border border-color3 bg-color2"></div>`,
+				[$backBtn, newCategoryTitle(title)],
+			),
+			$nav,
+		],
+	);
+
+	/** @type {HTMLElement} */
+	// @ts-ignore
+	const $subBackBtn = htmlToElem(`<nav class="flex shrink-0">${backIconHTML}</nav>`);
+	const $subTitle = newCategoryTitle();
+	const $subcategory = htmlToElem(
+		`<div class="settings-sub-category flex flex-col w-full bg-color3"></div>`,
+		[
+			htmlToElem(
+				/* HTML */ `
+					<div
+						class="settings-menubar px-2 border border-color3 bg-color2"
+						style="height: var(--topbar-height);"
+					></div>
+				`,
+				[$subBackBtn, $subTitle],
+			),
+			form.elem(),
+		],
+	);
 
 	const closeSubcategory = () => {
-		// @ts-ignore
-		for (const element of document.querySelectorAll(`.js-nav`)) {
+		for (const element of $category.querySelectorAll(`.settings-nav-btn-selected`)) {
 			element.classList.remove("settings-nav-btn-selected");
 		}
 		$subcategory.classList.remove("settings-subcategory-open");
 	};
+	$subBackBtn.onclick = closeSubcategory;
 
-	/** @param {Element} $navBtn */
-	const openSubcategory = ($navBtn) => {
+	/** @param {Element} subNavElem */
+	const openSubcategory = (subNavElem) => {
 		closeSubcategory();
 
-		if (!$navBtn.classList.contains("js-add-btn")) {
-			$navBtn.classList.add("settings-nav-btn-selected");
+		if (!subNavElem.classList.contains("js-add-btn")) {
+			subNavElem.classList.add("settings-nav-btn-selected");
 		}
 
 		$subcategory.classList.add("settings-subcategory-open");
 	};
 
+	const $wrapper = htmlToElem(
+		//
+		`<div class="settings-category-wrapper"></div>`,
+		[$category, $subcategory],
+	);
+
+	const close = () => {
+		$wrapper.classList.remove("settings-category-selected");
+		// @ts-ignore
+		for (const element of document.querySelectorAll(".settings-nav-btn-selected")) {
+			element.classList.remove("settings-nav-btn-selected");
+		}
+	};
+	$backBtn.onclick = close;
+
+	const navElem = htmlToElem(/* HTML */ `
+		<li
+			class="flex items-center py-1 pl-4 border border-color3 hover:bg-color3"
+			style="padding-right: calc(var(--spacing) * 14);"
+		>
+			<img
+				class="mr-2 icon-filter"
+				style="
+					aspect-ratio: 1;
+					height: calc(var(--scale) * 2.4rem);
+					font-size: calc(var(--scale) * 2.7rem);
+				"
+				src="${icon}"
+			/>
+			<span class="text-2 text-color">${title}</span>
+		</li>
+	`);
+	navElem.addEventListener("click", () => {
+		// Highlight category button.
+		for (const element of document.querySelectorAll(".settings-nav-btn-selected")) {
+			element.classList.remove("settings-nav-btn-selected");
+		}
+		navElem.classList.add("settings-nav-btn-selected");
+
+		// Show category.
+		for (const element of document.querySelectorAll(".settings-category-selected")) {
+			element.classList.remove("settings-category-selected");
+		}
+		$wrapper.classList.add("settings-category-selected");
+
+		closeSubcategory();
+		onOpen();
+	});
+
 	return {
-		form() {
-			return form;
+		navElem,
+		elem: $wrapper,
+
+		/** @param {() => void} cb */
+		setOnOpen(cb) {
+			onOpen = cb;
 		},
+
 		/** @param {Element[]} elements */
 		setNav(elements) {
 			$nav.replaceChildren(...elements);
-			for (const element of $nav.querySelectorAll(".js-nav")) {
+			for (const element of $nav.children) {
 				element.addEventListener("click", () => {
 					openSubcategory(element);
-					onNav(element);
+					const title = onNav(element);
+					$subTitle.textContent = title;
 				});
 			}
 		},
-		/** @param {(element: Element) => void} func */
-		onNav(func) {
-			onNav = func;
-		},
-		elems: () => {
-			return [
-				htmlToElem(
-					/* HTML */ `
-						<div
-							class="settings-category flex flex-col shrink-0 h-full bg-color2"
-							style="z-index: 0; overflow-y: auto;"
-						></div>
-					`,
-					[
-						htmlToElem(
-							/* HTML */
-							`
-								<div
-									class="settings-menubar js-settings-menubar px-2 border border-color3 bg-color2"
-								></div>
-							`,
-							[
-								htmlToElem(/* HTML */
-								`
-									<nav class="js-settings-category-back flex shrink-0">
-										${backIconHTML}
-									</nav>
-								`),
-								categoryTitleHTML(title),
-							],
-						),
-						htmlToElem(categoryNavsHTML),
-					],
-				),
-				htmlToElem(
-					/* HTML */ `
-						<div
-							class="js-sub-category settings-sub-category flex flex-col w-full bg-color3"
-						></div>
-					`,
-					[menubarElem(), form.elem()],
-				),
-			];
-		},
-		init() {
-			$wrapper = document.querySelector(`#js-settings-wrapper-${categoryName}`);
-			$nav = $wrapper.querySelector(".js-category-nav");
-
-			const $navBtn = document.querySelector(`#js-set-category-${categoryName}`);
-
-			form.init();
-
-			close = () => {
-				$wrapper.classList.remove("settings-category-selected");
-				// @ts-ignore
-				for (const element of document.querySelectorAll(
-					".js-set-settings-category",
-				)) {
-					element.classList.remove("settings-nav-btn-selected");
-				}
-			};
-
-			open = () => {
-				closeAllCategories();
-				closeSubcategory();
-
-				$wrapper.classList.add("settings-category-selected");
-				$navBtn.classList.add("settings-nav-btn-selected");
-			};
-
-			const $backBtn = $wrapper.querySelector(".js-settings-category-back");
-			$backBtn.addEventListener("click", close);
-
-			$subcategory = $wrapper.querySelector(".js-sub-category");
-
-			$wrapper
-				.querySelector(".js-settings-subcategory-back")
-				.addEventListener("click", () => {
-					closeSubcategory();
-				});
-
-			$title = $subcategory.querySelector(".js-category-title");
-		},
-		open() {
-			open();
-		},
-		close() {
-			close();
-		},
-		closeSubcategory() {
-			closeSubcategory();
-		},
 		/** @param {string} title */
 		setTitle(title) {
-			$title.innerHTML = title;
+			$subTitle.innerHTML = title;
 		},
+
+		closeSubcategory,
 	};
 }
 
 /**
  * @typedef Monitor
  * @property {string} id
+ * @property {string} name
  */
+
+/** @typedef {{[x: string]: Monitor}} Monitors */
 
 /** @typedef {import("./components/form.js").Form} Form */
 
@@ -576,15 +280,12 @@ function newCategory2(categoryName, title, form) {
  * @param {string} token
  * @param {Fields<any>} fields
  * @param {() => string} getMonitorId
- * @param {any} monitors
+ * @param {Monitors} monitors
  * @returns {Category}
  */
 function newMonitor(token, fields, getMonitorId, monitors) {
-	const name = "monitors";
 	const title = "Monitors";
-	const icon = "assets/icons/feather/video.svg";
 
-	const category = newCategory(name, title);
 	const form = newForm(fields);
 
 	const onSave = () => {
@@ -598,56 +299,36 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		}
 	};
 	form.addButton("delete", onDelete);
-	category.setForm(form);
 
-	/**
-	 * @param {Element} navElement
-	 * @param {any} monitors
-	 */
-	const monitorLoad = (navElement, monitors) => {
-		const $monitorID = fields["id"].element();
-		const $monitorIDinput = $monitorID.querySelector("input");
+	/** @param {HTMLElement} subNavElem */
+	const onNav = (subNavElem) => {
+		const monitorId = fields["id"].elems[0];
+		const monitorIdInput = monitorId.querySelector("input");
 
+		/** @type {Monitor} */
 		let monitor = {};
 		let title;
 
 		// @ts-ignore
-		if (navElement.attributes.data === undefined) {
+		if (subNavElem.attributes.data === undefined) {
 			// Add button.
 			monitor["id"] = randomString(5);
 			title = "Add";
-			$monitorIDinput.disabled = false;
+			monitorIdInput.disabled = false;
 		} else {
 			// @ts-ignore
-			const id = navElement.attributes.data.value;
+			const id = subNavElem.attributes.data.value;
 			monitor = monitors[id];
 			title = monitor.name;
-			$monitorIDinput.disabled = true;
+			monitorIdInput.disabled = true;
 		}
 
-		category.setTitle(title);
 		form.set(monitor);
+		return title;
 	};
-
-	/** @param {{[x: string]: { id: string, name: string} }} monitors */
-	const renderMonitorList = (monitors) => {
-		const elems = [];
-		const sortedMonitors = sortByName(monitors);
-		for (const m of sortedMonitors) {
-			elems.push(categoryNavHTML(m.id, m.name));
-		}
-
-		elems.push(htmlToElem(addBtnHTML));
-
-		category.setNav(elems);
-		category.onNav((element) => {
-			monitorLoad(element, monitors);
-		});
-	};
+	const category = newCategory(title, "assets/icons/feather/video.svg", form, onNav);
 
 	const load = async () => {
-		category.closeSubcategory();
-
 		// Update global `montiors` object so the groups category has updated values.
 		const m = await fetchGet(
 			new URL(relativePathname("api/monitors")),
@@ -660,8 +341,15 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 			monitors[key] = m[key];
 		}
 
-		renderMonitorList(monitors);
+		const elems = [];
+		for (const m of sortByName(monitors)) {
+			elems.push(newCategoryNav(m.id, m.name));
+		}
+		elems.push(htmlToElem(addBtnHTML));
+
+		category.setNav(elems);
 	};
+	category.setOnOpen(load);
 
 	/** @param {Form} form */
 	const saveMonitor = async (form) => {
@@ -696,6 +384,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 			"failed to restart monitor",
 		);
 
+		category.closeSubcategory();
 		load();
 	};
 
@@ -715,23 +404,7 @@ function newMonitor(token, fields, getMonitorId, monitors) {
 		load();
 	};
 
-	return {
-		name() {
-			return name;
-		},
-		title() {
-			return title;
-		},
-		icon() {
-			return icon;
-		},
-		elems: category.elems,
-		init: category.init,
-		open() {
-			category.open();
-			load();
-		},
-	};
+	return category;
 }
 
 /**
@@ -743,11 +416,10 @@ function newMonitor(token, fields, getMonitorId, monitors) {
  * @param {string} token
  * @param {Fields<any>} fields
  * @param {MonitorGroups} groups
+ * @returns {Category}
  */
 function newMonitorGroups(token, fields, groups) {
-	const name = "groups";
 	const title = "Groups";
-	const icon = "assets/icons/feather/group.svg";
 
 	const form = newForm(fields);
 
@@ -779,6 +451,7 @@ function newMonitorGroups(token, fields, groups) {
 			return;
 		}
 
+		category.closeSubcategory();
 		load();
 	};
 	form.addButton("save", () => {
@@ -799,6 +472,7 @@ function newMonitorGroups(token, fields, groups) {
 			return;
 		}
 
+		category.closeSubcategory();
 		load();
 	};
 
@@ -808,71 +482,46 @@ function newMonitorGroups(token, fields, groups) {
 		}
 	});
 
-	const category = newCategory2(name, title, form);
-
-	/**
-	 * @param {Element} navElement
-	 * @param {MonitorGroups} groups
-	 */
-	const groupLoad = (navElement, groups) => {
+	/** @param {HTMLElement} subNavElem */
+	const onNav = (subNavElem) => {
 		form.reset();
-		/** @typedef {string} */
-		// @ts-ignore
-		const id = navElement.attributes.data.value;
 		/** @typedef {MonitorGroup} */
 		let group = {};
 		let title;
 
-		if (id === "") {
+		// @ts-ignore
+		if (subNavElem.attributes.data === undefined) {
+			// New group.
 			group["id"] = randomString(5);
 			title = "Add";
 		} else {
+			// @ts-ignore
+			const id = subNavElem.attributes.data.value;
 			group = groups[id];
 			title = group.name;
 		}
-
-		category.setTitle(title);
 
 		// Set fields.
 		for (const key of Object.keys(form.fields)) {
 			form.fields[key].set(group[key], group);
 		}
+
+		return title;
 	};
+	const category = newCategory(title, "assets/icons/feather/group.svg", form, onNav);
 
 	const load = () => {
-		category.closeSubcategory();
-
 		const elems = [];
-		const sortedGroups = sortByName(groups);
-		for (const g of sortedGroups) {
-			elems.push(categoryNavHTML(g.id, g.name));
+		for (const g of sortByName(groups)) {
+			elems.push(newCategoryNav(g.id, g.name));
 		}
-
 		elems.push(htmlToElem(addBtnHTML));
 
 		category.setNav(elems);
-		category.onNav((element) => {
-			groupLoad(element, groups);
-		});
 	};
 
-	return {
-		name() {
-			return name;
-		},
-		title() {
-			return title;
-		},
-		icon() {
-			return icon;
-		},
-		elems: category.elems,
-		init: category.init,
-		open() {
-			category.open();
-			load();
-		},
-	};
+	category.setOnOpen(load);
+	return category;
 }
 
 /**
@@ -895,13 +544,11 @@ function newMonitorGroups(token, fields, groups) {
 /**
  * @param {string} token
  * @param {Fields<any>} fields
+ * @returns {Category}
  */
 function newAccount(token, fields) {
-	const name = "accounts";
 	const title = "Accounts";
-	const icon = "assets/icons/feather/users.svg";
 
-	const category = newCategory(name, title);
 	const form = newForm(fields);
 
 	const onSave = () => {
@@ -911,20 +558,18 @@ function newAccount(token, fields) {
 
 	const onDelete = () => {
 		if (confirm("delete account?")) {
-			deleteAccount(form.fields.id.value);
+			deleteAccount(form.fields.id.value());
 		}
 	};
 	form.addButton("delete", onDelete);
-	category.setForm(form);
 
-	/**
-	 * @param {Element} navElement
-	 * @param {Accounts} accounts
-	 */
-	const accountLoad = (navElement, accounts) => {
+	let accounts;
+
+	/** @param {HTMLElement} subNavElem */
+	const onNav = (subNavElem) => {
 		let id, username, isAdmin, title;
 		// @ts-ignore
-		if (navElement.attributes.data === undefined) {
+		if (subNavElem.attributes.data === undefined) {
 			// New account.
 			id = randomString(16);
 			title = "Add";
@@ -932,20 +577,22 @@ function newAccount(token, fields) {
 			isAdmin = false;
 		} else {
 			// @ts-ignore
-			id = navElement.attributes.data.value;
+			id = subNavElem.attributes.data.value;
 			username = accounts[id]["username"];
 			isAdmin = accounts[id]["isAdmin"];
 			title = username;
 		}
 
-		category.setTitle(title);
 		form.reset();
 		/** @type {AccountFields} */
 		const formFields = form.fields;
-		formFields.id.value = id;
+		formFields.id.set(id);
 		formFields.username.set(username);
 		formFields.isAdmin.set(isAdmin);
+
+		return title;
 	};
+	const category = newCategory(title, "assets/icons/feather/users.svg", form, onNav);
 
 	/**
 	 * @param {Accounts} accounts
@@ -962,31 +609,22 @@ function newAccount(token, fields) {
 		return accounts2;
 	}
 
-	/** @param {Accounts} accounts */
-	const renderAccountList = (accounts) => {
-		const elems = [];
-
-		for (const u of sortByUsername(accounts)) {
-			const c = u.isAdmin === true ? "text-red" : "text-color";
-			elems.push(categoryNavHTML(u.id, u.username, c));
-		}
-
-		elems.push(htmlToElem(addBtnHTML));
-
-		category.setNav(elems);
-		category.onNav((element) => {
-			accountLoad(element, accounts);
-		});
-	};
-
 	const load = async () => {
-		category.closeSubcategory();
-		const accounts = await fetchGet(
+		accounts = await fetchGet(
 			new URL(relativePathname("api/accounts")),
 			"failed to get accounts",
 		);
-		renderAccountList(accounts);
+
+		const elems = [];
+		for (const u of sortByUsername(accounts)) {
+			const c = u.isAdmin === true ? "text-red" : "text-color";
+			elems.push(newCategoryNav(u.id, u.username, c));
+		}
+		elems.push(htmlToElem(addBtnHTML));
+
+		category.setNav(elems);
 	};
+	category.setOnOpen(load);
 
 	/** @param {Form} form */
 	const saveAccount = async (form) => {
@@ -996,7 +634,7 @@ function newAccount(token, fields) {
 			return;
 		}
 		const account = {
-			id: form.fields.id.value,
+			id: form.fields.id.value(),
 			username: form.fields.username.value(),
 			isAdmin: form.fields.isAdmin.value(),
 			plainPassword: form.fields.password.value(),
@@ -1012,6 +650,7 @@ function newAccount(token, fields) {
 			return;
 		}
 
+		category.closeSubcategory();
 		load();
 	};
 
@@ -1028,26 +667,11 @@ function newAccount(token, fields) {
 			return;
 		}
 
+		category.closeSubcategory();
 		load();
 	};
 
-	return {
-		name() {
-			return name;
-		},
-		title() {
-			return title;
-		},
-		icon() {
-			return icon;
-		},
-		elems: category.elems,
-		init: category.init,
-		open() {
-			category.open();
-			load();
-		},
-	};
+	return category;
 }
 
 /** @param {number} length */
@@ -1062,123 +686,123 @@ function randomString(length) {
 
 /**
  * @param {{[x: string]: { id: string, name: string} }} monitors
- * @returns {Field<any>}
+ * @returns {Field<string[]>}
  */
 function newSelectMonitorField(monitors) {
-	/** @param {string} name */
-	const newField = (name) => {
-		let $input;
-		const id = uniqueID();
+	/**
+	 * @typedef Checkbox
+	 * @property {Element} elem
+	 * @property {() => boolean} value
+	 */
 
-		const html = /* HTML */ `
-			<div
-				id="${id}"
-				class="monitor-selector-item relative flex items-center px-2 border border-color1"
-				style="width: auto; font-size: calc(var(--scale) * 1.8rem);"
-			>
-				<span class="mr-auto pr-2 text-color" style="user-select: none;"
-					>${name}</span
-				>
+	/**
+	 * @param {string} name
+	 * @param {boolean} checked
+	 * @return {Checkbox}
+	 */
+	const newCheckbox = (name, checked) => {
+		/** @type {HTMLInputElement} */
+		// @ts-ignore
+		const $input = htmlToElem(/* HTML */ `
+			<input
+				class="checkbox-checkbox w-full h-full"
+				style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
+				type="checkbox"
+			/>
+		`);
+		$input.checked = checked;
+
+		const elem = htmlToElem(
+			/* HTML */ `
 				<div
-					class="flex justify-center items-center rounded-md bg-color2"
-					style="width: 0.8em; height: 0.8em; user-select: none;"
-				>
-					<input
-						class="checkbox-checkbox w-full h-full"
-						style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
-						type="checkbox"
-					/>
-					<div
-						class="checkbox-box absolute"
-						style="
-								width: 0.62em;
-								height: 0.62em;
-								border-radius: calc(var(--scale) * 0.25rem);
-							"
-					></div>
-					<img
-						class="checkbox-check absolute"
-						style="width: 0.8em; filter: invert();"
-						src="assets/icons/feather/check.svg"
-					/>
-				</div>
-			</div>
-		`;
+					class="monitor-selector-item relative flex items-center px-2 border border-color1"
+					style="width: auto; font-size: calc(var(--scale) * 1.8rem);"
+				></div>
+			`,
+			[
+				htmlToElem(/* HTML */ `
+					<span class="mr-auto pr-2 text-color" style="user-select: none;"
+						>${name}</span
+					>
+				`),
+				htmlToElem(
+					/* HTML */ `
+						<div
+							class="flex justify-center items-center rounded-md bg-color2"
+							style="width: 0.8em; height: 0.8em; user-select: none;"
+						></div>
+					`,
+					[
+						$input,
+						htmlToElem(/* HTML */ `
+							<div
+								class="checkbox-box absolute"
+								style="
+									width: 0.62em;
+									height: 0.62em;
+									border-radius: calc(var(--scale) * 0.25rem);
+								"
+							></div>
+						`),
+						htmlToElem(/* HTML */ `
+							<img
+								class="checkbox-check absolute"
+								style="width: 0.8em; filter: invert();"
+								src="assets/icons/feather/check.svg"
+							/>
+						`),
+					],
+				),
+			],
+		);
+		elem.addEventListener("click", (e) => {
+			if (e.target instanceof HTMLInputElement) {
+				return;
+			}
+			$input.checked = !$input.checked;
+		});
+
 		return {
-			elems: htmlToElems(html),
-			init() {
-				const element = document.getElementById(id);
-				$input = element.querySelector("input");
-				element.addEventListener("click", (e) => {
-					if (e.target instanceof HTMLInputElement) {
-						return;
-					}
-					$input.checked = !$input.checked;
-				});
-			},
-			/** @param {boolean} input */
-			set(input) {
-				$input.checked = input;
-			},
+			elem,
 			value() {
 				return $input.checked;
 			},
 		};
 	};
 
-	/** @type {Element} */
-	let element;
-	let fields = {};
+	const elem = htmlToElem(
+		`<li class="flex items-center p-2 border-b-2 border-color1"></li>`,
+	);
 
-	const id = uniqueID();
-
-	const html = /* HTML */ `
-		<li id=${id} class="flex items-center p-2 border-b-2 border-color1"></li>
-	`;
+	/** @type {{[x: string]: Checkbox}} */
+	let checkboxes = {};
 
 	return {
-		elems: htmlToElems(html),
-		init() {
-			element = document.getElementById(id);
-		},
-		/** @param {string[]} value */
+		elems: [elem],
 		set(value) {
 			if (value === undefined) {
 				value = [];
 			}
 
-			fields = {};
-			let elems = [];
+			checkboxes = {};
+			const elems = [];
 			const sortedMonitors = sortByName(monitors);
 			for (const monitor of sortedMonitors) {
 				const id = monitor["id"];
-				const field = newField(monitor["name"]);
-				elems = [...elems, ...field.elems];
-				fields[id] = field;
+				const checked = value.includes(id);
+				const field = newCheckbox(monitor.name, checked);
+				elems.push(field.elem);
+				checkboxes[id] = field;
 			}
 
-			element.replaceChildren(
-				htmlToElem(
-					//
-					`<div class="monitor-selector"></div>`,
-					elems,
-				),
+			elem.replaceChildren(
+				htmlToElem(`<div class="monitor-selector"></div>`, elems),
 			);
-
-			for (const field of Object.values(fields)) {
-				field.init();
-			}
-
-			// Set value.
-			for (const [id, field] of Object.entries(fields)) {
-				const state = value.includes(id);
-				field.set(state);
-			}
 		},
 		value() {
 			const value = [];
-			for (const [id, field] of Object.entries(fields)) {
-				if (field.value()) {
+			for (const [id, checkbox] of Object.entries(checkboxes)) {
+				if (checkbox.value()) {
 					value.push(id);
 				}
 			}
@@ -1200,15 +824,8 @@ function newSelectMonitorField(monitors) {
  * @returns {Field<string>}
  */
 function newSourceField(options, getField) {
-	/** @type {HTMLInputElement} */
-	let $input;
-	/** @type {HTMLSpanElement} */
-	let $error;
-
-	const id = uniqueID();
-
 	const value = () => {
-		return $input.value;
+		return field.$input.value;
 	};
 
 	/** @type {() => SourceField} */
@@ -1218,33 +835,21 @@ function newSourceField(options, getField) {
 		return getField(selectedSource);
 	};
 
+	const field = newRawSelectCustomField(options, "Source");
+	field.$editBtn.onclick = () => {
+		selectedSourceField().open();
+	};
+
 	return {
-		elems: [
-			newHTMLfield(
-				{
-					errorField: true,
-					select: options,
-					custom: true,
-				},
-				id,
-				"Source",
-			),
-		],
-		init() {
-			const element = document.getElementById(id);
-			[$input, $error] = $getInputAndError(element);
-			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				selectedSourceField().open();
-			});
-		},
+		elems: [field.elem],
 		value,
 		set(input) {
-			$input.value = input === undefined ? "rtsp" : input;
-			$error.textContent = "";
+			field.$input.value = input === undefined ? "rtsp" : input;
+			field.$error.textContent = "";
 		},
 		validate() {
 			const err = selectedSourceField().validateSource();
-			$error.textContent = err === undefined ? "" : err;
+			field.$error.textContent = err === undefined ? "" : err;
 			return err;
 		},
 	};
@@ -1261,65 +866,40 @@ function newSourceField(options, getField) {
 function newSourceRTSP() {
 	const fields = {
 		protocol: fieldTemplate.select("Protocol", ["tcp", "udp"], "tcp"),
-		mainStream: newField(
+		mainStream: newErrorField(
+			"test",
 			[inputRules.notEmpty],
-			{
-				input: "text",
-				errorField: true,
-			},
-			{
-				label: "Main stream",
-				placeholder: "rtsp://x.x.x.x/main",
-			},
+			{},
+			"Main stream",
+			"rtsp://x.x.x.x/main",
 		),
-		subStream: newField(
-			[],
-			{
-				input: "text",
-			},
-			{
-				label: "Sub stream",
-				placeholder: "rtsp://x.x.x.x/sub (optional)",
-			},
-		),
+		subStream: newField({}, "text", "Sub stream", "rtsp://x.x.x.x/sub (optional)"),
 	};
 
 	const form = newForm(fields);
 	const modal = newModal("RTSP source", [form.elem()]);
 
 	let value = {};
+	const elem = document.createElement("div");
 
 	let isRendered = false;
-	/** @param {Element} element */
-	const render = (element) => {
+	const render = () => {
 		if (isRendered) {
 			return;
 		}
-		element.append(modal.elem);
-		// @ts-ignore
-		element.querySelector(".js-modal").style.maxWidth =
-			"calc(var(--scale) * 40.5rem)";
-
-		modal.init();
-		form.init();
+		elem.append(modal.elem);
 
 		isRendered = true;
 		form.set(value);
 	};
 
-	const id = uniqueID();
-	let element;
-
 	return {
 		// @ts-ignore
 		open() {
-			render(element);
+			render();
 			modal.open();
 		},
-		elems: htmlToElems(`<div id="${id}"></div>`),
-		init() {
-			element = document.getElementById(id);
-		},
+		elems: [elem],
 		value() {
 			if (isRendered) {
 				form.get(value);
@@ -1335,11 +915,25 @@ function newSourceRTSP() {
 		// Validation is done through the source field.
 		validateSource() {
 			// Have to render form to validate.
-			render(element);
+			render();
 			const err = form.validate();
 			if (err !== undefined) {
 				return `RTSP source: ${err}`;
 			}
+		},
+	};
+}
+
+/** @returns {Field<string>} */
+function newIdField() {
+	let value;
+	return {
+		elems: [],
+		value() {
+			return value;
+		},
+		set(input) {
+			value = input;
 		},
 	};
 }
@@ -1349,8 +943,6 @@ function init() {
 	if (!isAdmin) {
 		return;
 	}
-
-	const renderer = newRenderer(document.querySelector(".js-content"));
 
 	/** @type {Fields<any>} */
 	const monitorFields = {};
@@ -1364,15 +956,11 @@ function init() {
 
 	/** @type {InputRule} */
 	const maxLength24 = [/^.{25}/, "maximum length is 24 characters"];
-	monitorFields.id = newField(
+	monitorFields.id = newErrorField(
+		"text",
 		[inputRules.noSpaces, inputRules.notEmpty, inputRules.englishOnly, maxLength24],
-		{
-			errorField: true,
-			input: "text",
-		},
-		{
-			label: "ID",
-		},
+		{},
+		"ID",
 	);
 	monitorFields.name = fieldTemplate.text("Name", "my_monitor");
 	monitorFields.enable = fieldTemplate.toggle("Enable monitor", true);
@@ -1384,54 +972,33 @@ function init() {
 	/* SETTINGS_LAST_MONITOR_FIELD */
 
 	const monitor = newMonitor(csrfToken, monitorFields, getMonitorId, monitors);
-	renderer.addCategory(monitor);
 
 	/** @type {Fields<any>} */
 	const monitorGroupsFields = {};
-	// @ts-ignore
-	monitorGroupsFields.id = (() => {
-		let value;
-		return {
-			value() {
-				return value;
-			},
-			set(input) {
-				value = input;
-			},
-		};
-	})();
+	monitorGroupsFields.id = newIdField();
 	monitorGroupsFields.name = fieldTemplate.text("Name", "my_monitor_group");
 	monitorGroupsFields.monitors = newSelectMonitorField(monitors);
 
 	const group = newMonitorGroups(csrfToken, monitorGroupsFields, monitorGroups);
-	renderer.addCategory(group);
 
 	/** @type {Fields<any>} */
 	const accountFields = {
-		id: {
-			// @ts-ignore
-			value: "",
-		},
-		username: newField(
+		id: newIdField(),
+		username: newErrorField(
+			"text",
 			[inputRules.notEmpty, inputRules.noSpaces, inputRules.noUppercase],
-			{
-				errorField: true,
-				input: "text",
-			},
-			{
-				label: "Username",
-				placeholder: "name",
-				initial: "",
-			},
+			{},
+			"Username",
+			"name",
 		),
 		isAdmin: fieldTemplate.toggle("Admin"),
 		password: newPasswordField(),
 	};
 	const account = newAccount(csrfToken, accountFields);
-	renderer.addCategory(account);
 
-	renderer.render();
-	renderer.init();
+	document
+		.querySelector(".js-content")
+		.replaceChildren(...rendererCategories([monitor, group, account]));
 }
 
 export { init };

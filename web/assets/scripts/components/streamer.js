@@ -45,76 +45,68 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 		buttonElems.push(button.elem);
 	}
 
-	const abort = new AbortController();
-	const elementID = uniqueID();
+	const $overlay = htmlToElem(
+		/* HTML */ `
+			<div
+				class="player-overlay absolute flex justify-center rounded-md bg-color1"
+				style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
+			></div>
+		`,
+		buttonElems,
+	);
+	/** @type {HTMLVideoElement} */
+	// @ts-ignore
+	const $video = htmlToElem(/* HTML */ `
+		<video
+			class="w-full h-full"
+			style="max-height: 100vh; object-fit: contain;"
+			autoplay
+			muted
+			disablepictureinpicture
+			playsinline
+			type="video/mp4"
+		></video>
+	`);
 	const checkboxID = uniqueID();
-	/** @type {DebugOvelay} */
-	let debugOverlay;
+	const elem = htmlToElem(
+		/* HTML */ `
+			<div
+				class="relative flex justify-center items-center w-full"
+				style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
+			></div>
+		`,
+		[
+			htmlToElem(/* HTML */ `
+				<input
+					id="${checkboxID}"
+					class="player-overlay-checkbox absolute"
+					style="opacity: 0;"
+					type="checkbox"
+				/>
+			`),
+			htmlToElem(/* HTML */ `
+				<label
+					for="${checkboxID}"
+					class="absolute w-full h-full"
+					style="z-index: 1; opacity: 0.5;"
+				></label>
+			`),
+			$overlay,
+			$video,
+		],
+	);
+
+	for (const button of buttons) {
+		if (button.init) {
+			button.init($overlay, $video);
+		}
+	}
+	const abort = new AbortController();
+	const debugOverlay = newDebugOverlay(elem);
+	newStream(abort.signal, $video, debugOverlay, monitorId, subStream);
 
 	return {
-		elem: htmlToElem(`<div class="flex justify-center"></div>`, [
-			htmlToElem(
-				/* HTML */ `
-					<div
-						id="${elementID}"
-						class="relative flex justify-center items-center w-full"
-						style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
-					></div>
-				`,
-				[
-					htmlToElem(/* HTML */ `
-						<input
-							id="${checkboxID}"
-							class="js-checkbox player-overlay-checkbox absolute"
-							style="opacity: 0;"
-							type="checkbox"
-						/>
-					`),
-					htmlToElem(/* HTML */ `
-						<label
-							class="absolute w-full h-full"
-							style="z-index: 1; opacity: 0.5;"
-							for="${checkboxID}"
-						></label>
-					`),
-					htmlToElem(
-						/* HTML */ `
-							<div
-								class="js-overlay player-overlay absolute flex justify-center rounded-md bg-color1"
-								style="z-index: 2; bottom: 0; margin-bottom: 5%; border: none;"
-							></div>
-						`,
-						buttonElems,
-					),
-					htmlToElem(/* HTML */ `
-						<video
-							class="w-full h-full"
-							style="max-height: 100vh; object-fit: contain;"
-							autoplay
-							muted
-							disablepictureinpicture
-							playsinline
-							type="video/mp4"
-						></video>
-					`),
-				],
-			),
-		]),
-		init() {
-			const element = document.querySelector(`#${elementID}`);
-			const $overlay = element.querySelector(`.js-overlay`);
-			/** @type {HTMLVideoElement} */
-			const $video = element.querySelector("video");
-
-			for (const button of buttons) {
-				if (button.init) {
-					button.init($overlay, $video);
-				}
-			}
-
-			debugOverlay = newDebugOverlay(element);
-			newStream(abort.signal, $video, debugOverlay, monitorId, subStream);
-		},
+		elem: htmlToElem(`<div class="flex justify-center"></div>`, [elem]),
 		enableDebugging() {
 			debugOverlay.enable();
 		},
@@ -183,33 +175,38 @@ const iconMinimizePath = "assets/icons/feather/minimize.svg";
 
 /** @return {FullscreenButton} */
 function newFullscreenBtn() {
-	let $img, $wrapper;
-	const html = /* HTML */ `
-		<button class="js-fullscreen-btn feed-btn p-1 bg-transparent">
-			<img
-				class="icon-filter"
-				style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
-				src="${iconMaximizePath}"
-			/>
-		</button>
-	`;
-	return {
-		elem: htmlToElem(html),
-		init($parent) {
-			const element = $parent.parentElement;
-			$wrapper = element.parentElement;
-			const $btn = $parent.querySelector(".js-fullscreen-btn");
-			$img = $btn.querySelector("img");
+	let $wrapper;
 
-			$btn.addEventListener("click", () => {
-				if ($wrapper.classList.contains("grid-fullscreen")) {
-					$img.src = iconMaximizePath;
-					$wrapper.classList.remove("grid-fullscreen");
-				} else {
-					$img.src = iconMinimizePath;
-					$wrapper.classList.add("grid-fullscreen");
-				}
-			});
+	/** @type {HTMLImageElement} */
+	// @ts-ignore
+	const $img = htmlToElem(/* HTML */ `
+		<img
+			class="icon-filter"
+			style="height: calc(var(--scale) * 1.5rem); aspect-ratio: 1;"
+			src="${iconMaximizePath}"
+		/>
+	`);
+
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const elem = htmlToElem(
+		`<button class="js-fullscreen-btn feed-btn p-1 bg-transparent"></button>`,
+		[$img],
+	);
+	elem.onclick = () => {
+		if ($wrapper.classList.contains("grid-fullscreen")) {
+			$img.src = iconMaximizePath;
+			$wrapper.classList.remove("grid-fullscreen");
+		} else {
+			$img.src = iconMinimizePath;
+			$wrapper.classList.add("grid-fullscreen");
+		}
+	};
+
+	return {
+		elem,
+		init($parent) {
+			$wrapper = $parent.parentElement.parentElement;
 		},
 		exitFullscreen() {
 			if ($wrapper && $wrapper.classList.contains("grid-fullscreen")) {
@@ -238,7 +235,6 @@ function newRecordingsBtn(monitorIds) {
 				/>
 			</a>
 		`),
-		init() {},
 	};
 }
 
@@ -409,7 +405,10 @@ async function newStream(parentSignal, $video, debugOverlay, monitorId, subStrea
 		}
 	};
 
-	parentSignal.throwIfAborted();
+	// NODE: remove this check.
+	if (parentSignal.throwIfAborted !== undefined) {
+		parentSignal.throwIfAborted();
+	}
 	parentSignal.addEventListener("abort", () => {
 		cancelled = true;
 		abort.abort("parent aborted");
@@ -450,13 +449,11 @@ function newDebugOverlay(element) {
 
 	let rendered = false;
 	const render = () => {
-		const pre = document.createElement("pre");
-		pre.id = id;
-		pre.style.cssText =
+		$pre = document.createElement("pre");
+		$pre.id = id;
+		$pre.style.cssText =
 			"position: absolute; top: 0; left: 1em; font-size: 0.6em; background: white; opacity: 0.5;";
-		element.append(pre);
-		// @ts-ignore
-		$pre = document.getElementById(id);
+		element.append($pre);
 	};
 
 	return {

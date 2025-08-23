@@ -2,7 +2,7 @@
 
 use axum::{
     response::Html,
-    routing::{any, delete, get, post},
+    routing::{any, delete, get, post, put},
 };
 use bytesize::ByteSize;
 use common::{
@@ -345,9 +345,11 @@ impl App {
             // Monitor.
             .route_admin(
                 "/api/monitor",
-                delete(monitor_delete_handler)
-                    .put(monitor_put_handler)
-                    .with_state(self.monitor_manager.clone()),
+                delete(monitor_delete_handler).with_state(self.monitor_manager.clone()),
+            )
+            .route_admin(
+                "/api/monitor",
+                put(monitor_put_handler).with_state(self.monitor_manager.clone()),
             )
             // Monitor restart.
             .route_admin(
@@ -362,9 +364,11 @@ impl App {
             // Monitor groups.
             .route_admin_no_csrf(
                 "/api/monitor-groups",
-                get(monitor_groups_get_handler)
-                    .put(monitor_groups_put_handler)
-                    .with_state(self.monitor_groups.clone()),
+                get(monitor_groups_get_handler).with_state(self.monitor_groups.clone()),
+            )
+            .route_admin(
+                "/api/monitor-groups",
+                put(monitor_groups_put_handler).with_state(self.monitor_groups.clone()),
             )
             // Recording delete.
             .route_user_no_csrf(
