@@ -47,25 +47,23 @@ describe("newPlayer", () => {
 		const element = document.querySelector("div");
 		const player = newPlayer(data);
 		element.replaceChildren(player.elem);
-		player.init();
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <div class="flex justify-center">
-  <div id="uid1"
-       class="relative flex justify-center items-center w-full"
+  <div class="relative flex justify-center items-center w-full"
        style="max-height: 100vh; align-self: center;"
   >
     <img class="w-full h-full"
          style="max-height: 100vh; object-fit: contain;"
          src="B"
     >
-    <div class="js-top-overlay absolute flex mr-auto"
+    <div class="absolute flex mr-auto"
          style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
     >
-      <span class="js-date pl-2 pr-1 text-color bg-color0">
+      <span class="pl-2 pr-1 text-color bg-color0">
         2001-06-02
       </span>
-      <span class="js-time px-1 text-color bg-color0">
+      <span class="px-1 text-color bg-color0">
         00:00:00
       </span>
       <span class="text-color pl-1 pr-2 bg-color0">
@@ -105,12 +103,11 @@ describe("newPlayer", () => {
 </div>
 `);
 
-		document.querySelector("div img").click();
+		player.testingThumbnail.click();
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <div class="flex justify-center">
-  <div id="uid1"
-       class="relative flex justify-center items-center w-full js-loaded"
+  <div class="relative flex justify-center items-center w-full js-loaded"
        style="max-height: 100vh; align-self: center;"
   >
     <video style="max-height: 100vh; min-width: 100%; min-height: 100%; object-fit: contain;"
@@ -130,12 +127,12 @@ describe("newPlayer", () => {
          preserveaspectratio="none"
     >
     </svg>
-    <input id="uid1-overlay-checkbox"
+    <input id="uid1"
            type="checkbox"
            class="js-checkbox player-overlay-checkbox absolute"
            style="opacity: 0;"
     >
-    <label for="uid1-overlay-checkbox"
+    <label for="uid1"
            class="w-full h-full absolute"
            style="z-index: 1; opacity: 0.5;"
     >
@@ -143,7 +140,7 @@ describe("newPlayer", () => {
     <div class="player-overlay absolute flex justify-center"
          style="z-index: 2;"
     >
-      <button class="js-play-btn p-1 bg-color0"
+      <button class="p-1 bg-color0"
               style="border-radius: 50%; opacity: 0.8;"
       >
         <img style="aspect-ratio: 1; height: calc(var(--scale) * 1.5rem); filter: invert(90%);"
@@ -179,26 +176,26 @@ describe("newPlayer", () => {
         >
         </rect>
       </svg>
-      <progress class="js-progress w-full h-full py-1 bg-transparent"
+      <progress class="w-full h-full py-1 bg-transparent"
                 style="opacity: 0.8; user-select: none;"
                 value="0"
                 min="0"
       >
-        <span class="js-progress-bar">
+        <span>
         </span>
       </progress>
-      <button class="js-options-open-btn player-options-open-btn absolute m-auto rounded-md bg-color0"
+      <button class="player-options-open-btn absolute m-auto rounded-md bg-color0"
               style="
-							right: calc(var(--scale) * 1rem);
-							bottom: calc(var(--scale) * 2.5rem);
-							transition: opacity 250ms;
-						"
+					right: calc(var(--scale) * 1rem);
+					bottom: calc(var(--scale) * 2.5rem);
+					transition: opacity 250ms;
+				"
       >
         <img style="width: calc(var(--scale) * 1rem); height: calc(var(--scale) * 2rem); filter: invert(90%);"
              src="assets/icons/feather/more-vertical-slim.svg"
         >
       </button>
-      <div class="js-popup absolute rounded-lg bg-color0"
+      <div class="absolute rounded-lg bg-color0"
            style="
 							right: calc(var(--scale) * 0.5rem);
 							bottom: calc(var(--scale) * 5rem);
@@ -215,7 +212,7 @@ describe("newPlayer", () => {
                src="assets/icons/feather/download.svg"
           >
         </a>
-        <button class="js-fullscreen p-1 bg-transparent">
+        <button class="p-1 bg-transparent">
           <img class="icon-filter"
                style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
                src="assets/icons/feather/maximize.svg"
@@ -223,13 +220,13 @@ describe("newPlayer", () => {
         </button>
       </div>
     </div>
-    <div class="js-top-overlay player-overlay absolute flex mr-auto"
+    <div class="player-overlay absolute flex mr-auto"
          style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
     >
-      <span class="js-date pl-2 pr-1 text-color bg-color0">
+      <span class="pl-2 pr-1 text-color bg-color0">
         2001-06-02
       </span>
-      <span class="js-time px-1 text-color bg-color0">
+      <span class="px-1 text-color bg-color0">
         00:00:00
       </span>
       <span class="text-color pl-1 pr-2 bg-color0">
@@ -244,21 +241,20 @@ describe("newPlayer", () => {
 		expect(element.outerHTML).toMatchInlineSnapshot(`
 <div>
   <div class="flex justify-center">
-    <div id="uid1"
-         class="relative flex justify-center items-center w-full"
+    <div class="relative flex justify-center items-center w-full"
          style="max-height: 100vh; align-self: center;"
     >
       <img class="w-full h-full"
            style="max-height: 100vh; object-fit: contain;"
            src="B"
       >
-      <div class="js-top-overlay absolute flex mr-auto"
+      <div class="absolute flex mr-auto"
            style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
       >
-        <span class="js-date pl-2 pr-1 text-color bg-color0">
+        <span class="pl-2 pr-1 text-color bg-color0">
           2001-06-02
         </span>
-        <span class="js-time px-1 text-color bg-color0">
+        <span class="px-1 text-color bg-color0">
           00:00:00
         </span>
         <span class="text-color pl-1 pr-2 bg-color0">
@@ -311,26 +307,24 @@ describe("newPlayer", () => {
 		const element = document.querySelector("div");
 		const player = newPlayer(data, true);
 		element.replaceChildren(player.elem);
-		player.init();
 
 		// Original.
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <div class="flex justify-center">
-  <div id="uid2"
-       class="relative flex justify-center items-center w-full"
+  <div class="relative flex justify-center items-center w-full"
        style="max-height: 100vh; align-self: center;"
   >
     <img class="w-full h-full"
          style="max-height: 100vh; object-fit: contain;"
          src="B"
     >
-    <div class="js-top-overlay absolute flex mr-auto"
+    <div class="absolute flex mr-auto"
          style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
     >
-      <span class="js-date pl-2 pr-1 text-color bg-color0">
+      <span class="pl-2 pr-1 text-color bg-color0">
         2001-06-02
       </span>
-      <span class="js-time px-1 text-color bg-color0">
+      <span class="px-1 text-color bg-color0">
         00:00:00
       </span>
       <span class="text-color pl-1 pr-2 bg-color0">
@@ -370,11 +364,11 @@ describe("newPlayer", () => {
 </div>
 `);
 
-		document.querySelector("div img").click();
+		player.testingThumbnail.click();
 
 		// Popup buttons after click.
-		expect(element.querySelector(".js-popup").innerHTML).toMatchInlineSnapshot(`
-<button class="js-delete p-1 bg-transparent">
+		expect(player.testing().$popup.innerHTML).toMatchInlineSnapshot(`
+<button class="p-1 bg-transparent">
   <img class="icon-filter"
        style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
        src="assets/icons/feather/trash-2.svg"
@@ -389,7 +383,7 @@ describe("newPlayer", () => {
        src="assets/icons/feather/download.svg"
   >
 </a>
-<button class="js-fullscreen p-1 bg-transparent">
+<button class="p-1 bg-transparent">
   <img class="icon-filter"
        style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
        src="assets/icons/feather/maximize.svg"
@@ -397,7 +391,7 @@ describe("newPlayer", () => {
 </button>
 `);
 
-		document.querySelector(".js-delete").click();
+		player.testing().$delete.click();
 		await (() => {
 			return new Promise((resolve) => {
 				setTimeout(resolve, 10);
@@ -409,16 +403,16 @@ describe("newPlayer", () => {
 	test("bubblingVideoClick", () => {
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
-		const player = newPlayer(data);
+		let nclicks = 0;
+		const onVideoLoad = () => {
+			nclicks++;
+		};
+		const player = newPlayer(data, false, "", onVideoLoad);
 		element.replaceChildren(player.elem);
 
-		let nclicks = 0;
-		player.init(() => {
-			nclicks++;
-		});
-		document.querySelector("div img").click();
-		document.querySelector(".js-play-btn").click();
-		document.querySelector(".js-play-btn").click();
+		player.testingThumbnail.click();
+		player.testing().$playpause.click();
+		player.testing().$playpause.click();
 
 		expect(nclicks).toBe(1);
 	});
@@ -432,7 +426,6 @@ describe("detectionRenderer", () => {
 		document.body.innerHTML = "<div></div>";
 		const element = document.querySelector("div");
 		element.replaceChildren(d.elem);
-		d.init(element.querySelector(".js-detections"));
 		return [d, element];
 	};
 

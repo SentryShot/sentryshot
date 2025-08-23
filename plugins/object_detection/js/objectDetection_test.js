@@ -33,7 +33,6 @@ describe("object detection", () => {
 
 		const od = newObjectDetection();
 		element.replaceChildren(...od.elems);
-		od.init();
 		od.set();
 		expect(od.validate()).toBeUndefined();
 		expect(od.validate()).toBeUndefined();
@@ -46,7 +45,6 @@ describe("object detection", () => {
 
 		const od = newObjectDetection();
 		element.replaceChildren(...od.elems);
-		od.init();
 		od.set();
 		// @ts-ignore
 		od.openTesting();

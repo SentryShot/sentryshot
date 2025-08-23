@@ -11,7 +11,6 @@ import {
 	relativePathname,
 	sleep,
 	htmlToElem,
-	htmlToElems,
 } from "./libs/common.js";
 import { fromUTC2 } from "./libs/time.js";
 import { newForm, fieldTemplate } from "./components/form.js";
@@ -57,16 +56,11 @@ function newLogger(formatLog, element) {
 			if (savedlogsLoader) {
 				savedlogsLoader.cancel();
 			}
-			element.innerHTML = /* HTML */ `
-				<div class="js-new-logs log-list"></div>
-				<div class="js-old-logs log-list"></div>
-				<span class="js-loading-indicator"></span>
-			`;
 
-			const $newLogs = element.querySelector(".js-new-logs");
-			const $oldLogs = element.querySelector(".js-old-logs");
-			/** @type {HTMLSpanElement} */
-			const $loadingIndicator = element.querySelector(".js-loading-indicator");
+			const $newLogs = htmlToElem(`<div class="log-list"></div>`);
+			const $oldLogs = htmlToElem(`<div class="log-list"></div>`);
+			const $loadingIndicator = document.createElement("span");
+			element.replaceChildren($newLogs, $oldLogs, $loadingIndicator);
 
 			const fiveSecMs = 5000;
 			const time = (Date.now() - fiveSecMs) * 1000;
@@ -483,44 +477,59 @@ function newMultiSelect(label, values, initial) {
 	 * @return {Field<boolean>}
 	 */
 	const newField = (id, name) => {
-		let $checkbox;
+		/** @type {HTMLInputElement} */
+		// @ts-ignore
+		const $checkbox = htmlToElem(/* HTML */ `
+			<input
+				class="checkbox-checkbox w-full h-full"
+				style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
+				type="checkbox"
+			/>
+		`);
 
-		const html = /* HTML */ `
-			<div
-				class="item-${id} flex items-center"
-				style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
-			>
+		const elem = htmlToElem(
+			/* HTML */ `
 				<div
-					class="flex justify-center items-center bg-color2"
-					style="width: 0.8em; height: 0.8em; user-select: none;"
-				>
-					<input
-						class="checkbox-checkbox w-full h-full"
-						style="z-index: 1; outline: none; -moz-appearance: none; -webkit-appearance: none;"
-						type="checkbox"
-					/>
-					<div
-						class="checkbox-box absolute rounded-md"
-						style="width: 0.62em; height: 0.62em;"
-					></div>
-					<img
-						class="checkbox-check absolute"
-						style="width: 0.7em; filter: invert();"
-						src="assets/icons/feather/check.svg"
-					/>
-				</div>
-				<span
-					class="ml-1 text-color"
-					style="font-size: calc(var(--scale) * 1.2rem);"
-					>${name}</span
-				>
-			</div>
-		`;
+					class="item-${id} flex items-center"
+					style="min-width: 1px; font-size: calc(var(--scale) * 2.3rem)"
+				></div>
+			`,
+			[
+				htmlToElem(
+					/* HTML */ `
+						<div
+							class="flex justify-center items-center bg-color2"
+							style="width: 0.8em; height: 0.8em; user-select: none;"
+						></div>
+					`,
+					[
+						$checkbox,
+						htmlToElem(/* HTML */ `
+							<div
+								class="checkbox-box absolute rounded-md"
+								style="width: 0.62em; height: 0.62em;"
+							></div>
+						`),
+						htmlToElem(/* HTML */ `
+							<img
+								class="checkbox-check absolute"
+								style="width: 0.7em; filter: invert();"
+								src="assets/icons/feather/check.svg"
+							/>
+						`),
+					],
+				),
+				htmlToElem(/* HTML */ `
+					<span
+						class="ml-1 text-color"
+						style="font-size: calc(var(--scale) * 1.2rem);"
+						>${name}</span
+					>
+				`),
+			],
+		);
 		return {
-			elems: htmlToElems(html),
-			init() {
-				$checkbox = document.querySelector(`.item-${id} input`);
-			},
+			elems: [elem],
 			set(input) {
 				$checkbox.checked = input;
 			},
@@ -554,17 +563,13 @@ function newMultiSelect(label, values, initial) {
 			fields[val].set(false);
 		}
 	};
-
-	const id = uniqueID();
+	reset();
 
 	return {
 		elems: [
 			htmlToElem(
 				/* HTML */ `
-					<li
-						id="${id}"
-						class="items-center w-full px-2 border-b-2 border-color1"
-					></li>
+					<li class="items-center w-full px-2 border-b-2 border-color1"></li>
 				`,
 				[
 					htmlToElem(
@@ -574,12 +579,6 @@ function newMultiSelect(label, values, initial) {
 				],
 			),
 		],
-		init() {
-			for (const field of Object.values(fields)) {
-				field.init();
-			}
-			reset();
-		},
 		value() {
 			const output = [];
 			for (const key of Object.keys(fields)) {
@@ -629,59 +628,64 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 		options += `\n<option>${name}</option>`;
 	}
 
-	let $input;
+	const inputID = uniqueID();
+
+	/** @type {HTMLSelectElement} */
+	// @ts-ignore
+	const $input = htmlToElem(/* HTML */ `
+		<select
+			id="${inputID}"
+			class="w-full pl-2 text-1.5"
+			style="height: calc(var(--scale) * 2.5rem);"
+		>
+			${options}
+		</select>
+	`);
 	const reset = () => {
 		$input.value = "";
 	};
 
-	const elementID = uniqueID();
-	const inputID = uniqueID();
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $editBtn = htmlToElem(/* HTML */ `
+		<button
+			class="js-edit-btn flex ml-2 rounded-lg bg-color3 hover:bg-color2"
+			style="
+				aspect-ratio: 1;
+				width: calc(var(--scale) * 2.5rem);
+				height: calc(var(--scale) * 2.5rem);
+			"
+		>
+			<img class="p-2 icon-filter" src="assets/icons/feather/video.svg" />
+		</button>
+	`);
 
-	const html = /* HTML */ `
-		<li id="${elementID}" class="items-center p-2 border-b-2 border-color1">
-			<label for="${inputID}" class="mr-auto text-1.5 text-color">Monitor</label>
-			<div class="flex w-full">
-				<select
-					id="${inputID}"
-					class="w-full pl-2 text-1.5"
-					style="height: calc(var(--scale) * 2.5rem);"
+	const elem = htmlToElem(
+		`<li class="items-center p-2 border-b-2 border-color1"></li>`,
+		[
+			htmlToElem(/* HTML */ `
+				<label for="${inputID}" class="mr-auto text-1.5 text-color"
+					>Monitor</label
 				>
-					${options}
-				</select>
-				<button
-					class="js-edit-btn flex ml-2 rounded-lg bg-color3 hover:bg-color2"
-					style="
-							aspect-ratio: 1;
-							width: calc(var(--scale) * 2.5rem);
-							height: calc(var(--scale) * 2.5rem);
-						"
-				>
-					<img class="p-2 icon-filter" src="assets/icons/feather/video.svg" />
-				</button>
-			</div>
-		</li>
-	`;
+			`),
+			htmlToElem(`<div class="flex w-full"></div>`, [$input, $editBtn]),
+		],
+	);
+
+	/** @param {string} selected */
+	const onSelect = (selected) => {
+		$input.value = selected;
+	};
+	const modal = newModalSelect2("Monitor", monitorNames, onSelect, elem);
+
+	$editBtn.onclick = modal.open;
+	$input.onchange = (event) => {
+		// @ts-ignore
+		modal.set(event.target.value);
+	};
+
 	return {
-		elems: htmlToElems(html),
-		init() {
-			const element = document.querySelector(`#${elementID}`);
-			$input = element.querySelector(`#${inputID}`);
-
-			/** @param {string} selected */
-			const onSelect = (selected) => {
-				$input.value = selected;
-			};
-			const modal = newModalSelect2("Monitor", monitorNames, onSelect);
-			modal.init(element);
-
-			element.querySelector(`.js-edit-btn`).addEventListener("click", () => {
-				modal.open();
-			});
-			$input.addEventListener("change", (event) => {
-				// @ts-ignore
-				modal.set(event.target.value);
-			});
-		},
+		elems: [elem],
 		value() {
 			const value = $input.value;
 			if (value === "") {
@@ -710,11 +714,11 @@ function newMonitorPicker(monitors, newModalSelect2 = newModalSelect) {
 /**
  * @param {Logger} logger
  * @param {LogSelectorFields} formFields
+ * @param {Element} $parent
  */
-function newLogSelector(logger, formFields) {
+function newLogSelector(logger, formFields, $parent) {
 	const form = newForm(formFields);
 
-	let $sidebar;
 	const apply = () => {
 		const level = form.fields["level"].value();
 		let levels;
@@ -762,30 +766,24 @@ function newLogSelector(logger, formFields) {
 		`),
 	];
 
-	return {
-		/** @param {Element} $parent */
-		init($parent) {
-			$sidebar = $parent.querySelector(".js-sidebar");
-			const $list = $parent.querySelector(".js-list");
+	const $sidebar = $parent.querySelector(".js-sidebar");
+	const $list = $parent.querySelector(".js-list");
 
-			$sidebar.replaceChildren(...elems);
-			form.init();
-			form.reset();
-			apply();
+	$sidebar.replaceChildren(...elems);
+	form.reset();
+	apply();
 
-			$sidebar.querySelector(".js-reset").addEventListener("click", () => {
-				form.reset();
-				apply();
-			});
-			$sidebar.querySelector(".js-apply").addEventListener("click", () => {
-				$list.classList.add("log-list-open");
-				apply();
-			});
-			$parent.querySelector(".js-back").addEventListener("click", () => {
-				$list.classList.remove("log-list-open");
-			});
-		},
-	};
+	$sidebar.querySelector(".js-reset").addEventListener("click", () => {
+		form.reset();
+		apply();
+	});
+	$sidebar.querySelector(".js-apply").addEventListener("click", () => {
+		$list.classList.add("log-list-open");
+		apply();
+	});
+	$parent.querySelector(".js-back").addEventListener("click", () => {
+		$list.classList.remove("log-list-open");
+	});
 }
 
 function init() {
@@ -807,10 +805,7 @@ function init() {
 		monitor: newMonitorPicker(monitors),
 		sources: newMultiSelect("Sources", logSources, logSources),
 	};
-	const logSelector = newLogSelector(logger, formFields);
-
-	const $content = document.querySelector(".js-content");
-	logSelector.init($content);
+	newLogSelector(logger, formFields, document.querySelector(".js-content"));
 
 	window.addEventListener("resize", logger.lazyLoadSavedLogs);
 	window.addEventListener("orientation", logger.lazyLoadSavedLogs);

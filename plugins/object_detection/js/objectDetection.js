@@ -5,8 +5,8 @@ import { uniqueID, normalize, denormalize, globals, htmlToElem } from "./libs/co
 import {
 	newForm,
 	newNumberField,
-	newModalFieldHTML,
-	newHTMLfield,
+	newModalField,
+	newRawSelectField,
 	fieldTemplate,
 } from "./components/form.js";
 import { newStreamer } from "./components/streamer.js";
@@ -73,16 +73,12 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 	);
 	fields.feedRate = newNumberField(
 		{
-			errorField: true,
-			input: "number",
 			min: 0,
 			step: 0.1,
 		},
-		{
-			label: "Feed rate (fps)",
-			placeholder: "",
-			initial: 0.2,
-		},
+		"Feed rate (fps)",
+		"",
+		0.2,
 	);
 	fields.duration = fieldTemplate.integer("Trigger duration (sec)", "", 120);
 	fields.useSubStream = fieldTemplate.toggle("Use sub stream", true);
@@ -93,21 +89,12 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 
 	let value;
 
-	/** @type {Element} */
-	let element;
-
 	let isRendered = false;
 	const render = () => {
 		if (isRendered) {
 			return;
 		}
-		element.append(modal.elem);
-		/** @type {HTMLElement} */
-		const $modal = element.querySelector(".js-modal");
-		$modal.style.maxWidth = "calc(var(--scale) * 40.5rem)";
-
-		modal.init();
-		form.init();
+		elem.append(modal.elem);
 
 		isRendered = true;
 		value = value === undefined ? {} : value;
@@ -119,10 +106,10 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 		modal.open();
 	};
 
-	const id = uniqueID();
+	const elem = newModalField("Object detection", open);
 
 	return {
-		elems: [newModalFieldHTML(id, "Object detection")],
+		elems: [elem],
 		value() {
 			if (isRendered) {
 				value = {};
@@ -145,12 +132,6 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 				return `Object detection: ${err}`;
 			}
 		},
-		init() {
-			element = document.querySelector(`#${id}`);
-			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				open();
-			});
-		},
 		// @ts-ignore
 		openTesting() {
 			open();
@@ -161,58 +142,104 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 /**
  * @param {Detectors} detectors]
  * @param {() => string} getDetectorName
- * @returns {Field<any>}
+ * @returns {Field<{[x: string]: number}>}
  */
 function thresholds(detectors, getDetectorName) {
+	const defaultThresh = 100;
+
+	/** @typedef Threshold
+	 *  @property {Element} elem
+	 *  @property {string} label
+	 *  @property {string} value
+	 */
+
 	/**
 	 * @param {string} label
-	 * @param {string} val
+	 * @param {number} value
+	 * @returns {Threshold}
 	 */
-	const newField = (label, val) => {
+	const newThresh = (label, value) => {
 		const id = uniqueID();
-		const html = /* HTML */ `
-			<li
-				class="flex items-center px-2 border-color1"
-				style="border-bottom-width: 1px;"
-			>
-				<label for="${id}" class="mr-auto text-1.5 text-color">${label}</label>
-				<input
-					id="${id}"
-					class="text-center h-full text-1.5"
-					style="width: calc(var(--scale) * 4rem);"
-					type="number"
-					value="${val}"
-					min="0"
-					max="100"
-				/>
-			</li>
-		`;
+		/** @type {HTMLInputElement} */
+		// @ts-ignore
+		const $input = htmlToElem(/* HTML */ `
+			<input
+				id="${id}"
+				class="text-center h-full text-1.5"
+				style="width: calc(var(--scale) * 4rem);"
+				type="number"
+				value="${value}"
+				min="0"
+				max="100"
+			/>
+		`);
+		const elem = htmlToElem(
+			/* HTML */ `
+				<li
+					class="flex items-center px-2 border-color1"
+					style="border-bottom-width: 1px;"
+				></li>
+			`,
+			[
+				htmlToElem(/* HTML */ `
+					<label for="${id}" class="mr-auto text-1.5 text-color"
+						>${label}</label
+					>
+				`),
+				$input,
+			],
+		);
 		return {
-			elem: htmlToElem(html),
-			value() {
-				// @ts-ignore
-				return document.getElementById(id).value;
-			},
-			label() {
-				return label;
-			},
+			elem,
+			label,
+			value: $input.value,
 		};
 	};
 
-	let value, modal, fields;
-	/** @type {Element} */
-	let $modalContent;
+	const modal = newModal("Thresholds");
+
+	/** @param {string} detectorName */
+	const updateThresholds = (detectorName) => {
+		/** @type {{[x: string]: number }}} */
+		const supportedLabels = {};
+		for (const name of detectors[detectorName].labels) {
+			supportedLabels[name] = defaultThresh;
+		}
+
+		// Fill in saved values.
+		for (const name of Object.keys(value)) {
+			if (supportedLabels[name]) {
+				supportedLabels[name] = value[name];
+			}
+		}
+
+		// Sort keys.
+		const labelKeys = Object.keys(supportedLabels);
+		labelKeys.sort();
+
+		thresholds = [];
+
+		const frag = new DocumentFragment();
+		for (const key of labelKeys) {
+			const thresh = newThresh(key, supportedLabels[key]);
+			frag.append(thresh.elem);
+			thresholds.push(thresh);
+		}
+		modal.$content.replaceChildren(frag);
+	};
+
+	/** @type {{[x: string]: number }}} */
+	let value;
+	/** @type {Threshold[]} */
+	let thresholds;
 	let isRendered = false;
-	/** @param {Element} element */
-	const render = (element) => {
+	const render = () => {
 		if (isRendered) {
 			return;
 		}
-		modal = newModal("Thresholds");
-		element.append(modal.elem);
-		$modalContent = modal.init();
+		elem.append(modal.elem);
 
-		$modalContent.addEventListener("change", (e) => {
+		modal.$content.addEventListener("change", (e) => {
 			const target = e.target;
 			if (target instanceof HTMLInputElement) {
 				const input = target.value;
@@ -230,82 +257,37 @@ function thresholds(detectors, getDetectorName) {
 		// Read values when modal is closed.
 		modal.onClose(() => {
 			value = {};
-			for (const field of fields) {
-				value[field.label()] = Number(field.value());
+			for (const field of thresholds) {
+				value[field.label] = Number(field.value);
 			}
 		});
+
 		isRendered = true;
 	};
 
-	const defaultThresh = 100;
-
-	/** @param {string} detectorName */
-	const setValue = (detectorName) => {
-		// Get labels from the detector.
-		/** @type {string[]} */
-		const labelNames = detectors[detectorName].labels;
-
-		const labels = {};
-		for (const name of labelNames) {
-			labels[name] = defaultThresh;
+	const elem = newModalField("Thresholds", () => {
+		const detectorName = getDetectorName();
+		if (detectorName === "") {
+			alert("please select a detector");
+			return;
 		}
-
-		// Fill in saved values.
-		for (const name of Object.keys(value)) {
-			if (labels[name]) {
-				labels[name] = value[name];
-			}
-		}
-
-		// Sort keys.
-		const labelKeys = [];
-		for (const key of Object.keys(labels)) {
-			labelKeys.push(key);
-		}
-		labelKeys.sort();
-
-		fields = [];
-
-		// TODO: combine loops.
-		// Create fields
-		for (const name of labelKeys) {
-			fields.push(newField(name, labels[name]));
-		}
-
-		// Render fields.
-		const frag = new DocumentFragment();
-		for (const field of fields) {
-			frag.append(field.elem);
-		}
-		$modalContent.replaceChildren(frag);
-	};
-
-	const id = uniqueID();
+		updateThresholds(detectorName);
+		render();
+		modal.open();
+	});
 
 	return {
-		elems: [newModalFieldHTML(id, "Thresholds")],
+		elems: [elem],
 		value() {
 			return value;
 		},
 		set(input) {
 			value = input ? input : {};
 		},
-		init() {
-			const element = document.querySelector(`#${id}`);
-			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				const detectorName = getDetectorName();
-				if (detectorName === "") {
-					alert("please select a detector");
-					return;
-				}
-
-				render(element);
-				setValue(detectorName);
-				modal.open();
-			});
-		},
 	};
 }
+
+/** @typedef { import("./components/feed.js").Feed } Feed */
 
 /**
  * @typedef {Object} Crop
@@ -330,7 +312,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 
 	/** @type {Crop} */
 	let value;
-	let $wrapper, $padding, $x, $y, $size, $modalContent;
+	let $wrapper, $x, $y, $size;
 	/** @type {Element} */
 	let $feed;
 	/** @type {Element} */
@@ -338,148 +320,145 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 
 	const modal = newModal("Crop");
 
-	/** @param {Element} feedElem */
-	const renderModal = (feedElem) => {
+	const renderModal = () => {
+		$feed = htmlToElem(
+			`<div class="flex w-full" style="min-width: 0; background: white;"></div>`,
+		);
+		/** @type {HTMLDivElement} */
+		// @ts-ignore
+		const $padding = htmlToElem(`<div style="background: white;"></div>`);
+		$overlay = htmlToElem(/* HTML */ `
+			<svg
+				class="absolute w-full h-full"
+				style="top: 0; opacity: 0.7;"
+				viewBox="0 0 100 100"
+				preserveAspectRatio="none"
+			></svg>
+		`);
+		$wrapper = htmlToElem(
+			//
+			`<div class="relative"></div>`,
+			[$feed, $padding, $overlay],
+		);
+		$x = htmlToElem(/* HTML */ `
+			<input
+				class="text-center rounded-md text-1.3"
+				style="width: calc(var(--scale) * 3rem);"
+				type="number"
+				min="0"
+				max="100"
+				value="0"
+			/>
+		`);
+		$y = htmlToElem(/* HTML */ `
+			<input
+				class="text-center rounded-md text-1.3"
+				style="width: calc(var(--scale) * 3rem);"
+				type="number"
+				min="0"
+				max="100"
+				value="0"
+			/>
+		`);
+		$size = htmlToElem(/* HTML */ `
+			<input
+				class="text-center rounded-md text-1.3"
+				style="width: calc(var(--scale) * 3.5rem);"
+				type="number"
+				min="0"
+				max="100"
+				value="0"
+			/>
+		`);
+		const $options = htmlToElem(
+			/* HTML */ `
+				<li
+					class="flex items-center p-2 border-b-2 border-color1"
+					style="flex-wrap: wrap;"
+				></li>
+			`,
+			[
+				htmlToElem(
+					`<div class="flex mr-1 mb-1 p-1 rounded-lg bg-color2"></div>`,
+					[
+						htmlToElem(
+							`<span class="ml-1 mr-2 text-1.3 text-color">X</span>`,
+						),
+						$x,
+					],
+				),
+				htmlToElem(
+					`<div class="flex mr-1 mb-1 p-1 rounded-lg bg-color2"></div>`,
+					[
+						htmlToElem(
+							`<span class="ml-1 mr-2 text-1.3 text-color">Y</span>`,
+						),
+						$y,
+					],
+				),
+				htmlToElem(
+					`<div class="flex mr-1 mb-1 p-1 rounded-lg bg-color2"></div>`,
+					[
+						htmlToElem(
+							`<span class="mr-2 ml-1 text-1.3 text-color">size</span>`,
+						),
+						$size,
+					],
+				),
+			],
+		);
+		const previewId = uniqueID();
 		const elems = [
 			htmlToElem(
-				/* HTML */ `
-					<li
-						id="object-detection-crop-preview"
-						class="flex flex-col items-center px-2"
-					></li>
-				`,
+				`<li id="${previewId}" class="flex flex-col items-center px-2"></li>`,
 				[
 					htmlToElem(/* HTML */ `
-						<label
-							for="object-detection-crop-preview"
-							class="mr-auto text-1.5 text-color"
+						<label for="${previewId}" class="mr-auto text-1.5 text-color"
 							>Preview</label
 						>
 					`),
-					htmlToElem(
-						/* HTML */ ` <div class="js-preview-wrapper relative"></div> `,
-						[
-							htmlToElem(
-								/* HTML */ `
-									<div
-										class="js-feed flex w-full"
-										style="min-width: 0; background: white;"
-									></div>
-								`,
-								[feedElem],
-							),
-							htmlToElem(/* HTML */ `
-								<div
-									class="js-preview-padding"
-									style="background: white;"
-								></div>
-							`),
-							htmlToElem(/* HTML */ `
-								<svg
-									class="js-object-detection-overlay absolute w-full h-full"
-									style="top: 0; opacity: 0.7;"
-									viewBox="0 0 100 100"
-									preserveAspectRatio="none"
-								></svg>
-							`),
-						],
-					),
+					$wrapper,
 				],
 			),
-			htmlToElem(/* HTML */ `
-				<li
-					class="js-options flex items-center p-2 border-b-2 border-color1"
-					style="flex-wrap: wrap;"
-				>
-					<div
-						class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
-					>
-						<span class="ml-1 mr-2 text-1.3 text-color">X</span>
-						<input
-							class="js-x text-center rounded-md text-1.3"
-							style="width: calc(var(--scale) * 3rem);"
-							type="number"
-							min="0"
-							max="100"
-							value="0"
-						/>
-					</div>
-					<div
-						class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
-					>
-						<span class="ml-1 mr-2 text-1.3 text-color">Y</span>
-						<input
-							class="js-y text-center rounded-md text-1.3"
-							style="width: calc(var(--scale) * 3rem);"
-							type="number"
-							min="0"
-							max="100"
-							value="0"
-						/>
-					</div>
-					<div
-						class="js-object-detection-crop-option flex mr-1 mb-1 p-1 rounded-lg bg-color2"
-					>
-						<span class="mr-2 ml-1 text-1.3 text-color">size</span>
-						<input
-							class="js-size text-center rounded-md text-1.3"
-							style="width: calc(var(--scale) * 3.5rem);"
-							type="number"
-							min="0"
-							max="100"
-							value="0"
-						/>
-					</div>
-				</li>
-			`),
+			$options,
 		];
 
-		$modalContent = modal.init();
-		$modalContent.replaceChildren(...elems);
-
-		$feed = $modalContent.querySelector(".js-feed");
-		$wrapper = $modalContent.querySelector(".js-preview-wrapper");
-		$padding = $modalContent.querySelector(".js-preview-padding");
-		$x = $modalContent.querySelector(".js-x");
-		$y = $modalContent.querySelector(".js-y");
-		$size = $modalContent.querySelector(".js-size");
+		modal.$content.replaceChildren(...elems);
 
 		set(value);
+
+		const updatePadding = () => {
+			const detectorName = getDetectorName();
+			if (detectorName === "") {
+				alert("please select a detector");
+				return;
+			}
+
+			const inputWidth = $feed.clientWidth;
+			const inputHeight = $feed.clientHeight;
+			const inputRatio = inputWidth / inputHeight;
+			const outputRatio = detectorAspectRatio(detectorName);
+
+			if (inputRatio > outputRatio) {
+				const paddingHeight = inputWidth * outputRatio - inputHeight;
+				$wrapper.style.display = "block";
+				$padding.style.width = "auto";
+				$padding.style.height = `${paddingHeight}px`;
+			} else {
+				const paddingWidth = inputHeight * outputRatio - inputWidth;
+				$wrapper.style.display = "flex";
+				$padding.style.width = `${paddingWidth}px`;
+				$padding.style.height = "auto";
+			}
+		};
 
 		// Update padding if $feed size changes. TODO
 		// eslint-disable-next-line compat/compat
 		new ResizeObserver(updatePadding).observe($feed);
 
-		$overlay = $modalContent.querySelector(".js-object-detection-overlay");
-		$modalContent.querySelector(".js-options").addEventListener("change", () => {
+		$options.addEventListener("change", () => {
 			$overlay.innerHTML = renderPreviewOverlay();
 		});
-		$overlay.innerHTML = renderPreviewOverlay();
-	};
-
-	const updatePadding = () => {
-		const detectorName = getDetectorName();
-		if (detectorName === "") {
-			alert("please select a detector");
-			return;
-		}
-
-		const inputWidth = $feed.clientWidth;
-		const inputHeight = $feed.clientHeight;
-		const inputRatio = inputWidth / inputHeight;
-		const outputRatio = detectorAspectRatio(detectorName);
-
-		if (inputRatio > outputRatio) {
-			const paddingHeight = inputWidth * outputRatio - inputHeight;
-			$wrapper.style.display = "block";
-			$padding.style.width = "auto";
-			$padding.style.height = `${paddingHeight}px`;
-		} else {
-			const paddingWidth = inputHeight * outputRatio - inputWidth;
-			$wrapper.style.display = "flex";
-			$padding.style.width = `${paddingWidth}px`;
-			$padding.style.height = "auto";
-		}
 	};
 
 	const renderPreviewOverlay = () => {
@@ -528,9 +507,6 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 		$size.value = input.size;
 	};
 
-	let rendered = false;
-	const id = uniqueID();
-
 	/** @returns {Crop} */
 	const defaultValue = () => {
 		return {
@@ -540,8 +516,36 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 		};
 	};
 
+	/** @type {Feed} */
+	let feed;
+
+	let rendered = false;
+	const elem = newModalField("Crop", () => {
+		if (feed !== undefined) {
+			feed.destroy();
+		}
+		const monitor = {
+			id: getMonitorId(),
+			audioEnabled: "false",
+			hasSubStream: hasSubStream(getMonitorId()),
+		};
+		feed = newStreamer(monitor, true);
+
+		if (!rendered) {
+			renderModal();
+			rendered = true;
+		}
+		modal.onClose(() => {
+			feed.destroy();
+		});
+		$overlay.innerHTML = renderPreviewOverlay();
+		$feed.replaceChildren(feed.elem);
+
+		modal.open();
+	});
+
 	return {
-		elems: [newModalFieldHTML(id, "Crop"), modal.elem],
+		elems: [elem, modal.elem],
 		value() {
 			if (!rendered) {
 				return normalizeCrop(value);
@@ -558,32 +562,6 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 			if (rendered) {
 				set(value);
 			}
-		},
-		init() {
-			const element = document.querySelector(`#${id}`);
-			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				const monitor = {
-					id: getMonitorId(),
-					audioEnabled: "false",
-					hasSubStream: hasSubStream(getMonitorId()),
-				};
-				const feed = newStreamer(monitor, true);
-
-				if (rendered) {
-					// Update feed and preview.
-					$feed.replaceChildren(feed.elem);
-					$overlay.innerHTML = renderPreviewOverlay();
-				} else {
-					renderModal(feed.elem);
-					modal.onClose(() => {
-						feed.destroy();
-					});
-					rendered = true;
-				}
-
-				modal.open();
-				feed.init();
-			});
 		},
 	};
 }
@@ -618,58 +596,90 @@ function denormalizeCrop(crop) {
  * @property {[number,number][]} area
  */
 
-function maskOptions() {
-	return htmlToElem(/* HTML */ `
-		<li
-			class="flex items-center p-2 border-b-2 border-color1"
-			style="flex-wrap: wrap; justify-content: space-between;"
+function newMaskOptions() {
+	/** @type  {HTMLButtonElement} */
+	// @ts-ignore
+	const $x1 = htmlToElem(/* HTML */ `
+		<button
+			class="pl-2 pr-1 text-1.4 text-color bg-color2 hover:bg-color1"
+			style="
+				border-top-left-radius: var(--radius-xl);
+				border-bottom-left-radius: var(--radius-xl);
+			"
 		>
-			<div class="flex">
-				<button
-					class="js-1x pl-2 pr-1 text-1.4 text-color bg-color2 hover:bg-color1"
-					style="
-					border-top-left-radius: var(--radius-xl);
-					border-bottom-left-radius: var(--radius-xl);
-				"
-				>
-					1x
-				</button>
-				<button
-					class="js-4x px-1 text-1.4 text-color bg-color2 hover:bg-color1 object_detection_mask-step-size-selected"
-				>
-					4x
-				</button>
-				<button class="js-10x px-1 text-1.4 text-color bg-color2 hover:bg-color1">
-					10x
-				</button>
-				<button
-					class="js-20x pl-1 pr-2 text-1.4 text-color bg-color2 hover:bg-color1"
-					style="
-					border-top-right-radius: var(--radius-xl);
-					border-bottom-right-radius: var(--radius-xl);
-				"
-				>
-					20x
-				</button>
-			</div>
-			<div class="flex">
-				<input
-					class="js-x mr-1 text-center text-1.4"
-					style="width: calc(var(--scale) * 3.5rem);"
-					type="number"
-					min="0"
-					max="100"
-				/>
-				<input
-					class="js-y text-center text-1.4"
-					style="width: calc(var(--scale) * 3.5rem);"
-					type="number"
-					min="0"
-					max="100"
-				/>
-			</div>
-		</li>
+			1x
+		</button>
 	`);
+	/** @type  {HTMLButtonElement} */
+	// @ts-ignore
+	const $x4 = htmlToElem(/* HTML */ `
+		<button
+			class="px-1 text-1.4 text-color bg-color2 hover:bg-color1 object_detection_mask-step-size-selected"
+		>
+			4x
+		</button>
+	`);
+	/** @type  {HTMLButtonElement} */
+	// @ts-ignore
+	const $x10 = htmlToElem(/* HTML */ `
+		<button class="px-1 text-1.4 text-color bg-color2 hover:bg-color1">10x</button>
+	`);
+	/** @type  {HTMLButtonElement} */
+	// @ts-ignore
+	const $x20 = htmlToElem(/* HTML */ `
+		<button
+			class="pl-1 pr-2 text-1.4 text-color bg-color2 hover:bg-color1"
+			style="
+				border-top-right-radius: var(--radius-xl);
+				border-bottom-right-radius: var(--radius-xl);
+			"
+		>
+			20x
+		</button>
+	`);
+	/** @type  {HTMLInputElement} */
+	// @ts-ignore
+	const $x = htmlToElem(/* HTML */ `
+		<input
+			class="mr-1 text-center text-1.4"
+			style="width: calc(var(--scale) * 3.5rem);"
+			type="number"
+			min="0"
+			max="100"
+		/>
+	`);
+	/** @type  {HTMLInputElement} */
+	// @ts-ignore
+	const $y = htmlToElem(/* HTML */ `
+		<input
+			class="text-center text-1.4"
+			style="width: calc(var(--scale) * 3.5rem);"
+			type="number"
+			min="0"
+			max="100"
+		/>
+	`);
+	const elem = htmlToElem(
+		/* HTML */ `
+			<li
+				class="flex items-center p-2 border-b-2 border-color1"
+				style="flex-wrap: wrap; justify-content: space-between;"
+			></li>
+		`,
+		[
+			htmlToElem(
+				//
+				`<div class="flex"></div>`,
+				[$x1, $x4, $x10, $x20],
+			),
+			htmlToElem(
+				//
+				`<div class="flex"></div>`,
+				[$x, $y],
+			),
+		],
+	);
+	return { elem, $x1, $x4, $x10, $x20, $x, $y };
 }
 
 /**
@@ -681,108 +691,62 @@ function mask(hasSubStream, getMonitorId) {
 	/** @type {Mask} */
 	let value;
 
-	/** @type {HTMLSelectElement} */
-	let $enable;
-	let $overlay, $modalContent;
-	/** @type {Element} */
-	let $feed;
-
-	const modal = newModal("Mask");
-
 	let editor;
 
-	const enableID = uniqueID();
+	const $feed = htmlToElem(
+		`<div class="flex w-full" style="min-width: 0; background: white;"></div>`,
+	);
 
-	/** @param {Element} feedElem */
-	const renderModal = (feedElem) => {
+	const enable = newRawSelectField("Enable", ["true", "false"]);
+	const modal = newModal("Mask");
+
+	const renderModal = () => {
+		const maskOptions = newMaskOptions();
+		const $overlay = htmlToElem(/* HTML */ `
+			<svg
+				class="absolute w-full h-full"
+				style="
+					top: 0;
+					z-index: 1;
+					user-select: none;
+					overflow: visible;
+				"
+				viewBox="0 0 100 100"
+				preserveAspectRatio="none"
+			></svg>
+		`);
 		const elems = [
-			newHTMLfield(
-				{
-					select: ["true", "false"],
-				},
-				enableID,
-				"Enable",
-			),
+			enable.elem,
 			htmlToElem(
-				/* HTML */ `
-					<li
-						id="object_detection_mask-preview"
-						class="flex flex-col items-center px-2"
-					></li>
-				`,
+				//
+				`<li class="flex flex-col items-center px-2"></li>`,
 				[
-					htmlToElem(/* HTML */ `
-						<label
-							for="object_detection_mask-preview"
-							class="grow mr-auto text-1.5 text-color"
-							>Preview</label
-						>
-					`),
+					htmlToElem(
+						`<label class="grow mr-auto text-1.5 text-color">Preview</label>`,
+					),
 					htmlToElem(
 						//
-						`<div class="js-preview-wrapper relative"></div>`,
-						[
-							htmlToElem(
-								/* HTML */ `
-									<div
-										class="js-feed flex w-full"
-										style="min-width: 0; background: white;"
-									></div>
-								`,
-								[feedElem],
-							),
-							htmlToElem(/* HTML */ `
-								<svg
-									class="js-object-detection-overlay absolute w-full h-full"
-									style="
-									top: 0;
-									z-index: 1;
-									user-select: none;
-									overflow: visible;
-								"
-									viewBox="0 0 100 100"
-									preserveAspectRatio="none"
-								></svg>
-							`),
-						],
+						`<div class="relative"></div>`,
+						[$feed, $overlay],
 					),
 				],
 			),
-			maskOptions(),
+			maskOptions.elem,
 		];
 
-		$modalContent = modal.init();
-		$modalContent.replaceChildren(...elems);
-		$feed = $modalContent.querySelector(".js-feed");
+		modal.$content.replaceChildren(...elems);
 
-		$enable = $modalContent.querySelector(`#${enableID} select`);
-		$enable.value = String(value.enable);
-		$enable.addEventListener("change", () => {
-			value.enable = $enable.value === "true";
+		enable.$input.value = String(value.enable);
+		enable.$input.addEventListener("change", () => {
+			value.enable = enable.$input.value === "true";
 		});
-
-		$overlay = $modalContent.querySelector(".js-object-detection-overlay");
-
-		/** @type {HTMLElement} */
-		const $x1 = $modalContent.querySelector(".js-1x");
-		/** @type {HTMLElement} */
-		const $x4 = $modalContent.querySelector(".js-4x");
-		/** @type {HTMLElement} */
-		const $x10 = $modalContent.querySelector(".js-10x");
-		/** @type {HTMLElement} */
-		const $x20 = $modalContent.querySelector(".js-20x");
-
-		/** @type {HTMLInputElement} */
-		const $x = $modalContent.querySelector(".js-x");
-		/** @type {HTMLInputElement} */
-		const $y = $modalContent.querySelector(".js-y");
 
 		editor = newPolygonEditor($overlay, {
 			opacity: 0.4,
 			stepSize: 4,
 			onChange: (_, x, y) => {
-				$x.value = String(x);
-				$y.value = String(y);
+				maskOptions.$x.value = String(x);
+				maskOptions.$y.value = String(y);
 			},
 		});
 		editor.set(value.area);
@@ -790,26 +754,26 @@ function mask(hasSubStream, getMonitorId) {
 		/** @param {number} v */
 		const setStepSize = (v) => {
 			const selectedClass = "object_detection_mask-step-size-selected";
-			$x1.classList.remove(selectedClass);
-			$x4.classList.remove(selectedClass);
-			$x10.classList.remove(selectedClass);
-			$x20.classList.remove(selectedClass);
+			maskOptions.$x1.classList.remove(selectedClass);
+			maskOptions.$x4.classList.remove(selectedClass);
+			maskOptions.$x10.classList.remove(selectedClass);
+			maskOptions.$x20.classList.remove(selectedClass);
 
 			switch (v) {
 				case 1: {
-					$x1.classList.add(selectedClass);
+					maskOptions.$x1.classList.add(selectedClass);
 					break;
 				}
 				case 4: {
-					$x4.classList.add(selectedClass);
+					maskOptions.$x4.classList.add(selectedClass);
 					break;
 				}
 				case 10: {
-					$x10.classList.add(selectedClass);
+					maskOptions.$x10.classList.add(selectedClass);
 					break;
 				}
 				case 20: {
-					$x20.classList.add(selectedClass);
+					maskOptions.$x20.classList.add(selectedClass);
 					break;
 				}
 				default: {
@@ -820,27 +784,29 @@ function mask(hasSubStream, getMonitorId) {
 			editor.setStepSize(v);
 		};
 
-		$x1.addEventListener("click", () => {
+		maskOptions.$x1.onclick = () => {
 			setStepSize(1);
-		});
-		$x4.addEventListener("click", () => {
+		};
+		maskOptions.$x4.onclick = () => {
 			setStepSize(4);
-		});
-		$x10.addEventListener("click", () => {
+		};
+		maskOptions.$x10.onclick = () => {
 			setStepSize(10);
-		});
-		$x20.addEventListener("click", () => {
+		};
+		maskOptions.$x20.onclick = () => {
 			setStepSize(20);
-		});
+		};
 
-		$x.addEventListener("change", () => {
+		const $x = maskOptions.$x;
+		const $y = maskOptions.$y;
+		$x.onchange = () => {
 			$x.value = String(Math.min(100, Math.max(0, Number($x.value))));
 			editor.setIndex(editor.selected(), Number($x.value), Number($y.value));
-		});
-		$y.addEventListener("change", () => {
+		};
+		$y.onchange = () => {
 			$y.value = String(Math.min(100, Math.max(0, Number($y.value))));
 			editor.setIndex(editor.selected(), Number($x.value), Number($y.value));
-		});
+		};
 
 		let shiftPressed = false;
 		let ctrlPressed = false;
@@ -901,15 +867,39 @@ function mask(hasSubStream, getMonitorId) {
 		};
 	};
 
+	/** @type {Feed} */
+	let feed;
+
 	let rendered = false;
-	const id = uniqueID();
+	const elem = newModalField("Mask", () => {
+		if (feed !== undefined) {
+			feed.destroy();
+		}
+		const monitor = {
+			id: getMonitorId(),
+			audioEnabled: "false",
+			hasSubStream: hasSubStream(getMonitorId()),
+		};
+		feed = newStreamer(monitor, true);
+
+		if (!rendered) {
+			renderModal();
+			rendered = true;
+		}
+		modal.onClose(() => {
+			feed.destroy();
+		});
+		$feed.replaceChildren(feed.elem);
+
+		modal.open();
+	});
 
 	return {
-		elems: [newModalFieldHTML(id, "Mask"), modal.elem],
+		elems: [elem, modal.elem],
 		value() {
 			if (rendered) {
 				return normalizeMask({
-					enable: $enable.value === "true",
+					enable: enable.$input.value === "true",
 					area: editor.value(),
 				});
 			}
@@ -919,35 +909,9 @@ function mask(hasSubStream, getMonitorId) {
 			// @ts-ignore
 			value = input === undefined ? initialValue() : denormalizeMask(input);
 			if (rendered) {
-				$enable.value = String(value.enable);
+				enable.$input.value = String(value.enable);
 				editor.set(value.area);
 			}
-		},
-		init() {
-			let feed;
-			const element = document.querySelector(`#${id}`);
-			element.querySelector(".js-edit-btn").addEventListener("click", () => {
-				const monitor = {
-					id: getMonitorId(),
-					audioEnabled: "false",
-					hasSubStream: hasSubStream(getMonitorId()),
-				};
-				feed = newStreamer(monitor, true);
-
-				if (rendered) {
-					// Update feed.
-					$feed.replaceChildren(feed.elem);
-				} else {
-					renderModal(feed.elem);
-					modal.onClose(() => {
-						feed.destroy();
-					});
-					rendered = true;
-				}
-
-				modal.open();
-				feed.init();
-			});
 		},
 	};
 }
@@ -977,24 +941,6 @@ function normalizeMask(mask) {
 		}),
 	};
 }
-
-/*function preview() {
-	const id = uniqueID();
-	let element;
-	return {
-		html: `
-			<div style="margin: calc(var(--spacing) * 1); margin-bottom: 0;">
-				<img id=${id} class="w-full h-full">
-			</div>`,
-		init() {
-			element = document.querySelector(`#${id}`);
-		},
-		set(_, __, monitorFields) {
-			const monitorID = monitorFields["id"].value();
-			element.src = `api/tflite/preview/${monitorID}?rand=${Math.random()}`;
-		},
-	};
-}*/
 
 // CSS.
 const $style = document.createElement("style");

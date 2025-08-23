@@ -3,13 +3,7 @@
 // @ts-check
 
 import { fromUTC } from "../libs/time.js";
-import {
-	uniqueID,
-	fetchDelete,
-	denormalize,
-	htmlToElem,
-	htmlToElems,
-} from "../libs/common.js";
+import { uniqueID, fetchDelete, denormalize, htmlToElem } from "../libs/common.js";
 
 const millisecond = 1000000;
 
@@ -57,7 +51,6 @@ const millisecond = 1000000;
 /**
  * @typedef {Object} Player
  * @property {Element} elem
- * @property {(onLoad: () => void) => void} init
  * @property {() => void} reset
  * @property {() => void} exitFullscreen
  */
@@ -66,12 +59,12 @@ const millisecond = 1000000;
  * @param {RecordingData} data
  * @param {boolean} isAdmin
  * @param {string} token
+ * @param {() => void} onVideoLoad
  * @returns Player
  */
-function newPlayer(data, isAdmin, token) {
+function newPlayer(data, isAdmin, token, onVideoLoad) {
 	const d = data;
 
-	const elementID = uniqueID();
 	const iconPlayPath = "assets/icons/feather/play.svg";
 	const iconPausePath = "assets/icons/feather/pause.svg";
 
@@ -100,28 +93,39 @@ function newPlayer(data, isAdmin, token) {
 	const [dateString, timeString] = parseDate(start);
 	const fileName = `${dateString}_${timeString}_${d.name}.mp4`;
 
-	const topOverlayHTML = /* HTML */ `
-		<span class="js-date pl-2 pr-1 text-color bg-color0">${dateString}</span>
-		<span class="js-time px-1 text-color bg-color0">${timeString}</span>
-		<span class="text-color pl-1 pr-2 bg-color0">${d.name}</span>
-	`;
+	const newTopOverlay = () => {
+		const $date = htmlToElem(
+			`<span class="pl-2 pr-1 text-color bg-color0">${dateString}</span>`,
+		);
+		const $time = htmlToElem(
+			`<span class="px-1 text-color bg-color0">${timeString}</span>`,
+		);
+		const elems = [
+			$date,
+			$time,
+			htmlToElem(`<span class="text-color pl-1 pr-2 bg-color0">${d.name}</span>`),
+		];
+		return { elems, $date, $time };
+	};
 
+	const $thumbnail = htmlToElem(/* HTML */ `
+		<img
+			class="w-full h-full"
+			style="max-height: 100vh; object-fit: contain;"
+			src="${d.thumbPath}"
+		/>
+	`);
 	const thumbElems = [
-		htmlToElem(/* HTML */ `
-			<img
-				class="w-full h-full"
-				style="max-height: 100vh; object-fit: contain;"
-				src="${d.thumbPath}"
-			/>
-		`),
-		htmlToElem(/* HTML */ `
-			<div
-				class="js-top-overlay absolute flex mr-auto"
-				style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
-			>
-				${topOverlayHTML}
-			</div>
-		`),
+		$thumbnail,
+		htmlToElem(
+			/* HTML */ `
+				<div
+					class="absolute flex mr-auto"
+					style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
+				></div>
+			`,
+			newTopOverlay().elems,
+		),
 		htmlToElem(
 			/* HTML */ `
 				<div
@@ -140,59 +144,162 @@ function newPlayer(data, isAdmin, token) {
 		),
 	];
 
-	const deleteBtnHTML = /* HTML */ `
-		<button class="js-delete p-1 bg-transparent">
+	const newVideoElems = () => {
+		/** @type {HTMLVideoElement} */
+		// @ts-ignore
+		const $video = htmlToElem(/* HTML */ `
+			<video
+				style="max-height: 100vh; min-width: 100%; min-height: 100%; object-fit: contain;"
+				disablePictureInPicture
+			>
+				<source src="${d.videoPath}" type="video/mp4" />
+			</video>
+		`);
+		const checkboxId = uniqueID();
+		/** @type {HTMLInputElement} */
+		// @ts-ignore
+		const $checkbox = htmlToElem(/* HTML */ `
+			<input
+				id="${checkboxId}"
+				type="checkbox"
+				class="js-checkbox player-overlay-checkbox absolute"
+				style="opacity: 0;"
+				type="checkbox"
+			/>
+		`);
+		/** @type {HTMLImageElement} */
+		// @ts-ignore
+		const $playpauseImg = htmlToElem(/* HTML */ `
+			<img
+				style="aspect-ratio: 1; height: calc(var(--scale) * 1.5rem); filter: invert(90%);"
+				src="${iconPlayPath}"
+			/>
+		`);
+		/** @type {HTMLButtonElement} */
+		// @ts-ignore
+		const $playpause = htmlToElem(
+			/* HTML */ `
+				<button
+					class="p-1 bg-color0"
+					style="border-radius: 50%; opacity: 0.8;"
+				></button>
+			`,
+			[$playpauseImg],
+		);
+		const $progressBar = document.createElement("span");
+		/** @type {HTMLProgressElement} */
+		// @ts-ignore
+		const $progress = htmlToElem(
+			/* HTML */ `
+				<progress
+					class="w-full h-full py-1 bg-transparent"
+					style="opacity: 0.8; user-select: none;"
+					value="0"
+					min="0"
+				></progress>
+			`,
+			[$progressBar],
+		);
+		/** @type {HTMLImageElement} */
+		// @ts-ignore
+		const $fullscreenImg = htmlToElem(/* HTML */ `
 			<img
 				class="icon-filter"
 				style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
-				src="assets/icons/feather/trash-2.svg"
+				src="${iconMaximizePath}"
 			/>
-		</button>
-	`;
-
-	const videoElems = () => {
-		return [
-			htmlToElem(/* HTML */ `
-				<video
-					style="max-height: 100vh; min-width: 100%; min-height: 100%; object-fit: contain;"
-					disablePictureInPicture
-				>
-					<source src="${d.videoPath}" type="video/mp4" />
-				</video>
-			`),
-			detectionRenderer.elem,
-			htmlToElem(/* HTML */ `
-				<input
-					id="${elementID}-overlay-checkbox"
-					type="checkbox"
-					class="js-checkbox player-overlay-checkbox absolute"
-					style="opacity: 0;"
-					type="checkbox"
+		`);
+		/** @type {HTMLButtonElement} */
+		// @ts-ignore
+		const $fullscreen = htmlToElem(
+			//
+			`<button class="p-1 bg-transparent"></button>`,
+			[$fullscreenImg],
+		);
+		const popupElems = [];
+		/** @type {HTMLButtonElement} */
+		// @ts-ignore
+		const $delete = htmlToElem(/* HTML */ `
+			<button class="p-1 bg-transparent">
+				<img
+					class="icon-filter"
+					style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
+					src="assets/icons/feather/trash-2.svg"
 				/>
+			</button>
+		`);
+		if (isAdmin) {
+			popupElems.push($delete);
+		}
+		popupElems.push(
+			htmlToElem(/* HTML */ `
+				<a
+					download="${fileName}"
+					href="${d.videoPath}"
+					class="p-1 bg-transparent"
+				>
+					<img
+						class="icon-filter"
+						style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
+						src="assets/icons/feather/download.svg"
+					/>
+				</a>
 			`),
+			$fullscreen,
+		);
+		const $popup = htmlToElem(
+			/* HTML */ `
+				<div
+					class="absolute rounded-lg bg-color0"
+					style="
+							right: calc(var(--scale) * 0.5rem);
+							bottom: calc(var(--scale) * 5rem);
+							display: none;
+							opacity: 0.8;
+						"
+				></div>
+			`,
+			popupElems,
+		);
+		/** @type {HTMLButtonElement} */
+		// @ts-ignore
+		const $popupOpen = htmlToElem(/* HTML */ `
+			<button
+				class="player-options-open-btn absolute m-auto rounded-md bg-color0"
+				style="
+					right: calc(var(--scale) * 1rem);
+					bottom: calc(var(--scale) * 2.5rem);
+					transition: opacity 250ms;
+				"
+			>
+				<img
+					style="width: calc(var(--scale) * 1rem); height: calc(var(--scale) * 2rem); filter: invert(90%);"
+					src="assets/icons/feather/more-vertical-slim.svg"
+				/>
+			</button>
+		`);
+
+		const videoTopOverlay = newTopOverlay();
+		const elems = [
+			$video,
+			detectionRenderer.elem,
+			$checkbox,
 			htmlToElem(/* HTML */ `
 				<label
-					for="${elementID}-overlay-checkbox"
+					for="${checkboxId}"
 					class="w-full h-full absolute"
 					style="z-index: 1; opacity: 0.5;"
 				></label>
 			`),
-			htmlToElem(/* HTML */ `
-				<div
-					class="player-overlay absolute flex justify-center"
-					style="z-index: 2;"
-				>
-					<button
-						class="js-play-btn p-1 bg-color0"
-						style="border-radius: 50%; opacity: 0.8;"
-					>
-						<img
-							style="aspect-ratio: 1; height: calc(var(--scale) * 1.5rem); filter: invert(90%);"
-							src="${iconPlayPath}"
-						/>
-					</button>
-				</div>
-			`),
+			htmlToElem(
+				/* HTML */ `
+					<div
+						class="player-overlay absolute flex justify-center"
+						style="z-index: 2;"
+					></div>
+				`,
+				[$playpause],
+			),
 			htmlToElem(
 				/* HTML */ `
 					<div
@@ -207,232 +314,159 @@ function newPlayer(data, isAdmin, token) {
 					"
 					></div>
 				`,
-				[
-					...renderEvents(d),
-					htmlToElem(/* HTML */ `
-					<progress
-						class="js-progress w-full h-full py-1 bg-transparent"
-						style="opacity: 0.8; user-select: none;"
-						value="0"
-						min="0"
-					>
-						<span class="js-progress-bar">
-					</progress>
-				`),
-					htmlToElem(/* HTML */ `
-						<button
-							class="js-options-open-btn player-options-open-btn absolute m-auto rounded-md bg-color0"
-							style="
-							right: calc(var(--scale) * 1rem);
-							bottom: calc(var(--scale) * 2.5rem);
-							transition: opacity 250ms;
-						"
-						>
-							<img
-								style="width: calc(var(--scale) * 1rem); height: calc(var(--scale) * 2rem); filter: invert(90%);"
-								src="assets/icons/feather/more-vertical-slim.svg"
-							/>
-						</button>
-					`),
-					htmlToElem(/* HTML */ `
-						<div
-							class="js-popup absolute rounded-lg bg-color0"
-							style="
-							right: calc(var(--scale) * 0.5rem);
-							bottom: calc(var(--scale) * 5rem);
-							display: none;
-							opacity: 0.8;
-						"
-						>
-							${isAdmin ? deleteBtnHTML : ""}
-							<a
-								download="${fileName}"
-								href="${d.videoPath}"
-								class="p-1 bg-transparent"
-							>
-								<img
-									class="icon-filter"
-									style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
-									src="assets/icons/feather/download.svg"
-								/>
-							</a>
-							<button class="js-fullscreen p-1 bg-transparent">
-								<img
-									class="icon-filter"
-									style="aspect-ratio: 1; width: calc(var(--scale) * 1.75rem);"
-									src="${iconMaximizePath}"
-								/>
-							</button>
-						</div>
-					`),
-				],
+				[...renderEvents(d), $progress, $popupOpen, $popup],
 			),
-			htmlToElem(/* HTML */ `
-				<div
-					class="js-top-overlay player-overlay absolute flex mr-auto"
-					style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
-				>
-					${topOverlayHTML}
-				</div>
-			`),
+			htmlToElem(
+				/* HTML */ `
+					<div
+						class="player-overlay absolute flex mr-auto"
+						style="flex-wrap: wrap; opacity: 0.8; top: 0; left: 0;"
+					></div>
+				`,
+				videoTopOverlay.elems,
+			),
 		];
+		return {
+			elems,
+			$video,
+			$checkbox,
+			$playpause,
+			$playpauseImg,
+			$progressBar,
+			$progress,
+			$fullscreenImg,
+			$fullscreen,
+			$delete,
+			$popupOpen,
+			$popup,
+			$date: videoTopOverlay.$date,
+			$time: videoTopOverlay.$time,
+		};
 	};
 
-	let $fullscreenImg;
+	let video;
 
 	/** @param {Element} element */
 	const loadVideo = (element) => {
-		element.replaceChildren(...videoElems());
+		video = newVideoElems();
+		element.replaceChildren(...video.elems);
 		element.classList.add("js-loaded");
 
-		const $detections = element.querySelector(".js-detections");
-		detectionRenderer.init($detections);
-
-		const $video = element.querySelector("video");
-
-		// Play/Pause.
-		const $playpause = element.querySelector(".js-play-btn");
-		const $playpauseImg = $playpause.querySelector("img");
-		/** @type {HTMLInputElement} */
-		const $checkbox = element.querySelector(".js-checkbox");
-
 		const playpause = () => {
-			if ($video.paused || $video.ended) {
-				$playpauseImg.src = iconPausePath;
-				$video.play();
-				$checkbox.checked = false;
+			if (video.$video.paused || video.$video.ended) {
+				video.$playpauseImg.src = iconPausePath;
+				video.$video.play();
+				video.$checkbox.checked = false;
 			} else {
-				$playpauseImg.src = iconPlayPath;
-				$video.pause();
-				$checkbox.checked = true;
+				video.$playpauseImg.src = iconPlayPath;
+				video.$video.pause();
+				video.$checkbox.checked = true;
 			}
 		};
 		playpause();
-		$playpause.addEventListener("click", playpause);
+		video.$playpause.onclick = playpause;
 
 		let videoDuration;
 
-		/** @type {HTMLProgressElement} */
-		const $progress = element.querySelector(".js-progress");
-		const $topOverlay = element.querySelector(".js-top-overlay");
-
-		$video.addEventListener("loadedmetadata", () => {
-			videoDuration = $video.duration;
-			$progress.setAttribute("max", String(videoDuration));
-		});
+		video.$video.onloadedmetadata = () => {
+			videoDuration = video.$video.duration;
+			video.$progress.setAttribute("max", String(videoDuration));
+		};
 		/** @param {number} newTime */
 		const updateProgress = (newTime) => {
-			$progress.value = newTime;
-			/** @type {HTMLElement} */
-			const $progressBar = $progress.querySelector(".js-progress-bar");
-			$progressBar.style.width = `${Math.floor((newTime / videoDuration) * 100)}%`;
+			video.$progress.value = newTime;
+			const width = Math.floor((newTime / videoDuration) * 100);
+			video.$progressBar.style.width = `${width}%`;
 
 			const newDate = new Date(start.getTime());
-			newDate.setMilliseconds($video.currentTime * 1000);
+			newDate.setMilliseconds(video.$video.currentTime * 1000);
 			const [dateString, timeString] = parseDate(newDate);
-			$topOverlay.querySelector(".js-date").textContent = dateString;
-			$topOverlay.querySelector(".js-time").textContent = timeString;
+			video.$date.textContent = dateString;
+			video.$time.textContent = timeString;
 			detectionRenderer.set(newTime);
 		};
-		$progress.addEventListener("click", (event) => {
-			const rect = $progress.getBoundingClientRect();
-			const pos = (event.pageX - rect.left) / $progress.offsetWidth;
+		video.$progress.onclick = (event) => {
+			const rect = video.$progress.getBoundingClientRect();
+			const pos = (event.pageX - rect.left) / video.$progress.offsetWidth;
 			const newTime = pos * videoDuration;
 
-			$video.currentTime = newTime;
+			video.$video.currentTime = newTime;
 			updateProgress(newTime);
-		});
-		$video.addEventListener("timeupdate", () => {
-			updateProgress($video.currentTime);
-		});
+		};
+		video.$video.ontimeupdate = () => {
+			updateProgress(video.$video.currentTime);
+		};
 
-		// Popup
-		const $popup = element.querySelector(".js-popup");
-		const $popupOpen = element.querySelector(".js-options-open-btn");
-		const $fullscreen = $popup.querySelector(".js-fullscreen");
-		$fullscreenImg = $fullscreen.querySelector("img");
-		$popupOpen.addEventListener("click", () => {
-			$popup.classList.toggle("player-options-show");
-		});
-		$fullscreen.addEventListener("click", () => {
+		video.$popupOpen.onclick = () => {
+			video.$popup.classList.toggle("player-options-show");
+		};
+		video.$fullscreen.onclick = () => {
 			if ($wrapper && $wrapper.classList.contains("grid-fullscreen")) {
-				$fullscreenImg.src = iconMaximizePath;
+				video.$fullscreenImg.src = iconMaximizePath;
 				$wrapper.classList.remove("grid-fullscreen");
 			} else {
-				$fullscreenImg.src = iconMinimizePath;
+				video.$fullscreenImg.src = iconMinimizePath;
 				$wrapper.classList.add("grid-fullscreen");
 			}
-		});
+		};
 
 		// Delete
-		if (isAdmin) {
-			element.querySelector(".js-delete").addEventListener("click", async (e) => {
-				e.stopPropagation();
-				if (!confirm("delete?")) {
-					return;
-				}
-				const ok = await fetchDelete(
-					d.deletePath,
-					token,
-					"failed to delete recording",
-				);
-				if (ok) {
-					$wrapper.remove();
-				}
-			});
-		}
+		video.$delete.onclick = async (e) => {
+			e.stopPropagation();
+			if (!confirm("delete?")) {
+				return;
+			}
+			const ok = await fetchDelete(
+				d.deletePath,
+				token,
+				"failed to delete recording",
+			);
+			if (ok) {
+				$wrapper.remove();
+			}
+		};
 	};
 
-	/** @type {Element} */
-	let element;
-	let $wrapper;
+	const elem = htmlToElem(
+		/* HTML */ `
+			<div
+				class="relative flex justify-center items-center w-full"
+				style="max-height: 100vh; align-self: center;"
+			></div>
+		`,
+		thumbElems,
+	);
+	// Load video.
+	elem.addEventListener("click", () => {
+		if (elem.classList.contains("js-loaded")) {
+			return;
+		}
+		if (onVideoLoad) {
+			onVideoLoad();
+		}
+		loadVideo(elem);
+	});
 	const reset = () => {
-		element.replaceChildren(...thumbElems);
-		element.classList.remove("js-loaded");
+		elem.replaceChildren(...thumbElems);
+		elem.classList.remove("js-loaded");
 	};
+	const $wrapper = htmlToElem(`<div class="flex justify-center"></div>`, [elem]);
 
 	return {
-		elem: htmlToElem(
-			//
-			`<div class="flex justify-center"></div>`,
-			[
-				htmlToElem(
-					/* HTML */ `
-						<div
-							id="${elementID}"
-							class="relative flex justify-center items-center w-full"
-							style="max-height: 100vh; align-self: center;"
-						></div>
-					`,
-					thumbElems,
-				),
-			],
-		),
-		/** @param {() => void} onLoad */
-		init(onLoad) {
-			element = document.getElementById(elementID);
-			$wrapper = element.parentElement;
-
-			// Load video.
-			element.addEventListener("click", () => {
-				if (element.classList.contains("js-loaded")) {
-					return;
-				}
-				if (onLoad) {
-					onLoad();
-				}
-				loadVideo(element);
-			});
-		},
+		elem: $wrapper,
 		reset() {
 			reset();
 		},
 		exitFullscreen() {
 			if ($wrapper && $wrapper.classList.contains("grid-fullscreen")) {
-				$fullscreenImg.src = iconMaximizePath;
+				video.$fullscreenImg.src = iconMaximizePath;
 				$wrapper.classList.remove("grid-fullscreen");
 			}
 		},
+		testing() {
+			return video;
+		},
+		testingThumbnail: $thumbnail,
 	};
 }
 
@@ -489,16 +523,18 @@ function renderEvents(data) {
 		start = end;
 	}
 
-	return htmlToElems(/* HTML */ `
-		<svg
-			class="absolute w-full h-full"
-			style="fill: var(--color-red);"
-			viewBox="0 0 ${resolution} 1"
-			preserveAspectRatio="none"
-		>
-			${svg}
-		</svg>
-	`);
+	return [
+		htmlToElem(/* HTML */ `
+			<svg
+				class="absolute w-full h-full"
+				style="fill: var(--color-red);"
+				viewBox="0 0 ${resolution} 1"
+				preserveAspectRatio="none"
+			>
+				${svg}
+			</svg>
+		`),
+	];
 }
 
 /**
@@ -518,7 +554,7 @@ function newDetectionRenderer(startTimeMs, events) {
 		const height = denormalize(rect.height, 100);
 
 		const textY = y > 10 ? y - 2 : y + height + 5;
-		return htmlToElems(/* HTML */ `
+		return `
 			<text
 				x="${x}"
 				y="${textY}"
@@ -528,29 +564,24 @@ function newDetectionRenderer(startTimeMs, events) {
 				${label} ${Math.round(score)}%
 			</text>
 			<rect x="${x}" width="${width}" y="${y}" height="${height}" />
-		`);
+		`;
 	};
 
 	/** @param {Detection[]} detections */
 	const renderDetections = (detections) => {
-		let elems = [];
+		let html = "";
 		if (!detections) {
-			return [];
+			return html;
 		}
 		for (const d of detections) {
 			if (d.region && d.region.rectangle) {
-				elems = [
-					...elems,
-					...renderRectangle(d.region.rectangle, d.label, d.score),
-				];
+				html += renderRectangle(d.region.rectangle, d.label, d.score);
 			}
 		}
-		return elems;
+		return html;
 	};
 
-	/** @type {Element} */
-	let element;
-	const html = /* HTML */ `
+	const elem = htmlToElem(/* HTML */ `
 		<svg
 			class="js-detections absolute w-full h-full"
 			style="
@@ -561,19 +592,14 @@ function newDetectionRenderer(startTimeMs, events) {
 			viewBox="0 0 100 100"
 			preserveAspectRatio="none"
 		></svg>
-	`;
+	`);
 
 	return {
-		elem: htmlToElem(html),
-		/** @param {Element} e */
-		init(e) {
-			element = e;
-		},
+		elem,
 		/** @param {number} newDurationSec */
 		set(newDurationSec) {
 			const newDurationMs = startTimeMs + newDurationSec * 1000;
-			let elems = [];
-
+			let html = "";
 			if (events) {
 				for (const e of events) {
 					const eventStartMs = e.time / millisecond;
@@ -581,12 +607,11 @@ function newDetectionRenderer(startTimeMs, events) {
 					const eventEndMs = eventStartMs + eventDurationMs;
 
 					if (eventStartMs <= newDurationMs && newDurationMs < eventEndMs) {
-						elems = [...elems, ...renderDetections(e.detections)];
+						html += renderDetections(e.detections);
 					}
 				}
 			}
-
-			element.replaceChildren(...elems);
+			elem.innerHTML = html;
 		},
 	};
 }

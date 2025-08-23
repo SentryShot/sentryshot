@@ -5,19 +5,18 @@
 import { jest } from "@jest/globals";
 
 import { NS_MILLISECOND } from "../libs/time.js";
-import { uidReset, htmlToElems } from "../libs/common.js";
+import { uidReset, htmlToElem } from "../libs/common.js";
 import { newOptionsMenu, newOptionsBtn, newSelectMonitor } from "./optionsMenu.js";
 
 /** @typedef {import("./optionsMenu.js").Button} Button */
 
 describe("optionsGridSize", () => {
-	/** @param {Button} button */
-	const setup = (button) => {
+	/** @param {Element[]} elems */
+	const setup = (elems) => {
 		document.body.innerHTML = `<div id="options-menu"></div>`;
 		const element = document.querySelector("#options-menu");
 
-		element.replaceChildren(...button.elems);
-		button.init();
+		element.replaceChildren(...elems);
 
 		return element;
 	};
@@ -30,8 +29,7 @@ describe("optionsGridSize", () => {
 
 		expect(document.body.innerHTML).toMatchInlineSnapshot(`
 <div id="options-menu">
-  <button id="uid1"
-          class=" flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
+  <button class="flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
           style="
 				width: var(--options-menu-btn-width);
 				height: var(--options-menu-btn-width);
@@ -43,8 +41,7 @@ describe("optionsGridSize", () => {
          src="assets/icons/feather/plus.svg"
     >
   </button>
-  <button id="uid2"
-          class=" flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
+  <button class="flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
           style="
 				width: var(--options-menu-btn-width);
 				height: var(--options-menu-btn-width);
@@ -71,23 +68,28 @@ describe("optionsGridSize", () => {
 					.trim(),
 			);
 		};
-		const element = setup(newOptionsBtn.gridSize(content));
-		const $plus = element.querySelector("#uid1");
-		const $minus = element.querySelector("#uid2");
+		const gridElems = newOptionsBtn.gridSize(content);
+		setup(gridElems);
+		const $plus = gridElems[0];
+		const $minus = gridElems[1];
 
 		expect(getGridSize()).toBe(0);
 		$minus.click();
 		expect(getGridSize()).toBe(1);
 		expect(localStorage.getItem("gridsize")).toBe("1");
 
-		localStorage.setItem("gridsize", 5);
+		localStorage.setItem("gridsize", String(5));
 		$plus.click();
 		expect(localStorage.getItem("gridsize")).toBe("4");
 	});
 });
 
+/** @typedef {import("./optionsMenu.js").DatePickerContent} DatePickerContent */
+
 describe("optionsDate", () => {
+	/** @param {DatePickerContent} content */
 	const setup = (content) => {
+		// @ts-ignore
 		jest.useFakeTimers("modern");
 		jest.setSystemTime(Date.parse("2001-02-03T01:02:03Z"));
 
@@ -96,41 +98,37 @@ describe("optionsDate", () => {
 
 		const date = newOptionsBtn.date("utc", content);
 		element.replaceChildren(...date.elems);
-		date.init(element);
 
-		return [date, element];
+		return date;
 	};
 	test("monthBtn", () => {
-		setup({ setDate() {} });
-		const $month = document.querySelector(".js-month");
-		const $prevMonth = document.querySelector(".js-prev-month");
-		const $nextMonth = document.querySelector(".js-next-month");
+		const date = setup({ setDate() {} });
 
-		expect($month.textContent).toBe("2001 February");
-		$prevMonth.click();
-		$prevMonth.click();
-		expect($month.textContent).toBe("2000 December");
-		$nextMonth.click();
-		expect($month.textContent).toBe("2001 January");
+		expect(date.testing.$month.textContent).toBe("2001 February");
+		date.testing.$prevMonth.click();
+		date.testing.$prevMonth.click();
+		expect(date.testing.$month.textContent).toBe("2000 December");
+		date.testing.$nextMonth.click();
+		expect(date.testing.$month.textContent).toBe("2001 January");
 	});
 	test("dayBtn", () => {
-		setup({ setDate() {} });
-		const $calendar = document.querySelector(".js-calendar");
+		const date = setup({ setDate() {} });
 
+		/** @param {string} n */
 		const pad = (n) => {
-			return n < 10 ? ` ${n}` : n;
+			return Number(n) < 10 ? ` ${n}` : n;
 		};
 
 		const domState = () => {
 			const state = [];
-			for (const child of $calendar.children) {
-				if (child.textContent === "") {
+			for (const btn of date.testing.dayBtns) {
+				if (btn.textContent === "") {
 					state.push("  ");
 					continue;
 				}
 
-				const text = pad(child.textContent.trim());
-				if (child.classList.contains("date-picker-day-selected")) {
+				const text = pad(btn.textContent.trim());
+				if (btn.classList.contains("date-picker-day-selected")) {
 					state.push(`[${text}]`);
 				} else {
 					state.push(text);
@@ -139,8 +137,9 @@ describe("optionsDate", () => {
 			return state;
 		};
 
-		$calendar.children[0].click();
-		document.querySelector(".js-calendar").click();
+		date.testing.dayBtns[0].click();
+		// @ts-ignore
+		date.testing.$calendar.click();
 
 		// prettier-ignore
 		expect(domState()).toEqual([
@@ -151,14 +150,14 @@ describe("optionsDate", () => {
 			"26", "27", "28", "  ", "  ", "  ", "  ",
 			"  ", "  ", "  ", "  ", "  ", "  ", "  "]);
 
-		for (const child of $calendar.children) {
-			if (child.textContent === "11") {
-				child.click();
+		for (const btn of date.testing.dayBtns) {
+			if (btn.textContent === "11") {
+				btn.click();
 			}
 		}
 
-		document.querySelector(".js-next-month").click();
-		document.querySelector(".js-next-month").click();
+		date.testing.$nextMonth.click();
+		date.testing.$nextMonth.click();
 
 		// prettier-ignore
 		expect(domState()).toEqual([
@@ -170,61 +169,59 @@ describe("optionsDate", () => {
 			"30", "  ", "  ", "  ", "  ", "  ", "  "]);
 	});
 	test("hourBtn", () => {
-		setup({ setDate() {} });
-		const $hour = document.querySelector(".js-hour");
-		const $nextHour = document.querySelector(".js-next-hour");
-		const $prevHour = document.querySelector(".js-prev-hour");
+		const date = setup({ setDate() {} });
 
-		expect($hour.value).toBe("01");
-		$prevHour.click();
-		$prevHour.click();
-		expect($hour.value).toBe("23");
-		$nextHour.click();
-		$nextHour.click();
-		expect($hour.value).toBe("01");
+		expect(date.testing.$hour.value).toBe("01");
+		date.testing.$prevHour.click();
+		date.testing.$prevHour.click();
+		expect(date.testing.$hour.value).toBe("23");
+		date.testing.$nextHour.click();
+		date.testing.$nextHour.click();
+		expect(date.testing.$hour.value).toBe("01");
 	});
 	test("minuteBtn", () => {
-		setup({ setDate() {} });
-		const $minute = document.querySelector(".js-minute");
-		const $nextMinute = document.querySelector(".js-next-minute");
-		const $prevMinute = document.querySelector(".js-prev-minute");
+		const date = setup({ setDate() {} });
 
-		expect($minute.value).toBe("02");
-		$prevMinute.click();
-		$prevMinute.click();
-		$prevMinute.click();
-		expect($minute.value).toBe("59");
-		$nextMinute.click();
-		$nextMinute.click();
-		expect($minute.value).toBe("01");
+		expect(date.testing.$minute.value).toBe("02");
+		date.testing.$prevMinute.click();
+		date.testing.$prevMinute.click();
+		date.testing.$prevMinute.click();
+		expect(date.testing.$minute.value).toBe("59");
+		date.testing.$nextMinute.click();
+		date.testing.$nextMinute.click();
+		expect(date.testing.$minute.value).toBe("01");
 	});
 	test("applyAndReset", () => {
 		let time;
 		const content = {
+			/** @param {number} t */
 			setDate(t) {
 				time = t;
 			},
 		};
-		const [date, element] = setup(content);
-		date.init(element);
+		const date = setup(content); // 2001-02-03T01:02:03Z
 
-		document.querySelector(".js-next-month").click();
-		document.querySelector(".js-apply").click();
-		expect(time).toBe(986259723000 * NS_MILLISECOND);
+		date.testing.$nextMonth.click();
+		expect(time).toBeUndefined();
 
-		document.querySelector(".js-reset").click();
-		expect(time).toBe(981162123000 * NS_MILLISECOND);
+		date.testing.$apply.click();
+		expect(time).toBe(983581323000 * NS_MILLISECOND); // 2001-03-03T01:02:03Z
+
+		date.testing.$reset.click();
+		expect(time).toBe(981162123000 * NS_MILLISECOND); // 2001-02-03T01:02:03Z
 	});
 	test("popup", () => {
-		setup({ setDate() {} });
-		const $popup = document.querySelector(".options-popup");
+		const date = setup({ setDate() {} });
+		const $popup = date.elems[1];
 		expect($popup.classList.contains("options-popup-open")).toBe(false);
-		document.querySelector(".js-date").click();
+		date.testingBtn.click();
 		expect($popup.classList.contains("options-popup-open")).toBe(true);
-		document.querySelector(".js-date").click();
+		date.testingBtn.click();
 		expect($popup.classList.contains("options-popup-open")).toBe(false);
 	});
 });
+
+/** @typedef {import("./modal.js").NewModalSelectFunc} NewModalSelectFunc */
 
 test("optionsMonitor", () => {
 	document.body.innerHTML = `<div></div>`;
@@ -244,6 +241,7 @@ test("optionsMonitor", () => {
 	let setMonitors;
 	let resetCalled = false;
 	const content = {
+		/** @param {any} m */
 		setMonitors(m) {
 			setMonitors = m;
 		},
@@ -255,27 +253,28 @@ test("optionsMonitor", () => {
 	let modalOnSelect;
 	const modalSetCalls = [];
 	let modalOpenCalled = false;
+	/** @type {NewModalSelectFunc} */
 	const mockModalSelect = (name, options, onSelect) => {
 		expect(name).toBe("Monitor");
 		expect(options).toEqual(["m1", "m2"]);
 		modalOnSelect = onSelect;
 		return {
-			init() {},
 			set(value) {
 				modalSetCalls.push(value);
 			},
 			open() {
 				modalOpenCalled = true;
 			},
+			isOpen() {
+				return false;
+			},
 		};
 	};
 
-	const selectMonitor = newSelectMonitor(monitors, content, true, mockModalSelect);
-	element.replaceChildren(...selectMonitor.elems);
-
 	localStorage.setItem("selected-monitor", "b");
 	expect(modalSetCalls).toEqual([]);
-	selectMonitor.init(element);
+	element.replaceChildren(newSelectMonitor(monitors, content, true, mockModalSelect));
+
 	expect(modalSetCalls).toEqual(["m2"]);
 	expect(setMonitors).toEqual(["b"]);
 
@@ -284,6 +283,7 @@ test("optionsMonitor", () => {
 	expect(modalOpenCalled).toBe(true);
 
 	expect(resetCalled).toBe(false);
+	// @ts-ignore
 	modalOnSelect("m1");
 	expect(resetCalled).toBe(true);
 	expect(setMonitors).toEqual(["a"]);
@@ -291,7 +291,6 @@ test("optionsMonitor", () => {
 });
 
 describe("optionsMonitorGroups", () => {
-	/** @returns {Button} */
 	// eslint-disable-next-line unicorn/no-object-as-default-parameter
 	const setup = (content = { setMonitors() {}, reset() {} }) => {
 		document.body.innerHTML = `<div></div>`;
@@ -310,9 +309,9 @@ describe("optionsMonitorGroups", () => {
 			},
 		};
 
+		// @ts-ignore
 		const group = newOptionsBtn.monitorGroup(groups, content);
 		element.replaceChildren(...group.elems);
-		group.init();
 
 		return group;
 	};
@@ -338,6 +337,7 @@ describe("optionsMonitorGroups", () => {
 </span>
 `);
 
+		// @ts-ignore
 		document.querySelector(".js-select-one span").click();
 		expect($picker.innerHTML).toMatchInlineSnapshot(`
 <span class="px-2 text-2">
@@ -359,6 +359,7 @@ describe("optionsMonitorGroups", () => {
 
 		const $group1 = document.querySelector(".js-select-one-item[data='a']");
 		expect($group1.classList.contains("select-one-item-selected")).toBe(false);
+		// @ts-ignore
 		$group1.click();
 		expect($group1.classList.contains("select-one-item-selected")).toBe(true);
 	});
@@ -373,22 +374,22 @@ describe("optionsMonitorGroups", () => {
 				resetCalled = true;
 			},
 		};
-		const group = setup(content);
+		setup(content);
 
-		group.init();
 		const $group1 = document.querySelector(".js-select-one-item[data='a']");
+		// @ts-ignore
 		$group1.click();
 
 		expect(setMonitorsCalled).toBe(true);
 		expect(resetCalled).toBe(true);
 	});
 	test("popup", () => {
-		setup();
+		const group = setup();
 		const $popup = document.querySelector(".options-popup");
 		expect($popup.classList.contains("options-popup-open")).toBe(false);
-		document.querySelector(".js-group").click();
+		group.testingBtn.click();
 		expect($popup.classList.contains("options-popup-open")).toBe(true);
-		document.querySelector(".js-group").click();
+		group.testingBtn.click();
 		expect($popup.classList.contains("options-popup-open")).toBe(false);
 	});
 });
@@ -400,22 +401,16 @@ describe("newOptionsMenu", () => {
 			<div id="options-menu"></div>`;
 		const element = document.querySelector("#options-menu");
 
+		/** @type {HTMLButtonElement[]} */
 		const mockButtons = [
-			{
-				html: "<span>a</span>",
-				elems: htmlToElems("<span>a</span>"),
-				init() {},
-			},
-			{
-				html: "<span>b</span>",
-				elems: htmlToElems("<span>b</span>"),
-				init() {},
-			},
+			// @ts-ignore
+			htmlToElem("<span>a</span>"),
+			// @ts-ignore
+			htmlToElem("<span>b</span>"),
 		];
 
 		const options = newOptionsMenu(mockButtons);
-		element.replaceChildren(...options.elems());
-		options.init();
+		element.replaceChildren(...options.elems);
 
 		expect(document.body.innerHTML).toMatchInlineSnapshot(`
 <button id="topbar-options-btn"
@@ -431,28 +426,5 @@ describe("newOptionsMenu", () => {
   </span>
 </div>
 `);
-	});
-	test("logic", () => {
-		document.body.innerHTML = `
-			<button id="topbar-options-btn"></button>
-			<div id="options-menu"></div>`;
-		const element = document.querySelector("#options-menu");
-
-		let initCalled = false;
-		const mockButtons = [
-			{
-				html: "<span>test</span>",
-				elems: htmlToElems("<span>test</span>"),
-				init() {
-					initCalled = true;
-				},
-			},
-		];
-
-		const options = newOptionsMenu(mockButtons);
-		element.replaceChildren(...options.elems());
-		options.init();
-
-		expect(initCalled).toBe(true);
 	});
 });

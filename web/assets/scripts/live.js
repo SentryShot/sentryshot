@@ -2,19 +2,20 @@
 
 // @ts-check
 
-import { uniqueID, sortByName, globals, htmlToElems } from "./libs/common.js";
+import { sortByName, globals } from "./libs/common.js";
 import {
 	newOptionsMenu,
 	newOptionsBtn,
-	optionsMenuBtnHTML,
+	newOptionsMenuBtn,
 } from "./components/optionsMenu.js";
 import { newStreamer, newStreamerBtn } from "./components/streamer.js";
 
 /**
+ * @typedef {import("./libs/common.js").MonitorInfo} MonitorInfo
  * @typedef {import("./libs/common.js").MonitorsInfo} MonitorsInfo
- * @typedef {import("./components/feed.js").FullscreenButton} FullscreenButton
  * @typedef {import("./components/optionsMenu.js").Button} Button
  * @typedef {import("./components/streamer.js").Feed} Feed
+ * @typedef {import("./components/streamer.js").FullscreenButton} FullscreenButton
  */
 
 /**
@@ -22,17 +23,14 @@ import { newStreamer, newStreamerBtn } from "./components/streamer.js";
  * @param {MonitorsInfo} monitors
  */
 function newViewer($parent, monitors) {
+	/** @type {string[]} */
 	let selectedMonitors = [];
+	/** @param {MonitorInfo} monitor */
 	const isMonitorSelected = (monitor) => {
 		if (selectedMonitors.length === 0) {
 			return true;
 		}
-		for (const id of selectedMonitors) {
-			if (monitor["id"] === id) {
-				return true;
-			}
-		}
-		return false;
+		return selectedMonitors.includes(monitor.id);
 	};
 
 	const sortedMonitors = sortByName(monitors);
@@ -63,7 +61,7 @@ function newViewer($parent, monitors) {
 				if (!isMonitorSelected(monitor)) {
 					continue;
 				}
-				if (monitor["enable"] !== true) {
+				if (monitor.enable !== true) {
 					continue;
 				}
 
@@ -82,10 +80,6 @@ function newViewer($parent, monitors) {
 				fragment.append(feed.elem);
 			}
 			$parent.replaceChildren(fragment);
-
-			for (const feed of feeds) {
-				feed.init();
-			}
 		},
 		exitFullscreen() {
 			for (const btn of fullscreenButtons) {
@@ -111,7 +105,6 @@ const preferLowResByDefault = false;
 
 /**
  * @param {ResBtnContent} content
- * @returns {Button}
  */
 function resBtn(content) {
 	const getRes = () => {
@@ -122,50 +115,44 @@ function resBtn(content) {
 		return preferLowResByDefault;
 	};
 
-	/** @type {Element} */
-	let element;
+	const elem = newOptionsMenuBtn(() => {
+		setRes(!getRes());
+		content.reset();
+	});
+
 	/** @param {boolean} preferLow */
 	const setRes = (preferLow) => {
 		localStorage.setItem("preferLowRes", String(preferLow));
 		if (preferLow) {
-			element.textContent = "SD";
+			elem.textContent = "SD";
 			content.setPreferLowRes(true);
 		} else {
-			element.textContent = "HD";
+			elem.textContent = "HD";
 			content.setPreferLowRes(false);
 		}
 	};
 
-	const id = uniqueID();
+	setRes(getRes());
 
-	return {
-		elems: htmlToElems(optionsMenuBtnHTML(id)),
-		init() {
-			element = document.querySelector(`#${id}`);
-			element.addEventListener("click", () => {
-				setRes(!getRes());
-				content.reset();
-			});
-			setRes(getRes());
-		},
-	};
+	return elem;
 }
 
 function init() {
 	const { monitorGroups, monitorsInfo } = globals();
 
-	const $contentGrid = document.querySelector("#js-content-grid");
+	const $contentGrid = document.getElementById("js-content-grid");
 	const viewer = newViewer($contentGrid, monitorsInfo);
 
-	const buttons = [newOptionsBtn.gridSize(viewer), resBtn(viewer)];
+	/** @type {Element[]} */
+	let buttons = [...newOptionsBtn.gridSize(viewer), resBtn(viewer)];
 	// Add the group picker if there are any groups.
 	if (Object.keys(monitorGroups).length > 0) {
-		buttons.push(newOptionsBtn.monitorGroup(monitorGroups, viewer));
+		const group = newOptionsBtn.monitorGroup(monitorGroups, viewer);
+		buttons = [...buttons, ...group.elems];
 	}
 
 	const optionsMenu = newOptionsMenu(buttons);
-	document.querySelector("#options-menu").replaceChildren(...optionsMenu.elems());
-	optionsMenu.init();
+	document.getElementById("options-menu").replaceChildren(...optionsMenu.elems);
 
 	/** @type {number[]} */
 	const clicks = [];

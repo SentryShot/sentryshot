@@ -4,7 +4,7 @@
 
 /* eslint-disable require-await */
 
-import { uidReset, htmlToElems } from "./libs/common.js";
+import { uidReset, htmlToElem } from "./libs/common.js";
 import {
 	newFormater,
 	createSpan,
@@ -108,15 +108,12 @@ describe("MultiSelect", () => {
 		const element = document.querySelector("div");
 		const field = newMultiSelect("test", ["a", "b", "c"], ["a", "b"]);
 		element.replaceChildren(...field.elems);
-		field.init();
 		return [element, field];
 	};
 	test("rendering", () => {
 		const [element] = setup();
 		expect(element.innerHTML).toMatchInlineSnapshot(`
-<li id="uid4"
-    class="items-center w-full px-2 border-b-2 border-color1"
->
+<li class="items-center w-full px-2 border-b-2 border-color1">
   <label class="mr-auto text-1.5 text-color">
     test
   </label>
@@ -240,7 +237,6 @@ test("monitorPicker", () => {
 		expect(options).toEqual(["m1", "m2"]);
 		modalOnSelect = onSelect;
 		return {
-			init() {},
 			set(value) {
 				modalSetCalls.push(value);
 			},
@@ -253,7 +249,6 @@ test("monitorPicker", () => {
 	// @ts-ignore
 	const picker = newMonitorPicker(monitors, mockModalSelect);
 	element.replaceChildren(...picker.elems);
-	picker.init();
 
 	// Open modal.
 	expect(modalOpenCalled).toBe(false);
@@ -279,33 +274,32 @@ test("monitorPicker", () => {
 	expect(picker.value()).toBe("");
 });
 
+/** @typedef {import("./logs.js").Logger} Logger */
+
 describe("logSelector", () => {
 	test("rendering", () => {
 		uidReset();
+		/** @type {Logger} */
 		const logger = {
-			async init() {},
 			async lazyLoadSavedLogs() {},
 			async set() {},
 		};
 		const fields = {
 			level: {
-				elems: htmlToElems("<span>levelHTML</span>"),
+				elems: [htmlToElem("<span>levelHTML</span>")],
 				value() {
 					return "debug";
 				},
 			},
 			sources: {
-				elems: htmlToElems("<span>sourcesHTML</span>"),
+				elems: [htmlToElem("<span>sourcesHTML</span>")],
 				value() {},
 			},
 			monitor: {
-				elems: htmlToElems("<span>monitorHTML</span>"),
+				elems: [htmlToElem("<span>monitorHTML</span>")],
 				value() {},
 			},
 		};
-
-		// @ts-ignore
-		const logSelector = newLogSelector(logger, fields);
 
 		document.body.innerHTML = `
 			<div>
@@ -314,7 +308,8 @@ describe("logSelector", () => {
 			</div>`;
 		const element = document.querySelector("div");
 
-		logSelector.init(element);
+		// @ts-ignore
+		newLogSelector(logger, fields, element);
 
 		expect(element.innerHTML).toMatchInlineSnapshot(`
 <div class="js-sidebar">
@@ -360,11 +355,11 @@ describe("logSelector", () => {
 			loggerLevels,
 			loggerSources,
 			loggerMonitors,
-			logSelector,
 			element;
 
 		const fields = {
 			level: {
+				elems: [document.createElement("span")],
 				value() {
 					return levelValue;
 				},
@@ -373,6 +368,7 @@ describe("logSelector", () => {
 				},
 			},
 			sources: {
+				elems: [document.createElement("span")],
 				value() {
 					return sourcesValue;
 				},
@@ -381,6 +377,7 @@ describe("logSelector", () => {
 				},
 			},
 			monitor: {
+				elems: [document.createElement("span")],
 				value() {
 					return monitorValue;
 				},
@@ -389,8 +386,8 @@ describe("logSelector", () => {
 				},
 			},
 		};
+		/** @type {Logger} */
 		const logger = {
-			async init() {},
 			async lazyLoadSavedLogs() {},
 			async set(levels, sources, monitors) {
 				loggerLevels = levels;
@@ -403,7 +400,6 @@ describe("logSelector", () => {
 			uidReset();
 
 			// @ts-ignore
-			logSelector = newLogSelector(logger, fields);
 			document.body.innerHTML = `
 				<div>
 					<div class="js-sidebar"></div>
@@ -411,7 +407,8 @@ describe("logSelector", () => {
 					<div class="js-back"></div>
 				</div>`;
 			element = document.querySelector("div");
-			logSelector.init(element);
+			// @ts-ignore
+			newLogSelector(logger, fields, element);
 		});
 		test("initial", () => {
 			expect(levelValue).toBe("info");

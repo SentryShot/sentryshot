@@ -2,7 +2,7 @@
 
 // @ts-check
 
-import { sortByName, uniqueID, htmlToElem, htmlToElems } from "../libs/common.js";
+import { sortByName, htmlToElem } from "../libs/common.js";
 import { newTimeNow } from "../libs/time.js";
 import { newModalSelect } from "../components/modal.js";
 
@@ -17,38 +17,28 @@ import { newModalSelect } from "../components/modal.js";
  * @property {() => void} init
  */
 
-/** @param {Button[]} buttons */
+/** @param {Element[]} buttons */
 function newOptionsMenu(buttons) {
-	/** @type {HTMLElement} */
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
 	const $optionsBtn = document.getElementById("topbar-options-btn");
 	$optionsBtn.style.visibility = "visible";
 
 	return {
-		elems() {
-			/** @type {Element[]} */
-			let buttonElems = [];
-			for (const btn of buttons) {
-				buttonElems = [...buttonElems, ...btn.elems];
-			}
-			return buttonElems;
-		},
+		elems: buttons,
 		/** @param {() => void} cb */
 		onMenuBtnclick(cb) {
 			document.getElementById("options-btn").addEventListener("click", cb);
-		},
-		init() {
-			for (const btn of buttons) {
-				btn.init();
-			}
 		},
 	};
 }
 
 /**
- * @param {string} id
+ * @param {() => void} onClick
  * @param {string=} icon
+ * @returns {HTMLButtonElement}
  */
-function optionsMenuBtnHTML(id, icon, tag = "") {
+function newOptionsMenuBtn(onClick, icon) {
 	let inner = "";
 	if (icon !== undefined) {
 		inner = /* HTML */ `
@@ -59,10 +49,11 @@ function optionsMenuBtnHTML(id, icon, tag = "") {
 			/>
 		`;
 	}
-	return /* HTML */ `
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const elem = htmlToElem(/* HTML */ `
 		<button
-			id="${id}"
-			class="${tag} flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
+			class="flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
 			style="
 				width: var(--options-menu-btn-width);
 				height: var(--options-menu-btn-width);
@@ -71,38 +62,9 @@ function optionsMenuBtnHTML(id, icon, tag = "") {
 		>
 			${inner}
 		</button>
-	`;
-}
-
-/**
- * @param {string} id
- * @param {string=} icon
- */
-function optionsMenuBtnHTML2(id, icon, tag = "") {
-	let inner = "";
-	if (icon !== undefined) {
-		inner = /* HTML */ `
-			<img
-				class="icon-filter"
-				style="aspect-ratio: 1; height: calc(var(--scale) * 2.7rem);"
-				src="${icon}"
-			/>
-		`;
-	}
-	const html = /* HTML */ `
-		<button
-			id="${id}"
-			class="${tag} flex justify-center items-center p-1 text-color bg-color2 hover:bg-color3"
-			style="
-				width: var(--options-menu-btn-width);
-				height: var(--options-menu-btn-width);
-				font-size: calc(var(--scale) * 1.7rem);
-			"
-		>
-			${inner}
-		</button>
-	`;
-	return htmlToElem(html);
+	`);
+	elem.onclick = onClick;
+	return elem;
 }
 
 /**
@@ -125,10 +87,7 @@ function optionsMenuBtnHTML2(id, icon, tag = "") {
  */
 
 const newOptionsBtn = {
-	/**
-	 * @param {GridSizeContent} content
-	 * @return {Button}
-	 */
+	/** @param {GridSizeContent} content */
 	gridSize(content) {
 		const getGridSize = () => {
 			const saved = localStorage.getItem("gridsize");
@@ -146,44 +105,36 @@ const newOptionsBtn = {
 			localStorage.setItem("gridsize", String(size));
 			document.documentElement.style.setProperty("--gridsize", String(size));
 		};
-		const idPlus = uniqueID();
-		const idMinus = uniqueID();
-		return {
-			elems: [
-				optionsMenuBtnHTML2(idPlus, "assets/icons/feather/plus.svg"),
-				optionsMenuBtnHTML2(idMinus, "assets/icons/feather/minus.svg"),
-			],
-			init() {
-				document.querySelector(`#${idPlus}`).addEventListener("click", () => {
-					if (getGridSize() !== 1) {
-						setGridSize(getGridSize() - 1);
-						content.reset();
-					}
-				});
-				document.querySelector(`#${idMinus}`).addEventListener("click", () => {
-					setGridSize(getGridSize() + 1);
-					content.reset();
-				});
-				setGridSize(getGridSize());
-			},
-		};
+
+		const $plus = newOptionsMenuBtn(() => {
+			if (getGridSize() !== 1) {
+				setGridSize(getGridSize() - 1);
+				content.reset();
+			}
+		}, "assets/icons/feather/plus.svg");
+
+		const $minus = newOptionsMenuBtn(() => {
+			setGridSize(getGridSize() + 1);
+			content.reset();
+		}, "assets/icons/feather/minus.svg");
+
+		setGridSize(getGridSize());
+
+		return [$plus, $minus];
 	},
 	/**
 	 * @param {string} timeZone
 	 * @param {DatePickerContent} content
-	 * @return {Button}
 	 */
 	date(timeZone, content) {
 		const datePicker = newDatePicker(timeZone, content);
 		const icon = "assets/icons/feather/calendar.svg";
-		const popup = newOptionsPopup("date", icon, datePicker.elems);
+		const popup = newOptionsPopup(icon, datePicker.elems);
 
 		return {
 			elems: popup.elems,
-			init() {
-				popup.init();
-				datePicker.init(popup);
-			},
+			testing: datePicker.testing,
+			testingBtn: popup.testingBtn,
 		};
 	},
 
@@ -191,7 +142,7 @@ const newOptionsBtn = {
 	 * @param {Monitors} monitors
 	 * @param {SelectMonitorContent} content
 	 * @param {boolean} remember
-	 * @return {Button}
+	 * @returns {HTMLButtonElement}
 	 */
 	monitor(monitors, content, remember = false) {
 		return newSelectMonitor(monitors, content, remember);
@@ -200,7 +151,6 @@ const newOptionsBtn = {
 	/**
 	 * @param {MonitorGroups} monitorGroups
 	 * @param {SelectMonitorContent} content
-	 * @return {Button}
 	 */
 	monitorGroup(monitorGroups, content) {
 		/** @type {Options} */
@@ -213,17 +163,14 @@ const newOptionsBtn = {
 			content.setMonitors(monitorGroups[selected].monitors);
 			content.reset();
 		};
-		const selectOne = newSelectOne(options, onSelect, "group");
+		const $selectOne = newSelectOne(options, onSelect, "group");
 
 		const icon = "assets/icons/feather/group.svg";
-		const popup = newOptionsPopup("group", icon, selectOne.elems);
+		const popup = newOptionsPopup(icon, [$selectOne]);
 
 		return {
 			elems: popup.elems,
-			init() {
-				popup.init();
-				selectOne.init();
-			},
+			testingBtn: popup.testingBtn,
 		};
 	},
 };
@@ -232,56 +179,42 @@ const newOptionsBtn = {
  * @typedef {Object} Popup
  * @property {Element[]} elems
  * @property {() => void} toggle
- * @property {() => void} init
- * @property {() => Element} element
+ * @property {Element} $popup
+ * @property {HTMLButtonElement} testingBtn
+ *
  */
 
 /**
- * @param {string} label
  * @param {string} icon
- * @param {Element[]} htmlContent
+ * @param {Element[]} content
  * @return {Popup}
  */
-function newOptionsPopup(label, icon, htmlContent) {
-	/** @type Element */
-	let element;
+function newOptionsPopup(icon, content) {
 	const toggle = () => {
-		element.classList.toggle("options-popup-open");
+		$popup.classList.toggle("options-popup-open");
 	};
-
-	const buttonId = uniqueID();
-	const popupId = uniqueID();
-	const tag = `js-${label}`;
-	return {
-		elems: [
-			optionsMenuBtnHTML2(buttonId, icon, tag),
+	const $btn = newOptionsMenuBtn(toggle, icon);
+	const $popup = htmlToElem(
+		/* HTML */ `
+			<div
+				class="options-popup absolute flex-col m-auto bg-color2"
+				style="display: none; max-height: 100dvh;"
+			></div>
+		`,
+		[
 			htmlToElem(
-				/* HTML */ `
-					<div
-						id="${popupId}"
-						class="options-popup absolute flex-col m-auto bg-color2"
-						style="display: none; max-height: 100dvh;"
-					></div>
-				`,
-				[
-					htmlToElem(
-						//
-						`<div style="overflow-y: auto;"></div>`,
-						htmlContent,
-					),
-				],
+				//
+				`<div style="overflow-y: auto;"></div>`,
+				content,
 			),
 		],
+	);
+
+	return {
+		elems: [$btn, $popup],
 		toggle,
-		init() {
-			element = document.querySelector(`#${popupId}`);
-			document.querySelector(`#${buttonId}`).addEventListener("click", () => {
-				toggle();
-			});
-		},
-		element() {
-			return element;
-		},
+		$popup,
+		testingBtn: $btn,
 	};
 }
 
@@ -305,153 +238,210 @@ function toMonthString(time) {
 	return months[time.getMonth()];
 }
 
-const datePickerHTML = /* HTML */ `
-	<div class="p-2">
-		<div class="flex items-center border-color2">
-			<button class="js-prev-month bg-color2">
-				<img
-					class="icon-filter"
-					style="height: calc(var(--scale) * 2.5rem); aspect-ratio: 1;"
-					src="assets/icons/feather/chevron-left.svg"
-				>
-			</button>
-			<span class="js-month w-full text-center text-1.3 text-color"></span>
-			<button class="js-next-month bg-color2">
-				<img
-					class="icon-filter"
-					style="height: calc(var(--scale) * 2.5rem); aspect-ratio: 1;"
-					src="assets/icons/feather/chevron-right.svg"
-				>
-			</button>
-		</div>
-		<div
-			class="js-calendar text-2"
-			style="display: grid; grid-template-columns: repeat(7, auto);"
-		>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-			<button class="date-picker-day-btn">00</button>
-		</div>
-		<div class="date-picker-hour">
-			<div class="flex flex-col justify-center mr-2">
-				<button class="js-next-hour bg-color3 hover:bg-color2">
-					<img
-						class="icon-filter"
-						style="width: calc(var(--scale) * 1.5rem); height: calc(var(--scale) * 1.5rem);"
-						src="assets/icons/feather/chevron-up.svg"
-					>
-				</button>
-				<button class="js-prev-hour bg-color3 hover:bg-color2">
-					<img
-						class="icon-filter"
-						style="
-							width: calc(var(--scale) * 1.5rem);
-							height: calc(var(--scale) * 1.5rem);
-							aspect-ratio: 1;
-						"
-						src="assets/icons/feather/chevron-down.svg">
-				</button>
-			</div>
-			<div class="flex items-center">
-				<input
-					class="date-picker-hour-input js-hour pr-1 text-1.5"
-					type="number"
-					min="00"
-					max="23"
-					style="
-						width: calc(var(--scale) * 2rem);
-						height: calc(var(--scale) * 2rem);
-						-moz-appearance: textfield;
-						text-align: end;
-					"
-				></input>
-				<span class="text-2 text-color">:</span>
-				<input
-					class="date-picker-hour-input js-minute pl-1 text-1.5"
-					type="number"
-					min="00"
-					max="59"
-					style="
-						width: calc(var(--scale) * 2rem);
-						height: calc(var(--scale) * 2rem);
-						-moz-appearance: textfield;
-					"
-				></input>
-			</div>
-			<div class="flex flex-col justify-center ml-2">
-				<button class="js-next-minute bg-color3 hover:bg-color2">
-					<img
-						class="icon-filter"
-						style="
-							width: calc(var(--scale) * 1.5rem);
-							height: calc(var(--scale) * 1.5rem);
-							aspect-ratio: 1;
-						"
-						src="assets/icons/feather/chevron-up.svg"
-					>
-				</button>
-				<button class="js-prev-minute bg-color3 hover:bg-color2">
-					<img
-						class="icon-filter"
-						style="
-							width: calc(var(--scale) * 1.5rem);
-							height: calc(var(--scale) * 1.5rem);
-							aspect-ratio: 1;
-						"
-						src="assets/icons/feather/chevron-down.svg"
-					>
-				</button>
-			</div>
-		</div>
-		<div class="flex" style="justify-content: space-around;">
-			<button
-				class="js-reset px-2 rounded-md text-1.5 text-color bg-color3 hover:bg-color2"
-			>Reset</button>
-			<button
-				class=" js-apply px-2 rounded-md text-1.5 text-color bg-green hover:bg-green2"
-			>Apply</button>
-		</div>
-	</div>
-`;
+function newDatePickerElems() {
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $prevMonth = htmlToElem(/* HTML */ `
+		<button class="bg-color2">
+			<img
+				class="icon-filter"
+				style="height: calc(var(--scale) * 2.5rem); aspect-ratio: 1;"
+				src="assets/icons/feather/chevron-left.svg"
+			/>
+		</button>
+	`);
+	/** @type {HTMLSpanElement} */
+	// @ts-ignore
+	const $month = htmlToElem(
+		`<span class="w-full text-center text-1.3 text-color"></span>`,
+	);
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $nextMonth = htmlToElem(/* HTML */ `
+		<button class="bg-color2">
+			<img
+				class="icon-filter"
+				style="height: calc(var(--scale) * 2.5rem); aspect-ratio: 1;"
+				src="assets/icons/feather/chevron-right.svg"
+			/>
+		</button>
+	`);
+	/** @type {Element[]} */
+	const dayBtns = [];
+	const dayBtn = htmlToElem(`<button class="date-picker-day-btn">00</button>`);
+	for (let i = 0; i < 7 * 6; i++) {
+		// @ts-ignore
+		dayBtns.push(dayBtn.cloneNode(false));
+	}
+	const $calendar = htmlToElem(
+		/* HTML */ `
+			<div
+				class="text-2"
+				style="display: grid; grid-template-columns: repeat(7, auto);"
+			></div>
+		`,
+		dayBtns,
+	);
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $nextHour = htmlToElem(/* HTML */ `
+		<button class="bg-color3 hover:bg-color2">
+			<img
+				class="icon-filter"
+				style="width: calc(var(--scale) * 1.5rem); height: calc(var(--scale) * 1.5rem);"
+				src="assets/icons/feather/chevron-up.svg"
+			/>
+		</button>
+	`);
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $prevHour = htmlToElem(/* HTML */ `
+		<button class="bg-color3 hover:bg-color2">
+			<img
+				class="icon-filter"
+				style="
+					width: calc(var(--scale) * 1.5rem);
+					height: calc(var(--scale) * 1.5rem);
+					aspect-ratio: 1;
+				"
+				src="assets/icons/feather/chevron-down.svg"
+			/>
+		</button>
+	`);
+	/** @type {HTMLInputElement} */
+	// @ts-ignore
+	const $hour = htmlToElem(/* HTML */ `
+		<input
+			class="date-picker-hour-input pr-1 text-1.5"
+			type="number"
+			min="00"
+			max="23"
+			style="
+				width: calc(var(--scale) * 2rem);
+				height: calc(var(--scale) * 2rem);
+				-moz-appearance: textfield;
+				text-align: end;
+			"
+		/>
+	`);
+	/** @type {HTMLInputElement} */
+	// @ts-ignore
+	const $minute = htmlToElem(/* HTML */ `
+		<input
+			class="date-picker-hour-input pl-1 text-1.5"
+			type="number"
+			min="00"
+			max="59"
+			style="
+				width: calc(var(--scale) * 2rem);
+				height: calc(var(--scale) * 2rem);
+				-moz-appearance: textfield;
+			"
+		/>
+	`);
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $nextMinute = htmlToElem(/* HTML */ `
+		<button class="bg-color3 hover:bg-color2">
+			<img
+				class="icon-filter"
+				style="
+					width: calc(var(--scale) * 1.5rem);
+					height: calc(var(--scale) * 1.5rem);
+					aspect-ratio: 1;
+				"
+				src="assets/icons/feather/chevron-up.svg"
+			/>
+		</button>
+	`);
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $prevMinute = htmlToElem(/* HTML */ `
+		<button class="bg-color3 hover:bg-color2">
+			<img
+				class="icon-filter"
+				style="
+					width: calc(var(--scale) * 1.5rem);
+					height: calc(var(--scale) * 1.5rem);
+					aspect-ratio: 1;
+				"
+				src="assets/icons/feather/chevron-down.svg"
+			/>
+		</button>
+	`);
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $reset = htmlToElem(/* HTML */ `
+		<button class="px-2 rounded-md text-1.5 text-color bg-color3 hover:bg-color2">
+			Reset
+		</button>
+	`);
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $apply = htmlToElem(/* HTML */ `
+		<button class="px-2 rounded-md text-1.5 text-color bg-green hover:bg-green2">
+			Apply
+		</button>
+	`);
+	const elem = htmlToElem(
+		//
+		`<div class="p-2"></div>`,
+		[
+			htmlToElem(
+				//
+				`<div class="flex items-center border-color2"></div>`,
+				[$prevMonth, $month, $nextMonth],
+			),
+			$calendar,
+			htmlToElem(
+				//
+				`<div class="date-picker-hour"></div>`,
+				[
+					htmlToElem(
+						//
+						`<div class="flex flex-col justify-center mr-2"></div>`,
+						[$nextHour, $prevHour],
+					),
+					htmlToElem(
+						//
+						`<div class="flex items-center"></div>`,
+						[
+							$hour,
+							htmlToElem(`<span class="text-2 text-color">:</span>`),
+							$minute,
+						],
+					),
+					htmlToElem(
+						//
+						`<div class="flex flex-col justify-center ml-2"></div>`,
+						[$nextMinute, $prevMinute],
+					),
+				],
+			),
+			htmlToElem(
+				//
+				`<div class="flex" style="justify-content: space-around;"></div>`,
+				[$reset, $apply],
+			),
+		],
+	);
+	return {
+		elem,
+		$prevMonth,
+		$month,
+		$nextMonth,
+		$calendar,
+		dayBtns,
+		$nextHour,
+		$prevHour,
+		$hour,
+		$minute,
+		$nextMinute,
+		$prevMinute,
+		$reset,
+		$apply,
+	};
+}
 
 /**
  * @typedef {Object} DatePickerContent
@@ -463,27 +453,18 @@ const datePickerHTML = /* HTML */ `
  * @param {DatePickerContent} content
  */
 function newDatePicker(timeZone, content) {
-	/** @type {Element} */
-	let $month;
-	/** @type {Element} */
-	let $calendar;
-	/** @type {HTMLButtonElement[]} */
-	let dayBtns;
-	/** @type {HTMLInputElement} */
-	let $hour;
-	/** @type {HTMLInputElement} */
-	let $minute;
-
 	/** @type {Time} */
 	let t;
+
+	const elems = newDatePickerElems();
 
 	// Writes the time state to the DOM.
 	const update = () => {
 		const year2 = t.getFullYear();
 		const month2 = toMonthString(t);
-		$month.textContent = `${year2} ${month2}`;
-		$hour.value = pad(t.getHours());
-		$minute.value = pad(t.getMinutes());
+		elems.$month.textContent = `${year2} ${month2}`;
+		elems.$hour.value = pad(t.getHours());
+		elems.$minute.value = pad(t.getMinutes());
 
 		// Set day.
 		let day = (t.firstDayInMonth() - 2) * -1;
@@ -494,7 +475,7 @@ function newDatePicker(timeZone, content) {
 		const selectedDay = t.getDate();
 
 		for (let i = 0; i < 7 * 6; i++) {
-			const btn = dayBtns[i];
+			const btn = elems.dayBtns[i];
 			if (day === selectedDay) {
 				btn.classList.add("date-picker-day-selected");
 			} else {
@@ -507,8 +488,87 @@ function newDatePicker(timeZone, content) {
 
 	// The hour and minute are not synced when pressed.
 	const readHourAndMinute = () => {
-		t.setHours(Number($hour.value));
-		t.setMinutes(Number($minute.value));
+		t.setHours(Number(elems.$hour.value));
+		t.setMinutes(Number(elems.$minute.value));
+	};
+
+	elems.$prevMonth.onclick = () => {
+		readHourAndMinute();
+		t.prevMonth();
+		update();
+	};
+	elems.$nextMonth.onclick = () => {
+		readHourAndMinute();
+		t.nextMonth();
+		update();
+	};
+
+	elems.$calendar.addEventListener("click", (e) => {
+		readHourAndMinute();
+		const target = e.target;
+		if (target instanceof HTMLElement) {
+			if (!target.classList.contains("date-picker-day-btn")) {
+				return;
+			}
+			if (target.innerHTML === "") {
+				return;
+			}
+			t.setDate(Number(target.textContent));
+		}
+		update();
+	});
+
+	elems.$nextHour.onclick = () => {
+		const hour = elems.$hour.value;
+		if (hour === "23") {
+			elems.$hour.value = "00";
+			return;
+		}
+		elems.$hour.value = pad(Number(hour) + 1);
+	};
+	elems.$prevHour.onclick = () => {
+		const hour = elems.$hour.value;
+		if (hour === "00") {
+			elems.$hour.value = "23";
+			return;
+		}
+		elems.$hour.value = pad(Number(hour) - 1);
+	};
+	elems.$hour.onchange = (e) => {
+		const target = e.target;
+		if (target instanceof HTMLInputElement) {
+			const value = Number(target.value);
+			if (value < 10) {
+				target.value = `0${value}`;
+			}
+		}
+	};
+
+	elems.$nextMinute.onclick = () => {
+		const minute = elems.$minute.value;
+		if (minute === "59") {
+			elems.$minute.value = "00";
+			return;
+		}
+		elems.$minute.value = pad(Number(minute) + 1);
+	};
+	elems.$prevMinute.onclick = () => {
+		const minute = elems.$minute.value;
+		if (minute === "00") {
+			elems.$minute.value = "59";
+			t.setMinutes(59);
+			return;
+		}
+		elems.$minute.value = pad(Number(minute) - 1);
+	};
+	elems.$minute.onchange = (e) => {
+		const target = e.target;
+		if (target instanceof HTMLInputElement) {
+			const value = Number(target.value);
+			if (value < 10) {
+				target.value = `0${value}`;
+			}
+		}
 	};
 
 	const apply = () => {
@@ -522,109 +582,17 @@ function newDatePicker(timeZone, content) {
 		update();
 	};
 
+	elems.$reset.onclick = () => {
+		reset();
+		apply();
+	};
+	elems.$apply.onclick = apply;
+
+	reset();
+
 	return {
-		elems: htmlToElems(datePickerHTML),
-		/** @param {Popup} popup */
-		init(popup) {
-			const $parent = popup.element();
-
-			$month = $parent.querySelector(".js-month");
-			$calendar = $parent.querySelector(".js-calendar");
-			// @ts-ignore
-			dayBtns = $calendar.querySelectorAll("button");
-			$hour = $parent.querySelector(".js-hour");
-			$minute = $parent.querySelector(".js-minute");
-
-			$parent.querySelector(".js-prev-month").addEventListener("click", () => {
-				readHourAndMinute();
-				t.prevMonth();
-				update();
-			});
-			$parent.querySelector(".js-next-month").addEventListener("click", () => {
-				readHourAndMinute();
-				t.nextMonth();
-				update();
-			});
-
-			$calendar.addEventListener("click", (e) => {
-				readHourAndMinute();
-				const target = e.target;
-				if (target instanceof HTMLElement) {
-					if (!target.classList.contains("date-picker-day-btn")) {
-						return;
-					}
-					if (target.innerHTML === "") {
-						return;
-					}
-					t.setDate(Number(target.textContent));
-				}
-				update();
-			});
-
-			$parent.querySelector(".js-next-hour").addEventListener("click", () => {
-				const hour = $hour.value;
-				if (hour === "23") {
-					$hour.value = "00";
-					return;
-				}
-				$hour.value = pad(Number(hour) + 1);
-			});
-			$parent.querySelector(".js-prev-hour").addEventListener("click", () => {
-				const hour = $hour.value;
-				if (hour === "00") {
-					$hour.value = "23";
-					return;
-				}
-				$hour.value = pad(Number(hour) - 1);
-			});
-			$parent.querySelector(".js-hour").addEventListener("change", (e) => {
-				const target = e.target;
-				if (target instanceof HTMLInputElement) {
-					const value = Number(target.value);
-					if (value < 10) {
-						target.value = `0${value}`;
-					}
-				}
-			});
-
-			$parent.querySelector(".js-next-minute").addEventListener("click", () => {
-				const minute = $minute.value;
-				if (minute === "59") {
-					$minute.value = "00";
-					return;
-				}
-				$minute.value = pad(Number(minute) + 1);
-			});
-			$parent.querySelector(".js-prev-minute").addEventListener("click", () => {
-				const minute = $minute.value;
-				if (minute === "00") {
-					$minute.value = "59";
-					t.setMinutes(59);
-					return;
-				}
-				$minute.value = pad(Number(minute) - 1);
-			});
-			$parent.querySelector(".js-minute").addEventListener("change", (e) => {
-				const target = e.target;
-				if (target instanceof HTMLInputElement) {
-					const value = Number(target.value);
-					if (value < 10) {
-						target.value = `0${value}`;
-					}
-				}
-			});
-
-			$parent.querySelector(".js-apply").addEventListener("click", () => {
-				apply();
-			});
-
-			$parent.querySelector(".js-reset").addEventListener("click", () => {
-				reset();
-				apply();
-			});
-
-			reset();
-		},
+		elems: [elems.elem],
+		testing: elems,
 	};
 }
 
@@ -641,7 +609,7 @@ function newDatePicker(timeZone, content) {
  * @param {SelectMonitorContent} content
  * @param {boolean} remember
  * @param {NewModalSelectFunc} newModalSelect2
- * @returns {Button}
+ * @returns {HTMLButtonElement}
  */
 function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModalSelect) {
 	/** @type {string[]} */
@@ -657,35 +625,29 @@ function newSelectMonitor(monitors, content, remember, newModalSelect2 = newModa
 	}
 
 	const alias = "selected-monitor";
-	const btnID = uniqueID();
 
-	return {
-		elems: htmlToElems(optionsMenuBtnHTML(btnID, "assets/icons/feather/video.svg")),
-		init() {
-			/** @param {string} selected */
-			const onSelect = (selected) => {
-				const monitorID = monitorNameToID[selected];
-				if (remember) {
-					localStorage.setItem(alias, monitorID);
-				}
+	/** @param {string} selected */
+	const onSelect = (selected) => {
+		const monitorID = monitorNameToID[selected];
+		if (remember) {
+			localStorage.setItem(alias, monitorID);
+		}
 
-				content.setMonitors([monitorID]);
-				content.reset();
-			};
-			const modal = newModalSelect2("Monitor", monitorNames, onSelect);
-			modal.init(document.body);
-
-			const saved = localStorage.getItem(alias);
-			if (remember && monitorIDToName[saved]) {
-				content.setMonitors([saved]);
-				modal.set(monitorIDToName[saved]);
-			}
-
-			document.querySelector(`#${btnID}`).addEventListener("click", () => {
-				modal.open();
-			});
-		},
+		content.setMonitors([monitorID]);
+		content.reset();
 	};
+
+	const modal = newModalSelect2("Monitor", monitorNames, onSelect, document.body);
+
+	const elem = newOptionsMenuBtn(modal.open, "assets/icons/feather/video.svg");
+
+	const saved = localStorage.getItem(alias);
+	if (remember && monitorIDToName[saved]) {
+		content.setMonitors([saved]);
+		modal.set(monitorIDToName[saved]);
+	}
+
+	return elem;
 }
 
 /**
@@ -730,49 +692,43 @@ function newSelectOne(options, onSelect, alias) {
 		`;
 	}
 
-	const id = uniqueID();
-	const html = /* HTML */ `
-		<div id=${id} class="js-select-one flex flex-col text-center text-color">
+	const elem = htmlToElem(/* HTML */ `
+		<div class="js-select-one flex flex-col text-center text-color">
 			<span class="px-2 text-2">Groups</span>
 			${optionsHTML}
 		</div>
-	`;
+	`);
 
-	return {
-		elems: htmlToElems(html),
-		init() {
-			const element = document.getElementById(id);
-
-			const saved = localStorage.getItem(alias);
-			if (options[saved] !== undefined) {
-				element
-					.querySelector(`.js-select-one-item[data="${saved}"]`)
-					.classList.add("select-one-item-selected");
+	elem.addEventListener("click", (e) => {
+		const target = e.target;
+		if (target instanceof HTMLElement) {
+			if (!target.classList.contains("js-select-one-item")) {
+				return;
 			}
 
-			element.addEventListener("click", (e) => {
-				const target = e.target;
-				if (target instanceof HTMLElement) {
-					if (!target.classList.contains("js-select-one-item")) {
-						return;
-					}
+			// Clear selection.
+			const fields = elem.querySelectorAll(".js-select-one-item");
+			for (const field of fields) {
+				field.classList.remove("select-one-item-selected");
+			}
 
-					// Clear selection.
-					const fields = element.querySelectorAll(".js-select-one-item");
-					for (const field of fields) {
-						field.classList.remove("select-one-item-selected");
-					}
+			target.classList.add("select-one-item-selected");
 
-					target.classList.add("select-one-item-selected");
+			const selected = target.attributes["data"].value;
+			onSelect(selected);
 
-					const selected = target.attributes["data"].value;
-					onSelect(selected);
+			localStorage.setItem(alias, selected);
+		}
+	});
 
-					localStorage.setItem(alias, selected);
-				}
-			});
-		},
-	};
+	const saved = localStorage.getItem(alias);
+	if (options[saved] !== undefined) {
+		elem.querySelector(`.js-select-one-item[data="${saved}"]`).classList.add(
+			"select-one-item-selected",
+		);
+	}
+
+	return elem;
 }
 
 /**
@@ -785,9 +741,8 @@ function pad(n) {
 
 export {
 	newOptionsMenu,
-	optionsMenuBtnHTML,
 	newOptionsBtn,
-	newOptionsPopup,
+	newOptionsMenuBtn,
 	newSelectOne,
 	newSelectMonitor,
 };
