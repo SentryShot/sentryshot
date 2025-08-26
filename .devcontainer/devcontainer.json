@@ -1,4 +1,0 @@
-{
-  "image": "mcr.microsoft.com/devcontainers/rust:latest",
-  "postCreateCommand": "./.devcontainer/post-create.sh"
-}
