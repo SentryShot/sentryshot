@@ -77,21 +77,28 @@ function newModal(label, content = []) {
 			),
 		],
 	);
-	$closeBtn.onclick = () => {
+	/** @type {Element} */
+	let prevActiveElement;
+	const close = () => {
 		elem.classList.remove("modal-open");
+		if (document.body.contains(prevActiveElement)) {
+			// @ts-ignore
+			prevActiveElement.focus();
+		}
 		if (onClose) {
 			onClose();
 		}
 	};
+	$closeBtn.onclick = close;
+
 	return {
 		elem,
 		$content,
 		open() {
+			prevActiveElement = document.activeElement;
 			elem.classList.add("modal-open");
 		},
-		close() {
-			elem.classList.remove("modal-open");
-		},
+		close,
 		onClose(func) {
 			onClose = func;
 		},
