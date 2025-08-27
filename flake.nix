@@ -2,6 +2,8 @@
   description = "A flake for sentryshot project";
 
   inputs = {
+    # glibc 2.34 nixos-22.05
+    # https://github.com/NixOS/nixpkgs/commits/380be19fbd2d9079f677978361792cb25e8a3635
     nixpkgs.url = "github:nixos/nixpkgs/380be19fbd2d9079f677978361792cb25e8a3635";
   };
 
@@ -11,18 +13,22 @@
       system = "x86_64-linux";
       overlays = [ (import (misc/nix/rust-overlay)) ];
     };
-    ffmpeg = ( pkgs.callPackage misc/nix/ffmpeg.nix {} );
+    ffmpeg = pkgs.callPackage misc/nix/ffmpeg.nix {};
     tflite = pkgs.callPackage misc/nix/tflite.nix {};
     libedgetpu = pkgs.callPackage misc/nix/libedgetpu.nix {};
 
     rustPlatform = pkgs.makeRustPlatform {
       cargo = pkgs.rust-bin.stable."1.85.0".minimal;
       rustc = pkgs.rust-bin.stable."1.85.0".minimal;
-    };    
+    };
+
+    cargoTomlContent = builtins.readFile ./Cargo.toml;
+    projectMetadata = builtins.fromTOML cargoTomlContent;
+
   in {
     packages.x86_64-linux.sentryshot = rustPlatform.buildRustPackage {
-      name = "sentryshot";
-      version = "0.3.4";
+      pname = "sentryshot";
+      version = projectMetadata.workspace.package.version;
       src = ./.;
 
       # This is where you specify the dependencies from your shell file
@@ -32,7 +38,6 @@
         tflite
         libedgetpu
         pkgs.libusb1
-        pkgs.openh264
       ];
 
       nativeBuildInputs = [
@@ -52,7 +57,7 @@
       meta = with pkgs.lib; {
         description = "Video Management System";
         homepage = "https://codeberg.org/SentryShot/sentryshot";
-        license = licenses.gpl2Only;
+        license = licenses.gpl2Plus;
       };
     };
 
