@@ -1625,6 +1625,7 @@ dependencies = [
  "hyper-rustls",
  "hyper-util",
  "libloading",
+ "object_detection_tflite",
  "plugin",
  "pretty_assertions",
  "sentryshot_convert",
