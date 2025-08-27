@@ -50,9 +50,44 @@
 
       # The `meta` attribute provides metadata about the package.
       meta = with pkgs.lib; {
-        description = "Your application description";
-        homepage = "https://your.homepage.com";
-        license = licenses.mit;
+        description = "Video Management System";
+        homepage = "https://codeberg.org/SentryShot/sentryshot";
+        license = licenses.gpl2Only;
+      };
+    };
+
+    packages.x86_64-linux.dockerImage = pkgs.dockerTools.buildImage {
+      name = "henryouly/sentryshot";
+      tag = "latest";
+
+      contents = pkgs.buildEnv {
+        name = "image-root";
+        paths = [
+          self.packages.x86_64-linux.sentryshot
+          ffmpeg
+          tflite
+          libedgetpu
+          pkgs.libusb1
+          pkgs.openh264
+          pkgs.bash
+          pkgs.glibc
+          pkgs.stdenv.cc.cc.lib
+        ];
+      };
+
+      config = {
+        Cmd = [
+          "${self.packages.x86_64-linux.sentryshot}/bin/sentryshot"
+        ];
+        Env = [
+          "LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [
+            ffmpeg
+            tflite
+            libedgetpu
+            pkgs.libusb1
+            pkgs.openh264
+          ]}"
+        ];
       };
     };
 
