@@ -71,14 +71,14 @@
           pkgs.openh264
           pkgs.bash
           pkgs.glibc
-          pkgs.stdenv.cc.cc.lib
         ];
       };
 
       config = {
-        Cmd = [
+        Entrypoint = [
           "${self.packages.x86_64-linux.sentryshot}/bin/sentryshot"
         ];
+        Cmd = [ "" ];
         Env = [
           "LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [
             ffmpeg
@@ -87,7 +87,15 @@
             pkgs.libusb1
             pkgs.openh264
           ]}"
+          "TZ=America/Los_Angeles"
         ];
+        ExposedPorts = {
+          "2020/tcp" = { };
+        };
+        Volumes = {
+          "/configs" = { };
+          "/storage" = { };
+        };
       };
     };
 
