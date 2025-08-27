@@ -14,10 +14,49 @@
     ffmpeg = ( pkgs.callPackage misc/nix/ffmpeg.nix {} );
     tflite = pkgs.callPackage misc/nix/tflite.nix {};
     libedgetpu = pkgs.callPackage misc/nix/libedgetpu.nix {};
-  in {
-    packages.x86_64-linux.hello = nixpkgs.legacyPackages.x86_64-linux.hello;
 
-    packages.x86_64-linux.default = self.packages.x86_64-linux.hello;
+    rustPlatform = pkgs.makeRustPlatform {
+      cargo = pkgs.rust-bin.stable."1.85.0".minimal;
+      rustc = pkgs.rust-bin.stable."1.85.0".minimal;
+    };    
+  in {
+    packages.x86_64-linux.sentryshot = rustPlatform.buildRustPackage {
+      name = "sentryshot";
+      version = "0.3.4";
+      src = ./.;
+
+      # This is where you specify the dependencies from your shell file
+      # that your application links against.
+      buildInputs = [
+        ffmpeg
+        tflite
+        libedgetpu
+        pkgs.libusb1
+        pkgs.openh264
+      ];
+
+      nativeBuildInputs = [
+        pkgs.pkg-config
+        pkgs.protobuf
+      ];
+
+      # This tells Nix to use your local Cargo.lock file.
+      cargoLock = {
+        lockFile = ./Cargo.lock;
+        outputHashes = {
+          "retina-0.4.11" = "sha256-BLvE4wo5DeijfADcGQczYrmLgzb0vOr6Pl+Y+ERbj5U=";
+        };
+      };
+
+      # The `meta` attribute provides metadata about the package.
+      meta = with pkgs.lib; {
+        description = "Your application description";
+        homepage = "https://your.homepage.com";
+        license = licenses.mit;
+      };
+    };
+
+    packages.x86_64-linux.default = self.packages.x86_64-linux.sentryshot;
 
     devShells."x86_64-linux".default = pkgs.mkShell {
       nativeBuildInputs = [ pkgs.rust-bin.stable."1.85.0".minimal pkgs.pkg-config pkgs.protobuf ];
