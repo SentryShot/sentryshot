@@ -3,6 +3,7 @@
 use async_trait::async_trait;
 use crate::config::Config;
 use common::{ArcMsgLogger, Detection, Detections, DynError, LogLevel, RectangleNormalized, Region};
+use half::f16;
 use http::uri::InvalidUri;
 use std::num::{NonZeroU16, NonZeroU32};
 use std::sync::Arc;
@@ -221,66 +222,15 @@ fn rgb_to_nchw_half(
 
             // Normalize to [0, 1] and convert to half-precision float
             // Store in NCHW format
-            half_vals[0 * num_pixels + y * width as usize + x] = 
-                i32::from(float32_to_f16(f32::from(r) / 255.0));
-            half_vals[1 * num_pixels + y * width as usize + x] = 
-                i32::from(float32_to_f16(f32::from(g) / 255.0));
-            half_vals[2 * num_pixels + y * width as usize + x] = 
-                i32::from(float32_to_f16(f32::from(b) / 255.0));
+            half_vals[0 * num_pixels + y * width as usize + x] =
+                i32::from(f16::from_f32(f32::from(r) / 255.0).to_bits());
+            half_vals[1 * num_pixels + y * width as usize + x] =
+                i32::from(f16::from_f32(f32::from(g) / 255.0).to_bits());
+            half_vals[2 * num_pixels + y * width as usize + x] =
+                i32::from(f16::from_f32(f32::from(b) / 255.0).to_bits());
         }
     }
     Ok(half_vals)
-}
-
-// float32_to_f16 converts a 32-bit float to a 16-bit half-precision float.
-#[allow(clippy::as_conversions)]
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_possible_wrap)]
-#[allow(clippy::cast_sign_loss)]
-fn float32_to_f16(val: f32) -> u16 {
-    let bits = val.to_bits();
-    let sign = (bits >> 16) & 0x8000;
-    let mut exp = ((bits >> 23) & 0xff) as i32 - 127;
-    let mant = bits & 0x7f_ffff;
-
-    if exp > 15 { // Exponent overflow -> infinity
-        return (sign | 0x7c00) as u16;
-    }
-    if exp < -14 { // Exponent underflow -> flush to zero
-        return sign as u16;
-    }
-    exp += 15;
-    let mant = mant >> 13;
-    (sign | ((exp as u32) << 10) | mant) as u16
-}
-
-#[allow(clippy::as_conversions)]
-#[allow(clippy::cast_sign_loss)]
-fn half_to_float32(h: u16) -> f32 {
-    let sign = u32::from(h & 0x8000);
-    let exp = (h & 0x7C00) >> 10;
-    let mant = u32::from(h & 0x03FF);
-
-    let bits = if exp == 0x1F {
-        0x7F80_0000 | (mant << 13)
-    } else if exp == 0 {
-        if mant != 0 {
-            let mut exp_val = 1 - 15;
-            let mut mant_val = mant;
-            while (mant_val & 0x0400) == 0 {
-                mant_val <<= 1;
-                exp_val -= 1;
-            }
-            let mant32 = (mant_val & 0x03FF) << 13;
-            (((exp_val + 127) as u32) << 23) | mant32
-        } else {
-            0
-        }
-    } else {
-        (u32::from(exp - 15 + 127) << 23) | (mant << 13)
-    };
-
-    f32::from_bits((sign << 16) | bits)
 }
 
 #[allow(clippy::as_conversions)]
@@ -294,13 +244,13 @@ fn decode_half_tensor(tensor: &TensorProto) -> Result<Vec<f32>, GrpcDetectorErro
         Ok(tensor
             .tensor_content
             .chunks_exact(2)
-            .map(|chunk| half_to_float32(u16::from_le_bytes([chunk[0], chunk[1]])))
+            .map(|chunk| f16::from_bits(u16::from_le_bytes([chunk[0], chunk[1]])).to_f32())
             .collect())
     } else if !tensor.half_val.is_empty() {
         Ok(tensor
             .half_val
             .iter()
-            .map(|&h| half_to_float32(h as u16))
+            .map(|&h| f16::from_bits(h as u16).to_f32())
             .collect())
     } else {
         Err(GrpcDetectorError::DecodeYoloResponse("tensor data not found".to_owned()))

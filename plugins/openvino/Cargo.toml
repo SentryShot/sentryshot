@@ -24,6 +24,7 @@ sentryshot_scale.workspace = true
 sentryshot_util.workspace = true
 
 async-trait.workspace = true
+half.workspace = true
 http.workspace = true
 serde.workspace = true
 serde_json.workspace = true
