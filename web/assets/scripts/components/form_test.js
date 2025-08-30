@@ -191,6 +191,7 @@ describe("newField", () => {
 			"a",
 			"b",
 			3,
+			"doc",
 		);
 	};
 	test("rendering", () => {
@@ -198,12 +199,21 @@ describe("newField", () => {
 
 		expect(elemsToHTML(newTestField().elems)).toMatchInlineSnapshot(`
 <li class="items-center px-2 border-b-2 border-color1">
-  <label for="uid1"
-         class="grow w-full text-1.5 text-color"
-         style="float: left;"
-  >
-    a
-  </label>
+  <div class="relative flex w-full">
+    <label for="uid1"
+           class="grow w-full text-1.5 text-color"
+           style="float: left;"
+    >
+      a
+    </label>
+    <button class="relative bg-transparent text-color"
+            title="doc"
+    >
+      <img class="p-2 icon-filter"
+           src="assets/icons/feather/help-circle.svg"
+      >
+    </button>
+  </div>
   <input id="uid1"
          class="w-full text-1.5"
          style="

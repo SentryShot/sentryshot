@@ -14,9 +14,6 @@
 ## Documentation
 
 - [Installation](./docs/1_Installation.md)
-- [Configuration](./docs/2_Configuration.md)
-- [TFlite Object Detection](./plugins/tflite/README.md)
-- [Motion Detection](./plugins/motion/README.md)
 - [Development](./docs/3_Development.md)
 - [API](./docs/4_API.md)
 

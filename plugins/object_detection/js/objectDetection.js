@@ -79,9 +79,19 @@ export function objectDetection2(detectors, hasSubStream, getMonitorId) {
 		"Feed rate (fps)",
 		"",
 		0.2,
+		"Frames per second to send to detector, decimals are allowed",
 	);
-	fields.duration = fieldTemplate.integer("Trigger duration (sec)", "", 120);
-	fields.useSubStream = fieldTemplate.toggle("Use sub stream", true);
+	fields.duration = fieldTemplate.integer(
+		"Trigger duration (sec)",
+		"",
+		120,
+		"The number of seconds the recorder will be active for after an object is detected",
+	);
+	fields.useSubStream = fieldTemplate.toggle(
+		"Use sub stream",
+		true,
+		"If sub stream should be used instead of the main stream. The sub stream is much faster to process",
+	);
 	//fields.preview = preview()
 
 	const form = newForm(fields);
@@ -265,16 +275,20 @@ function thresholds(detectors, getDetectorName) {
 		isRendered = true;
 	};
 
-	const elem = newModalField("Thresholds", () => {
-		const detectorName = getDetectorName();
-		if (detectorName === "") {
-			alert("please select a detector");
-			return;
-		}
-		updateThresholds(detectorName);
-		render();
-		modal.open();
-	});
+	const elem = newModalField(
+		"Thresholds",
+		() => {
+			const detectorName = getDetectorName();
+			if (detectorName === "") {
+				alert("please select a detector");
+				return;
+			}
+			updateThresholds(detectorName);
+			render();
+			modal.open();
+		},
+		"Individual confidence thresholds for each object that can be detected. A threshold of 100 means that it must be 100% confident about the object before a event is triggered. 50 is a good starting point.",
+	);
 
 	return {
 		elems: [elem],
@@ -520,29 +534,33 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 	let feed;
 
 	let rendered = false;
-	const elem = newModalField("Crop", () => {
-		if (feed !== undefined) {
-			feed.destroy();
-		}
-		const monitor = {
-			id: getMonitorId(),
-			audioEnabled: "false",
-			hasSubStream: hasSubStream(getMonitorId()),
-		};
-		feed = newStreamer(monitor, true);
+	const elem = newModalField(
+		"Crop",
+		() => {
+			if (feed !== undefined) {
+				feed.destroy();
+			}
+			const monitor = {
+				id: getMonitorId(),
+				audioEnabled: "false",
+				hasSubStream: hasSubStream(getMonitorId()),
+			};
+			feed = newStreamer(monitor, true);
 
-		if (!rendered) {
-			renderModal();
-			rendered = true;
-		}
-		modal.onClose(() => {
-			feed.destroy();
-		});
-		$overlay.innerHTML = renderPreviewOverlay();
-		$feed.replaceChildren(feed.elem);
+			if (!rendered) {
+				renderModal();
+				rendered = true;
+			}
+			modal.onClose(() => {
+				feed.destroy();
+			});
+			$overlay.innerHTML = renderPreviewOverlay();
+			$feed.replaceChildren(feed.elem);
 
-		modal.open();
-	});
+			modal.open();
+		},
+		"Crop frame to focus the detector and improve accuracy",
+	);
 
 	return {
 		elems: [elem, modal.elem],
@@ -871,28 +889,32 @@ function mask(hasSubStream, getMonitorId) {
 	let feed;
 
 	let rendered = false;
-	const elem = newModalField("Mask", () => {
-		if (feed !== undefined) {
-			feed.destroy();
-		}
-		const monitor = {
-			id: getMonitorId(),
-			audioEnabled: "false",
-			hasSubStream: hasSubStream(getMonitorId()),
-		};
-		feed = newStreamer(monitor, true);
+	const elem = newModalField(
+		"Mask",
+		() => {
+			if (feed !== undefined) {
+				feed.destroy();
+			}
+			const monitor = {
+				id: getMonitorId(),
+				audioEnabled: "false",
+				hasSubStream: hasSubStream(getMonitorId()),
+			};
+			feed = newStreamer(monitor, true);
 
-		if (!rendered) {
-			renderModal();
-			rendered = true;
-		}
-		modal.onClose(() => {
-			feed.destroy();
-		});
-		$feed.replaceChildren(feed.elem);
+			if (!rendered) {
+				renderModal();
+				rendered = true;
+			}
+			modal.onClose(() => {
+				feed.destroy();
+			});
+			$feed.replaceChildren(feed.elem);
 
-		modal.open();
-	});
+			modal.open();
+		},
+		"Mask off areas you want the detector to ignore. The dark area will be ignored.",
+	);
 
 	return {
 		elems: [elem, modal.elem],

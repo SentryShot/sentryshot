@@ -4,6 +4,8 @@
 import { normalize, denormalize, globals, htmlToElem } from "./libs/common.js";
 import {
 	newForm,
+	liHTML,
+	newLabelAndDocElem,
 	newModalField,
 	newRawField,
 	newRawSelectField,
@@ -47,7 +49,12 @@ export function motion2(hasSubStream, getMonitorId) {
 			["full", "half", "third", "quarter", "sixth", "eighth"],
 			"full"
 		),*/
-		duration: fieldTemplate.integer("Trigger duration (sec)", "", 120),
+		duration: fieldTemplate.integer(
+			"Trigger duration (sec)",
+			"",
+			120,
+			"The number of seconds the recorder will be active for when motion is detected",
+		),
 		zones: zones(hasSubStream, getMonitorId),
 	};
 
@@ -211,19 +218,14 @@ function newThresholdsField() {
 			step="any"
 		/>
 	`);
-	const elem = htmlToElem(
-		`<li class="items-center p-2 border-b-2 border-color1"></li>`,
-		[
-			htmlToElem(/* HTML */ `
-				<label
-					class="grow w-full text-1.5 text-color"
-					style="float: left; min-width: calc(var(--scale) * 13.5rem);"
-					>Threshold Min-Max</label
-				>
-			`),
-			htmlToElem(`<div class="flex w-full"></div>`, [$min, $max]),
-		],
-	);
+	const elem = htmlToElem(liHTML, [
+		newLabelAndDocElem(
+			"",
+			"Threshold Min-Max",
+			"Percentage of active pixels within the area required to trigger a event",
+		),
+		htmlToElem(`<div class="flex w-full"></div>`, [$min, $max]),
+	]);
 	return { elem, $min, $max };
 }
 
@@ -348,6 +350,8 @@ function zones(hasSubStream, getMonitorId) {
 			},
 			"number",
 			"Sensitivity",
+			"0",
+			"Minimum percent color change in a pixel for it to be considered active",
 		);
 		const thresholds = newThresholdsField();
 		const preview = newRawSelectField("Preview", ["true", "false"]);

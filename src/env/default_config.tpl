@@ -36,7 +36,7 @@ enable = false
 
 
 # Motion detection.
-# Documentation: ./plugins/motion/README.md
+# Unreliable in most situations.
 [[plugin]]
 name = "motion"
 enable = false

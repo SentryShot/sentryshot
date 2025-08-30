@@ -147,13 +147,66 @@ const liHTMLError = `<li class="items-center px-2 border-b-2 border-color1"></li
 /**
  * @param {string} id
  * @param {string} label
+ * @param {string} doc
  */
-function newLabelElem(id, label) {
-	return htmlToElem(/* HTML */ `
+function newLabelAndDocElem(id, label, doc) {
+	const $label = htmlToElem(/* HTML */ `
 		<label for="${id}" class="grow w-full text-1.5 text-color" style="float: left;"
 			>${label}</label
 		>
 	`);
+	if (doc === undefined) {
+		return $label;
+	} else {
+		return htmlToElem(
+			//
+			`<div class="relative flex w-full"></div>`,
+			[$label, newDocPopup(doc)],
+		);
+	}
+}
+
+/** @param {string} doc */
+function newDocPopup(doc) {
+	/** @type {HTMLButtonElement} */
+	// @ts-ignore
+	const $btn = htmlToElem(/* HTML */ `
+		<button class="relative bg-transparent text-color">
+			<img class="p-2 icon-filter" src="assets/icons/feather/help-circle.svg" />
+		</button>
+	`);
+	$btn.title = doc;
+
+	/** @type {HTMLSpanElement} */
+	let $popup;
+	let rendered = false;
+	$btn.onclick = () => {
+		if (rendered) {
+			if ($popup.style.display === "none") {
+				$popup.style.display = "block";
+			} else {
+				$popup.style.display = "none";
+			}
+		} else {
+			// @ts-ignore
+			$popup = htmlToElem(/* HTML */ `
+				<span
+					class="absolute px-2 bg-color1 text-color"
+					style="
+						font-size: calc(var(--scale) * 1rem);
+						top: 0;
+						right: calc(var(--spacing) * 10);
+						width: 80%;
+					"
+				></span>
+			`);
+			$popup.textContent = doc;
+			$btn.parentNode.append($popup);
+			rendered = true;
+		}
+	};
+
+	return $btn;
 }
 
 /** @param {() => void} onClick */
@@ -271,9 +324,10 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string} placeholder
 	 * @param {string} initial
+	 * @param {string=} doc,
 	 * @return {Field<string>}
 	 */
-	text(label, placeholder, initial = "") {
+	text(label, placeholder, initial = "", doc) {
 		return newErrorField(
 			"text",
 			[inputRules.notEmpty, inputRules.noSpaces],
@@ -281,15 +335,17 @@ const fieldTemplate = {
 			label,
 			placeholder,
 			initial,
+			doc,
 		);
 	},
 	/**
 	 * @param {string} label
 	 * @param {string} placeholder
 	 * @param {number} initial
+	 * @param {string=} doc,
 	 * @return {Field<number>}
 	 */
-	integer(label, placeholder, initial = 0) {
+	integer(label, placeholder, initial = 0, doc) {
 		return newNumberField(
 			{
 				min: 0,
@@ -298,15 +354,17 @@ const fieldTemplate = {
 			label,
 			placeholder,
 			initial,
+			doc,
 		);
 	},
 	/**
 	 * @param {string} label
 	 * @param {string} placeholder
 	 * @param {number} initial
+	 * @param {string=} doc,
 	 * @return {Field<number>}
 	 */
-	number(label, placeholder, initial = 0) {
+	number(label, placeholder, initial = 0, doc) {
 		return newNumberField(
 			{
 				min: 0,
@@ -314,20 +372,23 @@ const fieldTemplate = {
 			label,
 			placeholder,
 			initial,
+			doc,
 		);
 	},
 	/**
 	 * @param {string} label
 	 * @param {boolean} initial
+	 * @param {string=} doc,
 	 * @return {Field<boolean>}
 	 */
-	toggle(label, initial = false) {
-		return newToggleField(label, initial);
+	toggle(label, initial = false, doc) {
+		return newToggleField(label, initial, doc);
 	},
 	/**
 	 * @param {string} label
 	 * @param {string[]} options
 	 * @param {string} initial
+	 * @param {string=} doc,
 	 * @return {Field<string>}
 	 */
 	select: newSelectField,
@@ -335,10 +396,11 @@ const fieldTemplate = {
 	 * @param {string} label
 	 * @param {string[]} options
 	 * @param {string} initial
+	 * @param {string=} doc,
 	 * @return {Field<string>}
 	 */
-	selectCustom(label, options, initial) {
-		return newSelectCustomField([inputRules.notEmpty], options, label, initial);
+	selectCustom(label, options, initial, doc) {
+		return newSelectCustomField([inputRules.notEmpty], options, label, initial, doc);
 	},
 };
 
@@ -355,10 +417,11 @@ const fieldTemplate = {
  * @param {string} label
  * @param {string=} placeholder
  * @param {string=} initial
+ * @param {string=} doc,
  * @return {Field<string>}
  */
-function newField(options, input, label, placeholder, initial) {
-	const field = newRawField(options, input, label, placeholder);
+function newField(options, input, label, placeholder, initial, doc) {
+	const field = newRawField(options, input, label, placeholder, doc);
 	return {
 		elems: [field.elem],
 		value() {
@@ -381,9 +444,10 @@ function newField(options, input, label, placeholder, initial) {
  * @param {string} label,
  * @param {string=} placeholder,
  * @param {string=} initial,
+ * @param {string=} doc,
  * @return {Field<string>}
  */
-function newErrorField(input, inputRules, options, label, placeholder, initial) {
+function newErrorField(input, inputRules, options, label, placeholder, initial, doc) {
 	const validate = () => {
 		const value = field.$input.value;
 		for (const rule of inputRules) {
@@ -395,7 +459,7 @@ function newErrorField(input, inputRules, options, label, placeholder, initial) 
 		field.$error.textContent = "";
 	};
 
-	const field = newRawErrorField(options, input, label, placeholder);
+	const field = newRawErrorField(options, input, label, placeholder, doc);
 	field.$input.addEventListener("change", validate);
 
 	return {
@@ -424,10 +488,11 @@ function newErrorField(input, inputRules, options, label, placeholder, initial) 
  * @param {string} label
  * @param {string[]} options
  * @param {string} initial
+ * @param {string=} doc,
  * @return {Field<string>}
  */
-function newSelectField(label, options, initial) {
-	const field = newRawSelectField(label, options);
+function newSelectField(label, options, initial, doc) {
+	const field = newRawSelectField(label, options, doc);
 	return {
 		elems: [field.elem],
 		value() {
@@ -448,9 +513,10 @@ function newSelectField(label, options, initial) {
  * @param {string} label
  * @param {string=} placeholder
  * @param {number=} initial
+ * @param {string=} doc,
  * @return {Field<number>}
  */
-function newNumberField(options, label, placeholder, initial) {
+function newNumberField(options, label, placeholder, initial, doc) {
 	const { min, max } = options;
 
 	const validate = () => {
@@ -462,7 +528,7 @@ function newNumberField(options, label, placeholder, initial) {
 		field.$error.textContent = "";
 	};
 
-	const field = newRawErrorField(options, "number", label, placeholder);
+	const field = newRawErrorField(options, "number", label, placeholder, doc);
 	field.$input.onchange = () => {
 		// Only contains one or more digits.
 		if (/^\d+$/.test(field.$input.value)) {
@@ -500,8 +566,9 @@ function newNumberField(options, label, placeholder, initial) {
  * @param {string} input
  * @param {string} label
  * @param {string} placeholder
+ * @param {string=} doc,
  */
-function newRawField(options, input, label, placeholder = "") {
+function newRawField(options, input, label, placeholder = "", doc) {
 	let { min, max, step } = options;
 
 	/* eslint-disable no-unused-expressions */
@@ -519,11 +586,7 @@ function newRawField(options, input, label, placeholder = "") {
 
 	/** @type {HTMLLIElement} */
 	// @ts-ignore
-	const elem = htmlToElem(
-		//
-		liHTML,
-		[newLabelElem(labelId, label), $input],
-	);
+	const elem = htmlToElem(liHTML, [newLabelAndDocElem(labelId, label, doc), $input]);
 	return { elem, $input };
 }
 
@@ -532,8 +595,9 @@ function newRawField(options, input, label, placeholder = "") {
  * @param {string} input
  * @param {string} label
  * @param {string} placeholder
+ * @param {string=} doc,
  */
-function newRawErrorField(options, input, label, placeholder = "") {
+function newRawErrorField(options, input, label, placeholder = "", doc) {
 	let { min, max, step } = options;
 
 	/* eslint-disable no-unused-expressions */
@@ -552,36 +616,33 @@ function newRawErrorField(options, input, label, placeholder = "") {
 
 	/** @type {HTMLLIElement} */
 	// @ts-ignore
-	const elem = htmlToElem(
-		//
-		liHTMLError,
-		[newLabelElem(labelId, label), $input, $error],
-	);
+	const elem = htmlToElem(liHTMLError, [
+		newLabelAndDocElem(labelId, label, doc),
+		$input,
+		$error,
+	]);
 	return { elem, $input, $error };
 }
 
 /**
  * @param {string} label
  * @param {string[]} options
+ * @param {string=} doc,
  */
-function newRawSelectField(label, options) {
+function newRawSelectField(label, options, doc) {
 	const labelId = uniqueID();
 	const $input = newSelectElem(labelId, options);
 
 	/** @type {HTMLLIElement} */
 	// @ts-ignore
-	const elem = htmlToElem(
-		//
-		liHTML,
-		[
-			newLabelElem(labelId, label),
-			htmlToElem(
-				//
-				`<div class="flex w-full"></div>`,
-				[$input],
-			),
-		],
-	);
+	const elem = htmlToElem(liHTML, [
+		newLabelAndDocElem(labelId, label, doc),
+		htmlToElem(
+			//
+			`<div class="flex w-full"></div>`,
+			[$input],
+		),
+	]);
 
 	return { elem, $input };
 }
@@ -589,8 +650,9 @@ function newRawSelectField(label, options) {
 /**
  * @param {string[]} options
  * @param {string} label
+ * @param {string=} doc,
  */
-function newRawSelectCustomField(options, label) {
+function newRawSelectCustomField(options, label, doc) {
 	const labelId = uniqueID();
 	const $input = newSelectElem(labelId, options);
 	const $editBtn = newEditBtn();
@@ -598,41 +660,40 @@ function newRawSelectCustomField(options, label) {
 
 	/** @type {HTMLLIElement} */
 	// @ts-ignore
-	const elem = htmlToElem(
-		//
-		liHTMLError,
-		[
-			newLabelElem(labelId, label),
-			htmlToElem(
-				//
-				`<div class="flex w-full"></div>`,
-				[$input, $editBtn],
-			),
-			$error,
-		],
-	);
+	const elem = htmlToElem(liHTMLError, [
+		newLabelAndDocElem(labelId, label, doc),
+		htmlToElem(
+			//
+			`<div class="flex w-full"></div>`,
+			[$input, $editBtn],
+		),
+		$error,
+	]);
+
 	return { elem, $input, $editBtn, $error };
 }
 
 /**
  * @param {string} label
  * @param {() => void} onEditBtnClick
+ * @param {string=} doc
  */
-function newModalField(label, onEditBtnClick) {
+function newModalField(label, onEditBtnClick, doc) {
 	const id = uniqueID();
 	return htmlToElem(
 		`<li class="flex items-center p-2 border-b-2 border-color1"></li>`,
-		[newLabelElem(id, label), newEditBtn(onEditBtnClick)],
+		[newLabelAndDocElem(id, label, doc), newEditBtn(onEditBtnClick)],
 	);
 }
 
 /**
  * @param {string} label
  * @param {boolean} initial
+ * @param {string=} doc,
  * @return {Field<boolean>}
  */
-function newToggleField(label, initial) {
-	const field = newRawSelectField(label, ["true", "false"]);
+function newToggleField(label, initial, doc) {
+	const field = newRawSelectField(label, ["true", "false"], doc);
 	return {
 		elems: [field.elem],
 		value() {
@@ -650,9 +711,10 @@ function newToggleField(label, initial) {
  * @param {string[]} options
  * @param {string} label
  * @param {string} initial
+ * @param {string=} doc,
  * @return {Field<string>}
  */
-function newSelectCustomField(inputRules, options, label, initial) {
+function newSelectCustomField(inputRules, options, label, initial, doc) {
 	/** @param {string|undefined} input */
 	const set = (input) => {
 		if (input === undefined) {
@@ -686,7 +748,7 @@ function newSelectCustomField(inputRules, options, label, initial) {
 		field.$error.textContent = "";
 	};
 
-	const field = newRawSelectCustomField(options, label);
+	const field = newRawSelectCustomField(options, label, doc);
 	field.$input.onchange = validate;
 	field.$editBtn.onclick = () => {
 		const input = prompt("Custom value");
@@ -772,6 +834,8 @@ function newPasswordField() {
 
 export {
 	newForm,
+	liHTML,
+	newLabelAndDocElem,
 	newField,
 	newErrorField,
 	newNumberField,

@@ -872,8 +872,17 @@ function newSourceRTSP() {
 			{},
 			"Main stream",
 			"rtsp://x.x.x.x/main",
+			"",
+			"Main camera feed, full resolution. Used when recording",
 		),
-		subStream: newField({}, "text", "Sub stream", "rtsp://x.x.x.x/sub (optional)"),
+		subStream: newField(
+			{},
+			"text",
+			"Sub stream",
+			"rtsp://x.x.x.x/sub (optional)",
+			"",
+			"If your camera support a sub stream of lower resolution. Both inputs can be viewed from the live page",
+		),
 	};
 
 	const form = newForm(fields);
@@ -961,8 +970,16 @@ function init() {
 		[inputRules.noSpaces, inputRules.notEmpty, inputRules.englishOnly, maxLength24],
 		{},
 		"ID",
+		"",
+		"",
+		"Monitor identifier. The monitor's recordings are tied to this ID",
 	);
-	monitorFields.name = fieldTemplate.text("Name", "my_monitor");
+	monitorFields.name = fieldTemplate.text(
+		"Name",
+		"my_monitor",
+		"",
+		"Arbitrary display name, can probably be any UTF8 character",
+	);
 	monitorFields.enable = fieldTemplate.toggle("Enable monitor", true);
 	monitorFields.source = newSourceField(["rtsp"], getMonitorField);
 	monitorFields.sourcertsp = newSourceRTSP();
