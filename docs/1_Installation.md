@@ -28,7 +28,7 @@ docker run -it \
 	-v /docker/sentryshot/configs:/app/configs \
 	-v /docker/sentryshot/storage:/app/storage \
 	-p 2020:2020 \
-	codeberg.org/sentryshot/sentryshot:v0.3.4
+	codeberg.org/sentryshot/sentryshot:v0.3.5
 ```
 
 App will be served on `http://ip:2020/live`
@@ -40,7 +40,7 @@ services:
   sentryshot:
     shm_size: 500m
     restart: unless-stopped
-    image: codeberg.org/sentryshot/sentryshot:v0.3.4
+    image: codeberg.org/sentryshot/sentryshot:v0.3.5
     ports:
       - 2020:2020
     environment:
