@@ -96,6 +96,8 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 		],
 	);
 
+	const $wrapper = htmlToElem(`<div class="flex justify-center"></div>`, [elem]);
+
 	for (const button of buttons) {
 		if (button.init) {
 			button.init($overlay, $video);
@@ -106,7 +108,7 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 	newStream(abort.signal, $video, debugOverlay, monitorId, subStream);
 
 	return {
-		elem: htmlToElem(`<div class="flex justify-center"></div>`, [elem]),
+		elem: $wrapper,
 		enableDebugging() {
 			debugOverlay.enable();
 		},
