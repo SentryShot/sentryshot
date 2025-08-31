@@ -866,23 +866,18 @@ function newSourceField(options, getField) {
 function newSourceRTSP() {
 	const fields = {
 		protocol: fieldTemplate.select("Protocol", ["tcp", "udp"], "tcp"),
-		mainStream: newErrorField(
-			"test",
-			[inputRules.notEmpty],
-			{},
-			"Main stream",
-			"rtsp://x.x.x.x/main",
-			"",
-			"Main camera feed, full resolution. Used when recording",
-		),
-		subStream: newField(
-			{},
-			"text",
-			"Sub stream",
-			"rtsp://x.x.x.x/sub (optional)",
-			"",
-			"If your camera support a sub stream of lower resolution. Both inputs can be viewed from the live page",
-		),
+		mainStream: newErrorField([inputRules.notEmpty], {
+			input: "text",
+			label: "Main stream",
+			placeholder: "rtsp://x.x.x.x/main",
+			doc: "Main camera feed, full resolution. Used when recording",
+		}),
+		subStream: newField({
+			input: "text",
+			label: "Sub stream",
+			placeholder: "rtsp://x.x.x.x/sub (optional)",
+			doc: "If your camera support a sub stream of lower resolution. Both inputs can be viewed from the live page",
+		}),
 	};
 
 	const form = newForm(fields);
@@ -966,13 +961,12 @@ function init() {
 	/** @type {InputRule} */
 	const maxLength24 = [/^.{25}/, "maximum length is 24 characters"];
 	monitorFields.id = newErrorField(
-		"text",
 		[inputRules.noSpaces, inputRules.notEmpty, inputRules.englishOnly, maxLength24],
-		{},
-		"ID",
-		"",
-		"",
-		"Monitor identifier. The monitor's recordings are tied to this ID",
+		{
+			input: "text",
+			label: "ID",
+			doc: "Monitor identifier. The monitor's recordings are tied to this ID",
+		},
 	);
 	monitorFields.name = fieldTemplate.text(
 		"Name",
@@ -1002,11 +996,12 @@ function init() {
 	const accountFields = {
 		id: newIdField(),
 		username: newErrorField(
-			"text",
 			[inputRules.notEmpty, inputRules.noSpaces, inputRules.noUppercase],
-			{},
-			"Username",
-			"name",
+			{
+				input: "text",
+				label: "Username",
+				placeholder: "name",
+			},
 		),
 		isAdmin: fieldTemplate.toggle("Admin"),
 		password: newPasswordField(),

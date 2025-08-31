@@ -343,16 +343,16 @@ function zones(hasSubStream, getMonitorId) {
 
 		const zoneSelect = newZoneSelectField();
 		const enable = newRawSelectField("Enable", ["true", "false"]);
-		const sensitivity = newRawField(
-			{
+		const sensitivity = newRawField({
+			options: {
 				min: 0,
 				max: 100,
 			},
-			"number",
-			"Sensitivity",
-			"0",
-			"Minimum percent color change in a pixel for it to be considered active",
-		);
+			input: "number",
+			label: "Sensitivity",
+			placeholder: "0",
+			doc: "Minimum percent color change in a pixel for it to be considered active",
+		});
 		const thresholds = newThresholdsField();
 		const preview = newRawSelectField("Preview", ["true", "false"]);
 		$feed = htmlToElem(`<div class="js-feed" style="background: white;"></div>`);

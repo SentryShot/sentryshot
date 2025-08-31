@@ -258,29 +258,39 @@ function newEditBtn(onClick) {
  * @param {string} labelId
  * @param {string} input
  * @param {string} placeholder
- * @param {number} min
- * @param {number} max
- * @param {number} step
+ * @param {Options=} options
  * @returns {HTMLInputElement}
  */
-function newInputElem(labelId, input, placeholder, min, max, step) {
+function newInputElem(labelId, input, placeholder, options) {
+	/** @type {HTMLInputElement} */
 	// @ts-ignore
-	return htmlToElem(/* HTML */ `
+	const elem = htmlToElem(/* HTML */ `
 		<input
 			id="${labelId}"
 			class="w-full text-1.5"
 			style="
-					height: calc(var(--scale) * 2.5rem);
-					overflow: auto;
-					padding-left: calc(var(--scale) * 0.5rem);
-				"
+				height: calc(var(--scale) * 2.5rem);
+				overflow: auto;
+				padding-left: calc(var(--scale) * 0.5rem);
+			"
 			type="${input}"
-			placeholder="${placeholder}"
-			${min}
-			${max}
-			${step}
 		/>
 	`);
+	if (placeholder !== undefined) {
+		elem.placeholder = placeholder;
+	}
+	if (options !== undefined) {
+		if (options.min !== undefined) {
+			elem.min = String(options.min);
+		}
+		if (options.max !== undefined) {
+			elem.max = String(options.max);
+		}
+		if (options.step !== undefined) {
+			elem.step = String(options.step);
+		}
+	}
+	return elem;
 }
 
 /**
@@ -328,15 +338,13 @@ const fieldTemplate = {
 	 * @return {Field<string>}
 	 */
 	text(label, placeholder, initial = "", doc) {
-		return newErrorField(
-			"text",
-			[inputRules.notEmpty, inputRules.noSpaces],
-			{},
+		return newErrorField([inputRules.notEmpty, inputRules.noSpaces], {
+			input: "text",
 			label,
 			placeholder,
 			initial,
 			doc,
-		);
+		});
 	},
 	/**
 	 * @param {string} label
@@ -405,6 +413,16 @@ const fieldTemplate = {
 };
 
 /**
+ * @typedef FieldOptions
+ * @property {Options=} options
+ * @property {string} input
+ * @property {string} label
+ * @property {string=} placeholder
+ * @property {string=} initial
+ * @property {string=} doc,
+ */
+
+/**
  * @typedef {Object} Options
  * @property {number=} min
  * @property {number=} max
@@ -412,16 +430,11 @@ const fieldTemplate = {
  */
 
 /**
- * @param {Options} options
- * @param {string} input
- * @param {string} label
- * @param {string=} placeholder
- * @param {string=} initial
- * @param {string=} doc,
+ * @param {FieldOptions} opts
  * @return {Field<string>}
  */
-function newField(options, input, label, placeholder, initial, doc) {
-	const field = newRawField(options, input, label, placeholder, doc);
+function newField(opts) {
+	const field = newRawField(opts);
 	return {
 		elems: [field.elem],
 		value() {
@@ -429,7 +442,8 @@ function newField(options, input, label, placeholder, initial, doc) {
 		},
 		set(input) {
 			if (input === undefined) {
-				field.$input.value = initial ? String(initial) : "";
+				field.$input.value =
+					opts.initial === undefined ? "" : String(opts.initial);
 			} else {
 				field.$input.value = input;
 			}
@@ -439,15 +453,10 @@ function newField(options, input, label, placeholder, initial, doc) {
 
 /**
  * @param {InputRule[]} inputRules
- * @param {string} input,
- * @param {Options} options
- * @param {string} label,
- * @param {string=} placeholder,
- * @param {string=} initial,
- * @param {string=} doc,
+ * @param {FieldOptions} opts
  * @return {Field<string>}
  */
-function newErrorField(input, inputRules, options, label, placeholder, initial, doc) {
+function newErrorField(inputRules, opts) {
 	const validate = () => {
 		const value = field.$input.value;
 		for (const rule of inputRules) {
@@ -459,7 +468,7 @@ function newErrorField(input, inputRules, options, label, placeholder, initial, 
 		field.$error.textContent = "";
 	};
 
-	const field = newRawErrorField(options, input, label, placeholder, doc);
+	const field = newRawErrorField(opts);
 	field.$input.addEventListener("change", validate);
 
 	return {
@@ -469,7 +478,8 @@ function newErrorField(input, inputRules, options, label, placeholder, initial, 
 		},
 		set(input) {
 			if (input === undefined) {
-				field.$input.value = initial ? String(initial) : "";
+				field.$input.value =
+					opts.initial === undefined ? "" : String(opts.initial);
 			} else {
 				field.$input.value = input;
 			}
@@ -478,7 +488,7 @@ function newErrorField(input, inputRules, options, label, placeholder, initial, 
 		validate() {
 			const err = validate();
 			if (err !== undefined) {
-				return `"${label}": ${err}`;
+				return `"${opts.label}": ${err}`;
 			}
 		},
 	};
@@ -528,7 +538,7 @@ function newNumberField(options, label, placeholder, initial, doc) {
 		field.$error.textContent = "";
 	};
 
-	const field = newRawErrorField(options, "number", label, placeholder, doc);
+	const field = newRawErrorField({ options, input: "number", label, placeholder, doc });
 	field.$input.onchange = () => {
 		// Only contains one or more digits.
 		if (/^\d+$/.test(field.$input.value)) {
@@ -562,65 +572,42 @@ function newNumberField(options, label, placeholder, initial, doc) {
 }
 
 /**
- * @param {Options} options
- * @param {string} input
- * @param {string} label
- * @param {string} placeholder
- * @param {string=} doc,
+ * @typedef RawFieldOptions
+ * @property {Options=} options
+ * @property {string} input
+ * @property {string} label
+ * @property {string=} placeholder
+ * @property {string=} doc,
  */
-function newRawField(options, input, label, placeholder = "", doc) {
-	let { min, max, step } = options;
 
-	/* eslint-disable no-unused-expressions */
-	placeholder ? "" : (placeholder = "");
-	// @ts-ignore
-	min === undefined ? (min = "") : (min = `min="${min}"`);
-	// @ts-ignore
-	max === undefined ? (max = "") : (max = `max="${max}"`);
-	// @ts-ignore
-	step === undefined ? (step = "") : (step = `step="${step}"`);
-	/* eslint-enable no-unused-expressions */
-
+/** @param {RawFieldOptions} opts */
+function newRawField({ options, input, label, placeholder, doc }) {
 	const labelId = uniqueID();
-	const $input = newInputElem(labelId, input, placeholder, min, max, step);
+	const $input = newInputElem(labelId, input, placeholder, options);
 
 	/** @type {HTMLLIElement} */
 	// @ts-ignore
-	const elem = htmlToElem(liHTML, [newLabelAndDocElem(labelId, label, doc), $input]);
+	const elem = htmlToElem(
+		//
+		liHTML,
+		[newLabelAndDocElem(labelId, label, doc), $input],
+	);
 	return { elem, $input };
 }
 
-/**
- * @param {Options} options
- * @param {string} input
- * @param {string} label
- * @param {string} placeholder
- * @param {string=} doc,
- */
-function newRawErrorField(options, input, label, placeholder = "", doc) {
-	let { min, max, step } = options;
-
-	/* eslint-disable no-unused-expressions */
-	placeholder ? "" : (placeholder = "");
-	// @ts-ignore
-	min === undefined ? (min = "") : (min = `min="${min}"`);
-	// @ts-ignore
-	max === undefined ? (max = "") : (max = `max="${max}"`);
-	// @ts-ignore
-	step === undefined ? (step = "") : (step = `step="${step}"`);
-	/* eslint-enable no-unused-expressions */
-
+/** @param {RawFieldOptions} opts */
+function newRawErrorField({ options, input, label, placeholder, doc }) {
 	const labelId = uniqueID();
-	const $input = newInputElem(labelId, input, placeholder, min, max, step);
+	const $input = newInputElem(labelId, input, placeholder, options);
 	const $error = newErrorElem();
 
 	/** @type {HTMLLIElement} */
 	// @ts-ignore
-	const elem = htmlToElem(liHTMLError, [
-		newLabelAndDocElem(labelId, label, doc),
-		$input,
-		$error,
-	]);
+	const elem = htmlToElem(
+		//
+		liHTMLError,
+		[newLabelAndDocElem(labelId, label, doc), $input, $error],
+	);
 	return { elem, $input, $error };
 }
 
@@ -808,7 +795,7 @@ function newPasswordField() {
 
 	/** @param {string} label */
 	const passwordElem = (label) => {
-		return newRawErrorField({}, "password", label);
+		return newRawErrorField({ input: "password", label });
 	};
 	const newPassword = passwordElem("New password");
 	const repeatPassword = passwordElem("Repeat password");

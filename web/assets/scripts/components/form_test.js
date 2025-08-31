@@ -217,10 +217,10 @@ describe("newField", () => {
   <input id="uid1"
          class="w-full text-1.5"
          style="
-					height: calc(var(--scale) * 2.5rem);
-					overflow: auto;
-					padding-left: calc(var(--scale) * 0.5rem);
-				"
+				height: calc(var(--scale) * 2.5rem);
+				overflow: auto;
+				padding-left: calc(var(--scale) * 0.5rem);
+			"
          type="number"
          placeholder="b"
          min="2"
@@ -342,10 +342,10 @@ describe("fieldTemplate", () => {
   <input id="uid1"
          class="w-full text-1.5"
          style="
-					height: calc(var(--scale) * 2.5rem);
-					overflow: auto;
-					padding-left: calc(var(--scale) * 0.5rem);
-				"
+				height: calc(var(--scale) * 2.5rem);
+				overflow: auto;
+				padding-left: calc(var(--scale) * 0.5rem);
+			"
          type="text"
          placeholder="2"
   >
@@ -386,10 +386,10 @@ describe("fieldTemplate", () => {
   <input id="uid1"
          class="w-full text-1.5"
          style="
-					height: calc(var(--scale) * 2.5rem);
-					overflow: auto;
-					padding-left: calc(var(--scale) * 0.5rem);
-				"
+				height: calc(var(--scale) * 2.5rem);
+				overflow: auto;
+				padding-left: calc(var(--scale) * 0.5rem);
+			"
          type="number"
          placeholder="2"
          min="0"
@@ -588,12 +588,11 @@ describe("passwordField", () => {
     <input
       class="w-full text-1.5"
       id="uid1"
-      placeholder=""
       style="
-					height: calc(var(--scale) * 2.5rem);
-					overflow: auto;
-					padding-left: calc(var(--scale) * 0.5rem);
-				"
+				height: calc(var(--scale) * 2.5rem);
+				overflow: auto;
+				padding-left: calc(var(--scale) * 0.5rem);
+			"
       type="password"
     />
     <span
@@ -619,12 +618,11 @@ describe("passwordField", () => {
     <input
       class="w-full text-1.5"
       id="uid2"
-      placeholder=""
       style="
-					height: calc(var(--scale) * 2.5rem);
-					overflow: auto;
-					padding-left: calc(var(--scale) * 0.5rem);
-				"
+				height: calc(var(--scale) * 2.5rem);
+				overflow: auto;
+				padding-left: calc(var(--scale) * 0.5rem);
+			"
       type="password"
     />
     <span
