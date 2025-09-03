@@ -168,6 +168,66 @@ describe("optionsDate", () => {
 			"23", "24", "25", "26", "27", "28", "29",
 			"30", "  ", "  ", "  ", "  ", "  ", "  "]);
 	});
+	test("weekStartSunday", () => {
+		// @ts-ignore
+		document.Flags = { weekStartSunday: true };
+		const date = setup({ setDate() {} });
+
+		/** @param {string} n */
+		const pad = (n) => {
+			return Number(n) < 10 ? ` ${n}` : n;
+		};
+
+		const domState = () => {
+			const state = [];
+			for (const btn of date.testing.dayBtns) {
+				if (btn.textContent === "") {
+					state.push("  ");
+					continue;
+				}
+
+				const text = pad(btn.textContent.trim());
+				if (btn.classList.contains("date-picker-day-selected")) {
+					state.push(`[${text}]`);
+				} else {
+					state.push(text);
+				}
+			}
+			return state;
+		};
+
+		date.testing.dayBtns[0].click();
+		// @ts-ignore
+		date.testing.$calendar.click();
+
+		// prettier-ignore
+		expect(domState()).toEqual([
+			"  ", "  ", "  ", "  ", " 1", " 2", "[ 3]",
+			" 4", " 5", " 6", " 7", " 8", " 9", "10",
+			"11", "12", "13", "14", "15", "16", "17",
+			"18", "19", "20", "21", "22", "23", "24",
+			"25", "26", "27", "28", "  ", "  ", "  ",
+			"  ", "  ", "  ", "  ", "  ", "  ", "  "]);
+
+		for (const btn of date.testing.dayBtns) {
+			if (btn.textContent === "11") {
+				btn.click();
+			}
+		}
+
+		date.testing.$nextMonth.click();
+		date.testing.$nextMonth.click();
+
+		// prettier-ignore
+		expect(domState()).toEqual([
+			" 1", " 2", " 3", " 4", " 5", " 6", " 7",
+			" 8", " 9", "10", "[11]", "12", "13", "14",
+			"15", "16", "17", "18", "19", "20", "21",
+			"22", "23", "24", "25", "26", "27", "28",
+			"29", "30", "  ", "  ", "  ", "  ", "  ",
+			"  ", "  ", "  ", "  ", "  ", "  ", "  "]);
+	});
+
 	test("hourBtn", () => {
 		const date = setup({ setDate() {} });
 

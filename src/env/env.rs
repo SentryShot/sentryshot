@@ -215,6 +215,10 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
             Streamer::Sp
         }
     };
+    let week_start_sunday = std::env::var("WEEK_START")
+        .unwrap_or_default()
+        .to_lowercase()
+        == "sunday";
 
     Ok(EnvConf {
         port: raw.port,
@@ -224,7 +228,10 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
         plugin_dir,
         max_disk_usage: raw.max_disk_usage,
         debug_log_stdout: raw.debug_log_stdout.unwrap_or(false),
-        flags: Flags { streamer },
+        flags: Flags {
+            streamer,
+            week_start_sunday,
+        },
         plugin: raw.plugin,
         raw: env_toml,
     })
@@ -283,6 +290,7 @@ mod tests {
             debug_log_stdout: true,
             flags: Flags {
                 streamer: Streamer::Sp,
+                week_start_sunday: false,
             },
             plugin: None,
             raw: config.clone(),

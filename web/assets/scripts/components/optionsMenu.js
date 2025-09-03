@@ -2,7 +2,7 @@
 
 // @ts-check
 
-import { sortByName, htmlToElem } from "../libs/common.js";
+import { globals, sortByName, htmlToElem } from "../libs/common.js";
 import { newTimeNow } from "../libs/time.js";
 import { newModalSelect } from "../components/modal.js";
 
@@ -127,7 +127,11 @@ const newOptionsBtn = {
 	 * @param {DatePickerContent} content
 	 */
 	date(timeZone, content) {
-		const datePicker = newDatePicker(timeZone, content);
+		const datePicker = newDatePicker(
+			timeZone,
+			content,
+			globals().flags.weekStartSunday,
+		);
 		const icon = "assets/icons/feather/calendar.svg";
 		const popup = newOptionsPopup(icon, datePicker.elems);
 
@@ -266,7 +270,7 @@ function newDatePickerElems() {
 			/>
 		</button>
 	`);
-	/** @type {Element[]} */
+	/** @type {HTMLButtonElement[]} */
 	const dayBtns = [];
 	const dayBtn = htmlToElem(`<button class="date-picker-day-btn">00</button>`);
 	for (let i = 0; i < 7 * 6; i++) {
@@ -451,8 +455,9 @@ function newDatePickerElems() {
 /**
  * @param {string} timeZone
  * @param {DatePickerContent} content
+ * @param {boolean} weekStartSunday,
  */
-function newDatePicker(timeZone, content) {
+function newDatePicker(timeZone, content, weekStartSunday) {
 	/** @type {Time} */
 	let t;
 
@@ -460,14 +465,19 @@ function newDatePicker(timeZone, content) {
 
 	// Writes the time state to the DOM.
 	const update = () => {
-		const year2 = t.getFullYear();
-		const month2 = toMonthString(t);
-		elems.$month.textContent = `${year2} ${month2}`;
+		const year = t.getFullYear();
+		const month = toMonthString(t);
+		elems.$month.textContent = `${year} ${month}`;
 		elems.$hour.value = pad(t.getHours());
 		elems.$minute.value = pad(t.getMinutes());
 
 		// Set day.
-		let day = (t.firstDayInMonth() - 2) * -1;
+		let day;
+		if (weekStartSunday) {
+			day = (t.firstDayInMonth() - 1) * -1;
+		} else {
+			day = (t.firstDayInMonth() - 2) * -1;
+		}
 		if (day > 1) {
 			day -= 7;
 		}

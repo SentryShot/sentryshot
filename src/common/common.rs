@@ -65,6 +65,9 @@ pub trait EnvConfig {
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 pub struct Flags {
     pub streamer: Streamer,
+
+    #[serde(rename = "weekStartSunday")]
+    pub week_start_sunday: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]

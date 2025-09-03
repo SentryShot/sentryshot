@@ -205,7 +205,8 @@ function denormalize(input, max) {
 
 /**
  * @typedef Flags
- * @property {"hls"| "mp4"} streamer
+ * @property {"hls" | "sp"} streamer
+ * @property {boolean} weekStartSunday
  */
 
 /**
@@ -270,8 +271,18 @@ function globals() {
 }
 
 function testGlobals() {
+	// @ts-ignore
+	if (document.Flags === undefined) {
+		// @ts-ignore
+		document.Flags = {
+			streamer: "hls",
+			weekStartSunday: false,
+		};
+	}
 	return {
-		flags: {},
+		/** @type {Flags} */
+		// @ts-ignore
+		flags: document.Flags,
 	};
 }
 

@@ -197,6 +197,7 @@ function newDocPopup(doc) {
 						top: 0;
 						right: calc(var(--spacing) * 10);
 						width: 80%;
+						z-index: 1;
 					"
 				></span>
 			`);
