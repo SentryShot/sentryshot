@@ -338,7 +338,7 @@ fn decode_yolo_response(
     let detections = final_boxes
         .into_iter()
         .map(|bbox| {
-            logger.log(LogLevel::Info, &format!("Detected class ID: {}", bbox.class_id));
+            logger.log(LogLevel::Debug, &format!("Detected class ID: {}", bbox.class_id));
             Detection {
                 label: format!("class{}", bbox.class_id).try_into().expect("valid"),
                 score: bbox.confidence,
