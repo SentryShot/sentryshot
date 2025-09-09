@@ -26,7 +26,7 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
-use time::{DtsOffset, DurationH264, UnixH264};
+use time::{DtsOffset, Duration, DurationH264, UnixH264};
 use tokio::runtime::Handle;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -845,6 +845,44 @@ pub async fn create_dir_all2(rt_handle: Handle, path: PathBuf) -> std::io::Resul
         .spawn_blocking(move || create_dir_all(&path))
         .await
         .expect("join")
+}
+
+pub type ArcDisk = Arc<dyn Disk>;
+
+#[async_trait]
+pub trait Disk {
+    async fn usage(
+        &self,
+        max_age: Duration,
+    ) -> (Result<DiskUsage, DiskUsageError>, Option<UsageBytesError>);
+}
+
+// DiskUsage in Bytes.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[allow(clippy::module_name_repetitions)]
+pub struct DiskUsage {
+    pub used: u64,
+    pub percent: f32,
+    //pub max: ByteSize,
+    //formatted: String,
+}
+
+#[derive(Debug, Error)]
+pub enum DiskUsageError {
+    #[error("sub")]
+    Sub,
+}
+
+#[derive(Debug, Error)]
+pub enum UsageBytesError {
+    #[error("read dir: {0} {1}")]
+    ReadDir(std::io::Error, PathBuf),
+
+    #[error("dir entry: {0}")]
+    DirEntry(std::io::Error),
+
+    #[error("read file metadata: {0} {1}")]
+    Metadata(std::io::Error, PathBuf),
 }
 
 #[cfg(test)]

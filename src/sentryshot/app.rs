@@ -6,7 +6,7 @@ use axum::{
 };
 use bytesize::ByteSize;
 use common::{
-    ArcAuth, ArcLogger, DynEnvConfig, EnvConfig, ILogger, LogEntry, LogLevel,
+    ArcAuth, ArcDisk, ArcLogger, DynEnvConfig, EnvConfig, ILogger, LogEntry, LogLevel,
     monitor::{ArcMonitorManager, ArcStreamer},
     time::Duration,
 };
@@ -27,7 +27,7 @@ use plugin::{
     types::{NewAuthError, Router},
 };
 use rand::{Rng, distr::Alphanumeric};
-use recdb::{Disk, RecDb};
+use recdb::{DiskImpl, RecDb};
 use recording::VideoCache;
 use rust_embed::RustEmbed;
 use std::{
@@ -111,6 +111,7 @@ pub struct App {
     streamer: Streamer,
     monitor_manager: Arc<MonitorManager>,
     monitor_groups: ArcMonitorGroups,
+    disk: ArcDisk,
     recdb: Arc<RecDb>,
     eventdb: EventDb,
     router: Router,
@@ -177,10 +178,11 @@ impl App {
         let new_auth = pre_loaded_plugins.new_auth_fn();
         let auth = new_auth(rt_handle.clone(), env.config_dir(), logger.clone())?;
 
+        let disk = DiskImpl::new(env.storage_dir().to_path_buf(), env.max_disk_usage());
         let recdb = Arc::new(RecDb::new(
             logger.clone(),
             env.recordings_dir().to_path_buf(),
-            Disk::new(env.storage_dir().to_path_buf(), env.max_disk_usage()),
+            disk.clone(),
         ));
         let eventdb = EventDb::new(
             token.clone(),
@@ -216,6 +218,7 @@ impl App {
                 streamer,
                 monitor_manager,
                 monitor_groups,
+                disk,
                 recdb,
                 eventdb,
                 router,
@@ -513,6 +516,9 @@ impl Application for App {
     }
     fn monitor_manager(&self) -> ArcMonitorManager {
         self.monitor_manager.clone()
+    }
+    fn disk(&self) -> ArcDisk {
+        self.disk.clone()
     }
     fn shutdown_complete_tx(&self) -> mpsc::Sender<()> {
         self.shutdown_complete_tx.clone()

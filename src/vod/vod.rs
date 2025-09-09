@@ -606,7 +606,7 @@ mod tests {
     };
     use pretty_assertions::assert_eq;
     use pretty_hex::pretty_hex;
-    use recdb::{Disk, RecDb};
+    use recdb::{DiskImpl, RecDb};
     use recording::{MetaHeader, VideoWriter};
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -1019,7 +1019,7 @@ mod tests {
         let mut rec_db = RecDb::new(
             DummyLogger::new(),
             path.clone(),
-            Disk::new(path, ByteSize(0)),
+            DiskImpl::new(path, ByteSize(0)),
         );
 
         save_recording(
@@ -1137,7 +1137,7 @@ mod tests {
         let mut rec_db = RecDb::new(
             DummyLogger::new(),
             path.clone(),
-            Disk::new(path, ByteSize(0)),
+            DiskImpl::new(path, ByteSize(0)),
         );
 
         save_recording(
@@ -1196,7 +1196,7 @@ mod tests {
         let mut rec_db = RecDb::new(
             DummyLogger::new(),
             path.clone(),
-            Disk::new(path, ByteSize(0)),
+            DiskImpl::new(path, ByteSize(0)),
         );
         save_recording(
             &mut rec_db,
@@ -1504,7 +1504,7 @@ mod tests {
         let mut recdb = RecDb::new(
             DummyLogger::new(),
             path.clone(),
-            Disk::new(path, ByteSize(0)),
+            DiskImpl::new(path, ByteSize(0)),
         );
 
         let rec1 = start_time;
@@ -1563,7 +1563,7 @@ mod tests {
         let mut rec_db = RecDb::new(
             DummyLogger::new(),
             path.clone(),
-            Disk::new(path, ByteSize(0)),
+            DiskImpl::new(path, ByteSize(0)),
         );
         save_recording(
             &mut rec_db,

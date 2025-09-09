@@ -668,7 +668,7 @@ mod tests {
         time::UnixH264,
     };
     use pretty_assertions::assert_eq;
-    use recdb::Disk;
+    use recdb::DiskImpl;
     use serde_json::json;
     use std::{fs, path::PathBuf};
     use tempfile::TempDir;
@@ -728,7 +728,7 @@ mod tests {
     }
 
     fn new_test_recdb(recordings_dir: &Path) -> RecDb {
-        let disk = Disk::new(recordings_dir.to_path_buf(), ByteSize(0));
+        let disk = DiskImpl::new(recordings_dir.to_path_buf(), ByteSize(0));
         RecDb::new(DummyLogger::new(), recordings_dir.to_path_buf(), disk)
     }
 

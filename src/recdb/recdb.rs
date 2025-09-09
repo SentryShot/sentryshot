@@ -4,18 +4,17 @@ mod crawler;
 mod disk;
 
 pub use crawler::CrawlerError;
-pub use disk::Disk;
+pub use disk::DiskImpl;
 
 use bytesize::ByteSize;
 use common::{
-    ArcLogger, LogEntry, LogLevel, MonitorId,
+    ArcLogger, Disk, DiskUsageError, LogEntry, LogLevel, MonitorId,
     recording::{RecordingData, RecordingId, RecordingIdError},
     time::{Duration, UnixH264},
 };
 use common::{FILE_MODE, time::UnixNano};
 use crawler::Crawler;
 use csv::deserialize_csv_option;
-use disk::UsageError;
 use fs::dir_fs;
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
@@ -115,7 +114,7 @@ pub struct RecDb {
     logger: RecDbLogger,
     recordings_dir: PathBuf,
     crawler: Crawler,
-    disk: Disk,
+    disk: Arc<DiskImpl>,
 
     // There should only be one active recording per monitor.
     active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, StartAndEnd>>>,
@@ -168,7 +167,7 @@ pub enum DeleteRecordingError {
 
 impl RecDb {
     #[must_use]
-    pub fn new(logger: ArcLogger, recording_dir: PathBuf, disk: Disk) -> Self {
+    pub fn new(logger: ArcLogger, recording_dir: PathBuf, disk: Arc<DiskImpl>) -> Self {
         Self {
             logger: RecDbLogger(logger),
             recordings_dir: recording_dir.clone(),
@@ -439,7 +438,7 @@ impl RecDb {
 #[derive(Debug, Error)]
 pub enum PruneError {
     #[error("usage: {0}")]
-    Usage(#[from] UsageError),
+    Usage(#[from] DiskUsageError),
 
     #[error("query recordings: {0}")]
     QueryRecordings(#[from] CrawlerError),
@@ -601,7 +600,7 @@ mod tests {
     use test_case::test_case;
 
     fn new_test_recdb(recordings_dir: &Path) -> RecDb {
-        let disk = Disk::new(recordings_dir.to_path_buf(), ByteSize(0));
+        let disk = DiskImpl::new(recordings_dir.to_path_buf(), ByteSize(0));
         RecDb::new(DummyLogger::new(), recordings_dir.to_path_buf(), disk)
     }
 
@@ -748,7 +747,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let recordings_dir = temp_dir.path().join("recordings");
 
-        let disk = Disk::with_disk_usage(
+        let disk = DiskImpl::with_disk_usage(
             recordings_dir.clone(),
             ByteSize(100),
             Box::new(StubDiskUsageBytes(99)),
