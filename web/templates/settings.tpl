@@ -123,6 +123,13 @@
 
 	/* Tablet/Dektop. */
 	@media only screen and (width >= 48rem) {
+		#topbar-options-btn {
+			display: none;
+		}
+		#sidebar-checkbox:checked ~ #topbar {
+			width: var(--topbar-height);
+		}
+
 		.settings-navbar {
 			width: auto;
 			padding-top: calc(var(--spacing) * 27);

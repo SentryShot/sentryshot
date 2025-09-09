@@ -1,40 +1,29 @@
-<input type="checkbox" id="sidebar-checkbox" class="absolute" style="display: none" />
 <label
 	id="sidebar-btn"
 	for="sidebar-checkbox"
 	class="absolute"
 	style="z-index: 10; height: var(--topbar-height)"
 ></label>
-
-<input
-	type="checkbox"
-	id="options-checkbox"
-	class="absolute"
-	style="visibility: hidden"
-/>
-<label
-	id="options-btn"
-	for="options-checkbox"
-	class="absolute"
-	style="width: var(--topbar-height); height: var(--topbar-height)"
-></label>
-<header id="topbar" class="absolute flex" style="background: var(--color1)">
-	<button id="topbar-btn" class="bg-color1">
-		<img
-			class="icon-filter p-2"
-			style="aspect-ratio: 1; width: var(--topbar-height)"
-			src="assets/icons/feather/menu.svg"
-		/>
-	</button>
+<input type="checkbox" id="sidebar-checkbox" class="absolute" style="display: none" />
+<button id="topbar-btn" class="absolute bg-color1">
+	<img
+		class="icon-filter p-2"
+		style="aspect-ratio: 1; width: var(--topbar-height)"
+		src="assets/icons/feather/menu.svg"
+	/>
+</button>
+<header id="topbar" class="absolute flex">
 	<h1 id="current-page" class="m-auto text-2 text-color">{{ current_page }}</h1>
-	<button id="topbar-options-btn" class="bg-color1" style="visibility: hidden">
-		<img
-			class="icon-filter p-3"
-			style="aspect-ratio: 1; width: var(--topbar-height)"
-			src="assets/icons/feather/sliders.svg"
-		/>
-	</button>
 </header>
+<label id="options-btn" for="options-checkbox" class="absolute"></label>
+<input type="checkbox" id="options-checkbox" class="absolute" style="visibility: hidden"/>
+<button id="topbar-options-btn" class="absolute bg-color1">
+	<img
+		class="icon-filter p-3"
+		style="aspect-ratio: 1; width: var(--topbar-height)"
+		src="assets/icons/feather/sliders.svg"
+	/>
+</button>
 <label
 	id="sidebar-closer"
 	for="sidebar-checkbox"

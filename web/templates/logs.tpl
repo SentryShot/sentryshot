@@ -105,6 +105,13 @@
 
 	/* Tablet/Dektop. */
 	@media only screen and (min-width: 48rem) {
+		#topbar-options-btn {
+			display: none;
+		}
+		#sidebar-checkbox:checked ~ #topbar {
+			width: var(--topbar-height);
+		}
+
 		.log-list-wrapper {
 			position: static;
 			width: 100%;

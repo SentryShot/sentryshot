@@ -575,18 +575,37 @@ img {
 
 /* Mobile portrait mode */
 
-/* sidebar */
+/* Topbar */
+
 #topbar {
 	z-index: 1;
 	width: 100%;
+	background: var(--color1);
+	height: var(--topbar-height);
+	padding-left: var(--topbar-height);
+	padding-right: var(--topbar-height);
+}
+
+#topbar-btn {
+	height: var(--topbar-height);
+	z-index: 2;
 }
 
 #options-btn {
 	right: 0;
 	z-index: 2;
+	width: var(--topbar-height);
+	height: var(--topbar-height);
 }
 
-#options-btn:hover ~ * #topbar-options-btn {
+#topbar-options-btn {
+	visibility: hidden;
+	right: 0;
+	z-index: 1;
+	transition: 400ms;
+}
+
+#options-btn:hover ~ #topbar-options-btn {
 	background: var(--color2);
 }
 
@@ -606,33 +625,6 @@ img {
 
 .options-popup-open {
 	display: flex !important;
-}
-
-/* Date picker. */
-.date-picker-day-btn {
-	height: calc(var(--scale) * 2rem);
-	width: calc(var(--scale) * 2rem);
-	color: var(--color-text);
-	border-width: 2px;
-	border-color: var(--color2);
-	border-radius: var(--radius-lg);
-	background: var(--color3);
-	font-size: calc(var(--scale) * 1.5rem);
-	line-height: calc(var(--scale) * 1.9rem);
-}
-
-.date-picker-day-selected {
-	background: var(--color-red2);
-}
-
-.date-picker-hour {
-	display: flex;
-	justify-content: center;
-}
-
-.date-picker-hour-input::-webkit-inner-spin-button,
-.date-picker-hour-input::-webkit-outer-spin-button {
-	-webkit-appearance: none;
 }
 
 /* Sidebar. */
@@ -665,12 +657,35 @@ img {
 	width: var(--sidebar-width);
 }
 
-#sidebar-btn:hover ~ * #topbar-btn {
+#sidebar-btn:hover ~ #topbar-btn {
 	background: var(--color2);
 }
 
-#sidebar-btn:hover ~ * #nav-btn {
-	background: var(--color2);
+/* Date picker. */
+.date-picker-day-btn {
+	height: calc(var(--scale) * 2rem);
+	width: calc(var(--scale) * 2rem);
+	color: var(--color-text);
+	border-width: 2px;
+	border-color: var(--color2);
+	border-radius: var(--radius-lg);
+	background: var(--color3);
+	font-size: calc(var(--scale) * 1.5rem);
+	line-height: calc(var(--scale) * 1.9rem);
+}
+
+.date-picker-day-selected {
+	background: var(--color-red2);
+}
+
+.date-picker-hour {
+	display: flex;
+	justify-content: center;
+}
+
+.date-picker-hour-input::-webkit-inner-spin-button,
+.date-picker-hour-input::-webkit-outer-spin-button {
+	-webkit-appearance: none;
 }
 
 /* Content */
@@ -809,8 +824,9 @@ img {
 
 	#topbar {
 		flex-direction: column;
-		width: auto;
+		width: var(--topbar-height);
 		height: 100%;
+		padding: 0;
 	}
 
 	#options-btn {
@@ -820,6 +836,8 @@ img {
 
 	#topbar-options-btn {
 		margin-top: auto;
+		right: auto;
+		bottom: 0;
 	}
 
 	#options-menu {
@@ -869,8 +887,14 @@ img {
 		transition: width 400ms;
 	}
 
+	#topbar-btn {
+		z-index: 6;
+	}
+
 	#topbar-options-btn {
-		margin-left: auto;
+		right: auto;
+		left: calc(var(--sidebar-width) - var(--topbar-height));
+		z-index: 6;
 	}
 
 	#current-page {
@@ -922,7 +946,7 @@ img {
 	}
 
 	#sidebar-checkbox:checked ~ #sidebar {
-		width: 0 !important;
+		width: var(--topbar-height) !important;
 	}
 
 	#sidebar-checkbox:checked ~ #sidebar-btn {
@@ -930,12 +954,16 @@ img {
 	}
 
 	#sidebar-checkbox:checked ~ #content {
-		padding-left: 0;
+		padding-left: var(--topbar-height);
 		transition: padding-left 400ms;
 	}
 
 	#sidebar-checkbox:checked ~ #topbar {
-		width: calc(var(--topbar-height) * 2);
+		width: var(--topbar-height);
+	}
+
+	#sidebar-checkbox:checked ~ #topbar-options-btn {
+		left: var(--topbar-height);
 		opacity: 0.5;
 	}
 
