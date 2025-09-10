@@ -87,8 +87,11 @@ describe("optionsGridSize", () => {
 /** @typedef {import("./optionsMenu.js").DatePickerContent} DatePickerContent */
 
 describe("optionsDate", () => {
-	/** @param {DatePickerContent} content */
-	const setup = (content) => {
+	/**
+	 * @param {DatePickerContent} content
+	 * @param {boolean} weekStartSunday
+	 */
+	const setup = (content, weekStartSunday = false) => {
 		// @ts-ignore
 		jest.useFakeTimers("modern");
 		jest.setSystemTime(Date.parse("2001-02-03T01:02:03Z"));
@@ -96,7 +99,7 @@ describe("optionsDate", () => {
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
 
-		const date = newOptionsBtn.date("utc", content);
+		const date = newOptionsBtn.date("utc", content, weekStartSunday);
 		element.replaceChildren(...date.elems);
 
 		return date;
@@ -169,9 +172,7 @@ describe("optionsDate", () => {
 			"30", "  ", "  ", "  ", "  ", "  ", "  "]);
 	});
 	test("weekStartSunday", () => {
-		// @ts-ignore
-		document.Flags = { weekStartSunday: true };
-		const date = setup({ setDate() {} });
+		const date = setup({ setDate() {} }, true);
 
 		/** @param {string} n */
 		const pad = (n) => {

@@ -76,7 +76,7 @@ test("fullscreen", () => {
 	document.body.innerHTML = `<div></div>`;
 	const element = document.querySelector("div");
 	// @ts-ignore
-	const viewer = newViewer(element, [{ enable: true }, { enable: true }], mockHls);
+	const viewer = newViewer(element, [{ enable: true }, { enable: true }], "hls");
 	viewer.reset();
 
 	expect(element.innerHTML).toMatchInlineSnapshot(`

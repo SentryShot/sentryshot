@@ -7,7 +7,6 @@ import {
 	sortByName,
 	newMonitorNameByID,
 	removeEmptyValues,
-	globals,
 	relativePathname,
 	sleep,
 	htmlToElem,
@@ -786,11 +785,12 @@ function newLogSelector(logger, formFields, $parent) {
 	});
 }
 
-function init() {
-	const { logSources, monitors, tz } = globals();
+/** @typedef {import("./libs/common.js").UiData} UiData */
 
-	const monitorNameByID = newMonitorNameByID(monitors);
-	const formatLog = newFormater(monitorNameByID, tz);
+/** @param {UiData} uiData */
+function init(uiData) {
+	const monitorNameByID = newMonitorNameByID(uiData.monitors);
+	const formatLog = newFormater(monitorNameByID, uiData.tz);
 
 	const $logLists = document.getElementById("js-log-lists");
 	const logger = newLogger(formatLog, $logLists);
@@ -802,8 +802,8 @@ function init() {
 			["error", "warning", "info", "debug"],
 			"info",
 		),
-		monitor: newMonitorPicker(monitors),
-		sources: newMultiSelect("Sources", logSources, logSources),
+		monitor: newMonitorPicker(uiData.monitors),
+		sources: newMultiSelect("Sources", uiData.logSources, uiData.logSources),
 	};
 	newLogSelector(logger, formFields, document.querySelector(".js-content"));
 

@@ -2,13 +2,7 @@
 
 // @ts-check
 
-import {
-	uniqueID,
-	globals,
-	sleep,
-	relativePathname,
-	htmlToElem,
-} from "../libs/common.js";
+import { uniqueID, sleep, relativePathname, htmlToElem } from "../libs/common.js";
 import { newFeed } from "./feed.js";
 import Hls from "../vendor/hls.js";
 
@@ -21,11 +15,12 @@ import Hls from "../vendor/hls.js";
 /**
  * @param {Monitor} monitor
  * @param {boolean} preferLowRes
+ * @param {"hls" | "sp"} streamer
  * @param {Button[]} buttons
  * @return {Feed}
  */
-function newStreamer(monitor, preferLowRes, buttons = []) {
-	return globals().flags.streamer === "sp"
+function newStreamer(monitor, preferLowRes, streamer, buttons = []) {
+	return streamer === "sp"
 		? newSlowPollStream(monitor, preferLowRes, buttons)
 		: newFeed(Hls, monitor, preferLowRes, buttons);
 }

@@ -204,6 +204,18 @@ function denormalize(input, max) {
 }
 
 /**
+ * @typedef UiData
+ * @property {string} csrfToken
+ * @property {Flags} flags
+ * @property {boolean} isAdmin
+ * @property {string} tz
+ * @property {string[]} logSources
+ * @property {MonitorGroups} monitorGroups
+ * @property {{[x: string]: any}} monitors
+ * @property {MonitorsInfo} monitorsInfo
+ */
+
+/**
  * @typedef Flags
  * @property {"hls" | "sp"} streamer
  * @property {boolean} weekStartSunday
@@ -228,73 +240,23 @@ function denormalize(input, max) {
 
 /** @typedef {{[id: string]: MonitorInfo}} MonitorsInfo */
 
-// The globals are injected in `./web/templates/include/meta.tpl`
+// The globals are injected in `./web/templates`
 /* eslint-disable no-undef */
+/** @returns {UiData} */
 function globals() {
 	// @ts-ignore
-	if (typeof CSRFToken === "undefined") {
-		return testGlobals();
-	}
-	return {
-		/** @type {string} */
-		// @ts-ignore
-		csrfToken: CSRFToken,
-
-		/** @type {Flags} */
-		// @ts-ignore
-		flags: Flags,
-
-		/** @type {boolean} */
-		// @ts-ignore
-		isAdmin: IsAdmin,
-
-		/** @type {string} */
-		// @ts-ignore
-		tz: TZ,
-
-		/** @type {string[]} */
-		// @ts-ignore
-		logSources: LogSources,
-
-		/** @type {MonitorGroups} */
-		// @ts-ignore
-		monitorGroups: MonitorGroups,
-
-		/** @type {{[x: string]: any}} */
-		// @ts-ignore
-		monitors: Monitors,
-
-		/** @type {MonitorsInfo} */
-		// @ts-ignore
-		monitorsInfo: MonitorsInfo,
-	};
-}
-
-function testGlobals() {
-	// @ts-ignore
-	if (document.Flags === undefined) {
-		// @ts-ignore
-		document.Flags = {
-			streamer: "hls",
-			weekStartSunday: false,
-		};
-	}
-	return {
-		/** @type {Flags} */
-		// @ts-ignore
-		flags: document.Flags,
-	};
+	return window.uiData;
 }
 
 /** @param {String} pathname */
 function relativePathname(pathname) {
 	// @ts-ignore
-	if (typeof CurrentPage === "undefined") {
+	if (window.uiData === undefined) {
 		return `http://test.com/${pathname}`;
 	}
 	/** @type {String} */
 	// @ts-ignore
-	const currentPage = CurrentPage;
+	const currentPage = window.uiData.currentPage;
 	return (
 		window.location.origin +
 		window.location.pathname.replace(currentPage.toLowerCase(), pathname)

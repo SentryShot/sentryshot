@@ -545,7 +545,7 @@ function crop(detectors, hasSubStream, getMonitorId, getDetectorName) {
 				audioEnabled: "false",
 				hasSubStream: hasSubStream(getMonitorId()),
 			};
-			feed = newStreamer(monitor, true);
+			feed = newStreamer(monitor, true, globals().flags.streamer);
 
 			if (!rendered) {
 				renderModal();
@@ -900,7 +900,7 @@ function mask(hasSubStream, getMonitorId) {
 				audioEnabled: "false",
 				hasSubStream: hasSubStream(getMonitorId()),
 			};
-			feed = newStreamer(monitor, true);
+			feed = newStreamer(monitor, true, globals().flags.streamer);
 
 			if (!rendered) {
 				renderModal();

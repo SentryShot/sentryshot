@@ -9,7 +9,6 @@ import {
 	fetchDelete,
 	sortByName,
 	removeEmptyValues,
-	globals,
 	relativePathname,
 	htmlToElem,
 } from "./libs/common.js";
@@ -942,9 +941,11 @@ function newIdField() {
 	};
 }
 
-function init() {
-	const { csrfToken, isAdmin, monitorGroups, monitors } = globals();
-	if (!isAdmin) {
+/** @typedef {import("./libs/common.js").UiData} UiData */
+
+/** @param {UiData} uiData */
+function init(uiData) {
+	if (!uiData.isAdmin) {
 		return;
 	}
 
@@ -982,15 +983,24 @@ function init() {
 	//timestampOffset: fieldTemplate.integer("Timestamp offset (ms)", "500", "500"),
 	/* SETTINGS_LAST_MONITOR_FIELD */
 
-	const monitor = newMonitor(csrfToken, monitorFields, getMonitorId, monitors);
+	const monitor = newMonitor(
+		uiData.csrfToken,
+		monitorFields,
+		getMonitorId,
+		uiData.monitors,
+	);
 
 	/** @type {Fields<any>} */
 	const monitorGroupsFields = {};
 	monitorGroupsFields.id = newIdField();
 	monitorGroupsFields.name = fieldTemplate.text("Name", "my_monitor_group");
-	monitorGroupsFields.monitors = newSelectMonitorField(monitors);
+	monitorGroupsFields.monitors = newSelectMonitorField(uiData.monitors);
 
-	const group = newMonitorGroups(csrfToken, monitorGroupsFields, monitorGroups);
+	const group = newMonitorGroups(
+		uiData.csrfToken,
+		monitorGroupsFields,
+		uiData.monitorGroups,
+	);
 
 	/** @type {Fields<any>} */
 	const accountFields = {
@@ -1006,7 +1016,7 @@ function init() {
 		isAdmin: fieldTemplate.toggle("Admin"),
 		password: newPasswordField(),
 	};
-	const account = newAccount(csrfToken, accountFields);
+	const account = newAccount(uiData.csrfToken, accountFields);
 
 	document
 		.querySelector(".js-content")

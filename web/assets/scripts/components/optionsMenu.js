@@ -2,7 +2,7 @@
 
 // @ts-check
 
-import { globals, sortByName, htmlToElem } from "../libs/common.js";
+import { sortByName, htmlToElem } from "../libs/common.js";
 import { newTimeNow } from "../libs/time.js";
 import { newModalSelect } from "../components/modal.js";
 
@@ -125,13 +125,10 @@ const newOptionsBtn = {
 	/**
 	 * @param {string} timeZone
 	 * @param {DatePickerContent} content
+	 * @param {boolean} weekStartSunday
 	 */
-	date(timeZone, content) {
-		const datePicker = newDatePicker(
-			timeZone,
-			content,
-			globals().flags.weekStartSunday,
-		);
+	date(timeZone, content, weekStartSunday) {
+		const datePicker = newDatePicker(timeZone, content, weekStartSunday);
 		const icon = "assets/icons/feather/calendar.svg";
 		const popup = newOptionsPopup(icon, datePicker.elems);
 

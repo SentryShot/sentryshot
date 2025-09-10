@@ -3,6 +3,7 @@
 use common::{Flags, monitor::ArcMonitorManager};
 use log::Logger;
 use monitor_groups::ArcMonitorGroups;
+use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};
 
 pub struct Templater<'a> {
@@ -56,37 +57,52 @@ impl<'a> Templater<'a> {
         is_admin: bool,
         csrf_token: String,
     ) -> Option<HashMap<&'static str, upon::Value>> {
-        use upon::Value;
-
         make_ascii_titlecase(&mut current_page);
-        let log_sources_json = serde_json::to_string(&self.logger.sources())
-            .expect("Vec<String> serialization to never fail");
 
-        let monitors_json = if is_admin {
-            serde_json::to_string(&self.monitor_manager.monitor_configs().await)
-                .expect("serialization to never fail")
-        } else {
-            String::new()
+        let mut ui_data = serde_json::Map::new();
+        ui_data.insert(
+            "currentPage".to_owned(),
+            Value::String(current_page.clone()),
+        );
+        ui_data.insert("csrfToken".to_owned(), Value::String(csrf_token.clone()));
+        ui_data.insert(
+            "flags".to_owned(),
+            serde_json::to_value(self.flags).expect("serialization to never fail"),
+        );
+        ui_data.insert("isAdmin".to_owned(), Value::Bool(is_admin));
+        ui_data.insert("tz".to_owned(), Value::String(self.time_zone.clone()));
+        ui_data.insert(
+            "logSources".to_owned(),
+            serde_json::to_value(self.logger.sources())
+                .expect("Vec<String> serialization to never fail"),
+        );
+        ui_data.insert(
+            "monitorGroups".to_owned(),
+            serde_json::to_value(&self.monitor_groups.get().await)
+                .expect("serialization to never fail"),
+        );
+        if is_admin {
+            ui_data.insert(
+                "monitors".to_owned(),
+                serde_json::to_value(&self.monitor_manager.monitor_configs().await)
+                    .expect("serialization to never fail"),
+            );
         };
-        let monitors_info_json =
-            serde_json::to_string(&self.monitor_manager.monitors_info().await?)
-                .expect("serialization to never fail");
+        ui_data.insert(
+            "monitorsInfo".to_owned(),
+            serde_json::to_value(&self.monitor_manager.monitors_info().await?)
+                .expect("serialization to never fail"),
+        );
 
-        let monitor_groups_json = serde_json::to_string(&self.monitor_groups.get().await)
-            .expect("serialization to never fail");
+        // ui_data plugin hook.
 
-        let flags_json = serde_json::to_string(&self.flags).expect("serialization to never fail");
+        let ui_data_json =
+            serde_json::to_string(&ui_data).expect("Vec<String> serialization to never fail");
 
         Some(HashMap::from([
-            ("current_page", Value::String(current_page)),
-            ("csrf_token", Value::String(csrf_token)),
-            ("flags", Value::String(flags_json)),
-            ("is_admin", Value::Bool(is_admin)),
-            ("log_sources_json", Value::String(log_sources_json)),
-            ("monitor_groups_json", Value::String(monitor_groups_json)),
-            ("monitors_json", Value::String(monitors_json)),
-            ("monitors_info_json", Value::String(monitors_info_json)),
-            ("tz", Value::String(self.time_zone.clone())),
+            ("current_page", upon::Value::String(current_page)),
+            ("is_admin", upon::Value::Bool(is_admin)),
+            ("ui_data", upon::Value::String(ui_data_json)),
         ]))
     }
 }

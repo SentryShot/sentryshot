@@ -2,7 +2,7 @@
 
 // @ts-check
 
-import { sortByName, globals } from "./libs/common.js";
+import { sortByName } from "./libs/common.js";
 import {
 	newOptionsMenu,
 	newOptionsBtn,
@@ -21,8 +21,9 @@ import { newStreamer, newStreamerBtn } from "./components/streamer.js";
 /**
  * @param {Element} $parent
  * @param {MonitorsInfo} monitors
+ * @param {"hls" | "sp"} streamer
  */
-function newViewer($parent, monitors) {
+function newViewer($parent, monitors, streamer) {
 	/** @type {string[]} */
 	let selectedMonitors = [];
 	/** @param {MonitorInfo} monitor */
@@ -72,7 +73,7 @@ function newViewer($parent, monitors) {
 					fullscreenBtn,
 					//newMp4StreamBtn.mute(monitor),
 				];
-				feeds.push(newStreamer(monitor, preferLowRes, buttons));
+				feeds.push(newStreamer(monitor, preferLowRes, streamer, buttons));
 			}
 
 			const fragment = new DocumentFragment();
@@ -137,17 +138,18 @@ function resBtn(content) {
 	return elem;
 }
 
-function init() {
-	const { monitorGroups, monitorsInfo } = globals();
+/** @typedef {import("./libs/common.js").UiData} UiData */
 
+/** @param {UiData} uiData */
+function init(uiData) {
 	const $contentGrid = document.getElementById("js-content-grid");
-	const viewer = newViewer($contentGrid, monitorsInfo);
+	const viewer = newViewer($contentGrid, uiData.monitorsInfo, uiData.flags.streamer);
 
 	/** @type {Element[]} */
 	let buttons = [...newOptionsBtn.gridSize(viewer), resBtn(viewer)];
 	// Add the group picker if there are any groups.
-	if (Object.keys(monitorGroups).length > 0) {
-		const group = newOptionsBtn.monitorGroup(monitorGroups, viewer);
+	if (Object.keys(uiData.monitorGroups).length > 0) {
+		const group = newOptionsBtn.monitorGroup(uiData.monitorGroups, viewer);
 		buttons = [...buttons, ...group.elems];
 	}
 

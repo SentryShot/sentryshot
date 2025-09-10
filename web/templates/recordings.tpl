@@ -27,7 +27,9 @@
 	/>
 	<script type="module" defer>
 		import { init } from "./assets/scripts/recordings.js";
-		init();
+		const uiData = JSON.parse(`{{ ui_data }}`);
+		window.uiData = uiData;
+		init(uiData);
 	</script>
 </head>
 <body class="flex" style="height: 100dvh; margin: 0; background-color: var(--color0)">

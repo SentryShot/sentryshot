@@ -6,7 +6,6 @@ import {
 	newMonitorNameByID,
 	getHashParam,
 	removeEmptyValues,
-	globals,
 	relativePathname,
 } from "./libs/common.js";
 import { NS_MILLISECOND } from "./libs/time.js";
@@ -260,13 +259,19 @@ function dateToID(t) {
 	return `${YY}-${MM}-${DD}_${hh}-${mm}-${ss}_x`;
 }
 
-// Init.
-function init() {
-	const { tz, monitorsInfo, monitorGroups, isAdmin, csrfToken } = globals();
+/** @typedef {import("./libs/common.js").UiData} UiData */
 
-	const monitorNameByID = newMonitorNameByID(monitorsInfo);
+/** @param {UiData} uiData */
+function init(uiData) {
+	const monitorNameByID = newMonitorNameByID(uiData.monitorsInfo);
 	const $grid = document.getElementById("js-content-grid");
-	const viewer = newViewer(monitorNameByID, $grid, tz, isAdmin, csrfToken);
+	const viewer = newViewer(
+		monitorNameByID,
+		$grid,
+		uiData.tz,
+		uiData.isAdmin,
+		uiData.csrfToken,
+	);
 
 	const hashMonitors = getHashParam("monitors").split(",");
 	if (hashMonitors) {
@@ -276,12 +281,12 @@ function init() {
 	/** @type {Element[]} */
 	let buttons = [
 		...newOptionsBtn.gridSize(viewer),
-		...newOptionsBtn.date(tz, viewer).elems,
-		newOptionsBtn.monitor(monitorsInfo, viewer),
+		...newOptionsBtn.date(uiData.tz, viewer, uiData.flags.weekStartSunday).elems,
+		newOptionsBtn.monitor(uiData.monitorsInfo, viewer),
 	];
 	// Add the group picker if there are any groups.
-	if (Object.keys(monitorGroups).length > 0) {
-		const group = newOptionsBtn.monitorGroup(monitorGroups, viewer);
+	if (Object.keys(uiData.monitorGroups).length > 0) {
+		const group = newOptionsBtn.monitorGroup(uiData.monitorGroups, viewer);
 		buttons = [...buttons, ...group.elems];
 	}
 	const optionsMenu = newOptionsMenu(buttons);

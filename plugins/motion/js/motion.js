@@ -647,7 +647,7 @@ function zones(hasSubStream, getMonitorId) {
 			audioEnabled: "false",
 			hasSubStream: hasSubStream(getMonitorId()),
 		};
-		feed = newStreamer(monitor, true);
+		feed = newStreamer(monitor, true, globals().flags.streamer);
 
 		if (!rendered) {
 			[modal, $feed, onSet] = renderModal();
