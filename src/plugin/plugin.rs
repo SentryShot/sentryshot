@@ -166,6 +166,13 @@ pub fn pre_load_plugin(
 
 #[derive(Debug, Error)]
 pub enum FindPluginPathError {
+    #[cfg(debug_assertions)]
+    #[error(
+        "plugin not found: {0} \n\npoint plugin_dir in sentryshot.yaml to generated ./plugin_dir symlink"
+    )]
+    NotFound(PathBuf),
+
+    #[cfg(not(debug_assertions))]
     #[error("plugin not found: {0}")]
     NotFound(PathBuf),
 }
