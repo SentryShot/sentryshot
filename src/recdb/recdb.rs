@@ -8,7 +8,7 @@ pub use disk::DiskImpl;
 
 use bytesize::ByteSize;
 use common::{
-    ArcLogger, Disk, DiskUsageError, LogEntry, LogLevel, MonitorId,
+    ArcDisk, ArcLogger, DiskUsageError, LogEntry, LogLevel, MonitorId,
     recording::{RecordingData, RecordingId, RecordingIdError},
     time::{Duration, UnixH264},
 };
@@ -114,7 +114,7 @@ pub struct RecDb {
     logger: RecDbLogger,
     recordings_dir: PathBuf,
     crawler: Crawler,
-    disk: Arc<DiskImpl>,
+    disk: ArcDisk,
 
     // There should only be one active recording per monitor.
     active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, StartAndEnd>>>,
@@ -167,7 +167,7 @@ pub enum DeleteRecordingError {
 
 impl RecDb {
     #[must_use]
-    pub fn new(logger: ArcLogger, recording_dir: PathBuf, disk: Arc<DiskImpl>) -> Self {
+    pub fn new(logger: ArcLogger, recording_dir: PathBuf, disk: ArcDisk) -> Self {
         Self {
             logger: RecDbLogger(logger),
             recordings_dir: recording_dir.clone(),
@@ -594,14 +594,17 @@ mod tests {
 
     use super::*;
     use bytesize::ByteSize;
-    use common::DummyLogger;
+    use common::{DummyDisk, DummyLogger};
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use test_case::test_case;
 
     fn new_test_recdb(recordings_dir: &Path) -> RecDb {
-        let disk = DiskImpl::new(recordings_dir.to_path_buf(), ByteSize(0));
-        RecDb::new(DummyLogger::new(), recordings_dir.to_path_buf(), disk)
+        RecDb::new(
+            DummyLogger::new(),
+            recordings_dir.to_path_buf(),
+            DummyDisk::new(),
+        )
     }
 
     #[tokio::test]

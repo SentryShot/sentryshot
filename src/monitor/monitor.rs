@@ -657,10 +657,9 @@ impl MonitorManagerState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytesize::ByteSize;
     use common::{
-        ArcStreamerMuxer, DummyLogger, DynError, H264Data, MonitorName, ParseMonitorIdError,
-        TrackParameters,
+        ArcStreamerMuxer, DummyDisk, DummyLogger, DynError, H264Data, MonitorName,
+        ParseMonitorIdError, TrackParameters,
         monitor::{
             Config, DummyMonitorHooks, DynH264Writer, Protocol, SelectedSource, SourceConfig,
             SourceRtspConfig, StreamerImpl,
@@ -668,7 +667,6 @@ mod tests {
         time::UnixH264,
     };
     use pretty_assertions::assert_eq;
-    use recdb::DiskImpl;
     use serde_json::json;
     use std::{fs, path::PathBuf};
     use tempfile::TempDir;
@@ -728,8 +726,11 @@ mod tests {
     }
 
     fn new_test_recdb(recordings_dir: &Path) -> RecDb {
-        let disk = DiskImpl::new(recordings_dir.to_path_buf(), ByteSize(0));
-        RecDb::new(DummyLogger::new(), recordings_dir.to_path_buf(), disk)
+        RecDb::new(
+            DummyLogger::new(),
+            recordings_dir.to_path_buf(),
+            DummyDisk::new(),
+        )
     }
 
     fn new_test_eventdb(events_dir: &Path) -> EventDb {

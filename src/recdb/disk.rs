@@ -68,6 +68,16 @@ impl Disk for DiskImpl {
 
         (Ok(updated_usage), err)
     }
+
+    async fn usage_cached(&self) -> Option<(DiskUsage, Duration)> {
+        let cache = self.cache.lock().await.to_owned()?;
+        let age = UnixNano::now().sub(cache.last_update)?;
+        Some((cache.usage, age))
+    }
+
+    fn max_usage(&self) -> ByteSize {
+        self.max_disk_usage
+    }
 }
 
 impl DiskImpl {
@@ -96,18 +106,6 @@ impl DiskImpl {
             disk_usage,
             update_lock: Mutex::new(()),
         })
-    }
-
-    pub(crate) fn max_usage(&self) -> ByteSize {
-        self.max_disk_usage
-    }
-
-    // Returns cached value and age if available.
-    #[allow(unused)]
-    async fn usage_cached(&self) -> Option<(DiskUsage, Duration)> {
-        let cache = self.cache.lock().await.to_owned()?;
-        let age = UnixNano::now().sub(cache.last_update)?;
-        Some((cache.usage, age))
     }
 
     #[allow(

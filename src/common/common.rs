@@ -847,14 +847,20 @@ pub async fn create_dir_all2(rt_handle: Handle, path: PathBuf) -> std::io::Resul
         .expect("join")
 }
 
-pub type ArcDisk = Arc<dyn Disk>;
+pub type ArcDisk = Arc<dyn Disk + Send + Sync>;
 
 #[async_trait]
 pub trait Disk {
+    // Iterates over every file in the storage directory (expensive).
     async fn usage(
         &self,
         max_age: Duration,
     ) -> (Result<DiskUsage, DiskUsageError>, Option<UsageBytesError>);
+
+    // Returns cached value and age if available.
+    async fn usage_cached(&self) -> Option<(DiskUsage, Duration)>;
+
+    fn max_usage(&self) -> ByteSize;
 }
 
 // DiskUsage in Bytes.
@@ -883,6 +889,37 @@ pub enum UsageBytesError {
 
     #[error("read file metadata: {0} {1}")]
     Metadata(std::io::Error, PathBuf),
+}
+
+pub struct DummyDisk;
+
+impl DummyDisk {
+    #[must_use]
+    pub fn new() -> Arc<Self> {
+        Arc::new(DummyDisk {})
+    }
+}
+
+#[async_trait]
+impl Disk for DummyDisk {
+    async fn usage(
+        &self,
+        _: Duration,
+    ) -> (Result<DiskUsage, DiskUsageError>, Option<UsageBytesError>) {
+        (
+            Ok(DiskUsage {
+                used: 0,
+                percent: 0.0,
+            }),
+            None,
+        )
+    }
+    async fn usage_cached(&self) -> Option<(DiskUsage, Duration)> {
+        None
+    }
+    fn max_usage(&self) -> ByteSize {
+        ByteSize(0)
+    }
 }
 
 #[cfg(test)]

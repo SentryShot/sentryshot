@@ -598,17 +598,16 @@ struct Rec {
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
 mod tests {
     use super::*;
-    use bytesize::ByteSize;
     use common::{
-        DummyLogger, PaddedBytes, VideoSample,
+        DummyDisk, DummyLogger, PaddedBytes, VideoSample,
         recording::RecordingData,
         time::{DtsOffset, DurationH264, HOUR, MINUTE, SECOND, UnixH264, UnixNano},
     };
     use pretty_assertions::assert_eq;
     use pretty_hex::pretty_hex;
-    use recdb::{DiskImpl, RecDb};
+    use recdb::RecDb;
     use recording::{MetaHeader, VideoWriter};
-    use std::sync::Arc;
+    use std::{path::Path, sync::Arc};
     use tempfile::TempDir;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -1013,14 +1012,13 @@ mod tests {
         assert!(matches!(result, Err(CreateVodReaderError::MaxDuration)));
     }
 
+    fn new_test_recdb(path: &Path) -> RecDb {
+        RecDb::new(DummyLogger::new(), path.to_path_buf(), DummyDisk::new())
+    }
+
     async fn single_recording(start_time: UnixH264) -> (TempDir, RecDb) {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().to_path_buf();
-        let mut rec_db = RecDb::new(
-            DummyLogger::new(),
-            path.clone(),
-            DiskImpl::new(path, ByteSize(0)),
-        );
+        let mut rec_db = new_test_recdb(temp_dir.path());
 
         save_recording(
             &mut rec_db,
@@ -1133,12 +1131,7 @@ mod tests {
 
     async fn two_recordings(start_time: UnixH264) -> (TempDir, RecDb) {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().to_path_buf();
-        let mut rec_db = RecDb::new(
-            DummyLogger::new(),
-            path.clone(),
-            DiskImpl::new(path, ByteSize(0)),
-        );
+        let mut rec_db = new_test_recdb(temp_dir.path());
 
         save_recording(
             &mut rec_db,
@@ -1192,12 +1185,8 @@ mod tests {
         let start_time = year_2000 + UnixNano::new(10 * MINUTE).into() + UnixH264::new(89998);
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().to_path_buf();
-        let mut rec_db = RecDb::new(
-            DummyLogger::new(),
-            path.clone(),
-            DiskImpl::new(path, ByteSize(0)),
-        );
+        let mut rec_db = new_test_recdb(temp_dir.path());
+
         save_recording(
             &mut rec_db,
             start_time,
@@ -1500,16 +1489,11 @@ mod tests {
 
     async fn multiple_recordings(start_time: UnixH264) -> (TempDir, RecDb) {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().to_path_buf();
-        let mut recdb = RecDb::new(
-            DummyLogger::new(),
-            path.clone(),
-            DiskImpl::new(path, ByteSize(0)),
-        );
+        let mut rec_db = new_test_recdb(temp_dir.path());
 
         let rec1 = start_time;
         save_recording(
-            &mut recdb,
+            &mut rec_db,
             rec1,
             rec1 + UnixH264::new(1),
             vec![VideoSample {
@@ -1524,7 +1508,7 @@ mod tests {
         let rec2 = start_time + UnixNano::new(SECOND * 10).into();
         println!("rec2 {}", UnixNano::from(rec2));
         save_recording(
-            &mut recdb,
+            &mut rec_db,
             rec2,
             rec2 + UnixH264::new(1),
             vec![VideoSample {
@@ -1538,7 +1522,7 @@ mod tests {
         .await;
         let rec3 = start_time + UnixNano::new(SECOND * 20).into();
         save_recording(
-            &mut recdb,
+            &mut rec_db,
             rec3,
             rec3 + UnixH264::new(1),
             vec![VideoSample {
@@ -1550,7 +1534,7 @@ mod tests {
             }],
         )
         .await;
-        (temp_dir, recdb)
+        (temp_dir, rec_db)
     }
 
     #[tokio::test]
@@ -1559,12 +1543,8 @@ mod tests {
         let start_time = year_2000 + UnixNano::new(10 * MINUTE).into();
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().to_path_buf();
-        let mut rec_db = RecDb::new(
-            DummyLogger::new(),
-            path.clone(),
-            DiskImpl::new(path, ByteSize(0)),
-        );
+        let mut rec_db = new_test_recdb(temp_dir.path());
+
         save_recording(
             &mut rec_db,
             start_time + UnixH264::new(10),
