@@ -39,6 +39,14 @@ function newModal(label, content = []) {
 		/* HTML */ ` <div class="h-full bg-color3" style="overflow-y: visible;"></div> `,
 		content,
 	);
+	const $label = htmlToElem(/* HTML */ `
+		<span
+			class="w-full text-center text-2 text-color"
+			style="padding-left: calc(var(--scale) * 2.5rem);"
+		></span>
+	`);
+	$label.textContent = label;
+
 	const elem = htmlToElem(
 		/* HTML */ `
 			<div
@@ -61,16 +69,7 @@ function newModal(label, content = []) {
 				[
 					htmlToElem(
 						`<header class="modal-header flex px-2 bg-color2"></header>`,
-						[
-							htmlToElem(/* HTML */ `
-								<span
-									class="w-full text-center text-2 text-color"
-									style="padding-left: calc(var(--scale) * 2.5rem);"
-									>${label}</span
-								>
-							`),
-							$closeBtn,
-						],
+						[$label, $closeBtn],
 					),
 					$content,
 				],

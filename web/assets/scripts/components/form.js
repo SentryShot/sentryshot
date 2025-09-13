@@ -150,11 +150,14 @@ const liHTMLError = `<li class="items-center px-2 border-b-2 border-color1"></li
  * @param {string} doc
  */
 function newLabelAndDocElem(id, label, doc) {
-	const $label = htmlToElem(/* HTML */ `
-		<label for="${id}" class="grow w-full text-1.5 text-color" style="float: left;"
-			>${label}</label
-		>
-	`);
+	/** @type {HTMLLabelElement} */
+	// @ts-ignore
+	const $label = htmlToElem(
+		`<label class="grow w-full text-1.5 text-color" style="float: left;"></label>`,
+	);
+	$label.setAttribute("for", id);
+	$label.textContent = label;
+
 	if (doc === undefined) {
 		return $label;
 	} else {
@@ -267,16 +270,17 @@ function newInputElem(labelId, input, placeholder, options) {
 	// @ts-ignore
 	const elem = htmlToElem(/* HTML */ `
 		<input
-			id="${labelId}"
 			class="w-full text-1.5"
 			style="
 				height: calc(var(--scale) * 2.5rem);
 				overflow: auto;
 				padding-left: calc(var(--scale) * 0.5rem);
 			"
-			type="${input}"
 		/>
 	`);
+	elem.id = labelId;
+	elem.type = input;
+
 	if (placeholder !== undefined) {
 		elem.placeholder = placeholder;
 	}
@@ -300,20 +304,25 @@ function newInputElem(labelId, input, placeholder, options) {
  * @return {HTMLSelectElement}
  */
 function newSelectElem(labelId, options) {
-	let selectOptions = "";
+	const selectOptions = [];
 	for (const option of options) {
-		selectOptions += `\n<option>${option}</option>`;
+		const opt = document.createElement("option");
+		opt.textContent = option;
+		selectOptions.push(opt);
 	}
+
+	const elem = htmlToElem(
+		/* HTML */ `
+			<select
+				class="w-full pl-2 text-1.5"
+				style="height: calc(var(--scale) * 2.5rem);"
+			></select>
+		`,
+		selectOptions,
+	);
+	elem.id = labelId;
 	// @ts-ignore
-	return htmlToElem(/* HTML */ `
-		<select
-			id="${labelId}"
-			class="w-full pl-2 text-1.5"
-			style="height: calc(var(--scale) * 2.5rem);"
-		>
-			${selectOptions}
-		</select>
-	`);
+	return elem;
 }
 
 /** @typedef {[RegExp, string]} InputRule */

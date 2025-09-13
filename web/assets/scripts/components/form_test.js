@@ -200,9 +200,9 @@ describe("newField", () => {
 		expect(elemsToHTML(newTestField().elems)).toMatchInlineSnapshot(`
 <li class="items-center px-2 border-b-2 border-color1">
   <div class="relative flex w-full">
-    <label for="uid1"
-           class="grow w-full text-1.5 text-color"
+    <label class="grow w-full text-1.5 text-color"
            style="float: left;"
+           for="uid1"
     >
       a
     </label>
@@ -214,13 +214,13 @@ describe("newField", () => {
       >
     </button>
   </div>
-  <input id="uid1"
-         class="w-full text-1.5"
+  <input class="w-full text-1.5"
          style="
 				height: calc(var(--scale) * 2.5rem);
 				overflow: auto;
 				padding-left: calc(var(--scale) * 0.5rem);
 			"
+         id="uid1"
          type="number"
          placeholder="b"
          min="2"
@@ -333,19 +333,19 @@ describe("fieldTemplate", () => {
 
 		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
 <li class="items-center px-2 border-b-2 border-color1">
-  <label for="uid1"
-         class="grow w-full text-1.5 text-color"
+  <label class="grow w-full text-1.5 text-color"
          style="float: left;"
+         for="uid1"
   >
     1
   </label>
-  <input id="uid1"
-         class="w-full text-1.5"
+  <input class="w-full text-1.5"
          style="
 				height: calc(var(--scale) * 2.5rem);
 				overflow: auto;
 				padding-left: calc(var(--scale) * 0.5rem);
 			"
+         id="uid1"
          type="text"
          placeholder="2"
   >
@@ -377,19 +377,19 @@ describe("fieldTemplate", () => {
 
 		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
 <li class="items-center px-2 border-b-2 border-color1">
-  <label for="uid1"
-         class="grow w-full text-1.5 text-color"
+  <label class="grow w-full text-1.5 text-color"
          style="float: left;"
+         for="uid1"
   >
     1
   </label>
-  <input id="uid1"
-         class="w-full text-1.5"
+  <input class="w-full text-1.5"
          style="
 				height: calc(var(--scale) * 2.5rem);
 				overflow: auto;
 				padding-left: calc(var(--scale) * 0.5rem);
 			"
+         id="uid1"
          type="number"
          placeholder="2"
          min="0"
@@ -425,16 +425,16 @@ describe("fieldTemplate", () => {
 
 		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
 <li class="items-center px-2 pb-1 border-b-2 border-color1">
-  <label for="uid1"
-         class="grow w-full text-1.5 text-color"
+  <label class="grow w-full text-1.5 text-color"
          style="float: left;"
+         for="uid1"
   >
     1
   </label>
   <div class="flex w-full">
-    <select id="uid1"
-            class="w-full pl-2 text-1.5"
+    <select class="w-full pl-2 text-1.5"
             style="height: calc(var(--scale) * 2.5rem);"
+            id="uid1"
     >
       <option>
         true
@@ -462,16 +462,16 @@ describe("fieldTemplate", () => {
 
 		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
 <li class="items-center px-2 pb-1 border-b-2 border-color1">
-  <label for="uid1"
-         class="grow w-full text-1.5 text-color"
+  <label class="grow w-full text-1.5 text-color"
          style="float: left;"
+         for="uid1"
   >
     1
   </label>
   <div class="flex w-full">
-    <select id="uid1"
-            class="w-full pl-2 text-1.5"
+    <select class="w-full pl-2 text-1.5"
             style="height: calc(var(--scale) * 2.5rem);"
+            id="uid1"
     >
       <option>
         a
@@ -502,16 +502,16 @@ describe("fieldTemplate", () => {
 
 		expect(elemsToHTML(field.elems)).toMatchInlineSnapshot(`
 <li class="items-center px-2 border-b-2 border-color1">
-  <label for="uid1"
-         class="grow w-full text-1.5 text-color"
+  <label class="grow w-full text-1.5 text-color"
          style="float: left;"
+         for="uid1"
   >
     y
   </label>
   <div class="flex w-full">
-    <select id="uid1"
-            class="w-full pl-2 text-1.5"
+    <select class="w-full pl-2 text-1.5"
             style="height: calc(var(--scale) * 2.5rem);"
+            id="uid1"
     >
       <option>
         a

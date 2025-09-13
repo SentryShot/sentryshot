@@ -192,23 +192,32 @@ function newCategory(title, icon, form, onNav) {
 	};
 	$backBtn.onclick = close;
 
-	const navElem = htmlToElem(/* HTML */ `
-		<li
-			class="flex items-center py-1 pl-4 border border-color3 hover:bg-color3"
-			style="padding-right: calc(var(--spacing) * 14);"
-		>
-			<img
-				class="mr-2 icon-filter"
-				style="
-					aspect-ratio: 1;
-					height: calc(var(--scale) * 2.4rem);
-					font-size: calc(var(--scale) * 2.7rem);
-				"
-				src="${icon}"
-			/>
-			<span class="text-2 text-color">${title}</span>
-		</li>
+	/** @type {HTMLImageElement} */
+	// @ts-ignore
+	const $navIcon = htmlToElem(/* HTML */ `
+		<img
+			class="mr-2 icon-filter"
+			style="
+				aspect-ratio: 1;
+				height: calc(var(--scale) * 2.4rem);
+				font-size: calc(var(--scale) * 2.7rem);
+			"
+		/>
 	`);
+	$navIcon.src = icon;
+
+	const $navTitle = htmlToElem(`<span class="text-2 text-color"></span>`);
+	$navTitle.textContent = title;
+
+	const navElem = htmlToElem(
+		/* HTML */ `
+			<li
+				class="flex items-center py-1 pl-4 border border-color3 hover:bg-color3"
+				style="padding-right: calc(var(--spacing) * 14);"
+			></li>
+		`,
+		[$navIcon, $navTitle],
+	);
 	navElem.addEventListener("click", () => {
 		// Highlight category button.
 		for (const element of document.querySelectorAll(".settings-nav-btn-selected")) {
