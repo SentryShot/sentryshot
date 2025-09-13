@@ -5,7 +5,7 @@ pub mod types;
 
 use async_trait::async_trait;
 use common::{
-    ArcAuth, ArcDisk, ArcLogger, DynEnvConfig, DynError, EnvPlugin, Event, LogEntry, LogLevel,
+    ArcAuth, ArcLogger, ArcStorage, DynEnvConfig, DynError, EnvPlugin, Event, LogEntry, LogLevel,
     LogSource,
     monitor::{ArcMonitor, ArcMonitorManager, MonitorConfig, MonitorHooks},
 };
@@ -64,7 +64,7 @@ pub trait Application {
     fn token(&self) -> CancellationToken;
     fn auth(&self) -> ArcAuth;
     fn monitor_manager(&self) -> ArcMonitorManager;
-    fn disk(&self) -> ArcDisk;
+    fn storage(&self) -> ArcStorage;
     fn shutdown_complete_tx(&self) -> mpsc::Sender<()>;
     fn logger(&self) -> ArcLogger;
     fn env(&self) -> DynEnvConfig;

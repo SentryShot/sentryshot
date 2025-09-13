@@ -599,7 +599,7 @@ struct Rec {
 mod tests {
     use super::*;
     use common::{
-        DummyDisk, DummyLogger, PaddedBytes, VideoSample,
+        DummyLogger, DummyStorage, PaddedBytes, VideoSample,
         recording::RecordingData,
         time::{DtsOffset, DurationH264, HOUR, MINUTE, SECOND, UnixH264, UnixNano},
     };
@@ -1013,7 +1013,7 @@ mod tests {
     }
 
     fn new_test_recdb(path: &Path) -> RecDb {
-        RecDb::new(DummyLogger::new(), path.to_path_buf(), DummyDisk::new())
+        RecDb::new(DummyLogger::new(), path.to_path_buf(), DummyStorage::new())
     }
 
     async fn single_recording(start_time: UnixH264) -> (TempDir, RecDb) {

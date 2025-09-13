@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 mod crawler;
-mod disk;
+mod storage;
 
 pub use crawler::CrawlerError;
-pub use disk::DiskImpl;
+pub use storage::StorageImpl;
 
 use bytesize::ByteSize;
 use common::{
-    ArcDisk, ArcLogger, DiskUsageError, LogEntry, LogLevel, MonitorId,
+    ArcLogger, ArcStorage, LogEntry, LogLevel, MonitorId, StorageUsageError,
     recording::{RecordingData, RecordingId, RecordingIdError},
     time::{Duration, UnixH264},
 };
@@ -114,7 +114,7 @@ pub struct RecDb {
     logger: RecDbLogger,
     recordings_dir: PathBuf,
     crawler: Crawler,
-    disk: ArcDisk,
+    disk: ArcStorage,
 
     // There should only be one active recording per monitor.
     active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, StartAndEnd>>>,
@@ -167,7 +167,7 @@ pub enum DeleteRecordingError {
 
 impl RecDb {
     #[must_use]
-    pub fn new(logger: ArcLogger, recording_dir: PathBuf, disk: ArcDisk) -> Self {
+    pub fn new(logger: ArcLogger, recording_dir: PathBuf, disk: ArcStorage) -> Self {
         Self {
             logger: RecDbLogger(logger),
             recordings_dir: recording_dir.clone(),
@@ -438,7 +438,7 @@ impl RecDb {
 #[derive(Debug, Error)]
 pub enum PruneError {
     #[error("usage: {0}")]
-    Usage(#[from] DiskUsageError),
+    Usage(#[from] StorageUsageError),
 
     #[error("query recordings: {0}")]
     QueryRecordings(#[from] CrawlerError),
@@ -590,11 +590,11 @@ impl RecDbLogger {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use crate::disk::StubDiskUsageBytes;
+    use crate::storage::StubStorageUsageBytes;
 
     use super::*;
     use bytesize::ByteSize;
-    use common::{DummyDisk, DummyLogger};
+    use common::{DummyLogger, DummyStorage};
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use test_case::test_case;
@@ -603,7 +603,7 @@ mod tests {
         RecDb::new(
             DummyLogger::new(),
             recordings_dir.to_path_buf(),
-            DummyDisk::new(),
+            DummyStorage::new(),
         )
     }
 
@@ -750,10 +750,10 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let recordings_dir = temp_dir.path().join("recordings");
 
-        let disk = DiskImpl::with_disk_usage(
+        let disk = StorageImpl::with_disk_usage(
             recordings_dir.clone(),
             ByteSize(100),
-            Box::new(StubDiskUsageBytes(99)),
+            Box::new(StubStorageUsageBytes(99)),
         );
         let recdb = RecDb::new(DummyLogger::new(), recordings_dir, disk);
 

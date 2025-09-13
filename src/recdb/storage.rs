@@ -3,41 +3,44 @@
 use async_trait::async_trait;
 use bytesize::ByteSize;
 use common::{
-    Disk, DiskUsage, DiskUsageError, UsageBytesError,
+    Storage, StorageUsage, StorageUsageError, UsageBytesError,
     time::{Duration, UnixNano},
 };
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
 #[async_trait]
-pub(crate) trait DiskBytesUsed {
+pub(crate) trait StorageBytesUsed {
     async fn bytes(&self, path: PathBuf) -> (u64, Option<UsageBytesError>);
 }
 
 // Only used to calculate and cache disk usage.
 #[allow(clippy::struct_field_names)]
-pub struct DiskImpl {
+pub struct StorageImpl {
     storage_dir: PathBuf,
     max_disk_usage: ByteSize,
-    disk_usage: Box<dyn DiskBytesUsed + Send + Sync>,
+    disk_usage: Box<dyn StorageBytesUsed + Send + Sync>,
 
-    cache: Mutex<Option<DiskCache>>,
+    cache: Mutex<Option<StorageCache>>,
     update_lock: Mutex<()>,
 }
 
 #[derive(Clone, Copy)]
-struct DiskCache {
-    usage: DiskUsage,
+struct StorageCache {
+    usage: StorageUsage,
     last_update: UnixNano,
 }
 
 #[async_trait]
-impl Disk for DiskImpl {
+impl Storage for StorageImpl {
     async fn usage(
         &self,
         max_age: Duration,
-    ) -> (Result<DiskUsage, DiskUsageError>, Option<UsageBytesError>) {
-        use DiskUsageError::*;
+    ) -> (
+        Result<StorageUsage, StorageUsageError>,
+        Option<UsageBytesError>,
+    ) {
+        use StorageUsageError::*;
         let Some(max_time) = UnixNano::now().checked_sub(max_age.into()) else {
             return (Err(Sub), None);
         };
@@ -61,7 +64,7 @@ impl Disk for DiskImpl {
 
         let (updated_usage, err) = self.calculate_disk_usage().await;
 
-        *self.cache.lock().await = Some(DiskCache {
+        *self.cache.lock().await = Some(StorageCache {
             usage: updated_usage,
             last_update: UnixNano::now(),
         });
@@ -69,7 +72,7 @@ impl Disk for DiskImpl {
         (Ok(updated_usage), err)
     }
 
-    async fn usage_cached(&self) -> Option<(DiskUsage, Duration)> {
+    async fn usage_cached(&self) -> Option<(StorageUsage, Duration)> {
         let cache = self.cache.lock().await.to_owned()?;
         let age = UnixNano::now().sub(cache.last_update)?;
         Some((cache.usage, age))
@@ -80,14 +83,14 @@ impl Disk for DiskImpl {
     }
 }
 
-impl DiskImpl {
+impl StorageImpl {
     #[must_use]
     pub fn new(storage_dir: PathBuf, max_disk_usage: ByteSize) -> Arc<Self> {
         Arc::new(Self {
             storage_dir,
             max_disk_usage,
             cache: Mutex::new(None),
-            disk_usage: Box::new(DiskUsageBytes),
+            disk_usage: Box::new(StorageUsageBytes),
             update_lock: Mutex::new(()),
         })
     }
@@ -97,7 +100,7 @@ impl DiskImpl {
     pub(crate) fn with_disk_usage(
         storage_dir: PathBuf,
         max_disk_usage: ByteSize,
-        disk_usage: Box<dyn DiskBytesUsed + Send + Sync>,
+        disk_usage: Box<dyn StorageBytesUsed + Send + Sync>,
     ) -> Arc<Self> {
         Arc::new(Self {
             storage_dir,
@@ -113,10 +116,10 @@ impl DiskImpl {
         clippy::cast_possible_truncation,
         clippy::as_conversions
     )]
-    async fn calculate_disk_usage(&self) -> (DiskUsage, Option<UsageBytesError>) {
+    async fn calculate_disk_usage(&self) -> (StorageUsage, Option<UsageBytesError>) {
         let (used, err) = self.disk_usage.bytes(self.storage_dir.clone()).await;
         let percent = (((used * 100) as f64) / (self.max_disk_usage.as_u64() as f64)) as f32;
-        let usage = DiskUsage {
+        let usage = StorageUsage {
             used,
             percent,
             //max,
@@ -160,10 +163,10 @@ impl DiskImpl {
     }*/
 }*/
 
-struct DiskUsageBytes;
+struct StorageUsageBytes;
 
 #[async_trait]
-impl DiskBytesUsed for DiskUsageBytes {
+impl StorageBytesUsed for StorageUsageBytes {
     async fn bytes(&self, path: PathBuf) -> (u64, Option<UsageBytesError>) {
         tokio::task::spawn_blocking(move || -> (u64, Option<UsageBytesError>) {
             use UsageBytesError::*;
@@ -219,11 +222,11 @@ func (env ConfigEnv) CensorLog(msg string) string {
 }*/
 
 #[cfg(test)]
-pub(crate) struct StubDiskUsageBytes(pub u64);
+pub(crate) struct StubStorageUsageBytes(pub u64);
 
 #[cfg(test)]
 #[async_trait]
-impl DiskBytesUsed for StubDiskUsageBytes {
+impl StorageBytesUsed for StubStorageUsageBytes {
     async fn bytes(&self, _: PathBuf) -> (u64, Option<UsageBytesError>) {
         (self.0, None)
     }
@@ -240,8 +243,8 @@ mod tests {
     use test_case::test_case;
     use tokio::sync::oneshot;
 
-    fn du(used: u64, percent: f32) -> DiskUsage {
-        DiskUsage { used, percent }
+    fn du(used: u64, percent: f32) -> StorageUsage {
+        StorageUsage { used, percent }
     }
 
     #[test_case(  11*MB,  100*MB, du(         11_000_000, 11.0);  "MB")]
@@ -252,11 +255,11 @@ mod tests {
     #[test_case(  22*TB,  100*TB, du( 22_000_000_000_000, 22.0);  "TB1")]
     #[test_case( 234*TB, 1000*TB, du(234_000_000_000_000, 23.4);  "default")]
     #[tokio::test]
-    async fn test_disk(used: u64, space: u64, want: DiskUsage) {
-        let d = DiskImpl::with_disk_usage(
+    async fn test_disk(used: u64, space: u64, want: StorageUsage) {
+        let d = StorageImpl::with_disk_usage(
             PathBuf::new(),
             ByteSize(space),
-            Box::new(StubDiskUsageBytes(used)),
+            Box::new(StubStorageUsageBytes(used)),
         );
         let (got, err) = d.usage(Duration::new(0)).await;
         assert!(err.is_none());
@@ -265,18 +268,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_disk_cached() {
-        let usage = DiskUsage {
+        let usage = StorageUsage {
             used: 1,
             percent: 0.0,
         };
-        let d = DiskImpl {
-            cache: Mutex::new(Some(DiskCache {
+        let d = StorageImpl {
+            cache: Mutex::new(Some(StorageCache {
                 usage,
                 last_update: UnixNano::now(),
             })),
             storage_dir: PathBuf::new(),
             max_disk_usage: ByteSize(0),
-            disk_usage: Box::new(StubDiskUsageBytes(0)),
+            disk_usage: Box::new(StubStorageUsageBytes(0)),
             update_lock: Mutex::new(()),
         };
         let (got, age) = d.usage_cached().await.unwrap();
@@ -286,10 +289,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_during_lock() {
-        let d = Arc::new(DiskImpl::with_disk_usage(
+        let d = Arc::new(StorageImpl::with_disk_usage(
             PathBuf::new(),
             ByteSize(0),
-            Box::new(StubDiskUsageBytes(0)),
+            Box::new(StubStorageUsageBytes(0)),
         ));
         let update_lock = d.update_lock.lock().await;
 
@@ -302,12 +305,12 @@ mod tests {
         });
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
-        let usage = DiskUsage {
+        let usage = StorageUsage {
             used: 1,
             percent: 0.0,
         };
 
-        *d.cache.lock().await = Some(DiskCache {
+        *d.cache.lock().await = Some(StorageCache {
             usage,
             last_update: UnixNano::now(),
         });
@@ -318,15 +321,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_disk_space_zero() {
-        let d = DiskImpl::with_disk_usage(
+        let d = StorageImpl::with_disk_usage(
             PathBuf::new(),
             ByteSize(0),
-            Box::new(StubDiskUsageBytes(1000)),
+            Box::new(StubStorageUsageBytes(1000)),
         );
 
         let (got, err) = d.usage(Duration::new(0)).await;
         assert!(err.is_none());
-        let want = DiskUsage {
+        let want = StorageUsage {
             used: 1000,
             percent: f32::INFINITY,
         };

@@ -632,7 +632,7 @@ impl MsgLogger for RecorderMsgLogger {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{DummyDisk, DummyLogger, time::MINUTE};
+    use common::{DummyLogger, DummyStorage, time::MINUTE};
     use pretty_assertions::assert_eq;
     use std::path::Path;
     use tempfile::tempdir;
@@ -935,7 +935,7 @@ mod tests {
         RecDb::new(
             DummyLogger::new(),
             recordings_dir.to_path_buf(),
-            DummyDisk::new(),
+            DummyStorage::new(),
         )
     }
 

@@ -847,26 +847,29 @@ pub async fn create_dir_all2(rt_handle: Handle, path: PathBuf) -> std::io::Resul
         .expect("join")
 }
 
-pub type ArcDisk = Arc<dyn Disk + Send + Sync>;
+pub type ArcStorage = Arc<dyn Storage + Send + Sync>;
 
 #[async_trait]
-pub trait Disk {
+pub trait Storage {
     // Iterates over every file in the storage directory (expensive).
     async fn usage(
         &self,
         max_age: Duration,
-    ) -> (Result<DiskUsage, DiskUsageError>, Option<UsageBytesError>);
+    ) -> (
+        Result<StorageUsage, StorageUsageError>,
+        Option<UsageBytesError>,
+    );
 
     // Returns cached value and age if available.
-    async fn usage_cached(&self) -> Option<(DiskUsage, Duration)>;
+    async fn usage_cached(&self) -> Option<(StorageUsage, Duration)>;
 
     fn max_usage(&self) -> ByteSize;
 }
 
-// DiskUsage in Bytes.
+// Storage usage in Bytes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
-pub struct DiskUsage {
+pub struct StorageUsage {
     pub used: u64,
     pub percent: f32,
     //pub max: ByteSize,
@@ -874,7 +877,7 @@ pub struct DiskUsage {
 }
 
 #[derive(Debug, Error)]
-pub enum DiskUsageError {
+pub enum StorageUsageError {
     #[error("sub")]
     Sub,
 }
@@ -891,30 +894,33 @@ pub enum UsageBytesError {
     Metadata(std::io::Error, PathBuf),
 }
 
-pub struct DummyDisk;
+pub struct DummyStorage;
 
-impl DummyDisk {
+impl DummyStorage {
     #[must_use]
     pub fn new() -> Arc<Self> {
-        Arc::new(DummyDisk {})
+        Arc::new(DummyStorage {})
     }
 }
 
 #[async_trait]
-impl Disk for DummyDisk {
+impl Storage for DummyStorage {
     async fn usage(
         &self,
         _: Duration,
-    ) -> (Result<DiskUsage, DiskUsageError>, Option<UsageBytesError>) {
+    ) -> (
+        Result<StorageUsage, StorageUsageError>,
+        Option<UsageBytesError>,
+    ) {
         (
-            Ok(DiskUsage {
+            Ok(StorageUsage {
                 used: 0,
                 percent: 0.0,
             }),
             None,
         )
     }
-    async fn usage_cached(&self) -> Option<(DiskUsage, Duration)> {
+    async fn usage_cached(&self) -> Option<(StorageUsage, Duration)> {
         None
     }
     fn max_usage(&self) -> ByteSize {

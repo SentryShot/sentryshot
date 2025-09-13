@@ -658,7 +658,7 @@ impl MonitorManagerState {
 mod tests {
     use super::*;
     use common::{
-        ArcStreamerMuxer, DummyDisk, DummyLogger, DynError, H264Data, MonitorName,
+        ArcStreamerMuxer, DummyLogger, DummyStorage, DynError, H264Data, MonitorName,
         ParseMonitorIdError, TrackParameters,
         monitor::{
             Config, DummyMonitorHooks, DynH264Writer, Protocol, SelectedSource, SourceConfig,
@@ -729,7 +729,7 @@ mod tests {
         RecDb::new(
             DummyLogger::new(),
             recordings_dir.to_path_buf(),
-            DummyDisk::new(),
+            DummyStorage::new(),
         )
     }
 
