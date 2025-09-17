@@ -276,7 +276,135 @@ async fn parse_detector_configs(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::StubFetcher;
+    use common::DummyLogger;
     use pretty_assertions::assert_eq;
+    use tempfile::tempdir;
+    use tokio::runtime::Handle;
+    use tokio_util::task::TaskTracker;
+
+    #[tokio::test]
+    async fn test_detector_manager() {
+        let fetcher = StubFetcher::new(HashMap::from([
+            ("https://test.com/model.tflite".parse().unwrap(), vec![0]),
+            (
+                "https://test.com/labels.txt".parse().unwrap(),
+                "0 person".as_bytes().to_owned(),
+            ),
+        ]));
+
+        let temp_dir = tempdir().unwrap();
+        let config_dir = temp_dir.path();
+        std::fs::write(
+            config_dir.join("object_detection.toml"),
+            "
+[[detector_tflite]]
+enable = true
+name = \"test\"
+width = 340
+height = 340
+model = \"https://test.com/model.tflite\"
+sha256sum = \"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d\"
+label_map = \"https://test.com/labels.txt\"
+threads = 1
+            ",
+        )
+        .unwrap();
+
+        let result = DetectorManager::new(
+            Handle::current(),
+            TaskTracker::new().token(),
+            DummyLogger::new(),
+            Box::new(fetcher),
+            config_dir,
+            temp_dir.path().to_path_buf(),
+        )
+        .await;
+
+        match result {
+            Err(DetectorManagerError::LoadTfliteBackend(_)) => {}
+            Err(e) => panic!("wrong error {e:?}"),
+            _ => panic!("expected error"),
+        };
+    }
+
+    #[tokio::test]
+    async fn test_detector_manager_bad_files() {
+        // Check if bad files are ignored.
+        let fetcher = StubFetcher::new(HashMap::new());
+
+        let temp_dir = tempdir().unwrap();
+        let config_dir = temp_dir.path();
+        std::fs::write(config_dir.join("object_detection.toml"), "").unwrap();
+
+        let models_dir = config_dir.join(".tflite").join("models");
+        std::fs::create_dir_all(&models_dir).unwrap();
+        std::fs::write(models_dir.join("bad"), [0]).unwrap();
+
+        DetectorManager::new(
+            Handle::current(),
+            TaskTracker::new().token(),
+            DummyLogger::new(),
+            Box::new(fetcher),
+            config_dir,
+            temp_dir.path().to_path_buf(),
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_detector_manager_tmp_file_already_exist() {
+        let fetcher = StubFetcher::new(HashMap::from([
+            ("https://test.com/model.tflite".parse().unwrap(), vec![0]),
+            (
+                "https://test.com/labels.txt".parse().unwrap(),
+                "0 person".as_bytes().to_owned(),
+            ),
+        ]));
+
+        let temp_dir = tempdir().unwrap();
+        let config_dir = temp_dir.path();
+        std::fs::write(
+            config_dir.join("object_detection.toml"),
+            "
+[[detector_tflite]]
+enable = true
+name = \"test\"
+width = 340
+height = 340
+model = \"https://test.com/model.tflite\"
+sha256sum = \"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d\"
+label_map = \"https://test.com/labels.txt\"
+threads = 1
+            ",
+        )
+        .unwrap();
+
+        let models_dir = config_dir.join(".tflite").join("models");
+        std::fs::create_dir_all(&models_dir).unwrap();
+        std::fs::write(
+            models_dir.join("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d.tmp"),
+            [0],
+        )
+        .unwrap();
+
+        let result = DetectorManager::new(
+            Handle::current(),
+            TaskTracker::new().token(),
+            DummyLogger::new(),
+            Box::new(fetcher),
+            config_dir,
+            temp_dir.path().to_path_buf(),
+        )
+        .await;
+
+        match result {
+            Err(DetectorManagerError::LoadTfliteBackend(_)) => {}
+            Err(e) => panic!("wrong error {e:?}"),
+            _ => panic!("expected error"),
+        };
+    }
 
     #[test]
     fn test_parse_detector_config() {

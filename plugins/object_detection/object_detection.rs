@@ -47,6 +47,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+
 use thiserror::Error;
 use tokio::runtime::Handle;
 use tokio_util::{sync::CancellationToken, task::task_tracker::TaskTrackerToken};
@@ -746,6 +747,35 @@ pub enum FetchError {
 
     #[error("collect: {0}")]
     Collect(hyper::Error),
+}
+
+#[cfg(test)]
+use std::collections::HashMap;
+
+#[cfg(test)]
+struct StubFetcher(HashMap<Url, Vec<u8>>);
+
+#[cfg(test)]
+impl StubFetcher {
+    fn new(stub: HashMap<Url, Vec<u8>>) -> Self {
+        Self(stub)
+    }
+}
+
+#[cfg(test)]
+#[async_trait]
+impl Fetcher for StubFetcher {
+    async fn fetch(&self, url: &Url) -> Result<Vec<u8>, FetchError> {
+        Ok(self
+            .0
+            .get(url)
+            .unwrap_or_else(|| panic!("url not found: {url}"))
+            .clone())
+    }
+
+    fn clone(&self) -> Box<dyn Fetcher> {
+        Box::new(Self(self.0.clone()))
+    }
 }
 
 struct ObjectDetectionLogger {

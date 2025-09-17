@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use crate::{FetchError, Fetcher};
+use crate::{DynFetcher, FetchError, Fetcher};
 use common::{ArcMsgLogger, LogLevel, write_file_atomic};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -48,12 +48,15 @@ pub(crate) enum ModelCacheError {
 
     #[error("write file: {0}")]
     WriteFile(std::io::Error),
+
+    #[error("remove temp file: {0}")]
+    RemoveTempFile(std::io::Error),
 }
 
 impl ModelCache {
     pub(crate) fn new(
         logger: ArcMsgLogger,
-        fetcher: Box<dyn Fetcher>,
+        fetcher: DynFetcher,
         path: PathBuf,
     ) -> Result<Self, CreateModelCacheError> {
         use CreateModelCacheError::*;
@@ -65,7 +68,16 @@ impl ModelCache {
                 .to_str()
                 .ok_or_else(|| ParseFileName(entry.file_name()))?
                 .to_owned();
-            let checksum: ModelChecksum = file_name.parse()?;
+            let checksum: ModelChecksum = match file_name.parse() {
+                Ok(v) => v,
+                Err(e) => {
+                    logger.log(
+                        LogLevel::Warning,
+                        &format!("failed to parse filename checksum: {e} {file_name}"),
+                    );
+                    continue;
+                }
+            };
             models.insert(checksum, entry.path());
         }
         Ok(Self {
@@ -99,8 +111,11 @@ impl ModelCache {
 
         let mut temp_path = file_path.clone();
         temp_path.set_extension("tmp");
+        if temp_path.exists() {
+            std::fs::remove_file(&temp_path).map_err(RemoveTempFile)?;
+        }
 
-        write_file_atomic(&self.path, &temp_path, &raw_model).map_err(WriteFile)?;
+        write_file_atomic(&file_path, &temp_path, &raw_model).map_err(WriteFile)?;
         Ok(file_path)
     }
 }

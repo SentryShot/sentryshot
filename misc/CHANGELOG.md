@@ -1,5 +1,6 @@
 ## unreleased
 
+-   fix object detection model downloads #87
 -   add `WEEK_START=sunday` environment variable
 -   fix live page fullscreen button
 
