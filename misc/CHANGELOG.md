@@ -1,4 +1,6 @@
-## unreleased
+## unreleased]
+
+## `v0.3.6`
 
 -   fix object detection model downloads #87
 -   add `WEEK_START=sunday` environment variable
