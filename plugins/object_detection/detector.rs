@@ -17,7 +17,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use thiserror::Error;
-use tokio::{runtime::Handle, sync::mpsc};
+use tokio::runtime::Handle;
+use tokio_util::task::task_tracker::TaskTrackerToken;
 use url::Url;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Eq)]
@@ -116,7 +117,7 @@ pub(crate) enum DetectorManagerError {
 impl DetectorManager {
     pub(crate) async fn new(
         rt_handle: Handle,
-        shutdown_complete_tx: mpsc::Sender<()>,
+        task_token: TaskTrackerToken,
         logger: ArcMsgLogger,
         fetcher: DynFetcher,
         config_dir: &Path,
@@ -154,7 +155,7 @@ impl DetectorManager {
 
         parse_detector_configs(
             &mut backend_loader,
-            shutdown_complete_tx,
+            task_token,
             logger,
             &mut model_cache,
             &mut label_cache,
@@ -181,7 +182,7 @@ pub(crate) fn write_detector_config(path: &Path) -> Result<(), std::io::Error> {
 
 async fn parse_detector_configs(
     backend_loader: &mut BackendLoader,
-    shutdown_complete_tx: mpsc::Sender<()>,
+    task_token: TaskTrackerToken,
     logger: ArcMsgLogger,
     model_cache: &mut ModelCache,
     label_cache: &mut LabelCache,
@@ -213,7 +214,7 @@ async fn parse_detector_configs(
         let detector = backend_loader
             .tflite_backend()?
             .new_tflite_detector(
-                &shutdown_complete_tx,
+                &task_token,
                 &logger,
                 &cpu.name,
                 cpu.width,
@@ -251,7 +252,7 @@ async fn parse_detector_configs(
         let detector = backend_loader
             .tflite_backend()?
             .new_edgetpu_detector(
-                shutdown_complete_tx.clone(),
+                task_token.clone(),
                 &logger,
                 &edgetpu.name,
                 edgetpu.width,

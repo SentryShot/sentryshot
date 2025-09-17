@@ -19,8 +19,8 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
-use tokio::{self, runtime::Handle, sync::mpsc};
-use tokio_util::sync::CancellationToken;
+use tokio::{self, runtime::Handle};
+use tokio_util::{sync::CancellationToken, task::task_tracker::TaskTrackerToken};
 use types::{Assets, NewAuthFn, Router, Templates};
 
 pub trait PreLoadPlugin {
@@ -65,7 +65,7 @@ pub trait Application {
     fn auth(&self) -> ArcAuth;
     fn monitor_manager(&self) -> ArcMonitorManager;
     fn storage(&self) -> ArcStorage;
-    fn shutdown_complete_tx(&self) -> mpsc::Sender<()>;
+    fn task_token(&self) -> TaskTrackerToken;
     fn logger(&self) -> ArcLogger;
     fn env(&self) -> DynEnvConfig;
 }

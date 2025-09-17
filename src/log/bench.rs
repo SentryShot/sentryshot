@@ -16,9 +16,9 @@ use std::{num::NonZeroUsize, path::Path};
 use tempfile::tempdir;
 use tokio::{
     runtime::{Handle, Runtime},
-    sync::{RwLock, mpsc},
+    sync::RwLock,
 };
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 pub fn logdb_insert(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
@@ -95,11 +95,10 @@ struct Helper {
 impl Helper {
     fn new(rt_handle: &Handle, log_dir: &Path) -> Self {
         let token = CancellationToken::new();
-        let (shutdown_complete_tx, _) = mpsc::channel::<()>(1);
         let _enter = rt_handle.enter();
         let db = LogDb::new(
             token.child_token(),
-            shutdown_complete_tx,
+            TaskTracker::new().token(),
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(0),

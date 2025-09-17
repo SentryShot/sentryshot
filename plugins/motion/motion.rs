@@ -34,8 +34,8 @@ use sentryshot_convert::{
 use sentryshot_util::ImageCopyToBufferError;
 use std::{borrow::Cow, ffi::c_char, sync::Arc, time::Duration};
 use thiserror::Error;
-use tokio::{runtime::Handle, sync::mpsc};
-use tokio_util::sync::CancellationToken;
+use tokio::runtime::Handle;
+use tokio_util::{sync::CancellationToken, task::task_tracker::TaskTrackerToken};
 use zone::Zones;
 
 #[unsafe(no_mangle)]
@@ -59,7 +59,7 @@ impl PreLoadPlugin for PreLoadMotion {
 pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
     Arc::new(MotionPlugin {
         rt_handle: app.rt_handle(),
-        _shutdown_complete_tx: app.shutdown_complete_tx(),
+        _task_token: app.task_token(),
         logger: app.logger(),
         monitor_manager: app.monitor_manager(),
     })
@@ -67,7 +67,7 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
 
 pub struct MotionPlugin {
     rt_handle: Handle,
-    _shutdown_complete_tx: mpsc::Sender<()>,
+    _task_token: TaskTrackerToken,
     logger: ArcLogger,
     monitor_manager: ArcMonitorManager,
 }

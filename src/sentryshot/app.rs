@@ -41,9 +41,12 @@ use tokio::{
     net::TcpListener,
     runtime::Handle,
     signal,
-    sync::{Mutex, mpsc, oneshot},
+    sync::{Mutex, oneshot},
 };
-use tokio_util::sync::CancellationToken;
+use tokio_util::{
+    sync::CancellationToken,
+    task::{TaskTracker, task_tracker::TaskTrackerToken},
+};
 use vod::VodCache;
 use web::{Templater, minify};
 
@@ -92,9 +95,10 @@ pub async fn run(rt_handle: Handle, config_path: &PathBuf) -> Result<(), RunErro
     app.setup_routes(&mut plugin_manager)?;
 
     // Run app.
-    let mut shutdown_complete_rx = app.run(plugin_manager).await?;
+    let tracker = app.run(plugin_manager).await?;
     // Block until app stops.
-    shutdown_complete_rx.recv().await;
+    tracker.close();
+    tracker.wait().await;
 
     Ok(())
 }
@@ -104,8 +108,7 @@ pub struct App {
     token: CancellationToken,
     env: EnvConf,
     logger: Arc<Logger>,
-    shutdown_complete_tx: mpsc::Sender<()>,
-    shutdown_complete_rx: mpsc::Receiver<()>,
+    tracker: TaskTracker,
     log_db: LogDb,
     auth: ArcAuth,
     streamer: Streamer,
@@ -141,7 +144,7 @@ impl App {
         let env = EnvConf::new(config_path)?;
 
         let pre_loaded_plugins = pre_load_plugins(env.plugin_dir(), env.plugins())?;
-        let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel::<()>(1);
+        let tracker = TaskTracker::new();
 
         let logger = Arc::new(Logger::new(
             pre_loaded_plugins.log_sources().to_owned(),
@@ -151,7 +154,7 @@ impl App {
         let log_dir = env.storage_dir().join("logs");
         let log_db = LogDb::new(
             token.child_token(),
-            shutdown_complete_tx.clone(),
+            tracker.token(),
             log_dir,
             env.max_disk_usage(),
             ByteSize::mb(100),
@@ -186,7 +189,7 @@ impl App {
         ));
         let eventdb = EventDb::new(
             token.clone(),
-            shutdown_complete_tx.clone(),
+            tracker.token(),
             logger.clone(),
             env.storage_dir().join("eventdb"),
         );
@@ -211,8 +214,7 @@ impl App {
                 token,
                 env,
                 logger,
-                shutdown_complete_tx,
-                shutdown_complete_rx,
+                tracker,
                 log_db,
                 auth,
                 streamer,
@@ -423,16 +425,16 @@ impl App {
     }
 
     // `App` must be dropped when this returns.
-    pub async fn run(self, plugin_manager: PluginManager) -> Result<mpsc::Receiver<()>, RunError> {
+    pub async fn run(self, plugin_manager: PluginManager) -> Result<TaskTracker, RunError> {
         let token2 = self.token.clone();
-        let shutdown_complete = self.shutdown_complete_tx.clone();
+        let task_token = self.tracker.token();
         let logger = self.logger.clone();
         let recdb = self.recdb.clone();
         let eventdb = self.eventdb.clone();
         tokio::spawn(async move {
             prune_loop(
                 token2,
-                shutdown_complete,
+                task_token,
                 logger,
                 recdb,
                 eventdb,
@@ -457,11 +459,11 @@ impl App {
             .await?;
 
         let token = self.token.clone();
-        let shutdown_complete_tx = self.shutdown_complete_tx.clone();
+        let task_token = self.tracker.token();
         tokio::spawn(async move {
             token.cancelled().await;
             self.monitor_manager.cancel().await;
-            drop(shutdown_complete_tx);
+            drop(task_token);
         });
 
         let (server_exited_tx, server_exited_rx) = oneshot::channel();
@@ -469,7 +471,7 @@ impl App {
 
         tokio::spawn(start_server(
             self.token.child_token(),
-            self.shutdown_complete_tx.clone(),
+            self.tracker.token(),
             server_exited_tx,
             addr,
             self.router,
@@ -496,7 +498,7 @@ impl App {
             self.token.cancel();
         });
 
-        Ok(self.shutdown_complete_rx)
+        Ok(self.tracker)
     }
 
     fn log(&self, level: LogLevel, msg: &str) {
@@ -520,8 +522,8 @@ impl Application for App {
     fn storage(&self) -> ArcStorage {
         self.storage.clone()
     }
-    fn shutdown_complete_tx(&self) -> mpsc::Sender<()> {
-        self.shutdown_complete_tx.clone()
+    fn task_token(&self) -> TaskTrackerToken {
+        self.tracker.token()
     }
     fn logger(&self) -> common::ArcLogger {
         self.logger.clone()
@@ -542,7 +544,7 @@ enum ServerError {
 
 async fn start_server(
     token: CancellationToken,
-    _shutdown_complete: mpsc::Sender<()>,
+    _task_token: TaskTrackerToken,
     on_exit: oneshot::Sender<Result<(), ServerError>>,
     addr: SocketAddr,
     router: Router,
@@ -561,7 +563,7 @@ async fn start_server(
 
 pub async fn prune_loop(
     token: CancellationToken,
-    _shutdown_complete: mpsc::Sender<()>,
+    _task_token: TaskTrackerToken,
     logger: ArcLogger,
     recdb: Arc<RecDb>,
     eventdb: EventDb,

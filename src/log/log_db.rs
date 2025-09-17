@@ -23,10 +23,10 @@ use thiserror::Error;
 use tokio::{
     fs::File,
     io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt},
-    sync::{Mutex, broadcast, mpsc},
+    sync::{Mutex, broadcast},
     time::Instant,
 };
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::task_tracker::TaskTrackerToken};
 
 // chunk {
 //     file.data
@@ -77,7 +77,7 @@ impl LogDb {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(
         token: CancellationToken,
-        shutdown_complete: mpsc::Sender<()>,
+        task_token: TaskTrackerToken,
         log_dir: PathBuf,
         disk_space: ByteSize,
         min_disk_usage: ByteSize,
@@ -94,7 +94,7 @@ impl LogDb {
                 log_dir,
                 cache_capacity,
                 write_buf_capacify,
-                shutdown_complete,
+                task_token,
             ))),
             disk_space,
             min_disk_usage,
@@ -229,7 +229,7 @@ pub struct LogDbWriter {
     write_buf_capacify: usize,
 
     cancelled: bool,
-    _shutdown_complete: mpsc::Sender<()>,
+    _task_token: TaskTrackerToken,
 }
 
 impl LogDbWriter {
@@ -238,7 +238,7 @@ impl LogDbWriter {
         log_dir: PathBuf,
         cache_capacity: usize,
         write_buf_capacify: usize,
-        shutdown_complete: mpsc::Sender<()>,
+        task_token: TaskTrackerToken,
     ) -> Self {
         Self {
             log_dir,
@@ -248,7 +248,7 @@ impl LogDbWriter {
             cache_capacity,
             write_buf_capacify,
             cancelled: false,
-            _shutdown_complete: shutdown_complete,
+            _task_token: task_token,
         }
     }
 
@@ -1264,16 +1264,16 @@ mod tests {
     use std::io::Cursor;
     use tempfile::tempdir;
     use test_case::test_case;
+    use tokio_util::task::TaskTracker;
 
     fn new_test_db(log_dir: &Path) -> (LogDb, CancellationToken) {
         new_test_db2(log_dir, 0)
     }
     fn new_test_db2(log_dir: &Path, cache_cap: usize) -> (LogDb, CancellationToken) {
         let token = CancellationToken::new();
-        let (shutdown_complete_tx, _) = mpsc::channel::<()>(1);
         let db = LogDb::new(
             token.child_token(),
-            shutdown_complete_tx,
+            TaskTracker::new().token(),
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(0),
@@ -1743,7 +1743,7 @@ mod tests {
     #[tokio::test]
     async fn test_new_store_mkdir() {
         let token = CancellationToken::new();
-        let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
+        let tracker = TaskTracker::new();
         let temp_dir = tempdir().unwrap();
 
         let new_dir = temp_dir.path().join("test");
@@ -1751,7 +1751,7 @@ mod tests {
 
         LogDb::new(
             token.child_token(),
-            shutdown_complete_tx,
+            tracker.token(),
             new_dir.clone(),
             ByteSize(0),
             ByteSize(0),
@@ -1759,11 +1759,12 @@ mod tests {
             0,
         )
         .unwrap();
+        tracker.close();
 
         std::fs::metadata(new_dir).unwrap();
 
         token.cancel();
-        let _ = shutdown_complete_rx.recv().await;
+        tracker.wait().await;
     }
 
     fn test_entry() -> LogEntryWithTime {
@@ -1877,10 +1878,10 @@ mod tests {
         let log_dir = temp_dir.path();
 
         let token = CancellationToken::new();
-        let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
+        let tracker = TaskTracker::new();
         let db = LogDb::new(
             token.child_token(),
-            shutdown_complete_tx,
+            tracker.token(),
             log_dir.to_owned(),
             ByteSize::kb(10),
             ByteSize(0),
@@ -1888,6 +1889,7 @@ mod tests {
             0,
         )
         .unwrap();
+        tracker.close();
 
         write_test_chunk(log_dir, "00000");
         write_test_chunk(log_dir, "11111");
@@ -1907,7 +1909,7 @@ mod tests {
 
         drop(db);
         token.cancel();
-        _ = shutdown_complete_rx.recv().await;
+        tracker.wait().await;
     }
 
     #[tokio::test]
@@ -1916,10 +1918,10 @@ mod tests {
         let log_dir = temp_dir.path();
 
         let token = CancellationToken::new();
-        let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
+        let tracker = TaskTracker::new();
         let db = LogDb::new(
             token.child_token(),
-            shutdown_complete_tx,
+            tracker.token(),
             log_dir.to_owned(),
             ByteSize::kb(10),
             ByteSize(0),
@@ -1927,6 +1929,7 @@ mod tests {
             0,
         )
         .unwrap();
+        tracker.close();
 
         write_test_chunk(log_dir, "00000");
         write_test_chunk(log_dir, "11111");
@@ -1938,7 +1941,7 @@ mod tests {
 
         drop(db);
         token.cancel();
-        _ = shutdown_complete_rx.recv().await;
+        tracker.wait().await;
     }
 
     #[tokio::test]
@@ -1947,10 +1950,10 @@ mod tests {
         let log_dir = temp_dir.path();
 
         let token = CancellationToken::new();
-        let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
+        let tracker = TaskTracker::new();
         let db = LogDb::new(
             token.child_token(),
-            shutdown_complete_tx,
+            tracker.token(),
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(100),
@@ -1958,6 +1961,7 @@ mod tests {
             0,
         )
         .unwrap();
+        tracker.close();
 
         write_test_chunk(log_dir, "00000");
         write_test_chunk(log_dir, "11111");
@@ -1969,7 +1973,7 @@ mod tests {
 
         drop(db);
         token.cancel();
-        _ = shutdown_complete_rx.recv().await;
+        tracker.wait().await;
     }
 
     #[tokio::test]
@@ -1978,10 +1982,10 @@ mod tests {
         let log_dir = temp_dir.path();
 
         let token = CancellationToken::new();
-        let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
+        let tracker = TaskTracker::new();
         let db = LogDb::new(
             token.child_token(),
-            shutdown_complete_tx,
+            tracker.token(),
             log_dir.to_owned(),
             ByteSize(0),
             ByteSize(0),
@@ -1989,13 +1993,14 @@ mod tests {
             0,
         )
         .unwrap();
+        tracker.close();
 
         assert_eq!(0, chunk_count(log_dir).await);
         db.prune().await.unwrap();
 
         drop(db);
         token.cancel();
-        _ = shutdown_complete_rx.recv().await;
+        tracker.wait().await;
     }
     /*
         t.Run("diskSpaceErr", func(t *testing.T) {

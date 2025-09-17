@@ -28,18 +28,18 @@ use thiserror::Error;
 use tokio::{
     self,
     runtime::Handle,
-    sync::{Mutex, mpsc, oneshot},
+    sync::{mpsc, oneshot},
 };
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 type Monitors = HashMap<MonitorId, Arc<Monitor>>;
 pub struct Monitor {
     token: CancellationToken,
+    tracker: TaskTracker,
     id: MonitorId,
     eventdb: EventDb,
     hooks: ArcMonitorHooks,
     config: MonitorConfig,
-    shutdown_complete: Mutex<mpsc::Receiver<()>>,
     source_main_tx: mpsc::Sender<oneshot::Sender<ArcSource>>,
     source_sub_tx: mpsc::Sender<oneshot::Sender<Option<ArcSource>>>,
     send_event_tx: mpsc::Sender<(Duration, Event)>,
@@ -53,7 +53,7 @@ impl MonitorImpl for Monitor {
 
     async fn stop(&self) {
         self.token.cancel();
-        self.shutdown_complete.lock().await.recv().await;
+        self.tracker.wait().await;
     }
 
     // Return sub stream if it exists otherwise returns main stream.
@@ -544,13 +544,13 @@ impl MonitorManagerState {
         self.log(LogLevel::Info, &id, "starting");
 
         let monitor_token = self.token.child_token();
-        let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel(1);
+        let tracker = TaskTracker::new();
 
         let (source_main, source_sub): (ArcSource, Option<ArcSource>) = match config.source() {
             SourceConfig::Rtsp(conf) => {
                 let source_main = SourceRtsp::new(
                     monitor_token.child_token(),
-                    shutdown_complete_tx.clone(),
+                    tracker.token(),
                     self.logger.clone(),
                     self.streamer.clone(),
                     id.clone(),
@@ -561,7 +561,7 @@ impl MonitorManagerState {
 
                 let source_sub = SourceRtsp::new(
                     monitor_token.child_token(),
-                    shutdown_complete_tx.clone(),
+                    tracker.token(),
                     self.logger.clone(),
                     self.streamer.clone(),
                     id.clone(),
@@ -581,7 +581,7 @@ impl MonitorManagerState {
 
         let send_event_tx = new_recorder(
             monitor_token.clone(),
-            shutdown_complete_tx.clone(),
+            tracker.token(),
             self.hooks.clone(),
             self.logger.clone(),
             id.clone(),
@@ -595,20 +595,21 @@ impl MonitorManagerState {
 
         let monitor = Arc::new(Monitor {
             token: monitor_token.clone(),
+            tracker: tracker.clone(),
             id: id.clone(),
             eventdb: self.eventdb.clone(),
             hooks: self.hooks.clone(),
             config: config.clone(),
-            shutdown_complete: Mutex::new(shutdown_complete_rx),
             source_main_tx,
             source_sub_tx,
             send_event_tx,
         });
+        tracker.close();
 
         // Monitor actor.
         let monitor_token2 = monitor_token.clone();
         tokio::spawn(async move {
-            let _shutdown_complete = shutdown_complete_tx;
+            let _task_token = tracker.token();
             loop {
                 tokio::select! {
                     () = monitor_token2.cancelled() => return,
@@ -671,6 +672,7 @@ mod tests {
     use std::{fs, path::PathBuf};
     use tempfile::TempDir;
     use test_case::test_case;
+    use tokio_util::task::TaskTracker;
 
     #[test_case("", ParseMonitorIdError::Empty; "empty")]
     #[test_case("@", ParseMonitorIdError::InvalidChars("@".to_owned()); "invalid_chars")]
@@ -734,10 +736,9 @@ mod tests {
     }
 
     fn new_test_eventdb(events_dir: &Path) -> EventDb {
-        let (shutdown_complete_tx, _) = mpsc::channel(1);
         EventDb::new(
             CancellationToken::new(),
-            shutdown_complete_tx,
+            TaskTracker::new().token(),
             DummyLogger::new(),
             events_dir.to_path_buf(),
         )

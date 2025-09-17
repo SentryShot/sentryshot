@@ -11,7 +11,7 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
-use tokio::sync::mpsc;
+use tokio_util::task::task_tracker::TaskTrackerToken;
 
 pub type ArcTfliteDetector = Arc<dyn TfliteDetector + Send + Sync>;
 
@@ -28,7 +28,7 @@ pub trait TfliteBackend {
     #[allow(clippy::too_many_arguments)]
     fn new_tflite_detector(
         &self,
-        shutdown_complete_tx: &mpsc::Sender<()>,
+        task_tracker: &TaskTrackerToken,
         logger: &ArcMsgLogger,
         name: &DetectorName,
         width: NonZeroU16,
@@ -42,7 +42,7 @@ pub trait TfliteBackend {
     #[allow(clippy::too_many_arguments)]
     fn new_edgetpu_detector(
         &mut self,
-        shutdown_complete_tx: mpsc::Sender<()>,
+        task_tracker: TaskTrackerToken,
         logger: &ArcMsgLogger,
         name: &DetectorName,
         width: NonZeroU16,

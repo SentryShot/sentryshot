@@ -15,10 +15,8 @@ use tflite_lib::{
     list_edgetpu_devices,
 };
 use thiserror::Error;
-use tokio::{
-    runtime::Handle,
-    sync::{mpsc, oneshot},
-};
+use tokio::{runtime::Handle, sync::oneshot};
+use tokio_util::task::task_tracker::TaskTrackerToken;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn version() -> *const c_char {
@@ -43,7 +41,7 @@ impl TfliteBackend for TfliteBackendImpl {
     #[allow(clippy::too_many_arguments)]
     fn new_tflite_detector(
         &self,
-        shutdown_complete_tx: &mpsc::Sender<()>,
+        task_token: &TaskTrackerToken,
         logger: &ArcMsgLogger,
         name: &DetectorName,
         width: NonZeroU16,
@@ -56,7 +54,7 @@ impl TfliteBackend for TfliteBackendImpl {
         let (detect_tx, detect_rx) = async_channel::bounded::<DetectRequest>(1);
         for i in 0..threads.get() {
             logger.log(LogLevel::Info, &format!("starting detector '{name}' T{i}"));
-            let shutdown_complete_tx = shutdown_complete_tx.clone();
+            let task_token = task_token.clone();
             let rt_handle2 = self.rt_handle.clone();
             let detect_rx = detect_rx.clone();
             let mut detector = tflite_lib::TfliteDetector::new(
@@ -69,7 +67,7 @@ impl TfliteBackend for TfliteBackendImpl {
             let label_map = label_map.clone();
 
             self.rt_handle.spawn(async move {
-                let _shutdown_complete_tx = shutdown_complete_tx;
+                let _task_token = task_token;
                 while let Ok(mut req) = detect_rx.recv().await {
                     let result;
                     (detector, result) = rt_handle2
@@ -95,7 +93,7 @@ impl TfliteBackend for TfliteBackendImpl {
     #[allow(clippy::too_many_arguments)]
     fn new_edgetpu_detector(
         &mut self,
-        shutdown_complete_tx: mpsc::Sender<()>,
+        task_token: TaskTrackerToken,
         logger: &ArcMsgLogger,
         name: &DetectorName,
         width: NonZeroU16,
@@ -131,7 +129,7 @@ impl TfliteBackend for TfliteBackendImpl {
         let (detect_tx, detect_rx) = async_channel::bounded::<DetectRequest>(1);
         let rt_handle2 = self.rt_handle.clone();
         self.rt_handle.spawn(async move {
-            let _shutdown_complete_tx = shutdown_complete_tx;
+            let _task_token = task_token;
             while let Ok(mut req) = detect_rx.recv().await {
                 let result;
                 (detector, result) = rt_handle2

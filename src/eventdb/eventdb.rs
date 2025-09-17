@@ -16,8 +16,9 @@ use database::list_chunks;
 use database::time_to_id;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use thiserror::Error;
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
+use tokio_util::task::task_tracker::TaskTrackerToken;
 
 #[derive(Clone)]
 pub struct EventDb {
@@ -27,14 +28,14 @@ pub struct EventDb {
     // Each monitor has its own database.
     databases: Arc<Mutex<Option<HashMap<MonitorId, Database>>>>,
 
-    shutdown_complete: mpsc::Sender<()>,
+    task_token: TaskTrackerToken,
 }
 
 impl EventDb {
     #[must_use]
     pub fn new(
         token: CancellationToken,
-        shutdown_complete: mpsc::Sender<()>,
+        task_token: TaskTrackerToken,
         logger: ArcLogger,
         path: PathBuf,
     ) -> Self {
@@ -50,7 +51,7 @@ impl EventDb {
             logger,
             path,
             databases,
-            shutdown_complete,
+            task_token,
         }
     }
 
@@ -105,7 +106,7 @@ impl EventDb {
 
         let logger = EventDbLogger::new(self.logger.clone(), monitor_id.clone());
         let db = Database::new(
-            self.shutdown_complete.clone(),
+            self.task_token.clone(),
             logger,
             self.path.join(monitor_id.to_string()),
             128,
@@ -207,6 +208,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use std::path::Path;
     use tempfile::tempdir;
+    use tokio_util::task::TaskTracker;
 
     fn test_event(time: i64) -> Event {
         Event {
@@ -221,13 +223,14 @@ mod tests {
     async fn test_prune() {
         let temp_dir = tempdir().unwrap();
         let token = CancellationToken::new();
-        let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel(1);
+        let tracker = TaskTracker::new();
         let eventdb = EventDb::new(
             token.clone(),
-            shutdown_complete_tx,
+            tracker.token(),
             DummyLogger::new(),
             temp_dir.path().to_path_buf(),
         );
+        tracker.close();
 
         assert!(list_files(temp_dir.path()).is_empty());
         eventdb.write_test("db1", test_event(1)).await;
@@ -277,7 +280,7 @@ mod tests {
 
         token.cancel();
         drop(eventdb);
-        _ = shutdown_complete_rx.recv().await;
+        tracker.wait().await;
     }
 
     fn list_files(path: &Path) -> Vec<String> {

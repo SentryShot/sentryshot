@@ -48,8 +48,8 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
-use tokio::{runtime::Handle, sync::mpsc};
-use tokio_util::sync::CancellationToken;
+use tokio::runtime::Handle;
+use tokio_util::{sync::CancellationToken, task::task_tracker::TaskTrackerToken};
 use url::Url;
 
 #[unsafe(no_mangle)]
@@ -75,7 +75,7 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
         Arc::new(
             ObjectDetectionPlugin::new(
                 app.rt_handle(),
-                app.shutdown_complete_tx(),
+                app.task_token(),
                 app.logger(),
                 app.env(),
                 app.monitor_manager(),
@@ -87,7 +87,7 @@ pub extern "Rust" fn load(app: &dyn Application) -> Arc<dyn Plugin> {
 
 pub struct ObjectDetectionPlugin {
     rt_handle: Handle,
-    _shutdown_complete_tx: mpsc::Sender<()>,
+    _task_token: TaskTrackerToken,
     logger: ArcLogger,
     monitor_manager: ArcMonitorManager,
     detector_manager: DetectorManager,
@@ -96,7 +96,7 @@ pub struct ObjectDetectionPlugin {
 impl ObjectDetectionPlugin {
     async fn new(
         rt_handle: Handle,
-        shutdown_complete_tx: mpsc::Sender<()>,
+        task_token: TaskTrackerToken,
         logger: ArcLogger,
         env: DynEnvConfig,
         monitor_manager: ArcMonitorManager,
@@ -106,7 +106,7 @@ impl ObjectDetectionPlugin {
         });
         let detector_manager = match DetectorManager::new(
             rt_handle.clone(),
-            shutdown_complete_tx.clone(),
+            task_token.clone(),
             object_detection_logger,
             Box::new(Fetch::new(rt_handle.clone())),
             env.config_dir(),
@@ -123,7 +123,7 @@ impl ObjectDetectionPlugin {
 
         Self {
             rt_handle,
-            _shutdown_complete_tx: shutdown_complete_tx,
+            _task_token: task_token,
             logger,
             monitor_manager,
             detector_manager,

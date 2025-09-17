@@ -26,6 +26,7 @@ use tokio::{
     runtime::Handle,
     sync::{mpsc, oneshot},
 };
+use tokio_util::task::task_tracker::TaskTrackerToken;
 
 use crate::buf_seek_reader::BufSeekReader;
 
@@ -136,7 +137,7 @@ enum DatabaseRequest {
 
 impl Database {
     pub async fn new(
-        shutdown_complete: mpsc::Sender<()>,
+        task_token: TaskTrackerToken,
         logger: ArcMsgLogger,
         db_dir: PathBuf,
         cache_capacity: usize,
@@ -162,7 +163,7 @@ impl Database {
         let mut reorder_buf = ReorderBuffer::new(logger.clone(), disable_reordering);
 
         tokio::spawn(async move {
-            let _shutdown_complete = shutdown_complete;
+            let _task_token = task_token;
             loop {
                 tokio::select! {
                     req = rx.recv() => {
@@ -1199,14 +1200,14 @@ mod tests {
     use std::io::Cursor;
     use tempfile::tempdir;
     use test_case::test_case;
+    use tokio_util::task::TaskTracker;
 
     async fn new_test_db(db_dir: &Path) -> Database {
         new_test_db2(db_dir, 0).await
     }
     async fn new_test_db2(db_dir: &Path, cache_capacity: usize) -> Database {
-        let (shutdown_complete_tx, _) = mpsc::channel::<()>(1);
         Database::new(
-            shutdown_complete_tx,
+            TaskTracker::new().token(),
             DummyLogger::new(),
             db_dir.to_owned(),
             cache_capacity,
@@ -1587,14 +1588,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_store_mkdir() {
-        let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
+        let tracker = TaskTracker::new();
         let temp_dir = tempdir().unwrap();
 
         let new_dir = temp_dir.path().join("test");
         assert!(std::fs::metadata(&new_dir).is_err());
 
         Database::new(
-            shutdown_complete_tx,
+            tracker.token(),
             DummyLogger::new(),
             new_dir.clone(),
             0,
@@ -1606,7 +1607,8 @@ mod tests {
 
         std::fs::metadata(new_dir).unwrap();
 
-        let _ = shutdown_complete_rx.recv().await;
+        tracker.close();
+        tracker.wait().await;
     }
 
     #[tokio::test]

@@ -32,7 +32,7 @@ steps:
             event: [tag]
 
     docker:
-        image: woodpeckerci/plugin-docker-buildx
+        image: woodpeckerci/plugin-docker-buildx:6
         settings:
             platforms: linux/amd64,linux/arm64
             repo: codeberg.org/sentryshot/sentryshot

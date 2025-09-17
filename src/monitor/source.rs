@@ -27,7 +27,7 @@ use tokio::{
     runtime::Handle,
     sync::{broadcast, mpsc, oneshot},
 };
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::task_tracker::TaskTrackerToken};
 use url::Url;
 
 #[allow(clippy::module_name_repetitions)]
@@ -167,7 +167,7 @@ impl SourceRtsp {
     #[allow(clippy::new_ret_no_self, clippy::too_many_arguments)]
     pub fn new(
         token: CancellationToken,
-        shutdown_complete: mpsc::Sender<()>,
+        task_token: TaskTrackerToken,
         logger: ArcLogger,
         streamer: ArcStreamer,
         monitor_id: MonitorId,
@@ -196,10 +196,10 @@ impl SourceRtsp {
 
         let (started_tx, mut started_rx) = mpsc::channel(1);
 
-        let shutdown_complete2 = shutdown_complete.clone();
+        let task_token2 = task_token.clone();
         let token2 = token.clone();
         tokio::spawn(async move {
-            let _shutdown_complete = shutdown_complete2;
+            let _task_token = task_token2;
             loop {
                 if token2.is_cancelled() {
                     source.log(LogLevel::Info, "stopped");
@@ -223,7 +223,7 @@ impl SourceRtsp {
         let (subscribe_tx, mut subscribe_rx) = mpsc::channel::<oneshot::Sender<Feed>>(1);
 
         tokio::spawn(async move {
-            let _shutdown_complete = shutdown_complete;
+            let _task_token = task_token;
             let mut muxer = None;
             let mut feed_tx = None;
             let mut get_muxer_requests: Vec<oneshot::Sender<_>> = Vec::new();

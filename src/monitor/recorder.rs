@@ -26,12 +26,12 @@ use tokio::{
     sync::{Mutex, mpsc},
     time::sleep,
 };
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::task_tracker::TaskTrackerToken};
 
 #[allow(clippy::too_many_arguments, clippy::module_name_repetitions)]
 pub fn new_recorder(
     token: CancellationToken,
-    shutdown_complete: mpsc::Sender<()>,
+    task_token: TaskTrackerToken,
     hooks: ArcMonitorHooks,
     logger: ArcLogger,
     monitor_id: MonitorId,
@@ -51,16 +51,16 @@ pub fn new_recorder(
 
     // Recorder actor.
     tokio::spawn(async move {
-        let shutdown_complete = shutdown_complete;
+        let task_token = task_token;
 
         let mut recording_session: Option<RecordingSession> = None;
         if c.config.always_record() {
             c.log(LogLevel::Debug, "alwaysRecord=true");
             recording_session = Some(RecordingSession::new(
                 &token,
+                task_token.clone(),
                 None,
                 c.clone(),
-                shutdown_complete.clone(),
             ));
         } else {
             c.log(LogLevel::Debug, "alwaysRecord=false");
@@ -129,10 +129,10 @@ pub fn new_recorder(
 
                         recording_session = Some(RecordingSession::new(
                             &token,
+                            task_token.clone(),
                             Some(end),
-                            c.clone(),
-                            shutdown_complete.clone()),
-                        );
+                            c.clone()
+                        ));
                     }
                 }
             }
@@ -152,9 +152,9 @@ struct RecordingSession {
 impl RecordingSession {
     fn new(
         parent_token: &CancellationToken,
+        task_token: TaskTrackerToken,
         timer_end: Option<UnixNano>,
         c: RecordingContext,
-        shutdown_complete: mpsc::Sender<()>,
     ) -> Self {
         c.log(LogLevel::Debug, "starting recording session");
 
@@ -170,8 +170,8 @@ impl RecordingSession {
         tokio::spawn(async move {
             run_recording_session(
                 token,
+                task_token.clone(),
                 c,
-                shutdown_complete,
                 std::time::Duration::from_secs(3),
             )
             .await;
@@ -216,8 +216,8 @@ impl Future for Sleep {
 
 async fn run_recording_session(
     session_token: CancellationToken,
+    _task_token: TaskTrackerToken,
     c: RecordingContext,
-    _shutdown_complete: mpsc::Sender<()>,
     restart_sleep: std::time::Duration,
 ) {
     loop {
