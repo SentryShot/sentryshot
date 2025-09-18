@@ -1,4 +1,6 @@
-## unreleased]
+## unreleased
+
+-   fix docker graceful shutdown #90
 
 ## `v0.3.6`
 

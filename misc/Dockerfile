@@ -1,6 +1,9 @@
 FROM debian:bookworm-slim AS base
 
-# Use "./misc/utils.sh download-debian-libusb"
+# Local build:
+#     ./misc/utils.sh build-target x86_64
+#     ./misc/utils.sh download-debian-libusb
+#     docker build -t test -f ./misc/Dockerfile .
 
 # amd64-specific stage
 FROM base AS build-amd64
@@ -15,4 +18,4 @@ COPY libusb/aarch64-linux-gnu/libusb-1.0.so.0 /usr/lib/aarch64-linux-gnu/
 # common steps
 FROM build-${TARGETARCH} AS build
 WORKDIR /app
-ENTRYPOINT /app/sentryshot run --config /app/configs/sentryshot.toml
+ENTRYPOINT ["/app/sentryshot", "run", "--config", "/app/configs/sentryshot.toml"]
