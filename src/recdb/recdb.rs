@@ -114,7 +114,7 @@ pub struct RecDb {
     logger: RecDbLogger,
     recordings_dir: PathBuf,
     crawler: Crawler,
-    disk: ArcStorage,
+    storage: ArcStorage,
 
     // There should only be one active recording per monitor.
     active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, StartAndEnd>>>,
@@ -167,12 +167,12 @@ pub enum DeleteRecordingError {
 
 impl RecDb {
     #[must_use]
-    pub fn new(logger: ArcLogger, recording_dir: PathBuf, disk: ArcStorage) -> Self {
+    pub fn new(logger: ArcLogger, recording_dir: PathBuf, storage: ArcStorage) -> Self {
         Self {
             logger: RecDbLogger(logger),
             recordings_dir: recording_dir.clone(),
             crawler: Crawler::new(dir_fs(recording_dir)),
-            disk,
+            storage,
             active_recordings: Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
     }
@@ -366,13 +366,13 @@ impl RecDb {
         .len()
     }
 
-    // Checks if disk usage is above 99% and deletes recordings until disk usage is below 98%.
+    // Checks if storage usage is above 99% and deletes recordings until storage usage is below 98%.
     // Returns timestamp of oldest recording.
     pub async fn prune(&self) -> (Option<UnixNano>, Option<PruneError>) {
-        let (usage, err) = self.disk.usage(Duration::from_minutes(9)).await;
+        let (usage, err) = self.storage.usage(Duration::from_minutes(9)).await;
         if let Some(e) = err {
             self.logger
-                .log2(LogLevel::Error, &format!("calculate disk usage: {e}"));
+                .log2(LogLevel::Error, &format!("calculate storage usage: {e}"));
         }
         let usage = match usage {
             Ok(v) => v,
@@ -380,18 +380,18 @@ impl RecDb {
         };
         self.logger.log2(
             LogLevel::Debug,
-            &format!("{:.1}% disk usage", usage.percent),
+            &format!("{:.1}% storage usage", usage.percent),
         );
         if usage.percent < 99.0 {
             return (None, None);
         }
-        let max_usage = self.disk.max_usage().0;
-        let target_disk_usage = (max_usage * 98) / 100; // 98% of max.
+        let max_usage = self.storage.max_usage().0;
+        let target_storage_usage = (max_usage * 98) / 100; // 98% of max.
         let bytes_to_delete = ByteSize(
             usage
                 .used
-                .checked_sub(target_disk_usage)
-                .expect("disk usage must be greater than target usage"),
+                .checked_sub(target_storage_usage)
+                .expect("storage usage must be greater than target usage"),
         );
         self.logger.log2(
             LogLevel::Info,
@@ -750,12 +750,12 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let recordings_dir = temp_dir.path().join("recordings");
 
-        let disk = StorageImpl::with_disk_usage(
+        let storage = StorageImpl::with_storage_usage(
             recordings_dir.clone(),
             ByteSize(100),
             Box::new(StubStorageUsageBytes(99)),
         );
-        let recdb = RecDb::new(DummyLogger::new(), recordings_dir, disk);
+        let recdb = RecDb::new(DummyLogger::new(), recordings_dir, storage);
 
         write_empty_files(temp_dir.path(), before);
         assert_eq!(before, list_empty_files(temp_dir.path()));

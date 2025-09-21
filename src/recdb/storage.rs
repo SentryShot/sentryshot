@@ -97,7 +97,7 @@ impl StorageImpl {
 
     #[must_use]
     #[cfg(test)]
-    pub(crate) fn with_disk_usage(
+    pub(crate) fn with_storage_usage(
         storage_dir: PathBuf,
         max_disk_usage: ByteSize,
         disk_usage: Box<dyn StorageBytesUsed + Send + Sync>,
@@ -256,7 +256,7 @@ mod tests {
     #[test_case( 234*TB, 1000*TB, du(234_000_000_000_000, 23.4);  "default")]
     #[tokio::test]
     async fn test_disk(used: u64, space: u64, want: StorageUsage) {
-        let d = StorageImpl::with_disk_usage(
+        let d = StorageImpl::with_storage_usage(
             PathBuf::new(),
             ByteSize(space),
             Box::new(StubStorageUsageBytes(used)),
@@ -289,7 +289,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_during_lock() {
-        let d = Arc::new(StorageImpl::with_disk_usage(
+        let d = Arc::new(StorageImpl::with_storage_usage(
             PathBuf::new(),
             ByteSize(0),
             Box::new(StubStorageUsageBytes(0)),
@@ -321,7 +321,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_disk_space_zero() {
-        let d = StorageImpl::with_disk_usage(
+        let d = StorageImpl::with_storage_usage(
             PathBuf::new(),
             ByteSize(0),
             Box::new(StubStorageUsageBytes(1000)),

@@ -62,9 +62,9 @@ pub struct LogDb {
     log_dir: PathBuf,
     writer: Arc<Mutex<LogDbWriter>>,
 
-    // The database will use up to 1% of total disk space or `min_disk_usage`.
-    disk_space: ByteSize,
-    min_disk_usage: ByteSize,
+    // The database will use up to 1% of total storage space or `min_disk_usage`.
+    storage_space: ByteSize,
+    min_storage_usage: ByteSize,
 }
 
 #[derive(Debug, Error)]
@@ -79,8 +79,8 @@ impl LogDb {
         token: CancellationToken,
         task_token: TaskTrackerToken,
         log_dir: PathBuf,
-        disk_space: ByteSize,
-        min_disk_usage: ByteSize,
+        storage_space: ByteSize,
+        min_storage_usage: ByteSize,
         cache_capacity: usize,
         write_buf_capacify: usize,
     ) -> Result<Self, CreateLogDBError> {
@@ -96,8 +96,8 @@ impl LogDb {
                 write_buf_capacify,
                 task_token,
             ))),
-            disk_space,
-            min_disk_usage,
+            storage_space,
+            min_storage_usage,
         };
 
         let handle2 = handle.clone();
@@ -184,7 +184,9 @@ impl LogDb {
         use PurgeError::*;
         let dir_size = dir_size(self.log_dir.clone()).await?;
 
-        if dir_size <= ByteSize(self.disk_space.as_u64() / 100) || dir_size <= self.min_disk_usage {
+        if dir_size <= ByteSize(self.storage_space.as_u64() / 100)
+            || dir_size <= self.min_storage_usage
+        {
             return Ok(());
         }
 
@@ -1913,7 +1915,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_log_prune_disk_space() {
+    async fn test_log_prune_storage_space() {
         let temp_dir = tempdir().unwrap();
         let log_dir = temp_dir.path();
 
@@ -1945,7 +1947,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_log_prune_min_disk_usage() {
+    async fn test_log_prune_min_storage_usage() {
         let temp_dir = tempdir().unwrap();
         let log_dir = temp_dir.path();
 

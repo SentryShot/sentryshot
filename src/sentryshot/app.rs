@@ -569,28 +569,31 @@ pub async fn prune_loop(
     eventdb: EventDb,
     interval: std::time::Duration,
 ) {
+    tokio::select! {
+        () = token.cancelled() => return,
+        () = tokio::time::sleep(std::time::Duration::from_secs(30)) => {}
+    }
     loop {
+        let (oldest_recording, err) = recdb.prune().await;
+        if let Some(e) = err {
+            logger.log(LogEntry::new2(
+                LogLevel::Error,
+                "recdb",
+                &format!("prune recordings: {e}"),
+            ));
+        }
+        if let Some(oldest_recording) = oldest_recording {
+            if let Err(e) = eventdb.prune(oldest_recording).await {
+                logger.log(LogEntry::new2(
+                    LogLevel::Error,
+                    "eventdb",
+                    &format!("prune events: {e}"),
+                ));
+            }
+        }
         tokio::select! {
             () = token.cancelled() => return,
-            () = tokio::time::sleep(interval) => {
-                let (oldest_recording, err) = recdb.prune().await;
-                if let Some(e) = err {
-                    logger.log(LogEntry::new2(
-                        LogLevel::Error,
-                        "recdb",
-                        &format!("prune recordings: {e}"),
-                    ));
-                }
-                if let Some(oldest_recording) = oldest_recording {
-                    if let Err(e) = eventdb.prune(oldest_recording).await {
-                        logger.log(LogEntry::new2(
-                            LogLevel::Error,
-                            "eventdb",
-                            &format!("prune events: {e}"),
-                        ));
-                    }
-                }
-            }
+            () = tokio::time::sleep(interval) => {}
         }
     }
 }
