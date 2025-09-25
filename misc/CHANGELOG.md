@@ -1,5 +1,6 @@
 ## unreleased
 
+-   fix Eufy ssrc error #35
 -   fix docker graceful shutdown #90
 
 ## `v0.3.6`

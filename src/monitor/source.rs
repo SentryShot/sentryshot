@@ -14,7 +14,7 @@ use common::{
 };
 use futures_lite::StreamExt;
 use retina::{
-    client::Stream,
+    client::{InitialTimestampPolicy, Stream},
     codec::{ParametersRef, VideoFrame, VideoParameters},
 };
 use sentryshot_convert::Frame;
@@ -341,7 +341,10 @@ impl SourceRtsp {
             .map_err(SourceRtspRunError::Setup)?;
 
         let mut session = session
-            .play(retina::client::PlayOptions::default())
+            .play(
+                retina::client::PlayOptions::default()
+                    .initial_timestamp(InitialTimestampPolicy::Permissive),
+            )
             .await
             .map_err(Play)?
             .demuxed()
