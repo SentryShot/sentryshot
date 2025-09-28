@@ -23,6 +23,7 @@ const NS_MILLISECOND = NS_MICROSECOND * 1000;
  * @property {(day: number) => void} setDate
  * @property {(month: number) => void} setMonth
  * @property {(year: number) => void} setYear
+ * @property {() => void} nextMidnight
  * @property {() => void} nextMonth
  * @property {() => void} prevMonth
  * @property {() => void} nextYear
@@ -264,6 +265,14 @@ function newTime(unixMs, timeZone) {
 				}
 				update();
 			}
+		},
+		nextMidnight() {
+			d.setTime(
+				d.getTime() +
+					MS_DAY -
+					(hour * MS_HOUR + minute * MS_MINUTE + second * MS_SECOND + ms),
+			);
+			update();
 		},
 		nextMonth() {
 			if (day > 28) {

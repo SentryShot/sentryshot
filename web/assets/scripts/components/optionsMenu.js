@@ -457,6 +457,8 @@ function newDatePickerElems() {
 function newDatePicker(timeZone, content, weekStartSunday) {
 	/** @type {Time} */
 	let t;
+	/** @type {Time} */
+	let maxTime;
 
 	const elems = newDatePickerElems();
 
@@ -481,14 +483,28 @@ function newDatePicker(timeZone, content, weekStartSunday) {
 		const daysInMonth = t.daysInMonth();
 		const selectedDay = t.getDate();
 
+		let oldestDay = 99;
+		if (maxTime.getFullYear() < t.getFullYear()) {
+			oldestDay = 0;
+		} else if (maxTime.getFullYear() === t.getFullYear()) {
+			if (maxTime.getMonth() < t.getMonth()) {
+				oldestDay = 0;
+			} else if (maxTime.getMonth() === t.getMonth()) {
+				// Both year and month matches.
+				oldestDay = maxTime.getDate();
+			}
+		}
+
 		for (let i = 0; i < 7 * 6; i++) {
 			const btn = elems.dayBtns[i];
-			if (day === selectedDay) {
+			const disabled = day <= 0 || daysInMonth < day || oldestDay <= day;
+			if (day === selectedDay && !disabled) {
 				btn.classList.add("date-picker-day-selected");
 			} else {
 				btn.classList.remove("date-picker-day-selected");
 			}
-			btn.textContent = day > 0 && day <= daysInMonth ? String(day) : "";
+			btn.disabled = disabled;
+			btn.textContent = 0 < day && day <= daysInMonth ? String(day) : "";
 			day++;
 		}
 	};
@@ -586,6 +602,8 @@ function newDatePicker(timeZone, content, weekStartSunday) {
 
 	const reset = () => {
 		t = newTimeNow(timeZone);
+		maxTime = t.clone();
+		maxTime.nextMidnight();
 		update();
 	};
 

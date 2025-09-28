@@ -151,25 +151,39 @@ describe("optionsDate", () => {
 			"12", "13", "14", "15", "16", "17", "18",
 			"19", "20", "21", "22", "23", "24", "25",
 			"26", "27", "28", "  ", "  ", "  ", "  ",
-			"  ", "  ", "  ", "  ", "  ", "  ", "  "]);
+			"  ", "  ", "  ", "  ", "  ", "  ", "  ",
+		]);
 
+		// Check that there's no selected day button in months after max time.
+		date.testing.$nextMonth.click();
+		// prettier-ignore
+		expect(domState()).toEqual([
+			"  ", "  ", "  ", " 1", " 2", " 3", " 4",
+			" 5", " 6", " 7", " 8", " 9", "10", "11",
+			"12", "13", "14", "15", "16", "17", "18",
+			"19", "20", "21", "22", "23", "24", "25",
+			"26", "27", "28", "29", "30", "31", "  ",
+			"  ", "  ", "  ", "  ", "  ", "  ", "  ",
+		]);
+
+		date.testing.$prevMonth.click();
+		date.testing.$prevMonth.click();
 		for (const btn of date.testing.dayBtns) {
 			if (btn.textContent === "11") {
 				btn.click();
 			}
 		}
-
-		date.testing.$nextMonth.click();
-		date.testing.$nextMonth.click();
+		date.testing.$prevMonth.click();
 
 		// prettier-ignore
 		expect(domState()).toEqual([
-			"  ", "  ", "  ", "  ", "  ", "  ", " 1",
-			" 2", " 3", " 4", " 5", " 6", " 7", " 8",
-			" 9", "10", "[11]", "12", "13", "14", "15",
-			"16", "17", "18", "19", "20", "21", "22",
-			"23", "24", "25", "26", "27", "28", "29",
-			"30", "  ", "  ", "  ", "  ", "  ", "  "]);
+			"  ", "  ", "  ", "  ", " 1", " 2", " 3",
+			" 4", " 5", " 6", " 7", " 8", " 9", "10",
+			"[11]", "12", "13", "14", "15", "16", "17",
+			"18", "19", "20", "21", "22", "23", "24",
+			"25", "26", "27", "28", "29", "30", "31",
+			"  ", "  ", "  ", "  ", "  ", "  ", "  ",
+		]);
 	});
 	test("weekStartSunday", () => {
 		const date = setup({ setDate() {} }, true);
@@ -208,25 +222,96 @@ describe("optionsDate", () => {
 			"11", "12", "13", "14", "15", "16", "17",
 			"18", "19", "20", "21", "22", "23", "24",
 			"25", "26", "27", "28", "  ", "  ", "  ",
-			"  ", "  ", "  ", "  ", "  ", "  ", "  "]);
+			"  ", "  ", "  ", "  ", "  ", "  ", "  ",
+		]);
 
+		date.testing.$prevMonth.click();
 		for (const btn of date.testing.dayBtns) {
 			if (btn.textContent === "11") {
 				btn.click();
 			}
 		}
-
-		date.testing.$nextMonth.click();
-		date.testing.$nextMonth.click();
+		date.testing.$prevMonth.click();
 
 		// prettier-ignore
 		expect(domState()).toEqual([
-			" 1", " 2", " 3", " 4", " 5", " 6", " 7",
-			" 8", " 9", "10", "[11]", "12", "13", "14",
-			"15", "16", "17", "18", "19", "20", "21",
-			"22", "23", "24", "25", "26", "27", "28",
-			"29", "30", "  ", "  ", "  ", "  ", "  ",
-			"  ", "  ", "  ", "  ", "  ", "  ", "  "]);
+			"  ", "  ", "  ", "  ", "  ", " 1", " 2",
+			" 3", " 4", " 5", " 6", " 7", " 8", " 9",
+			"10", "[11]", "12", "13", "14", "15", "16",
+			"17", "18", "19", "20", "21", "22", "23",
+			"24", "25", "26", "27", "28", "29", "30",
+			"31", "  ", "  ", "  ", "  ", "  ", "  ",
+		]);
+	});
+	test("maxTime", () => {
+		const date = setup({ setDate() {} });
+
+		/** @param {string} n */
+		const pad = (n) => {
+			return Number(n) < 10 ? ` ${n}` : n;
+		};
+
+		const domState = () => {
+			const state = [];
+			for (const btn of date.testing.dayBtns) {
+				if (btn.textContent === "") {
+					if (btn.disabled) {
+						state.push("    ");
+					} else {
+						state.push("(  )");
+					}
+					continue;
+				}
+
+				const text = pad(btn.textContent.trim());
+				if (btn.classList.contains("date-picker-day-selected")) {
+					if (btn.disabled) {
+						state.push(` [${text}] `);
+					} else {
+						state.push(`([${text}])`);
+					}
+				} else {
+					if (btn.disabled) {
+						state.push(` ${text} `);
+					} else {
+						state.push(`(${text})`);
+					}
+				}
+			}
+			return state;
+		};
+
+		date.testing.dayBtns[0].click();
+		// @ts-ignore
+		date.testing.$calendar.click();
+
+		// prettier-ignore
+		expect(domState()).toEqual([
+			"    ", "    ", "    ", "( 1)", "( 2)", "([ 3])", "  4 ",
+			"  5 ", "  6 ", "  7 ", "  8 ", "  9 ", " 10 ", " 11 ",
+			" 12 ", " 13 ", " 14 ", " 15 ", " 16 ", " 17 ", " 18 ",
+			" 19 ", " 20 ", " 21 ", " 22 ", " 23 ", " 24 ", " 25 ",
+			" 26 ", " 27 ", " 28 ", "    ", "    ", "    ", "    ",
+			"    ", "    ", "    ", "    ", "    ", "    ", "    ",
+		]);
+
+		date.testing.$prevMonth.click();
+		for (const btn of date.testing.dayBtns) {
+			if (btn.textContent === "11") {
+				btn.click();
+			}
+		}
+		date.testing.$prevMonth.click();
+
+		// prettier-ignore
+		expect(domState()).toEqual([
+			"    ", "    ", "    ", "    ", "( 1)", "( 2)", "( 3)",
+			"( 4)", "( 5)", "( 6)", "( 7)", "( 8)", "( 9)", "(10)",
+			"([11])", "(12)", "(13)", "(14)", "(15)", "(16)", "(17)",
+			"(18)", "(19)", "(20)", "(21)", "(22)", "(23)", "(24)",
+			"(25)", "(26)", "(27)", "(28)", "(29)", "(30)", "(31)",
+			"    ", "    ", "    ", "    ", "    ", "    ", "    ",
+		]);
 	});
 
 	test("hourBtn", () => {

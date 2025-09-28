@@ -621,6 +621,10 @@ img {
 	line-height: calc(var(--scale) * 1.9rem);
 }
 
+.date-picker-day-btn:disabled {
+	opacity: 0.7;
+}
+
 .date-picker-day-selected {
 	background: var(--color-red2);
 }
