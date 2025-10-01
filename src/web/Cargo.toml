@@ -17,6 +17,7 @@ doctest = false
 common.path = "../common"
 log.path = "../log"
 monitor_groups.path = "../monitor_groups"
+recdb.path = "../recdb"
 
 axum.workspace = true
 http.workspace = true

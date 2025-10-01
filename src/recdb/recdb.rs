@@ -118,6 +118,7 @@ pub struct RecDb {
 
     // There should only be one active recording per monitor.
     active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, StartAndEnd>>>,
+    time_of_oldest_recording: tokio::sync::Mutex<Option<UnixNano>>,
 }
 
 #[derive(Clone, Debug)]
@@ -167,13 +168,29 @@ pub enum DeleteRecordingError {
 
 impl RecDb {
     #[must_use]
-    pub fn new(logger: ArcLogger, recording_dir: PathBuf, storage: ArcStorage) -> Self {
+    pub async fn new(logger: ArcLogger, recordings_dir: PathBuf, storage: ArcStorage) -> Self {
+        let crawler = Crawler::new(dir_fs(recordings_dir.clone()));
+        let query = RecDbQuery {
+            recording_id: RecordingId::zero(),
+            end: None,
+            limit: NonZeroUsize::new(1).expect("not zero"),
+            reverse: true, // Oldest first.
+            monitors: Vec::new(),
+            include_data: false,
+        };
+        let time_of_oldest_recording = crawler
+            .recordings_by_query(query, HashMap::new())
+            .await
+            .ok()
+            .and_then(|recs| recs.first().map(|rec| rec.id().nanos_inexact()));
+
         Self {
             logger: RecDbLogger(logger),
-            recordings_dir: recording_dir.clone(),
-            crawler: Crawler::new(dir_fs(recording_dir)),
+            recordings_dir,
+            crawler,
             storage,
             active_recordings: Arc::new(std::sync::Mutex::new(HashMap::new())),
+            time_of_oldest_recording: tokio::sync::Mutex::new(time_of_oldest_recording),
         }
     }
 
@@ -431,7 +448,14 @@ impl RecDb {
                 err = Some(PruneError::DeleteRecording(e));
             }
         }
+        if oldest_recording.is_some() {
+            *self.time_of_oldest_recording.lock().await = oldest_recording;
+        }
         (oldest_recording, err)
+    }
+
+    pub async fn time_of_oldest_recording(&self) -> Option<UnixNano> {
+        *self.time_of_oldest_recording.lock().await
     }
 }
 
@@ -599,19 +623,20 @@ mod tests {
     use tempfile::TempDir;
     use test_case::test_case;
 
-    fn new_test_recdb(recordings_dir: &Path) -> RecDb {
+    async fn new_test_recdb(recordings_dir: &Path) -> RecDb {
         RecDb::new(
             DummyLogger::new(),
             recordings_dir.to_path_buf(),
             DummyStorage::new(),
         )
+        .await
     }
 
     #[tokio::test]
     async fn test_new_recording() {
         let temp_dir = TempDir::new().unwrap();
 
-        let rec_db = new_test_recdb(&temp_dir.path().join("test"));
+        let rec_db = new_test_recdb(&temp_dir.path().join("test")).await;
         let recording = rec_db
             .new_recording("test".to_owned().try_into().unwrap(), UnixH264::new(1))
             .await
@@ -628,7 +653,7 @@ mod tests {
     async fn test_new_recording_already_active() {
         let temp_dir = TempDir::new().unwrap();
 
-        let rec_db = new_test_recdb(temp_dir.path());
+        let rec_db = new_test_recdb(temp_dir.path()).await;
         let m_id = MonitorId::try_from("test".to_owned()).unwrap();
         let recording = rec_db.test_recording().await;
 
@@ -655,7 +680,7 @@ mod tests {
     async fn test_new_recording_already_open() {
         let temp_dir = TempDir::new().unwrap();
 
-        let rec_db = new_test_recdb(temp_dir.path());
+        let rec_db = new_test_recdb(temp_dir.path()).await;
         let recording = rec_db.test_recording().await;
 
         let file = recording.new_file("json").await.unwrap();
@@ -686,7 +711,7 @@ mod tests {
         create_files(&rec_dir, &files);
         assert_eq!(files, list_directory(&rec_dir));
 
-        let rec_db = new_test_recdb(recordings_dir.path());
+        let rec_db = new_test_recdb(recordings_dir.path()).await;
         assert_eq!(rec_db.count_recordings().await, 1);
         let (deleted, err) = rec_db
             .delete_recording(rec_id.to_owned().try_into().unwrap())
@@ -755,7 +780,7 @@ mod tests {
             ByteSize(100),
             Box::new(StubStorageUsageBytes(99)),
         );
-        let recdb = RecDb::new(DummyLogger::new(), recordings_dir, storage);
+        let recdb = RecDb::new(DummyLogger::new(), recordings_dir, storage).await;
 
         write_empty_files(temp_dir.path(), before);
         assert_eq!(before, list_empty_files(temp_dir.path()));

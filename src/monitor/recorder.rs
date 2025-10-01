@@ -931,12 +931,13 @@ mod tests {
         })
     }*/
 
-    fn new_test_recdb(recordings_dir: &Path) -> RecDb {
+    async fn new_test_recdb(recordings_dir: &Path) -> RecDb {
         RecDb::new(
             DummyLogger::new(),
             recordings_dir.to_path_buf(),
             DummyStorage::new(),
         )
+        .await
     }
 
     #[tokio::test]
@@ -945,7 +946,7 @@ mod tests {
         let end = UnixNano::new(11 * MINUTE);
         let tempdir = tempdir().unwrap();
 
-        let rec_db = new_test_recdb(&tempdir.path().join("recordings"));
+        let rec_db = new_test_recdb(&tempdir.path().join("recordings")).await;
         let recording = rec_db.test_recording().await;
 
         save_recording(

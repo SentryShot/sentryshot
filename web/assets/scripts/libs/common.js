@@ -213,6 +213,7 @@ function denormalize(input, max) {
  * @property {MonitorGroups} monitorGroups
  * @property {{[x: string]: any}} monitors
  * @property {MonitorsInfo} monitorsInfo
+ * @property {number=} timeOfOldestRecording
  */
 
 /**

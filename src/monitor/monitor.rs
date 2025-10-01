@@ -727,12 +727,13 @@ mod tests {
         (temp_dir, test_config_dir)
     }
 
-    fn new_test_recdb(recordings_dir: &Path) -> RecDb {
+    async fn new_test_recdb(recordings_dir: &Path) -> RecDb {
         RecDb::new(
             DummyLogger::new(),
             recordings_dir.to_path_buf(),
             DummyStorage::new(),
         )
+        .await
     }
 
     fn new_test_eventdb(events_dir: &Path) -> EventDb {
@@ -751,7 +752,7 @@ mod tests {
         manager
             .initialize(
                 config_dir.clone(),
-                Arc::new(new_test_recdb(temp_dir.path())),
+                Arc::new(new_test_recdb(temp_dir.path()).await),
                 new_test_eventdb(temp_dir.path()),
                 DummyLogger::new(),
                 DummyStreamer::new(),
@@ -795,7 +796,7 @@ mod tests {
             MonitorManager::new()
                 .initialize(
                     config_dir,
-                    Arc::new(new_test_recdb(temp_dir.path())),
+                    Arc::new(new_test_recdb(temp_dir.path()).await),
                     new_test_eventdb(temp_dir.path()),
                     DummyLogger::new(),
                     DummyStreamer::new(),

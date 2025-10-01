@@ -1,5 +1,7 @@
 ## unreleased
 
+-   disable days without recordings in date selector
+
 ## `v0.3.7`
 
 -   fix Eufy ssrc error #35

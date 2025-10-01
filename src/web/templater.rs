@@ -3,6 +3,7 @@
 use common::{Flags, monitor::ArcMonitorManager};
 use log::Logger;
 use monitor_groups::ArcMonitorGroups;
+use recdb::RecDb;
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};
 
@@ -10,6 +11,7 @@ pub struct Templater<'a> {
     logger: Arc<Logger>,
     monitor_manager: ArcMonitorManager,
     monitor_groups: ArcMonitorGroups,
+    recdb: Arc<RecDb>,
     time_zone: String,
     flags: Flags,
 
@@ -22,6 +24,7 @@ impl<'a> Templater<'a> {
         logger: Arc<log::Logger>,
         monitor_manager: ArcMonitorManager,
         monitor_groups: ArcMonitorGroups,
+        recdb: Arc<RecDb>,
         templates: HashMap<&'a str, String>,
         time_zone: String,
         flags: Flags,
@@ -35,6 +38,7 @@ impl<'a> Templater<'a> {
             logger,
             monitor_manager,
             monitor_groups,
+            recdb,
             time_zone,
             flags,
             engine,
@@ -94,10 +98,16 @@ impl<'a> Templater<'a> {
                 .expect("serialization to never fail"),
         );
 
+        if let Some(time_of_oldest_recording) = self.recdb.time_of_oldest_recording().await {
+            ui_data.insert(
+                "timeOfOldestRecording".to_owned(),
+                Value::Number((*time_of_oldest_recording).into()),
+            );
+        }
+
         // ui_data plugin hook.
 
-        let ui_data_json =
-            serde_json::to_string(&ui_data).expect("Vec<String> serialization to never fail");
+        let ui_data_json = serde_json::to_string(&ui_data).expect("serialization to never fail");
 
         Some(HashMap::from([
             ("current_page", upon::Value::String(current_page)),

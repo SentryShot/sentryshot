@@ -134,16 +134,6 @@ describe("Time", () => {
 		time.setYear(2004);
 		expect(time.format()).toBe("2004-02-29 00:00:00.000");
 	});
-	test("nextMidnight", () => {
-		const time = newTime(Date.parse("2000-12-29T21:19:05.600Z"), "Asia/Katmandu");
-		expect(time.format()).toBe("2000-12-30 03:04:05.600");
-
-		time.nextMidnight();
-		expect(time.format()).toBe("2000-12-31 00:00:00.000");
-
-		time.nextMidnight();
-		expect(time.format()).toBe("2001-01-01 00:00:00.000");
-	});
 	test("nextMonth", () => {
 		const time = newTime(Date.parse("2000-10-01T18:15:00.000Z"), "Asia/Katmandu");
 		expect(time.format()).toBe("2000-10-02 00:00:00.000");

@@ -182,11 +182,14 @@ impl App {
         let auth = new_auth(rt_handle.clone(), env.config_dir(), logger.clone())?;
 
         let storage = StorageImpl::new(env.storage_dir().to_path_buf(), env.max_disk_usage());
-        let recdb = Arc::new(RecDb::new(
-            logger.clone(),
-            env.recordings_dir().to_path_buf(),
-            storage.clone(),
-        ));
+        let recdb = Arc::new(
+            RecDb::new(
+                logger.clone(),
+                env.recordings_dir().to_path_buf(),
+                storage.clone(),
+            )
+            .await,
+        );
         let eventdb = EventDb::new(
             token.clone(),
             tracker.token(),
@@ -271,6 +274,7 @@ impl App {
             self.logger.clone(),
             self.monitor_manager.clone(),
             self.monitor_groups.clone(),
+            self.recdb.clone(),
             templates,
             time_zone,
             self.env.flags(),

@@ -8,7 +8,7 @@ import {
 	removeEmptyValues,
 	relativePathname,
 } from "./libs/common.js";
-import { NS_MILLISECOND } from "./libs/time.js";
+import { NS_MILLISECOND, newTime } from "./libs/time.js";
 import { newPlayer } from "./components/player.js";
 import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
 
@@ -278,10 +278,16 @@ function init(uiData) {
 		viewer.setMonitors(hashMonitors);
 	}
 
+	let minTime;
+	if (uiData.timeOfOldestRecording !== undefined) {
+		minTime = newTime(uiData.timeOfOldestRecording / NS_MILLISECOND, uiData.tz);
+	}
+
 	/** @type {Element[]} */
 	let buttons = [
 		...newOptionsBtn.gridSize(viewer),
-		...newOptionsBtn.date(uiData.tz, viewer, uiData.flags.weekStartSunday).elems,
+		...newOptionsBtn.date(uiData.tz, viewer, uiData.flags.weekStartSunday, minTime)
+			.elems,
 		newOptionsBtn.monitor(uiData.monitorsInfo, viewer),
 	];
 	// Add the group picker if there are any groups.

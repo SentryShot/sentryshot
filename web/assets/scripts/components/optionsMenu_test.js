@@ -4,7 +4,7 @@
 
 import { jest } from "@jest/globals";
 
-import { NS_MILLISECOND } from "../libs/time.js";
+import { NS_MILLISECOND, newTime } from "../libs/time.js";
 import { uidReset, htmlToElem } from "../libs/common.js";
 import { newOptionsMenu, newOptionsBtn, newSelectMonitor } from "./optionsMenu.js";
 
@@ -84,14 +84,18 @@ describe("optionsGridSize", () => {
 	});
 });
 
-/** @typedef {import("./optionsMenu.js").DatePickerContent} DatePickerContent */
+/**
+ * @typedef {import("./optionsMenu.js").Time} Time
+ * @typedef {import("./optionsMenu.js").DatePickerContent} DatePickerContent
+ */
 
 describe("optionsDate", () => {
 	/**
 	 * @param {DatePickerContent} content
 	 * @param {boolean} weekStartSunday
+	 * @param {Time=} minTime
 	 */
-	const setup = (content, weekStartSunday = false) => {
+	const setup = (content, weekStartSunday = false, minTime) => {
 		// @ts-ignore
 		jest.useFakeTimers("modern");
 		jest.setSystemTime(Date.parse("2001-02-03T01:02:03Z"));
@@ -99,7 +103,7 @@ describe("optionsDate", () => {
 		document.body.innerHTML = `<div></div>`;
 		const element = document.querySelector("div");
 
-		const date = newOptionsBtn.date("utc", content, weekStartSunday);
+		const date = newOptionsBtn.date("utc", content, weekStartSunday, minTime);
 		element.replaceChildren(...date.elems);
 
 		return date;
@@ -310,6 +314,70 @@ describe("optionsDate", () => {
 			"([11])", "(12)", "(13)", "(14)", "(15)", "(16)", "(17)",
 			"(18)", "(19)", "(20)", "(21)", "(22)", "(23)", "(24)",
 			"(25)", "(26)", "(27)", "(28)", "(29)", "(30)", "(31)",
+			"    ", "    ", "    ", "    ", "    ", "    ", "    ",
+		]);
+	});
+	test("minTime", () => {
+		const minTime = 981080000000; // 2001-02-02T02:13:20Z
+		const date = setup({ setDate() {} }, false, newTime(minTime, "UTC"));
+
+		/** @param {string} n */
+		const pad = (n) => {
+			return Number(n) < 10 ? ` ${n}` : n;
+		};
+
+		const domState = () => {
+			const state = [];
+			for (const btn of date.testing.dayBtns) {
+				if (btn.textContent === "") {
+					if (btn.disabled) {
+						state.push("    ");
+					} else {
+						state.push("(  )");
+					}
+					continue;
+				}
+
+				const text = pad(btn.textContent.trim());
+				if (btn.classList.contains("date-picker-day-selected")) {
+					if (btn.disabled) {
+						state.push(` [${text}] `);
+					} else {
+						state.push(`([${text}])`);
+					}
+				} else {
+					if (btn.disabled) {
+						state.push(` ${text} `);
+					} else {
+						state.push(`(${text})`);
+					}
+				}
+			}
+			return state;
+		};
+
+		date.testing.dayBtns[0].click();
+		// @ts-ignore
+		date.testing.$calendar.click();
+
+		// prettier-ignore
+		expect(domState()).toEqual([
+			"    ", "    ", "    ", "  1 ", "( 2)", "([ 3])", "  4 ",
+			"  5 ", "  6 ", "  7 ", "  8 ", "  9 ", " 10 ", " 11 ",
+			" 12 ", " 13 ", " 14 ", " 15 ", " 16 ", " 17 ", " 18 ",
+			" 19 ", " 20 ", " 21 ", " 22 ", " 23 ", " 24 ", " 25 ",
+			" 26 ", " 27 ", " 28 ", "    ", "    ", "    ", "    ",
+			"    ", "    ", "    ", "    ", "    ", "    ", "    ",
+		]);
+
+		date.testing.$prevMonth.click();
+		// prettier-ignore
+		expect(domState()).toEqual([
+			"  1 ", "  2 ", "  3 ", "  4 ", "  5 ", "  6 ", "  7 ",
+			"  8 ", "  9 ", " 10 ", " 11 ", " 12 ", " 13 ", " 14 ",
+			" 15 ", " 16 ", " 17 ", " 18 ", " 19 ", " 20 ", " 21 ",
+			" 22 ", " 23 ", " 24 ", " 25 ", " 26 ", " 27 ", " 28 ",
+			" 29 ", " 30 ", " 31 ", "    ", "    ", "    ", "    ",
 			"    ", "    ", "    ", "    ", "    ", "    ", "    ",
 		]);
 	});

@@ -126,9 +126,10 @@ const newOptionsBtn = {
 	 * @param {string} timeZone
 	 * @param {DatePickerContent} content
 	 * @param {boolean} weekStartSunday
+	 * @param {Time=} minTime,
 	 */
-	date(timeZone, content, weekStartSunday) {
-		const datePicker = newDatePicker(timeZone, content, weekStartSunday);
+	date(timeZone, content, weekStartSunday, minTime) {
+		const datePicker = newDatePicker(timeZone, content, weekStartSunday, minTime);
 		const icon = "assets/icons/feather/calendar.svg";
 		const popup = newOptionsPopup(icon, datePicker.elems);
 
@@ -453,8 +454,9 @@ function newDatePickerElems() {
  * @param {string} timeZone
  * @param {DatePickerContent} content
  * @param {boolean} weekStartSunday,
+ * @param {Time=} minTime,
  */
-function newDatePicker(timeZone, content, weekStartSunday) {
+function newDatePicker(timeZone, content, weekStartSunday, minTime) {
 	/** @type {Time} */
 	let t;
 	/** @type {Time} */
@@ -483,21 +485,36 @@ function newDatePicker(timeZone, content, weekStartSunday) {
 		const daysInMonth = t.daysInMonth();
 		const selectedDay = t.getDate();
 
-		let oldestDay = 99;
+		let maxDay = 99;
 		if (maxTime.getFullYear() < t.getFullYear()) {
-			oldestDay = 0;
+			maxDay = 0;
 		} else if (maxTime.getFullYear() === t.getFullYear()) {
 			if (maxTime.getMonth() < t.getMonth()) {
-				oldestDay = 0;
+				maxDay = 0;
 			} else if (maxTime.getMonth() === t.getMonth()) {
 				// Both year and month matches.
-				oldestDay = maxTime.getDate();
+				maxDay = maxTime.getDate();
+			}
+		}
+
+		let minDay = 0;
+		if (minTime !== undefined) {
+			if (t.getFullYear() < minTime.getFullYear()) {
+				minDay = 99;
+			} else if (minTime.getFullYear() === t.getFullYear()) {
+				if (t.getMonth() < minTime.getMonth()) {
+					minDay = 99;
+				} else if (minTime.getMonth() === t.getMonth()) {
+					// Both year and month matches.
+					minDay = minTime.getDate();
+				}
 			}
 		}
 
 		for (let i = 0; i < 7 * 6; i++) {
 			const btn = elems.dayBtns[i];
-			const disabled = day <= 0 || daysInMonth < day || oldestDay <= day;
+			const disabled =
+				day <= 0 || daysInMonth < day || maxDay < day || day < minDay;
 			if (day === selectedDay && !disabled) {
 				btn.classList.add("date-picker-day-selected");
 			} else {
@@ -603,7 +620,6 @@ function newDatePicker(timeZone, content, weekStartSunday) {
 	const reset = () => {
 		t = newTimeNow(timeZone);
 		maxTime = t.clone();
-		maxTime.nextMidnight();
 		update();
 	};
 

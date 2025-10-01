@@ -1012,13 +1012,13 @@ mod tests {
         assert!(matches!(result, Err(CreateVodReaderError::MaxDuration)));
     }
 
-    fn new_test_recdb(path: &Path) -> RecDb {
-        RecDb::new(DummyLogger::new(), path.to_path_buf(), DummyStorage::new())
+    async fn new_test_recdb(path: &Path) -> RecDb {
+        RecDb::new(DummyLogger::new(), path.to_path_buf(), DummyStorage::new()).await
     }
 
     async fn single_recording(start_time: UnixH264) -> (TempDir, RecDb) {
         let temp_dir = TempDir::new().unwrap();
-        let mut rec_db = new_test_recdb(temp_dir.path());
+        let mut rec_db = new_test_recdb(temp_dir.path()).await;
 
         save_recording(
             &mut rec_db,
@@ -1131,7 +1131,7 @@ mod tests {
 
     async fn two_recordings(start_time: UnixH264) -> (TempDir, RecDb) {
         let temp_dir = TempDir::new().unwrap();
-        let mut rec_db = new_test_recdb(temp_dir.path());
+        let mut rec_db = new_test_recdb(temp_dir.path()).await;
 
         save_recording(
             &mut rec_db,
@@ -1185,7 +1185,7 @@ mod tests {
         let start_time = year_2000 + UnixNano::new(10 * MINUTE).into() + UnixH264::new(89998);
 
         let temp_dir = TempDir::new().unwrap();
-        let mut rec_db = new_test_recdb(temp_dir.path());
+        let mut rec_db = new_test_recdb(temp_dir.path()).await;
 
         save_recording(
             &mut rec_db,
@@ -1489,7 +1489,7 @@ mod tests {
 
     async fn multiple_recordings(start_time: UnixH264) -> (TempDir, RecDb) {
         let temp_dir = TempDir::new().unwrap();
-        let mut rec_db = new_test_recdb(temp_dir.path());
+        let mut rec_db = new_test_recdb(temp_dir.path()).await;
 
         let rec1 = start_time;
         save_recording(
@@ -1543,7 +1543,7 @@ mod tests {
         let start_time = year_2000 + UnixNano::new(10 * MINUTE).into();
 
         let temp_dir = TempDir::new().unwrap();
-        let mut rec_db = new_test_recdb(temp_dir.path());
+        let mut rec_db = new_test_recdb(temp_dir.path()).await;
 
         save_recording(
             &mut rec_db,

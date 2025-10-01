@@ -3108,6 +3108,7 @@ dependencies = [
  "monitor_groups",
  "pin-project",
  "pretty_assertions",
+ "recdb",
  "serde_json",
  "test-case",
  "thiserror 2.0.11",
