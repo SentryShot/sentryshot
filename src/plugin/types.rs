@@ -30,8 +30,8 @@ pub enum NewAuthError {
     #[error("read file: '{0}' {1}")]
     ReadFile(PathBuf, std::io::Error),
 
-    #[error("parse file: {0}")]
-    ParseFile(serde_json::Error),
+    #[error("parse file: '{0}' {1}")]
+    ParseFile(PathBuf, serde_json::Error),
 }
 
 // Authenticator constructor function.

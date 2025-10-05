@@ -77,7 +77,8 @@ impl NoneAuth {
         let file_exist = Path::new(&path).exists();
         if file_exist {
             let accounts_json = fs::read_to_string(&path).map_err(|e| ReadFile(path.clone(), e))?;
-            accounts = serde_json::from_str(&accounts_json).map_err(ParseFile)?;
+            accounts =
+                serde_json::from_str(&accounts_json).map_err(|e| ParseFile(path.clone(), e))?;
         } else {
             common::write_file(&path, b"{}").map_err(|e| WriteInitialFile(path.clone(), e))?;
         }

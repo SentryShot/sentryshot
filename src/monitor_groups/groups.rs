@@ -103,7 +103,9 @@ impl MonitorGroups {
 
 #[derive(Debug, Error)]
 pub enum MigrateError {
-    #[error("monitorGroups.json exists in both storage and config dir")]
+    #[error(
+        "'monitorGroups.json' should have been migrated from the storage dir to the config dir, but it seems to exists in both places"
+    )]
     AlreadyMigrated,
 
     #[error("read old config: {0}")]

@@ -48,6 +48,7 @@ pub trait Plugin {
     ) {
     }*/
 
+    // The token will be cancelled when the monitor stops/restarts.
     async fn on_monitor_start(&self, _token: CancellationToken, _monitor: ArcMonitor) {}
     fn on_thumb_save(&self, _config: &MonitorConfig, frame: Frame) -> Frame {
         frame
