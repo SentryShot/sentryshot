@@ -74,15 +74,6 @@ function newCategoryTitle(title = "") {
 	`);
 }
 
-function newCategoryNavs() {
-	return htmlToElem(/* HTML */ `
-		<ul
-			class="settings-category-nav flex flex-col h-full"
-			style="overflow-y: hidden;"
-		></ul>
-	`);
-}
-
 /**
  * @param {string} data
  * @param {string} label
@@ -117,7 +108,15 @@ function newCategory(title, icon, form, onNav) {
 	/** @type {() => void} */
 	let onOpen;
 
-	const $nav = newCategoryNavs();
+	const $nav = htmlToElem(/* HTML */ `
+		<ul
+			class="flex flex-col h-full"
+			style="
+				overflow-y: scroll;
+				padding-bottom: calc(var(--spacing) * 12);
+			"
+		></ul>
+	`);
 
 	/** @type {HTMLElement} */
 	// @ts-ignore

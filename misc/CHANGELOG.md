@@ -1,5 +1,6 @@
 ## unreleased
 
+-   fix scroll on overflow for the settings page monitor list #95
 -   disable days without recordings in date selector
 
 ## `v0.3.7`

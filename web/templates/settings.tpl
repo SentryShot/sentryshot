@@ -114,10 +114,6 @@
 			height: 100%;
 		}
 
-		.settings-category-nav {
-			flex-shrink: 0;
-		}
-
 		.form {
 			overflow-y: initial;
 		}
