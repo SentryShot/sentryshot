@@ -1,11 +1,12 @@
 ## unreleased
 
+## `v0.3.8`
+
 -   fix scroll on overflow for the settings page monitor list #95
 -   disable days without recordings in date selector
 
 ## `v0.3.7`
 
--   fix Eufy ssrc error #35
 -   fix docker graceful shutdown #90
 
 ## `v0.3.6`

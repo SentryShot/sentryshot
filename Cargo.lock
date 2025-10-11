@@ -122,7 +122,7 @@ dependencies = [
 
 [[package]]
 name = "auth_basic"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "argon2",
  "async-trait",
@@ -141,7 +141,7 @@ dependencies = [
 
 [[package]]
 name = "auth_none"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "argon2",
  "async-trait",
@@ -428,7 +428,7 @@ checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 
 [[package]]
 name = "common"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "bytes",
@@ -610,7 +610,7 @@ dependencies = [
 
 [[package]]
 name = "csv"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "pretty_assertions",
  "serde",
@@ -642,7 +642,7 @@ checksum = "11157ac094ffbdde99aa67b23417ebdd801842852b500e395a45a9c0aac03e4a"
 
 [[package]]
 name = "env"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "bytesize",
  "common",
@@ -693,7 +693,7 @@ dependencies = [
 
 [[package]]
 name = "eventdb"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "bytesize",
  "common",
@@ -768,7 +768,7 @@ checksum = "795cbfc56d419a7ce47ccbb7504dd9a5b7c484c083c356e797de08bd988d9629"
 
 [[package]]
 name = "fs"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "pretty_assertions",
  "thiserror 2.0.11",
@@ -961,7 +961,7 @@ dependencies = [
 
 [[package]]
 name = "handler"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "axum 0.8.1",
  "common",
@@ -969,7 +969,7 @@ dependencies = [
  "hls",
  "http",
  "hyper",
- "log 0.3.7",
+ "log 0.3.8",
  "mime_guess",
  "monitor_groups",
  "pretty_assertions",
@@ -1060,7 +1060,7 @@ checksum = "5491a308e0214554f07a81d8944abe45f552871c12e3c3c6e7e5d354039a6c4c"
 
 [[package]]
 name = "hls"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1366,7 +1366,7 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "bytesize",
  "common",
@@ -1471,7 +1471,7 @@ dependencies = [
 
 [[package]]
 name = "monitor"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "bytesize",
@@ -1499,7 +1499,7 @@ dependencies = [
 
 [[package]]
 name = "monitor_groups"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "common",
  "pretty_assertions",
@@ -1512,7 +1512,7 @@ dependencies = [
 
 [[package]]
 name = "motion"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "axum 0.8.1",
@@ -1531,7 +1531,7 @@ dependencies = [
 
 [[package]]
 name = "mp4"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "pretty_assertions",
@@ -1557,7 +1557,7 @@ checksum = "96a1fe2275b68991faded2c80aa4a33dba398b77d276038b8f50701a22e55918"
 
 [[package]]
 name = "mqtt"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "common",
@@ -1613,7 +1613,7 @@ dependencies = [
 
 [[package]]
 name = "object_detection"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "axum 0.8.1",
@@ -1644,7 +1644,7 @@ dependencies = [
 
 [[package]]
 name = "object_detection_tflite"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -1767,7 +1767,7 @@ dependencies = [
 
 [[package]]
 name = "plugin"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "axum 0.8.1",
@@ -1953,7 +1953,7 @@ dependencies = [
 
 [[package]]
 name = "recdb"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "bytesize",
@@ -1973,7 +1973,7 @@ dependencies = [
 
 [[package]]
 name = "recording"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "axum 0.8.1",
@@ -2225,7 +2225,7 @@ dependencies = [
 
 [[package]]
 name = "sentryshot"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "axum 0.8.1",
  "bytesize",
@@ -2239,7 +2239,7 @@ dependencies = [
  "hls",
  "hyper",
  "jiff",
- "log 0.3.7",
+ "log 0.3.8",
  "monitor",
  "monitor_groups",
  "pico-args",
@@ -2468,7 +2468,7 @@ dependencies = [
 
 [[package]]
 name = "streamer"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2571,7 +2571,7 @@ dependencies = [
 
 [[package]]
 name = "tflite_lib"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "pretty_assertions",
  "test-case",
@@ -2581,7 +2581,7 @@ dependencies = [
 
 [[package]]
 name = "tflite_sys"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "cc",
 ]
@@ -2638,7 +2638,7 @@ dependencies = [
 
 [[package]]
 name = "thumb_scale"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "async-trait",
  "common",
@@ -2989,7 +2989,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vod"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "bytesize",
  "common",
@@ -3097,14 +3097,14 @@ checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
 
 [[package]]
 name = "web"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "axum 0.8.1",
  "common",
  "http",
  "http-body",
  "httpdate",
- "log 0.3.7",
+ "log 0.3.8",
  "monitor_groups",
  "pin-project",
  "pretty_assertions",
