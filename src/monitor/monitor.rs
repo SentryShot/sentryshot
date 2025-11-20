@@ -30,7 +30,10 @@ use tokio::{
     runtime::Handle,
     sync::{mpsc, oneshot},
 };
-use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tokio_util::{
+    sync::CancellationToken,
+    task::{TaskTracker, task_tracker::TaskTrackerToken},
+};
 
 type Monitors = HashMap<MonitorId, Arc<Monitor>>;
 pub struct Monitor {
@@ -162,7 +165,9 @@ enum MonitorManagerRequest {
 }
 
 struct InitializeRequest {
-    config_path: PathBuf,
+    token: CancellationToken,
+    task_token: TaskTrackerToken,
+    configs_path: PathBuf,
     recdb: Arc<RecDb>,
     eventdb: EventDb,
     logger: ArcLogger,
@@ -191,9 +196,12 @@ impl MonitorManager {
 
     // Monitor manager can't be initialized during creation because
     // there's a circular dependency between it and the plugin manager.
+    #[allow(clippy::too_many_arguments)]
     pub async fn initialize(
         &self,
-        config_path: PathBuf,
+        token: CancellationToken,
+        task_token: TaskTrackerToken,
+        configs_path: PathBuf,
         rec_db: Arc<RecDb>,
         eventdb: EventDb,
         logger: ArcLogger,
@@ -202,28 +210,35 @@ impl MonitorManager {
     ) -> Result<(), InitializeMonitorManagerError> {
         let (tx, rx) = oneshot::channel();
         let req = InitializeRequest {
-            config_path,
+            token: token.clone(),
+            task_token,
+            configs_path,
             recdb: rec_db,
             eventdb,
             logger,
             streamer,
             hooks,
         };
+
+        let manager_tx = self.0.clone();
+        tokio::spawn(async move {
+            // Wait for token to be cancelled.
+            token.cancelled().await;
+
+            let (tx, rx) = oneshot::channel();
+            manager_tx
+                .send(MonitorManagerRequest::Cancel(tx))
+                .await
+                .expect("actor should still be active");
+
+            rx.await.expect("actor should respond");
+        });
+
         self.0
             .send(MonitorManagerRequest::Initialize((tx, req)))
             .await
             .expect("actor should still be active");
         rx.await.expect("actor should respond")
-    }
-
-    pub async fn cancel(&self) {
-        let (tx, rx) = oneshot::channel();
-        self.0
-            .send(MonitorManagerRequest::Cancel(tx))
-            .await
-            .expect("actor should still be active");
-
-        rx.await.expect("actor should respond");
     }
 }
 
@@ -308,6 +323,7 @@ impl IMonitorManager for MonitorManager {
 
 struct MonitorManagerState {
     token: CancellationToken,
+    task_token: TaskTrackerToken,
 
     configs: MonitorConfigs,
     started_monitors: Monitors,
@@ -316,7 +332,7 @@ struct MonitorManagerState {
     eventdb: EventDb,
     logger: ArcLogger,
     streamer: ArcStreamer,
-    path: PathBuf,
+    configs_path: PathBuf,
 
     hooks: ArcMonitorHooks,
 }
@@ -330,11 +346,7 @@ async fn run_monitor_manager(mut rx: mpsc::Receiver<MonitorManagerRequest>) {
     }
 
     let mut state = StateOption(None);
-    loop {
-        let request = rx
-            .recv()
-            .await
-            .expect("stop should be called before dropping manager");
+    while let Some(request) = rx.recv().await {
         match request {
             MonitorManagerRequest::Initialize((res, req)) => {
                 assert!(state.0.is_none(), "already initialized");
@@ -376,10 +388,10 @@ async fn run_monitor_manager(mut rx: mpsc::Receiver<MonitorManagerRequest>) {
 impl MonitorManagerState {
     async fn new(req: InitializeRequest) -> Result<Self, InitializeMonitorManagerError> {
         use InitializeMonitorManagerError::*;
-        common::create_dir_all(&req.config_path).map_err(CreateDir)?;
+        common::create_dir_all(&req.configs_path).map_err(CreateDir)?;
 
         let mut configs = HashMap::new();
-        for entry in std::fs::read_dir(&req.config_path).map_err(ReadDir)? {
+        for entry in std::fs::read_dir(&req.configs_path).map_err(ReadDir)? {
             let entry = entry.map_err(StatFile)?;
 
             if entry.metadata().map_err(GetFileMetadata)?.is_dir() {
@@ -406,14 +418,15 @@ impl MonitorManagerState {
         }
 
         let mut state = Self {
-            token: CancellationToken::new(),
+            token: req.token,
+            task_token: req.task_token,
             configs,
             started_monitors: HashMap::new(),
             recdb: req.recdb,
             eventdb: req.eventdb,
             logger: req.logger,
             streamer: req.streamer,
-            path: req.config_path,
+            configs_path: req.configs_path,
             hooks: req.hooks,
         };
         state.start_monitors().await;
@@ -532,7 +545,7 @@ impl MonitorManagerState {
         fn monitor_config_path(path: &Path, id: String) -> PathBuf {
             path.join(id + ".json")
         }
-        monitor_config_path(&self.path, id.to_string())
+        monitor_config_path(&self.configs_path, id.to_string())
     }
 
     async fn start_monitor(&self, config: MonitorConfig) -> Option<Arc<Monitor>> {
@@ -647,6 +660,8 @@ impl MonitorManagerState {
 
         // Break circular reference.
         drop(self.hooks);
+
+        drop(self.task_token);
     }
 
     fn log(&self, level: LogLevel, id: &MonitorId, msg: &str) {
@@ -745,12 +760,22 @@ mod tests {
         )
     }
 
-    async fn new_test_manager() -> (TempDir, PathBuf, MonitorManager) {
+    async fn new_test_manager() -> (
+        CancellationToken,
+        TaskTracker,
+        TempDir,
+        PathBuf,
+        MonitorManager,
+    ) {
+        let token = CancellationToken::new();
+        let tracker = TaskTracker::new();
         let (temp_dir, config_dir) = prepare_dir();
 
         let manager = MonitorManager::new();
         manager
             .initialize(
+                token.clone(),
+                tracker.token(),
                 config_dir.clone(),
                 Arc::new(new_test_recdb(temp_dir.path()).await),
                 new_test_eventdb(temp_dir.path()),
@@ -761,7 +786,13 @@ mod tests {
             .await
             .unwrap();
 
-        (temp_dir, config_dir, manager)
+        (token, tracker, temp_dir, config_dir, manager)
+    }
+
+    async fn stop_manager(token: CancellationToken, tracker: TaskTracker) {
+        token.cancel();
+        tracker.close();
+        tracker.wait().await;
     }
 
     fn read_config(path: PathBuf) -> MonitorConfig {
@@ -778,12 +809,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_manager_ok() {
-        let (_temp_dir, config_dir, manager) = new_test_manager().await;
+        let (token, tracker, _temp_dir, config_dir, manager) = new_test_manager().await;
 
         let want = manager.monitor_configs().await.unwrap()[&m_id("1")].clone();
         let got = read_config(config_dir.join("1.json"));
         assert_eq!(want, got);
-        manager.cancel().await;
+
+        stop_manager(token, tracker).await;
     }
 
     #[tokio::test]
@@ -795,6 +827,8 @@ mod tests {
         assert!(matches!(
             MonitorManager::new()
                 .initialize(
+                    CancellationToken::new(),
+                    TaskTracker::new().token(),
                     config_dir,
                     Arc::new(new_test_recdb(temp_dir.path()).await),
                     new_test_eventdb(temp_dir.path()),
@@ -809,7 +843,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_monitor_set_create_new() {
-        let (_temp_dir, config_dir, manager) = new_test_manager().await;
+        let (token, tracker, _temp_dir, config_dir, manager) = new_test_manager().await;
 
         let config = MonitorConfig::new(
             Config {
@@ -851,12 +885,13 @@ mod tests {
         // Check if changes were saved to file.
         let saved_config = read_config(config_dir.join("new.json"));
         assert_eq!(manager.monitor_configs().await.unwrap()[new], saved_config);
-        manager.cancel().await;
+
+        stop_manager(token, tracker).await;
     }
 
     #[tokio::test]
     async fn test_monitor_set_update() {
-        let (_temp_dir, config_dir, manager) = new_test_manager().await;
+        let (token, tracker, _temp_dir, config_dir, manager) = new_test_manager().await;
 
         let one = m_id("1");
         let old_monitor = &manager.monitor_configs().await.unwrap()[&one];
@@ -903,12 +938,13 @@ mod tests {
         // Check if changes were saved to file.
         let saved_config = read_config(config_dir.join("1.json"));
         assert_eq!(manager.monitor_configs().await.unwrap()[&one], saved_config);
-        manager.cancel().await;
+
+        stop_manager(token, tracker).await;
     }
 
     #[tokio::test]
     async fn test_monitor_delete_exist_error() {
-        let (_temp_dir, _, manager) = new_test_manager().await;
+        let (_, _, _temp_dir, _, manager) = new_test_manager().await;
         assert!(matches!(
             manager.monitor_delete(m_id("nil")).await.unwrap(),
             Err(MonitorDeleteError::NotExist(_))
@@ -917,7 +953,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_monitors_info() {
-        let (_temp_dir, _, manager) = new_test_manager().await;
+        let (token, tracker, _temp_dir, _, manager) = new_test_manager().await;
         let want: HashMap<MonitorId, MonitorInfo> = HashMap::from([
             (
                 m_id("1"),
@@ -940,12 +976,13 @@ mod tests {
         ]);
         let got = manager.monitors_info().await.unwrap();
         assert_eq!(want, got);
-        manager.cancel().await;
+
+        stop_manager(token, tracker).await;
     }
 
     #[tokio::test]
     async fn test_monitor_configs() {
-        let (_temp_dir, _, manager) = new_test_manager().await;
+        let (token, tracker, _temp_dir, _, manager) = new_test_manager().await;
 
         let got = manager.monitor_configs().await.unwrap();
         let want: HashMap<MonitorId, MonitorConfig> = HashMap::from([
@@ -1013,12 +1050,13 @@ mod tests {
         ]);
 
         assert_eq!(want, got);
-        manager.cancel().await;
+
+        stop_manager(token, tracker).await;
     }
 
     #[tokio::test]
     async fn test_restart_monitor_not_exist_error() {
-        let (_temp_dir, _, manager) = new_test_manager().await;
+        let (_, _, _temp_dir, _, manager) = new_test_manager().await;
         assert!(matches!(
             manager.monitor_restart(m_id("x")).await.unwrap(),
             Err(MonitorRestartError::NotExist(_))

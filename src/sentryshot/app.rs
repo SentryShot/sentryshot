@@ -453,6 +453,8 @@ impl App {
         let monitors_dir = self.env.config_dir().join("monitors");
         self.monitor_manager
             .initialize(
+                self.token.child_token(),
+                self.tracker.token(),
                 monitors_dir,
                 self.recdb.clone(),
                 self.eventdb.clone(),
@@ -461,14 +463,6 @@ impl App {
                 Arc::new(plugin_manager),
             )
             .await?;
-
-        let token = self.token.clone();
-        let task_token = self.tracker.token();
-        tokio::spawn(async move {
-            token.cancelled().await;
-            self.monitor_manager.cancel().await;
-            drop(task_token);
-        });
 
         let (server_exited_tx, server_exited_rx) = oneshot::channel();
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.env.port());
