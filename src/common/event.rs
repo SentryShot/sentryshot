@@ -35,6 +35,7 @@ pub struct Region {
     pub polygon: Option<PolygonNormalized>,
 }
 
+// 1_000_000 is 100%
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RectangleNormalized {
     pub x: u32,

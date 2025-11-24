@@ -29,7 +29,7 @@ use detector::Thresholds;
 use http_body_util::BodyExt;
 use plugin::{
     Application, Plugin, PreLoadPlugin,
-    object_detection::{ArcTfliteDetector, DetectorName},
+    object_detection::{ArcDetector, DetectorName},
     types::{Assets, Router},
 };
 use sentryshot_convert::{
@@ -301,7 +301,7 @@ impl ObjectDetectionPlugin {
         monitor: &ArcMonitor,
         config: &ObjectDetectionConfig,
         source: &ArcSource,
-        detector: &ArcTfliteDetector,
+        detector: &ArcDetector,
     ) -> Result<(), RunError> {
         use RunError::*;
         let Some(muxer) = source.muxer().await else {

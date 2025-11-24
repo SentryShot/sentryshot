@@ -27,12 +27,10 @@ impl BackendLoader {
         }
     }
 
-    pub(crate) fn tflite_backend(
-        &mut self,
-    ) -> Result<&mut DynTfliteBackend, LoadTfliteBackendError> {
+    pub(crate) fn tflite_backend(&mut self) -> Result<&mut DynTfliteBackend, LoadBackendError> {
         // No fallible Option::create_or_insert()
         // https://github.com/rust-lang/libs-team/issues/577
-        use LoadTfliteBackendError::*;
+        use LoadBackendError::*;
         if self.tflite.is_none() {
             let plugin_name = "object_detection_tflite";
             let plugin_path = find_plugin_path(&self.plugin_dir, plugin_name)?;
@@ -52,7 +50,7 @@ impl BackendLoader {
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum LoadTfliteBackendError {
+pub(crate) enum LoadBackendError {
     #[error(transparent)]
     FindPluginPath(#[from] FindPluginPathError),
 

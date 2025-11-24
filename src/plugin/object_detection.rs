@@ -13,10 +13,12 @@ use std::{
 use thiserror::Error;
 use tokio_util::task::task_tracker::TaskTrackerToken;
 
-pub type ArcTfliteDetector = Arc<dyn TfliteDetector + Send + Sync>;
+pub type ArcDetector = Arc<dyn Detector + Send + Sync>;
 
 #[async_trait]
-pub trait TfliteDetector {
+pub trait Detector {
+    // Data is a raw rgb24 frame with size determined by the width and height methods.
+    // Returns `Ok(None)` when cancelled.
     async fn detect(&self, data: Vec<u8>) -> Result<Option<Detections>, DynError>;
     fn width(&self) -> NonZeroU16;
     fn height(&self) -> NonZeroU16;
@@ -37,7 +39,7 @@ pub trait TfliteBackend {
         format: TfliteFormat,
         label_map: &LabelMap,
         threads: NonZeroU8,
-    ) -> Result<ArcTfliteDetector, DynError>;
+    ) -> Result<ArcDetector, DynError>;
 
     #[allow(clippy::too_many_arguments)]
     fn new_edgetpu_detector(
@@ -51,7 +53,7 @@ pub trait TfliteBackend {
         format: TfliteFormat,
         label_map: LabelMap,
         device_path: String,
-    ) -> Result<ArcTfliteDetector, DynError>;
+    ) -> Result<ArcDetector, DynError>;
 }
 
 pub type LabelMap = HashMap<u16, Label>;

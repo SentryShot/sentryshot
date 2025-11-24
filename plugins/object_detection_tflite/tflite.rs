@@ -1,8 +1,7 @@
 use async_trait::async_trait;
 use common::{ArcMsgLogger, Detections, DynError, LogLevel, RectangleNormalized, Region};
 use plugin::object_detection::{
-    ArcTfliteDetector, DetectorName, DynTfliteBackend, LabelMap, TfliteBackend, TfliteDetector,
-    TfliteFormat,
+    ArcDetector, Detector, DetectorName, DynTfliteBackend, LabelMap, TfliteBackend, TfliteFormat,
 };
 use std::{
     ffi::c_char,
@@ -50,7 +49,7 @@ impl TfliteBackend for TfliteBackendImpl {
         format: TfliteFormat,
         label_map: &LabelMap,
         threads: NonZeroU8,
-    ) -> Result<ArcTfliteDetector, DynError> {
+    ) -> Result<ArcDetector, DynError> {
         let (detect_tx, detect_rx) = async_channel::bounded::<DetectRequest>(1);
         for i in 0..threads.get() {
             logger.log(LogLevel::Info, &format!("starting detector '{name}' T{i}"));
@@ -82,7 +81,7 @@ impl TfliteBackend for TfliteBackendImpl {
                 }
             });
         }
-        Ok(Arc::new(TfliteDetectorImpl {
+        Ok(Arc::new(TfliteDetector {
             rt_handle: self.rt_handle.clone(),
             detect_tx,
             width,
@@ -102,7 +101,7 @@ impl TfliteBackend for TfliteBackendImpl {
         format: TfliteFormat,
         label_map: LabelMap,
         device_path: String,
-    ) -> Result<ArcTfliteDetector, DynError> {
+    ) -> Result<ArcDetector, DynError> {
         let device_cache: &mut DeviceCache = &mut self.device_cache;
         logger.log(LogLevel::Info, &format!("starting detector '{name}'"));
 
@@ -143,7 +142,7 @@ impl TfliteBackend for TfliteBackendImpl {
                 _ = req.res.send(result);
             }
         });
-        Ok(Arc::new(TfliteDetectorImpl {
+        Ok(Arc::new(TfliteDetector {
             rt_handle: self.rt_handle.clone(),
             detect_tx,
             width,
@@ -201,7 +200,7 @@ fn parse_rect(top: f32, left: f32, bottom: f32, right: f32) -> Option<RectangleN
     })
 }
 
-struct TfliteDetectorImpl {
+struct TfliteDetector {
     rt_handle: Handle,
     detect_tx: async_channel::Sender<DetectRequest>,
     width: NonZeroU16,
@@ -209,7 +208,7 @@ struct TfliteDetectorImpl {
 }
 
 #[async_trait]
-impl TfliteDetector for TfliteDetectorImpl {
+impl Detector for TfliteDetector {
     #[allow(clippy::similar_names)]
     async fn detect(&self, data: Vec<u8>) -> Result<Option<Detections>, DynError> {
         use DetectError::*;

@@ -2,13 +2,13 @@
 
 use crate::{
     DynFetcher,
-    backend::{BackendLoader, LoadTfliteBackendError},
+    backend::{BackendLoader, LoadBackendError},
     config::Percent,
     label::{CreateLabelCacheError, LabelCache, LabelCacheError},
     model::{CreateModelCacheError, ModelCache, ModelCacheError, ModelChecksum},
 };
 use common::{ArcMsgLogger, DynError, Label, Labels, LogLevel};
-use plugin::object_detection::{ArcTfliteDetector, DetectorName, TfliteFormat};
+use plugin::object_detection::{ArcDetector, DetectorName, TfliteFormat};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -24,8 +24,11 @@ use url::Url;
 #[derive(Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 struct RawDetectorConfigs {
-    detector_tflite: Vec<RawDetectorConfigTflite>,
-    detector_edgetpu: Vec<RawDetectorConfigEdgeTpu>,
+    #[serde(rename = "detector_tflite")]
+    tflite: Vec<RawDetectorConfigTflite>,
+
+    #[serde(rename = "detector_edgetpu")]
+    edgetpu: Vec<RawDetectorConfigEdgeTpu>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -58,10 +61,10 @@ struct RawDetectorConfigEdgeTpu {
     device: String,
 }
 
-type TfliteDetectorConfigs = HashMap<DetectorName, TfliteDetectorConfig>;
+type DetectorConfigs = HashMap<DetectorName, DetectorConfig>;
 
 #[derive(Debug, Serialize)]
-pub(crate) struct TfliteDetectorConfig {
+pub(crate) struct DetectorConfig {
     width: NonZeroU16,
     height: NonZeroU16,
     labels: Labels,
@@ -74,8 +77,8 @@ fn parse_raw_detector_configs(raw: &str) -> Result<RawDetectorConfigs, toml::de:
 pub(crate) type Thresholds = HashMap<Label, Percent>;
 
 pub(crate) struct DetectorManager {
-    detectors: HashMap<DetectorName, ArcTfliteDetector>,
-    configs: TfliteDetectorConfigs,
+    detectors: HashMap<DetectorName, ArcDetector>,
+    configs: DetectorConfigs,
 }
 
 #[derive(Debug, Error)]
@@ -111,7 +114,7 @@ pub(crate) enum DetectorManagerError {
     CreateDetector(DynError),
 
     #[error("load tflite backend: {0}")]
-    LoadTfliteBackend(#[from] LoadTfliteBackendError),
+    LoadTfliteBackend(#[from] LoadBackendError),
 }
 
 impl DetectorManager {
@@ -164,12 +167,12 @@ impl DetectorManager {
         .await
     }
 
-    pub(crate) fn detectors(&self) -> &TfliteDetectorConfigs {
+    pub(crate) fn detectors(&self) -> &DetectorConfigs {
         &self.configs
     }
 
     #[allow(unused)]
-    pub(crate) fn get_detector(&self, name: &DetectorName) -> Option<ArcTfliteDetector> {
+    pub(crate) fn get_detector(&self, name: &DetectorName) -> Option<ArcDetector> {
         self.detectors.get(name).cloned()
     }
 }
@@ -192,7 +195,7 @@ async fn parse_detector_configs(
     let mut detectors = HashMap::new();
     let mut detector_configs = HashMap::new();
 
-    for cpu in configs.detector_tflite {
+    for cpu in configs.tflite {
         if !cpu.enable {
             logger.log(
                 LogLevel::Debug,
@@ -205,7 +208,7 @@ async fn parse_detector_configs(
         if detector_configs.contains_key(&cpu.name) {
             return Err(Duplicate(cpu.name));
         };
-        let config = TfliteDetectorConfig {
+        let config = DetectorConfig {
             width: cpu.width,
             height: cpu.height,
             labels: label_map.values().cloned().collect(),
@@ -228,7 +231,7 @@ async fn parse_detector_configs(
         detectors.insert(cpu.name, detector);
     }
 
-    for edgetpu in configs.detector_edgetpu {
+    for edgetpu in configs.edgetpu {
         if !edgetpu.enable {
             logger.log(
                 LogLevel::Debug,
@@ -243,7 +246,7 @@ async fn parse_detector_configs(
         if detector_configs.contains_key(&edgetpu.name) {
             return Err(Duplicate(edgetpu.name));
         };
-        let config = TfliteDetectorConfig {
+        let config = DetectorConfig {
             width: edgetpu.width,
             height: edgetpu.height,
             labels: label_map.values().cloned().collect(),
@@ -432,7 +435,7 @@ threads = 1
         ";
         let got = parse_raw_detector_configs(raw).unwrap();
         let want = RawDetectorConfigs {
-            detector_tflite: vec![RawDetectorConfigTflite {
+            tflite: vec![RawDetectorConfigTflite {
                 enable: false,
                 name: "1".to_owned().try_into().unwrap(),
                 width: NonZeroU16::new(2).unwrap(),
@@ -445,7 +448,7 @@ threads = 1
                 format: TfliteFormat::OdAPi,
                 threads: NonZeroU8::new(7).unwrap(),
             }],
-            detector_edgetpu: vec![RawDetectorConfigEdgeTpu {
+            edgetpu: vec![RawDetectorConfigEdgeTpu {
                 enable: true,
                 name: "8".to_owned().try_into().unwrap(),
                 width: NonZeroU16::new(9).unwrap(),
