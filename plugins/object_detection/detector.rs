@@ -29,6 +29,9 @@ struct RawDetectorConfigs {
 
     #[serde(rename = "detector_edgetpu")]
     edgetpu: Vec<RawDetectorConfigEdgeTpu>,
+
+    #[serde(rename = "detector_open_vino_server")]
+    open_vino_server: Vec<RawDetectorConfigOpenVinoServer>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -59,6 +62,17 @@ struct RawDetectorConfigEdgeTpu {
     #[serde(default)]
     format: TfliteFormat,
     device: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+struct RawDetectorConfigOpenVinoServer {
+    enable: bool,
+    name: DetectorName,
+    host: String,
+    input_tensor: String,
+    output_tensor: String,
+    input_width: NonZeroU16,
+    input_height: NonZeroU16,
 }
 
 type DetectorConfigs = HashMap<DetectorName, DetectorConfig>;
@@ -183,6 +197,7 @@ pub(crate) fn write_detector_config(path: &Path) -> Result<(), std::io::Error> {
     common::write_file(path, DEFAULT_CONFIG.as_bytes())
 }
 
+#[allow(clippy::too_many_lines)]
 async fn parse_detector_configs(
     backend_loader: &mut BackendLoader,
     task_token: TaskTrackerToken,
@@ -267,6 +282,44 @@ async fn parse_detector_configs(
             )
             .map_err(CreateDetector)?;
         detectors.insert(edgetpu.name, detector);
+    }
+
+    for vino in configs.open_vino_server {
+        if !vino.enable {
+            logger.log(
+                LogLevel::Debug,
+                &format!("detector '{}' disabled", vino.name),
+            );
+            continue;
+        }
+        if detector_configs.contains_key(&vino.name) {
+            return Err(Duplicate(vino.name));
+        };
+
+        let detector = backend_loader
+            .open_vino_server_backend()?
+            .new_open_vino_server_detector(
+                &task_token,
+                &logger,
+                &vino.name,
+                vino.host,
+                vino.input_tensor,
+                vino.output_tensor,
+                vino.input_width,
+                vino.input_height,
+            )
+            .map_err(CreateDetector)?;
+        detectors.insert(vino.name.clone(), detector);
+
+        let config = DetectorConfig {
+            width: vino.input_width,
+            height: vino.input_height,
+            // The types of objects the server can detect must be known at this point.
+            // If they are known by the model server then `new_open_vino_server_detector()`
+            // should return `Result<(ArcDetector, Vec<Label>), DynError>`.
+            labels: vec!["person".to_owned().try_into().expect("")],
+        };
+        detector_configs.insert(vino.name, config);
     }
 
     Ok(DetectorManager {
@@ -432,6 +485,15 @@ threads = 1
             label_map = \"file:///13\"
             format = \"nolo\"
             device = \"14\"
+
+            [[detector_open_vino_server]]
+            enable = false
+            name = \"15\"
+            host = \"host\"
+            input_tensor = \"input_0\"
+            output_tensor = \"output_0\"
+            input_width = 16
+            input_height = 17
         ";
         let got = parse_raw_detector_configs(raw).unwrap();
         let want = RawDetectorConfigs {
@@ -460,6 +522,15 @@ threads = 1
                 label_map: "file:///13".parse().unwrap(),
                 format: TfliteFormat::Nolo,
                 device: "14".parse().unwrap(),
+            }],
+            open_vino_server: vec![RawDetectorConfigOpenVinoServer {
+                enable: false,
+                name: "15".to_owned().try_into().unwrap(),
+                host: "host".to_owned(),
+                input_tensor: "input_0".to_owned(),
+                output_tensor: "output_0".to_owned(),
+                input_width: NonZeroU16::new(16).unwrap(),
+                input_height: NonZeroU16::new(17).unwrap(),
             }],
         };
         assert_eq!(want, got);

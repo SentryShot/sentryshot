@@ -1643,6 +1643,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "object_detection_open_vino_server"
+version = "0.3.8"
+dependencies = [
+ "async-channel",
+ "async-trait",
+ "common",
+ "plugin",
+ "pretty_assertions",
+ "test-case",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "object_detection_tflite"
 version = "0.3.8"
 dependencies = [

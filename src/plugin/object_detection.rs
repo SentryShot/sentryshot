@@ -56,6 +56,23 @@ pub trait TfliteBackend {
     ) -> Result<ArcDetector, DynError>;
 }
 
+pub type DynOpenVinoServerBackend = Box<dyn OpenVinoServerBackend>;
+
+pub trait OpenVinoServerBackend {
+    #[allow(clippy::too_many_arguments)]
+    fn new_open_vino_server_detector(
+        &self,
+        task_token: &TaskTrackerToken,
+        logger: &ArcMsgLogger,
+        name: &DetectorName,
+        host: String,
+        input_tensor: String,
+        output_tensor: String,
+        input_width: NonZeroU16,
+        input_height: NonZeroU16,
+    ) -> Result<ArcDetector, DynError>;
+}
+
 pub type LabelMap = HashMap<u16, Label>;
 
 #[derive(Copy, Clone, Debug, Default, Deserialize, PartialEq, Eq)]

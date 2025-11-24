@@ -1,0 +1,30 @@
+[package]
+name = "object_detection_open_vino_server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "object_detection_open_vino_server"
+path = "open_vino_server.rs"
+crate-type = ["cdylib"]
+doctest = false
+
+[dependencies]
+common.path = "../../src/common"
+plugin.path = "../../src/plugin"
+
+async-trait.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+async-channel.workspace = true
+
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+test-case.workspace = true

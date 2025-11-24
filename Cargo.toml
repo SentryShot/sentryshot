@@ -6,6 +6,7 @@ members = [
 	"plugins/mqtt",
 	"plugins/object_detection",
 	"plugins/object_detection_tflite",
+	"plugins/object_detection_open_vino_server",
 	"plugins/thumb_scale",
 
 	"src/sentryshot",
