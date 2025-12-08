@@ -67,7 +67,7 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 		/* HTML */ `
 			<div
 				class="relative flex justify-center items-center w-full"
-				style="max-height: 100vh; align-self: center; --player-timeline-width: 90%;"
+				style="max-height: 100vh; align-self: center; --player-timeline-width: 90%; overflow: hidden;"
 			></div>
 		`,
 		[
@@ -86,6 +86,11 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 					style="z-index: 1; opacity: 0.5;"
 				></label>
 			`),
+			htmlToElem(/* HTML */`
+				<div
+					class="player-overlay absolute flex bg-color1 text-color text-1.3 px-1"
+					style="z-index: 2; left: 0; top: 0; border: none; border-bottom-right-radius: var(--radius-md);"
+				>${monitor.name}</div>`),
 			$overlay,
 			$video,
 		],
