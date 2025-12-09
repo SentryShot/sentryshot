@@ -31,7 +31,7 @@ use recdb::{DeleteRecordingError, RecDb, RecDbQuery, RecordingResponse};
 use recording::{VideoCache, new_video_reader};
 use rust_embed::EmbeddedFiles;
 use serde::Deserialize;
-use std::{num::NonZeroUsize, path::PathBuf, sync::Arc};
+use std::{io::Cursor, num::NonZeroUsize, path::PathBuf, sync::Arc};
 use streamer::{PlayReponse, StartSessionReponse, Streamer};
 use thiserror::Error;
 use tokio::sync::Mutex;
@@ -510,11 +510,21 @@ pub async fn streamer_play_handler(
         .play(query.monitor_id.clone(), query.sub_stream, query.session_id)
         .await;
     match result {
-        Ready(ready) => {
-            let mut headers = HeaderMap::new();
-            headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-            (headers, Body::from_stream(ready.0)).into_response()
-        }
+        Ready(ready) => match ready {
+            Ok(ready) => {
+                let mut headers = HeaderMap::new();
+                headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+
+                let stream = ReaderStream::with_capacity(
+                    Cursor::new(ready),
+                    streamer::Muxer::HTTP_BUFFER_SIZE,
+                );
+                let body = Body::from_stream(stream);
+
+                (headers, body).into_response()
+            }
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        },
         NotImplemented(err) => (StatusCode::INTERNAL_SERVER_ERROR, err).into_response(),
         FramesExpired => StatusCode::GONE.into_response(),
         SessionNotExist => (

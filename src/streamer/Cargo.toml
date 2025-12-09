@@ -18,8 +18,6 @@ common.path = "../common"
 mp4.path = "../mp4"
 
 async-trait.workspace = true
-bytes.workspace = true
-futures-lite.workspace = true
 http.workspace = true
 retina.workspace = true
 sentryshot_padded_bytes.workspace = true

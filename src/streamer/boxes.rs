@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use bytes::Bytes;
 use common::{
     TrackParameters, VideoSample,
     time::{DtsOffset, H264_TIMESCALE, UnixH264},
@@ -15,7 +14,7 @@ use thiserror::Error;
 pub const VIDEO_TRACK_ID: u32 = 1;
 
 #[allow(clippy::module_name_repetitions)]
-pub fn generate_init(params: &TrackParameters) -> Result<Bytes, mp4::Mp4Error> {
+pub fn generate_init(params: &TrackParameters) -> Result<Vec<u8>, mp4::Mp4Error> {
     /*
        - ftyp
        - moov
@@ -69,7 +68,7 @@ pub fn generate_init(params: &TrackParameters) -> Result<Bytes, mp4::Mp4Error> {
     ftyp.marshal(&mut buf)?;
     moov.marshal(&mut buf)?;
 
-    Ok(Bytes::from(buf))
+    Ok(buf)
 }
 
 #[allow(clippy::too_many_lines)]
@@ -242,7 +241,7 @@ pub enum GenerateMoofError {
 pub(crate) fn generate_moof_and_empty_mdat(
     muxer_start_time: UnixH264,
     frames: &[VideoSample],
-) -> Result<Bytes, GenerateMoofError> {
+) -> Result<Vec<u8>, GenerateMoofError> {
     /*
        moof
        - mfhd
@@ -277,7 +276,7 @@ pub(crate) fn generate_moof_and_empty_mdat(
     moof.marshal(&mut buf)?;
     mdat.marshal(&mut buf)?;
 
-    Ok(Bytes::from(buf))
+    Ok(buf)
 }
 
 struct EmptyMdat(usize);

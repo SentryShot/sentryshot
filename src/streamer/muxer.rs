@@ -1,22 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use async_trait::async_trait;
-use bytes::Bytes;
 use common::{
     ArcLogger, DynError, H264Data, Segment, SegmentImpl, TrackParameters, VideoSample,
     monitor::H264WriterImpl,
     time::{DurationH264, UnixH264, UnixNano},
 };
-use futures_lite::{Stream, stream};
-use sentryshot_padded_bytes::PaddedBytes;
 use serde::Serialize;
-use std::{collections::VecDeque, fmt::Formatter, iter, ops::Deref, sync::Arc};
+use std::{collections::VecDeque, ops::Deref, sync::Arc};
 use thiserror::Error;
 use tokio::sync::{Mutex, oneshot};
-use tokio_util::{
-    io::{ReaderStream, StreamReader},
-    sync::{CancellationToken, DropGuard},
-};
+use tokio_util::sync::{CancellationToken, DropGuard};
 
 use crate::boxes::{GenerateMoofError, generate_init, generate_moof_and_empty_mdat};
 
@@ -42,7 +36,7 @@ pub enum CreateMuxerError {
 impl Muxer {
     pub(crate) const MAX_SESSIONS: usize = 9;
     pub(crate) const MAX_GOPS: usize = 3;
-    const HTTP_BUFFER_SIZE: usize = 65536;
+    pub const HTTP_BUFFER_SIZE: usize = 65536;
     const FRAME_CACHE_SIZE: usize = 256;
 
     pub(crate) fn new(
@@ -143,33 +137,24 @@ impl Muxer {
                 return;
             };
 
-            let cached_frames = state
-                .frames
-                .iter()
-                .skip(next_frame_index)
-                .flat_map(|f| f.muxed(session.start_time));
+            let mut buf = Vec::new();
+            if session.first_request {
+                buf.extend(state.init_content);
+            }
 
-            let cached_data: Vec<std::io::Result<Bytes>> = {
-                if session.first_request {
-                    iter::once(state.init_content.clone())
-                        .map(Ok)
-                        .chain(cached_frames)
-                        .collect()
-                } else {
-                    cached_frames.collect()
-                }
-            };
-
-            let buffered_cached_data_stream = ReaderStream::with_capacity(
-                StreamReader::new(stream::iter(cached_data)),
-                Self::HTTP_BUFFER_SIZE,
-            );
-
-            let response = Ready(PlayResponseReady(Box::new(buffered_cached_data_stream)));
-            _ = req.res_tx.send(response);
+            for frame in state.frames.iter().skip(next_frame_index) {
+                match frame.muxed(session.start_time) {
+                    Ok(muxed) => buf.extend(muxed),
+                    Err(e) => {
+                        _ = req.res_tx.send(Ready(Err(e)));
+                        return;
+                    }
+                };
+            }
 
             session.first_request = false;
             session.next_frame_id = last_frame.id + 1;
+            _ = req.res_tx.send(Ready(Ok(buf)));
             return;
         }
 
@@ -178,13 +163,11 @@ impl Muxer {
         let start_time = session.start_time;
         // State lock must be released at this point.
         drop(state2);
-        let Ok(frame) = rx.await else {
+        let Ok(new_frame) = rx.await else {
             _ = req.res_tx.send(MuxerCancelled);
             return;
         };
-        let response = Ready(PlayResponseReady(Box::new(stream::iter(
-            frame.muxed(start_time),
-        ))));
+        let response = Ready(new_frame.muxed(start_time));
         _ = req.res_tx.send(response);
     }
 
@@ -266,7 +249,7 @@ struct MuxerState {
     frames_on_hold: Vec<oneshot::Sender<Arc<Frame>>>,
 
     // The is the first bytes in the mp4 file that contain the decoding parameters.
-    init_content: Bytes,
+    init_content: Vec<u8>,
 }
 
 impl MuxerState {
@@ -388,7 +371,7 @@ struct MuxerStateRef<'a> {
     frames: &'a mut VecDeque<Arc<Frame>>,
     gops: &'a VecDeque<Arc<Gop>>,
     frames_on_hold: &'a mut Vec<oneshot::Sender<Arc<Frame>>>,
-    init_content: &'a Bytes,
+    init_content: &'a [u8],
 }
 
 fn frame_position(frames: &VecDeque<Arc<Frame>>, frame_id: u64) -> Option<usize> {
@@ -430,9 +413,9 @@ pub struct PlayRequest {
     pub res_tx: oneshot::Sender<PlayReponse>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum PlayReponse {
-    Ready(PlayResponseReady),
+    Ready(Result<Vec<u8>, GenerateMoofError>),
     NotReady,
     NotImplemented(String),
     FramesExpired,
@@ -446,35 +429,12 @@ impl PlayReponse {
     #[cfg(test)]
     #[track_caller]
     #[must_use]
-    pub fn unwrap(self) -> PlayResponseReady {
+    #[allow(clippy::unwrap_used)]
+    pub fn unwrap(self) -> Vec<u8> {
         let PlayReponse::Ready(res) = self else {
             panic!("not ok: {self:?}")
         };
-        res
-    }
-}
-
-pub struct PlayResponseReady(pub Box<dyn Stream<Item = std::io::Result<Bytes>> + Send + Unpin>);
-
-impl PlayResponseReady {
-    #[cfg(test)]
-    #[allow(clippy::unwrap_used)]
-    pub async fn collect(self) -> Vec<u8> {
-        use futures_lite::StreamExt;
-        let bytes: Vec<Bytes> = self.0.try_collect().await.unwrap();
-        bytes.into_iter().flatten().collect()
-    }
-}
-
-impl std::fmt::Debug for PlayResponseReady {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "dyn body")
-    }
-}
-
-impl PartialEq for PlayResponseReady {
-    fn eq(&self, _other: &Self) -> bool {
-        todo!();
+        res.unwrap()
     }
 }
 
@@ -522,26 +482,12 @@ impl Frame {
         })
     }
 
-    /*fn muxed_size(&self) -> u64 {
-        u64::try_from(self.mp4_boxes.len() + self.sample.avcc.len()).expect("fit u64")
-    }*/
-
-    fn muxed(&self, start_time: UnixH264) -> impl Iterator<Item = std::io::Result<Bytes>> + use<> {
-        let mp4_boxes = generate_moof_and_empty_mdat(start_time, &[self.sample.clone()])
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e));
-        if let Ok(boxes) = &mp4_boxes {
-            assert_eq!(self.boxes_size, boxes.len());
-        }
-        let avcc = Bytes::from_owner(ArcPaddedBytes(self.sample.avcc.clone()));
-        [mp4_boxes, Ok(avcc)].into_iter()
-    }
-}
-
-struct ArcPaddedBytes(Arc<PaddedBytes>);
-
-impl AsRef<[u8]> for ArcPaddedBytes {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
+    fn muxed(&self, start_time: UnixH264) -> Result<Vec<u8>, GenerateMoofError> {
+        let mut boxes = generate_moof_and_empty_mdat(start_time, &[self.sample.clone()])?;
+        assert_eq!(self.boxes_size, boxes.len());
+        let avcc: &[u8] = &self.sample.avcc;
+        boxes.extend(avcc);
+        Ok(boxes)
     }
 }
 
@@ -613,7 +559,7 @@ impl H264Writer {
     #[cfg(test)]
     #[allow(clippy::unwrap_used)]
     pub async fn test_write(&mut self, pts: i64, avcc: Vec<u8>, random_access: bool) {
-        use common::time::DtsOffset;
+        use common::{PaddedBytes, time::DtsOffset};
 
         self.write_h264(H264Data {
             pts: common::time::UnixH264::new(pts),

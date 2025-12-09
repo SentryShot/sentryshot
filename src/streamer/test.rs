@@ -406,10 +406,7 @@ async fn test_play() {
     ];
 
     let got = streamer.play(m_id("test"), false, 123).await.unwrap();
-    assert_eq!(
-        pretty_hex(&want_bytes.as_slice()),
-        pretty_hex(&got.collect().await)
-    );
+    assert_eq!(pretty_hex(&want_bytes.as_slice()), pretty_hex(&got));
 
     writer.write_h264(third_sample).await.unwrap();
     let want_bytes = [
@@ -436,10 +433,7 @@ async fn test_play() {
         b'e', b'f', b'g', b'h', // Samples
     ];
     let got = streamer.play(m_id("test"), false, 123).await.unwrap();
-    assert_eq!(
-        pretty_hex(&want_bytes.as_slice()),
-        pretty_hex(&got.collect().await)
-    );
+    assert_eq!(pretty_hex(&want_bytes.as_slice()), pretty_hex(&got));
 
     let want_bytes = [
         0, 0, 0, 0x68, b'm', b'o', b'o', b'f', //
@@ -473,6 +467,6 @@ async fn test_play() {
 
     assert_eq!(
         pretty_hex(&want_bytes.as_slice()),
-        pretty_hex(&got.await.unwrap().collect().await)
+        pretty_hex(&got.await.unwrap())
     );
 }

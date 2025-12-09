@@ -2471,9 +2471,7 @@ name = "streamer"
 version = "0.3.8"
 dependencies = [
  "async-trait",
- "bytes",
  "common",
- "futures-lite",
  "http",
  "mp4",
  "pretty-hex",
