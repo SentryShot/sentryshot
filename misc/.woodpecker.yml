@@ -1,18 +1,18 @@
 steps:
     run:
         image: codeberg.org/sentryshot/sentryshot-ci:v0.3.0
-        commands: "nix-shell /shell.nix --command 'npm install && ./misc/utils.sh ci'"
+        commands: "nix-shell /shell.nix --command 'npm install && ./misc/make.sh ci'"
         when:
             event: [push, pull_request, tag]
 
     build-x86_64:
         image: codeberg.org/sentryshot/sentryshot-build-x86_64:v0.3.0
-        commands: "nix-shell /shell.nix --command './misc/utils.sh build-target x86_64'"
+        commands: "nix-shell /shell.nix --command './misc/make.sh build-target x86_64'"
         when:
             event: [tag]
     build-aarch64:
         image: codeberg.org/sentryshot/sentryshot-build-aarch64:v0.3.0
-        commands: "nix-shell /shell.nix --command './misc/utils.sh build-target aarch64'"
+        commands: "nix-shell /shell.nix --command './misc/make.sh build-target aarch64'"
         when:
             event: [tag]
 

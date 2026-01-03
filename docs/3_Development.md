@@ -11,7 +11,7 @@
 
 Use this command to run the full CI suite after setting up your environment
 
-    ./misc/utils.sh ci-fix
+    ./misc/make.sh ci-fix
 
 
 

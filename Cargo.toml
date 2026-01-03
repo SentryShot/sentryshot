@@ -8,6 +8,7 @@ members = [
 	"plugins/object_detection_tflite",
 	"plugins/thumb_scale",
 
+	"src/make",
 	"src/sentryshot",
 ]
 resolver = "2"
@@ -31,7 +32,7 @@ retina = { git = "https://github.com/Curid/retina", branch = "dts" }
 async-channel = "2.0.0"
 async-recursion = "1.1.1"
 async-trait = "0.1.64"
-argon2 = "0.5.0"
+argon2 = { version = "0.5.0", features = ["std"] }
 axum = { version = "0.8.0", default-features = false, features = ["tokio", "http1", "http2", "json", "query"] }
 bytes = "1.4.0"
 bytesize = "2"
