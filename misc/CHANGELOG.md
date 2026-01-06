@@ -1,5 +1,9 @@
 ## unreleased
 
+## `v0.3.9`
+
+-   display monitor names on the live page #98 @vdoreau
+
 ## `v0.3.8`
 
 -   fix scroll on overflow for the settings page monitor list #95

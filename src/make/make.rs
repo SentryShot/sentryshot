@@ -203,7 +203,7 @@ fn build_target(sh: &Shell, target_dir: &Path, target: &str) {
     };
 
     // Copy libs.
-    std::fs::remove_dir_all(&libs_dir).unwrap();
+    _ = std::fs::remove_dir_all(&libs_dir);
     std::fs::create_dir_all(&libs_dir).unwrap();
 
     println!("./build/{target}/libs/libavutil.so");
