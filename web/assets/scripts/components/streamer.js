@@ -86,11 +86,14 @@ function newSlowPollStream(monitor, preferLowRes, buttons = []) {
 					style="z-index: 1; opacity: 0.5;"
 				></label>
 			`),
-			htmlToElem(/* HTML */`
-				<div
+			htmlToElem(
+				/* HTML */ ` <div
 					class="player-overlay absolute flex bg-color1 text-color text-1.3 px-1"
 					style="z-index: 2; left: 0; top: 0; border: none; border-bottom-right-radius: var(--radius-md);"
-				>${monitor.name}</div>`),
+				>
+					${monitor.name}
+				</div>`,
+			),
 			$overlay,
 			$video,
 		],
@@ -348,7 +351,7 @@ async function newStream(parentSignal, $video, debugOverlay, monitorId, subStrea
 				$video.playbackRate =
 					delayMs - targetDelayMs < 0
 						? 1
-						: Math.min(1.0002 ** (delayMs - targetDelayMs), 2);
+						: Math.min(1.0002 ** (delayMs - targetDelayMs), 1.5);
 
 				if (i % 4 === 0) {
 					if (!stallCheck) {
@@ -361,15 +364,8 @@ async function newStream(parentSignal, $video, debugOverlay, monitorId, subStrea
 		})();
 
 		// Fetch loop. Source buffers should not be updated from different loops at the same time.
-		let lastFetch = 0;
 		let nUnchangedAppendsInARow = 0;
 		while (!cancelled) {
-			// Chromium doesn't like multiple appends within 120ms.
-			if (await sleep(signal, 120 - (Date.now() - lastFetch))) {
-				return;
-			}
-			lastFetch = Date.now();
-
 			const response = await fetch(playUrl, { signal });
 			const buf = await response.arrayBuffer();
 
@@ -381,6 +377,9 @@ async function newStream(parentSignal, $video, debugOverlay, monitorId, subStrea
 			const waitForUpdateEnd = new Promise((resolve) => {
 				sourceBuffer.addEventListener("updateend", resolve, { once: true });
 			});
+			if ($video.error) {
+				throw $video.error;
+			}
 			sourceBuffer.appendBuffer(buf);
 			await waitForUpdateEnd;
 

@@ -240,7 +240,7 @@ pub enum GenerateMoofError {
 
 pub(crate) fn generate_moof_and_empty_mdat(
     muxer_start_time: UnixH264,
-    frames: &[VideoSample],
+    frames: &[&VideoSample],
 ) -> Result<Vec<u8>, GenerateMoofError> {
     /*
        moof
@@ -317,7 +317,7 @@ pub enum GenerateTrafError {
 
 fn generate_traf(
     muxer_start_time: UnixH264,
-    frames: &[VideoSample],
+    frames: &[&VideoSample],
     data_offset: i32,
 ) -> Result<mp4::Boxes, GenerateTrafError> {
     use GenerateTrafError::*;
@@ -573,7 +573,7 @@ mod tests {
     #[test]
     fn test_generate_moof_minimal() {
         let got =
-            generate_moof_and_empty_mdat(UnixH264::new(0), &[VideoSample::default()]).unwrap();
+            generate_moof_and_empty_mdat(UnixH264::new(0), &[&VideoSample::default()]).unwrap();
 
         let want = vec![
             0, 0, 0, 0x68, b'm', b'o', b'o', b'f', //
@@ -602,7 +602,7 @@ mod tests {
 
     #[test]
     fn test_generate_part_video_sample() {
-        let samples = [VideoSample {
+        let samples = [&VideoSample {
             avcc: Arc::new(PaddedBytes::new(b"abcd".to_vec())),
             ..Default::default()
         }];
@@ -636,16 +636,16 @@ mod tests {
     #[test]
     fn test_generate_part_multiple_video_samples() {
         let samples = [
-            VideoSample {
+            &VideoSample {
                 avcc: Arc::new(PaddedBytes::new(b"abcd".to_vec())),
                 random_access_present: true,
                 ..Default::default()
             },
-            VideoSample {
+            &VideoSample {
                 avcc: Arc::new(PaddedBytes::new(b"efgh".to_vec())),
                 ..Default::default()
             },
-            VideoSample {
+            &VideoSample {
                 avcc: Arc::new(PaddedBytes::new(b"ijkl".to_vec())),
                 ..Default::default()
             },
@@ -690,14 +690,14 @@ mod tests {
     fn test_generate_part_minimal_real() {
         let start_time = UnixH264::new(1_000_000_000 * SECOND);
         let samples = [
-            VideoSample {
+            &VideoSample {
                 pts: start_time + UnixH264::new(54000),
                 dts_offset: DtsOffset::new(54000 - 60000),
                 avcc: Arc::new(PaddedBytes::new(b"abcd".to_vec())),
                 random_access_present: true,
                 duration: DurationH264::new(11999),
             },
-            VideoSample {
+            &VideoSample {
                 pts: start_time + UnixH264::new(63000),
                 dts_offset: DtsOffset::new(63000 - 72000),
                 avcc: Arc::new(PaddedBytes::new(b"efgh".to_vec())),

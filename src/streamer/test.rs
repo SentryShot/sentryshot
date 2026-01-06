@@ -408,7 +408,6 @@ async fn test_play() {
     let got = streamer.play(m_id("test"), false, 123).await.unwrap();
     assert_eq!(pretty_hex(&want_bytes.as_slice()), pretty_hex(&got));
 
-    writer.write_h264(third_sample).await.unwrap();
     let want_bytes = [
         0, 0, 0, 0x68, b'm', b'o', b'o', b'f', //
         0, 0, 0, 0x10, b'm', b'f', b'h', b'd', //
@@ -432,8 +431,15 @@ async fn test_play() {
         0, 0, 0, 0xc, b'm', b'd', b'a', b't', //
         b'e', b'f', b'g', b'h', // Samples
     ];
-    let got = streamer.play(m_id("test"), false, 123).await.unwrap();
-    assert_eq!(pretty_hex(&want_bytes.as_slice()), pretty_hex(&got));
+    let streamer2 = streamer.clone();
+    let got = tokio::spawn(async move { streamer2.play(m_id("test"), false, 123).await.unwrap() });
+    while muxer.debug_state().await.frame_on_hold_count != 1 {}
+    writer.write_h264(third_sample).await.unwrap();
+
+    assert_eq!(
+        pretty_hex(&want_bytes.as_slice()),
+        pretty_hex(&got.await.unwrap())
+    );
 
     let want_bytes = [
         0, 0, 0, 0x68, b'm', b'o', b'o', b'f', //
@@ -459,14 +465,8 @@ async fn test_play() {
         b'i', b'j', b'k', b'l', // Samples
     ];
 
-    let streamer2 = streamer.clone();
-    let got = tokio::spawn(async move { streamer2.play(m_id("test"), false, 123).await.unwrap() });
-    while muxer.debug_state().await.frame_on_hold_count != 1 {}
-
     writer.write_h264(fourth_sample).await.unwrap();
+    let got = streamer.play(m_id("test"), false, 123).await.unwrap();
 
-    assert_eq!(
-        pretty_hex(&want_bytes.as_slice()),
-        pretty_hex(&got.await.unwrap())
-    );
+    assert_eq!(pretty_hex(&want_bytes.as_slice()), pretty_hex(&got));
 }

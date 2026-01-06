@@ -73,7 +73,7 @@ fn main() {
             cmd!(sh, "nix-shell --pure ./misc/nix/shell-{target}.nix --run \"./misc/utils.sh build-target {target}\"").run().unwrap();
         }
         "test-backend" | "test-back" | "test-be" | "test-b" | "testb" => test_backend(&sh),
-        "lint-backend" | "lint-back" | "lint-be" | "lint-b" | "lintb" => lint_backend(&sh),
+        "lint-backend" | "lint-back" | "lint-be" | "lint-b" | "lintb" => lint_backend_fix(&sh),
         "lint-frontend" | "lint-front" | "lint-fe" | "lint-f" | "lintf" => {
             lint_css_fix(&sh);
             lint_js_fix(&sh);

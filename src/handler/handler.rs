@@ -532,6 +532,11 @@ pub async fn streamer_play_handler(
             "start a session with /api/streamer/start-session first",
         )
             .into_response(),
+        SessionAlreadyLocked => (
+            StatusCode::BAD_REQUEST,
+            "session cannot be polled concurrently",
+        )
+            .into_response(),
         NotReady | MuxerNotExist | StreamerCancelled | MuxerCancelled => {
             StatusCode::NOT_FOUND.into_response()
         }

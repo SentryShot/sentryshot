@@ -77,10 +77,9 @@ impl Muxer {
         let Some(state) = state.as_mut() else {
             return MuxerCancelled;
         };
-        let state = state.split_borrow();
 
-        for (id, _) in &mut *state.sessions {
-            if *id == session_id {
+        for id in state.sessions.iter().map(|v| v.0) {
+            if id == session_id {
                 return SessionAlreadyExist;
             }
         }
@@ -98,11 +97,11 @@ impl Muxer {
 
         state.sessions.push_back((
             session_id,
-            Session {
+            Arc::new(Mutex::new(Session {
                 start_time,
                 first_request: true,
                 next_frame_id: start_frame_id,
-            },
+            })),
         ));
         Ready(StartSessionResponseReady {
             start_time: start_time.into(),
@@ -110,7 +109,6 @@ impl Muxer {
         })
     }
 
-    #[allow(clippy::too_many_lines)]
     pub(crate) async fn play(&self, req: PlayRequest) {
         use PlayReponse::*;
         let mut state2 = self.state.lock().await;
@@ -118,20 +116,19 @@ impl Muxer {
             _ = req.res_tx.send(MuxerCancelled);
             return;
         };
-        let state = state.split_borrow();
 
-        let session = state
-            .sessions
-            .iter_mut()
-            .find(|(id, _)| *id == req.session_id);
-        let Some((_, session)) = session else {
+        let Some(session) = state.get_session(req.session_id) else {
             _ = req.res_tx.send(SessionNotExist);
+            return;
+        };
+        let Ok(mut session) = session.try_lock() else {
+            _ = req.res_tx.send(SessionAlreadyLocked);
             return;
         };
 
         let last_frame = state.frames.back().expect("frames not empty");
         if session.next_frame_id <= last_frame.id {
-            let next_frame_index = frame_position(state.frames, session.next_frame_id);
+            let next_frame_index = frame_position(&state.frames, session.next_frame_id);
             let Some(next_frame_index) = next_frame_index else {
                 _ = req.res_tx.send(FramesExpired);
                 return;
@@ -139,7 +136,7 @@ impl Muxer {
 
             let mut buf = Vec::new();
             if session.first_request {
-                buf.extend(state.init_content);
+                buf.extend(&state.init_content);
             }
 
             for frame in state.frames.iter().skip(next_frame_index) {
@@ -154,20 +151,23 @@ impl Muxer {
 
             session.first_request = false;
             session.next_frame_id = last_frame.id + 1;
+            // State lock must be released at this point.
+            drop(state2);
             _ = req.res_tx.send(Ready(Ok(buf)));
             return;
         }
 
         let (tx, rx) = oneshot::channel();
         state.frames_on_hold.push(tx);
-        let start_time = session.start_time;
+
         // State lock must be released at this point.
         drop(state2);
         let Ok(new_frame) = rx.await else {
             _ = req.res_tx.send(MuxerCancelled);
             return;
         };
-        let response = Ready(new_frame.muxed(start_time));
+        session.next_frame_id = new_frame.id + 1;
+        let response = Ready(new_frame.muxed(session.start_time));
         _ = req.res_tx.send(response);
     }
 
@@ -237,7 +237,7 @@ struct MuxerState {
     next_frame: H264Data,
 
     muxer_start_time: UnixH264,
-    sessions: VecDeque<(u32, Session)>,
+    sessions: VecDeque<(u32, Arc<Mutex<Session>>)>,
 
     frames: VecDeque<Arc<Frame>>,
     gop_in_progress: Vec<Arc<Frame>>,
@@ -343,14 +343,9 @@ impl MuxerState {
         Ok(())
     }
 
-    fn split_borrow(&mut self) -> MuxerStateRef {
-        MuxerStateRef {
-            sessions: &mut self.sessions,
-            frames: &mut self.frames,
-            gops: &self.gops,
-            frames_on_hold: &mut self.frames_on_hold,
-            init_content: &self.init_content,
-        }
+    fn get_session(&self, session_id: u32) -> Option<Arc<Mutex<Session>>> {
+        let session = self.sessions.iter().find(|(id, _)| *id == session_id);
+        session.map(|v| v.1.clone())
     }
 }
 
@@ -364,14 +359,6 @@ pub enum WriteFrameError {
 
     #[error("dts")]
     Dts,
-}
-
-struct MuxerStateRef<'a> {
-    sessions: &'a mut VecDeque<(u32, Session)>,
-    frames: &'a mut VecDeque<Arc<Frame>>,
-    gops: &'a VecDeque<Arc<Gop>>,
-    frames_on_hold: &'a mut Vec<oneshot::Sender<Arc<Frame>>>,
-    init_content: &'a [u8],
 }
 
 fn frame_position(frames: &VecDeque<Arc<Frame>>, frame_id: u64) -> Option<usize> {
@@ -420,6 +407,7 @@ pub enum PlayReponse {
     NotImplemented(String),
     FramesExpired,
     SessionNotExist,
+    SessionAlreadyLocked,
     MuxerNotExist,
     StreamerCancelled,
     MuxerCancelled,
@@ -467,7 +455,7 @@ impl Frame {
             random_access_present: data.random_access_present,
             avcc: data.avcc.clone(),
         };
-        let boxes_size = generate_moof_and_empty_mdat(muxer_start_time, &[sample])?.len();
+        let boxes_size = generate_moof_and_empty_mdat(muxer_start_time, &[&sample])?.len();
 
         Ok(Frame {
             id,
@@ -483,7 +471,7 @@ impl Frame {
     }
 
     fn muxed(&self, start_time: UnixH264) -> Result<Vec<u8>, GenerateMoofError> {
-        let mut boxes = generate_moof_and_empty_mdat(start_time, &[self.sample.clone()])?;
+        let mut boxes = generate_moof_and_empty_mdat(start_time, &[&self.sample])?;
         assert_eq!(self.boxes_size, boxes.len());
         let avcc: &[u8] = &self.sample.avcc;
         boxes.extend(avcc);
