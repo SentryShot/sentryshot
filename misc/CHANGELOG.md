@@ -1,5 +1,7 @@
 ## unreleased
 
+-   fix object detection thresholds #101
+
 ## `v0.3.9`
 
 -   display monitor names on the live page #98 @vdoreau

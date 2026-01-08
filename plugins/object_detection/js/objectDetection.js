@@ -160,7 +160,7 @@ function thresholds(detectors, getDetectorName) {
 	/** @typedef Threshold
 	 *  @property {Element} elem
 	 *  @property {string} label
-	 *  @property {string} value
+	 *  @property {() => string} value
 	 */
 
 	/**
@@ -202,7 +202,9 @@ function thresholds(detectors, getDetectorName) {
 		return {
 			elem,
 			label,
-			value: $input.value,
+			value() {
+				return $input.value;
+			},
 		};
 	};
 
@@ -268,7 +270,7 @@ function thresholds(detectors, getDetectorName) {
 		modal.onClose(() => {
 			value = {};
 			for (const field of thresholds) {
-				value[field.label] = Number(field.value);
+				value[field.label] = Number(field.value());
 			}
 		});
 
