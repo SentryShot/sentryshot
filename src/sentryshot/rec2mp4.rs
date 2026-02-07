@@ -41,30 +41,26 @@ pub async fn rec_to_mp4(path: PathBuf) -> Result<(), RecToMp4Error> {
                 continue;
             }
 
-            let file_name = entry.file_name().to_string_lossy().to_string();
-            let is_meta_file = Path::new(&file_name)
+            let meta_path = entry.path();
+            let is_meta_file = meta_path
                 .extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("meta"));
             if !is_meta_file {
                 continue;
             }
 
-            let mut recording_path = entry.path();
-            recording_path.set_extension("");
-
-            let mut mdat_path = recording_path.clone();
+            let mut mdat_path = meta_path.clone();
             mdat_path.set_extension("mdat");
-
             if !mdat_path.exists() {
                 continue;
             }
 
-            recording_paths.push(recording_path);
+            recording_paths.push((meta_path, mdat_path));
         }
     }
 
     let n_recordings = recording_paths.len();
-    println!("Found {n_recordings} new recordings");
+    println!("Found {n_recordings} recordings");
 
     if n_recordings == 0 {
         return Ok(());
@@ -72,13 +68,15 @@ pub async fn rec_to_mp4(path: PathBuf) -> Result<(), RecToMp4Error> {
 
     let (results_tx, mut results_rx) = mpsc::channel(n_recordings);
 
-    for recording_path in recording_paths {
+    for (meta_path, mdat_path) in recording_paths {
         let results_tx = results_tx.clone();
         tokio::spawn(async move {
+            let mut recording_path = meta_path.clone();
+            recording_path.set_extension("");
             results_tx
                 .send(ConvertResult {
-                    recording_path: recording_path.clone(),
-                    res: convert(recording_path).await,
+                    recording_path,
+                    res: convert(meta_path, &mdat_path).await,
                 })
                 .await
         });
@@ -115,11 +113,11 @@ enum ConvertError {
     Copy(std::io::Error),
 }
 
-async fn convert(recording_path: PathBuf) -> Result<(), ConvertError> {
+async fn convert(meta_path: PathBuf, mdat_path: &Path) -> Result<(), ConvertError> {
     use ConvertError::*;
-    let mut video_reader = new_video_reader(recording_path.clone(), 0, &None).await?;
+    let mut video_reader = new_video_reader(&meta_path, mdat_path, 0, &None).await?;
 
-    let mut mp4_path = recording_path.clone();
+    let mut mp4_path = meta_path.clone();
     mp4_path.set_extension("mp4");
 
     let mut file = tokio::fs::OpenOptions::new()

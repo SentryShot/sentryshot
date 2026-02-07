@@ -8,7 +8,7 @@ use crate::{
 use pin_project::pin_project;
 use std::{
     io::{self, SeekFrom},
-    path::{Path, PathBuf},
+    path::Path,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
@@ -67,29 +67,24 @@ pub enum CreateVideoReaderError {
 
 #[allow(clippy::module_name_repetitions)]
 pub async fn new_video_reader(
-    recording_path: PathBuf,
+    meta_path: &Path,
+    mdat_path: &Path,
     cache_id: u32,
     cache: &Option<Arc<Mutex<VideoCache>>>,
 ) -> Result<VideoReader<MetaCursor, tokio::fs::File>, CreateVideoReaderError> {
     use CreateVideoReaderError::*;
-    let mut meta_path = recording_path.clone();
-    meta_path.set_extension("meta");
-
-    let mut mdat_path = recording_path.clone();
-    mdat_path.set_extension("mdat");
-
     let meta = {
         if let Some(cache) = cache {
             let mut cache = cache.lock().await;
-            if let Some(v) = cache.get((&recording_path, cache_id)) {
+            if let Some(v) = cache.get((meta_path, cache_id)) {
                 v
             } else {
-                let meta = Arc::new(read_video_metadata(&meta_path).await?);
-                cache.add((recording_path, cache_id), meta.clone());
+                let meta = Arc::new(read_video_metadata(meta_path).await?);
+                cache.add((meta_path.to_path_buf(), cache_id), meta.clone());
                 meta
             }
         } else {
-            Arc::new(read_video_metadata(&meta_path).await?)
+            Arc::new(read_video_metadata(meta_path).await?)
         }
     };
 
@@ -505,7 +500,6 @@ mod tests {
     async fn test_new_video_reader() {
         let temp_dir = tempdir().unwrap();
 
-        let path = temp_dir.path().join("x");
         let meta_path = temp_dir.path().join("x.meta");
         let mdat_path = temp_dir.path().join("x.mdat");
 
@@ -526,17 +520,16 @@ mod tests {
             0, 0, 0, 0, // Size.
         ];
 
-        std::fs::write(meta_path, test_meta).unwrap();
-        std::fs::write(mdat_path, [0, 0, 0, 0]).unwrap();
+        std::fs::write(&meta_path, test_meta).unwrap();
+        std::fs::write(&mdat_path, [0, 0, 0, 0]).unwrap();
 
-        let mut video = new_video_reader(path, 0, &None).await.unwrap();
+        let mut video = new_video_reader(&meta_path, &mdat_path, 0, &None)
+            .await
+            .unwrap();
 
-        // Read 1000 bytes.
+        // Read 100 bytes.
         let mut buf = vec![0; 100];
         video.read_exact(&mut buf).await.unwrap();
-        //panic!("a {}", n);
-        //n, err := new(bytes.Buffer).ReadFrom(video)
-        //require.Greater(t, n, int64(1000))*/
     }
 
     #[tokio::test]

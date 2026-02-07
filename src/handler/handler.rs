@@ -605,11 +605,21 @@ pub async fn recording_video_handler(
     query: Query<RecordingVideoQuery>,
     headers: HeaderMap,
 ) -> Response {
-    let Some(path) = state.rec_db.recording_file_by_ext(&rec_id, "meta").await else {
+    let Some(meta_path) = state.rec_db.recording_file_by_ext(&rec_id, "meta").await else {
+        return (StatusCode::NOT_FOUND).into_response();
+    };
+    let Some(mdat_path) = state.rec_db.recording_file_by_ext(&rec_id, "mdat").await else {
         return (StatusCode::NOT_FOUND).into_response();
     };
 
-    let video = match new_video_reader(path, query.cache_id, &Some(state.video_cache)).await {
+    let video = match new_video_reader(
+        &meta_path,
+        &mdat_path,
+        query.cache_id,
+        &Some(state.video_cache),
+    )
+    .await
+    {
         Ok(v) => v,
         Err(e) => {
             state.logger.log(LogEntry::new2(
