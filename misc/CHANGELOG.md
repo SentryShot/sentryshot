@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.3.10`
+
 -   fix object detection thresholds #101
 
 ## `v0.3.9`

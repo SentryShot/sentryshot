@@ -12,7 +12,7 @@ steps:
             event: [tag]
     build-aarch64:
         image: codeberg.org/sentryshot/sentryshot-build-aarch64:v0.3.0
-        commands: "nix-shell /shell.nix --command './misc/make.sh build-target aarch64'"
+        commands: "nix-shell /shell.nix --command './target/x86_64-unknown-linux-gnu/debug/make build-target aarch64'"
         when:
             event: [tag]
 
@@ -32,7 +32,7 @@ steps:
             event: [tag]
 
     docker:
-        image: woodpeckerci/plugin-docker-buildx:6
+        image: woodpeckerci/plugin-docker-buildx:6.0.3
         settings:
             platforms: linux/amd64,linux/arm64
             repo: codeberg.org/sentryshot/sentryshot
