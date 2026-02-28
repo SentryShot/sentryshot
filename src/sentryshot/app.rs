@@ -27,7 +27,7 @@ use plugin::{
     types::{NewAuthError, Router},
 };
 use rand::{Rng, distr::Alphanumeric};
-use recdb::{RecDb, StorageImpl};
+use recdb::{CreateRecDbError, RecDb, StorageImpl};
 use recording::VideoCache;
 use rust_embed::RustEmbed;
 use std::{
@@ -74,6 +74,9 @@ pub enum RunError {
 
     #[error("create authenticator: {0}")]
     NewAuth(#[from] NewAuthError),
+
+    #[error("create recdb: {0}")]
+    CreateRecDb(#[from] CreateRecDbError),
 
     #[error("create monitor manager: {0}")]
     NewMonitorManager(#[from] InitializeMonitorManagerError),
@@ -142,6 +145,7 @@ impl App {
     ) -> Result<(App, PreLoadedPlugins), RunError> {
         let token = CancellationToken::new();
         let env = EnvConf::new(config_path)?;
+        recdb::migrate(env.storage_dir()).await;
 
         let pre_loaded_plugins = pre_load_plugins(env.plugin_dir(), env.plugins())?;
         let tracker = TaskTracker::new();
@@ -185,10 +189,10 @@ impl App {
         let recdb = Arc::new(
             RecDb::new(
                 logger.clone(),
-                env.recordings_dir().to_path_buf(),
+                env.storage_dir().join("recordings2").join("main"),
                 storage.clone(),
             )
-            .await,
+            .await?,
         );
         let eventdb = EventDb::new(
             token.clone(),

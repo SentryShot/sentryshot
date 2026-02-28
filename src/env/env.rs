@@ -15,7 +15,6 @@ use thiserror::Error;
 pub struct EnvConf {
     port: u16,
     storage_dir: PathBuf,
-    recordings_dir: PathBuf,
     config_dir: PathBuf,
     plugin_dir: PathBuf,
     max_disk_usage: NonZeroGb,
@@ -65,9 +64,6 @@ impl EnvConfig for EnvConf {
     }
     fn storage_dir(&self) -> &Path {
         &self.storage_dir
-    }
-    fn recordings_dir(&self) -> &Path {
-        &self.recordings_dir
     }
     fn config_dir(&self) -> &Path {
         &self.config_dir
@@ -191,12 +187,6 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
         .canonicalize()
         .map_err(|e| Canonicalize(raw.storage_dir, e))?;
 
-    let recordings_dir = storage_dir.join("recordings");
-    common::create_dir_all(&recordings_dir).map_err(|e| CreateRecDir(recordings_dir.clone(), e))?;
-    let recordings_dir = recordings_dir
-        .canonicalize()
-        .map_err(|e| Canonicalize(recordings_dir, e))?;
-
     let config_dir = raw
         .config_dir
         .canonicalize()
@@ -223,7 +213,6 @@ fn parse_config(env_toml: String) -> Result<EnvConf, ParseEnvConfigError> {
     Ok(EnvConf {
         port: raw.port,
         storage_dir,
-        recordings_dir,
         config_dir,
         plugin_dir,
         max_disk_usage: raw.max_disk_usage,
@@ -283,7 +272,6 @@ mod tests {
         let want = EnvConf {
             port: 2020,
             storage_dir: storage_dir.clone(),
-            recordings_dir: storage_dir.join("recordings"),
             config_dir: config_dir.parse().unwrap(),
             plugin_dir: plugin_dir.parse().unwrap(),
             max_disk_usage: NonZeroGb::new(ByteSize(GB)).unwrap(),

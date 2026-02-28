@@ -4,7 +4,6 @@ mod app;
 mod rec2mp4;
 
 use app::run;
-pub use rec2mp4::rec_to_mp4;
 
 use std::{path::PathBuf, process::ExitCode};
 
@@ -48,6 +47,10 @@ async fn main() -> ExitCode {
             };
         }
         "rec2mp4" => {
+            println!("the rec2mp4 option is unmaintained since v0.4.0");
+            println!("open an issue if you want it back");
+            return ExitCode::FAILURE;
+            /*
             if pargs.contains(["-h", "--help"]) {
                 print!("{HELP_REC2MP4}");
                 return ExitCode::SUCCESS;
@@ -59,7 +62,7 @@ async fn main() -> ExitCode {
             if let Err(e) = rec_to_mp4(path).await {
                 eprintln!("error: {e}");
                 return ExitCode::FAILURE;
-            }
+            }*/
         }
         v => {
             println!("invalid subcommand '{v}'");
@@ -95,6 +98,7 @@ Options:
   -h, --help             Print help
 ";
 
+/*
 const HELP_REC2MP4: &str = "\
 Convert recordings into mp4 videos
 
@@ -106,3 +110,4 @@ Arguments:
 Options:
   -h, --help  Print help
 ";
+*/

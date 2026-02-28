@@ -150,10 +150,10 @@ async fn execute_query(
         .ok_or(Sub)?;
     let mut recordings = recdb
         .recordings_by_query(&RecDbQuery {
-            recording_id: RecordingId::from_nanos(end_minus_1, &q.monitor_id)?,
+            recording_id: RecordingId::from_nanos(end_minus_1, q.monitor_id.clone())?,
             end: None,
             limit: NonZeroUsize::new(1).expect("nonzero"),
-            reverse: false,
+            oldest_first: false,
             monitors: vec![q.monitor_id.to_string()],
             include_data: false,
         })
@@ -173,9 +173,9 @@ async fn execute_query(
         recdb
             .recordings_by_query(&RecDbQuery {
                 recording_id: first_rec_id.clone(),
-                end: Some(RecordingId::from_nanos(end_plus_1, &q.monitor_id)?),
+                end: Some(end_plus_1),
                 limit: NonZeroUsize::new(100_000).expect("nonzero"),
-                reverse: true,
+                oldest_first: true,
                 monitors: vec![q.monitor_id.to_string()],
                 include_data: false,
             })
@@ -194,10 +194,7 @@ async fn execute_query(
             continue;
         };
 
-        let Some(meta_path) = recdb.recording_file_by_ext(&rec.id, "meta").await else {
-            continue;
-        };
-        let Some(mdat_path) = recdb.recording_file_by_ext(&rec.id, "mdat").await else {
+        let Some((meta_path, mdat_path)) = recdb.recording_video_paths(&rec.id).await else {
             continue;
         };
 
@@ -600,16 +597,14 @@ mod tests {
     use super::*;
     use common::{
         DummyLogger, DummyStorage, PaddedBytes, VideoSample,
-        recording::RecordingData,
         time::{DtsOffset, DurationH264, HOUR, MINUTE, SECOND, UnixH264, UnixNano},
     };
     use pretty_assertions::assert_eq;
     use pretty_hex::pretty_hex;
-    use recdb::RecDb;
     use recording::{MetaHeader, VideoWriter};
     use std::{path::Path, sync::Arc};
     use tempfile::TempDir;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::io::AsyncReadExt;
 
     #[tokio::test]
     async fn test_vod_simple1() {
@@ -1013,7 +1008,9 @@ mod tests {
     }
 
     async fn new_test_recdb(path: &Path) -> RecDb {
-        RecDb::new(DummyLogger::new(), path.to_path_buf(), DummyStorage::new()).await
+        RecDb::new(DummyLogger::new(), path.to_path_buf(), DummyStorage::new())
+            .await
+            .unwrap()
     }
 
     async fn single_recording(start_time: UnixH264) -> (TempDir, RecDb) {
@@ -1506,7 +1503,6 @@ mod tests {
         )
         .await;
         let rec2 = start_time + UnixNano::new(SECOND * 10).into();
-        println!("rec2 {}", UnixNano::from(rec2));
         save_recording(
             &mut rec_db,
             rec2,
@@ -1638,8 +1634,10 @@ mod tests {
             .await
             .unwrap();
 
-        let mut meta = rec.new_file("meta").await.unwrap();
-        let mut mdat = rec.new_file("mdat").await.unwrap();
+        let end_time = UnixNano::from(end_time);
+        rec.new_file(&format!("{end_time}.end")).await.unwrap();
+        let mut meta = rec.new_file("video_640x480.meta").await.unwrap();
+        let mut mdat = rec.new_file("video_640x480.mdat").await.unwrap();
         let header = MetaHeader {
             start_time,
             width: 640,
@@ -1653,18 +1651,6 @@ mod tests {
         for sample in samples {
             w.write_sample(&sample).await.unwrap();
         }
-
-        let data = RecordingData {
-            start: start_time.into(),
-            end: end_time.into(),
-            events: Vec::new(),
-        };
-
-        let json = serde_json::to_vec_pretty(&data).unwrap();
-
-        let mut data_file = rec.new_file("json").await.unwrap();
-        data_file.write_all(&json).await.unwrap();
-        data_file.flush().await.unwrap();
     }
 
     #[rustfmt::skip]

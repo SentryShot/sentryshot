@@ -52,7 +52,6 @@ pub type DynEnvConfig = Box<dyn EnvConfig + Send + Sync>;
 pub trait EnvConfig {
     fn port(&self) -> u16;
     fn storage_dir(&self) -> &Path;
-    fn recordings_dir(&self) -> &Path;
     fn config_dir(&self) -> &Path;
     fn plugin_dir(&self) -> &Path;
     fn max_disk_usage(&self) -> ByteSize;
@@ -101,11 +100,8 @@ impl<'de> Deserialize<'de> for NonZeroGb {
     where
         D: serde::Deserializer<'de>,
     {
-        #[derive(Deserialize)]
-        struct Temp(f32);
-
-        let temp = Temp::deserialize(deserializer)?;
-        if temp.0 == 0.0 {
+        let value = f32::deserialize(deserializer)?;
+        if value == 0.0 {
             return Err(serde::de::Error::custom("cannot be zero"));
         }
         #[allow(
@@ -113,7 +109,7 @@ impl<'de> Deserialize<'de> for NonZeroGb {
             clippy::cast_possible_truncation,
             clippy::as_conversions
         )]
-        Ok(Self(ByteSize((temp.0 * 1000.0) as u64 * MB)))
+        Ok(Self(ByteSize((value * 1000.0) as u64 * MB)))
     }
 }
 

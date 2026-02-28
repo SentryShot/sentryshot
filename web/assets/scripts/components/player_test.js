@@ -6,7 +6,7 @@ import { newPlayer, newDetectionRenderer } from "./player.js";
 const millisecond = 1000000;
 const events = [
 	{
-		time: 991440060000 * millisecond,
+		time: String(991440060000 * millisecond),
 		duration: 60000 * millisecond,
 		detections: [
 			{
@@ -34,8 +34,8 @@ const data = {
 	thumbPath: "B",
 	videoPath: "C",
 	name: "D",
-	start: 991440000000 * millisecond,
-	end: 991440600000 * millisecond,
+	start: BigInt(991440000000 * millisecond),
+	end: BigInt(991440600000 * millisecond),
 	timeZone: "gmt",
 	events,
 };

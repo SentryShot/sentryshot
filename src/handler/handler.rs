@@ -14,9 +14,10 @@ use axum::{
 };
 use common::{
     AccountId, AccountSetRequest, AccountsMap, ArcAuth, ArcLogger, AuthAccountDeleteError,
-    AuthenticatedUser, ILogger, LogEntry, LogLevel, MonitorId,
+    AuthenticatedUser, Event2, ILogger, LogEntry, LogLevel, MonitorId,
     monitor::{ArcMonitorManager, MonitorConfig, MonitorDeleteError, MonitorRestartError},
     recording::RecordingId,
+    time::UnixNanoString,
 };
 use eventdb::{EventDb, EventQuery};
 use hls::{HlsQuery, HlsServer};
@@ -30,7 +31,7 @@ use monitor_groups::ArcMonitorGroups;
 use recdb::{DeleteRecordingError, RecDb, RecDbQuery, RecordingResponse};
 use recording::{VideoCache, new_video_reader};
 use rust_embed::EmbeddedFiles;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{io::Cursor, num::NonZeroUsize, path::PathBuf, sync::Arc};
 use streamer::{PlayReponse, StartSessionReponse, Streamer};
 use thiserror::Error;
@@ -315,11 +316,31 @@ pub struct RecordingQueryHandlerState {
     pub eventdb: EventDb,
 }
 
+#[derive(Debug, Serialize)]
+pub struct Recording {
+    id: RecordingId,
+    end: Option<UnixNanoString>,
+    events: Vec<Event2>,
+    state: RecordingState,
+}
+
+#[derive(Debug, Serialize)]
+enum RecordingState {
+    #[serde(rename = "active")]
+    Active,
+
+    #[serde(rename = "finalized")]
+    Finalized,
+
+    #[serde(rename = "incomplete")]
+    Incomplete,
+}
+
 pub async fn recording_query_handler(
     State(s): State<RecordingQueryHandlerState>,
     query: Query<RecDbQuery>,
-) -> Result<Json<Vec<RecordingResponse>>, StatusCode> {
-    let mut recordings = match s.recdb.recordings_by_query(&query.0).await {
+) -> Result<Json<Vec<Recording>>, StatusCode> {
+    let recordings = match s.recdb.recordings_by_query(&query.0).await {
         Ok(v) => v,
         Err(e) => {
             s.logger.log(LogEntry::new2(
@@ -330,30 +351,36 @@ pub async fn recording_query_handler(
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
-    for rec in &mut recordings {
-        let monitor_id = rec.id().monitor_id().clone();
-        let data = match rec {
-            RecordingResponse::Active(v) => &mut v.data,
-            RecordingResponse::Finalized(v) => &mut v.data,
-            RecordingResponse::Incomplete(_) => continue,
+    let mut response = Vec::new();
+    for rec in recordings {
+        let rec_id = rec.id().to_owned();
+        let monitor_id = rec_id.monitor_id().clone();
+        let start = rec_id.nanos();
+        let (state, end) = match &rec {
+            RecordingResponse::Active(v) => (RecordingState::Active, v.end),
+            RecordingResponse::Finalized(v) => (RecordingState::Finalized, v.end),
+            RecordingResponse::Incomplete(_) => {
+                response.push(Recording {
+                    id: rec_id.clone(),
+                    end: None,
+                    events: Vec::new(),
+                    state: RecordingState::Incomplete,
+                });
+                continue;
+            }
         };
-        let Some(data) = data else { continue };
-        if !data.events.is_empty() {
-            // Old events populated from recdb.
-            continue;
-        }
-        if data.start == data.end {
+        if start == end {
             // Newly started recording.
             continue;
         }
         let query = EventQuery {
-            start: data.start,
-            end: data.end,
+            start,
+            end,
             limit: NonZeroUsize::new(100_000).expect("not zero"),
         };
-        match s.eventdb.query(monitor_id.clone(), query).await {
-            Ok(Some(v)) => data.events = v,
-            Ok(None) => {}
+        let events = match s.eventdb.query(monitor_id.clone(), query).await {
+            Ok(Some(v)) => v.into_iter().map(Into::into).collect(),
+            Ok(None) => Vec::new(),
             Err(e) => {
                 s.logger.log(LogEntry::new(
                     LogLevel::Error,
@@ -361,10 +388,17 @@ pub async fn recording_query_handler(
                     &monitor_id,
                     &format!("query events: {e}"),
                 ));
+                Vec::new()
             }
         };
+        response.push(Recording {
+            id: rec_id,
+            end: Some(end.into()),
+            events,
+            state,
+        });
     }
-    Ok(Json(recordings))
+    Ok(Json(response))
 }
 
 pub async fn log_slow_poll_handler(
@@ -547,13 +581,13 @@ pub async fn recording_delete_handler(
     State(rec_db): State<Arc<RecDb>>,
     Path(rec_id): Path<RecordingId>,
 ) -> Response {
-    let (_, err) = rec_db.delete_recording(rec_id).await;
+    let (_, err) = rec_db.recording_delete(rec_id).await;
     match err {
         None => StatusCode::OK.into_response(),
         Some(e @ DeleteRecordingError::Active) => {
             (StatusCode::BAD_REQUEST, e.to_string()).into_response()
         }
-        Some(DeleteRecordingError::NotExist) => StatusCode::NOT_FOUND.into_response(),
+        Some(DeleteRecordingError::NotExist(_)) => StatusCode::NOT_FOUND.into_response(),
         Some(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
@@ -562,7 +596,7 @@ pub async fn recording_thumbnail_handler(
     State(rec_db): State<Arc<RecDb>>,
     Path(rec_id): Path<RecordingId>,
 ) -> Response {
-    let Some(path) = rec_db.thumbnail_path(&rec_id).await else {
+    let Some(path) = rec_db.recording_thumbnail_path(&rec_id).await else {
         return (StatusCode::NOT_FOUND).into_response();
     };
 
@@ -605,14 +639,11 @@ pub async fn recording_video_handler(
     query: Query<RecordingVideoQuery>,
     headers: HeaderMap,
 ) -> Response {
-    let Some(meta_path) = state.rec_db.recording_file_by_ext(&rec_id, "meta").await else {
-        return (StatusCode::NOT_FOUND).into_response();
-    };
-    let Some(mdat_path) = state.rec_db.recording_file_by_ext(&rec_id, "mdat").await else {
+    let Some((meta_path, mdat_path)) = state.rec_db.recording_video_paths(&rec_id).await else {
         return (StatusCode::NOT_FOUND).into_response();
     };
 
-    let video = match new_video_reader(
+    match new_video_reader(
         &meta_path,
         &mdat_path,
         query.cache_id,
@@ -620,23 +651,23 @@ pub async fn recording_video_handler(
     )
     .await
     {
-        Ok(v) => v,
+        Ok(video) => {
+            serve_mp4_content(
+                &Method::GET,
+                &headers,
+                Some(video.last_modified()),
+                video.size(),
+                video,
+            )
+            .await
+        }
         Err(e) => {
             state.logger.log(LogEntry::new2(
                 LogLevel::Error,
                 "app",
                 &format!("video request: {e}"),
             ));
-            return (StatusCode::INTERNAL_SERVER_ERROR, "see logs for details").into_response();
+            (StatusCode::INTERNAL_SERVER_ERROR, "see logs for details").into_response()
         }
-    };
-
-    serve_mp4_content(
-        &Method::GET,
-        &headers,
-        Some(video.last_modified()),
-        video.size(),
-        video,
-    )
-    .await
+    }
 }

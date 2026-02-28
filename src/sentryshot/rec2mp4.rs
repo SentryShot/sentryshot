@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+/*
 use common::FILE_MODE;
 use recording::{CreateVideoReaderError, new_video_reader};
 use std::{
@@ -134,4 +135,4 @@ async fn convert(meta_path: PathBuf, mdat_path: &Path) -> Result<(), ConvertErro
         .map_err(Copy)?;
 
     Ok(())
-}
+}*/

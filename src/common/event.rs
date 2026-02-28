@@ -2,7 +2,7 @@
 
 use crate::{
     impl_deserialize_try_from_and_display,
-    time::{Duration, UnixNano},
+    time::{Duration, UnixNano, UnixNanoString},
 };
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroU32;
@@ -17,6 +17,28 @@ pub struct Event {
 
     // BREAKING: make this mandatory.
     pub source: Option<EventSource>,
+}
+
+// Recording trigger event.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Event2 {
+    pub time: UnixNanoString,
+    pub duration: Duration,
+    pub detections: Detections,
+
+    // BREAKING: make this mandatory.
+    pub source: Option<EventSource>,
+}
+
+impl From<Event> for Event2 {
+    fn from(value: Event) -> Self {
+        Self {
+            time: value.time.into(),
+            duration: value.duration,
+            detections: value.detections,
+            source: value.source,
+        }
+    }
 }
 
 pub type Detections = Vec<Detection>;

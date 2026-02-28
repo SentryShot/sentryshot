@@ -21,6 +21,7 @@ recording.path = "../recording"
 
 async-trait.workspace = true
 bytesize.workspace = true
+imagesize = "0.14"
 jiff.workspace = true
 serde.workspace=true
 serde_json.workspace = true

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { NS_MILLISECOND } from "./libs/time.js";
 import { newMonitorNameByID } from "./libs/common.js";
 import { newViewer } from "./recordings.js";
 
@@ -90,7 +89,7 @@ describe("newViewer", () => {
 		window.fetch = (r) => {
 			if (
 				r ===
-				"http://test.com/api/recording/query?recording-id=2000-01-02_03-04-05_x&reverse=false&include-data=true"
+				"http://test.com/api/recording/query?recording-id=123_x&oldest-first=false&include-data=true"
 			) {
 				fetchCalled = true;
 				return {
@@ -109,7 +108,7 @@ describe("newViewer", () => {
 			}
 		};
 
-		viewer.setDate(new Date("2000-01-02T03:04:05Z").getTime() * NS_MILLISECOND);
+		viewer.setDate(123);
 		expect(fetchCalled).toBe(true);
 	});
 });

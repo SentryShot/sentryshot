@@ -1,24 +1,41 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// Recordings are stored in the following format.
+// The recording ID is the start time of the recording.
+// Plugins can attach arbitrary data to recordings.
+//
+// <Unix 1M seconds>      // Unix timestamp with 12 day precision.
+// └── <Unix 10K seconds> // Unix timestamp with 3 hour precision.
+//     ├── <UnixNano>_<MonitorID>
+//     └── <UnixNano>_<MonitorID>
+//         ├── thumb_<Width>x<Height>.jpeg  // Thumbnail.
+//         ├── video_<Width>x<Height>.meta  // Video metadata.
+//         ├── video_<Width>x<Height>.mdat  // Raw video data.
+//         ├── <UnixNano>.end               // Empty file, end timestamp.
+//         └── my_plugin_data               // File created by plugin.
+//
+// The presence of the end timestamp file indicates that the recording was finalized.
+
 mod crawler;
+mod migrate;
 mod storage;
 
 pub use crawler::CrawlerError;
+pub use migrate::migrate;
 pub use storage::StorageImpl;
 
 use bytesize::ByteSize;
 use common::{
-    ArcLogger, ArcStorage, LogEntry, LogLevel, MonitorId, StorageUsageError,
-    recording::{RecordingData, RecordingId, RecordingIdError},
-    time::{Duration, UnixH264},
+    ArcLogger, ArcStorage, FILE_MODE, LogEntry, LogLevel, MonitorId, StorageUsageError,
+    recording::{RecordingId, RecordingIdError},
+    time::{Duration, UnixH264, UnixNano},
 };
-use common::{FILE_MODE, time::UnixNano};
 use crawler::Crawler;
 use csv::deserialize_csv_option;
 use fs::dir_fs;
-use jiff::Timestamp;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{
+    borrow::ToOwned,
     collections::{HashMap, HashSet},
     num::NonZeroUsize,
     ops::{Deref, DerefMut},
@@ -39,11 +56,12 @@ pub struct RecDbQuery {
 
     // This is not part of the public API.
     #[serde(default)]
-    pub end: Option<RecordingId>,
+    pub end: Option<UnixNano>,
 
     pub limit: NonZeroUsize,
-    // True=forwards, False=backwards
-    pub reverse: bool,
+
+    #[serde(rename = "oldest-first")]
+    pub oldest_first: bool,
 
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_csv_option")]
@@ -54,22 +72,15 @@ pub struct RecDbQuery {
     pub include_data: bool,
 }
 
-// Contains identifier and optionally data.
-// `.mp4`, `.jpeg` or `.json` can be appended to the
-// path to get the video, thumbnail or data file.
-#[derive(Debug, Serialize)]
-#[serde(tag = "state")]
+#[derive(Debug)]
 pub enum RecordingResponse {
     // Recording in progress.
-    #[serde(rename = "active")]
     Active(RecordingActive),
 
     // Recording finished successfully
-    #[serde(rename = "finalized")]
     Finalized(RecordingFinalized),
 
-    // Something happend before the json file was written.
-    #[serde(rename = "incomplete")]
+    // Something happend before the end file was written.
     Incomplete(RecordingIncomplete),
 }
 
@@ -87,27 +98,32 @@ impl RecordingResponse {
     #[track_caller]
     pub(crate) fn assert_finalized(&self) -> &RecordingFinalized {
         match self {
+            RecordingResponse::Active(v) => {
+                panic!("expected finalized, got: {v:?}")
+            }
             RecordingResponse::Finalized(v) => v,
-            _ => panic!("expected finalized"),
+            RecordingResponse::Incomplete(v) => {
+                panic!("expected finalized, got: {v:?}")
+            }
         }
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct RecordingActive {
-    id: RecordingId,
-    pub data: Option<RecordingData>,
+    pub id: RecordingId,
+    pub end: UnixNano,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct RecordingFinalized {
     pub id: RecordingId,
-    pub data: Option<RecordingData>,
+    pub end: UnixNano,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct RecordingIncomplete {
-    id: RecordingId,
+    pub id: RecordingId,
 }
 
 pub struct RecDb {
@@ -117,13 +133,12 @@ pub struct RecDb {
     storage: ArcStorage,
 
     // There should only be one active recording per monitor.
-    active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, StartAndEnd>>>,
+    active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, ActiveRec>>>,
     time_of_oldest_recording: tokio::sync::Mutex<Option<UnixNano>>,
 }
 
 #[derive(Clone, Debug)]
-struct StartAndEnd {
-    start_time: UnixH264,
+struct ActiveRec {
     end_time: UnixH264,
 }
 
@@ -147,14 +162,17 @@ pub enum DeleteRecordingError {
     #[error("deleting active recordings is not implemented")]
     Active,
 
-    #[error("recording doesn't exist")]
-    NotExist,
+    #[error("recording doesn't exist: {0}")]
+    NotExist(PathBuf),
 
     #[error("read dir: {0}")]
     ReadDir(std::io::Error),
 
     #[error("dir entry: {0}")]
     DirEntry(std::io::Error),
+
+    #[error("read metadata: {0}")]
+    ReadMetadata(std::io::Error),
 
     #[error("delete file: {0}")]
     Delete(std::io::Error),
@@ -166,15 +184,24 @@ pub enum DeleteRecordingError {
     RemoveEmptyDir(std::io::Error),
 }
 
+#[derive(Debug, Error)]
+#[error("create directory: {0}")]
+pub struct CreateRecDbError(#[from] std::io::Error);
+
 impl RecDb {
-    #[must_use]
-    pub async fn new(logger: ArcLogger, recordings_dir: PathBuf, storage: ArcStorage) -> Self {
+    pub async fn new(
+        logger: ArcLogger,
+        recordings_dir: PathBuf,
+        storage: ArcStorage,
+    ) -> Result<Self, CreateRecDbError> {
+        common::create_dir_all2(Handle::current(), recordings_dir.clone()).await?;
+
         let crawler = Crawler::new(dir_fs(recordings_dir.clone()));
         let query = RecDbQuery {
             recording_id: RecordingId::zero(),
             end: None,
             limit: NonZeroUsize::new(1).expect("not zero"),
-            reverse: true, // Oldest first.
+            oldest_first: true, // Oldest first.
             monitors: Vec::new(),
             include_data: false,
         };
@@ -182,16 +209,16 @@ impl RecDb {
             .recordings_by_query(query, HashMap::new())
             .await
             .ok()
-            .and_then(|recs| recs.first().map(|rec| rec.id().nanos_inexact()));
+            .and_then(|recs| recs.first().map(|rec| rec.id().nanos()));
 
-        Self {
+        Ok(Self {
             logger: RecDbLogger(logger),
             recordings_dir,
             crawler,
             storage,
             active_recordings: Arc::new(std::sync::Mutex::new(HashMap::new())),
             time_of_oldest_recording: tokio::sync::Mutex::new(time_of_oldest_recording),
-        }
+        })
     }
 
     // finds the best matching recording and
@@ -207,11 +234,8 @@ impl RecDb {
             .await
     }
 
-    // Returns the full path of file tied to recording id by file extension.
-    pub async fn recording_file_by_ext(&self, rec_id: &RecordingId, ext: &str) -> Option<PathBuf> {
-        let full_relative_path = rec_id.as_full_path();
-        let mut path = self.recordings_dir.join(full_relative_path);
-        path.set_extension(ext);
+    pub async fn recording_path(&self, rec_id: &RecordingId) -> Option<PathBuf> {
+        let path = self.recordings_dir.join(rec_id.full_path());
         let path = tokio::fs::canonicalize(path).await.ok()?;
 
         let is_path_safe = path.starts_with(&self.recordings_dir);
@@ -221,9 +245,62 @@ impl RecDb {
         Some(path)
     }
 
+    // Returns the full path of file tied to recording id by file name.
+    pub async fn recording_file(&self, rec_id: &RecordingId, name: &str) -> Option<PathBuf> {
+        let path = self.recordings_dir.join(rec_id.full_path()).join(name);
+        let path = tokio::fs::canonicalize(path).await.ok()?;
+
+        let is_path_safe = path.starts_with(&self.recordings_dir);
+        if !is_path_safe {
+            return None;
+        };
+        Some(path)
+    }
+
+    async fn recording_files(&self, rec_id: &RecordingId) -> Vec<String> {
+        let dir = self.recordings_dir.join(rec_id.full_path());
+        tokio::task::spawn_blocking(|| {
+            std::fs::read_dir(dir)
+                .ok()
+                .into_iter()
+                .flatten()
+                .flatten()
+                .filter_map(|entry| entry.file_name().to_str().map(ToOwned::to_owned))
+                .collect()
+        })
+        .await
+        .expect("join")
+    }
+
     // Returns full path to the thumbnail file for specified recording id.
-    pub async fn thumbnail_path(&self, rec_id: &RecordingId) -> Option<PathBuf> {
-        self.recording_file_by_ext(rec_id, "jpeg").await
+    pub async fn recording_thumbnail_path(&self, rec_id: &RecordingId) -> Option<PathBuf> {
+        for name in self.recording_files(rec_id).await {
+            if name.starts_with("thumb_") {
+                return self.recording_file(rec_id, &name).await;
+            }
+        }
+        None
+    }
+
+    pub async fn recording_video_paths(&self, rec_id: &RecordingId) -> Option<(PathBuf, PathBuf)> {
+        let mut meta_path = None;
+        let mut mdat_path = None;
+        for file in self.recording_files(rec_id).await {
+            if !file.starts_with("video") {
+                continue;
+            }
+            if file.ends_with("meta") {
+                meta_path = self.recording_file(rec_id, &file).await;
+            }
+            if file.ends_with("mdat") {
+                mdat_path = self.recording_file(rec_id, &file).await;
+            }
+        }
+        if let (Some(meta_path), Some(mdat_path)) = (meta_path, mdat_path) {
+            Some((meta_path, mdat_path))
+        } else {
+            None
+        }
     }
 
     pub async fn new_recording(
@@ -232,104 +309,95 @@ impl RecDb {
         start_time: UnixH264,
     ) -> Result<RecordingHandle, NewRecordingError> {
         use NewRecordingError::*;
-        let start_time2: Timestamp = start_time.into();
-        let ymd = start_time2.strftime("%Y/%m/%d").to_string();
-        let file_dir = self.recordings_dir.join(ymd).join(&*monitor_id);
 
-        let ymd_hms_id = start_time2
-            .strftime(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
-            .to_string();
-        let recording_id: RecordingId = ymd_hms_id.try_into()?;
-        let path = file_dir.join(recording_id.as_str());
-
-        let mut meta_path = path.clone();
-        meta_path.set_extension("meta");
-        if meta_path.exists() {
+        let rec_id = RecordingId::from_nanos(start_time.into(), monitor_id)?;
+        let path = self.recordings_dir.join(rec_id.full_path());
+        if path.exists() {
             return Err(AlreadyExist);
         }
 
-        common::create_dir_all2(Handle::current(), file_dir.clone())
+        common::create_dir_all2(Handle::current(), path.clone())
             .await
             .map_err(CreateDir)?;
 
         {
             let mut active_recordings = self.active_recordings.lock().expect("not poisoned");
-            if active_recordings.contains_key(&recording_id) {
+            if active_recordings.contains_key(&rec_id) {
                 return Err(AlreadyActive);
             }
             // Function must be infallible after id has been added.
             active_recordings.insert(
-                recording_id.clone(),
-                StartAndEnd {
-                    start_time,
+                rec_id.clone(),
+                ActiveRec {
                     end_time: start_time,
                 },
             );
+            drop(active_recordings);
         }
 
         Ok(RecordingHandle {
             active_recordings: self.active_recordings.clone(),
-            id: recording_id,
-            path: path.clone(),
+            id: rec_id,
+            path,
             open_files: Arc::new(std::sync::Mutex::new(HashSet::new())),
         })
     }
 
+    fn recording_is_active(&self, rec_id: &RecordingId) -> bool {
+        self.active_recordings
+            .lock()
+            .expect("not poisoned")
+            .contains_key(rec_id)
+    }
+
     // Returns total size of delete files and maybe one error.
-    pub async fn delete_recording(
+    pub async fn recording_delete(
         &self,
         rec_id: RecordingId,
     ) -> (ByteSize, Option<DeleteRecordingError>) {
-        if self
-            .active_recordings
-            .lock()
-            .expect("not poisoned")
-            .contains_key(&rec_id)
-        {
+        if self.recording_is_active(&rec_id) {
             return (ByteSize(0), Some(DeleteRecordingError::Active));
         }
 
-        let Some(path) = self.recording_file_by_ext(&rec_id, "meta").await else {
-            return (ByteSize(0), Some(DeleteRecordingError::NotExist));
+        let Some(mut rec_dir) = self.recording_path(&rec_id).await else {
+            return (
+                ByteSize(0),
+                Some(DeleteRecordingError::NotExist(
+                    self.recordings_dir.join(rec_id.full_path()),
+                )),
+            );
         };
-        let mut dir = path
-            .parent()
-            .expect("path should have a parent")
-            .to_path_buf();
 
         tokio::task::spawn_blocking(move || {
             let mut num_deleted_bytes = ByteSize(0);
             let mut err = None;
-            let recording_files = match dir.read_dir() {
+            let recording_files = match rec_dir.read_dir() {
                 Ok(v) => v,
                 Err(e) => return (ByteSize(0), Some(DeleteRecordingError::ReadDir(e))),
             };
             for file in recording_files {
-                let file = match file {
-                    Ok(v) => v,
+                let path = match file {
+                    Ok(v) => v.path(),
                     Err(e) => {
                         err = Some(DeleteRecordingError::DirEntry(e));
                         continue;
                     }
                 };
-                let path = file.path();
-                let Some(file_name) = path.file_name() else {
-                    continue;
+                let file_size = match path.metadata() {
+                    Ok(v) => v.len(),
+                    Err(e) => {
+                        err = Some(DeleteRecordingError::ReadMetadata(e));
+                        continue;
+                    }
                 };
-                let Some(file_name) = file_name.to_str() else {
-                    continue;
+                if let Err(e) = std::fs::remove_file(path) {
+                    err = Some(DeleteRecordingError::Delete(e));
                 };
-                if file_name.starts_with(rec_id.as_str()) {
-                    let file_size = path.metadata().map(|m| m.len()).unwrap_or(0);
-                    if let Err(e) = std::fs::remove_file(path) {
-                        err = Some(DeleteRecordingError::Delete(e));
-                    };
-                    num_deleted_bytes.0 += file_size;
-                }
+                num_deleted_bytes.0 += file_size;
             }
             // Remove empty directories up to the recordings directory.
-            for _ in 0..4 {
-                let num_files = match dir.read_dir() {
+            for _ in 0..3 {
+                let num_files = match rec_dir.read_dir() {
                     Ok(v) => v.count(),
                     Err(e) => {
                         err = Some(DeleteRecordingError::ReadDir(e));
@@ -338,7 +406,7 @@ impl RecDb {
                 };
 
                 if num_files == 0 {
-                    if let Err(e) = std::fs::remove_dir(&dir) {
+                    if let Err(e) = std::fs::remove_dir(&rec_dir) {
                         err = Some(DeleteRecordingError::RemoveEmptyDir(e));
                         break;
                     }
@@ -346,10 +414,10 @@ impl RecDb {
                     break;
                 }
 
-                if let Some(v) = dir.parent() {
-                    dir = v.to_path_buf();
+                if let Some(v) = rec_dir.parent() {
+                    rec_dir = v.to_path_buf();
                 } else {
-                    err = Some(DeleteRecordingError::DirNoParent(dir));
+                    err = Some(DeleteRecordingError::DirNoParent(rec_dir));
                     break;
                 };
             }
@@ -374,7 +442,7 @@ impl RecDb {
             recording_id: RecordingId::max(),
             end: None,
             limit: NonZeroUsize::new(1000).unwrap(),
-            reverse: false,
+            oldest_first: false,
             monitors: Vec::new(),
             include_data: false,
         })
@@ -420,7 +488,7 @@ impl RecDb {
             end: None,
             // Delete max 200 recordings every 10 minutes.
             limit: NonZeroUsize::new(200).expect("not zero"),
-            reverse: true, // Oldest first.
+            oldest_first: true, // Oldest first.
             monitors: Vec::new(),
             include_data: false,
         };
@@ -436,13 +504,13 @@ impl RecDb {
             if num_deleted_bytes >= bytes_to_delete {
                 break;
             }
-            oldest_recording = Some(rec.id().nanos_inexact());
+            oldest_recording = Some(rec.id().nanos());
             self.logger.log(
                 LogLevel::Info,
                 rec.id().monitor_id(),
                 &format!("deleting recording {}", rec.id()),
             );
-            let (deleted, e) = self.delete_recording(rec.id().clone()).await;
+            let (deleted, e) = self.recording_delete(rec.id().clone()).await;
             num_deleted_bytes += deleted;
             if let Some(e) = e {
                 err = Some(PruneError::DeleteRecording(e));
@@ -471,8 +539,9 @@ pub enum PruneError {
     DeleteRecording(DeleteRecordingError),
 }
 
+#[derive(Debug)]
 pub struct RecordingHandle {
-    active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, StartAndEnd>>>,
+    active_recordings: Arc<std::sync::Mutex<HashMap<RecordingId, ActiveRec>>>,
     id: RecordingId,
 
     path: PathBuf,
@@ -494,28 +563,26 @@ impl RecordingHandle {
         &self.id
     }
 
-    pub async fn new_file(&self, ext: &str) -> Result<FileHandle, OpenFileError> {
+    pub async fn new_file(&self, name: &str) -> Result<FileHandle, OpenFileError> {
         let mut options = OpenOptions::new();
         let options = options.create_new(true).mode(FILE_MODE).write(true);
-        self.open_file_with_opts(ext, options).await
+        self.open_file_with_opts(name.to_owned(), options).await
     }
 
-    pub async fn open_file(&self, ext: &str) -> Result<FileHandle, OpenFileError> {
+    pub async fn open_file(&self, name: &str) -> Result<FileHandle, OpenFileError> {
         let mut options = OpenOptions::new();
         let options = options.write(true).read(true);
-        self.open_file_with_opts(ext, options).await
+        self.open_file_with_opts(name.to_owned(), options).await
     }
 
     pub async fn open_file_with_opts(
         &self,
-        ext: &str,
+        name: String,
         options: &OpenOptions,
     ) -> Result<FileHandle, OpenFileError> {
         use OpenFileError::*;
-        let ext = ext.to_lowercase();
 
-        let mut path = self.path.clone();
-        path.set_extension(&ext);
+        let path = self.path.join(Path::new(&name));
         let file = options
             .open(&path)
             .await
@@ -523,16 +590,16 @@ impl RecordingHandle {
 
         {
             let mut open_files = self.open_files.lock().expect("not poisoned");
-            if open_files.contains(&ext) {
+            if open_files.contains(&name) {
                 return Err(AlreadyOpen);
             }
             // Function must be infallible after file has been added.
-            open_files.insert(ext.clone());
+            open_files.insert(name.clone());
         }
 
         Ok(FileHandle {
             open_files: self.open_files.clone(),
-            ext,
+            name,
             path,
             file,
         })
@@ -563,7 +630,7 @@ impl Drop for RecordingHandle {
 
 pub struct FileHandle {
     open_files: Arc<std::sync::Mutex<HashSet<String>>>,
-    ext: String,
+    name: String,
     path: PathBuf,
     file: File,
 }
@@ -580,7 +647,7 @@ impl Drop for FileHandle {
             self.open_files
                 .lock()
                 .expect("not poisoned")
-                .remove(&self.ext),
+                .remove(&self.name),
             "extension should be in hashset"
         );
     }
@@ -614,7 +681,7 @@ impl RecDbLogger {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use crate::storage::StubStorageUsageBytes;
+    use crate::{StorageImpl, storage::StubStorageUsageBytes};
 
     use super::*;
     use bytesize::ByteSize;
@@ -630,6 +697,7 @@ mod tests {
             DummyStorage::new(),
         )
         .await
+        .unwrap()
     }
 
     #[tokio::test]
@@ -641,10 +709,11 @@ mod tests {
             .new_recording("test".to_owned().try_into().unwrap(), UnixH264::new(1))
             .await
             .unwrap();
-        recording.new_file("meta").await.unwrap();
-        recording.new_file("mdat").await.unwrap();
-        recording.new_file("jpeg").await.unwrap();
-        recording.new_file("json").await.unwrap();
+
+        recording.new_file("video.meta").await.unwrap();
+        recording.new_file("video.mdat").await.unwrap();
+        recording.new_file("thumb_64x64.jpeg").await.unwrap();
+        recording.new_file("1000.end").await.unwrap();
 
         assert_eq!(rec_db.count_recordings().await, 1);
     }
@@ -657,23 +726,19 @@ mod tests {
         let m_id = MonitorId::try_from("test".to_owned()).unwrap();
         let recording = rec_db.test_recording().await;
 
-        recording.new_file("meta").await.unwrap();
+        recording.new_file("video.meta").await.unwrap();
 
-        assert!(
-            rec_db
-                .new_recording(m_id.clone(), UnixH264::new(1))
-                .await
-                .is_err()
-        );
+        rec_db
+            .new_recording(m_id.clone(), UnixH264::new(1))
+            .await
+            .unwrap_err();
 
         drop(recording);
 
-        assert!(
-            rec_db
-                .new_recording(m_id.clone(), UnixH264::new(1))
-                .await
-                .is_err()
-        );
+        rec_db
+            .new_recording(m_id.clone(), UnixH264::new(1))
+            .await
+            .unwrap_err();
     }
 
     #[tokio::test]
@@ -683,45 +748,34 @@ mod tests {
         let rec_db = new_test_recdb(temp_dir.path()).await;
         let recording = rec_db.test_recording().await;
 
-        let file = recording.new_file("json").await.unwrap();
-        assert!(recording.new_file("json").await.is_err());
+        let file = recording.new_file("1000.end").await.unwrap();
+        assert!(recording.new_file("1000.end").await.is_err());
         drop(file);
-        recording.open_file("json").await.unwrap();
+        recording.open_file("1000.end").await.unwrap();
     }
 
     #[tokio::test]
     async fn test_delete_recording() {
         let recordings_dir = TempDir::new().unwrap();
-        let rec_dir = recordings_dir
-            .path()
-            .join("2000")
-            .join("01")
-            .join("01")
-            .join("m1");
-        let rec_id = "2000-01-01_02-02-02_m1";
-        let files = vec![
-            rec_id.to_owned() + ".jpeg",
-            rec_id.to_owned() + ".json",
-            rec_id.to_owned() + ".mdat",
-            rec_id.to_owned() + ".meta",
-            rec_id.to_owned() + ".x",
-            "2000-01-01_02-02-02_x1.mp4".to_owned(),
-        ];
+        let rec_id = "946692122000000000_m1";
+        let rec_dir = recordings_dir.path().join("946").join("94669").join(rec_id);
+        let rec_id: RecordingId = rec_id.parse().unwrap();
+        let files: Vec<String> = ["thumb_64x64.jpeg", "video.mdat", "video.meta", "x.txt"]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
+            .collect();
         std::fs::create_dir_all(&rec_dir).unwrap();
         create_files(&rec_dir, &files);
+
         assert_eq!(files, list_directory(&rec_dir));
 
         let rec_db = new_test_recdb(recordings_dir.path()).await;
         assert_eq!(rec_db.count_recordings().await, 1);
-        let (deleted, err) = rec_db
-            .delete_recording(rec_id.to_owned().try_into().unwrap())
-            .await;
+        let (deleted, err) = rec_db.recording_delete(rec_id).await;
         assert_eq!(ByteSize(0), deleted);
-        assert!(err.is_none());
-        assert_eq!(
-            vec!["2000-01-01_02-02-02_x1.mp4".to_owned()],
-            list_directory(&rec_dir)
-        );
+        if let Some(e) = err {
+            panic!("{e}");
+        };
     }
 
     fn create_files(dir: &Path, files: &[String]) {
@@ -746,28 +800,54 @@ mod tests {
 
     #[test_case(&["recordings"], &["recordings"]; "no years" )]
     #[test_case(
-        &["recordings/2000/01/01/x/2000-01-01_00-00-00_x.meta"],
-        &["recordings"];
+        &[
+            "recordings/946/94668/946684800000000000_x/video.meta",
+        ],
+        &[
+            "recordings",
+        ];
         "one day"
     )]
     #[test_case(
-        &["recordings/2000/01/01/x/2000-01-01_00-00-00_x.meta", "recordings/2000/01/02/x/2000-01-02_00-00-00_x.meta"],
-        &["recordings/2000/01/02/x/2000-01-02_00-00-00_x.meta"];
+        &[
+            "recordings/946/94668/946684800000000000_x/video.meta",
+            "recordings/946/94677/946771200000000000_x/video.meta",
+        ],
+        &[
+            "recordings/946/94677/946771200000000000_x/video.meta",
+        ];
         "two days"
     )]
     #[test_case(
-        &["recordings/2000/01/01/x/2000-01-01_00-00-00_x.meta", "recordings/2000/02/01/x/2000-02-01_00-00-00_x.meta"],
-        &["recordings/2000/02/01/x/2000-02-01_00-00-00_x.meta"];
+        &[
+            "recordings/946/94668/946684800000000000_x/video.meta",
+            "recordings/949/94936/949363200000000000_x/video.meta",
+        ],
+        &[
+            "recordings/949/94936/949363200000000000_x/video.meta",
+        ];
         "two months"
     )]
     #[test_case(
-        &["recordings/2000/01/01/x/2000-01-01_01-01-01_x.meta", "recordings/2001/01/01/x/2001-01-01_00-00-00_x.meta"],
-        &["recordings/2001/01/01/x/2001-01-01_00-00-00_x.meta"];
+        &[
+            "recordings/946/94668/946688461000000000_x/video.meta",
+            "recordings/978/97830/978307200000000000_x/video.meta",
+        ],
+        &[
+            "recordings/978/97830/978307200000000000_x/video.meta",
+        ];
         "two years"
     )]
     #[test_case(
-        &["recordings/2000/01", "recordings/2001/01/01/x/2001-01-01_00-00-00_x.meta", "recordings/2002/01/01/x/2002-01-01_00-00-00_x.meta"],
-        &["recordings/2000/01", "recordings/2002/01/01/x/2002-01-01_00-00-00_x.meta"];
+        &[
+            "recordings/1009/100984/1009843200000000000_x/video.meta",
+            "recordings/900",
+            "recordings/978/97830/978307200000000000_x/video.meta",
+        ],
+        &[
+            "recordings/1009/100984/1009843200000000000_x/video.meta",
+            "recordings/900",
+        ];
         "remove empty dirs"
     )]
     #[tokio::test]
@@ -780,11 +860,15 @@ mod tests {
             ByteSize(100),
             Box::new(StubStorageUsageBytes(99)),
         );
-        let recdb = RecDb::new(DummyLogger::new(), recordings_dir, storage).await;
+        let recdb = RecDb::new(DummyLogger::new(), recordings_dir, storage)
+            .await
+            .unwrap();
 
         write_empty_files(temp_dir.path(), before);
         assert_eq!(before, list_empty_files(temp_dir.path()));
-        assert!(recdb.prune().await.1.is_none());
+        if let Some(err) = recdb.prune().await.1 {
+            panic!("{err}");
+        };
 
         assert_eq!(after, list_empty_files(temp_dir.path()));
     }
