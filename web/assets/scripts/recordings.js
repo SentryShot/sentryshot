@@ -20,22 +20,23 @@ import { newOptionsMenu, newOptionsBtn } from "./components/optionsMenu.js";
  */
 
 /**
- * @typedef RecData
- * @property {number} start
- * @property {number} end
- * @property {Event[]} events
- */
-
-/**
  * @typedef Recording
- * @property {String} state
  * @property {String} id
- * @property {RecData} data
+ * @property {string} end
+ * @property {Event[]} events
+ * @property {RecordingState} state
  */
 
 /**
  * @typedef {Object.<string, Recording>} Recordings
  */
+
+/** @enum {string} */
+const RecordingState = {
+	ACTIVE: "active",
+	FINALIZED: "finalized",
+	INCOMPLETE: "incomplete",
+};
 
 /**
  * @param {(id: String) => String} monitorNameByID
@@ -71,26 +72,29 @@ function newViewer(monitorNameByID, element, timeZone, isAdmin, token) {
 		/** @type {Player[]} */
 		const players = [];
 		for (const rec of Object.values(recordings)) {
-			/** @type RecordingData */
-			const d = {};
-			d.id = rec.id;
-			let videoPath = relativePathname(`api/recording/video/${d.id}`);
-			if (rec.state === "active") {
+			let videoPath = relativePathname(`api/recording/video/${rec.id}`);
+			if (rec.state === RecordingState.ACTIVE) {
 				const random = Math.floor(Math.random() * 99999);
 				videoPath += `?cache-id=${random}`;
 			}
-			d.videoPath = new URL(videoPath);
-			d.thumbPath = new URL(relativePathname(`api/recording/thumbnail/${d.id}`));
-			d.deletePath = new URL(relativePathname(`api/recording/delete/${d.id}`));
-			d.name = monitorNameByID(d.id.slice(20));
-			d.timeZone = timeZone;
 
-			if (rec.data) {
-				d.start = rec.data.start;
-				d.end = rec.data.end;
-				d.events = rec.data.events;
-			} else {
-				d.start = Date.parse(idToISOstring(d.id)) * 1000000;
+			/** @type RecordingData */
+			const d = {
+				id: rec.id,
+				videoPath: new URL(videoPath),
+				thumbPath: new URL(relativePathname(`api/recording/thumbnail/${rec.id}`)),
+				deletePath: new URL(relativePathname(`api/recording/delete/${rec.id}`)),
+				name: monitorNameByID(recIdToMonitorId(rec.id)),
+				timeZone,
+				start: recIdToNanos(rec.id),
+				end: undefined,
+				events: rec.events,
+			};
+			if (
+				rec.state === RecordingState.ACTIVE ||
+				rec.state === RecordingState.FINALIZED
+			) {
+				d.end = BigInt(rec.end);
 			}
 
 			const onVideoLoad = () => {
@@ -166,7 +170,7 @@ function newViewer(monitorNameByID, element, timeZone, isAdmin, token) {
 		abort.abort();
 		abort = new AbortController();
 		playingVideos = [];
-		current = selectedDate ? selectedDate : "2200-12-28_23-59-59_x";
+		current = selectedDate ? selectedDate : "9223372036854775807_x";
 		element.innerHTML = "";
 
 		gridSize = getComputedStyle(document.documentElement)
@@ -178,9 +182,9 @@ function newViewer(monitorNameByID, element, timeZone, isAdmin, token) {
 
 	return {
 		reset,
-		/** @param {UnixNano} date */
-		setDate(date) {
-			selectedDate = dateToID(date);
+		/** @param {UnixNano} ns */
+		setDate(ns) {
+			selectedDate = `${ns}_x`;
 			reset();
 		},
 		/** @param {string[]} input */
@@ -208,7 +212,7 @@ async function fetchRecordings(abortSignal, recID, limit, monitors) {
 		removeEmptyValues({
 			"recording-id": recID,
 			limit,
-			reverse: false,
+			"oldest-first": false,
 			monitors: monitors.join(","),
 			"include-data": true,
 		}),
@@ -222,7 +226,7 @@ async function fetchRecordings(abortSignal, recID, limit, monitors) {
 	});
 
 	if (response.status !== 200) {
-		alert(`failed to fetch logs: ${response.status}, ${await response.text()}`);
+		alert(`failed to fetch recordings: ${response.status}, ${await response.text()}`);
 		return;
 	}
 	return await response.json();
@@ -230,33 +234,22 @@ async function fetchRecordings(abortSignal, recID, limit, monitors) {
 
 /**
  * @param {String} id
- * @return {String}
+ * @return {bigint}
  */
-function idToISOstring(id) {
-	// Input  0000-00-00_00-00-00_x
-	// Output 0000-00-00T00:00:00
-	return id.replace(
-		/(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})_.*/,
-		"$1-$2-$3T$4:$5:$6+00:00",
-	);
+function recIdToNanos(id) {
+	// Input  123_x
+	// Output 123
+	return BigInt(id.split("_")[0]);
 }
 
-/** @param {UnixNano} t */
-function dateToID(t) {
-	const d = new Date(t / NS_MILLISECOND);
-	/** @param {number} n */
-	const pad = (n) => {
-		return n < 10 ? `0${n}` : n;
-	};
-
-	const YY = d.getUTCFullYear(),
-		MM = pad(d.getUTCMonth() + 1),
-		DD = pad(d.getUTCDate()), // Day.
-		hh = pad(d.getUTCHours()),
-		mm = pad(d.getUTCMinutes()),
-		ss = pad(d.getUTCSeconds());
-
-	return `${YY}-${MM}-${DD}_${hh}-${mm}-${ss}_x`;
+/**
+ * @param {string} id
+ * @return {string}
+ */
+function recIdToMonitorId(id) {
+	// Input  123_x
+	// Output x
+	return id.split("_")[1];
 }
 
 /** @typedef {import("./libs/common.js").UiData} UiData */

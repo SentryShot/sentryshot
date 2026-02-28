@@ -1,125 +1,68 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use crate::{
-    Event, MonitorId, ParseMonitorIdError, Point, PointNormalized, Polygon, PolygonNormalized,
+    MonitorId, ParseMonitorIdError, Point, PointNormalized, Polygon, PolygonNormalized,
     time::{Duration, SECOND, UnixNano},
 };
-use jiff::{
-    Timestamp,
-    civil::{Date, DateTime, Time},
-    tz,
-};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use std::{
+    cmp::Ordering::{Equal, Greater, Less},
     num::ParseIntError,
     ops::Deref,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 use thiserror::Error;
-
-// Recording data serialized to json and saved next to video and thumbnail.
-#[allow(clippy::module_name_repetitions)]
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct RecordingData {
-    pub start: UnixNano,
-    pub end: UnixNano,
-    pub events: Vec<Event>,
-}
 
 #[derive(Clone, Hash, PartialEq, Eq)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RecordingId {
-    raw: String,
     nanos: UnixNano,
-
-    year: u16,
-    month: u8,
-    day: u8,
-    hour: u8,
-    minute: u8,
-    second: u8,
     monitor_id: MonitorId,
 }
 
 impl std::fmt::Debug for RecordingId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.raw)
+        write!(f, "{}_{}", self.nanos, self.monitor_id)
     }
 }
 
 impl std::fmt::Display for RecordingId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.raw)
+        let time = Timestamp::from(self.nanos)
+            .strftime(&format!("%Y-%m-%d_%H-%M-%S_{}", self.monitor_id))
+            .to_string();
+        write!(f, "{time}")
     }
 }
 
 impl RecordingId {
-    pub fn from_nanos(value: UnixNano, monitor_id: &MonitorId) -> Result<Self, RecordingIdError> {
-        if value.is_negative() {
-            return Err(RecordingIdError::NegativeTime(value));
+    pub fn from_nanos(nanos: UnixNano, monitor_id: MonitorId) -> Result<Self, RecordingIdError> {
+        if nanos.is_negative() {
+            return Err(RecordingIdError::NegativeTime(nanos));
         }
-        Timestamp::from(value)
-            .strftime(&format!("%Y-%m-%d_%H-%M-%S_{monitor_id}"))
-            .to_string()
-            .try_into()
-            .map(|mut id: Self| {
-                id.nanos = value;
-                id
-            })
+        Ok(Self { nanos, monitor_id })
     }
 
     #[must_use]
     pub fn zero() -> Self {
-        "1700-01-01_00-00-00_x"
-            .to_owned()
-            .try_into()
-            .expect("should be valid")
+        Self {
+            nanos: UnixNano::new(0),
+            monitor_id: MonitorId::try_from("x".to_owned()).expect("should be valid"),
+        }
     }
 
     #[must_use]
     pub fn max() -> Self {
-        "2200-01-01_00-00-00_x"
-            .to_owned()
-            .try_into()
-            .expect("should be valid")
+        Self {
+            nanos: UnixNano::new(i64::MAX),
+            monitor_id: MonitorId::try_from("x".to_owned()).expect("should be valid"),
+        }
     }
 
     #[must_use]
-    pub fn year_month_day(&self) -> [PathBuf; 3] {
-        [
-            PathBuf::from(&self.raw[..4]),   // year.
-            PathBuf::from(&self.raw[5..7]),  // month.
-            PathBuf::from(&self.raw[8..10]), // day.
-        ]
-    }
-
-    #[must_use]
-    pub fn year(&self) -> u16 {
-        self.year
-    }
-    #[must_use]
-    pub fn month(&self) -> u8 {
-        self.month
-    }
-    #[must_use]
-    pub fn day(&self) -> u8 {
-        self.day
-    }
-    #[must_use]
-    pub fn hour(&self) -> u8 {
-        self.hour
-    }
-    #[must_use]
-    pub fn minute(&self) -> u8 {
-        self.minute
-    }
-    #[must_use]
-    pub fn second(&self) -> u8 {
-        self.second
-    }
-
-    #[must_use]
-    pub fn nanos_inexact(&self) -> UnixNano {
+    pub fn nanos(&self) -> UnixNano {
         self.nanos
     }
 
@@ -129,173 +72,86 @@ impl RecordingId {
     }
 
     #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.raw
+    pub fn as_string(&self) -> String {
+        format!("{}_{}", self.nanos, self.monitor_id)
     }
 
     #[must_use]
-    pub fn as_path(&self) -> &Path {
-        Path::new(&self.raw)
+    pub fn full_path(&self) -> PathBuf {
+        Path::new(&self.level1().to_string())
+            .join(self.level2().to_string())
+            .join(self.as_string())
     }
 
+    // Unix timestamp with 12 day precision.
     #[must_use]
-    pub fn as_full_path(&self) -> PathBuf {
-        let [year, month, day] = self.year_month_day();
-        year.join(month)
-            .join(day)
-            .join(self.monitor_id().to_string())
-            .join(self.as_path())
+    pub fn level1(&self) -> u16 {
+        const LEN: usize = 16;
+        let nanos_str = self.nanos.to_string();
+        let nanos_len = nanos_str.len();
+        if nanos_len < LEN {
+            0
+        } else {
+            nanos_str[..=nanos_len - LEN]
+                .to_owned()
+                .parse()
+                .expect("valid")
+        }
     }
 
+    // Unix timestamp with 3 hour precision.
     #[must_use]
-    pub fn len(&self) -> usize {
-        self.raw.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.raw.is_empty()
+    pub fn level2(&self) -> u32 {
+        const LEN: usize = 14;
+        let nanos_str = self.nanos.to_string();
+        let nanos_len = nanos_str.len();
+        if nanos_len < LEN {
+            0
+        } else {
+            nanos_str[..=nanos_len - LEN]
+                .to_owned()
+                .parse()
+                .expect("valid")
+        }
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 #[allow(clippy::module_name_repetitions)]
 pub enum RecordingIdError {
-    #[error("invalid string: {0}")]
-    InvalidString(String),
+    #[error("too long: {0}")]
+    TooLong(usize),
 
-    #[error("invalid year: {0}")]
-    InvalidYear(ParseIntError),
-    #[error("invalid month: {0}")]
-    InvalidMonth(ParseIntError),
-    #[error("invalid day: {0}")]
-    InvalidDay(ParseIntError),
+    #[error("split timestamp and monitor ID: '{0}'")]
+    Split(String),
 
-    #[error("invalid hour: {0}")]
-    InvalidHour(ParseIntError),
-    #[error("invalid minute: {0}")]
-    InvalidMinute(ParseIntError),
-    #[error("invalid second: {0}")]
-    InvalidSecond(ParseIntError),
+    #[error("parse nanos: {0}")]
+    ParseNanos(#[from] ParseIntError),
 
     #[error("invalid monitor id: {0}")]
     InvalidMonitorId(#[from] ParseMonitorIdError),
-
-    #[error("bad year: {0}")]
-    BadYear(u16),
-    #[error("bad month: {0}")]
-    BadMonth(u8),
-    #[error("bad day: {0}")]
-    BadDay(u8),
-    #[error("bad hour: {0}")]
-    BadHour(u8),
-    #[error("bad minute: {0}")]
-    BadMinute(u8),
-    #[error("bad second: {0}")]
-    BadSecond(u8),
-
-    #[error("parse date: {0}")]
-    ParseDate(jiff::Error),
-
-    #[error("parse time: {0}")]
-    ParseTime(jiff::Error),
-
-    #[error("zoned: {0}")]
-    Zoned(jiff::Error),
-
-    #[error("can't convert to nanos: {0}")]
-    ConvertToNanos(Timestamp),
 
     #[error("time is negative: {0:?}")]
     NegativeTime(UnixNano),
 }
 
-impl TryFrom<String> for RecordingId {
-    type Error = RecordingIdError;
+impl FromStr for RecordingId {
+    type Err = RecordingIdError;
 
-    fn try_from(s: String) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         use RecordingIdError::*;
-        let b = s.as_bytes();
-        if b.len() < 20 {
-            return Err(InvalidString(s));
-        }
 
-        // "xxxx-xx-xx_xx-xx-xx_x"
-        if b[4] != b'-'
-            || b[7] != b'-'
-            || b[10] != b'_'
-            || b[13] != b'-'
-            || b[16] != b'-'
-            || b[19] != b'_'
-        {
-            return Err(InvalidString(s));
+        if 128 < s.len() {
+            // Extra resource exhaustion check.
+            return Err(TooLong(s.len()));
         }
-
-        let year: u16 = s[..4].parse().map_err(InvalidYear)?;
-        let month: u8 = s[5..7].parse().map_err(InvalidMonth)?;
-        let day: u8 = s[8..10].parse().map_err(InvalidDay)?;
-        let hour: u8 = s[11..13].parse().map_err(InvalidHour)?;
-        let minute: u8 = s[14..16].parse().map_err(InvalidMinute)?;
-        let second: u8 = s[17..19].parse().map_err(InvalidSecond)?;
-        let monitor_id = MonitorId::try_from(s[20..].to_owned())?;
-
-        let Ok(year2) = i16::try_from(year) else {
-            return Err(BadYear(year));
-        };
-        if month > 12 {
-            return Err(BadMonth(month));
-        }
-        let Ok(month2) = i8::try_from(month) else {
-            return Err(BadMonth(month));
-        };
-        if day > 31 {
-            return Err(BadDay(day));
-        }
-        let Ok(day2) = i8::try_from(day) else {
-            return Err(BadDay(day));
-        };
-        if hour > 24 {
-            return Err(BadHour(hour));
-        }
-        let Ok(hour2) = i8::try_from(hour) else {
-            return Err(BadHour(hour));
-        };
-        if minute > 60 {
-            return Err(BadMinute(minute));
-        }
-        let Ok(minute2) = i8::try_from(minute) else {
-            return Err(BadMinute(minute));
-        };
-        if second > 60 {
-            return Err(BadSecond(second));
-        }
-        let Ok(second2) = i8::try_from(second) else {
-            return Err(BadSecond(second));
+        let [nanos, m_id] = s.split('_').collect::<Vec<_>>()[..] else {
+            return Err(Split(s.to_owned()));
         };
 
-        let date = DateTime::from_parts(
-            Date::new(year2, month2, day2).map_err(ParseDate)?,
-            Time::new(hour2, minute2, second2, 0).map_err(ParseTime)?,
-        );
-        let zoned = date.to_zoned(tz::TimeZone::UTC).map_err(Zoned)?;
-        let time = zoned.timestamp();
-        let nanos = UnixNano::new(
-            time.as_nanosecond()
-                .try_into()
-                .map_err(|_| ConvertToNanos(time))?,
-        );
-
-        Ok(Self {
-            raw: s,
-            nanos,
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            monitor_id,
-        })
+        let nanos = UnixNano::new(nanos.parse::<i64>()?);
+        let m_id = MonitorId::try_from(m_id.to_owned())?;
+        RecordingId::from_nanos(nanos, m_id)
     }
 }
 
@@ -304,7 +160,7 @@ impl Serialize for RecordingId {
     where
         S: serde::Serializer,
     {
-        self.raw.serialize(serializer)
+        self.as_string().serialize(serializer)
     }
 }
 
@@ -314,7 +170,7 @@ impl<'de> Deserialize<'de> for RecordingId {
         D: serde::Deserializer<'de>,
     {
         String::deserialize(deserializer)?
-            .try_into()
+            .parse()
             .map_err(serde::de::Error::custom)
     }
 }
@@ -327,7 +183,12 @@ impl PartialOrd for RecordingId {
 
 impl Ord for RecordingId {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.raw.cmp(&other.raw)
+        match self.nanos.cmp(&other.nanos) {
+            Less => Less,
+            // Compare monitor ID if timestamp is equal.
+            Equal => self.monitor_id.cmp(&other.monitor_id),
+            Greater => Greater,
+        }
     }
 }
 
@@ -591,32 +452,31 @@ mod tests {
     use pretty_assertions::assert_eq;
     use test_case::test_case;
 
-    #[test_case("1970-01-01_00-00-00_x", 0)]
-    #[test_case("1970-01-01_00-00-00_x", SECOND-1)]
-    #[test_case("1970-01-01_00-00-01_x", SECOND)]
-    #[test_case("1970-01-01_00-00-01_x", 2*SECOND-1)]
-    #[test_case("1970-01-01_00-00-02_x", 2*SECOND)]
-    fn test_recording_id_to_and_from_nanos(id: &str, nanos: i64) {
-        let nanos = UnixNano::new(nanos);
-        let id2 = RecordingId::from_nanos(nanos, &"x".to_owned().try_into().unwrap()).unwrap();
-        assert_eq!(id, id2.as_str());
-        assert_eq!(nanos, id2.nanos_inexact());
-    }
-
     #[test]
-    fn test_recording_id_zero_and_max() {
-        // Should not panic.
-        _ = RecordingId::zero();
-        _ = RecordingId::max();
-    }
+    fn test_recording_id_full_path() {
+        let id: RecordingId = "123456789000000000_x".parse().unwrap();
 
-    #[test]
-    fn test_recording_id_as_full_path() {
-        let id: RecordingId = "2001-02-03_04-05-06_x".to_owned().try_into().unwrap();
-
-        let want = Path::new("2001/02/03/x/2001-02-03_04-05-06_x");
-        let got = id.as_full_path();
+        let want = Path::new("123/12345/123456789000000000_x");
+        let got = id.full_path();
         assert_eq!(want, got);
+    }
+
+    #[test_case(543_210_987_654_321, 0)]
+    #[test_case(6_543_210_987_654_321, 6)]
+    #[test_case(76_543_210_987_654_321, 76)]
+    fn test_recording_id_level1(nanos: i64, want: u16) {
+        let id = RecordingId::from_nanos(UnixNano::new(nanos), "x".to_owned().try_into().unwrap())
+            .unwrap();
+        assert_eq!(want, id.level1());
+    }
+
+    #[test_case(3_210_987_654_321, 0)]
+    #[test_case(43_210_987_654_321, 4)]
+    #[test_case(543_210_987_654_321, 54)]
+    fn test_recording_id_level2(nanos: i64, want: u32) {
+        let id = RecordingId::from_nanos(UnixNano::new(nanos), "x".to_owned().try_into().unwrap())
+            .unwrap();
+        assert_eq!(want, id.level2());
     }
 
     #[test_case(640, 1, 1_562)]

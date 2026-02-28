@@ -5,7 +5,7 @@
 import { fromUTC } from "../libs/time.js";
 import { uniqueID, fetchDelete, denormalize, htmlToElem } from "../libs/common.js";
 
-const millisecond = 1000000;
+const millisecond = BigInt(1000000);
 
 /**
  * @typedef {Object} RecordingData
@@ -15,16 +15,16 @@ const millisecond = 1000000;
  * @property {URL} deletePath
  * @property {string} name
  * @property {string} timeZone
- * @property {number} start
- * @property {number} end
+ * @property {bigint} start
+ * @property {bigint?} end
  * @property {Event[]} events
  */
 
 /**
  * @typedef {Object} Event
- * @property {Detection[]} detections
+ * @property {string} time
  * @property {number} duration
- * @property {number} time
+ * @property {Detection[]} detections
  */
 
 /**
@@ -71,9 +71,12 @@ function newPlayer(data, isAdmin, token, onVideoLoad) {
 	const iconMaximizePath = "assets/icons/feather/maximize.svg";
 	const iconMinimizePath = "assets/icons/feather/minimize.svg";
 
-	const detectionRenderer = newDetectionRenderer(d.start / millisecond, d.events);
+	const detectionRenderer = newDetectionRenderer(
+		Number(d.start / millisecond),
+		d.events,
+	);
 
-	const start = fromUTC(new Date(d.start / millisecond), d.timeZone);
+	const start = fromUTC(new Date(Number(d.start / millisecond)), d.timeZone);
 
 	/**
 	 * @param {Date} d
@@ -478,8 +481,8 @@ function renderEvents(data) {
 	if (!data.start || !data.end || !data.events) {
 		return [];
 	}
-	const startMs = data.start / millisecond;
-	const endMs = data.end / millisecond;
+	const startMs = Number(data.start / millisecond);
+	const endMs = Number(data.end / millisecond);
 	const offset = endMs - startMs;
 
 	const resolution = 1000;
@@ -490,8 +493,8 @@ function renderEvents(data) {
 	 */
 	const timeline = Array.from({ length: resolution }).fill(false);
 	for (const e of data.events) {
-		const eventTimeMs = e.time / millisecond;
-		const eventDurationMs = e.duration / millisecond;
+		const eventTimeMs = Number(BigInt(e.time) / millisecond);
+		const eventDurationMs = e.duration / Number(millisecond);
 
 		const startTime = eventTimeMs - startMs;
 		const endTime = eventTimeMs + eventDurationMs - startMs;
@@ -602,8 +605,8 @@ function newDetectionRenderer(startTimeMs, events) {
 			let html = "";
 			if (events) {
 				for (const e of events) {
-					const eventStartMs = e.time / millisecond;
-					const eventDurationMs = e.duration / millisecond;
+					const eventStartMs = Number(BigInt(e.time) / millisecond);
+					const eventDurationMs = e.duration / Number(millisecond);
 					const eventEndMs = eventStartMs + eventDurationMs;
 
 					if (eventStartMs <= newDurationMs && newDurationMs < eventEndMs) {

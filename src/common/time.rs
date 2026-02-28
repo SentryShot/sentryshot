@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use jiff::Timestamp;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use std::{
     fmt::Display,
     iter::Sum,
@@ -135,6 +135,27 @@ impl AddAssign for UnixNano {
 impl Display for UnixNano {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+// Javascript numbers lose precision with values larger than 2^53.
+// This serializes the timestamp as a string rather than a number.
+#[repr(transparent)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct UnixNanoString(UnixNano);
+
+impl Serialize for UnixNanoString {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.to_string().serialize(serializer)
+    }
+}
+
+impl From<UnixNano> for UnixNanoString {
+    fn from(value: UnixNano) -> Self {
+        Self(value)
     }
 }
 

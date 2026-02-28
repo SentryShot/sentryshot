@@ -749,6 +749,7 @@ mod tests {
             DummyStorage::new(),
         )
         .await
+        .unwrap()
     }
 
     fn new_test_eventdb(events_dir: &Path) -> EventDb {
