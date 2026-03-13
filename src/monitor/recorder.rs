@@ -23,7 +23,7 @@ use std::{pin::Pin, sync::Arc, task::Poll};
 use thiserror::Error;
 use tokio::{
     io::{AsyncWriteExt, BufWriter},
-    sync::{Mutex, mpsc},
+    sync::mpsc,
     time::sleep,
 };
 use tokio_util::{sync::CancellationToken, task::task_tracker::TaskTrackerToken};
@@ -37,103 +37,86 @@ pub fn new_recorder(
     monitor_id: MonitorId,
     source_main: ArcSource,
     config: MonitorConfig,
-    rec_db: Arc<RecDb>,
+    recdb: Arc<RecDb>,
 ) -> mpsc::Sender<(Duration, Event)> {
     let (send_event_tx, mut send_event_rx) = mpsc::channel::<(Duration, Event)>(1);
     let c = RecordingContext {
         hooks,
         logger: Arc::new(RecorderMsgLogger::new(logger, monitor_id)),
         source_main,
-        prev_seg: Arc::new(Mutex::new(None)),
         config,
-        rec_db,
+        recdb,
     };
 
     // Recorder actor.
     tokio::spawn(async move {
-        let task_token = task_token;
+        let _task_token = task_token;
 
-        let mut recording_session: Option<RecordingSession> = None;
-        if c.config.always_record() {
+        let mut state = if c.config.always_record() {
             c.log(LogLevel::Debug, "alwaysRecord=true");
-            recording_session = Some(RecordingSession::new(
-                &token,
-                task_token.clone(),
-                None,
-                c.clone(),
-            ));
+            State::Recording(RecordingSession::new(&token, None, c.clone(), None))
         } else {
             c.log(LogLevel::Debug, "alwaysRecord=false");
-        }
+            State::NotRecording(None)
+        };
 
         loop {
-            // Is recording.
-            if let Some(session) = &mut recording_session {
-                tokio::select! {
-                    () = token.cancelled() => {
-                        // Wait for session to exit.
-                        _ = session.on_exit_rx.recv().await;
-                        return;
-                    }
-
-                    event = send_event_rx.recv() => { // Incomming events.
-                        let Some((trigger_duration, event)) = event else {
-                            continue
-                        };
-
-
-                        let Some(end) = event.time.checked_add(trigger_duration.into()) else {
-                            continue
-                        };
-
-                        // Update timer if the monitor isn't set to always record.
-                        if let Some(timer_end) = session.timer_end {
-                            if end.after(timer_end) {
-                                c.log(LogLevel::Debug, "new event, already recording, updating timer");
-                                session.timer_end = Some(end);
-                            }
+            match state {
+                State::Recording(mut session) => {
+                    tokio::select! {
+                        () = token.cancelled() => {
+                            // Wait for session to exit.
+                            _ = session.on_exit_rx.recv().await;
+                            return;
                         }
-                    }
 
-                    // This should never complete if monitor is set to always record.
-                    () = session.sleep_until_timer_end() => {
-                        assert!(!c.config.always_record());
+                        event = send_event_rx.recv() => { // Incomming events.
+                            session.handle_event(event);
+                            state = State::Recording(session);
+                        }
 
-                        c.log(LogLevel::Debug, "timer reached end, canceling session");
-                        session.token.cancel();
+                        () = session.sleep_until_timer_end() => {
+                            assert!(!c.config.always_record());
 
-                        // Avoid sleeping again.
-                        session.on_exit_rx.recv().await;
-                        c.log(LogLevel::Debug, "session stopped");
-                        recording_session = None;
-                    }
+                            c.log(LogLevel::Debug, "timer reached end, canceling session");
+                            session.token.cancel();
 
-                    _ = session.on_exit_rx.recv() => {
-                        c.log(LogLevel::Debug, "session stopped2");
-                        recording_session = None;
+                            // Avoid sleeping again.
+                            let prev_seg = session.on_exit_rx.recv().await.expect("complete");
+                            c.log(LogLevel::Debug, "session stopped");
+                            state = State::NotRecording(prev_seg);
+                        }
+
+                        prev_seg = session.on_exit_rx.recv() => {
+                            c.log(LogLevel::Debug, "session stopped2");
+                            state = State::NotRecording(prev_seg.expect("complete"));
+                        }
                     }
                 }
-            } else {
-                tokio::select! {
-                    () = token.cancelled() => return,
-                    event = send_event_rx.recv() => { // Incomming events.
-                        let Some((trigger_duration, event)) = event else {
-                            return
-                        };
-                        let Some(end) = event.time.checked_add(trigger_duration.into()) else {
-                            continue
-                        };
-                        if !end.after(UnixNano::now()) {
-                            continue
-                        }
+                State::NotRecording(prev_seg) => {
+                    tokio::select! {
+                        () = token.cancelled() => return,
+                        event = send_event_rx.recv() => { // Incomming events.
+                            let Some((trigger_duration, event)) = event else {
+                                return
+                            };
+                            let Some(end) = event.time.checked_add(trigger_duration.into()) else {
+                                state = State::NotRecording(prev_seg);
+                                continue
+                            };
+                            if !end.after(UnixNano::now()) {
+                                state = State::NotRecording(prev_seg);
+                                continue
+                            }
 
-                        recording_session = Some(RecordingSession::new(
-                            &token,
-                            task_token.clone(),
-                            Some(end),
-                            c.clone()
-                        ));
-                    }
+                            state = State::Recording(RecordingSession::new(
+                                &token,
+                                Some(end),
+                                c.clone(),
+                                prev_seg,
+                            ));
+                        }
+                    };
                 }
             }
         }
@@ -142,43 +125,67 @@ pub fn new_recorder(
     send_event_tx
 }
 
+enum State {
+    Recording(RecordingSession),
+    NotRecording(PrevSeg),
+}
+
+type PrevSeg = Option<Segment>;
+
 struct RecordingSession {
     token: CancellationToken,
     logger: ArcMsgLogger,
-    timer_end: Option<UnixNano>,
-    on_exit_rx: mpsc::Receiver<()>,
+    timer_end: Option<UnixNano>, // None if always record.
+    on_exit_rx: mpsc::Receiver<PrevSeg>,
 }
 
 impl RecordingSession {
     fn new(
         parent_token: &CancellationToken,
-        task_token: TaskTrackerToken,
         timer_end: Option<UnixNano>,
         c: RecordingContext,
+        mut prev_seg: PrevSeg,
     ) -> Self {
         c.log(LogLevel::Debug, "starting recording session");
 
         let token = parent_token.child_token();
-        let (on_session_exit_tx, on_session_exit_rx) = mpsc::channel::<()>(1);
+        let (on_exit_tx, on_exit_rx) = mpsc::channel::<PrevSeg>(1);
         let recording_session = RecordingSession {
             token: token.clone(),
             logger: c.logger.clone(),
             timer_end,
-            on_exit_rx: on_session_exit_rx,
+            on_exit_rx,
         };
 
         tokio::spawn(async move {
-            run_recording_session(
-                token,
-                task_token.clone(),
-                c,
-                std::time::Duration::from_secs(3),
-            )
-            .await;
-            _ = on_session_exit_tx.send(()).await;
+            run_recording_session(token, c, &mut prev_seg).await;
+            on_exit_tx
+                .send(prev_seg)
+                .await
+                .expect("recorder should wait for the session to exit");
         });
 
         recording_session
+    }
+
+    fn handle_event(&mut self, event: Option<(Duration, Event)>) {
+        let Some((trigger_duration, event)) = event else {
+            return;
+        };
+
+        // Update timer if the monitor isn't set to always record.
+        if let Some(timer_end) = self.timer_end {
+            let Some(end) = event.time.checked_add(trigger_duration.into()) else {
+                return;
+            };
+            if end.after(timer_end) {
+                self.logger.log(
+                    LogLevel::Debug,
+                    "new event, already recording, updating timer",
+                );
+                self.timer_end = Some(end);
+            }
+        }
     }
 
     fn sleep_until_timer_end(&self) -> Sleep {
@@ -215,17 +222,17 @@ impl Future for Sleep {
 }
 
 async fn run_recording_session(
-    session_token: CancellationToken,
-    _task_token: TaskTrackerToken,
+    recording_session_token: CancellationToken,
     c: RecordingContext,
-    restart_sleep: std::time::Duration,
+    prev_seg: &mut PrevSeg,
 ) {
+    let restart_sleep = std::time::Duration::from_secs(3);
     loop {
-        if let Err(e) = run_recording(session_token.clone(), c.clone()).await {
+        if let Err(e) = run_recording(recording_session_token.clone(), c.clone(), prev_seg).await {
             c.log(LogLevel::Error, &format!("recording crashed: {e}"));
 
             tokio::select! {
-                () = session_token.cancelled() => return,
+                () = recording_session_token.cancelled() => return,
                 () = sleep(restart_sleep) => {}
             }
             c.log(LogLevel::Debug, "recovering after crash");
@@ -233,9 +240,9 @@ async fn run_recording_session(
         }
         c.log(LogLevel::Debug, "recording finished");
         // Recoding reached videoLength and exited normally. The timer
-        // is still active, so continue the loop and start another one.
+        // is still active, so continue the loop and start another recording.
         tokio::select! {
-            () = session_token.cancelled() => return,
+            () = recording_session_token.cancelled() => return,
             () = sleep(restart_sleep) => {}
         }
     }
@@ -258,9 +265,8 @@ struct RecordingContext {
     hooks: ArcMonitorHooks,
     logger: ArcMsgLogger,
     source_main: ArcSource,
-    prev_seg: Arc<Mutex<Option<Segment>>>,
     config: MonitorConfig,
-    rec_db: Arc<RecDb>,
+    recdb: Arc<RecDb>,
 }
 
 impl RecordingContext {
@@ -270,15 +276,16 @@ impl RecordingContext {
 }
 
 async fn run_recording(
-    token: CancellationToken,
+    recording_session_token: CancellationToken,
     c: RecordingContext,
+    prev_seg: &mut PrevSeg,
 ) -> Result<(), RunRecordingError> {
     let Some(muxer) = c.source_main.muxer().await else {
         c.log(LogLevel::Debug, "source cancelled");
         return Ok(());
     };
 
-    let Some(first_segment) = muxer.next_segment(c.prev_seg.lock().await.clone()).await else {
+    let Some(first_segment) = muxer.next_segment(prev_seg.clone()).await else {
         c.log(LogLevel::Debug, "muxer cancelled");
         return Ok(());
     };
@@ -287,7 +294,7 @@ async fn run_recording(
 
     let monitor_id = c.config.id().to_owned();
     let recording = c
-        .rec_db
+        .recdb
         .new_recording(monitor_id.clone(), start_time)
         .await?;
 
@@ -316,16 +323,16 @@ async fn run_recording(
         );
     }
 
-    let (new_prev_seg, end_time) = generate_video(
-        token,
+    let end_time = generate_video(
+        recording_session_token,
         &recording,
         &muxer,
         first_segment,
         params,
         video_length,
+        prev_seg,
     )
     .await?;
-    *c.prev_seg.lock().await = Some(new_prev_seg);
 
     c.log(
         LogLevel::Debug,
@@ -369,21 +376,21 @@ async fn generate_video(
     first_segment: Segment,
     params: &TrackParameters,
     max_duration: DurationH264,
-) -> Result<(Segment, UnixH264), GenerateVideoError> {
+    prev_seg: &mut PrevSeg,
+) -> Result<UnixH264, GenerateVideoError> {
     use GenerateVideoError::*;
-
-    let start_time = first_segment.start_time();
-
-    let stop_time = first_segment
-        .start_time()
-        .checked_add(max_duration.into())
-        .ok_or(GenerateVideoError::Add)?;
 
     let mut meta = recording.new_file("meta").await?;
     let mut meta = BufWriter::with_capacity(64 * 1024, &mut *meta);
 
     let mut mdat = recording.new_file("mdat").await?;
     let mut mdat = BufWriter::with_capacity(64 * 1024, &mut *mdat);
+
+    let start_time = first_segment.start_time();
+    let stop_time = first_segment
+        .start_time()
+        .checked_add(max_duration.into())
+        .ok_or(GenerateVideoError::Add)?;
 
     let header = MetaHeader {
         start_time,
@@ -395,36 +402,39 @@ async fn generate_video(
     let mut w = VideoWriter::new(&mut meta, &mut mdat, header).await?;
 
     w.write_frames(first_segment.frames()).await?;
-
-    let mut prev_seg = first_segment.clone();
-    let mut end_time = first_segment
+    let end_time = first_segment
         .start_time()
         .checked_add(first_segment.duration().into())
         .ok_or(Add)?;
+    recording.set_end_time(end_time);
+    let mut prev_seg_id = first_segment.id();
+    *prev_seg = Some(first_segment); // prev_seg should be updated after frames have been written.
 
     loop {
         if token.is_cancelled() {
-            return Ok((prev_seg, end_time));
+            return Ok(end_time);
         }
 
-        let Some(seg) = muxer.next_segment(Some(prev_seg.clone())).await else {
-            return Ok((prev_seg, end_time));
+        let Some(seg) = muxer.next_segment(prev_seg.clone()).await else {
+            return Ok(end_time);
         };
 
-        if seg.id() != prev_seg.id() + 1 {
-            return Err(SkippedSegment(seg.id(), prev_seg.id() + 1));
+        if seg.id() != prev_seg_id + 1 {
+            return Err(SkippedSegment(seg.id(), prev_seg_id + 1));
         }
 
-        prev_seg = seg.clone();
         w.write_frames(seg.frames()).await?;
-        end_time = seg
+        let end_time = seg
             .start_time()
             .checked_add(seg.duration().into())
             .ok_or(Add)?;
         recording.set_end_time(end_time);
+        prev_seg_id = seg.id();
+        let seg_start_time = seg.start_time();
+        *prev_seg = Some(seg);
 
-        if seg.start_time().after(stop_time) {
-            return Ok((seg, end_time));
+        if seg_start_time.after(stop_time) {
+            return Ok(end_time);
         }
     }
 }
