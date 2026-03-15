@@ -228,7 +228,8 @@ fn parse_path(path: String) -> Result<(String, String), ParsePathError> {
 #[derive(Clone)]
 pub struct VodHandlerState {
     pub logger: Arc<Logger>,
-    pub recdb: Arc<RecDb>,
+    pub recdb_main: Arc<RecDb>,
+    pub recdb_sub: Arc<RecDb>,
     pub cache: VodCache,
 }
 
@@ -239,7 +240,8 @@ pub async fn vod_handler(
 ) -> Response {
     use CreateVodReaderError::*;
     let monitor_id = query.0.monitor_id.clone();
-    let reader = match VodReader::new(&state.recdb, &state.cache, query.0).await {
+    let result = VodReader::new(&state.recdb_main, &state.recdb_sub, &state.cache, query.0);
+    let reader = match result.await {
         Ok(Some(v)) => v,
         Ok(None) => return (StatusCode::NOT_FOUND, "no video found").into_response(),
         Err(e @ (NegativeDuration | MaxDuration)) => {

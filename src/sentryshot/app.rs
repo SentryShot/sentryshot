@@ -13,7 +13,6 @@ use common::{
 use env::{EnvConf, EnvConfigNewError};
 use eventdb::EventDb;
 use hls::HlsServer;
-
 use jiff::tz::TimeZone;
 use log::{
     Logger,
@@ -118,7 +117,8 @@ pub struct App {
     monitor_manager: Arc<MonitorManager>,
     monitor_groups: ArcMonitorGroups,
     storage: ArcStorage,
-    recdb: Arc<RecDb>,
+    recdb_main: Arc<RecDb>,
+    recdb_sub: Arc<RecDb>,
     eventdb: EventDb,
     router: Router,
 }
@@ -186,10 +186,18 @@ impl App {
         let auth = new_auth(rt_handle.clone(), env.config_dir(), logger.clone())?;
 
         let storage = StorageImpl::new(env.storage_dir().to_path_buf(), env.max_disk_usage());
-        let recdb = Arc::new(
+        let recdb_main = Arc::new(
             RecDb::new(
                 logger.clone(),
                 env.storage_dir().join("recordings2").join("main"),
+                storage.clone(),
+            )
+            .await?,
+        );
+        let recdb_sub = Arc::new(
+            RecDb::new(
+                logger.clone(),
+                env.storage_dir().join("recordings2").join("sub"),
                 storage.clone(),
             )
             .await?,
@@ -228,7 +236,8 @@ impl App {
                 monitor_manager,
                 monitor_groups,
                 storage,
-                recdb,
+                recdb_main,
+                recdb_sub,
                 eventdb,
                 router,
             },
@@ -278,7 +287,7 @@ impl App {
             self.logger.clone(),
             self.monitor_manager.clone(),
             self.monitor_groups.clone(),
-            self.recdb.clone(),
+            self.recdb_main.clone(),
             templates,
             time_zone,
             self.env.flags(),
@@ -313,7 +322,8 @@ impl App {
                 "/vod/vod.mp4",
                 get(vod_handler).with_state(VodHandlerState {
                     logger: self.logger.clone(),
-                    recdb: self.recdb.clone(),
+                    recdb_main: self.recdb_main.clone(),
+                    recdb_sub: self.recdb_sub.clone(),
                     cache: VodCache::new(),
                 }),
             )
@@ -338,7 +348,7 @@ impl App {
                 "/api/recording/query",
                 get(recording_query_handler).with_state(RecordingQueryHandlerState {
                     logger: self.logger.clone(),
-                    recdb: self.recdb.clone(),
+                    recdb: self.recdb_main.clone(),
                     eventdb: self.eventdb.clone(),
                 }),
             )
@@ -386,18 +396,18 @@ impl App {
             // Recording delete.
             .route_user_no_csrf(
                 "/api/recording/delete/{*id}",
-                delete(recording_delete_handler).with_state(self.recdb.clone()),
+                delete(recording_delete_handler).with_state(self.recdb_main.clone()),
             )
             // Recording thumbnail.
             .route_user_no_csrf(
                 "/api/recording/thumbnail/{*id}",
-                get(recording_thumbnail_handler).with_state(self.recdb.clone()),
+                get(recording_thumbnail_handler).with_state(self.recdb_main.clone()),
             )
             // Recording video.
             .route_user_no_csrf(
                 "/api/recording/video/{*id}",
                 get(recording_video_handler).with_state(RecordingVideoState {
-                    rec_db: self.recdb.clone(),
+                    rec_db: self.recdb_main.clone(),
                     video_cache: Arc::new(Mutex::new(VideoCache::new())),
                     logger: self.logger.clone(),
                 }),
@@ -437,7 +447,7 @@ impl App {
         let token2 = self.token.clone();
         let task_token = self.tracker.token();
         let logger = self.logger.clone();
-        let recdb = self.recdb.clone();
+        let recdb = self.recdb_main.clone();
         let eventdb = self.eventdb.clone();
         tokio::spawn(async move {
             prune_loop(
@@ -460,7 +470,8 @@ impl App {
                 self.token.child_token(),
                 self.tracker.token(),
                 monitors_dir,
-                self.recdb.clone(),
+                self.recdb_main.clone(),
+                self.recdb_sub.clone(),
                 self.eventdb.clone(),
                 self.logger.clone(),
                 self.streamer.clone().into(),

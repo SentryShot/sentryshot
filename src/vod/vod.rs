@@ -9,7 +9,7 @@ use common::{
     time::{Duration, HOUR, UnixH264, UnixNano},
 };
 use pin_project::pin_project;
-use recdb::{CrawlerError, RecDb, RecDbQuery, RecordingResponse};
+use recdb::{CrawlerError, RecDb, RecDbQuery};
 use recording::{GenerateMp4Error, ReadMetaError, Sample, generate_mp4, read_meta};
 use serde::Deserialize;
 use std::{
@@ -31,11 +31,19 @@ use tokio::{
 pub struct VodQuery {
     #[serde(rename = "monitor-id")]
     pub monitor_id: MonitorId,
-    pub start: UnixNano,
-    pub end: UnixNano,
+    start: UnixNano,
+    end: UnixNano,
+    stream: MainOrSub,
 
     #[serde(rename = "cache-id")]
     cache_id: u32,
+}
+
+#[derive(Clone, Deserialize, Hash, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+enum MainOrSub {
+    Main,
+    Sub,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -100,7 +108,8 @@ pub enum CreateVodReaderError {
 
 impl VodReader {
     pub async fn new(
-        recdb: &RecDb,
+        recdb_main: &RecDb,
+        recdb_sub: &RecDb,
         cache: &VodCache,
         q: VodQuery,
     ) -> Result<Option<Self>, CreateVodReaderError> {
@@ -108,6 +117,10 @@ impl VodReader {
             if let Some(r) = cache.get(&q).await {
                 r
             } else {
+                let recdb = match q.stream {
+                    MainOrSub::Main => recdb_main,
+                    MainOrSub::Sub => recdb_sub,
+                };
                 let Some(r) = execute_query(recdb, &q).await? else {
                     return Ok(None);
                 };
@@ -188,11 +201,7 @@ async fn execute_query(
     let mut params = None;
 
     for rec in &recordings {
-        let RecordingResponse::Finalized(rec) = rec else {
-            continue;
-        };
-
-        let Some((meta_path, mdat_path)) = recdb.recording_video_paths(&rec.id).await else {
+        let Some((meta_path, mdat_path)) = recdb.recording_video_paths(rec.id()).await else {
             continue;
         };
 
@@ -615,6 +624,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: start_time.into(),
             end: UnixNano::from(start_time + UnixH264::new(7)) + UnixNano::new(1),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -685,6 +695,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: (start_time + UnixH264::new(4)).into(), // Second sample.
             end: UnixNano::from(start_time + UnixH264::new(7)) + UnixNano::new(1),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -752,6 +763,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: (start_time + UnixH264::new(5)).into(), // Third sample.
             end: (start_time + UnixH264::new(1_000_000)).into(),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -819,10 +831,11 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: (start_time + UnixH264::new(6)).into(), // Last sample.
             end: (start_time + UnixH264::new(1_000_000)).into(),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         assert!(
-            VodReader::new(&rec_db, &VodCache::new(), query)
+            VodReader::new(&rec_db, &rec_db, &VodCache::new(), query)
                 .await
                 .unwrap()
                 .is_none()
@@ -840,6 +853,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: start_time.into(),
             end: (start_time + UnixH264::new(SECOND)).into(),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -912,6 +926,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: start_time.into(),
             end: UnixNano::from(start_time + UnixH264::new(6)) + UnixNano::new(1), // Third sample.
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -981,9 +996,10 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: (start_time + UnixH264::new(20)).into(),
             end: start_time.into(),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
-        VodReader::new(&rec_db, &VodCache::new(), query)
+        VodReader::new(&rec_db, &rec_db, &VodCache::new(), query)
             .await
             .unwrap_err();
     }
@@ -999,9 +1015,10 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: start_time.into(),
             end: UnixNano::from(start_time) + UnixNano::new(HOUR * 13),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
-        let result = VodReader::new(&rec_db, &VodCache::new(), query).await;
+        let result = VodReader::new(&rec_db, &rec_db, &VodCache::new(), query).await;
         assert!(matches!(result, Err(CreateVodReaderError::MaxDuration)));
     }
 
@@ -1063,6 +1080,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: start_time.into(),
             end: (start_time + UnixH264::new(16)).into(),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -1229,6 +1247,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: start_time.into(),
             end: (start_time + UnixH264::new(16)).into(),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -1303,6 +1322,7 @@ mod tests {
             start: (start_time + UnixNano::new(SECOND * 10).into()).into(),
             end: UnixNano::from(start_time + UnixNano::new(SECOND * 10).into() + UnixH264::new(1))
                 + UnixNano::new(1),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -1366,6 +1386,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: (start_time + UnixNano::new(SECOND * 9).into()).into(),
             end: (start_time + UnixNano::new(SECOND * 11).into()).into(),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -1429,6 +1450,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: (start_time + UnixNano::new(SECOND * 8).into()).into(),
             end: (start_time + UnixNano::new(SECOND * 12).into()).into(),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -1565,6 +1587,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: start_time.into(),
             end: UnixNano::from(start_time + UnixH264::new(12)) + UnixNano::new(1),
+            stream: MainOrSub::Main,
             cache_id: 0,
         };
         let got = new_vod_reader_read_all(&rec_db, query).await;
@@ -1768,7 +1791,7 @@ mod tests {
 
     async fn new_vod_reader_read_all(rec_db: &RecDb, query: VodQuery) -> Vec<u8> {
         let mut out = Vec::new();
-        let mut reader = VodReader::new(rec_db, &VodCache::new(), query)
+        let mut reader = VodReader::new(rec_db, rec_db, &VodCache::new(), query)
             .await
             .unwrap()
             .unwrap();

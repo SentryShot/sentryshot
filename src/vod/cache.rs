@@ -97,6 +97,7 @@ impl State {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::MainOrSub;
     use common::time::UnixNano;
 
     fn key(v: u32) -> VodQuery {
@@ -104,6 +105,7 @@ mod tests {
             monitor_id: "x".to_owned().try_into().unwrap(),
             start: UnixNano::new(0),
             end: UnixNano::new(0),
+            stream: MainOrSub::Main,
             cache_id: v,
         }
     }

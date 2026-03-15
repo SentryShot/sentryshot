@@ -512,7 +512,13 @@
 				<div>
 					<span>&amp;end=</span>
 					<input class="js-end" type="datetime-local" style="width: 14rem" />
-
+				</div>
+				<div>
+					<span>&amp;stream=</span>
+					<select class="js-stream">
+						<option value="main">main</option>
+						<option value="sub">sub</option>
+					</select>
 					<button
 						onclick='
 				(async () => {
@@ -520,11 +526,12 @@
 					const monitorID = element.querySelector(".js-monitor-id").value;
 					const start = new Date(element.querySelector(".js-start").value).getTime() * 1000000;
 					const end = new Date(element.querySelector(".js-end").value).getTime() * 1000000;
+					const stream = element.querySelector(".js-stream").value;
 					const random = Math.floor(Math.random() * 999999);
 					const video = element.querySelector(".js-video");
 					const $pre = element.querySelector("pre");
 
-					const url = `vod/vod.mp4?monitor-id=${monitorID}&start=${start}&end=${end}&cache-id=${random}`;
+					const url = `vod/vod.mp4?monitor-id=${monitorID}&start=${start}&end=${end}&stream=${stream}&cache-id=${random}`;
 					const headers = { "range": "bytes=0-0" } // Only request a single byte.
 					const now = performance.now()
 					const res = await fetch(url, { headers });
