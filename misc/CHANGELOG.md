@@ -1,5 +1,7 @@
 ## unreleased
 
+-   mqtt: add authentication support #44
+
 ## `v0.3.10`
 
 -   fix object detection thresholds #101

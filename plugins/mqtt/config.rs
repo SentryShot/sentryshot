@@ -9,6 +9,8 @@ use toml::Value;
 pub(crate) struct Config {
     pub(crate) host: String,
     pub(crate) port: u16,
+    pub(crate) username: Option<String>,
+    pub(crate) password: Option<String>,
 }
 
 #[derive(Debug, Error)]
@@ -80,11 +82,38 @@ enable = true
 name = \"mqtt\"
 enable = true
 host = \"127.0.0.1\"
-port = 1883";
+port = 1883
+#username = \"\"
+#password = \"\"";
         assert_eq!(
             Config {
                 host: "127.0.0.1".to_owned(),
                 port: 1883,
+                username: None,
+                password: None,
+            },
+            Config::from_str(raw).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_parse_config2() {
+        let raw = "
+port = 2020
+
+[[plugin]]
+name = \"mqtt\"
+enable = true
+host = \"127.0.0.1\"
+port = 1883
+username = \"a\"
+password = \"b\"";
+        assert_eq!(
+            Config {
+                host: "127.0.0.1".to_owned(),
+                port: 1883,
+                username: Some("a".to_owned()),
+                password: Some("b".to_owned()),
             },
             Config::from_str(raw).unwrap()
         );

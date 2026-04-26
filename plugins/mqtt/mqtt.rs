@@ -79,7 +79,13 @@ impl MqttPlugin {
                 std::process::exit(1);
             }
         };
-        let options = MqttOptions::new("sentryshot", config.host, config.port);
+        let mut options = MqttOptions::new("sentryshot", config.host, config.port);
+        if config.username.is_some() || config.password.is_some() {
+            options.set_credentials(
+                config.username.unwrap_or(String::new()),
+                config.password.unwrap_or(String::new()),
+            );
+        }
         let (client, mut event_loop) = rumqttc::Client::new(options, 1);
 
         let (tx, mut rx) = mpsc::channel(64);
