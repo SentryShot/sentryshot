@@ -1,5 +1,7 @@
 ## unreleased
 
+## `v0.3.10`
+
 -   mqtt: add authentication support #44
 
 ## `v0.3.10`
